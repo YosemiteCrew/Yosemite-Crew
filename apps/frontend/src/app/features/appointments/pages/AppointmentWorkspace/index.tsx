@@ -1543,6 +1543,8 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
             <InvoiceStep
               appointmentId={appointmentId}
               organisationId={appointment.organisationId}
+              encounterId={appointment.encounterId}
+              authorId={actor.id}
               patientId={companion.id}
               parentId={companion.parent.id}
               encounter={operationalEncounter}

@@ -473,10 +473,14 @@ const VitalsForm = ({
 
   const validateDraft = () => {
     const nextErrors: Partial<Record<keyof DraftVitals, string>> = {};
-    (Object.keys(FIELD_LIMITS) as Array<keyof DraftVitals>).forEach((key) => {
-      const field = FIELD_FALLBACKS[key];
-      const error = validateNumericField(field.label, draft[key], FIELD_LIMITS[key]);
-      if (error) nextErrors[key] = error;
+    // Validate only the fields the active template renders. Errors are displayed inside the
+    // same loop, so validating a field the template omits blocks save with a message the
+    // clinician can neither see nor clear.
+    activeFields.forEach((field) => {
+      const bounds = FIELD_LIMITS[field.key];
+      if (!bounds) return;
+      const error = validateNumericField(field.label, draft[field.key], bounds);
+      if (error) nextErrors[field.key] = error;
     });
     setFieldErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;

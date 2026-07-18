@@ -377,6 +377,35 @@ describe('ChatContainer', () => {
     );
   });
 
+  it('does not reset the selection when only the onChannelSelect identity changes', async () => {
+    const { rerender } = render(
+      <ChatContainer scope="clients" onChannelSelect={() => undefined} />
+    );
+
+    await act(async () => {
+      rerender(<ChatContainer scope="clients" onChannelSelect={() => undefined} />);
+    });
+
+    // Callers pass an inline arrow, so a fresh identity arrives on every parent
+    // render; only a scope change may clear the active channel.
+    expect(screen.queryByText('Your conversations live here')).not.toBeInTheDocument();
+  });
+
+  it('clears the selection through the latest callback when the scope changes', async () => {
+    const firstCallback = jest.fn();
+    const latestCallback = jest.fn();
+    const { rerender } = render(
+      <ChatContainer scope="colleagues" onChannelSelect={firstCallback} />
+    );
+
+    await act(async () => {
+      rerender(<ChatContainer scope="clients" onChannelSelect={latestCallback} />);
+    });
+
+    await waitFor(() => expect(latestCallback).toHaveBeenCalledWith(null));
+    expect(firstCallback).not.toHaveBeenCalled();
+  });
+
   it('searches and starts direct chat (creates new)', async () => {
     // Force queryChannels to return empty so it doesn't find existing chat
     mockClient.queryChannels.mockResolvedValue([]);

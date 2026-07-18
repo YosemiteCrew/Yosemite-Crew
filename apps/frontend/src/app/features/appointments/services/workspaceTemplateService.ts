@@ -636,10 +636,17 @@ export const extractFollowUpInDays = (
   return undefined;
 };
 
+/**
+ * Upper bound on a template's follow-up offset. A decade is already far beyond any real
+ * clinical follow-up, and an unbounded value pushes the computed date past the range Date
+ * can represent, which yields an Invalid Date rather than a usable prefill.
+ */
+const MAX_FOLLOW_UP_IN_DAYS = 3650;
+
 const getFollowUpDays = (fieldDefaultValue: unknown): number | undefined => {
   const value =
     typeof fieldDefaultValue === 'number' ? fieldDefaultValue : Number(fieldDefaultValue);
-  return Number.isFinite(value) && value > 0 ? value : undefined;
+  return Number.isFinite(value) && value > 0 && value <= MAX_FOLLOW_UP_IN_DAYS ? value : undefined;
 };
 
 export const getWorkspaceTemplateById = async (organisationId: string, templateId: string) => {

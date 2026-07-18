@@ -557,6 +557,7 @@ const useSummaryStepContent = ({
       if (!followUpInDays || encounter.followUpAt) return;
       const next = new Date();
       next.setDate(next.getDate() + followUpInDays);
+      if (Number.isNaN(next.getTime())) return;
       setFollowUp(appointmentId, next.toISOString());
     },
     [appointmentId, encounter.followUpAt, setFollowUp]

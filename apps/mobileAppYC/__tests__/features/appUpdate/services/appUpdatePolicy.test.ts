@@ -144,7 +144,7 @@ describe('appUpdatePolicy', () => {
     expect(prompt?.storeUrl).toBe('market://details?id=com.yc.bundle');
   });
 
-  it('downgrades forced update to optional when iOS store URL cannot be resolved', () => {
+  it('downgrades a forced update to optional when the iOS store URL cannot be resolved', () => {
     (Platform as {OS: string}).OS = 'ios';
 
     const prompt = evaluateAppUpdatePrompt(
@@ -154,6 +154,29 @@ describe('appUpdatePolicy', () => {
         appUpdate: {
           enabled: true,
           force: true,
+        },
+      },
+      '1.0.0',
+      1,
+      'com.yc.bundle',
+    );
+
+    // Without a store URL the required sheet would trap the user (non-dismissible
+    // with no working action), so the prompt must stay dismissible.
+    expect(prompt?.kind).toBe('optional');
+    expect(prompt?.storeUrl).toBeNull();
+  });
+
+  it('downgrades a minimum-version update to optional when no store url resolves', () => {
+    (Platform as {OS: string}).OS = 'web';
+
+    const prompt = evaluateAppUpdatePrompt(
+      {
+        env: 'production',
+        enablePayments: true,
+        appUpdate: {
+          enabled: true,
+          minimumSupportedVersion: '2.0.0',
         },
       },
       '1.0.0',

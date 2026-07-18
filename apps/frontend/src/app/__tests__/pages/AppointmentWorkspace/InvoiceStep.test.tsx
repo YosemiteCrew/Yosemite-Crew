@@ -97,6 +97,7 @@ const invoiceServiceMock = {
   sendInvoiceToClient: jest.fn(),
   findOpenAppointmentInvoice: jest.fn(),
   addLineItemsToAppointments: jest.fn(),
+  getFinanceInvoiceById: jest.fn(),
 };
 jest.mock('@/app/features/billing/services/invoiceService', () => ({
   createFinanceInvoice: (...args: unknown[]) => invoiceServiceMock.createFinanceInvoice(...args),
@@ -112,10 +113,18 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
     invoiceServiceMock.findOpenAppointmentInvoice(...args),
   addLineItemsToAppointments: (...args: unknown[]) =>
     invoiceServiceMock.addLineItemsToAppointments(...args),
+  getFinanceInvoiceById: (...args: unknown[]) => invoiceServiceMock.getFinanceInvoiceById(...args),
 }));
 
-jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+const clinicalServiceMock = {
   deletePrescriptionArtifact: jest.fn(),
+  savePrescriptionArtifact: jest.fn(),
+};
+jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  deletePrescriptionArtifact: (...args: unknown[]) =>
+    clinicalServiceMock.deletePrescriptionArtifact(...args),
+  savePrescriptionArtifact: (...args: unknown[]) =>
+    clinicalServiceMock.savePrescriptionArtifact(...args),
 }));
 
 jest.mock('@/app/features/inventory/services/inventoryService', () => ({
@@ -164,7 +173,6 @@ jest.mock('@/app/stores/inventoryStore', () => ({
 }));
 
 import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
-import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
@@ -307,6 +315,10 @@ describe('<InvoiceStep /> component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // The real store returns the id it assigns a new bill line; the interlink
+    // save path relies on it to link the line to its prescription.
+    workspaceStoreMock.addInvoiceLineItem.mockReturnValue('inv-added');
+
     (useAppointmentWorkspaceStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(workspaceStoreMock)
     );
@@ -434,10 +446,51 @@ describe('<InvoiceStep /> component', () => {
     });
 
     await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalledWith('inv-new'));
-    // handleCollect overwrites the "Payment link generated:" confirmation set inside
-    // runOnlineCollection with a final "<label> recorded" message once it resolves.
-    expect(await screen.findByText(/paid online recorded/i)).toBeInTheDocument();
+    expect(await screen.findByText(/payment link generated/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /checkout.example\/pay/i })).toBeInTheDocument();
+  });
+
+  it('hydrates a server-loaded open invoice over the web route before appending lines', async () => {
+    // findOpenAppointmentInvoice reads useInvoiceStore only, so a server-hydrated invoice is
+    // absent there. addLineItemsToAppointments would then fall back to the mobile-auth /seed
+    // route, which rejects a PMS user; getFinanceInvoiceById puts it in the store first.
+    const serverInvoice = pastInvoice('UNPAID', ['Consultation']);
+    invoiceServiceMock.findOpenAppointmentInvoice.mockReturnValue(undefined);
+    invoiceServiceMock.getFinanceInvoiceById.mockResolvedValue({ id: serverInvoice.id });
+
+    renderInvoiceStep({
+      invoiceLineItems: [invoiceLine('Consultation')],
+      pastInvoices: [serverInvoice],
+    });
+    await screen.findByTestId('total-bill-container');
+
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'Cash' }));
+      await userEvent.click(screen.getByRole('button', { name: /^Collect \$/ }));
+    });
+
+    await waitFor(() =>
+      expect(invoiceServiceMock.getFinanceInvoiceById).toHaveBeenCalledWith(serverInvoice.id)
+    );
+    expect(invoiceServiceMock.addLineItemsToAppointments).toHaveBeenCalled();
+    // The open invoice is reused, so no duplicate invoice is created.
+    expect(invoiceServiceMock.createFinanceInvoice).not.toHaveBeenCalled();
+  });
+
+  it('does not report an online checkout as paid before the provider settles it', async () => {
+    renderInvoiceStep({
+      invoiceLineItems: [invoiceLine('Consultation')],
+    });
+    await screen.findByTestId('total-bill-container');
+
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: /^Collect \$/ }));
+    });
+
+    await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalledWith('inv-new'));
+    // Opening Stripe checkout is not settlement — only the confirmed payment progress is.
+    expect(screen.queryByText(/paid online recorded/i)).not.toBeInTheDocument();
+    expect(workspaceStoreMock.recordInvoicePayment).not.toHaveBeenCalled();
   });
 
   it('disables cash/online payment actions when not ready for billing', async () => {
@@ -560,6 +613,113 @@ describe('<InvoiceStep /> component', () => {
 
     // Re-render with the same encounter must not re-seed the same line.
     expect(workspaceStoreMock.addInvoiceLineItem).toHaveBeenCalledTimes(1);
+  });
+
+  // The bill/prescription interlink backfills a prescription row when a dispensable drug is
+  // billed without one. Treatment has already run its save pass by the time the bill is built,
+  // so the row must be persisted here or it is lost on refresh.
+  describe('prescription backfill from the bill', () => {
+    const seedDispensableDrug = () => {
+      inventoryStoreState.itemIdsByOrgId = { 'org-1': ['inv-1'] };
+      inventoryStoreState.itemsById = {
+        'inv-1': {
+          id: 'inv-1',
+          basicInfo: { name: 'Manual add', itemType: 'Drug' },
+          pricing: { selling: 5 },
+          stock: {},
+        },
+      };
+    };
+
+    const clickAddManualItem = async () => {
+      await screen.findByTestId('total-bill-container');
+      await act(async () => {
+        await userEvent.click(screen.getByRole('button', { name: 'Add manual item' }));
+      });
+    };
+
+    it('persists the backfilled prescription and seeds the store with the backend id', async () => {
+      seedDispensableDrug();
+      clinicalServiceMock.savePrescriptionArtifact.mockResolvedValue({ id: 'rx-server-1' });
+
+      renderInvoiceStep({}, { encounterId: 'enc-1', authorId: 'vet-1' });
+      await clickAddManualItem();
+
+      await waitFor(() =>
+        expect(clinicalServiceMock.savePrescriptionArtifact).toHaveBeenCalledWith(
+          expect.objectContaining({
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            encounterId: 'enc-1',
+            authorId: 'vet-1',
+          }),
+          expect.objectContaining({ medicineName: 'Manual add' })
+        )
+      );
+      await waitFor(() =>
+        expect(workspaceStoreMock.addPrescription).toHaveBeenCalledWith(
+          'appt-1',
+          expect.objectContaining({ medicineName: 'Manual add' }),
+          'rx-server-1'
+        )
+      );
+      // The bill line is linked to the saved prescription so removing it deletes
+      // the persisted draft instead of orphaning it.
+      await waitFor(() =>
+        expect(workspaceStoreMock.updateInvoiceLineItem).toHaveBeenCalledWith(
+          'appt-1',
+          'inv-added',
+          { sourcePrescriptionId: 'rx-server-1' }
+        )
+      );
+    });
+
+    it('does not link the bill line when the prescription save fails', async () => {
+      seedDispensableDrug();
+      clinicalServiceMock.savePrescriptionArtifact.mockRejectedValue(new Error('boom'));
+
+      renderInvoiceStep();
+      await clickAddManualItem();
+
+      await waitFor(() => expect(mockNotify).toHaveBeenCalledWith('error', expect.anything()));
+      expect(workspaceStoreMock.updateInvoiceLineItem).not.toHaveBeenCalledWith(
+        'appt-1',
+        'inv-added',
+        expect.objectContaining({ sourcePrescriptionId: expect.anything() })
+      );
+    });
+
+    it('keeps the prescription row and notifies when persisting it fails', async () => {
+      seedDispensableDrug();
+      clinicalServiceMock.savePrescriptionArtifact.mockRejectedValue(new Error('boom'));
+
+      renderInvoiceStep();
+      await clickAddManualItem();
+
+      await waitFor(() => expect(mockNotify).toHaveBeenCalledWith('error', expect.anything()));
+      expect(workspaceStoreMock.addPrescription).toHaveBeenCalledWith(
+        'appt-1',
+        expect.objectContaining({ medicineName: 'Manual add' })
+      );
+    });
+
+    it('does not backfill a prescription for a non-dispensable item', async () => {
+      inventoryStoreState.itemIdsByOrgId = { 'org-1': ['inv-1'] };
+      inventoryStoreState.itemsById = {
+        'inv-1': {
+          id: 'inv-1',
+          basicInfo: { name: 'Manual add', itemType: 'Consumable' },
+          pricing: { selling: 5 },
+          stock: {},
+        },
+      };
+
+      renderInvoiceStep();
+      await clickAddManualItem();
+
+      expect(clinicalServiceMock.savePrescriptionArtifact).not.toHaveBeenCalled();
+      expect(workspaceStoreMock.addPrescription).not.toHaveBeenCalled();
+    });
   });
 
   it('shows the incomplete-medications warning and blocks Summary', async () => {
@@ -710,7 +870,9 @@ describe('<InvoiceStep /> component', () => {
     });
 
     await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalledWith('inv-new'));
-    expect(await screen.findByText(/paid online recorded/i)).toBeInTheDocument();
+    // An empty checkout URL is not settlement — the online path reports the prepared
+    // link, never a "recorded" payment (settlement is confirmed by payment progress).
+    expect(await screen.findByText(/payment link generated/i)).toBeInTheDocument();
     // No checkout link is surfaced when the service returns an empty URL.
     expect(screen.queryByRole('link', { name: /checkout/i })).not.toBeInTheDocument();
   });
@@ -727,7 +889,7 @@ describe('<InvoiceStep /> component', () => {
     await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
     // Without an invoice id there is no payment link to fetch.
     expect(invoiceServiceMock.getPaymentLink).not.toHaveBeenCalled();
-    expect(await screen.findByText(/paid online recorded/i)).toBeInTheDocument();
+    expect(await screen.findByText(/invoice prepared for online payment/i)).toBeInTheDocument();
   });
 
   it('records an online deposit even when no checkout link is generated', async () => {
@@ -1048,7 +1210,10 @@ describe('<InvoiceStep /> component', () => {
 
     expect(workspaceStoreMock.removePrescription).toHaveBeenCalledWith('appt-1', 'rx-persisted');
     await waitFor(() =>
-      expect(deletePrescriptionArtifact).toHaveBeenCalledWith('org-1', 'rx-persisted')
+      expect(clinicalServiceMock.deletePrescriptionArtifact).toHaveBeenCalledWith(
+        'org-1',
+        'rx-persisted'
+      )
     );
   });
 
@@ -1062,11 +1227,13 @@ describe('<InvoiceStep /> component', () => {
     });
 
     expect(workspaceStoreMock.removePrescription).toHaveBeenCalledWith('appt-1', 'local-rx-1');
-    expect(deletePrescriptionArtifact).not.toHaveBeenCalled();
+    expect(clinicalServiceMock.deletePrescriptionArtifact).not.toHaveBeenCalled();
   });
 
   it('warns when a finalized prescription cannot be removed (409)', async () => {
-    (deletePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({ response: { status: 409 } });
+    clinicalServiceMock.deletePrescriptionArtifact.mockRejectedValueOnce({
+      response: { status: 409 },
+    });
     const line = { ...invoiceLine('Amoxicillin'), sourcePrescriptionId: 'rx-409' };
     renderInvoiceStep({ invoiceLineItems: [line] });
     await screen.findByTestId('total-bill-container');
@@ -1084,7 +1251,7 @@ describe('<InvoiceStep /> component', () => {
   });
 
   it('warns on a generic failure to remove a linked prescription', async () => {
-    (deletePrescriptionArtifact as jest.Mock).mockRejectedValueOnce(new Error('network'));
+    clinicalServiceMock.deletePrescriptionArtifact.mockRejectedValueOnce(new Error('network'));
     const line = { ...invoiceLine('Amoxicillin'), sourcePrescriptionId: 'rx-500' };
     renderInvoiceStep({ invoiceLineItems: [line] });
     await screen.findByTestId('total-bill-container');

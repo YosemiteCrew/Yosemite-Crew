@@ -11,6 +11,11 @@ import Primary from '@/app/ui/primitives/Buttons/Primary';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useSearchStore } from '@/app/stores/searchStore';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+
+const SPECIALITIES_SKELETON = <PageSkeleton variant="settings" />;
 
 const getSpecialitiesEmptyMessage = (status: string, searchQuery: string): string => {
   if (status === 'loading') return 'Loading specialities...';
@@ -117,4 +122,14 @@ const SpecialitiesRevamp = () => {
   );
 };
 
-export default SpecialitiesRevamp;
+const ProtectedSpecialities = () => {
+  return (
+    <ProtectedRoute skeleton={SPECIALITIES_SKELETON}>
+      <OrgGuard skeleton={SPECIALITIES_SKELETON}>
+        <SpecialitiesRevamp />
+      </OrgGuard>
+    </ProtectedRoute>
+  );
+};
+
+export default ProtectedSpecialities;

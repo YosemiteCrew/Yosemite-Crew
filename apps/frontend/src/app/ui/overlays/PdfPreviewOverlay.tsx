@@ -26,9 +26,13 @@ const PdfPreviewOverlay = ({
   onDownload,
   onClose,
 }: PdfPreviewOverlayProps) => {
-  const [loaded, setLoaded] = useState(false);
+  // Tracked by URL rather than as a plain boolean: keying the iframe remounts the
+  // frame but leaves this state untouched, so a second PDF would skip the loader.
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const safePdfUrl = getSafePdfPreviewUrl(pdfUrl, { allowBlob: true });
   if (!open || !safePdfUrl || typeof document === 'undefined') return null;
+
+  const loaded = loadedUrl === safePdfUrl;
 
   return createPortal(
     <div
@@ -77,7 +81,7 @@ const PdfPreviewOverlay = ({
             sandbox="allow-downloads allow-scripts"
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
-            onLoad={() => setLoaded(true)}
+            onLoad={() => setLoadedUrl(safePdfUrl)}
           />
         </div>
       </div>

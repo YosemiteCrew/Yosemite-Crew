@@ -12,11 +12,13 @@ jest.mock("../../src/services/audit-trail.service", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
     task: {
       create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     taskCompletion: {
       create: jest.fn(),
@@ -57,11 +59,13 @@ jest.mock("../../src/utils/logger", () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
+  $transaction: jest.Mock;
   task: {
     create: jest.Mock;
     findFirst: jest.Mock;
     findMany: jest.Mock;
     update: jest.Mock;
+    updateMany: jest.Mock;
   };
   taskCompletion: {
     create: jest.Mock;
@@ -1084,6 +1088,117 @@ describe("TaskService", () => {
       expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
         where: { id: "task-1", organisationId: "org-1" },
       });
+    });
+  });
+
+  // A recurrence scope fans one authorized task id out across the series.
+  // Ownership was only proven for the URL task, so the other rows must be
+  // re-checked before they are written.
+  describe("recurring series ownership", () => {
+    const seriesTask = (overrides: Record<string, unknown> = {}) => ({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "actor-1",
+      assignedTo: "actor-1",
+      dueAt: new Date("2026-02-01T09:00:00.000Z"),
+      status: "PENDING",
+      recurrence: { type: "DAILY", isMaster: true },
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("rejects scope=ALL when the series contains a row the actor does not own", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(seriesTask() as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        seriesTask(),
+        seriesTask({
+          id: "task-2",
+          createdBy: "someone-else",
+          assignedTo: "someone-else",
+          dueAt: new Date("2026-02-02T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+      ] as never);
+
+      await expect(
+        TaskService.updateTask(
+          "task-1",
+          { name: "hijacked" },
+          "actor-1",
+          "ALL",
+          "org-1",
+        ),
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("rejects deleteTask scope=ALL when a series row is not owned", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(seriesTask() as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        {
+          id: "task-1",
+          dueAt: new Date("2026-02-01T09:00:00.000Z"),
+          createdBy: "actor-1",
+          assignedTo: "actor-1",
+        },
+        {
+          id: "task-2",
+          dueAt: new Date("2026-02-02T09:00:00.000Z"),
+          createdBy: "someone-else",
+          assignedTo: "someone-else",
+        },
+      ] as never);
+
+      await expect(
+        TaskService.deleteTask("task-1", "actor-1", "ALL", "org-1"),
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("scopes the deleteTask lookup to the supplied organisationId", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        TaskService.deleteTask("task-1", "actor-1", "THIS", "org-1"),
+      ).rejects.toThrow("Task not found");
+
+      expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
+        where: { id: "task-1", organisationId: "org-1" },
+      });
+    });
+
+    it("allows scope=ALL when the actor owns every row", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(seriesTask() as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        seriesTask(),
+        seriesTask({
+          id: "task-2",
+          dueAt: new Date("2026-02-02T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+      ] as never);
+      const txUpdate = jest
+        .fn()
+        .mockResolvedValue(seriesTask({ name: "renamed" }));
+      mockedPrisma.$transaction.mockImplementationOnce(
+        async (cb: (tx: unknown) => Promise<unknown>) =>
+          cb({ task: { update: txUpdate } }),
+      );
+
+      await TaskService.updateTask(
+        "task-1",
+        { name: "renamed" },
+        "actor-1",
+        "ALL",
+        "org-1",
+      );
+
+      expect(txUpdate).toHaveBeenCalledTimes(2);
     });
   });
 });

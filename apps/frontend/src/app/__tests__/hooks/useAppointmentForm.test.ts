@@ -692,6 +692,28 @@ describe('useAppointmentForm', () => {
     expect(errors.serviceId).toBeDefined();
   });
 
+  it.each([
+    ['an empty', ''],
+    ['a whitespace-only', '   '],
+  ])('validateForm rejects %s service id', (_label, serviceId) => {
+    // The hook itself assigns id: '' when a slot-scoped service is not bookable, so a blank
+    // id must fail the same check as a missing one rather than reach createAppointment.
+    const { result } = renderHook(() => useAppointmentForm());
+    act(() => {
+      result.current.setFormData((prev) => ({
+        ...prev,
+        appointmentType: {
+          id: serviceId,
+          name: 'Cleaning',
+          speciality: { id: 'spec-dental', name: 'Dental' },
+        } as any,
+      }));
+    });
+
+    const errors = result.current.validateForm(false);
+    expect(errors.serviceId).toBe('Please select a service');
+  });
+
   it('validateForm requires concern', () => {
     const { result } = renderHook(() => useAppointmentForm());
     const errors = result.current.validateForm(false);

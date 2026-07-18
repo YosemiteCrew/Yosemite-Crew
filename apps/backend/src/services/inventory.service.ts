@@ -1873,10 +1873,12 @@ export const InventoryService = {
       });
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
+    // Reservations are tracked on the item (see allocateStock), not on batches,
+    // so consumption must not recompute `allocated` from the batch rows.
+    const { onHand } = await recomputeStockFromBatches(safeItemId);
     const updated = await prisma.inventoryItem.update({
       where: { id: safeItemId },
-      data: { onHand, allocated },
+      data: { onHand },
     });
 
     return {

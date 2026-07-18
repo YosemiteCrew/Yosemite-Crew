@@ -29,6 +29,7 @@ export function MessageSearch() {
     const trimmed = query.trim();
     if (!open || !trimmed || !channel) {
       setResults([]);
+      setSearching(false);
       return;
     }
     let active = true;

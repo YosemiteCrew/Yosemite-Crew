@@ -483,6 +483,56 @@ const getTemplateOrUndefined = async (
   }
 };
 
+/**
+ * The mobile submit route carries no organisation context, so the template id is
+ * a bare identifier chosen by the caller. Submitting it creates (and completes)
+ * a template instance inside the template's own organisation, which is a write
+ * into whatever tenant owns that id. The parent must therefore be shown to have
+ * been asked for this form before the instance is created.
+ */
+const assertTemplateSubmittableByParent = async (params: {
+  organisationId: string;
+  templateId: string;
+  parentId: string;
+  appointmentId?: string;
+}) => {
+  if (params.appointmentId) {
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: params.appointmentId,
+        organisationId: params.organisationId,
+      },
+      select: { patient: true },
+    });
+
+    if (
+      !appointment ||
+      resolveAppointmentParentId(appointment) !== params.parentId
+    ) {
+      throw new FormServiceError("Forbidden", 403);
+    }
+  }
+
+  // With an appointment the parent link is already proven above, so the
+  // assignment only has to exist for it. Without one there is no such anchor and
+  // the assignment itself must name the parent as the signer.
+  const assignment = await prisma.formAssignment.findFirst({
+    where: {
+      organisationId: params.organisationId,
+      templateId: params.templateId,
+      status: { notIn: ["CANCELLED", "EXPIRED"] },
+      ...(params.appointmentId
+        ? { appointmentId: params.appointmentId }
+        : { signerUserId: params.parentId }),
+    },
+    select: { id: true },
+  });
+
+  if (!assignment) {
+    throw new FormServiceError("Forbidden", 403);
+  }
+};
+
 const pushAppointmentFormIdInPostgres = async (
   appointmentId: string,
   formId: string,
@@ -902,6 +952,89 @@ const syncFormFields = async (formId: string, schema: FormField[]) => {
   }
 };
 
+// A submission whose form id resolves to a template (not a concrete form) is
+// written as a template instance instead of a form submission. Extracted from
+// `submitFHIR` so that method stays within its cognitive-complexity budget; the
+// caller reaches here only after confirming the id is not a concrete form.
+const submitViaTemplateInstance = async (
+  formIdString: string,
+  submission: FormSubmission,
+  actor?: { parentId: string } | { organisationId: string },
+): Promise<FormSubmission> => {
+  const template = await getTemplateOrUndefined(formIdString);
+  if (!template?.organisationId) {
+    throw new FormServiceError("Form not found", 404);
+  }
+
+  if (actor && "parentId" in actor) {
+    await assertTemplateSubmittableByParent({
+      organisationId: template.organisationId,
+      templateId: formIdString,
+      parentId: actor.parentId,
+      appointmentId: submission.appointmentId ?? undefined,
+    });
+  }
+
+  // RBAC on the PMS submit route authorizes the organisation the caller
+  // named, but the instance below is written into the template's own
+  // organisation. Without this they can diverge.
+  if (
+    actor &&
+    "organisationId" in actor &&
+    template.organisationId !== actor.organisationId
+  ) {
+    throw new FormServiceError("Form not found", 404);
+  }
+
+  const submittedBy = submission.submittedBy ?? submission.parentId;
+  const instance = await TemplateService.createInstance({
+    templateId: formIdString,
+    organisationId: template.organisationId,
+    appointmentId: submission.appointmentId ?? undefined,
+    authorId: submittedBy ?? undefined,
+    data: submission.answers,
+  });
+
+  const completed = await TemplateService.updateInstance(
+    instance.id,
+    {
+      data: submission.answers,
+      status: "COMPLETED",
+    },
+    template.organisationId,
+  );
+
+  try {
+    await FormAssignmentService.markSubmittedFromSubmission({
+      organisationId: template.organisationId,
+      templateId: formIdString,
+      templateVersion:
+        completed.templateVersion ??
+        instance.templateVersion ??
+        submission.formVersion,
+      appointmentId: submission.appointmentId ?? undefined,
+      companionId: submission.patientId ?? submission.companionId ?? undefined,
+      parentId: submission.parentId ?? undefined,
+      submittedAt: submission.submittedAt,
+    });
+  } catch (error) {
+    logger.warn("Failed to sync template form assignment submission status", {
+      error,
+      formId: formIdString,
+      appointmentId: submission.appointmentId ?? null,
+    });
+  }
+
+  return {
+    ...submission,
+    _id: completed.id ?? instance.id,
+    formVersion:
+      completed.templateVersion ??
+      instance.templateVersion ??
+      submission.formVersion,
+  };
+};
+
 export const FormService = {
   hasSignatureField(fields?: FormField[]): boolean {
     if (!fields?.length) return false;
@@ -1114,6 +1247,7 @@ export const FormService = {
     response: FormSubmissionRequestDTO,
     schema?: FormField[],
     submittedByOverride?: string,
+    actor?: { parentId: string } | { organisationId: string },
   ): Promise<FormSubmission> {
     const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
@@ -1148,62 +1282,7 @@ export const FormService = {
     });
 
     if (!formOrganisation) {
-      const template = await getTemplateOrUndefined(formIdString);
-      if (!template?.organisationId) {
-        throw new FormServiceError("Form not found", 404);
-      }
-
-      const submittedBy = submission.submittedBy ?? submission.parentId;
-      const instance = await TemplateService.createInstance({
-        templateId: formIdString,
-        organisationId: template.organisationId,
-        appointmentId: submission.appointmentId ?? undefined,
-        authorId: submittedBy ?? undefined,
-        data: submission.answers,
-      });
-
-      const completed = await TemplateService.updateInstance(
-        instance.id,
-        {
-          data: submission.answers,
-          status: "COMPLETED",
-        },
-        template.organisationId,
-      );
-
-      try {
-        await FormAssignmentService.markSubmittedFromSubmission({
-          organisationId: template.organisationId,
-          templateId: formIdString,
-          templateVersion:
-            completed.templateVersion ??
-            instance.templateVersion ??
-            submission.formVersion,
-          appointmentId: submission.appointmentId ?? undefined,
-          companionId:
-            submission.patientId ?? submission.companionId ?? undefined,
-          parentId: submission.parentId ?? undefined,
-          submittedAt: submission.submittedAt,
-        });
-      } catch (error) {
-        logger.warn(
-          "Failed to sync template form assignment submission status",
-          {
-            error,
-            formId: formIdString,
-            appointmentId: submission.appointmentId ?? null,
-          },
-        );
-      }
-
-      return {
-        ...submission,
-        _id: completed.id ?? instance.id,
-        formVersion:
-          completed.templateVersion ??
-          instance.templateVersion ??
-          submission.formVersion,
-      };
+      return submitViaTemplateInstance(formIdString, submission, actor);
     }
 
     const created = await prisma.formSubmission.create({

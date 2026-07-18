@@ -251,6 +251,16 @@ type AppointmentListFilters = {
   endDate?: Date;
 };
 
+/**
+ * Read scope for a single appointment. The union makes `organisationId` or
+ * `parentId` mandatory: without one of them the lookup would resolve an
+ * appointment by id alone and hand it to any authenticated caller. `actorId`
+ * only narrows an organisation scope, so it cannot stand in for either.
+ */
+type AppointmentAccessScope =
+  | { organisationId: string; actorId?: string; parentId?: string }
+  | { organisationId?: string; actorId?: string; parentId: string };
+
 const DEFAULT_KIND: AppointmentKind = "OUTPATIENT";
 const UNPAID_INVOICE_STATUSES = new Set([
   "PENDING",
@@ -1591,7 +1601,22 @@ const approveRequestedFromPmsInTransaction = async (args: {
 };
 
 export const AppointmentPrismaService = {
-  async createRequestedFromMobile(dto: AppointmentRequestDTO) {
+  async createRequestedFromMobile(
+    dto: AppointmentRequestDTO,
+    authParentId: string,
+  ) {
+    if (!authParentId) {
+      throw new AppointmentPrismaServiceError("authParentId is required", 400);
+    }
+
+    const requestedParentId = fromAppointmentRequestDTO(dto).patient.parent?.id;
+    if (requestedParentId !== authParentId) {
+      throw new AppointmentPrismaServiceError(
+        "You are not allowed to book appointments for this parent.",
+        403,
+      );
+    }
+
     return createAppointment(dto, "REQUESTED");
   },
 
@@ -1633,11 +1658,15 @@ export const AppointmentPrismaService = {
       if (resolvedPaymentCollectionMethod === "PAYMENT_LINK") {
         await InvoiceService.createCheckoutSessionAndEmailParent(invoice.id);
       } else if (resolvedPaymentCollectionMethod === "PAYMENT_INTENT") {
-        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id);
+        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id, {
+          organisationId: invoice.organisationId,
+        });
       }
     }
 
-    return AppointmentPrismaService.getById(appointmentId);
+    return AppointmentPrismaService.getById(appointmentId, {
+      organisationId: fromAppointmentRequestDTO(dto).organisationId,
+    });
   },
 
   async approveRequestedFromPms(
@@ -1761,13 +1790,19 @@ export const AppointmentPrismaService = {
     return toResponse(updated as AppointmentRow);
   },
 
-  async checkInAppointment(appointmentId: string) {
+  async checkInAppointment(appointmentId: string, organisationId: string) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -1797,10 +1832,17 @@ export const AppointmentPrismaService = {
 
   async admitAppointmentToInpatient(
     appointmentId: string,
+    organisationId: string,
     input?: AdmitRequestInput,
   ) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
     }
 
     const admittedAt = input?.admittedAt ?? new Date();
@@ -1826,6 +1868,9 @@ export const AppointmentPrismaService = {
         current as AppointmentRow | null,
         "Appointment not found",
       );
+      if (row.organisationId !== organisationId) {
+        throw new AppointmentPrismaServiceError("Appointment not found", 404);
+      }
 
       const rowEncounterId = normalizeOptionalString(row.encounterId);
       if (!rowEncounterId) {
@@ -2128,7 +2173,9 @@ export const AppointmentPrismaService = {
     });
 
     if (patch.status === "COMPLETED") {
-      await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+      await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
+        organisationId: row.organisationId,
+      });
     }
 
     return toResponse(updated as AppointmentRow);
@@ -2209,9 +2256,7 @@ export const AppointmentPrismaService = {
 
   async getById(
     appointmentId: string,
-    organisationId?: string,
-    actorId?: string,
-    parentId?: string,
+    scope: AppointmentAccessScope,
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
@@ -2219,6 +2264,8 @@ export const AppointmentPrismaService = {
         400,
       );
     }
+
+    const { organisationId, actorId, parentId } = scope;
 
     const row = organisationId
       ? await prisma.appointment.findFirst({
@@ -2355,21 +2402,44 @@ export const AppointmentPrismaService = {
 
   async attachFormsToAppointment(
     appointmentId: string,
+    organisationId: string,
     formIds: string[],
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
       "Appointment not found",
     );
+
+    const requestedFormIds = Array.from(
+      new Set((formIds ?? []).filter(Boolean)),
+    );
+    if (requestedFormIds.length) {
+      const ownedForms = await prisma.form.findMany({
+        where: { id: { in: requestedFormIds }, orgId: organisationId },
+        select: { id: true },
+      });
+      // 404 rather than 403: confirming a form exists in another organisation
+      // would already leak it.
+      if (ownedForms.length !== requestedFormIds.length) {
+        throw new AppointmentPrismaServiceError("Form not found", 404);
+      }
+    }
+
     const nextFormIds = Array.from(
-      new Set([...(row.formIds ?? []), ...(formIds ?? [])]),
+      new Set([...(row.formIds ?? []), ...requestedFormIds]),
     ).filter(Boolean);
 
     const updated = await prisma.appointment.update({

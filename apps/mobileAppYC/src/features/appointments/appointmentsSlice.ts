@@ -231,11 +231,6 @@ export const createAppointment = createAsyncThunk<
       );
     }
 
-    console.log(
-      '[createAppointment] bookPayload:',
-      JSON.stringify(bookPayload, null, 2),
-    );
-
     const {appointment, invoice, paymentIntent} =
       await appointmentApi.bookAppointment({
         payload: bookPayload,

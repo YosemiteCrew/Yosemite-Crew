@@ -70,48 +70,47 @@ describe("template.router", () => {
     ).toBeDefined();
   });
 
-  it("protects library and organisation routes with the expected middleware", () => {
-    const resolveRoute = findRoute("/pms/resolve", "get");
-    const libraryRoute = findRoute("/pms/templates/library", "get");
-    const organisationRoute = findRoute(
-      "/pms/templates/organisation/:organisationId",
-      "get",
-    );
-    const userRoute = findRoute(
-      "/pms/templates/organisation/:organisationId/users/me",
-      "get",
+  // Each withOrgPermissions()/requirePermission() call returns a distinct
+  // middleware, so routes are matched against the set of returned values rather
+  // than a registration index, which shifts whenever a route is added.
+  const usesOrgPermissions = (handles: unknown[]) =>
+    withOrgPermissions.mock.results.some((result) =>
+      handles.includes(result.value),
     );
 
-    expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
-      requireWebAuth,
+  const usesRequirePermission = (handles: unknown[]) =>
+    requirePermission.mock.results.some((result) =>
+      handles.includes(result.value),
     );
-    expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
-      withOrgPermissions.mock.results[0].value,
-    );
-    expect(resolveRoute?.stack.map((layer) => layer.handle)).toContain(
-      requirePermission.mock.results[0].value,
-    );
-    expect(libraryRoute?.stack.map((layer) => layer.handle)).toContain(
-      requireWebAuth,
-    );
-    expect(libraryRoute?.stack.map((layer) => layer.handle)).not.toContain(
-      requirePermission.mock.results[0].value,
-    );
-    expect(organisationRoute?.stack.map((layer) => layer.handle)).toContain(
-      requireWebAuth,
-    );
-    expect(userRoute?.stack.map((layer) => layer.handle)).toContain(
-      requireWebAuth,
-    );
-    expect(organisationRoute?.stack.map((layer) => layer.handle)).toContain(
-      withOrgPermissions.mock.results[1].value ??
-        withOrgPermissions.mock.results[0].value,
-    );
-    expect(userRoute?.stack.map((layer) => layer.handle)).toContain(
-      withOrgPermissions.mock.results[2].value ??
-        withOrgPermissions.mock.results[1].value ??
-        withOrgPermissions.mock.results[0].value,
-    );
+
+  const handlesFor = (path: string, method = "get") =>
+    findRoute(path, method)?.stack.map((layer) => layer.handle) ?? [];
+
+  it("protects library and organisation routes with the expected middleware", () => {
+    const routes = [
+      "/pms/resolve",
+      "/pms/templates/library",
+      "/pms/templates/organisation/:organisationId",
+      "/pms/templates/organisation/:organisationId/users/me",
+    ];
+
+    for (const path of routes) {
+      const handles = handlesFor(path);
+      expect(handles).toContain(requireWebAuth);
+      expect(usesOrgPermissions(handles)).toBe(true);
+      expect(usesRequirePermission(handles)).toBe(true);
+    }
+
     expect(requirePermission).toHaveBeenCalledWith(["forms:view:any"]);
+  });
+
+  it("gates the YC library listing on org membership and forms:view:any", () => {
+    // The library is global state; without these the route was reachable by any
+    // authenticated user with no organisation or permission check at all.
+    const handles = handlesFor("/pms/templates/library");
+
+    expect(handles).toContain(requireWebAuth);
+    expect(usesOrgPermissions(handles)).toBe(true);
+    expect(usesRequirePermission(handles)).toBe(true);
   });
 });

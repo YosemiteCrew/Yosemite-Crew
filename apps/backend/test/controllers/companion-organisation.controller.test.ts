@@ -27,6 +27,7 @@ jest.mock("../../src/services/companion-organisation.service", () => {
     CompanionOrganisationService: {
       linkByParent: jest.fn(),
       linkByPmsUser: jest.fn(),
+      assertOrganisationMayLinkCompanion: jest.fn(),
       parentApproveLink: jest.fn(),
       sendInvite: jest.fn(),
       parentRejectLink: jest.fn(),

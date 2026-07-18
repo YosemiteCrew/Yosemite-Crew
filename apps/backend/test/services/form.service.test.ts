@@ -88,7 +88,11 @@ jest.mock("src/config/prisma", () => ({
     appointment: {
       updateMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
+    },
+    formAssignment: {
+      findFirst: jest.fn(),
     },
     organization: {
       findUnique: jest.fn(),
@@ -663,6 +667,155 @@ describe("FormService", () => {
           }),
         }),
       );
+    });
+
+    describe("mobile template-backed submissions (actor supplied)", () => {
+      const templateId = "ced99b20-fde8-4122-bab9-a947ad562a36";
+
+      const arrangeTemplate = () => {
+        process.env.READ_FROM_POSTGRES = "true";
+        (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
+        (prisma.templateVersion.findFirst as jest.Mock).mockResolvedValue({
+          schemaSnapshot: { sections: [] },
+        });
+        (prisma.form.findUnique as jest.Mock).mockResolvedValue(null);
+        (TemplateService.getById as jest.Mock).mockResolvedValue({
+          id: templateId,
+          organisationId: "org-template",
+          kind: "FORM",
+          name: "Template form",
+          status: "PUBLISHED",
+          versions: [{ version: 1, schemaSnapshot: { sections: [] } }],
+        });
+        (TemplateService.createInstance as jest.Mock).mockResolvedValue({
+          id: "instance-1",
+          templateVersion: 1,
+        });
+        (TemplateService.updateInstance as jest.Mock).mockResolvedValue({
+          id: "instance-1",
+          templateVersion: 1,
+        });
+      };
+
+      const submit = (overrides: Record<string, unknown> = {}) =>
+        FormService.submitFHIR(
+          {
+            formId: templateId,
+            formVersion: 1,
+            appointmentId: "appt-1",
+            patientId: "patient-1",
+            parentId: "parent-1",
+            answers: { field1: "value" },
+            submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+            ...overrides,
+          } as any,
+          undefined,
+          "parent-1",
+          { parentId: "parent-1" },
+        );
+
+      // The mobile route is org-less: the template id alone decides which tenant
+      // gets written, so an unassigned parent must not be able to name one.
+      it("rejects an appointment belonging to another parent", async () => {
+        arrangeTemplate();
+        (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+          patient: { parent: { id: "other-parent" } },
+        });
+
+        await expect(submit()).rejects.toMatchObject({ statusCode: 403 });
+        expect(TemplateService.createInstance).not.toHaveBeenCalled();
+      });
+
+      it("rejects an appointment outside the template's organisation", async () => {
+        arrangeTemplate();
+        (prisma.appointment.findFirst as jest.Mock).mockResolvedValue(null);
+
+        await expect(submit()).rejects.toMatchObject({ statusCode: 403 });
+        expect(TemplateService.createInstance).not.toHaveBeenCalled();
+      });
+
+      it("rejects a template that was never assigned", async () => {
+        arrangeTemplate();
+        (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+          patient: { parent: { id: "parent-1" } },
+        });
+        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue(null);
+
+        await expect(submit()).rejects.toMatchObject({ statusCode: 403 });
+        expect(TemplateService.createInstance).not.toHaveBeenCalled();
+      });
+
+      it("requires the parent to be the named signer when there is no appointment", async () => {
+        arrangeTemplate();
+        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue(null);
+
+        await expect(
+          submit({ appointmentId: undefined }),
+        ).rejects.toMatchObject({ statusCode: 403 });
+
+        expect(prisma.formAssignment.findFirst).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ signerUserId: "parent-1" }),
+          }),
+        );
+        expect(prisma.appointment.findFirst).not.toHaveBeenCalled();
+      });
+
+      it("allows an assigned parent to submit their own appointment's form", async () => {
+        arrangeTemplate();
+        (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+          patient: { parent: { id: "parent-1" } },
+        });
+        (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue({
+          id: "assignment-1",
+        });
+
+        await submit();
+
+        expect(TemplateService.createInstance).toHaveBeenCalledWith(
+          expect.objectContaining({
+            templateId,
+            organisationId: "org-template",
+          }),
+        );
+      });
+    });
+
+    // The PMS submit route has no :organisationId path param, so RBAC resolves
+    // the org the caller named while the instance is written into the
+    // template's own org. Those two must be the same tenant.
+    it("rejects a PMS submit against a template owned by another organisation", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      const templateId = "ced99b20-fde8-4122-bab9-a947ad562a36";
+      (prisma.formVersion.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.templateVersion.findFirst as jest.Mock).mockResolvedValue({
+        schemaSnapshot: { sections: [] },
+      });
+      (prisma.form.findUnique as jest.Mock).mockResolvedValue(null);
+      (TemplateService.getById as jest.Mock).mockResolvedValue({
+        id: templateId,
+        organisationId: "org-victim",
+        kind: "FORM",
+        name: "Template form",
+        status: "PUBLISHED",
+        versions: [{ version: 1, schemaSnapshot: { sections: [] } }],
+      });
+
+      await expect(
+        FormService.submitFHIR(
+          {
+            formId: templateId,
+            formVersion: 1,
+            answers: {},
+            submittedAt: new Date("2026-06-25T00:00:00.000Z"),
+          } as any,
+          undefined,
+          "pms-user",
+          { organisationId: "org-attacker" },
+        ),
+      ).rejects.toMatchObject({ statusCode: 404 });
+
+      expect(TemplateService.createInstance).not.toHaveBeenCalled();
     });
 
     it("creates a completed template instance for uuid template-backed submissions", async () => {

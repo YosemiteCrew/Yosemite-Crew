@@ -657,6 +657,23 @@ describe('workspaceTemplateService', () => {
       expect(extractFollowUpInDays(withFollowUp('soon') as never)).toBeUndefined();
       expect(extractFollowUpInDays({ sections: [] } as never)).toBeUndefined();
     });
+
+    it('accepts the largest in-range follow-up offset', () => {
+      expect(extractFollowUpInDays(withFollowUp(3650) as never)).toBe(3650);
+    });
+
+    // An unbounded offset pushes the computed date past the range Date can represent,
+    // so the consumer ends up calling toISOString() on an Invalid Date and throws.
+    it('rejects an out-of-range follow-up offset', () => {
+      expect(extractFollowUpInDays(withFollowUp(3651) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp(1e308) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp(Number.MAX_SAFE_INTEGER) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp('1e308') as never)).toBeUndefined();
+    });
+
+    it('rejects a non-finite follow-up offset', () => {
+      expect(extractFollowUpInDays(withFollowUp(Infinity) as never)).toBeUndefined();
+    });
   });
 
   describe('schemaSnapshotToPrescriptionItems', () => {

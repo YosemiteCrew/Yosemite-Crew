@@ -197,9 +197,23 @@ const hasAbortSignal = (params: GetDataParams): boolean => {
   return typeof signal === 'object' && signal !== null && 'aborted' in signal;
 };
 
+// The key carries the requesting user's identity as well as the org: without it a
+// GET still in flight when the session changes could be handed to the next user.
+const getCurrentUserKey = (): string => {
+  try {
+    return useAuthStore.getState().user?.userId ?? '';
+  } catch {
+    return '';
+  }
+};
+
 const buildGetRequestKey = (endpoint: string, params: GetDataParams): string => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId ?? '';
-  return `${primaryOrgId}::${endpoint}::${stableSerialize(params)}`;
+  return `${getCurrentUserKey()}::${primaryOrgId}::${endpoint}::${stableSerialize(params)}`;
+};
+
+export const clearInFlightGetRequests = (): void => {
+  inFlightGetRequests.clear();
 };
 
 const getResponseStatus = (error: unknown): number | undefined => {

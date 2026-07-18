@@ -299,9 +299,27 @@ export const TaskController = {
       const task = await TaskService.getById(req.params.taskId, organisationId);
       if (!task) return res.status(404).json({ message: "Task not found" });
 
+      // Mobile has no org context, so `organisationId` is undefined and the PMS
+      // permission check below never runs; the parent identity is the only
+      // authority there and ownership is therefore unconditional.
+      if (!organisationId) {
+        const authUser = await AuthUserMobileService.getByProviderUserId(
+          resolveUserId(req),
+        );
+        const parentId = authUser?.parentId?.toString();
+        const isOwner =
+          !!parentId &&
+          (task.createdBy === parentId || task.assignedTo === parentId);
+        if (!isOwner) {
+          return res.status(404).json({ message: "Task not found" });
+        }
+
+        return res.json(task);
+      }
+
       // PMS context (org membership resolved): callers without tasks:view:any
       // may only read tasks they created or are assigned to.
-      if (organisationId && !hasPermission(req, "tasks:view:any")) {
+      if (!hasPermission(req, "tasks:view:any")) {
         const actorId = resolveUserId(req);
         const isOwner =
           !!actorId &&
@@ -383,7 +401,12 @@ export const TaskController = {
 
       const scope =
         parseRecurrenceScope(req.query.scope as string | string[]) ?? "THIS";
-      await TaskService.deleteTask(taskId, actorId, scope);
+      await TaskService.deleteTask(
+        taskId,
+        actorId,
+        scope,
+        resolveOrganisationId(req),
+      );
       res.status(204).json({});
     } catch (error) {
       handleError(error, res);

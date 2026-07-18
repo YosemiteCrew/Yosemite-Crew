@@ -481,6 +481,49 @@ describe('Forms Page', () => {
     ]);
   });
 
+  it('excludes catalog entries belonging to another organisation', () => {
+    const catalogState = {
+      specialities: mockSpecialities,
+      services: [
+        ...mockServices,
+        {
+          id: 'srv-foreign',
+          name: 'Foreign Consult',
+          specialityId: 'spec-foreign',
+          organisationId: 'org-2',
+          status: 'ACTIVE',
+        },
+      ],
+      packages: [
+        ...mockPackages,
+        {
+          id: 'pkg-foreign',
+          name: 'Foreign Package',
+          specialityId: 'spec-foreign',
+          organisationId: 'org-2',
+          status: 'ACTIVE',
+        },
+      ],
+      loadOrganisationCatalog: jest.fn().mockResolvedValue(undefined),
+      loadSpecialityCatalog: jest.fn().mockResolvedValue(undefined),
+    };
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector(catalogState)
+    );
+
+    render(<ProtectedForms />);
+    fireEvent.click(screen.getByTestId('btn-add'));
+
+    const serviceOptions = JSON.parse(screen.getByTestId('service-options').textContent ?? '[]');
+    const values = serviceOptions.map((option: { value: string }) => option.value);
+
+    expect(values).toEqual(['srv-1', 'srv-2', 'srv-3', 'pkg-1']);
+    // Previously these leaked through labelled 'Unknown Speciality'.
+    expect(values).not.toContain('srv-foreign');
+    expect(values).not.toContain('pkg-foreign');
+    expect(screen.getByTestId('service-options').textContent).not.toContain('Unknown Speciality');
+  });
+
   // --- Section 5: Org-scoped catalog loading & edge cases ---
 
   it('skips catalog loading and yields no org specialities when primaryOrgId is missing', () => {

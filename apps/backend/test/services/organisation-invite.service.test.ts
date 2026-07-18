@@ -511,6 +511,31 @@ describe("OrganisationInviteService", () => {
       expect(result[0].organisationType).toBe("CLINIC");
     });
 
+    it("resolves the organisation by either its uuid id or its FHIR id", async () => {
+      // Post-migration invites carry a Postgres uuid / FHIR id, so the lookup
+      // must match on both columns rather than assuming a single identifier.
+      const orgId = "0f9d3e1a-6c2b-4f77-9a1e-2b7c5d8e4f13";
+      mockedPrisma.organisationInvite.findMany.mockResolvedValue([
+        makeInvite({ id: "p3", organisationId: orgId }),
+      ]);
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        name: "Referral Hospital",
+        type: "HOSPITAL",
+      });
+
+      const result =
+        await OrganisationInviteService.listPendingInvitesForEmail(
+          "user@example.com",
+        );
+
+      expect(mockedPrisma.organization.findFirst).toHaveBeenCalledWith({
+        where: { OR: [{ id: orgId }, { fhirId: orgId }] },
+        select: { name: true, type: true },
+      });
+      expect(result[0].organisationName).toBe("Referral Hospital");
+      expect(result[0].organisationType).toBe("HOSPITAL");
+    });
+
     it("leaves organisation fields undefined when the organisation is missing", async () => {
       mockedPrisma.organisationInvite.findMany.mockResolvedValue([
         makeInvite({ id: "p2" }),

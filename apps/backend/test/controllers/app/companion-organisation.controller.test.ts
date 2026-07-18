@@ -21,6 +21,7 @@ jest.mock("../../../src/services/companion-organisation.service", () => {
     CompanionOrganisationService: {
       linkByParent: jest.fn(),
       linkByPmsUser: jest.fn(),
+      assertOrganisationMayLinkCompanion: jest.fn(),
       parentApproveLink: jest.fn(),
       parentRejectLink: jest.fn(),
       sendInvite: jest.fn(),
@@ -325,6 +326,9 @@ describe("CompanionOrganisationController", () => {
       mockedPrisma.organization.findFirst.mockResolvedValue({
         type: "GROOMER",
       } as any);
+      mockedCompanionService.assertOrganisationMayLinkCompanion.mockResolvedValue(
+        undefined as any,
+      );
       mockedCompanionService.linkByPmsUser.mockResolvedValue({
         id: "l1",
       } as any);
@@ -334,6 +338,25 @@ describe("CompanionOrganisationController", () => {
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("does not create a link for a companion the organisation has no relationship with", async () => {
+      (req as any).userId = "pms";
+      req.params = { patientId: "c1", organisationId: "o1" };
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        type: "GROOMER",
+      } as any);
+      mockedCompanionService.assertOrganisationMayLinkCompanion.mockRejectedValueOnce(
+        new CompanionOrganisationServiceError("Forbidden", 403),
+      );
+
+      await CompanionOrganisationController.linkByPmsUser(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(mockedCompanionService.linkByPmsUser).not.toHaveBeenCalled();
     });
 
     it("should handle service errors", async () => {

@@ -255,7 +255,7 @@ type AppointmentWorkspaceState = {
   addDocument: (appointmentId: string, document: Omit<WorkspaceDocument, 'id'>) => void;
   setWithdrawDeposit: (appointmentId: string, value: boolean) => void;
   setOverallDiscountPercent: (appointmentId: string, percent: number) => void;
-  addInvoiceLineItem: (appointmentId: string, item: Omit<InvoiceLineItem, 'id'>) => void;
+  addInvoiceLineItem: (appointmentId: string, item: Omit<InvoiceLineItem, 'id'>) => string;
   updateInvoiceLineItem: (
     appointmentId: string,
     id: string,
@@ -831,11 +831,14 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       overallDiscountPercent: Math.min(100, Math.max(0, percent)),
     })),
 
-  addInvoiceLineItem: (appointmentId, item) =>
+  addInvoiceLineItem: (appointmentId, item) => {
+    const id = nextId('inv');
     patchEnc(set, appointmentId, (enc) => ({
       ...enc,
-      invoiceLineItems: [...enc.invoiceLineItems, { ...item, id: nextId('inv') }],
-    })),
+      invoiceLineItems: [...enc.invoiceLineItems, { ...item, id }],
+    }));
+    return id;
+  },
 
   updateInvoiceLineItem: (appointmentId, id, patch) =>
     patchEnc(set, appointmentId, (enc) => ({
@@ -858,17 +861,39 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       const paidFromDeposit = payment.method === 'DEPOSIT' || enc.withdrawDeposit;
       // Mark the matching saved treatment rows as billed so the Total Bill auto-seed
       // (InvoiceStep) does not re-add them after invoiceLineItems is cleared below.
-      const paidNames = new Set(enc.invoiceLineItems.map((item) => item.name.trim().toLowerCase()));
+      // Rows are matched by the source id the bill line was seeded from; two rows
+      // can carry the same name, and matching on name marks both. The name set
+      // only covers lines seeded before those ids existed.
+      const paidServiceIds = new Set(
+        enc.invoiceLineItems
+          .map((item) => item.sourceServiceLineId)
+          .filter((id): id is string => Boolean(id))
+      );
+      const paidPrescriptionIds = new Set(
+        enc.invoiceLineItems
+          .map((item) => item.sourcePrescriptionId)
+          .filter((id): id is string => Boolean(id))
+      );
+      const unlinkedPaidNames = new Set(
+        enc.invoiceLineItems
+          .filter((item) => !item.sourceServiceLineId && !item.sourcePrescriptionId)
+          .map((item) => item.name.trim().toLowerCase())
+      );
       const billedAt = nowIso();
+      const isPaidService = (service: LineItem) =>
+        paidServiceIds.has(service.id) || unlinkedPaidNames.has(service.name.trim().toLowerCase());
+      const isPaidPrescription = (rx: PrescriptionItem) =>
+        paidPrescriptionIds.has(rx.id) ||
+        unlinkedPaidNames.has(rx.medicineName.trim().toLowerCase());
       return {
         ...enc,
         services: enc.services.map((service) =>
-          paidNames.has(service.name.trim().toLowerCase())
+          isPaidService(service)
             ? { ...service, billed: true, billedAt, billedByName: payment.byName }
             : service
         ),
         prescription: enc.prescription.map((rx) =>
-          paidNames.has(rx.medicineName.trim().toLowerCase())
+          isPaidPrescription(rx)
             ? { ...rx, billed: true, billedAt, billedByName: payment.byName }
             : rx
         ),

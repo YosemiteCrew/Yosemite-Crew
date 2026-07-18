@@ -32,13 +32,17 @@ import {
   addLineItemsToAppointments,
   createFinanceInvoice,
   finalizeFinanceInvoice,
+  getFinanceInvoiceById,
   getPaymentLink,
   recordManualInvoicePayment,
   sendInvoiceToClient,
   findOpenAppointmentInvoice,
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
-import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  deletePrescriptionArtifact,
+  savePrescriptionArtifact,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { useNotify } from '@/app/hooks/useNotify';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { buildBillableItems, getInvoiceErrorMessage, normalizeLineName } from './invoiceStepUtils';
@@ -57,6 +61,8 @@ import {
 type InvoiceStepProps = {
   appointmentId: string;
   organisationId?: string;
+  encounterId?: string;
+  authorId?: string;
   patientId?: string;
   parentId?: string;
   encounter: AppointmentEncounter;
@@ -888,6 +894,8 @@ export const DepositModal = ({
 const useInvoiceStepContent = ({
   appointmentId,
   organisationId,
+  encounterId,
+  authorId,
   patientId,
   parentId,
   encounter,
@@ -1036,7 +1044,12 @@ const useInvoiceStepContent = ({
     // open invoices into the workspace encounter but not into useInvoiceStore (the
     // only place findOpenAppointmentInvoice reads). Without this fallback an existing
     // open invoice is missed and a duplicate is created with the same bill lines.
-    const openInvoiceId = storeInvoiceId ?? findServerOpenInvoiceId();
+    const serverInvoiceId = storeInvoiceId ? undefined : findServerOpenInvoiceId();
+    // addLineItemsToAppointments re-resolves the invoice through useInvoiceStore and seeds a
+    // new one via the mobile-auth-only /seed route when the store has no match. Hydrating the
+    // store over the web invoice route first keeps that reuse on a PMS-authorised endpoint.
+    if (serverInvoiceId) await getFinanceInvoiceById(serverInvoiceId);
+    const openInvoiceId = storeInvoiceId ?? serverInvoiceId;
     let invoice: { id?: string } | undefined = openInvoiceId ? { id: openInvoiceId } : undefined;
     if (invoice?.id) {
       await addLineItemsToAppointments(lineItems, appointmentId, currency);
@@ -1099,8 +1112,11 @@ const useInvoiceStepContent = ({
           reloadBilling,
           recordInvoicePayment,
         });
+        // Only a manual collection is settled here and now. The ONLINE path has merely
+        // opened Stripe checkout, so it keeps runOnlineCollection's link message —
+        // payment progress reports settlement once Stripe confirms it.
+        setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
       }
-      setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
     } catch (error) {
       setErrorMessage(getInvoiceErrorMessage(error, 'Unable to process payment.'));
     } finally {
@@ -1273,8 +1289,10 @@ const useInvoiceStepContent = ({
     onOpenSummary();
   };
 
-  const handleAddItem = (item: Omit<InvoiceLineItem, 'id'>) => {
-    addInvoiceLineItem(appointmentId, item);
+  const handleAddItem = async (item: Omit<InvoiceLineItem, 'id'>) => {
+    // The store returns the id it assigned this line so a later save can link it
+    // back to its prescription (see below).
+    const addedLineId = addInvoiceLineItem(appointmentId, item);
 
     // Interlink: when a billed item is a dispensable drug and no prescription row
     // exists for it yet, create a linked one so it shows in the Treatment step.
@@ -1290,8 +1308,35 @@ const useInvoiceStepContent = ({
     const alreadyPrescribed = encounter.prescription.some(
       (rx) => rx.medicineName.trim().toLowerCase() === targetName
     );
-    if (!alreadyPrescribed) {
+    // Only org-scoped inventory candidates carry a prescription payload, so organisationId
+    // is always set by the time one is found.
+    if (alreadyPrescribed || !organisationId) return;
+    // Treatment already ran its save pass by the time the bill is built, so a row
+    // backfilled here has no later persist step to ride along with — save it now and
+    // seed the store with the backend id so finalize and delete target the real artifact.
+    try {
+      const saved = await savePrescriptionArtifact(
+        { organisationId, appointmentId, encounterId, authorId },
+        prescription
+      );
+      const savedPrescriptionId = (saved as { id?: string } | undefined)?.id;
+      addPrescription(appointmentId, prescription, savedPrescriptionId);
+      // Link the bill line to the saved prescription so removing the line also
+      // deletes the persisted draft — handleRemoveBillLine keys off
+      // sourcePrescriptionId, so without this the draft orphans and re-seeds on
+      // the next refresh.
+      if (savedPrescriptionId && addedLineId) {
+        updateInvoiceLineItem(appointmentId, addedLineId, {
+          sourcePrescriptionId: savedPrescriptionId,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save prescription from invoice:', error);
       addPrescription(appointmentId, prescription);
+      notify('error', {
+        title: 'Couldn’t save the linked prescription',
+        text: 'The change wasn’t saved. Please try again.',
+      });
     }
   };
 
@@ -1360,7 +1405,7 @@ const useInvoiceStepContent = ({
               onChangeOverallDiscount={(percent) =>
                 setOverallDiscountPercent(appointmentId, percent)
               }
-              onAddItem={handleAddItem}
+              onAddItem={(item) => void handleAddItem(item)}
               onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
               onRemoveItem={(id) => void handleRemoveBillLine(id)}
             />

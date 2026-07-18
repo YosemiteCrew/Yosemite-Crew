@@ -608,7 +608,25 @@ describe('buildTemplatePayload appliesTo linking', () => {
     expect(payload.kind).toBe('TASK_ASSIGNMENT');
   });
 
-  it('serializes YC default templates as library-owned without an organisation binding', () => {
+  it.each([
+    ['YC_LIBRARY' as const, 'ORG_TEMPLATE'],
+    ['ORG_TEMPLATE' as const, 'ORG_TEMPLATE'],
+    ['USER_TEMPLATE' as const, 'USER_TEMPLATE'],
+    [undefined, 'ORG_TEMPLATE'],
+  ])(
+    'maps templateSource %s to ownership %s and always binds the organisation',
+    (templateSource, expected) => {
+      const payload = buildTemplatePayload(form({ category: 'SOAP', templateSource }), 'org-1');
+
+      expect(payload.ownership).toBe(expected);
+      expect(payload.organisationId).toBe('org-1');
+    }
+  );
+
+  // The YC library is global, seeded out of band, and the API rejects a
+  // YC_LIBRARY write with 403. A library template used as a starting point is
+  // saved into the caller's own organisation instead.
+  it('serializes a YC library starting point as an organisation template', () => {
     const payload = buildTemplatePayload(
       form({
         category: 'Prescription',
@@ -618,8 +636,8 @@ describe('buildTemplatePayload appliesTo linking', () => {
       'org-1'
     );
 
-    expect(payload.ownership).toBe('YC_LIBRARY');
-    expect(payload.organisationId).toBeUndefined();
+    expect(payload.ownership).toBe('ORG_TEMPLATE');
+    expect(payload.organisationId).toBe('org-1');
     expect(payload.kind).toBe('PRESCRIPTION');
     expect((payload.rules as { requiredSigner?: string }).requiredSigner).toBe('');
   });

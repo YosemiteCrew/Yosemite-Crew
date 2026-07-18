@@ -340,6 +340,7 @@ describe("ObservationToolSubmissionService", () => {
     it("throws when the tool is not found or inactive", async () => {
       (prismaMock.appointment.findFirst as any).mockResolvedValue({
         id: appointmentId,
+        patient: { id: companionId },
       });
       (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
         id: "co1",
@@ -356,6 +357,7 @@ describe("ObservationToolSubmissionService", () => {
     it("creates and links the submission to the appointment", async () => {
       (prismaMock.appointment.findFirst as any).mockResolvedValue({
         id: appointmentId,
+        patient: { id: companionId },
       });
       (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
         id: "co1",
@@ -389,6 +391,120 @@ describe("ObservationToolSubmissionService", () => {
       expect(res).toEqual(
         expect.objectContaining({ evaluationAppointmentId: appointmentId }),
       );
+    });
+
+    describe("rejects spoofed identifiers", () => {
+      const otherCompanionId = newId();
+      const spoofTaskId = newId();
+
+      const mockAppointmentAndCompanion = () => {
+        (prismaMock.appointment.findFirst as any).mockResolvedValue({
+          id: appointmentId,
+          patient: { id: companionId },
+        });
+        (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
+          id: "link1",
+        });
+      };
+
+      it("rejects a companion that is not the appointment's patient", async () => {
+        mockAppointmentAndCompanion();
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            patientId: otherCompanionId,
+          }),
+        ).rejects.toThrow("patientId does not match appointment");
+
+        expect(prisma.observationToolSubmission.create).not.toHaveBeenCalled();
+      });
+
+      it("rejects a taskId owned by another organisation", async () => {
+        mockAppointmentAndCompanion();
+        (prismaMock.task.findFirst as any).mockResolvedValue({
+          id: spoofTaskId,
+          organisationId: newId(),
+          appointmentId,
+          patientId: companionId,
+          observationToolId: toolId,
+        });
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId: spoofTaskId,
+          }),
+        ).rejects.toThrow("Forbidden");
+
+        expect(prisma.observationToolSubmission.create).not.toHaveBeenCalled();
+      });
+
+      it("rejects a taskId belonging to another appointment", async () => {
+        mockAppointmentAndCompanion();
+        (prismaMock.task.findFirst as any).mockResolvedValue({
+          id: spoofTaskId,
+          organisationId,
+          appointmentId: newId(),
+          patientId: companionId,
+          observationToolId: toolId,
+        });
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId: spoofTaskId,
+          }),
+        ).rejects.toThrow("taskId does not match appointment");
+      });
+
+      it("rejects a taskId belonging to another patient", async () => {
+        mockAppointmentAndCompanion();
+        (prismaMock.task.findFirst as any).mockResolvedValue({
+          id: spoofTaskId,
+          organisationId,
+          appointmentId,
+          patientId: otherCompanionId,
+          observationToolId: toolId,
+        });
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId: spoofTaskId,
+          }),
+        ).rejects.toThrow("patientId does not match task");
+      });
+
+      it("rejects a taskId raised for a different observation tool", async () => {
+        mockAppointmentAndCompanion();
+        (prismaMock.task.findFirst as any).mockResolvedValue({
+          id: spoofTaskId,
+          organisationId,
+          appointmentId,
+          patientId: companionId,
+          observationToolId: newId(),
+        });
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId: spoofTaskId,
+          }),
+        ).rejects.toThrow("toolId does not match task observationToolId");
+      });
+
+      it("rejects a taskId that does not exist", async () => {
+        mockAppointmentAndCompanion();
+        (prismaMock.task.findFirst as any).mockResolvedValue(null);
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId: spoofTaskId,
+          }),
+        ).rejects.toThrow("Task not found");
+      });
     });
   });
 

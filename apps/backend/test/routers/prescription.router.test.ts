@@ -149,6 +149,9 @@ describe("prescription.router", () => {
 
     expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(3);
-    expect(requirePermission).toHaveBeenCalledWith(["prescription:edit:any"]);
+    expect(requirePermission).toHaveBeenCalledWith([
+      "prescription:edit:any",
+      "prescription:edit:own",
+    ]);
   });
 });

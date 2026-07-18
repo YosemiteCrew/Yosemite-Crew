@@ -372,28 +372,34 @@ const reserveMemberSlot = async (orgId: string) => {
   await ensureOrgUsageCounters(orgId);
 
   if (await isFreePlan(orgId)) {
-    const current = await prisma.organizationUsageCounter.findUnique({
-      where: { orgId },
+    // Check-and-increment in a single conditional UPDATE. Reading the count and
+    // incrementing it separately lets two concurrent joins both pass the limit check
+    // and oversubscribe the plan, so the limit is compared against the row's own
+    // column in the WHERE clause instead.
+    const reserved = await prisma.organizationUsageCounter.updateMany({
+      where: {
+        orgId: String(orgId),
+        usersActiveCount: {
+          lt: prisma.organizationUsageCounter.fields.freeUsersLimit,
+        },
+      },
+      data: { usersActiveCount: { increment: 1 } },
     });
 
-    if (
-      !current ||
-      (current.usersActiveCount ?? 0) >= (current.freeUsersLimit ?? 0)
-    ) {
+    if (reserved.count === 0) {
       throw new UserOrganizationServiceError(
         "Free plan member limit reached.",
         403,
       );
     }
 
-    const updated = await prisma.organizationUsageCounter.update({
+    const updated = await prisma.organizationUsageCounter.findUnique({
       where: { orgId },
-      data: { usersActiveCount: { increment: 1 } },
     });
 
-    const updatedUsage = updated as unknown as OrgUsageCountersDoc;
+    const updatedUsage = updated as unknown as OrgUsageCountersDoc | null;
     const didReachLimit = await markFreeLimitReachedAt(updatedUsage);
-    if (didReachLimit) {
+    if (didReachLimit && updatedUsage) {
       void sendFreePlanLimitReachedEmail({ orgId, usage: updatedUsage });
     }
     return true;
@@ -522,10 +528,12 @@ const mapOrganizationFromPrisma = (org: {
   ratingCount: number | null;
   appointmentCheckInBufferMinutes: number | null;
   appointmentCheckInRadiusMeters: number | null;
+  crossOrgMessagingEnabled: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 }) => ({
   _id: org.id,
+  crossOrgMessagingEnabled: org.crossOrgMessagingEnabled ?? false,
   fhirId: org.fhirId ?? undefined,
   name: org.name,
   taxId: org.taxId ?? undefined,
@@ -954,18 +962,19 @@ export const UserOrganizationService = {
     const persistable = pruneUndefined(
       sanitizeUserOrganizationAttributes(userOrganisation),
     );
-    let orgObjectId: string | null = null;
-    if (persistable.active !== false) {
-      orgObjectId = await resolveOrganisationObjectId(
-        persistable.organizationReference,
-      );
-      await reserveMemberSlot(orgObjectId);
+    const { orgObjectId, seatDelta } = await reserveSeatForNewMapping(
+      persistable,
+      persistable.active !== false,
+    );
+    if (orgObjectId) {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
-    const document = await prisma.userOrganization.create({
-      data: persistable,
-    });
+    const { document } = await createUserOrganizationWithRollback(
+      persistable,
+      seatDelta,
+      orgObjectId,
+    );
 
     if (!document) {
       throw new UserOrganizationServiceError(

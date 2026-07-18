@@ -158,9 +158,13 @@ const ensureStoragePermission = async () => {
   if (Platform.Version >= 33) {
     return true;
   }
-  const result = await PermissionsAndroid.request(
-    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-  );
+  // Below API 29 the shared Download/ directory is only writable with the legacy
+  // write grant; targeting API 26+ means requesting READ alone never confers it.
+  const permission =
+    Platform.Version <= 28
+      ? PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+      : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+  const result = await PermissionsAndroid.request(permission);
   return result === PermissionsAndroid.RESULTS.GRANTED;
 };
 

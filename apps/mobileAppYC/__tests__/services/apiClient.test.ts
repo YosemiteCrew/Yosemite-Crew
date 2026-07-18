@@ -352,9 +352,63 @@ describe('apiClient', () => {
         method: 'get',
         url: '/test',
         status: 200,
-        data: {id: 1},
+        hasBody: true,
       });
       expect(result).toBe(mockResponse);
+    });
+
+    it('Response Interceptor (Success): never logs the response body', () => {
+      const {responseSuccessInterceptor} = getInterceptorCallbacks();
+
+      const mockResponse = {
+        status: 200,
+        data: {clientSecret: 'dummy-client-secret-value', email: 'parent@example.com'},
+        config: {method: 'get', url: '/payment-intent'},
+      };
+
+      responseSuccessInterceptor(mockResponse);
+
+      const logged = JSON.stringify(consoleLogSpy.mock.calls);
+      expect(logged).not.toContain('dummy-client-secret-value');
+      expect(logged).not.toContain('parent@example.com');
+    });
+
+    it('Response Interceptor (Error): never logs the error response body', async () => {
+      const {responseErrorInterceptor} = getInterceptorCallbacks();
+
+      const mockError = {
+        response: {
+          status: 400,
+          data: {email: 'parent@example.com', token: 'secret-token'},
+        },
+        config: {method: 'post', url: '/submit'},
+        message: 'Request failed',
+      };
+
+      if (!responseErrorInterceptor) {
+        throw new Error('Response error interceptor not found');
+      }
+
+      await expect(responseErrorInterceptor(mockError)).rejects.toBe(mockError);
+
+      const logged = JSON.stringify(consoleLogSpy.mock.calls);
+      expect(logged).not.toContain('parent@example.com');
+      expect(logged).not.toContain('secret-token');
+    });
+
+    it('Response Interceptor (Success): reports hasBody false for an empty body', () => {
+      const {responseSuccessInterceptor} = getInterceptorCallbacks();
+
+      responseSuccessInterceptor({
+        status: 204,
+        data: null,
+        config: {method: 'delete', url: '/thing'},
+      });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        '[API] Response',
+        expect.objectContaining({hasBody: false}),
+      );
     });
 
     it('Response Interceptor (Error): handles server response errors', async () => {
@@ -381,7 +435,7 @@ describe('apiClient', () => {
         url: '/submit',
         status: 400,
         message: 'Request failed',
-        data: {error: 'Bad Request'},
+        hasBody: true,
       });
     });
 
@@ -423,7 +477,7 @@ describe('apiClient', () => {
         method: undefined,
         url: '',
         status: 200,
-        data: {id: 1},
+        hasBody: true,
       });
       expect(result).toBe(mockResponse);
     });
@@ -448,7 +502,7 @@ describe('apiClient', () => {
         url: '',
         status: 500,
         message: 'Request failed',
-        data: {error: 'Server Error'},
+        hasBody: true,
       });
     });
 
@@ -505,6 +559,35 @@ describe('apiClient', () => {
         responseErrorInterceptor({message: 'err', config: {}}),
       ).rejects.toBeDefined();
       updateApiClientBaseConfig({baseUrl: 'https://example.com'});
+
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('__DEV__ is undefined', () => {
+    let originalDev: boolean;
+
+    beforeEach(() => {
+      originalDev = (global as any).__DEV__;
+      delete (global as any).__DEV__;
+    });
+
+    afterEach(() => {
+      (global as any).__DEV__ = originalDev;
+    });
+
+    it('does not log when __DEV__ is not defined', () => {
+      loadClientWithEnv('ios');
+
+      const requestInterceptor = mockRequestUse.mock.calls[0][0];
+      const responseSuccessInterceptor = mockResponseUse.mock.calls[0][0];
+
+      requestInterceptor({method: 'get', url: '/x'});
+      responseSuccessInterceptor({
+        status: 200,
+        data: {id: 1},
+        config: {method: 'get'},
+      });
 
       expect(consoleLogSpy).not.toHaveBeenCalled();
     });

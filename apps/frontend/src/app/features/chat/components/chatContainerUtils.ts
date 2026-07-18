@@ -101,7 +101,7 @@ export const getChannelDisplayInfo = (
 
   const title =
     explicitTitle ||
-    (petName && petOwnerName ? `${petName}{' '}(${petOwnerName})` : undefined) ||
+    (petName && petOwnerName ? `${petName} (${petOwnerName})` : undefined) ||
     petOwnerName ||
     petName ||
     counterpartName ||

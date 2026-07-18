@@ -4,8 +4,10 @@ import {
   InvoiceService,
   InvoiceServiceError,
 } from "src/services/invoice.service";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
+import { AuthenticatedRequest } from "src/middlewares/auth";
 
 type AddChargesBody = {
   items?: unknown;
@@ -72,49 +74,108 @@ const toFinanceEnvelope = <T>(data: T) => ({
   error: null,
 });
 
+// Web routes are bound to the organisation the RBAC middleware authorized;
+// mobile routes fall back to the pet parent linked to the session.
+const resolveInvoiceScope = async (req: Request) => {
+  const organisationId = (req as OrgRequest).organisationId;
+  if (organisationId) {
+    return { organisationId, parentId: null };
+  }
+
+  const authReq = req as AuthenticatedRequest;
+  if (!authReq.userId) {
+    return { organisationId: null, parentId: null };
+  }
+
+  const authUser = await AuthUserMobileService.getByProviderUserId(
+    authReq.userId,
+  );
+  return { organisationId: null, parentId: authUser?.parentId ?? null };
+};
+
 export const InvoiceController = {
   async listInvoicesForAppointment(this: void, req: Request, res: Response) {
     try {
       const appointmentId = req.params.appointmentId;
-      const organisationId = (req as OrgRequest).organisationId;
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return res.status(403).json({
+          message: "Parent account is not linked to this mobile user",
+        });
+      }
+
       const invoices = await InvoiceService.getByAppointmentId(
         appointmentId,
-        organisationId,
+        scope,
       );
       return res.status(200).json(toFinanceEnvelope(invoices));
     } catch (err) {
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
       logger.error("Error fetching appointment invoices", err);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(statusCode).json({ message });
     }
   },
   async getInvoiceById(this: void, req: Request, res: Response) {
     try {
       const invoiceId = req.params.invoiceId;
-      const invoice = await InvoiceService.getById(invoiceId);
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return res.status(403).json({
+          message: "Parent account is not linked to this mobile user",
+        });
+      }
+
+      const invoice = await InvoiceService.getById(invoiceId, scope);
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
       return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
       logger.error("Error fetching invoice by ID", err);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(statusCode).json({ message });
     }
   },
   async getInvoiceByPaymentIntentId(this: void, req: Request, res: Response) {
     try {
       const paymentIntentId = req.params.paymentIntentId;
-      const organisationId = (req as OrgRequest).organisationId;
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return res.status(403).json({
+          message: "Parent account is not linked to this mobile user",
+        });
+      }
+
       const invoice = await InvoiceService.getByPaymentIntentId(
         paymentIntentId,
-        organisationId,
+        scope,
       );
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
       return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
+      const statusCode =
+        err instanceof InvoiceServiceError ? err.statusCode : 500;
+      const message =
+        err instanceof InvoiceServiceError
+          ? err.message
+          : "Internal server error";
+
       logger.error("Error fetching invoice by Payment Intent ID", err);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(statusCode).json({ message });
     }
   },
   async createCheckoutSessionForInvoice(

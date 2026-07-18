@@ -61,23 +61,48 @@ const data = CreateAppointmentSchema.parse(req.body);
 ## Authentication
 
 SuperTokens is the auth provider behind the provider-neutral boundary in
-`packages/auth` (#1672). Product code uses `requireWebAuth`/`requireMobileAuth`
-from `src/middlewares/auth.ts` and never imports a provider SDK
-(eslint-enforced).
+`packages/auth` (#1672), initialized by `initSuperTokens` in `app.ts`. Product
+code uses the session guards in `src/middlewares/auth.ts` and never imports a
+provider SDK (eslint-enforced). Pick the guard by product surface:
 
-Two auth stacks coexist:
-
-- **Web/PIMS session auth: SuperTokens** via `@yosemite-crew/auth` -
-  `requireAuth()` middleware + `getSessionUserId()`, initialized with
-  `initSuperTokens` in `app.ts`. Use this for all new web endpoints.
-- **Legacy mobile/FHIR JWT** (`authorizeCognito` / `authorizeCognitoMobile`
-  in `src/middlewares/auth.ts`) remains on existing mobile/FHIR routes only -
-  do not use it for new web endpoints. It accepts **both** AWS Cognito tokens
-  (verified with `jsonwebtoken` + `jwks-rsa`) and Firebase tokens (issuer
-  `securetoken.google.com`, social login, verified via Firebase Admin). Never
-  remove the Firebase path - it would reject existing social-login users.
+- `requireWebAuth` - staff / PIMS web routes.
+- `requireMobileAuth` - pet-parent mobile routes.
+- `requireAnyAuth` - routes genuinely shared by both.
 
 Never roll custom auth.
+
+### Authorization: derive the tenant from the resource
+
+Authentication only proves who is calling. `withOrgPermissions()` then proves
+the caller belongs to the organisation **named by the request** (route param,
+`x-org-id`, query, or body). On a route addressed by a resource id that is not
+enough on its own - a caller can name an organisation they legitimately belong
+to while addressing another tenant's record.
+
+- On an id-addressed route, use the resource-derived middleware so the
+  organisation comes from the record: `withAppointmentOrgPermissions`,
+  `withInvoiceOrgPermissions`, `withPaymentOrgPermissions`,
+  `withPaymentIntentOrgPermissions`, `withTaskOrgPermissions`,
+  `withInventoryItemOrgPermissions`, `withEncounterOrgPermissions`,
+  `withCaseOrgPermissions`, `withRenderedDocumentOrgPermissions`,
+  `withRoomUnitOrgPermissions`, `withRoomUnitGroupOrgPermissions`. Add a new
+  one via `withResourceOrgPermissions` rather than hand-rolling a lookup.
+- In a controller, scope on `(req as OrgRequest).organisationId` - the value
+  the middleware authorized. If the request also carries an organisation, it
+  must **agree** with that value; reject a mismatch rather than preferring it.
+- Take the organisation as a **required** service argument, never
+  `organisationId?`. Prisma drops `undefined` where-fields, so an optional
+  scope silently becomes an unfiltered, cross-tenant query. Required turns
+  that into a build error.
+- `Document` has no organisation column - scope document queries through
+  `documentWhereForOrg()` (`src/services/document-scope.ts`), which expresses
+  the `patientOrganisation` join and the PMS visibility flag once.
+- `requirePermission([a, b])` is **any-of**. That is the intended idiom for an
+  `:any`/`:own` pair of the _same_ resource. An array naming two _different_
+  resources grants each to holders of the other - require both instead.
+- Read the acting user from the verified session (`req.userId`). Do **not** use
+  `resolveUserIdFromRequest` for an authorization decision: it falls back to a
+  client-supplied `x-user-id` header. It is fine for attribution only.
 
 ---
 

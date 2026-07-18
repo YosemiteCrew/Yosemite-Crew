@@ -17,6 +17,7 @@ import {
 import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { getSafeOrgImageUrl } from '@/app/lib/urls';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 import './DataTable.css';
 
@@ -72,8 +73,15 @@ const getImageFallback = (item: InventoryItem) => {
   return '💊';
 };
 
-const getInventoryImageSrc = (item: InventoryItem) =>
-  getSafeOrgImageUrl(item.basicInfo.imageUrl || item.imageUrl);
+// next/image throws when the host is outside next.config's allowlist. Inventory
+// images are org uploads stored as S3 keys, so anything that does not resolve to
+// the org CDN falls back to the category emoji instead of taking the page down.
+const ORG_IMAGE_URL_PREFIX = MEDIA_SOURCES.organization.fromS3Key('');
+
+const getInventoryImageSrc = (item: InventoryItem) => {
+  const src = getSafeOrgImageUrl(item.basicInfo.imageUrl || item.imageUrl);
+  return src.startsWith(ORG_IMAGE_URL_PREFIX) ? src : '';
+};
 
 const StatusPill = ({ label }: { label: string }) => (
   <span

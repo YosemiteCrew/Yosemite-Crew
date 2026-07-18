@@ -42,7 +42,7 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const {taskId, submissionId, toolId} = route.params;
+  const {taskId, toolId} = route.params;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,9 +73,9 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
     const load = async () => {
       try {
         setLoading(true);
-        const preview = submissionId
-          ? await observationToolApi.getSubmission(submissionId)
-          : await observationToolApi.previewTaskSubmission(taskId);
+        // The task preview resolves the latest submission for this task, which is
+        // the same row the task's otSubmissionId points at.
+        const preview = await observationToolApi.previewTaskSubmission(taskId);
 
         if (!isMounted) return;
 
@@ -101,7 +101,7 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [submissionId, taskId, toolId]);
+  }, [taskId, toolId]);
 
   const staticDefinition = useMemo(() => {
     const lookupId = submission?.toolId ?? toolId ?? '';

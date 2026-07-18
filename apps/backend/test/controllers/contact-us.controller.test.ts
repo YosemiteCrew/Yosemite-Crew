@@ -5,6 +5,7 @@ import {
 } from "../../src/services/contact-us.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
 import {
+  ATTACHMENT_MIME_TYPES,
   generatePresignedUrl,
   getURLForKey,
 } from "../../src/middlewares/upload";
@@ -30,6 +31,9 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
 }));
 
 jest.mock("../../src/middlewares/upload", () => ({
+  // The real allowlists, so the controller's rejection of a disallowed type is
+  // exercised rather than restated by the mock.
+  ...jest.requireActual("../../src/middlewares/upload"),
   generatePresignedUrl: jest.fn(),
   getURLForKey: jest.fn(),
 }));
@@ -318,8 +322,32 @@ describe("ContactController", () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        message: "mimeType is required in the request body.",
+        message: "A supported mimeType is required.",
       });
+    });
+
+    // This route is reachable without a session, so a disallowed type must never reach S3.
+    it.each(["text/html", "application/javascript", "image/svg+xml"])(
+      "returns 400 without minting a URL for %s",
+      async (mimeType) => {
+        const req = { body: { mimeType } } as any;
+        const res = createResponse();
+
+        await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(mockedGeneratePresignedUrl).not.toHaveBeenCalled();
+      },
+    );
+
+    it("returns 400 when mimeType is a structured value", async () => {
+      const req = { body: { mimeType: { not: null } } } as any;
+      const res = createResponse();
+
+      await ContactController.getAttachmentUploadUrl(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockedGeneratePresignedUrl).not.toHaveBeenCalled();
     });
 
     it("returns presigned upload URL with fileUrl", async () => {
@@ -337,6 +365,7 @@ describe("ContactController", () => {
         "image/png",
         "custom",
         "contact-us",
+        ATTACHMENT_MIME_TYPES,
       );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({

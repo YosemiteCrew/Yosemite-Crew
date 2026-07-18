@@ -235,6 +235,29 @@ const assertCanUpdateTask = (isCreator: boolean, isAssignee: boolean) => {
   }
 };
 
+const isTaskActor = (
+  task: { createdBy: string; assignedTo: string | null },
+  actorId: string,
+) => task.createdBy === actorId || task.assignedTo === actorId;
+
+/**
+ * A recurrence scope of ALL / THIS_AND_FOLLOWING fans a single authorized task
+ * id out across the whole series. Ownership was only ever proven for the task
+ * named in the URL, so every other row has to be re-checked before it is
+ * written; occurrences can be reassigned individually.
+ */
+const assertActorOwnsSeriesRows = (
+  rows: Array<{ id: string; createdBy: string; assignedTo: string | null }>,
+  actorId: string,
+) => {
+  if (rows.some((row) => !isTaskActor(row, actorId))) {
+    throw new TaskServiceError(
+      "Not allowed to update every task in this series",
+      403,
+    );
+  }
+};
+
 const resolveNextTaskStatus = (params: {
   currentStatus: TaskStatus;
   requestedStatus: TaskStatus;
@@ -1634,6 +1657,11 @@ export const TaskService = {
       (row) => row.id !== task.id && row.dueAt >= task.dueAt,
     );
 
+    assertActorOwnsSeriesRows(
+      normalizedScope === "ALL" ? seriesRows : [master, ...futureRows],
+      actorId,
+    );
+
     const updatedRows = await prisma.$transaction(async (tx) => {
       if (normalizedScope === "ALL") {
         const rows: TaskRow[] = [];
@@ -1734,8 +1762,14 @@ export const TaskService = {
     taskId: string,
     actorId: string,
     scope: RecurrenceScope = "THIS",
+    organisationId?: string,
   ): Promise<void> {
-    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    const orgScope = asNonEmptyString(organisationId);
+    const task = await prisma.task.findFirst({
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
+    });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
     const isCreator = task.createdBy === actorId;
@@ -1761,15 +1795,26 @@ export const TaskService = {
           { recurrence: { path: ["masterTaskId"], equals: seriesMasterId } },
         ],
       },
-      select: { id: true, dueAt: true },
+      select: { id: true, dueAt: true, createdBy: true, assignedTo: true },
     });
 
-    const cancellableIds =
+    const cancellableRows =
       normalizedScope === "ALL"
-        ? seriesIds.map((row) => row.id)
-        : seriesIds
-            .filter((row) => row.dueAt >= task.dueAt)
-            .map((row) => row.id);
+        ? seriesIds
+        : seriesIds.filter((row) => row.dueAt >= task.dueAt);
+
+    // THIS_AND_FOLLOWING also rewrites the master's recurrence end date, so the
+    // master counts as a written row even when it falls before the split point.
+    assertActorOwnsSeriesRows(
+      normalizedScope === "ALL"
+        ? cancellableRows
+        : seriesIds.filter(
+            (row) => row.dueAt >= task.dueAt || row.id === seriesMasterId,
+          ),
+      actorId,
+    );
+
+    const cancellableIds = cancellableRows.map((row) => row.id);
 
     await prisma.$transaction(async (tx) => {
       await tx.task.updateMany({
@@ -2042,7 +2087,10 @@ export const TaskService = {
 
   async listForCompanion(params: {
     patientId: string;
-    organisationId?: string;
+    // Required key, nullable value: the mobile route is parent-scoped and has no
+    // organisation, but every caller must state its scope rather than omit the
+    // field, because Prisma drops an `undefined` predicate from the `where`.
+    organisationId: string | undefined;
     audience?: TaskAudience;
     companionId?: string;
     clientId?: string;

@@ -125,7 +125,7 @@
     "optionalMessage": "Hay una versión más reciente con mejoras. Actualiza ahora para una mejor experiencia.",
     "updateNowButton": "Actualizar ahora",
     "laterButton": "Más tarde",
-    "missingStoreUrl": "El enlace de actualización no está configurado. Contacta al soporte.",
+    "missingStoreUrl": "El enlace de actualización no está configurado. Actualiza Yosemite Crew desde tu tienda de aplicaciones.",
     "openStoreFailed": "No se pudo abrir la tienda de aplicaciones. Inténtalo de nuevo."
   },
   "payments": {
