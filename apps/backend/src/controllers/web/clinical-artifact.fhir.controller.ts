@@ -243,13 +243,19 @@ export const ClinicalArtifactFhirController = {
       const body = medicationRequestSchema.parse(
         req.body,
       ) as unknown as MedicationRequest;
+      const actor = resolvePrescriptionActor(req);
       const context = readContext(
         req.body as Record<string, unknown>,
         resolveUserIdFromRequest(req) ?? "",
       );
+      // A caller with only own-scope edit cannot attribute the prescription to
+      // another author: the author is forced to the verified acting user, so a
+      // payload-supplied authorId cannot forge provenance.
+      const authorId = actor.canEditAny ? context.authorId : actor.actorId;
       const record = await ClinicalArtifactService.createPrescription(
         clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(body, {
           ...context,
+          authorId,
           organisationId: req.params.organisationId,
         }),
       );

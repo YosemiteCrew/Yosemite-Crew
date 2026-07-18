@@ -433,4 +433,66 @@ describe("ClinicalArtifactFhirController", () => {
     );
     expect(statusMock).toHaveBeenCalledWith(404);
   });
+  it("forces the author to the verified user when the caller has only own-scope edit", async () => {
+    mockedMapper.medicationRequestToPrescriptionInput.mockReturnValue({
+      organisationId: "org-1",
+    } as never);
+    mockedService.createPrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-9" },
+      prescription: { id: "rx-9" },
+    } as never);
+    mockedMapper.prescriptionToMedicationRequest.mockReturnValue({
+      resourceType: "MedicationRequest",
+    } as never);
+
+    await ClinicalArtifactFhirController.createPrescription(
+      {
+        ...req,
+        userId: "vet-self",
+        userPermissions: ["prescription:edit:own"],
+        headers: { "x-user-id": "someone-else" },
+        body: {
+          resourceType: "MedicationRequest",
+          intent: "order",
+          authorId: "victim-author",
+        },
+      } as unknown as Request,
+      res as Response,
+    );
+
+    const [, context] = mockedMapper.medicationRequestToPrescriptionInput.mock
+      .calls[0] as [unknown, { authorId?: string }];
+    expect(context.authorId).toBe("vet-self");
+  });
+
+  it("keeps the payload author for a caller holding org-wide edit", async () => {
+    mockedMapper.medicationRequestToPrescriptionInput.mockReturnValue({
+      organisationId: "org-1",
+    } as never);
+    mockedService.createPrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-10" },
+      prescription: { id: "rx-10" },
+    } as never);
+    mockedMapper.prescriptionToMedicationRequest.mockReturnValue({
+      resourceType: "MedicationRequest",
+    } as never);
+
+    await ClinicalArtifactFhirController.createPrescription(
+      {
+        ...req,
+        userId: "supervisor",
+        userPermissions: ["prescription:edit:any"],
+        body: {
+          resourceType: "MedicationRequest",
+          intent: "order",
+          authorId: "delegated-author",
+        },
+      } as unknown as Request,
+      res as Response,
+    );
+
+    const [, context] = mockedMapper.medicationRequestToPrescriptionInput.mock
+      .calls[0] as [unknown, { authorId?: string }];
+    expect(context.authorId).toBe("delegated-author");
+  });
 });
