@@ -4,7 +4,6 @@ import {
   AddCensusPayload,
   CensusEntry,
   CreateLabOrderPayload,
-  CredentialMeta,
   IdexxTestsResponse,
   IntegrationProvider,
   IvlsDevicesResponse,
@@ -76,23 +75,6 @@ export const storeIntegrationCredentials = async (
     payload
   );
   return res.data;
-};
-
-/**
- * Fetch the non-secret credential metadata (username + practice id) for the
- * inline credentials panel. The backend never returns the password.
- */
-export const getCredentialMeta = async (
-  organisationId: string,
-  provider: IntegrationProvider = IDEX_PROVIDER
-): Promise<CredentialMeta> => {
-  const res = await getData<Partial<CredentialMeta>>(
-    `/v1/integration/pms/organisation/${organisationId}/${provider}/credential-meta`
-  );
-  return {
-    username: res.data?.username ?? null,
-    practiceId: res.data?.practiceId ?? null,
-  };
 };
 
 export const validateIntegrationCredentials = async (
