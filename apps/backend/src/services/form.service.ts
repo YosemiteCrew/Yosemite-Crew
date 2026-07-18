@@ -555,11 +555,7 @@ const assertSoapAppointmentAccess = (params: {
 };
 
 type SoapNoteType =
-  | "Subjective"
-  | "Objective"
-  | "Assessment"
-  | "Plan"
-  | "Discharge";
+  "Subjective" | "Objective" | "Assessment" | "Plan" | "Discharge";
 
 type SoapNoteEntry = {
   submissionId: string;

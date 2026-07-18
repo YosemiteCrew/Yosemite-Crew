@@ -327,9 +327,7 @@ export class FormSigningService {
           documentId:
             (
               signedRenderedDocument.signing as
-                | { documentId?: string }
-                | null
-                | undefined
+                { documentId?: string } | null | undefined
             )?.documentId ?? renderedDocument.id,
           signer: {
             email: signerEmail,
@@ -343,16 +341,12 @@ export class FormSigningService {
       documentId:
         (
           signedRenderedDocument.signing as
-            | { documentId?: string }
-            | null
-            | undefined
+            { documentId?: string } | null | undefined
         )?.documentId ?? renderedDocument.id,
       signingUrl:
         (
           signedRenderedDocument.signing as
-            | { signingUrl?: string }
-            | null
-            | undefined
+            { signingUrl?: string } | null | undefined
         )?.signingUrl ?? null,
     };
   }

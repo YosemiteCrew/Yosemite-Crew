@@ -15,10 +15,7 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 // non-boolean-attribute warning trips the console.error guard in jest.setup.
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt, className }: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={className} />
-  ),
+  default: ({ src, alt, className }: any) => <img src={src} alt={alt} className={className} />,
 }));
 
 jest.mock('react-icons/io5', () => ({

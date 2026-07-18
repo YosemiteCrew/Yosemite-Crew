@@ -21,23 +21,14 @@ import {
 
 // Make sure this matches your schema's BusinessType
 export type BusinessType =
-  | "HOSPITAL"
-  | "GROOMING"
-  | "BOARDING"
-  | "BREEDING"
-  | "GENERAL";
+  "HOSPITAL" | "GROOMING" | "BOARDING" | "BREEDING" | "GENERAL";
 
 export type InventoryStatus = "ACTIVE" | "HIDDEN" | "DELETED";
 type InventoryStatusFilter =
-  | InventoryStatus
-  | { $in: InventoryStatus[] }
-  | { $ne: InventoryStatus };
+  InventoryStatus | { $in: InventoryStatus[] } | { $ne: InventoryStatus };
 
 export type StockHealthStatus =
-  | "HEALTHY"
-  | "LOW_STOCK"
-  | "EXPIRED"
-  | "EXPIRING_SOON";
+  "HEALTHY" | "LOW_STOCK" | "EXPIRED" | "EXPIRING_SOON";
 
 type FilterQuery = Record<string, unknown>;
 
@@ -588,10 +579,7 @@ const shouldIncludeItem = (args: {
 };
 
 export type InventoryTurnoverStatus =
-  | "EXCELLENT"
-  | "HEALTHY"
-  | "MODERATE"
-  | "LOW";
+  "EXCELLENT" | "HEALTHY" | "MODERATE" | "LOW";
 
 export interface InventoryTurnoverRow {
   itemId: string;
@@ -1521,8 +1509,7 @@ export const InventoryService = {
       where.OR = (query.$or as Array<Record<string, unknown>>).map((entry) => {
         const key = Object.keys(entry)[0];
         const value = entry[key] as
-          | { $regex?: string; $options?: string }
-          | RegExp;
+          { $regex?: string; $options?: string } | RegExp;
         let pattern = "";
         if (value instanceof RegExp) {
           pattern = value.source;

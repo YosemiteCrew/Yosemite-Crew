@@ -127,6 +127,7 @@ export const buildContentSecurityPolicy = ({
       ...postHogConnectHosts,
       'https://api.github.com',
       'https://raw.githubusercontent.com',
+      'https://discord.com',
       'https://api.iconify.design',
       'https://api.unisvg.com',
       'https://api.simplesvg.com',
@@ -154,6 +155,7 @@ export const buildContentSecurityPolicy = ({
     ]
       .filter(Boolean)
       .join(' '),
+    ["media-src 'self'", ...YC_CLOUDFRONT_HOSTS].join(' '),
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'self'",
