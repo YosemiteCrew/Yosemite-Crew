@@ -103,11 +103,11 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
   );
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
+    <Modal showModal={showModal} setShowModal={setShowModal} variant="centered" size="md">
+      <div className="flex flex-col flex-auto min-h-0 gap-6">
         <ModalHeader title="New task" onClose={() => setShowModal(false)} />
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
+        <div className="flex flex-col gap-6 w-full flex-auto min-h-0 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
           <TaskFormFields
             formData={formData}
             setFormData={setFormData}
@@ -118,6 +118,7 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
             dueTimeValue={dueTimeValue}
             setDueTimeValue={setDueTimeValue}
             onSelectTemplate={selectTemplate}
+            twoColumn
             showAudienceSelect
             audienceOptions={TaskTypeOptions}
             onAudienceSelect={(option) =>

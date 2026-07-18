@@ -217,6 +217,7 @@ jest.mock('react-icons/io5', () => ({
   IoPerson: () => <span data-testid="person-icon" />,
   IoChevronDown: () => <span data-testid="chevron-icon" />,
   IoAdd: () => <span data-testid="add-icon" />,
+  IoArrowForward: () => <span data-testid="arrow-forward-icon" />,
 }));
 
 jest.mock('react-icons/ti', () => ({
@@ -271,9 +272,23 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByLabelText('Client')).toBeInTheDocument();
   });
 
-  it('renders the Add Appointment submit button', () => {
+  it('renders the Book appointment submit button', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    expect(screen.getByRole('button', { name: /add appointment/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /book appointment/i })).toBeInTheDocument();
+  });
+
+  it('renders a Cancel button that closes the modal when there are no unsaved changes', () => {
+    const setShowModal = jest.fn();
+    render(<AddAppointmentCentralModal {...defaultProps} setShowModal={setShowModal} />);
+    const cancel = screen.getByRole('button', { name: /^cancel$/i });
+    expect(cancel).toBeInTheDocument();
+    fireEvent.click(cancel);
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('renders the emergency push + email notification hint', () => {
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+    expect(screen.getByText(/will be notified by push \+ email/i)).toBeInTheDocument();
   });
 
   // The notify-channel checkboxes were removed: the create-appointment API carries no
@@ -307,7 +322,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
     });
 
     // submitAttempted becomes true, booking error should show
@@ -321,7 +336,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
       await Promise.resolve();
     });
 
@@ -342,7 +357,7 @@ describe('AddAppointmentCentralModal', () => {
 
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
-    expect(screen.getByRole('button', { name: /add appointment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /book appointment/i })).toBeDisabled();
   });
 
   it('closes modal directly when no unsaved changes', async () => {
@@ -381,6 +396,18 @@ describe('AddAppointmentCentralModal', () => {
 
       expect(screen.getByTestId('center-modal')).toBeInTheDocument();
       expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+    });
+
+    it('Cancel opens the discard confirmation instead of closing when there are unsaved changes', async () => {
+      const setShowModal = jest.fn();
+      render(<AddAppointmentCentralModal {...defaultProps} setShowModal={setShowModal} />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+      });
+
+      expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+      expect(setShowModal).not.toHaveBeenCalled();
     });
 
     it('keep editing button closes discard confirm modal', async () => {
@@ -542,7 +569,7 @@ describe('AddAppointmentCentralModal', () => {
   it('shows loading indicator on submit button when isLoading', () => {
     mockAppointmentForm.isLoading = true;
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    expect(screen.getByRole('button', { name: /add appointment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /book appointment/i })).toBeDisabled();
   });
 
   it('prefill active state is set when prefill prop is provided', async () => {
@@ -693,7 +720,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
       await Promise.resolve();
     });
 
@@ -758,7 +785,7 @@ describe('AddAppointmentCentralModal', () => {
   // ── Submit button pointer ripple handlers ──────────────────────────────────
   it('submit button pointer handlers set ripple CSS variables', async () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    const submit = screen.getByRole('button', { name: /add appointment/i });
+    const submit = screen.getByRole('button', { name: /book appointment/i });
 
     await act(async () => {
       fireEvent.pointerDown(submit, { clientX: 12, clientY: 8 });
@@ -969,7 +996,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
       await Promise.resolve();
     });
 

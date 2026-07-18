@@ -10,7 +10,7 @@ type SpecialityNameEditorProps = {
   nameValue: string;
   nameError: string;
   specialityName: string;
-  totalCount: number;
+  subtitle: string;
   onToggleOpen: () => void;
   onNameChange: (value: string) => void;
   onNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -27,7 +27,7 @@ const SpecialityNameEditor = ({
   nameValue,
   nameError,
   specialityName,
-  totalCount,
+  subtitle,
   onToggleOpen,
   onNameChange,
   onNameKeyDown,
@@ -88,9 +88,11 @@ const SpecialityNameEditor = ({
         className="text-heading-3 text-text-primary text-left truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
         onClick={onToggleOpen}
       >
-        <span className="truncate">{specialityName}</span>{' '}
-        <span className="text-text-secondary font-normal whitespace-nowrap">({totalCount})</span>
+        <span className="truncate">{specialityName}</span>
       </button>
+      <span className="min-w-0 shrink truncate text-[12px] text-[var(--ink-faint)]">
+        {subtitle}
+      </span>
       <button
         type="button"
         aria-label={`Rename ${specialityName}`}

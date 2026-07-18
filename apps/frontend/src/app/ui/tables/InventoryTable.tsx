@@ -1,7 +1,8 @@
 'use client';
 import React from 'react';
 import Image from 'next/image';
-import { IoCubeOutline, IoEye } from 'react-icons/io5';
+import clsx from 'clsx';
+import { IoAddCircleOutline, IoEye } from 'react-icons/io5';
 import InventoryCard from '@/app/ui/cards/InventoryCard';
 import PaginatedGridTable, { GridHeaderCell } from '@/app/ui/tables/PaginatedGridTable';
 import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
@@ -55,6 +56,13 @@ const displayValue = (val?: string | number | null) => {
 };
 
 const getSku = (item: InventoryItem) => item.basicInfo.skuCode || item.sku || '—';
+
+// Design abbreviates the stock unit ("6 u", "48 bx"); infer a rough packaging
+// hint from the item name, defaulting to the generic "u".
+const getUnitAbbrev = (item: InventoryItem) => {
+  const raw = (item.basicInfo.name || '').toLowerCase();
+  return /\bbox\b|\bbx\b|\bpack\b|\bpk\b|carton|\bcase\b/.test(raw) ? 'bx' : 'u';
+};
 
 const getImageFallback = (item: InventoryItem) => {
   const category = item.basicInfo.category.toLowerCase();
@@ -113,6 +121,7 @@ const InventoryRow = ({
   const available = getAvailableStock(item);
   const margin = getMarginPercent(item);
   const expiryLabel = formatDisplayDate(item.batch.expiryDate) || '—';
+  const unit = getUnitAbbrev(item);
 
   return (
     <div
@@ -143,12 +152,12 @@ const InventoryRow = ({
         {expiryLabel}
       </div>
       <div className="text-right tabular-nums">
-        {displayValue(item.stock.current || '') === '—' ? '—' : `${item.stock.current} units`}
+        {displayValue(item.stock.current || '') === '—' ? '—' : `${item.stock.current} ${unit}`}
       </div>
       <div
         className={`text-right tabular-nums ${low ? 'font-bold text-[var(--color-pill-warning-text)]' : ''}`}
       >
-        {available ?? '—'}
+        {available === undefined ? '—' : `${available} ${unit}`}
       </div>
       <div className="text-right tabular-nums">
         {formatCurrencyValue(item.pricing.purchaseCost, item.currency)}
@@ -175,13 +184,14 @@ const InventoryRow = ({
               type="button"
               onClick={() => onRestock(item)}
               aria-label={`Restock ${item.basicInfo.name}`}
-              className={`flex size-[30px] items-center justify-center rounded-full! transition-colors ${
+              className={clsx(
+                'flex size-[30px] items-center justify-center rounded-full! transition-colors',
                 low
                   ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]'
                   : 'border border-card-border text-text-secondary hover:bg-card-hover'
-              }`}
+              )}
             >
-              <IoCubeOutline size={16} />
+              <IoAddCircleOutline size={16} />
             </button>
           </GlassTooltip>
         )}

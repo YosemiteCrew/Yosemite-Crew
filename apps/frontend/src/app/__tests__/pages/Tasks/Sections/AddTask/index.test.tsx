@@ -14,8 +14,12 @@ let mockResolveMemberName: (id?: string) => string;
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
-  default: ({ showModal, children }: any) =>
-    showModal ? <div data-testid="modal">{children}</div> : null,
+  default: ({ showModal, children, variant, size }: any) =>
+    showModal ? (
+      <div data-testid="modal" data-variant={variant} data-size={size}>
+        {children}
+      </div>
+    ) : null,
 }));
 
 jest.mock('@/app/ui/primitives/Icons/Close', () => ({
@@ -140,6 +144,14 @@ describe('Tasks AddTask', () => {
 
     expect(screen.getByText('Please select a companion or staff')).toBeInTheDocument();
     expect(screen.getByText('Name is required')).toBeInTheDocument();
+  });
+
+  it('opens the New task form as a centered medium dialog', () => {
+    render(<AddTask showModal setShowModal={jest.fn()} />);
+
+    const modal = screen.getByTestId('modal');
+    expect(modal).toHaveAttribute('data-variant', 'centered');
+    expect(modal).toHaveAttribute('data-size', 'md');
   });
 
   it('closes the modal from the footer Cancel button', () => {

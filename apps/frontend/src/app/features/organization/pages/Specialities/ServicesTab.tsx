@@ -20,9 +20,10 @@ import {
   IoAddOutline,
   IoArchiveOutline,
   IoBedOutline,
-  IoCheckmarkOutline,
+  IoCallOutline,
   IoCreateOutline,
   IoInformationCircleOutline,
+  IoPhonePortraitOutline,
 } from 'react-icons/io5';
 
 export type ServicesTabHandle = { openAdd: () => void };
@@ -30,6 +31,7 @@ export type ServicesTabHandle = { openAdd: () => void };
 type ServicesTabProps = Readonly<{
   specialityId: string;
   organisationId: string;
+  specialityName?: string;
   ref?: Ref<ServicesTabHandle>;
 }>;
 
@@ -66,22 +68,25 @@ const ServiceRow = ({
         title={service.name}
         titleColor="var(--color-neutral-900)"
         titleSlot={
-          service.isBookable || service.isInpatientPreferred ? (
-            <div className="flex items-center gap-2">
-              {service.isBookable && (
-                <Badge tone="brand">
-                  <IoCheckmarkOutline size={14} aria-hidden="true" />
-                  Bookable
-                </Badge>
-              )}
-              {service.isInpatientPreferred && (
-                <Badge tone="brand">
-                  <IoBedOutline size={14} aria-hidden="true" />
-                  In-patient
-                </Badge>
-              )}
-            </div>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {service.isBookable ? (
+              <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--pink)]">
+                <IoPhonePortraitOutline size={12} aria-hidden="true" />
+                In app
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--ink-faint)]">
+                <IoCallOutline size={12} aria-hidden="true" />
+                Desk only
+              </span>
+            )}
+            {service.isInpatientPreferred && (
+              <Badge tone="brand">
+                <IoBedOutline size={14} aria-hidden="true" />
+                In-patient
+              </Badge>
+            )}
+          </div>
         }
         className="flex-1 min-w-0"
       >
@@ -252,7 +257,7 @@ const ServiceRow = ({
   );
 };
 
-function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
+function ServicesTab({ specialityId, organisationId, specialityName, ref }: ServicesTabProps) {
   const services = useRevampCatalogStore(
     useShallow((s) =>
       s.services.filter((svc) => svc.specialityId === specialityId && svc.status === 'ACTIVE')
@@ -384,7 +389,7 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-primary-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
           <IoAddOutline size={16} aria-hidden="true" />
-          Click to add service
+          {specialityName ? `Add service to ${specialityName}` : 'Add service'}
         </button>
       )}
 

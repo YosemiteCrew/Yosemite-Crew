@@ -160,7 +160,7 @@ describe('Inventory page inner components', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Hidden' }));
     expect(setFilters).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
     expect(setSortMode).toHaveBeenCalledWith('stock');
 
@@ -183,7 +183,7 @@ describe('Inventory page inner components', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('filters-status-btn'));
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
     expect(setDispensaryStatusFilter).toHaveBeenCalledWith('DISPENSED');
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search dispensary' }), {

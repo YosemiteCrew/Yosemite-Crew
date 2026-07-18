@@ -1,4 +1,4 @@
-import Delete from '@/app/ui/primitives/Buttons/Delete';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 import DeleteConfirmationModal from '@/app/ui/overlays/Modal/DeleteConfirmationModal';
 import { useSignOut } from '@/app/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -91,7 +91,13 @@ const DeleteProfile = () => {
             Leaves all organizations and erases your account
           </div>
         </div>
-        <Delete href="#" onClick={handleOpenDelete} text="Delete…" />
+        <Secondary
+          danger
+          href="#"
+          text="Delete…"
+          onClick={handleOpenDelete}
+          className="min-h-0! h-[34px]! px-[15px]! text-[12px]! font-bold!"
+        />
       </div>
       <DeleteConfirmationModal
         showModal={deletePopup}

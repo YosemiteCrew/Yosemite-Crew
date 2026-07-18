@@ -43,7 +43,7 @@ jest.mock('next/image', () => ({
 
 // Mock Icons
 jest.mock('react-icons/io5', () => ({
-  IoEye: () => <span data-testid="eye-icon">Eye</span>,
+  IoEyeOutline: () => <span data-testid="eye-icon">Eye</span>,
 }));
 
 // --- Test Data ---

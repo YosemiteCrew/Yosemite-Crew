@@ -242,9 +242,9 @@ const ParentProfilePanel = ({
           ))}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
-          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-3xl border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-3 py-1 text-caption-1 font-medium text-[var(--status-completed-text)]">
+          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[11px] py-1 text-[11px] font-bold text-[var(--status-completed-text)]">
             Dues cleared
-            <IoCheckmarkOutline size={13} aria-hidden="true" />
+            <IoCheckmarkOutline size={11} aria-hidden="true" />
           </span>
           <div className="flex flex-col items-start gap-1.5 md:items-end">
             {alerts.map((alert) => (
@@ -261,7 +261,7 @@ const ParentProfilePanel = ({
                 type="button"
                 aria-label="Add client alert"
                 onClick={onAddAlert}
-                className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                className="flex size-6 items-center justify-center rounded-full border border-dashed border-[var(--divider)] text-[var(--ink-faint)] transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
               >
                 <IoAddOutline size={14} aria-hidden="true" />
               </button>
@@ -296,7 +296,7 @@ const AddAlertButton = ({
         type="button"
         aria-label={label}
         onClick={onClick}
-        className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        className="flex size-6 items-center justify-center rounded-full border border-dashed border-[var(--divider)] text-[var(--ink-faint)] transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
         <IoAddOutline size={14} aria-hidden="true" />
       </button>
@@ -459,9 +459,9 @@ const CompanionHistoryPageInner = () => {
                   type="button"
                   aria-label="Go back"
                   onClick={handleBack}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full text-neutral-900 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
                 >
-                  <IoIosArrowBack size={22} aria-hidden="true" />
+                  <IoIosArrowBack size={16} aria-hidden="true" />
                 </button>
                 <h1 className="text-page-title text-text-primary">{historyTitle}</h1>
                 <div className="flex flex-wrap items-center gap-1.5">
