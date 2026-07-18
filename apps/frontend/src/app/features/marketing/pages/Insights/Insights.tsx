@@ -135,7 +135,7 @@ function LiveTag() {
   return (
     <span style={LIVE_TAG_STYLE}>
       <span style={LIVE_DOT_STYLE} />
-      Live
+      {'Live'}
     </span>
   );
 }
@@ -272,7 +272,7 @@ function ConsoleHeader() {
       </span>
       <span style={CONSOLE_LIVE_STYLE}>
         <span style={{ ...LIVE_DOT_STYLE, background: '#2bbd86' }} />
-        Live
+        {'Live'}
       </span>
     </div>
   );
@@ -465,7 +465,7 @@ function Hero() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
           <div style={HERO_BADGE_STYLE}>
             <span style={LIVE_DOT_STYLE} />
-            Building in public
+            {'Building in public'}
             <span style={{ width: 1, height: 12, background: 'var(--divider)', margin: '0 3px' }} />
             <span style={{ color: 'var(--ink)', fontWeight: 600 }}>Updated live</span>
           </div>
@@ -735,7 +735,7 @@ function LanguagesCard({ languages }: Readonly<{ languages: RepoLanguage[] | nul
           <span style={CARD_ICON_STYLE}>
             <IoCodeSlashOutline style={{ fontSize: 17 }} aria-hidden="true" />
           </span>
-          What it is written in
+          {'What it is written in'}
         </span>
       </div>
       <div
@@ -962,7 +962,7 @@ function CommitsCard({ commits }: Readonly<{ commits: RepoCommit[] | null }>) {
           <span style={CARD_ICON_STYLE}>
             <IoGitCommitOutline style={{ fontSize: 17 }} aria-hidden="true" />
           </span>
-          Latest commits
+          {'Latest commits'}
         </span>
         <a
           href={REPO_COMMITS_URL}
@@ -1033,7 +1033,7 @@ function RepoFactsCard({ facts }: Readonly<{ facts: RepoFacts | null }>) {
         <span style={CARD_ICON_STYLE}>
           <IoStatsChartOutline style={{ fontSize: 17 }} aria-hidden="true" />
         </span>
-        Repository facts
+        {'Repository facts'}
       </span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 16 }}>
         {facts ? (
@@ -1094,7 +1094,7 @@ function ContributorsCard({ contributors }: Readonly<{ contributors: RepoContrib
         <span style={CARD_ICON_STYLE}>
           <IoPeopleOutline style={{ fontSize: 17 }} aria-hidden="true" />
         </span>
-        The people
+        {'The people'}
       </span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 18 }}>
         {contributors ? (
