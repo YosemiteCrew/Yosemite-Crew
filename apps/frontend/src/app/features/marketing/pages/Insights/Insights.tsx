@@ -124,7 +124,7 @@ const LIVE_TAG_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 6,
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 700,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
@@ -189,7 +189,7 @@ function MiniStat({ value, label }: Readonly<{ value: string; label: string }>) 
       >
         {value}
       </div>
-      <div style={{ fontSize: 11.5, letterSpacing: '-0.01em', color: '#8a8074', marginTop: 3 }}>
+      <div style={{ fontSize: 12, letterSpacing: '-0.01em', color: '#8a8074', marginTop: 3 }}>
         {label}
       </div>
     </div>
@@ -200,7 +200,7 @@ const CONSOLE_LIVE_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 6,
-  fontSize: 10.5,
+  fontSize: 12,
   fontWeight: 700,
   letterSpacing: '0.09em',
   textTransform: 'uppercase',
@@ -291,7 +291,7 @@ function ConsoleHeartbeatPanel({ weeks }: Readonly<{ weeks: number[] | null }>) 
       >
         <span
           style={{
-            fontSize: 11.5,
+            fontSize: 12,
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
@@ -300,7 +300,7 @@ function ConsoleHeartbeatPanel({ weeks }: Readonly<{ weeks: number[] | null }>) 
         >
           Commit activity
         </span>
-        <span style={{ fontSize: 11.5, letterSpacing: '-0.01em', color: '#6b6155' }}>52 weeks</span>
+        <span style={{ fontSize: 12, letterSpacing: '-0.01em', color: '#6b6155' }}>52 weeks</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 66 }}>
         <Heartbeat weeks={weeks} />
@@ -365,7 +365,7 @@ function ConsoleFloatBadge() {
       </span>
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>No cache</div>
-        <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Pulled on every visit</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Pulled on every visit</div>
       </div>
     </div>
   );
