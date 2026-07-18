@@ -163,6 +163,18 @@ describe('InkAnnotate', () => {
     expect(path.style.strokeDashoffset).toBe('0');
   });
 
+  it('keeps the mark shown on resize even when the offset serializes as "0px" (Safari)', () => {
+    render(<InkAnnotate type="circle">whole</InkAnnotate>);
+    act(() => ioCallback?.([{ intersectionRatio: 0.6, isIntersecting: true }])); // reveal -> shown
+    const path = document.querySelector('[data-ink] path') as SVGPathElement;
+    // WebKit reports strokeDashoffset '0' as '0px'; a string check would misread this as
+    // hidden and retract the mark. Visibility is tracked in state, so it must stay shown.
+    path.style.strokeDashoffset = '0px';
+    widthSpy.mockReturnValue(200);
+    resizeViewport();
+    expect(path.style.strokeDashoffset).toBe('0');
+  });
+
   it('retracts to the refitted length when scrolled out after the mark grows', () => {
     render(<InkAnnotate type="underline">grow</InkAnnotate>);
     act(() => ioCallback?.([{ intersectionRatio: 0.6, isIntersecting: true }])); // play -> shown
