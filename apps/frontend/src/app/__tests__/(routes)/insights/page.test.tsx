@@ -10,19 +10,20 @@ jest.mock('@/app/features/marketing/site', () => ({
   ),
 }));
 
-jest.mock('@/app/features/overview/pages/OverviewPage', () => ({
+jest.mock('@/app/features/marketing/pages/Insights/Insights', () => ({
   __esModule: true,
-  default: () => <div data-testid="insights-page">Insights</div>,
+  Insights: () => <div data-testid="insights-page">Insights</div>,
 }));
 
 describe('Insights route', () => {
-  it('renders the overview page', () => {
+  it('renders the insights page inside the marketing shell', () => {
     render(<Page />);
+    expect(screen.getByTestId('marketing-shell')).toBeInTheDocument();
     expect(screen.getByTestId('insights-page')).toBeInTheDocument();
   });
 
   it('exports route metadata', () => {
     expect(metadata.title).toContain('Insights');
-    expect(metadata.description).toContain('Project health');
+    expect(metadata.description).toContain('Building in public');
   });
 });
