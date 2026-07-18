@@ -23,27 +23,23 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
-jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
-  __esModule: true,
-  default: ({ inlabel, value, onChange, error, inname }: any) => (
-    <label>
-      {inlabel}
-      <input type="password" aria-label={inlabel} value={value} onChange={onChange} />
-      {error && <span data-testid={`${inname}-error`}>{error}</span>}
-    </label>
+jest.mock('@/app/features/marketing/site', () => ({
+  AuthShell: ({
+    brand,
+    topRight,
+    children,
+  }: {
+    brand: React.ReactNode;
+    topRight: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <div>
+      <div>{brand}</div>
+      <div>{topRight}</div>
+      <main>{children}</main>
+    </div>
   ),
-}));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, href, isDisabled }: any) =>
-    onClick ? (
-      <button type="button" onClick={onClick} disabled={isDisabled}>
-        {text}
-      </button>
-    ) : (
-      <a href={href}>{text}</a>
-    ),
-  Secondary: ({ text, href }: any) => <a href={href ?? '#'}>{text}</a>,
+  AuthBrandContent: () => <div data-testid="auth-brand" />,
 }));
 
 expect.extend(toHaveNoViolations);
@@ -55,37 +51,30 @@ describe('ResetPassword landing page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
-      selector({ resetPassword: mockResetPassword })
+    (useAuthStore as unknown as jest.Mock).mockImplementation(
+      (selector: (s: { resetPassword: unknown }) => unknown) =>
+        selector({ resetPassword: mockResetPassword })
     );
     (useRouter as jest.Mock).mockReturnValue({ push: mockRouterPush });
   });
 
   const fillPasswords = (password: string, confirm: string) => {
-    fireEvent.change(screen.getByLabelText('Enter New Password'), {
-      target: { value: password },
-    });
-    fireEvent.change(screen.getByLabelText('Confirm Password'), {
-      target: { value: confirm },
-    });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: password } });
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: confirm } });
   };
 
   const submit = async () => {
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Reset password|Resetting.../ }));
+      fireEvent.click(screen.getByRole('button', { name: /Reset password|Resetting/ }));
     });
   };
 
   it('renders the new password form', () => {
     render(<ResetPassword />);
 
-    expect(screen.getByRole('heading', { name: 'Set new password' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Enter New Password')).toBeInTheDocument();
-    expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute(
-      'href',
-      '/signin'
-    );
+    expect(screen.getByRole('heading', { name: /Set a new password/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('New password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm password')).toBeInTheDocument();
   });
 
   it('requires both password fields', async () => {
@@ -122,23 +111,12 @@ describe('ResetPassword landing page', () => {
     expect(mockResetPassword).not.toHaveBeenCalled();
   });
 
-  it('requires the confirmation when only the password is set', async () => {
-    render(<ResetPassword />);
-    fireEvent.change(screen.getByLabelText('Enter New Password'), {
-      target: { value: 'Test-password-3!' },
-    });
-
-    await submit();
-
-    expect(screen.getByText('Confirm your new password')).toBeInTheDocument();
-  });
-
   it('clears validation errors when the user edits a field', async () => {
     render(<ResetPassword />);
     await submit();
     expect(screen.getByText('Enter a new password')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Enter New Password'), {
+    fireEvent.change(screen.getByLabelText('New password'), {
       target: { value: 'Test-password-3!' },
     });
 
@@ -183,6 +161,10 @@ describe('ResetPassword landing page', () => {
       'href',
       '/forgot-password'
     );
+    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute(
+      'href',
+      '/signin'
+    );
     expect(showErrorTostMock).not.toHaveBeenCalled();
   });
 
@@ -196,7 +178,7 @@ describe('ResetPassword landing page', () => {
     expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Password too weak', errortext: 'Error' })
     );
-    expect(screen.getByRole('heading', { name: 'Set new password' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Set a new password/ })).toBeInTheDocument();
   });
 
   it('shows a generic message for non-Error failures', async () => {

@@ -3,6 +3,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
+import ForgotPassword from '@/app/features/auth/pages/ForgotPassword/ForgotPassword';
+import { useAuthStore } from '@/app/stores/authStore';
+
 const showErrorTostMock = jest.fn();
 jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
   useErrorTost: () => ({
@@ -11,191 +14,129 @@ jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
   }),
 }));
 
-const authStoreMock: {
-  forgotPassword: jest.Mock;
-} = {
-  forgotPassword: jest.fn(),
-};
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: () => authStoreMock,
+  useAuthStore: jest.fn(),
 }));
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({
-    text,
-    onClick,
+jest.mock('@/app/features/marketing/site', () => ({
+  AuthShell: ({
+    brand,
+    topRight,
+    children,
   }: {
-    text: string;
-    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+    brand: React.ReactNode;
+    topRight: React.ReactNode;
+    children: React.ReactNode;
   }) => (
-    <button
-      type="button"
-      onClick={(e) => onClick?.(e as unknown as React.MouseEvent<HTMLAnchorElement>)}
-    >
-      {text}
-    </button>
+    <div>
+      <div>{brand}</div>
+      <div>{topRight}</div>
+      <main>{children}</main>
+    </div>
   ),
-  Secondary: ({
-    text,
-    href,
-    onClick,
-  }: {
-    text: string;
-    href?: string;
-    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
-  }) => (
-    <a href={href ?? '#'} onClick={(e) => onClick?.(e)}>
-      {text}
-    </a>
-  ),
+  AuthBrandContent: () => <div data-testid="auth-brand" />,
 }));
-
-import ForgotPassword from '@/app/features/auth/pages/ForgotPassword/ForgotPassword';
 
 expect.extend(toHaveNoViolations);
 
 describe('ForgotPassword page (reset link flow)', () => {
-  beforeAll(() => {
-    (globalThis as typeof globalThis & { scrollTo: jest.Mock }).scrollTo = jest.fn();
-  });
+  const forgotPasswordMock = jest.fn();
 
   beforeEach(() => {
-    authStoreMock.forgotPassword.mockReset();
-    showErrorTostMock.mockReset();
+    jest.clearAllMocks();
+    (useAuthStore as unknown as jest.Mock).mockImplementation(
+      (selector: (s: { forgotPassword: unknown }) => unknown) =>
+        selector({ forgotPassword: forgotPasswordMock })
+    );
   });
 
-  const requestLink = async (email = 'user@example.com') => {
-    fireEvent.change(screen.getByLabelText('Email Address'), {
-      target: { value: email },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
-    await waitFor(() => expect(authStoreMock.forgotPassword).toHaveBeenCalled());
+  const submitEmail = (email = 'user@example.com') => {
+    fireEvent.change(screen.getByLabelText('Work email'), { target: { value: email } });
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
   };
 
-  test('renders the initial email form', () => {
+  test('renders the email form', () => {
     render(<ForgotPassword />);
 
-    expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Email Address')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send code' })).toBeInTheDocument();
-    expect(screen.getByText(/send you a code to reset it/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Reset your password/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Work email')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Send reset link/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute(
+      'href',
+      '/signin'
+    );
   });
 
-  test('requires email before sending the link and exposes inline email error', () => {
+  test('shows an inline error when the email is missing', () => {
     render(<ForgotPassword />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
 
     expect(screen.getByText('Email is required')).toBeInTheDocument();
-    expect(screen.getByLabelText('Email Address')).toHaveAttribute('aria-invalid', 'true');
-    expect(showErrorTostMock).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Email is required' })
-    );
-    expect(authStoreMock.forgotPassword).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Work email')).toHaveAttribute('aria-invalid', 'true');
+    expect(forgotPasswordMock).not.toHaveBeenCalled();
   });
 
-  test('validates the email format before sending the link', () => {
+  test('validates the email format before sending', () => {
     render(<ForgotPassword />);
 
-    fireEvent.change(screen.getByLabelText('Email Address'), {
-      target: { value: 'not-an-email' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'not-an-email' } });
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
 
-    expect(showErrorTostMock).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Enter a valid email' })
-    );
-    expect(authStoreMock.forgotPassword).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
+    expect(forgotPasswordMock).not.toHaveBeenCalled();
   });
 
-  test('clears the inline email error when the user edits the field', () => {
+  test('clears the inline error as the user edits the field', () => {
     render(<ForgotPassword />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
     expect(screen.getByText('Email is required')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Email Address'), {
+    fireEvent.change(screen.getByLabelText('Work email'), {
       target: { value: 'user@example.com' },
     });
 
     expect(screen.queryByText('Email is required')).not.toBeInTheDocument();
   });
 
-  test('moves to the check-your-email step after requesting the link', async () => {
-    authStoreMock.forgotPassword.mockResolvedValue({ status: 'OK' });
+  test('shows the check-your-email confirmation after sending the link', async () => {
+    forgotPasswordMock.mockResolvedValue({ status: 'OK' });
     render(<ForgotPassword />);
 
-    await requestLink();
+    submitEmail('user@example.com');
 
-    expect(authStoreMock.forgotPassword).toHaveBeenCalledWith('user@example.com');
-    await screen.findByRole('heading', { name: 'Verify code' });
-    expect(screen.getByText(/Enter the 6-digit code from your email/i)).toBeInTheDocument();
-    expect(showErrorTostMock).toHaveBeenCalledWith(
-      expect.objectContaining({ errortext: 'Success' })
-    );
+    await screen.findByTestId('forgot-sent');
+    expect(forgotPasswordMock).toHaveBeenCalledWith('user@example.com');
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+    expect(screen.getByText('user@example.com')).toBeInTheDocument();
   });
 
-  test('resends the link from the check-your-email step', async () => {
-    authStoreMock.forgotPassword.mockResolvedValue({ status: 'OK' });
+  test('lets the user return to the form to try another email', async () => {
+    forgotPasswordMock.mockResolvedValue({ status: 'OK' });
     render(<ForgotPassword />);
 
-    await requestLink();
-    await screen.findByRole('heading', { name: 'Verify code' });
+    submitEmail();
+    await screen.findByTestId('forgot-sent');
 
-    authStoreMock.forgotPassword.mockClear();
-    fireEvent.click(screen.getByRole('link', { name: 'Request New Code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'try another email' }));
+
+    expect(screen.getByLabelText('Work email')).toBeInTheDocument();
+    expect(screen.queryByTestId('forgot-sent')).not.toBeInTheDocument();
+  });
+
+  test('surfaces a toast when the request fails and stays on the form', async () => {
+    forgotPasswordMock.mockRejectedValue(new Error('Not allowed'));
+    render(<ForgotPassword />);
+
+    submitEmail();
 
     await waitFor(() =>
-      expect(authStoreMock.forgotPassword).toHaveBeenCalledWith('user@example.com')
+      expect(showErrorTostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Not allowed', errortext: 'Error' })
+      )
     );
-  });
-
-  test('offers a way back to sign in from both steps', async () => {
-    authStoreMock.forgotPassword.mockResolvedValue({ status: 'OK' });
-    render(<ForgotPassword />);
-
-    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/signin');
-
-    await requestLink();
-    await screen.findByRole('heading', { name: 'Verify code' });
-
-    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '#');
-  });
-
-  test('surfaces request failures with the provider message', async () => {
-    authStoreMock.forgotPassword.mockRejectedValue({
-      response: { data: { message: 'Not allowed' } },
-    });
-    render(<ForgotPassword />);
-
-    await requestLink();
-
-    expect(showErrorTostMock).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'OTP failed: Not allowed' })
-    );
-    expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
-  });
-
-  test('falls back to a connectivity message for non-Error failures', async () => {
-    authStoreMock.forgotPassword.mockRejectedValue('boom');
-    render(<ForgotPassword />);
-
-    await requestLink();
-
-    expect(showErrorTostMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'OTP failed: Unable to connect to the server.',
-      })
-    );
-  });
-
-  test('stays on the email step when the store resolves nothing', async () => {
-    authStoreMock.forgotPassword.mockResolvedValue(null);
-    render(<ForgotPassword />);
-
-    await requestLink();
-
-    expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Work email')).toBeInTheDocument();
   });
 
   test('has no axe accessibility violations', async () => {
