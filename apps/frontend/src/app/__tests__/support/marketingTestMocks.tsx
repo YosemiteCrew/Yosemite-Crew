@@ -23,7 +23,6 @@ const NEXT_IMAGE_ONLY_PROPS = [
 export const NextImageMock = ({ alt, ...props }: Record<string, unknown>) => {
   const rest: Record<string, unknown> = { ...props };
   NEXT_IMAGE_ONLY_PROPS.forEach((key) => delete rest[key]);
-  // eslint-disable-next-line @next/next/no-img-element
   return <img alt={typeof alt === 'string' ? alt : ''} {...rest} />;
 };
 

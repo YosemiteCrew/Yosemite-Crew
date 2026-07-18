@@ -209,308 +209,331 @@ export function SiteFooter() {
             alignItems: 'start',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 20,
-              alignItems: 'flex-start',
-              maxWidth: 290,
-            }}
-          >
-            <Link
-              href="/"
-              aria-label="Yosemite Crew home"
-              style={{ display: 'flex', alignItems: 'center' }}
-            >
-              <Image
-                src={MARKETING_LOGO}
-                alt="Yosemite Crew"
-                width={54}
-                height={54}
-                style={{ objectFit: 'contain' }}
-              />
-            </Link>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 14.5,
-                lineHeight: 1.6,
-                letterSpacing: '-0.015em',
-                color: '#837d78',
-              }}
-            >
-              The open-source operating system for animal health. Free to self-host, and built in
-              the open.
-            </p>
-            <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-              <a
-                href={GITHUB_REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="GitHub"
-                className="yc-pill-blue"
-                style={socialLink}
-              >
-                <IoLogoGithub style={{ fontSize: 17 }} />
-              </a>
-              <a
-                href={DISCORD_INVITE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Discord"
-                className="yc-pill-blue"
-                style={socialLink}
-              >
-                <IoLogoDiscord style={{ fontSize: 17 }} />
-              </a>
-              <a
-                href={LINKEDIN_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="LinkedIn"
-                className="yc-pill-blue"
-                style={socialLink}
-              >
-                <IoLogoLinkedin style={{ fontSize: 17 }} />
-              </a>
-              <a
-                href={INSTAGRAM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="yc-pill-blue"
-                style={socialLink}
-              >
-                <IoLogoInstagram style={{ fontSize: 17 }} />
-              </a>
-              <a
-                href={X_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="X"
-                className="yc-pill-blue"
-                style={socialLink}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="14"
-                  height="14"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-              </a>
-              <a
-                href={TIKTOK_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok"
-                className="yc-pill-blue"
-                style={socialLink}
-              >
-                <IoLogoTiktok style={{ fontSize: 17 }} />
-              </a>
-            </div>
-          </div>
-
-          <FooterColumn heading="Product">
-            {PRODUCT_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
-                {l.label}
-              </Link>
-            ))}
-          </FooterColumn>
-
-          <FooterColumn heading="Community">
-            {COMMUNITY_LINKS.map((l) =>
-              l.internal ? (
-                <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
-                  {l.label}
-                </Link>
-              ) : (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="yc-link"
-                  style={colLink}
-                >
-                  {l.label}
-                </a>
-              )
-            )}
-          </FooterColumn>
-
-          <FooterColumn heading="Company">
-            {COMPANY_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
-                {l.label}
-              </Link>
-            ))}
-          </FooterColumn>
-
-          <FooterColumn heading="Legal">
-            {LEGAL_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
-                {l.label}
-              </Link>
-            ))}
-          </FooterColumn>
+          <FooterBrand />
+          <FooterNav />
         </div>
 
-        <div data-footer-apps="true" data-stack-m="true" style={FOOTER_APPS_STYLE}>
-          <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
-            <AppColumn heading="Clinic desktop app">
-              <a
-                href={RELEASES_LATEST_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="yc-appbadge"
-                data-appbadge="true"
-                style={appBadge}
-              >
-                <IoLogoApple style={{ fontSize: 16 }} />
-                macOS
-              </a>
-              <a
-                href={RELEASES_LATEST_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="yc-appbadge"
-                data-appbadge="true"
-                style={appBadge}
-              >
-                <IoLogoWindows style={{ fontSize: 15 }} />
-                Windows
-              </a>
-            </AppColumn>
-            <AppColumn heading="Pet parent app">
-              <a
-                href={APP_STORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="yc-appbadge"
-                data-appbadge="true"
-                style={appBadge}
-              >
-                <IoLogoApple style={{ fontSize: 16 }} />
-                App Store
-              </a>
-              <a
-                href={PLAY_STORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="yc-appbadge"
-                data-appbadge="true"
-                style={appBadge}
-              >
-                <IoLogoGooglePlaystore style={{ fontSize: 15 }} />
-                Google Play
-              </a>
-            </AppColumn>
-          </div>
-          <a
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-star="true"
-            style={STAR_LINK_STYLE}
-          >
-            <IoLogoGithub style={{ fontSize: 16 }} />
-            Star on GitHub
-            <span style={STAR_COUNT_STYLE}>
-              <IoStar style={{ fontSize: 11.5, color: '#f5c518' }} />
-              {stars ?? '★'}
-            </span>
-          </a>
-        </div>
+        <FooterApps stars={stars} />
 
-        <div data-footer-mid="true" data-stack-m="true" style={FOOTER_MID_STYLE}>
-          <Link href="/trust-center" className="yc-pill-green" style={STATUS_LINK_STYLE}>
-            <span
-              style={{
-                width: 9,
-                height: 9,
-                borderRadius: 9999,
-                background: 'var(--success)',
-                animation: 'ycStatusPulse 2.6s ease-out infinite',
-              }}
-              aria-hidden="true"
-            />
-            <span
-              style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', color: '#1d6b4f' }}
-            >
-              All systems operational
-            </span>
-            <span
-              data-live-tag="true"
-              style={{
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-faint2)',
-                borderLeft: '1px solid #e0dcd8',
-                paddingLeft: 10,
-              }}
-            >
-              Live
-            </span>
-          </Link>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <span style={chip}>
-              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
-              GDPR
-            </span>
-            <span style={chip}>
-              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
-              SOC 2 Type II
-            </span>
-            <span style={chip}>
-              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
-              ISO 27001
-            </span>
-            <span style={chip}>
-              <IoPulseOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
-              HL7 FHIR
-            </span>
-            <span style={chip}>
-              <IoDocumentTextOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
-              21 CFR Part 11
-            </span>
-          </div>
-        </div>
+        <FooterCompliance />
 
-        <div
-          data-footer-bottom="true"
-          data-stack-m="true"
-          style={{
-            marginTop: 30,
-            paddingTop: 26,
-            borderTop: '1px solid var(--hairline)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            gap: 20,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
-              © 2026 DuneXploration UG (haftungsbeschränkt) · Am Finther Weg 7, 55127 Mainz ·
-              support@yosemitecrew.com · +49 152 277 63275
-            </span>
-            <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
-              Geschäftsführer: Ankit Upadhyay · Amtsgericht Mainz HRB 52778 · VAT: DE367920596 ·
-              Yosemite Crew™ is a trademark of DuneXploration UG.
-            </span>
-          </div>
-          <BackToTop />
-        </div>
+        <FooterBottom />
       </div>
     </footer>
+  );
+}
+
+function FooterBrand() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+        alignItems: 'flex-start',
+        maxWidth: 290,
+      }}
+    >
+      <Link
+        href="/"
+        aria-label="Yosemite Crew home"
+        style={{ display: 'flex', alignItems: 'center' }}
+      >
+        <Image
+          src={MARKETING_LOGO}
+          alt="Yosemite Crew"
+          width={54}
+          height={54}
+          style={{ objectFit: 'contain' }}
+        />
+      </Link>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 14.5,
+          lineHeight: 1.6,
+          letterSpacing: '-0.015em',
+          color: '#837d78',
+        }}
+      >
+        The open-source operating system for animal health. Free to self-host, and built in the
+        open.
+      </p>
+      <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+        <a
+          href={GITHUB_REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GitHub"
+          className="yc-pill-blue"
+          style={socialLink}
+        >
+          <IoLogoGithub style={{ fontSize: 17 }} />
+        </a>
+        <a
+          href={DISCORD_INVITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Discord"
+          className="yc-pill-blue"
+          style={socialLink}
+        >
+          <IoLogoDiscord style={{ fontSize: 17 }} />
+        </a>
+        <a
+          href={LINKEDIN_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="LinkedIn"
+          className="yc-pill-blue"
+          style={socialLink}
+        >
+          <IoLogoLinkedin style={{ fontSize: 17 }} />
+        </a>
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Instagram"
+          className="yc-pill-blue"
+          style={socialLink}
+        >
+          <IoLogoInstagram style={{ fontSize: 17 }} />
+        </a>
+        <a
+          href={X_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="X"
+          className="yc-pill-blue"
+          style={socialLink}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        </a>
+        <a
+          href={TIKTOK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="TikTok"
+          className="yc-pill-blue"
+          style={socialLink}
+        >
+          <IoLogoTiktok style={{ fontSize: 17 }} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function FooterNav() {
+  return (
+    <>
+      <FooterColumn heading="Product">
+        {PRODUCT_LINKS.map((l) => (
+          <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
+            {l.label}
+          </Link>
+        ))}
+      </FooterColumn>
+
+      <FooterColumn heading="Community">
+        {COMMUNITY_LINKS.map((l) =>
+          l.internal ? (
+            <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
+              {l.label}
+            </Link>
+          ) : (
+            <a
+              key={l.href}
+              href={l.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="yc-link"
+              style={colLink}
+            >
+              {l.label}
+            </a>
+          )
+        )}
+      </FooterColumn>
+
+      <FooterColumn heading="Company">
+        {COMPANY_LINKS.map((l) => (
+          <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
+            {l.label}
+          </Link>
+        ))}
+      </FooterColumn>
+
+      <FooterColumn heading="Legal">
+        {LEGAL_LINKS.map((l) => (
+          <Link key={l.href} href={l.href} className="yc-link" style={colLink}>
+            {l.label}
+          </Link>
+        ))}
+      </FooterColumn>
+    </>
+  );
+}
+
+function FooterApps({ stars }: Readonly<{ stars: string | null }>) {
+  return (
+    <div data-footer-apps="true" data-stack-m="true" style={FOOTER_APPS_STYLE}>
+      <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
+        <AppColumn heading="Clinic desktop app">
+          <a
+            href={RELEASES_LATEST_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="yc-appbadge"
+            data-appbadge="true"
+            style={appBadge}
+          >
+            <IoLogoApple style={{ fontSize: 16 }} />
+            macOS
+          </a>
+          <a
+            href={RELEASES_LATEST_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="yc-appbadge"
+            data-appbadge="true"
+            style={appBadge}
+          >
+            <IoLogoWindows style={{ fontSize: 15 }} />
+            Windows
+          </a>
+        </AppColumn>
+        <AppColumn heading="Pet parent app">
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="yc-appbadge"
+            data-appbadge="true"
+            style={appBadge}
+          >
+            <IoLogoApple style={{ fontSize: 16 }} />
+            App Store
+          </a>
+          <a
+            href={PLAY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="yc-appbadge"
+            data-appbadge="true"
+            style={appBadge}
+          >
+            <IoLogoGooglePlaystore style={{ fontSize: 15 }} />
+            Google Play
+          </a>
+        </AppColumn>
+      </div>
+      <a
+        href={GITHUB_REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-star="true"
+        style={STAR_LINK_STYLE}
+      >
+        <IoLogoGithub style={{ fontSize: 16 }} />
+        Star on GitHub
+        <span style={STAR_COUNT_STYLE}>
+          <IoStar style={{ fontSize: 11.5, color: '#f5c518' }} />
+          {stars ?? '★'}
+        </span>
+      </a>
+    </div>
+  );
+}
+
+function FooterCompliance() {
+  return (
+    <div data-footer-mid="true" data-stack-m="true" style={FOOTER_MID_STYLE}>
+      <Link href="/trust-center" className="yc-pill-green" style={STATUS_LINK_STYLE}>
+        <span
+          style={{
+            width: 9,
+            height: 9,
+            borderRadius: 9999,
+            background: 'var(--success)',
+            animation: 'ycStatusPulse 2.6s ease-out infinite',
+          }}
+          aria-hidden="true"
+        />
+        <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', color: '#1d6b4f' }}>
+          All systems operational
+        </span>
+        <span
+          data-live-tag="true"
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-faint2)',
+            borderLeft: '1px solid #e0dcd8',
+            paddingLeft: 10,
+          }}
+        >
+          Live
+        </span>
+      </Link>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <span style={chip}>
+          <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
+          GDPR
+        </span>
+        <span style={chip}>
+          <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
+          SOC 2 Type II
+        </span>
+        <span style={chip}>
+          <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
+          ISO 27001
+        </span>
+        <span style={chip}>
+          <IoPulseOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
+          HL7 FHIR
+        </span>
+        <span style={chip}>
+          <IoDocumentTextOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
+          21 CFR Part 11
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function FooterBottom() {
+  return (
+    <div
+      data-footer-bottom="true"
+      data-stack-m="true"
+      style={{
+        marginTop: 30,
+        paddingTop: 26,
+        borderTop: '1px solid var(--hairline)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        gap: 20,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+          © 2026 DuneXploration UG (haftungsbeschränkt) · Am Finther Weg 7, 55127 Mainz ·
+          support@yosemitecrew.com · +49 152 277 63275
+        </span>
+        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+          Geschäftsführer: Ankit Upadhyay · Amtsgericht Mainz HRB 52778 · VAT: DE367920596 ·
+          Yosemite Crew™ is a trademark of DuneXploration UG.
+        </span>
+      </div>
+      <BackToTop />
+    </div>
   );
 }
 

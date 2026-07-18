@@ -272,6 +272,330 @@ const CLOSING_PORTAL_LINK_STYLE: React.CSSProperties = {
   transition: 'border-color 200ms, background 200ms',
 };
 
+interface HeroCtaRefs {
+  primaryRef: React.Ref<HTMLAnchorElement>;
+  ghostRef: React.Ref<HTMLAnchorElement>;
+}
+
+/** Hero headline: words animate in, ending on the cyan em-word with the ink underline. */
+function HeroHeadline() {
+  return (
+    <h1 style={HERO_HEADLINE_STYLE}>
+      <span
+        style={{
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.1s both',
+        }}
+      >
+        From
+      </span>
+      <span
+        style={{
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.22s both',
+        }}
+      >
+        idea
+      </span>
+      <span
+        style={{
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.34s both',
+        }}
+      >
+        to
+      </span>
+      <span
+        style={{
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.46s both',
+        }}
+      >
+        the
+      </span>
+      <span
+        style={{
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.58s both',
+        }}
+      >
+        clinic,
+      </span>
+      <em
+        style={{
+          display: 'inline-block',
+          fontStyle: 'italic',
+          fontWeight: 480,
+          color: 'var(--cyan-text)',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.7s both',
+        }}
+      >
+        <InkAnnotate type="underline" delay={1600}>
+          in&nbsp;an&nbsp;afternoon.
+        </InkAnnotate>
+      </em>
+    </h1>
+  );
+}
+
+/** Hero left column: badge, headline, subhead, and the two magnetized CTAs. */
+function HeroLeftColumn({ primaryRef, ghostRef }: Readonly<HeroCtaRefs>) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+      <div style={HERO_BADGE_STYLE}>
+        <span
+          style={{
+            width: '7px',
+            height: '7px',
+            borderRadius: '9999px',
+            background: 'var(--success)',
+          }}
+        />
+        {'Developer portal'}
+        <span
+          style={{
+            width: '1px',
+            height: '12px',
+            background: 'var(--divider)',
+            margin: '0 3px',
+          }}
+        />
+        <span style={{ color: 'var(--ink)', fontWeight: 600 }}>Coming soon</span>
+      </div>
+      <HeroHeadline />
+      <p style={HERO_SUBHEAD_STYLE}>
+        A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Build an AI
+        scribe, a triage agent or a smarter reminder, and put it in front of working clinics without
+        a committee to die in.
+      </p>
+      <div
+        data-stack-m="true"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          marginTop: '34px',
+          opacity: 0,
+          animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.62s both',
+        }}
+      >
+        <Link
+          ref={primaryRef}
+          href="/developers/signup"
+          className="yc-btn-primary"
+          style={HERO_PRIMARY_CTA_STYLE}
+        >
+          Read the docs <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '17px' }} />
+        </Link>
+        <a
+          ref={ghostRef}
+          href={GITHUB_REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={HERO_GHOST_CTA_STYLE}
+        >
+          <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} /> Clone the repo
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/** Hero terminal mock: zsh window running the clone / install / publish commands. */
+function HeroTerminalCard() {
+  return (
+    <div
+      style={{
+        background: 'var(--spot)',
+        borderRadius: '20px',
+        boxShadow: '0 30px 70px var(--sh20)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '13px 18px',
+          borderBottom: '1px solid #302f2e',
+        }}
+      >
+        <span
+          style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '9999px',
+            background: '#454341',
+          }}
+        />
+        <span
+          style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '9999px',
+            background: '#454341',
+          }}
+        />
+        <span
+          style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '9999px',
+            background: '#454341',
+          }}
+        />
+        <span
+          style={{
+            marginLeft: '8px',
+            fontFamily: 'ui-monospace, Menlo, monospace',
+            fontSize: '12px',
+            color: '#8f8984',
+          }}
+        >
+          zsh
+        </span>
+      </div>
+      <pre
+        style={{
+          margin: 0,
+          padding: '18px',
+          fontFamily: MONO,
+          fontSize: '13px',
+          lineHeight: 1.7,
+          color: '#d6d1cd',
+        }}
+      >
+        <span style={{ color: '#54b492' }}>$</span> git clone yosemitecrew/Yosemite-Crew
+        {'\n'}
+        <span style={{ color: '#54b492' }}>$</span> bun install{' '}
+        <span style={{ color: '#5c5956' }}>&amp;&amp;</span> bun run dev
+        {'\n'}
+        <span style={{ color: '#8f8984' }}>→ PIMS live on :3000 &nbsp;·&nbsp; works offline</span>
+        {'\n'}
+        <span style={{ color: '#54b492' }}>$</span>
+        {' yc plugins publish ./ai-scribe'}
+        <span
+          style={{
+            display: 'inline-block',
+            width: '8px',
+            height: '15px',
+            background: '#d6d1cd',
+            verticalAlign: '-2px',
+            marginLeft: '2px',
+            animation: 'ycCaret 1.1s step-end infinite',
+          }}
+        />
+      </pre>
+    </div>
+  );
+}
+
+/** Hero FHIR response card: GET /fhir/Patient/bella returning Bella's record. */
+function HeroResponseCard() {
+  return (
+    <div
+      style={{
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
+        borderRadius: '20px',
+        boxShadow: '0 24px 60px var(--sh10)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '13px 18px',
+          borderBottom: '1px solid var(--inset)',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'ui-monospace, Menlo, monospace',
+            fontSize: '12.5px',
+            color: 'var(--ink-muted)',
+          }}
+        >
+          <span style={{ color: 'var(--success)', fontWeight: 700 }}>GET</span> /fhir/Patient/bella
+        </span>
+        <span
+          style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            color: 'var(--success)',
+            letterSpacing: '0.06em',
+          }}
+        >
+          200 OK
+        </span>
+      </div>
+      <pre
+        style={{
+          margin: 0,
+          padding: '18px',
+          fontFamily: MONO,
+          fontSize: '12.5px',
+          lineHeight: 1.65,
+          color: 'var(--ink-muted)',
+          overflowX: 'auto',
+        }}
+      >
+        <span style={{ color: 'var(--ink-faint2)' }}>{'{'}</span>
+        {'\n  '}
+        <span style={{ color: 'var(--cyan-text)' }}>&quot;resourceType&quot;</span>:{' '}
+        <span style={{ color: 'var(--code-str)' }}>&quot;Patient&quot;</span>,{'\n  '}
+        <span style={{ color: 'var(--cyan-text)' }}>&quot;species&quot;</span>:{' '}
+        <span style={{ color: 'var(--code-str)' }}>&quot;canine&quot;</span>,{' '}
+        <span style={{ color: 'var(--cyan-text)' }}>&quot;name&quot;</span>:{' '}
+        <span style={{ color: 'var(--code-str)' }}>&quot;Bella&quot;</span>,{'\n  '}
+        <span style={{ color: 'var(--cyan-text)' }}>&quot;managingOrg&quot;</span>:{' '}
+        <span style={{ color: 'var(--code-str)' }}>&quot;Alpenblick Clinic&quot;</span>
+        {'\n'}
+        <span style={{ color: 'var(--ink-faint2)' }}>{'}'}</span>
+      </pre>
+    </div>
+  );
+}
+
+/** Hero right column: terminal, response card, and the AGPL floating badge. */
+function HeroCodePanels() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        position: 'relative',
+        opacity: 0,
+        animation: 'ycRise 0.95s cubic-bezier(0.16,1,0.3,1) 0.4s both',
+      }}
+    >
+      <HeroTerminalCard />
+      <HeroResponseCard />
+      <div data-hide-m="true" style={HERO_FLOATING_BADGE_STYLE}>
+        <span style={HERO_FLOATING_BADGE_ICON_STYLE}>
+          <IoGitBranchOutline aria-hidden="true" style={{ fontSize: '16px' }} />
+        </span>
+        <div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-body)' }}>
+            AGPL-3.0
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>Every line, public</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Hero: headline with cyan em-word, terminal + FHIR response mock. */
 function Hero() {
   const primaryRef = useMagnet<HTMLAnchorElement>();
@@ -305,298 +629,10 @@ function Hero() {
         animation="ycDrift 38s ease-in-out 3s infinite alternate-reverse"
       />
       <div data-grid-1-m="true" style={HERO_GRID_STYLE}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-          <div style={HERO_BADGE_STYLE}>
-            <span
-              style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '9999px',
-                background: 'var(--success)',
-              }}
-            />
-            {'Developer portal'}
-            <span
-              style={{
-                width: '1px',
-                height: '12px',
-                background: 'var(--divider)',
-                margin: '0 3px',
-              }}
-            />
-            <span style={{ color: 'var(--ink)', fontWeight: 600 }}>Coming soon</span>
-          </div>
-          <h1 style={HERO_HEADLINE_STYLE}>
-            <span
-              style={{
-                display: 'inline-block',
-                opacity: 0,
-                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.1s both',
-              }}
-            >
-              From
-            </span>
-            <span
-              style={{
-                display: 'inline-block',
-                opacity: 0,
-                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.22s both',
-              }}
-            >
-              idea
-            </span>
-            <span
-              style={{
-                display: 'inline-block',
-                opacity: 0,
-                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.34s both',
-              }}
-            >
-              to
-            </span>
-            <span
-              style={{
-                display: 'inline-block',
-                opacity: 0,
-                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.46s both',
-              }}
-            >
-              the
-            </span>
-            <span
-              style={{
-                display: 'inline-block',
-                opacity: 0,
-                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.58s both',
-              }}
-            >
-              clinic,
-            </span>
-            <em
-              style={{
-                display: 'inline-block',
-                fontStyle: 'italic',
-                fontWeight: 480,
-                color: 'var(--cyan-text)',
-                opacity: 0,
-                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.7s both',
-              }}
-            >
-              <InkAnnotate type="underline" delay={1600}>
-                in&nbsp;an&nbsp;afternoon.
-              </InkAnnotate>
-            </em>
-          </h1>
-          <p style={HERO_SUBHEAD_STYLE}>
-            A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Build an
-            AI scribe, a triage agent or a smarter reminder, and put it in front of working clinics
-            without a committee to die in.
-          </p>
-          <div
-            data-stack-m="true"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              marginTop: '34px',
-              opacity: 0,
-              animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.62s both',
-            }}
-          >
-            <Link
-              ref={primaryRef}
-              href="/developers/signup"
-              className="yc-btn-primary"
-              style={HERO_PRIMARY_CTA_STYLE}
-            >
-              Read the docs{' '}
-              <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '17px' }} />
-            </Link>
-            <a
-              ref={ghostRef}
-              href={GITHUB_REPO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={HERO_GHOST_CTA_STYLE}
-            >
-              <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} /> Clone the repo
-            </a>
-          </div>
-        </div>
+        <HeroLeftColumn primaryRef={primaryRef} ghostRef={ghostRef} />
 
         {/* terminal + code */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            position: 'relative',
-            opacity: 0,
-            animation: 'ycRise 0.95s cubic-bezier(0.16,1,0.3,1) 0.4s both',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--spot)',
-              borderRadius: '20px',
-              boxShadow: '0 30px 70px var(--sh20)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '13px 18px',
-                borderBottom: '1px solid #302f2e',
-              }}
-            >
-              <span
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '9999px',
-                  background: '#454341',
-                }}
-              />
-              <span
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '9999px',
-                  background: '#454341',
-                }}
-              />
-              <span
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '9999px',
-                  background: '#454341',
-                }}
-              />
-              <span
-                style={{
-                  marginLeft: '8px',
-                  fontFamily: 'ui-monospace, Menlo, monospace',
-                  fontSize: '12px',
-                  color: '#8f8984',
-                }}
-              >
-                zsh
-              </span>
-            </div>
-            <pre
-              style={{
-                margin: 0,
-                padding: '18px',
-                fontFamily: MONO,
-                fontSize: '13px',
-                lineHeight: 1.7,
-                color: '#d6d1cd',
-              }}
-            >
-              <span style={{ color: '#54b492' }}>$</span> git clone yosemitecrew/Yosemite-Crew
-              {'\n'}
-              <span style={{ color: '#54b492' }}>$</span> bun install{' '}
-              <span style={{ color: '#5c5956' }}>&amp;&amp;</span> bun run dev
-              {'\n'}
-              <span style={{ color: '#8f8984' }}>
-                → PIMS live on :3000 &nbsp;·&nbsp; works offline
-              </span>
-              {'\n'}
-              <span style={{ color: '#54b492' }}>$</span>
-              {' yc plugins publish ./ai-scribe'}
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '8px',
-                  height: '15px',
-                  background: '#d6d1cd',
-                  verticalAlign: '-2px',
-                  marginLeft: '2px',
-                  animation: 'ycCaret 1.1s step-end infinite',
-                }}
-              />
-            </pre>
-          </div>
-          <div
-            style={{
-              background: 'var(--screen)',
-              border: '1px solid var(--hairline)',
-              borderRadius: '20px',
-              boxShadow: '0 24px 60px var(--sh10)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '13px 18px',
-                borderBottom: '1px solid var(--inset)',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'ui-monospace, Menlo, monospace',
-                  fontSize: '12.5px',
-                  color: 'var(--ink-muted)',
-                }}
-              >
-                <span style={{ color: 'var(--success)', fontWeight: 700 }}>GET</span>{' '}
-                /fhir/Patient/bella
-              </span>
-              <span
-                style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: 'var(--success)',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                200 OK
-              </span>
-            </div>
-            <pre
-              style={{
-                margin: 0,
-                padding: '18px',
-                fontFamily: MONO,
-                fontSize: '12.5px',
-                lineHeight: 1.65,
-                color: 'var(--ink-muted)',
-                overflowX: 'auto',
-              }}
-            >
-              <span style={{ color: 'var(--ink-faint2)' }}>{'{'}</span>
-              {'\n  '}
-              <span style={{ color: 'var(--cyan-text)' }}>&quot;resourceType&quot;</span>:{' '}
-              <span style={{ color: 'var(--code-str)' }}>&quot;Patient&quot;</span>,{'\n  '}
-              <span style={{ color: 'var(--cyan-text)' }}>&quot;species&quot;</span>:{' '}
-              <span style={{ color: 'var(--code-str)' }}>&quot;canine&quot;</span>,{' '}
-              <span style={{ color: 'var(--cyan-text)' }}>&quot;name&quot;</span>:{' '}
-              <span style={{ color: 'var(--code-str)' }}>&quot;Bella&quot;</span>,{'\n  '}
-              <span style={{ color: 'var(--cyan-text)' }}>&quot;managingOrg&quot;</span>:{' '}
-              <span style={{ color: 'var(--code-str)' }}>&quot;Alpenblick Clinic&quot;</span>
-              {'\n'}
-              <span style={{ color: 'var(--ink-faint2)' }}>{'}'}</span>
-            </pre>
-          </div>
-          <div data-hide-m="true" style={HERO_FLOATING_BADGE_STYLE}>
-            <span style={HERO_FLOATING_BADGE_ICON_STYLE}>
-              <IoGitBranchOutline aria-hidden="true" style={{ fontSize: '16px' }} />
-            </span>
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-body)' }}>
-                AGPL-3.0
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>Every line, public</div>
-            </div>
-          </div>
-        </div>
+        <HeroCodePanels />
       </div>
     </section>
   );
@@ -695,6 +731,176 @@ function ApiLine({ method, color, path }: Readonly<ApiLineProps>) {
   );
 }
 
+/** FHIR API feature copy: label, headline, blurb, and the three example calls. */
+function FhirApiCopy() {
+  return (
+    <Reveal
+      delay={0}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '18px',
+      }}
+    >
+      <span
+        style={{
+          fontSize: '12px',
+          fontWeight: 700,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--blue)',
+        }}
+      >
+        FHIR-native API
+      </span>
+      <h2
+        style={{
+          margin: 0,
+          fontFamily: NEWSREADER,
+          fontSize: 'clamp(30px, 3.6vw, 46px)',
+          fontWeight: 500,
+          lineHeight: 1.1,
+          letterSpacing: '-0.045em',
+          color: 'var(--ink)',
+          textWrap: 'balance',
+        }}
+      >
+        One animal, many authorities.
+      </h2>
+      <p
+        style={{
+          margin: 0,
+          fontSize: '17.5px',
+          lineHeight: 1.65,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink-muted)',
+          textWrap: 'pretty',
+        }}
+      >
+        A rabies shot that counts for three years on one side of a border counts for one on the
+        other, and a chip required in Madrid runs on a frequency scanners elsewhere can&apos;t read.
+        Instead of forcing one true record, the API speaks FHIR and translates between the versions,
+        so every system keeps its own truth and the animal still moves between them.
+      </p>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          marginTop: '4px',
+          width: '100%',
+        }}
+      >
+        <ApiLine method="GET" color="var(--success)" path="/fhir/Observation?patient=bella" />
+        <ApiLine method="POST" color="var(--blue)" path="/fhir/Appointment" />
+        <ApiLine method="SUB" color="var(--avatar-amber-ink)" path="/fhir/subscriptions" />
+      </div>
+    </Reveal>
+  );
+}
+
+/** FHIR API feature mock: bundle.json showing one shot valid for EU and US authorities. */
+function FhirBundleCard() {
+  return (
+    <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
+      <div
+        className="yc-card-lift"
+        style={{
+          width: '100%',
+          maxWidth: '540px',
+          background: 'var(--spot)',
+          borderRadius: '22px',
+          boxShadow: '0 24px 60px var(--sh16)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            borderBottom: '1px solid #302f2e',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'ui-monospace, Menlo, monospace',
+              fontSize: '12.5px',
+              color: '#8f8984',
+            }}
+          >
+            bundle.json
+          </span>
+          <span style={{ display: 'flex', gap: '6px' }}>
+            <span
+              style={{
+                width: '9px',
+                height: '9px',
+                borderRadius: '9999px',
+                background: '#454341',
+              }}
+            />
+            <span
+              style={{
+                width: '9px',
+                height: '9px',
+                borderRadius: '9999px',
+                background: '#454341',
+              }}
+            />
+          </span>
+        </div>
+        <pre
+          style={{
+            margin: 0,
+            padding: '20px',
+            fontFamily: MONO,
+            fontSize: '12.5px',
+            lineHeight: 1.7,
+            color: '#d6d1cd',
+            overflowX: 'auto',
+          }}
+        >
+          <span style={{ color: '#8f8984' }}>{'{'}</span>
+          {'\n  '}
+          <span style={{ color: '#5ce1e6' }}>&quot;resourceType&quot;</span>:{' '}
+          <span style={{ color: '#8acbb4' }}>&quot;Bundle&quot;</span>,{'\n  '}
+          <span style={{ color: '#5ce1e6' }}>&quot;type&quot;</span>:{' '}
+          <span style={{ color: '#8acbb4' }}>&quot;searchset&quot;</span>,{'\n  '}
+          <span style={{ color: '#5ce1e6' }}>&quot;total&quot;</span>:{' '}
+          <span style={{ color: '#f9ad6c' }}>3</span>,{'\n  '}
+          <span style={{ color: '#5ce1e6' }}>&quot;entry&quot;</span>:{' '}
+          <span style={{ color: '#8f8984' }}>[</span>
+          {'\n    '}
+          <span style={{ color: '#8f8984' }}>{'{'}</span>{' '}
+          <span style={{ color: '#5ce1e6' }}>&quot;code&quot;</span>:{' '}
+          <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
+          <span style={{ color: '#5ce1e6' }}>&quot;validYears&quot;</span>:{' '}
+          <span style={{ color: '#f9ad6c' }}>3</span>,{'\n      '}
+          <span style={{ color: '#5ce1e6' }}>&quot;authority&quot;</span>:{' '}
+          <span style={{ color: '#8acbb4' }}>&quot;EU&quot;</span>{' '}
+          <span style={{ color: '#8f8984' }}>{'},'}</span>
+          {'\n    '}
+          <span style={{ color: '#8f8984' }}>{'{'}</span>{' '}
+          <span style={{ color: '#5ce1e6' }}>&quot;code&quot;</span>:{' '}
+          <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
+          <span style={{ color: '#5ce1e6' }}>&quot;validYears&quot;</span>:{' '}
+          <span style={{ color: '#f9ad6c' }}>1</span>,{'\n      '}
+          <span style={{ color: '#5ce1e6' }}>&quot;authority&quot;</span>:{' '}
+          <span style={{ color: '#8acbb4' }}>&quot;US&quot;</span>{' '}
+          <span style={{ color: '#8f8984' }}>{'}'}</span>
+          {'\n  '}
+          <span style={{ color: '#8f8984' }}>]</span>
+          {'\n'}
+          <span style={{ color: '#8f8984' }}>{'}'}</span>
+        </pre>
+      </div>
+    </Reveal>
+  );
+}
+
 /** Feature 1: FHIR API, one animal many authorities + bundle.json mock. */
 function FhirApiFeature() {
   return (
@@ -711,164 +917,8 @@ function FhirApiFeature() {
           alignItems: 'center',
         }}
       >
-        <Reveal
-          delay={0}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            gap: '18px',
-          }}
-        >
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--blue)',
-            }}
-          >
-            FHIR-native API
-          </span>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: NEWSREADER,
-              fontSize: 'clamp(30px, 3.6vw, 46px)',
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: '-0.045em',
-              color: 'var(--ink)',
-              textWrap: 'balance',
-            }}
-          >
-            One animal, many authorities.
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '17.5px',
-              lineHeight: 1.65,
-              letterSpacing: '-0.02em',
-              color: 'var(--ink-muted)',
-              textWrap: 'pretty',
-            }}
-          >
-            A rabies shot that counts for three years on one side of a border counts for one on the
-            other, and a chip required in Madrid runs on a frequency scanners elsewhere can&apos;t
-            read. Instead of forcing one true record, the API speaks FHIR and translates between the
-            versions, so every system keeps its own truth and the animal still moves between them.
-          </p>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              marginTop: '4px',
-              width: '100%',
-            }}
-          >
-            <ApiLine method="GET" color="var(--success)" path="/fhir/Observation?patient=bella" />
-            <ApiLine method="POST" color="var(--blue)" path="/fhir/Appointment" />
-            <ApiLine method="SUB" color="var(--avatar-amber-ink)" path="/fhir/subscriptions" />
-          </div>
-        </Reveal>
-        <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
-          <div
-            className="yc-card-lift"
-            style={{
-              width: '100%',
-              maxWidth: '540px',
-              background: 'var(--spot)',
-              borderRadius: '22px',
-              boxShadow: '0 24px 60px var(--sh16)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 18px',
-                borderBottom: '1px solid #302f2e',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'ui-monospace, Menlo, monospace',
-                  fontSize: '12.5px',
-                  color: '#8f8984',
-                }}
-              >
-                bundle.json
-              </span>
-              <span style={{ display: 'flex', gap: '6px' }}>
-                <span
-                  style={{
-                    width: '9px',
-                    height: '9px',
-                    borderRadius: '9999px',
-                    background: '#454341',
-                  }}
-                />
-                <span
-                  style={{
-                    width: '9px',
-                    height: '9px',
-                    borderRadius: '9999px',
-                    background: '#454341',
-                  }}
-                />
-              </span>
-            </div>
-            <pre
-              style={{
-                margin: 0,
-                padding: '20px',
-                fontFamily: MONO,
-                fontSize: '12.5px',
-                lineHeight: 1.7,
-                color: '#d6d1cd',
-                overflowX: 'auto',
-              }}
-            >
-              <span style={{ color: '#8f8984' }}>{'{'}</span>
-              {'\n  '}
-              <span style={{ color: '#5ce1e6' }}>&quot;resourceType&quot;</span>:{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;Bundle&quot;</span>,{'\n  '}
-              <span style={{ color: '#5ce1e6' }}>&quot;type&quot;</span>:{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;searchset&quot;</span>,{'\n  '}
-              <span style={{ color: '#5ce1e6' }}>&quot;total&quot;</span>:{' '}
-              <span style={{ color: '#f9ad6c' }}>3</span>,{'\n  '}
-              <span style={{ color: '#5ce1e6' }}>&quot;entry&quot;</span>:{' '}
-              <span style={{ color: '#8f8984' }}>[</span>
-              {'\n    '}
-              <span style={{ color: '#8f8984' }}>{'{'}</span>{' '}
-              <span style={{ color: '#5ce1e6' }}>&quot;code&quot;</span>:{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
-              <span style={{ color: '#5ce1e6' }}>&quot;validYears&quot;</span>:{' '}
-              <span style={{ color: '#f9ad6c' }}>3</span>,{'\n      '}
-              <span style={{ color: '#5ce1e6' }}>&quot;authority&quot;</span>:{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;EU&quot;</span>{' '}
-              <span style={{ color: '#8f8984' }}>{'},'}</span>
-              {'\n    '}
-              <span style={{ color: '#8f8984' }}>{'{'}</span>{' '}
-              <span style={{ color: '#5ce1e6' }}>&quot;code&quot;</span>:{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
-              <span style={{ color: '#5ce1e6' }}>&quot;validYears&quot;</span>:{' '}
-              <span style={{ color: '#f9ad6c' }}>1</span>,{'\n      '}
-              <span style={{ color: '#5ce1e6' }}>&quot;authority&quot;</span>:{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;US&quot;</span>{' '}
-              <span style={{ color: '#8f8984' }}>{'}'}</span>
-              {'\n  '}
-              <span style={{ color: '#8f8984' }}>]</span>
-              {'\n'}
-              <span style={{ color: '#8f8984' }}>{'}'}</span>
-            </pre>
-          </div>
-        </Reveal>
+        <FhirApiCopy />
+        <FhirBundleCard />
       </div>
     </section>
   );
@@ -1235,6 +1285,264 @@ function EconColumn({ index, icon, title, desc, delay }: Readonly<EconColumnProp
   );
 }
 
+/** Economics keep panel: the 0% platform-cut figure and its supporting copy. */
+function EconomicsKeepPanel() {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px' }}>
+        <span
+          style={{
+            fontFamily: NEWSREADER,
+            fontWeight: 500,
+            fontSize: 'clamp(72px, 9vw, 118px)',
+            lineHeight: 0.82,
+            letterSpacing: '-0.04em',
+            color: '#ffffff',
+          }}
+        >
+          0%
+        </span>
+        <span
+          style={{
+            fontSize: '13px',
+            lineHeight: 1.25,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            color: '#82afec',
+          }}
+        >
+          platform
+          <br />
+          cut
+        </span>
+      </div>
+      <div
+        style={{
+          marginTop: '22px',
+          fontSize: '20px',
+          fontWeight: 600,
+          letterSpacing: '-0.03em',
+          color: '#eae2d5',
+        }}
+      >
+        What you charge is what you keep.
+      </div>
+      <div
+        style={{
+          marginTop: '10px',
+          fontSize: '15px',
+          lineHeight: 1.6,
+          letterSpacing: '-0.01em',
+          color: '#a9a39e',
+          maxWidth: '42ch',
+        }}
+      >
+        Clinics pay you directly through the marketplace. No revenue share, no platform tax, and no
+        tokens resold back to you.
+      </div>
+    </div>
+  );
+}
+
+/** Economics bars: what a developer keeps on app stores (77%) versus this marketplace (100%). */
+function EconomicsBars() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div
+        style={{
+          fontSize: '12px',
+          fontWeight: 700,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: '#6f6a66',
+        }}
+      >
+        What the developer keeps on every sale
+      </div>
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: '9px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.01em',
+              color: '#d6d1cd',
+            }}
+          >
+            App stores &amp; SaaS platforms
+          </span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#8f8984' }}>70&ndash;85%</span>
+        </div>
+        <div
+          style={{
+            height: '40px',
+            borderRadius: '12px',
+            background: '#2c2926',
+            border: '1px solid #35322f',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: '77%',
+              background: 'repeating-linear-gradient(135deg, #4a4643 0 10px, #423e3b 10px 20px)',
+            }}
+          />
+          <span style={ECON_BAR_LABEL_MUTED_STYLE}>they take 15&ndash;30%</span>
+        </div>
+      </div>
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: '9px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.01em',
+              color: '#eae2d5',
+            }}
+          >
+            Yosemite Crew marketplace
+          </span>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#82afec' }}>100%</span>
+        </div>
+        <div
+          style={{
+            height: '40px',
+            borderRadius: '12px',
+            background: '#2c2926',
+            border: '1px solid #2f6fc0',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: '100%',
+              background: 'linear-gradient(90deg, #257bed 0%, #257bed 100%)',
+              position: 'relative',
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.18), transparent 55%)',
+              }}
+            />
+          </div>
+          <span style={ECON_BAR_LABEL_LIGHT_STYLE}>every euro is yours</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Economics card: the tilted 0% panel pairing the keep figure with the comparison bars. */
+function EconomicsCard() {
+  return (
+    <Reveal delay={150}>
+      <Tilt
+        max={3}
+        style={{
+          position: 'relative',
+          marginTop: 'clamp(40px, 5vw, 64px)',
+          background: 'linear-gradient(160deg, #232120 0%, #1a1918 100%)',
+          border: '1px solid #35322f',
+          borderRadius: '28px',
+          padding: 'clamp(28px, 3.4vw, 48px)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '-120px',
+            right: '-80px',
+            width: '380px',
+            height: '380px',
+            background: 'radial-gradient(closest-side, var(--glow-b20), transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div
+          data-grid-1-m="true"
+          style={{
+            position: 'relative',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1.25fr',
+            gap: 'clamp(28px, 4vw, 60px)',
+            alignItems: 'center',
+          }}
+        >
+          <EconomicsKeepPanel />
+          <EconomicsBars />
+        </div>
+      </Tilt>
+    </Reveal>
+  );
+}
+
+/** Economics columns: the three-point editorial row under the card. */
+function EconomicsColumns() {
+  return (
+    <div
+      data-grid-1-m="true"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: 'clamp(24px, 3vw, 44px)',
+        marginTop: 'clamp(36px, 4vw, 56px)',
+      }}
+    >
+      <EconColumn
+        index="01"
+        delay={0}
+        icon={
+          <IoHardwareChipOutline
+            aria-hidden="true"
+            style={{ fontSize: '19px', color: '#6f6a66' }}
+          />
+        }
+        title="Bring your own model"
+        desc="Point your own Claude or Codex subscription at the API and build headless PIMs and agents on your own keys. We never sit between you and the model."
+      />
+      <EconColumn
+        index="02"
+        delay={90}
+        icon={<IoRocketOutline aria-hidden="true" style={{ fontSize: '19px', color: '#6f6a66' }} />}
+        title="Sell to every clinic"
+        desc="Ship an AI scribe, a voice agent or a triage bot to the marketplace. One publish reaches every practice already running the platform."
+      />
+      <EconColumn
+        index="03"
+        delay={180}
+        icon={<IoCardOutline aria-hidden="true" style={{ fontSize: '19px', color: '#6f6a66' }} />}
+        title="Paid direct"
+        desc="Clinics pay you directly for what you build. Next to the cut every app store takes, keeping all of it is the whole point."
+      />
+    </div>
+  );
+}
+
 /** Economics: 0% platform cut, comparison bars, editorial row. Stays BLUE, not cyan. */
 function Economics() {
   return (
@@ -1307,249 +1615,9 @@ function Economics() {
           </p>
         </Reveal>
 
-        <Reveal delay={150}>
-          <Tilt
-            max={3}
-            style={{
-              position: 'relative',
-              marginTop: 'clamp(40px, 5vw, 64px)',
-              background: 'linear-gradient(160deg, #232120 0%, #1a1918 100%)',
-              border: '1px solid #35322f',
-              borderRadius: '28px',
-              padding: 'clamp(28px, 3.4vw, 48px)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: '-120px',
-                right: '-80px',
-                width: '380px',
-                height: '380px',
-                background: 'radial-gradient(closest-side, var(--glow-b20), transparent 70%)',
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              data-grid-1-m="true"
-              style={{
-                position: 'relative',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1.25fr',
-                gap: 'clamp(28px, 4vw, 60px)',
-                alignItems: 'center',
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px' }}>
-                  <span
-                    style={{
-                      fontFamily: NEWSREADER,
-                      fontWeight: 500,
-                      fontSize: 'clamp(72px, 9vw, 118px)',
-                      lineHeight: 0.82,
-                      letterSpacing: '-0.04em',
-                      color: '#ffffff',
-                    }}
-                  >
-                    0%
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      lineHeight: 1.25,
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      color: '#82afec',
-                    }}
-                  >
-                    platform
-                    <br />
-                    cut
-                  </span>
-                </div>
-                <div
-                  style={{
-                    marginTop: '22px',
-                    fontSize: '20px',
-                    fontWeight: 600,
-                    letterSpacing: '-0.03em',
-                    color: '#eae2d5',
-                  }}
-                >
-                  What you charge is what you keep.
-                </div>
-                <div
-                  style={{
-                    marginTop: '10px',
-                    fontSize: '15px',
-                    lineHeight: 1.6,
-                    letterSpacing: '-0.01em',
-                    color: '#a9a39e',
-                    maxWidth: '42ch',
-                  }}
-                >
-                  Clinics pay you directly through the marketplace. No revenue share, no platform
-                  tax, and no tokens resold back to you.
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: '#6f6a66',
-                  }}
-                >
-                  What the developer keeps on every sale
-                </div>
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      marginBottom: '9px',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '14.5px',
-                        fontWeight: 600,
-                        letterSpacing: '-0.01em',
-                        color: '#d6d1cd',
-                      }}
-                    >
-                      App stores &amp; SaaS platforms
-                    </span>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#8f8984' }}>
-                      70&ndash;85%
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: '40px',
-                      borderRadius: '12px',
-                      background: '#2c2926',
-                      border: '1px solid #35322f',
-                      overflow: 'hidden',
-                      position: 'relative',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: '77%',
-                        background:
-                          'repeating-linear-gradient(135deg, #4a4643 0 10px, #423e3b 10px 20px)',
-                      }}
-                    />
-                    <span style={ECON_BAR_LABEL_MUTED_STYLE}>they take 15&ndash;30%</span>
-                  </div>
-                </div>
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      marginBottom: '9px',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '14.5px',
-                        fontWeight: 600,
-                        letterSpacing: '-0.01em',
-                        color: '#eae2d5',
-                      }}
-                    >
-                      Yosemite Crew marketplace
-                    </span>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#82afec' }}>
-                      100%
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: '40px',
-                      borderRadius: '12px',
-                      background: '#2c2926',
-                      border: '1px solid #2f6fc0',
-                      overflow: 'hidden',
-                      position: 'relative',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: '100%',
-                        background: 'linear-gradient(90deg, #257bed 0%, #257bed 100%)',
-                        position: 'relative',
-                      }}
-                    >
-                      <span
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          background:
-                            'linear-gradient(180deg, rgba(255,255,255,0.18), transparent 55%)',
-                        }}
-                      />
-                    </div>
-                    <span style={ECON_BAR_LABEL_LIGHT_STYLE}>every euro is yours</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Tilt>
-        </Reveal>
+        <EconomicsCard />
 
-        <div
-          data-grid-1-m="true"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 'clamp(24px, 3vw, 44px)',
-            marginTop: 'clamp(36px, 4vw, 56px)',
-          }}
-        >
-          <EconColumn
-            index="01"
-            delay={0}
-            icon={
-              <IoHardwareChipOutline
-                aria-hidden="true"
-                style={{ fontSize: '19px', color: '#6f6a66' }}
-              />
-            }
-            title="Bring your own model"
-            desc="Point your own Claude or Codex subscription at the API and build headless PIMs and agents on your own keys. We never sit between you and the model."
-          />
-          <EconColumn
-            index="02"
-            delay={90}
-            icon={
-              <IoRocketOutline aria-hidden="true" style={{ fontSize: '19px', color: '#6f6a66' }} />
-            }
-            title="Sell to every clinic"
-            desc="Ship an AI scribe, a voice agent or a triage bot to the marketplace. One publish reaches every practice already running the platform."
-          />
-          <EconColumn
-            index="03"
-            delay={180}
-            icon={
-              <IoCardOutline aria-hidden="true" style={{ fontSize: '19px', color: '#6f6a66' }} />
-            }
-            title="Paid direct"
-            desc="Clinics pay you directly for what you build. Next to the cut every app store takes, keeping all of it is the whole point."
-          />
-        </div>
+        <EconomicsColumns />
       </div>
     </Spotlight>
   );

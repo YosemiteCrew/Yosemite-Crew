@@ -604,6 +604,116 @@ const afterTwoFrames = (cb: () => void): void => {
   requestAnimationFrame(() => requestAnimationFrame(cb));
 };
 
+const INK_NS = 'http://www.w3.org/2000/svg';
+
+interface InkOptions {
+  type: 'circle' | 'underline';
+  delay: number;
+  color: string;
+  reduced: boolean;
+}
+
+/** Create the ink svg+path sized to the host box, append it, and return the path. */
+function buildInkSvg(host: HTMLElement, w: number, h: number, opts: InkOptions): SVGPathElement {
+  const { type, color } = opts;
+  const padX = Math.max(14, w * 0.09);
+  const padY = Math.max(11, h * 0.26);
+  const svg = globalThis.document.createElementNS(INK_NS, 'svg');
+  svg.dataset.ink = '';
+  svg.setAttribute('viewBox', `0 0 ${w + padX * 2} ${h + padY * 2}`);
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.style.cssText = `position:absolute;left:${-padX}px;top:${-padY}px;width:${w + padX * 2}px;height:${h + padY * 2}px;overflow:visible;pointer-events:none;z-index:-1;`;
+  const path = globalThis.document.createElementNS(INK_NS, 'path');
+  path.setAttribute(
+    'd',
+    type === 'circle' ? circlePath(padX, padY, w, h) : underlinePath(padX, padY, w, h)
+  );
+  path.setAttribute('stroke', color);
+  path.setAttribute('stroke-width', String(type === 'circle' ? 2.4 : 3.4));
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('opacity', '0.9');
+  svg.appendChild(path);
+  host.appendChild(svg);
+  return path;
+}
+
+/** Wire draw-on-view / rewind-on-exit replay for a prepared ink path; returns its observer. */
+function observeInkReplay(
+  host: HTMLElement,
+  path: SVGPathElement,
+  opts: InkOptions
+): IntersectionObserver | null {
+  const len = path.getTotalLength();
+  const dur = opts.type === 'circle' ? 1550 : 1150;
+  let first = true;
+  const reveal = () => {
+    path.style.strokeDashoffset = '0';
+  };
+  const play = () => {
+    path.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.6,0.04,0.28,1) ${first ? opts.delay : 220}ms`;
+    first = false;
+    afterTwoFrames(reveal);
+  };
+  const rewind = () => {
+    path.style.transition = 'none';
+    path.style.strokeDashoffset = String(len);
+    path.getBoundingClientRect();
+  };
+  path.style.strokeDasharray = String(len);
+  path.style.strokeDashoffset = String(len);
+  if (typeof IntersectionObserver === 'undefined') {
+    play();
+    return null;
+  }
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.intersectionRatio >= 0.55) play();
+        else if (!entry.isIntersecting && !first) rewind();
+      }
+    },
+    { threshold: [0, 0.55] }
+  );
+  io.observe(host);
+  return io;
+}
+
+/** Draw the ink mark (once fonts settle) and wire its replay; returns a cleanup fn. */
+function runInkAnnotation(host: HTMLElement, opts: InkOptions): () => void {
+  let io: IntersectionObserver | null = null;
+  let raf = 0;
+
+  const draw = () => {
+    const w = host.offsetWidth;
+    const h = host.offsetHeight;
+    if (!w || !h) {
+      raf = requestAnimationFrame(draw);
+      return;
+    }
+    const path = buildInkSvg(host, w, h, opts);
+    if (opts.reduced) return;
+    io = observeInkReplay(host, path, opts);
+  };
+
+  const fonts = globalThis.document.fonts;
+  // Wait for webfonts so the ink traces the final glyph metrics, not the fallback.
+  if (fonts) {
+    fonts.ready.then(() => {
+      raf = requestAnimationFrame(draw);
+    });
+  } else {
+    raf = requestAnimationFrame(draw);
+  }
+
+  return () => {
+    cancelAnimationFrame(raf);
+    io?.disconnect();
+    host.querySelectorAll('[data-ink]').forEach((node) => node.remove());
+  };
+}
+
 /**
  * Hand-drawn "ink" annotation that draws an encircle or swoosh underline onto an
  * accent word with a luxe pen-on-paper easing, replaying whenever the word
@@ -622,88 +732,7 @@ export function InkAnnotate({
   useEffect(() => {
     const host = ref.current;
     if (!host || !globalThis.document) return undefined;
-    let io: IntersectionObserver | null = null;
-    let raf = 0;
-    const NS = 'http://www.w3.org/2000/svg';
-
-    const draw = () => {
-      const w = host.offsetWidth;
-      const h = host.offsetHeight;
-      if (!w || !h) {
-        raf = requestAnimationFrame(draw);
-        return;
-      }
-      const padX = Math.max(14, w * 0.09);
-      const padY = Math.max(11, h * 0.26);
-      const svg = globalThis.document.createElementNS(NS, 'svg');
-      svg.dataset.ink = '';
-      svg.setAttribute('viewBox', `0 0 ${w + padX * 2} ${h + padY * 2}`);
-      svg.setAttribute('fill', 'none');
-      svg.setAttribute('aria-hidden', 'true');
-      svg.style.cssText = `position:absolute;left:${-padX}px;top:${-padY}px;width:${w + padX * 2}px;height:${h + padY * 2}px;overflow:visible;pointer-events:none;z-index:-1;`;
-      const path = globalThis.document.createElementNS(NS, 'path');
-      path.setAttribute(
-        'd',
-        type === 'circle' ? circlePath(padX, padY, w, h) : underlinePath(padX, padY, w, h)
-      );
-      path.setAttribute('stroke', color);
-      path.setAttribute('stroke-width', String(type === 'circle' ? 2.4 : 3.4));
-      path.setAttribute('stroke-linecap', 'round');
-      path.setAttribute('stroke-linejoin', 'round');
-      path.setAttribute('opacity', '0.9');
-      svg.appendChild(path);
-      host.appendChild(svg);
-      if (reduced) return;
-
-      const len = path.getTotalLength();
-      const dur = type === 'circle' ? 1550 : 1150;
-      let first = true;
-      const reveal = () => {
-        path.style.strokeDashoffset = '0';
-      };
-      const play = () => {
-        path.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.6,0.04,0.28,1) ${first ? delay : 220}ms`;
-        first = false;
-        afterTwoFrames(reveal);
-      };
-      const rewind = () => {
-        path.style.transition = 'none';
-        path.style.strokeDashoffset = String(len);
-        path.getBoundingClientRect();
-      };
-      path.style.strokeDasharray = String(len);
-      path.style.strokeDashoffset = String(len);
-      if (typeof IntersectionObserver === 'undefined') {
-        play();
-        return;
-      }
-      io = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (entry.intersectionRatio >= 0.55) play();
-            else if (!entry.isIntersecting && !first) rewind();
-          }
-        },
-        { threshold: [0, 0.55] }
-      );
-      io.observe(host);
-    };
-
-    const fonts = globalThis.document.fonts;
-    // Wait for webfonts so the ink traces the final glyph metrics, not the fallback.
-    if (fonts) {
-      fonts.ready.then(() => {
-        raf = requestAnimationFrame(draw);
-      });
-    } else {
-      raf = requestAnimationFrame(draw);
-    }
-
-    return () => {
-      cancelAnimationFrame(raf);
-      io?.disconnect();
-      host.querySelectorAll('[data-ink]').forEach((node) => node.remove());
-    };
+    return runInkAnnotation(host, { type, delay, color, reduced });
   }, [type, delay, color, reduced]);
 
   return (

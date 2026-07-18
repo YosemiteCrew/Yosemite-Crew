@@ -448,23 +448,7 @@ function Hero() {
           <ReleasePill variant="platform" label="Platform PIMS" version="v2.0 beta" />
         </div>
 
-        <h1 style={HERO_HEADING_STYLE}>
-          {heroWord('The', '0.1s')}
-          {heroWord('practice,', '0.22s')}
-          {heroWord('on', '0.34s')}
-          {heroWord(
-            <InkAnnotate type="circle" delay={1300}>
-              one
-            </InkAnnotate>,
-            '0.46s',
-            {
-              fontStyle: 'italic',
-              fontWeight: 480,
-              color: 'var(--blue-text)',
-            }
-          )}
-          {heroWord('screen.', '0.58s')}
-        </h1>
+        <HeroHeading />
 
         <p style={HERO_PARAGRAPH_STYLE}>
           Appointments, records, SOAP notes, invoicing and inventory, the whole clinic in one system
@@ -472,82 +456,126 @@ function Hero() {
           afternoon, not just the demo.
         </p>
 
-        <div
-          data-stack-m="true"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            marginTop: 36,
-            opacity: 0,
-            animation: `ycHeroUp 1s ${EASE} 0.62s both`,
-          }}
-        >
-          <Link ref={ctaPrimaryRef} href="/signup" style={CTA_PRIMARY_LINK_STYLE}>
-            Get started free <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
-          </Link>
-          <Link ref={ctaSecondaryRef} href="/contact-us" style={HERO_SECONDARY_LINK_STYLE}>
-            Book a walkthrough
-          </Link>
-        </div>
+        <HeroCtaRow primaryRef={ctaPrimaryRef} secondaryRef={ctaSecondaryRef} />
 
-        <div
-          data-stack-m="true"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 14,
-            marginTop: 20,
-            flexWrap: 'wrap',
-            opacity: 0,
-            animation: `ycHeroUp 1s ${EASE} 0.72s both`,
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: 13.5,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: '#837d78',
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: 9999,
-                background: 'var(--success)',
-                boxShadow: '0 0 0 3px rgba(0,143,93,0.16)',
-              }}
-            />
-            {'Runs offline. Get the desktop app'}
-          </span>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <DownloadButton
-              linkRef={macRef}
-              href={MAC_DOWNLOAD_URL}
-              ariaLabel="Download the macOS desktop app"
-              icon={<IoLogoApple style={{ fontSize: 22 }} aria-hidden="true" />}
-              label="macOS"
-            />
-            <DownloadButton
-              linkRef={winRef}
-              href={WINDOWS_DOWNLOAD_URL}
-              ariaLabel="Download the Windows desktop app"
-              icon={<IoLogoWindows style={{ fontSize: 20 }} aria-hidden="true" />}
-              label="Windows"
-            />
-          </div>
-        </div>
+        <HeroDownloadRow macRef={macRef} winRef={winRef} />
       </div>
 
       <HeroMockup />
     </section>
+  );
+}
+
+function HeroHeading() {
+  return (
+    <h1 style={HERO_HEADING_STYLE}>
+      {heroWord('The', '0.1s')}
+      {heroWord('practice,', '0.22s')}
+      {heroWord('on', '0.34s')}
+      {heroWord(
+        <InkAnnotate type="circle" delay={1300}>
+          one
+        </InkAnnotate>,
+        '0.46s',
+        {
+          fontStyle: 'italic',
+          fontWeight: 480,
+          color: 'var(--blue-text)',
+        }
+      )}
+      {heroWord('screen.', '0.58s')}
+    </h1>
+  );
+}
+
+interface HeroCtaRowProps {
+  primaryRef: RefObject<HTMLAnchorElement | null>;
+  secondaryRef: RefObject<HTMLAnchorElement | null>;
+}
+
+function HeroCtaRow({ primaryRef, secondaryRef }: Readonly<HeroCtaRowProps>) {
+  return (
+    <div
+      data-stack-m="true"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        marginTop: 36,
+        opacity: 0,
+        animation: `ycHeroUp 1s ${EASE} 0.62s both`,
+      }}
+    >
+      <Link ref={primaryRef} href="/signup" style={CTA_PRIMARY_LINK_STYLE}>
+        Get started free <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
+      </Link>
+      <Link ref={secondaryRef} href="/contact-us" style={HERO_SECONDARY_LINK_STYLE}>
+        Book a walkthrough
+      </Link>
+    </div>
+  );
+}
+
+interface HeroDownloadRowProps {
+  macRef: RefObject<HTMLAnchorElement | null>;
+  winRef: RefObject<HTMLAnchorElement | null>;
+}
+
+function HeroDownloadRow({ macRef, winRef }: Readonly<HeroDownloadRowProps>) {
+  return (
+    <div
+      data-stack-m="true"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 14,
+        marginTop: 20,
+        flexWrap: 'wrap',
+        opacity: 0,
+        animation: `ycHeroUp 1s ${EASE} 0.72s both`,
+      }}
+    >
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 13.5,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
+          color: '#837d78',
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 9999,
+            background: 'var(--success)',
+            boxShadow: '0 0 0 3px rgba(0,143,93,0.16)',
+          }}
+        />
+        {'Runs offline. Get the desktop app'}
+      </span>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <DownloadButton
+          linkRef={macRef}
+          href={MAC_DOWNLOAD_URL}
+          ariaLabel="Download the macOS desktop app"
+          icon={<IoLogoApple style={{ fontSize: 22 }} aria-hidden="true" />}
+          label="macOS"
+        />
+        <DownloadButton
+          linkRef={winRef}
+          href={WINDOWS_DOWNLOAD_URL}
+          ariaLabel="Download the Windows desktop app"
+          icon={<IoLogoWindows style={{ fontSize: 20 }} aria-hidden="true" />}
+          label="Windows"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -661,281 +689,271 @@ function StatCard({ label, value, sub, subColor, subWeight }: Readonly<StatCardP
   );
 }
 
-function HeroMockup() {
+function HeroWindowBar() {
   return (
     <div
       style={{
-        position: 'relative',
-        zIndex: 2,
-        width: 'min(1180px, 100%)',
-        margin: '60px auto 0',
-        opacity: 0,
-        animation: `ycHeroUp 1.1s ${EASE} 0.78s both`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        padding: '14px 20px',
+        borderBottom: '1px solid var(--inset)',
+        background: 'var(--screen-2)',
       }}
     >
-      <div
-        style={{
-          background: 'var(--screen)',
-          border: '1px solid var(--hairline)',
-          borderRadius: 28,
-          boxShadow: '0 40px 100px var(--sh16)',
-          overflow: 'hidden',
-        }}
-      >
-        {/* window bar */}
-        <div
+      <div style={{ display: 'flex', gap: 7 }}>
+        {['r', 'y', 'g'].map((dot) => (
+          <span
+            key={dot}
+            style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
+          />
+        ))}
+      </div>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+        <span
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '14px 20px',
-            borderBottom: '1px solid var(--inset)',
-            background: 'var(--screen-2)',
+            fontSize: 12.5,
+            color: 'var(--ink-faint2)',
+            letterSpacing: '-0.01em',
+            background: 'var(--inset)',
+            padding: '5px 16px',
+            borderRadius: 9999,
           }}
         >
-          <div style={{ display: 'flex', gap: 7 }}>
-            {['r', 'y', 'g'].map((dot) => (
-              <span
-                key={dot}
-                style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
-              />
-            ))}
-          </div>
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            <span
-              style={{
-                fontSize: 12.5,
-                color: 'var(--ink-faint2)',
-                letterSpacing: '-0.01em',
-                background: 'var(--inset)',
-                padding: '5px 16px',
-                borderRadius: 9999,
-              }}
-            >
-              alpenblick.yosemitecrew.app
-            </span>
-          </div>
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 11.5,
-              color: 'var(--success)',
-              fontWeight: 700,
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: 9999,
-                background: 'var(--success)',
-                animation: 'ycPulse 2.4s ease-out infinite',
-              }}
-            />
-            {'Offline-ready'}
+          alpenblick.yosemitecrew.app
+        </span>
+      </div>
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 11.5,
+          color: 'var(--success)',
+          fontWeight: 700,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 9999,
+            background: 'var(--success)',
+            animation: 'ycPulse 2.4s ease-out infinite',
+          }}
+        />
+        {'Offline-ready'}
+      </span>
+    </div>
+  );
+}
+
+function HeroSidebar() {
+  return (
+    <aside data-hide-m="true" style={HERO_SIDEBAR_STYLE}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px 14px' }}>
+        <Image
+          src={MARKETING_LOGO}
+          alt=""
+          width={30}
+          height={30}
+          style={{ width: 30, height: 30, objectFit: 'contain' }}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-body)' }}>
+            Alpenblick
           </span>
-        </div>
-
-        <div style={{ display: 'flex', minHeight: 460, textAlign: 'left' }}>
-          {/* sidebar */}
-          <aside data-hide-m="true" style={HERO_SIDEBAR_STYLE}>
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px 14px' }}
-            >
-              <Image
-                src={MARKETING_LOGO}
-                alt=""
-                width={30}
-                height={30}
-                style={{ width: 30, height: 30, objectFit: 'contain' }}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-body)' }}>
-                  Alpenblick
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--ink-faint2)' }}>Veterinary Clinic</span>
-              </div>
-            </div>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: 'var(--ink-faint2)',
-                padding: '8px 8px 4px',
-              }}
-            >
-              SCHEDULE &amp; WORK
-            </span>
-            <SidebarItem
-              icon={<IoGridOutline style={{ fontSize: 16 }} aria-hidden="true" />}
-              label="Dashboard"
-            />
-            <SidebarItem
-              icon={<IoCalendarOutline style={{ fontSize: 16 }} aria-hidden="true" />}
-              label="Appointments"
-              active
-            />
-            <SidebarItem
-              icon={<IoPawOutline style={{ fontSize: 16 }} aria-hidden="true" />}
-              label="Companions"
-            />
-            <SidebarItem
-              icon={<IoDocumentTextOutline style={{ fontSize: 16 }} aria-hidden="true" />}
-              label="SOAP notes"
-            />
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: 'var(--ink-faint2)',
-                padding: '12px 8px 4px',
-              }}
-            >
-              OPERATIONS
-            </span>
-            <SidebarItem
-              icon={<IoWalletOutline style={{ fontSize: 16 }} aria-hidden="true" />}
-              label="Finance"
-            />
-            <SidebarItem
-              icon={<IoCubeOutline style={{ fontSize: 16 }} aria-hidden="true" />}
-              label="Inventory"
-            />
-            <SidebarItem
-              icon={<IoChatbubblesOutline style={{ fontSize: 16 }} aria-hidden="true" />}
-              label="Chat"
-            />
-          </aside>
-
-          {/* main */}
-          <div style={{ flex: 1, padding: 22, minWidth: 0 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
-                gap: 16,
-                marginBottom: 18,
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--ink-faint2)', letterSpacing: '-0.01em' }}>
-                  Thursday, 3 July
-                </div>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--ink)',
-                  }}
-                >
-                  Today&apos;s schedule
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <span
-                  data-hide-m="true"
-                  style={{
-                    fontSize: 12.5,
-                    color: 'var(--ink-muted)',
-                    border: '1px solid var(--hairline)',
-                    borderRadius: 9999,
-                    padding: '7px 14px',
-                  }}
-                >
-                  Day
-                </span>
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    color: 'var(--cta-text)',
-                    background: 'var(--cta)',
-                    borderRadius: 9999,
-                    padding: '7px 14px',
-                  }}
-                >
-                  + New visit
-                </span>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 10,
-                marginBottom: 16,
-              }}
-            >
-              <StatCard
-                label="Booked today"
-                value="12"
-                sub="↑ 2 from yesterday"
-                subColor="var(--success)"
-                subWeight={600}
-              />
-              <StatCard
-                label="In the building"
-                value="3"
-                sub="2 waiting · 1 in room"
-                subColor="var(--ink-faint)"
-              />
-              <StatCard
-                label="Invoiced"
-                value="€1,840"
-                sub="0% platform fee"
-                subColor="var(--ink-faint)"
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <ScheduleRow
-                time="08:30"
-                initial="B"
-                initialBg="var(--blue-soft)"
-                initialColor="var(--blue)"
-                name="Bella · Labrador"
-                detail="Senior wellness · Dr. Weber"
-                badge={
-                  <StatusBadge
-                    label="Checked in"
-                    bg="var(--avatar-green-bg)"
-                    color="var(--code-str)"
-                  />
-                }
-              />
-              <ScheduleRow
-                time="09:00"
-                initial="M"
-                initialBg="var(--avatar-violet-bg)"
-                initialColor="var(--avatar-violet-ink)"
-                name="Miso · Shorthair"
-                detail="Dental follow-up · Dr. Osei"
-                badge={
-                  <StatusBadge label="In progress" bg="var(--blue-soft)" color="var(--blue)" />
-                }
-              />
-              <ScheduleRow
-                time="09:30"
-                initial="F"
-                initialBg="var(--avatar-green-bg)"
-                initialColor="var(--code-str)"
-                name="Fjord · Icelandic Horse"
-                detail="Lameness exam · yard visit"
-                badge={<StatusBadge label="Upcoming" bg="var(--inset)" color="var(--ink-muted)" />}
-              />
-            </div>
-          </div>
+          <span style={{ fontSize: 12, color: 'var(--ink-faint2)' }}>Veterinary Clinic</span>
         </div>
       </div>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          color: 'var(--ink-faint2)',
+          padding: '8px 8px 4px',
+        }}
+      >
+        SCHEDULE &amp; WORK
+      </span>
+      <SidebarItem
+        icon={<IoGridOutline style={{ fontSize: 16 }} aria-hidden="true" />}
+        label="Dashboard"
+      />
+      <SidebarItem
+        icon={<IoCalendarOutline style={{ fontSize: 16 }} aria-hidden="true" />}
+        label="Appointments"
+        active
+      />
+      <SidebarItem
+        icon={<IoPawOutline style={{ fontSize: 16 }} aria-hidden="true" />}
+        label="Companions"
+      />
+      <SidebarItem
+        icon={<IoDocumentTextOutline style={{ fontSize: 16 }} aria-hidden="true" />}
+        label="SOAP notes"
+      />
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          color: 'var(--ink-faint2)',
+          padding: '12px 8px 4px',
+        }}
+      >
+        OPERATIONS
+      </span>
+      <SidebarItem
+        icon={<IoWalletOutline style={{ fontSize: 16 }} aria-hidden="true" />}
+        label="Finance"
+      />
+      <SidebarItem
+        icon={<IoCubeOutline style={{ fontSize: 16 }} aria-hidden="true" />}
+        label="Inventory"
+      />
+      <SidebarItem
+        icon={<IoChatbubblesOutline style={{ fontSize: 16 }} aria-hidden="true" />}
+        label="Chat"
+      />
+    </aside>
+  );
+}
 
-      {/* floating accents */}
+function HeroScheduleHeader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        gap: 16,
+        marginBottom: 18,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 12, color: 'var(--ink-faint2)', letterSpacing: '-0.01em' }}>
+          Thursday, 3 July
+        </div>
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            letterSpacing: '-0.03em',
+            color: 'var(--ink)',
+          }}
+        >
+          Today&apos;s schedule
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <span
+          data-hide-m="true"
+          style={{
+            fontSize: 12.5,
+            color: 'var(--ink-muted)',
+            border: '1px solid var(--hairline)',
+            borderRadius: 9999,
+            padding: '7px 14px',
+          }}
+        >
+          Day
+        </span>
+        <span
+          style={{
+            fontSize: 12.5,
+            color: 'var(--cta-text)',
+            background: 'var(--cta)',
+            borderRadius: 9999,
+            padding: '7px 14px',
+          }}
+        >
+          + New visit
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function HeroStatCards() {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: 10,
+        marginBottom: 16,
+      }}
+    >
+      <StatCard
+        label="Booked today"
+        value="12"
+        sub="↑ 2 from yesterday"
+        subColor="var(--success)"
+        subWeight={600}
+      />
+      <StatCard
+        label="In the building"
+        value="3"
+        sub="2 waiting · 1 in room"
+        subColor="var(--ink-faint)"
+      />
+      <StatCard label="Invoiced" value="€1,840" sub="0% platform fee" subColor="var(--ink-faint)" />
+    </div>
+  );
+}
+
+function HeroScheduleList() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <ScheduleRow
+        time="08:30"
+        initial="B"
+        initialBg="var(--blue-soft)"
+        initialColor="var(--blue)"
+        name="Bella · Labrador"
+        detail="Senior wellness · Dr. Weber"
+        badge={
+          <StatusBadge label="Checked in" bg="var(--avatar-green-bg)" color="var(--code-str)" />
+        }
+      />
+      <ScheduleRow
+        time="09:00"
+        initial="M"
+        initialBg="var(--avatar-violet-bg)"
+        initialColor="var(--avatar-violet-ink)"
+        name="Miso · Shorthair"
+        detail="Dental follow-up · Dr. Osei"
+        badge={<StatusBadge label="In progress" bg="var(--blue-soft)" color="var(--blue)" />}
+      />
+      <ScheduleRow
+        time="09:30"
+        initial="F"
+        initialBg="var(--avatar-green-bg)"
+        initialColor="var(--code-str)"
+        name="Fjord · Icelandic Horse"
+        detail="Lameness exam · yard visit"
+        badge={<StatusBadge label="Upcoming" bg="var(--inset)" color="var(--ink-muted)" />}
+      />
+    </div>
+  );
+}
+
+function HeroMockupMain() {
+  return (
+    <div style={{ flex: 1, padding: 22, minWidth: 0 }}>
+      <HeroScheduleHeader />
+      <HeroStatCards />
+      <HeroScheduleList />
+    </div>
+  );
+}
+
+function HeroFloatCards() {
+  return (
+    <>
       <div data-hero-float="true" style={HERO_FLOAT_CARD_A_STYLE}>
         <span style={HERO_FLOAT_ICON_GREEN_STYLE}>
           <IoCloudOfflineOutline style={{ fontSize: 16 }} aria-hidden="true" />
@@ -958,6 +976,45 @@ function HeroMockup() {
           <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Leaving is free</div>
         </div>
       </div>
+    </>
+  );
+}
+
+function HeroMockup() {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        zIndex: 2,
+        width: 'min(1180px, 100%)',
+        margin: '60px auto 0',
+        opacity: 0,
+        animation: `ycHeroUp 1.1s ${EASE} 0.78s both`,
+      }}
+    >
+      <div
+        style={{
+          background: 'var(--screen)',
+          border: '1px solid var(--hairline)',
+          borderRadius: 28,
+          boxShadow: '0 40px 100px var(--sh16)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* window bar */}
+        <HeroWindowBar />
+
+        <div style={{ display: 'flex', minHeight: 460, textAlign: 'left' }}>
+          {/* sidebar */}
+          <HeroSidebar />
+
+          {/* main */}
+          <HeroMockupMain />
+        </div>
+      </div>
+
+      {/* floating accents */}
+      <HeroFloatCards />
     </div>
   );
 }
@@ -1042,6 +1099,179 @@ function NotebookSection() {
 
 /* ---------- FEATURE 1 - Records / SOAP ---------- */
 
+function RecordsIntro() {
+  return (
+    <Reveal
+      delay={0}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 18,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--blue)',
+        }}
+      >
+        Companions &amp; records
+      </span>
+      <h2
+        style={{
+          fontFamily: NEWSREADER,
+          margin: 0,
+          fontSize: 'clamp(30px, 3.6vw, 46px)',
+          fontWeight: 500,
+          lineHeight: 1.1,
+          letterSpacing: '-0.045em',
+          color: 'var(--ink)',
+          textWrap: 'balance',
+        }}
+      >
+        One patient. Every slice, in one place.
+      </h2>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 17.5,
+          lineHeight: 1.65,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink-muted)',
+          textWrap: 'pretty',
+        }}
+      >
+        A dog dies in the gaps between screens: the bloodwork in one system, the scan on a disc in a
+        drawer, the locum&apos;s note in a file nobody opens. Yosemite Crew puts the whole history
+        on one timeline, so the vet, the nurse and the lab all see the same animal at the same
+        moment.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+        <FeatureCheck>SOAP notes that write to the timeline, not a silo</FeatureCheck>
+        <FeatureCheck>Bloodwork, imaging and meds on a single record</FeatureCheck>
+        <FeatureCheck>Dogs, cats and horses, one system for the whole yard</FeatureCheck>
+      </div>
+    </Reveal>
+  );
+}
+
+function RecordsTimeline() {
+  return (
+    <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          color: 'var(--ink-faint2)',
+        }}
+      >
+        TIMELINE
+      </span>
+      <TimelineRow
+        icon={<IoWaterOutline style={{ fontSize: 15 }} aria-hidden="true" />}
+        iconBg="var(--avatar-green-bg)"
+        iconColor="var(--code-str)"
+        title="Bloodwork panel, all clear"
+        meta="Dr. Weber · 2 days ago"
+      />
+      <TimelineRow
+        icon={<IoScanOutline style={{ fontSize: 15 }} aria-hidden="true" />}
+        iconBg="var(--avatar-violet-bg)"
+        iconColor="var(--avatar-violet-ink)"
+        title="Hip X-ray · mild arthritis"
+        meta="Imaging · May"
+      />
+      <TimelineRow
+        icon={<IoMedkitOutline style={{ fontSize: 15 }} aria-hidden="true" />}
+        iconBg="var(--avatar-amber-bg)"
+        iconColor="var(--avatar-amber-ink)"
+        title="Carprofen 75mg · 1×/day"
+        meta="Prescription · ongoing"
+      />
+      <div
+        style={{
+          marginTop: 6,
+          padding: 14,
+          background: 'var(--page)',
+          border: '1px solid var(--inset)',
+          borderRadius: 14,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            color: 'var(--ink-faint2)',
+            marginBottom: 6,
+          }}
+        >
+          S · O · A · P
+        </div>
+        <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--ink-muted)' }}>
+          <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>A:</span> Stable senior.
+          Weight holding at 29.4kg.{' '}
+          <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>P:</span> Recheck in 4 weeks;
+          continue NSAIDs.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecordsCard() {
+  return (
+    <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
+      <div
+        className="yc-card-lift"
+        style={{
+          width: '100%',
+          maxWidth: 560,
+          background: 'var(--screen)',
+          border: '1px solid var(--hairline)',
+          borderRadius: 22,
+          boxShadow: '0 24px 60px var(--sh10)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            padding: '18px 20px',
+            borderBottom: '1px solid var(--inset)',
+          }}
+        >
+          <span style={RECORD_AVATAR_STYLE}>B</span>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontSize: 17,
+                fontWeight: 700,
+                letterSpacing: '-0.03em',
+                color: 'var(--ink)',
+              }}
+            >
+              Bella
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
+              Labrador Retriever · ♀ · 11 yrs · #A-2014
+            </div>
+          </div>
+          <StatusBadge label="Active" bg="var(--avatar-green-bg)" color="var(--code-str)" />
+        </div>
+        <RecordsTimeline />
+      </div>
+    </Reveal>
+  );
+}
+
 function RecordsSection() {
   return (
     <section data-screen-label="Records" style={{ background: 'var(--page)' }}>
@@ -1057,166 +1287,8 @@ function RecordsSection() {
           alignItems: 'center',
         }}
       >
-        <Reveal
-          delay={0}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            gap: 18,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--blue)',
-            }}
-          >
-            Companions &amp; records
-          </span>
-          <h2
-            style={{
-              fontFamily: NEWSREADER,
-              margin: 0,
-              fontSize: 'clamp(30px, 3.6vw, 46px)',
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: '-0.045em',
-              color: 'var(--ink)',
-              textWrap: 'balance',
-            }}
-          >
-            One patient. Every slice, in one place.
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 17.5,
-              lineHeight: 1.65,
-              letterSpacing: '-0.02em',
-              color: 'var(--ink-muted)',
-              textWrap: 'pretty',
-            }}
-          >
-            A dog dies in the gaps between screens: the bloodwork in one system, the scan on a disc
-            in a drawer, the locum&apos;s note in a file nobody opens. Yosemite Crew puts the whole
-            history on one timeline, so the vet, the nurse and the lab all see the same animal at
-            the same moment.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
-            <FeatureCheck>SOAP notes that write to the timeline, not a silo</FeatureCheck>
-            <FeatureCheck>Bloodwork, imaging and meds on a single record</FeatureCheck>
-            <FeatureCheck>Dogs, cats and horses, one system for the whole yard</FeatureCheck>
-          </div>
-        </Reveal>
-
-        <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
-          <div
-            className="yc-card-lift"
-            style={{
-              width: '100%',
-              maxWidth: 560,
-              background: 'var(--screen)',
-              border: '1px solid var(--hairline)',
-              borderRadius: 22,
-              boxShadow: '0 24px 60px var(--sh10)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                padding: '18px 20px',
-                borderBottom: '1px solid var(--inset)',
-              }}
-            >
-              <span style={RECORD_AVATAR_STYLE}>B</span>
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: 17,
-                    fontWeight: 700,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--ink)',
-                  }}
-                >
-                  Bella
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
-                  Labrador Retriever · ♀ · 11 yrs · #A-2014
-                </div>
-              </div>
-              <StatusBadge label="Active" bg="var(--avatar-green-bg)" color="var(--code-str)" />
-            </div>
-            <div
-              style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.1em',
-                  color: 'var(--ink-faint2)',
-                }}
-              >
-                TIMELINE
-              </span>
-              <TimelineRow
-                icon={<IoWaterOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-                iconBg="var(--avatar-green-bg)"
-                iconColor="var(--code-str)"
-                title="Bloodwork panel, all clear"
-                meta="Dr. Weber · 2 days ago"
-              />
-              <TimelineRow
-                icon={<IoScanOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-                iconBg="var(--avatar-violet-bg)"
-                iconColor="var(--avatar-violet-ink)"
-                title="Hip X-ray · mild arthritis"
-                meta="Imaging · May"
-              />
-              <TimelineRow
-                icon={<IoMedkitOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-                iconBg="var(--avatar-amber-bg)"
-                iconColor="var(--avatar-amber-ink)"
-                title="Carprofen 75mg · 1×/day"
-                meta="Prescription · ongoing"
-              />
-              <div
-                style={{
-                  marginTop: 6,
-                  padding: 14,
-                  background: 'var(--page)',
-                  border: '1px solid var(--inset)',
-                  borderRadius: 14,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                    color: 'var(--ink-faint2)',
-                    marginBottom: 6,
-                  }}
-                >
-                  S · O · A · P
-                </div>
-                <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--ink-muted)' }}>
-                  <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>A:</span> Stable
-                  senior. Weight holding at 29.4kg.{' '}
-                  <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>P:</span> Recheck in 4
-                  weeks; continue NSAIDs.
-                </div>
-              </div>
-            </div>
-          </div>
-        </Reveal>
+        <RecordsIntro />
+        <RecordsCard />
       </div>
     </section>
   );
@@ -1258,6 +1330,174 @@ function TimelineRow({ icon, iconBg, iconColor, title, meta }: Readonly<Timeline
 
 /* ---------- FEATURE 2 - Finance (reversed) ---------- */
 
+function FinanceCard() {
+  return (
+    <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
+      <div
+        className="yc-card-lift"
+        style={{
+          width: '100%',
+          maxWidth: 500,
+          background: 'var(--screen)',
+          border: '1px solid var(--hairline)',
+          borderRadius: 22,
+          boxShadow: '0 24px 60px var(--sh10)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            padding: 20,
+            borderBottom: '1px solid var(--inset)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--ink)',
+            }}
+          >
+            Invoice · #YC-2041
+          </div>
+          <StatusBadge label="Paid" bg="var(--avatar-green-bg)" color="var(--code-str)" />
+        </div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <InvoiceRow label="Senior wellness exam" amount="€65.00" />
+          <InvoiceRow label="Bloodwork panel" amount="€48.00" />
+          <InvoiceRow label="Carprofen 75mg × 30" amount="€22.00" />
+          <div style={{ height: 1, background: 'var(--inset)', margin: '4px 0' }} />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+            }}
+          >
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
+            <span
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: '-0.03em',
+                color: 'var(--ink)',
+              }}
+            >
+              €135.00
+            </span>
+          </div>
+          <div
+            style={{
+              marginTop: 6,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '12px 14px',
+              background: 'var(--avatar-green-bg)',
+              borderRadius: 14,
+            }}
+          >
+            <IoShieldCheckmarkOutline
+              style={{ fontSize: 18, color: 'var(--code-str)' }}
+              aria-hidden="true"
+            />
+            <span
+              style={{
+                fontSize: 13,
+                color: 'var(--code-str)',
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Your statement says{' '}
+              <em style={{ fontStyle: 'normal', fontWeight: 700 }}>your clinic</em>, 0% platform fee
+            </span>
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+interface FinanceIntroProps {
+  linkRef: RefObject<HTMLAnchorElement | null>;
+}
+
+function FinanceIntro({ linkRef }: Readonly<FinanceIntroProps>) {
+  return (
+    <Reveal
+      delay={0}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 18,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--blue)',
+        }}
+      >
+        Finance
+      </span>
+      <h2
+        style={{
+          fontFamily: NEWSREADER,
+          margin: 0,
+          fontSize: 'clamp(30px, 3.6vw, 46px)',
+          fontWeight: 500,
+          lineHeight: 1.1,
+          letterSpacing: '-0.045em',
+          color: 'var(--ink)',
+          textWrap: 'balance',
+        }}
+      >
+        You pay your vet. Your statement should say your vet.
+      </h2>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 17.5,
+          lineHeight: 1.65,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink-muted)',
+          textWrap: 'pretty',
+        }}
+      >
+        Invoicing, estimates and payments live inside the record, with no third company standing
+        between the pet parent and you, and no vendor&apos;s name where yours should be.{' '}
+        <strong
+          style={{
+            fontWeight: 700,
+            color: 'var(--ink-body)',
+            textDecoration: 'underline',
+            textDecorationColor: 'var(--blue)',
+            textDecorationThickness: '2px',
+            textUnderlineOffset: '3px',
+          }}
+        >
+          We take zero cut of your payments
+        </strong>
+        {
+          ', because the day you become a toll collector is the day you stop making the product better.'
+        }
+      </p>
+      <Link ref={linkRef} href="/pricing" className="yc-link" style={FINANCE_LINK_STYLE}>
+        See how pricing works <IoArrowForwardOutline style={{ fontSize: 16 }} aria-hidden="true" />
+      </Link>
+    </Reveal>
+  );
+}
+
 function FinanceSection() {
   const linkRef = useMagnet<HTMLAnchorElement>();
   return (
@@ -1274,165 +1514,10 @@ function FinanceSection() {
           alignItems: 'center',
         }}
       >
-        <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
-          <div
-            className="yc-card-lift"
-            style={{
-              width: '100%',
-              maxWidth: 500,
-              background: 'var(--screen)',
-              border: '1px solid var(--hairline)',
-              borderRadius: 22,
-              boxShadow: '0 24px 60px var(--sh10)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                padding: 20,
-                borderBottom: '1px solid var(--inset)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 700,
-                  letterSpacing: '-0.02em',
-                  color: 'var(--ink)',
-                }}
-              >
-                Invoice · #YC-2041
-              </div>
-              <StatusBadge label="Paid" bg="var(--avatar-green-bg)" color="var(--code-str)" />
-            </div>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <InvoiceRow label="Senior wellness exam" amount="€65.00" />
-              <InvoiceRow label="Bloodwork panel" amount="€48.00" />
-              <InvoiceRow label="Carprofen 75mg × 30" amount="€22.00" />
-              <div style={{ height: 1, background: 'var(--inset)', margin: '4px 0' }} />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                }}
-              >
-                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
-                <span
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--ink)',
-                  }}
-                >
-                  €135.00
-                </span>
-              </div>
-              <div
-                style={{
-                  marginTop: 6,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '12px 14px',
-                  background: 'var(--avatar-green-bg)',
-                  borderRadius: 14,
-                }}
-              >
-                <IoShieldCheckmarkOutline
-                  style={{ fontSize: 18, color: 'var(--code-str)' }}
-                  aria-hidden="true"
-                />
-                <span
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--code-str)',
-                    fontWeight: 600,
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  Your statement says{' '}
-                  <em style={{ fontStyle: 'normal', fontWeight: 700 }}>your clinic</em>, 0% platform
-                  fee
-                </span>
-              </div>
-            </div>
-          </div>
-        </Reveal>
+        <FinanceCard />
 
         <div data-order-first-m="true">
-          <Reveal
-            delay={0}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: 18,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                color: 'var(--blue)',
-              }}
-            >
-              Finance
-            </span>
-            <h2
-              style={{
-                fontFamily: NEWSREADER,
-                margin: 0,
-                fontSize: 'clamp(30px, 3.6vw, 46px)',
-                fontWeight: 500,
-                lineHeight: 1.1,
-                letterSpacing: '-0.045em',
-                color: 'var(--ink)',
-                textWrap: 'balance',
-              }}
-            >
-              You pay your vet. Your statement should say your vet.
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 17.5,
-                lineHeight: 1.65,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-muted)',
-                textWrap: 'pretty',
-              }}
-            >
-              Invoicing, estimates and payments live inside the record, with no third company
-              standing between the pet parent and you, and no vendor&apos;s name where yours should
-              be.{' '}
-              <strong
-                style={{
-                  fontWeight: 700,
-                  color: 'var(--ink-body)',
-                  textDecoration: 'underline',
-                  textDecorationColor: 'var(--blue)',
-                  textDecorationThickness: '2px',
-                  textUnderlineOffset: '3px',
-                }}
-              >
-                We take zero cut of your payments
-              </strong>
-              {
-                ', because the day you become a toll collector is the day you stop making the product better.'
-              }
-            </p>
-            <Link ref={linkRef} href="/pricing" className="yc-link" style={FINANCE_LINK_STYLE}>
-              See how pricing works{' '}
-              <IoArrowForwardOutline style={{ fontSize: 16 }} aria-hidden="true" />
-            </Link>
-          </Reveal>
+          <FinanceIntro linkRef={linkRef} />
         </div>
       </div>
     </section>

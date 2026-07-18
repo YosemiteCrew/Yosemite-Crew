@@ -152,12 +152,270 @@ const validateSignUpInputs = (
   return errors;
 };
 
+type SignUpErrors = {
+  confirmPError?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  pError?: string;
+  agree?: string;
+};
+
 type SignUpProps = {
   postAuthRedirect?: string;
   signinHref?: string;
   allowNext?: boolean;
   isDeveloper?: boolean;
 };
+
+const SignUpBrand = ({ effectiveDeveloper }: { effectiveDeveloper: boolean }) => (
+  <AuthBrandContent
+    eyebrow={
+      effectiveDeveloper
+        ? 'Open-source developer platform'
+        : 'Open-source operating system for animal health'
+    }
+    title={
+      effectiveDeveloper ? (
+        <>
+          Build it in{' '}
+          <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>an afternoon.</em>
+        </>
+      ) : (
+        <>
+          See the <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>whole</em>{' '}
+          animal.
+        </>
+      )
+    }
+    subtitle={
+      effectiveDeveloper
+        ? 'A FHIR-native API, a plugin system, and a codebase you can actually read. Publish once and reach every clinic running Yosemite Crew.'
+        : 'The operating system veterinary clinics run on, and the platform developers build on. Free to self-host, and yours to own.'
+    }
+    points={effectiveDeveloper ? DEV_POINTS : CLINIC_POINTS}
+  />
+);
+
+const SignUpTopRight = ({ signinHref }: { signinHref: string }) => (
+  <>
+    <span data-hide-s="true">Already have an account?</span>
+    <Link href={signinHref} className="yc-switch">
+      Sign in
+    </Link>
+  </>
+);
+
+const SignUpHeader = () => (
+  <>
+    <AuthHeading>
+      Create your{' '}
+      <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>account</em>
+    </AuthHeading>
+    <AuthSubtitle>For clinics and developers. Free to self-host, no card required.</AuthSubtitle>
+  </>
+);
+
+type SignUpRoleFieldProps = {
+  role: string;
+  onRoleChange: (value: string) => void;
+};
+
+const SignUpRoleField = ({ role, onRoleChange }: SignUpRoleFieldProps) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+    <label className="yc-lbl" htmlFor="signup-role">
+      I am
+    </label>
+    <select
+      id="signup-role"
+      className="yc-field"
+      aria-label="I am"
+      value={role}
+      onChange={(e) => onRoleChange(e.target.value)}
+    >
+      <option value={CLINIC_ROLE}>{CLINIC_ROLE}</option>
+      <option value={DEVELOPER_ROLE}>{DEVELOPER_ROLE}</option>
+    </select>
+  </div>
+);
+
+type SignUpFieldsProps = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  errors: SignUpErrors;
+  showPassword: boolean;
+  onFirstNameChange: (value: string) => void;
+  onLastNameChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  onConfirmPasswordChange: (value: string) => void;
+  onToggleShowPassword: () => void;
+};
+
+const SignUpFields = ({
+  firstName,
+  lastName,
+  email,
+  password,
+  confirmPassword,
+  errors,
+  showPassword,
+  onFirstNameChange,
+  onLastNameChange,
+  onEmailChange,
+  onPasswordChange,
+  onConfirmPasswordChange,
+  onToggleShowPassword,
+}: SignUpFieldsProps) => (
+  <>
+    <AuthTextField
+      id="signup-firstname"
+      label="First name"
+      name="first name"
+      autoComplete="given-name"
+      placeholder="Dr. Lena"
+      ariaLabel="First name"
+      value={firstName}
+      error={errors.firstName}
+      onChange={onFirstNameChange}
+    />
+    <AuthTextField
+      id="signup-lastname"
+      label="Last name"
+      name="last name"
+      autoComplete="family-name"
+      placeholder="Weber"
+      ariaLabel="Last name"
+      value={lastName}
+      error={errors.lastName}
+      onChange={onLastNameChange}
+    />
+    <AuthTextField
+      id="signup-email"
+      label="Work email"
+      name="email"
+      type="email"
+      autoComplete="email"
+      placeholder="you@clinic.com"
+      ariaLabel="Enter email"
+      value={email}
+      error={errors.email}
+      onChange={onEmailChange}
+    />
+    <AuthPasswordField
+      id="signup-password"
+      label="Password"
+      name="password"
+      autoComplete="new-password"
+      placeholder="At least 8 characters"
+      ariaLabel="Set up password"
+      value={password}
+      error={errors.pError}
+      onChange={onPasswordChange}
+      showPassword={showPassword}
+      onToggleShowPassword={onToggleShowPassword}
+    />
+    <AuthTextField
+      id="signup-confirm-password"
+      label="Confirm password"
+      name="confirm-password"
+      type={showPassword ? 'text' : 'password'}
+      autoComplete="new-password"
+      placeholder="Re-enter your password"
+      ariaLabel="Confirm password"
+      value={confirmPassword}
+      error={errors.confirmPError}
+      onChange={onConfirmPasswordChange}
+    />
+  </>
+);
+
+type SignUpTermsFieldProps = {
+  agree: boolean;
+  error?: string;
+  onAgreeChange: (checked: boolean) => void;
+};
+
+const SignUpTermsField = ({ agree, error, onAgreeChange }: SignUpTermsFieldProps) => (
+  <>
+    <label
+      style={{
+        display: 'flex',
+        gap: 11,
+        alignItems: 'flex-start',
+        cursor: 'pointer',
+        marginTop: 3,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          ...TERMS_CHECKBOX_STYLE,
+          border: `1.5px solid ${agree ? 'var(--blue)' : 'var(--divider)'}`,
+          background: agree ? 'var(--blue)' : 'var(--field-bg)',
+        }}
+      >
+        {agree ? <IoCheckmark style={{ fontSize: 14, color: '#fff' }} /> : null}
+      </span>
+      <input
+        type="checkbox"
+        checked={agree}
+        aria-label="I agree to the terms and conditions and privacy policy"
+        onChange={(e) => onAgreeChange(e.target.checked)}
+        style={VISUALLY_HIDDEN_CHECKBOX_STYLE}
+      />
+      <span
+        style={{
+          fontSize: 13.5,
+          lineHeight: 1.5,
+          color: 'var(--ink-muted)',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        I agree to the{' '}
+        <Link
+          href="/terms-and-conditions?ref=signup"
+          style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+        >
+          Terms
+        </Link>{' '}
+        and{' '}
+        <Link
+          href="/privacy-policy?ref=signup"
+          style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+        >
+          Privacy policy
+        </Link>
+        .
+      </span>
+    </label>
+    <FieldError message={error} />
+  </>
+);
+
+const SignUpPetParentNote = () => (
+  <AuthAltNote>
+    Pet parent? Your account lives in the{' '}
+    <Link
+      href="/pet-parents"
+      style={{ color: 'var(--nav-active)', textDecoration: 'none', fontWeight: 600 }}
+    >
+      mobile app
+    </Link>
+    .
+  </AuthAltNote>
+);
+
+const SignUpLoader = () => (
+  <YosemiteLoader
+    variant="fullscreen-translucent"
+    label="Creating your account..."
+    testId="signup-loader"
+  />
+);
 
 const SignUp = ({
   postAuthRedirect,
@@ -190,14 +448,14 @@ const SignUp = ({
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [inputErrors, setInputErrors] = useState<{
-    confirmPError?: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    pError?: string;
-    agree?: string;
-  }>({});
+  const [inputErrors, setInputErrors] = useState<SignUpErrors>({});
+
+  const handleFieldChange =
+    <T,>(setValue: (value: T) => void, field: keyof SignUpErrors) =>
+    (value: T) => {
+      setValue(value);
+      setInputErrors((prev) => ({ ...prev, [field]: undefined }));
+    };
 
   const handleSignupSuccess = () => {
     resetSidebarPreference();
@@ -259,213 +517,36 @@ const SignUp = ({
     }
   };
 
-  const brand = (
-    <AuthBrandContent
-      eyebrow={
-        effectiveDeveloper
-          ? 'Open-source developer platform'
-          : 'Open-source operating system for animal health'
-      }
-      title={
-        effectiveDeveloper ? (
-          <>
-            Build it in{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>
-              an afternoon.
-            </em>
-          </>
-        ) : (
-          <>
-            See the{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>whole</em>{' '}
-            animal.
-          </>
-        )
-      }
-      subtitle={
-        effectiveDeveloper
-          ? 'A FHIR-native API, a plugin system, and a codebase you can actually read. Publish once and reach every clinic running Yosemite Crew.'
-          : 'The operating system veterinary clinics run on, and the platform developers build on. Free to self-host, and yours to own.'
-      }
-      points={effectiveDeveloper ? DEV_POINTS : CLINIC_POINTS}
-    />
-  );
-
-  const topRight = (
-    <>
-      <span data-hide-s="true">Already have an account?</span>
-      <Link href={signinHref} className="yc-switch">
-        Sign in
-      </Link>
-    </>
-  );
-
   return (
     <>
-      {isSubmitting ? (
-        <YosemiteLoader
-          variant="fullscreen-translucent"
-          label="Creating your account..."
-          testId="signup-loader"
-        />
-      ) : null}
-      <AuthShell brand={brand} topRight={topRight}>
-        <AuthHeading>
-          Create your{' '}
-          <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>
-            account
-          </em>
-        </AuthHeading>
-        <AuthSubtitle>
-          For clinics and developers. Free to self-host, no card required.
-        </AuthSubtitle>
+      {isSubmitting ? <SignUpLoader /> : null}
+      <AuthShell
+        brand={<SignUpBrand effectiveDeveloper={effectiveDeveloper} />}
+        topRight={<SignUpTopRight signinHref={signinHref} />}
+      >
+        <SignUpHeader />
         <AuthForm onSubmit={handleSignUp} method="post">
-          {!isDeveloper ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label className="yc-lbl" htmlFor="signup-role">
-                I am
-              </label>
-              <select
-                id="signup-role"
-                className="yc-field"
-                aria-label="I am"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-              >
-                <option value={CLINIC_ROLE}>{CLINIC_ROLE}</option>
-                <option value={DEVELOPER_ROLE}>{DEVELOPER_ROLE}</option>
-              </select>
-            </div>
-          ) : null}
-          <AuthTextField
-            id="signup-firstname"
-            label="First name"
-            name="first name"
-            autoComplete="given-name"
-            placeholder="Dr. Lena"
-            ariaLabel="First name"
-            value={firstName}
-            error={inputErrors.firstName}
-            onChange={(value) => {
-              setFirstName(value);
-              setInputErrors((prev) => ({ ...prev, firstName: undefined }));
-            }}
-          />
-          <AuthTextField
-            id="signup-lastname"
-            label="Last name"
-            name="last name"
-            autoComplete="family-name"
-            placeholder="Weber"
-            ariaLabel="Last name"
-            value={lastName}
-            error={inputErrors.lastName}
-            onChange={(value) => {
-              setLastName(value);
-              setInputErrors((prev) => ({ ...prev, lastName: undefined }));
-            }}
-          />
-          <AuthTextField
-            id="signup-email"
-            label="Work email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@clinic.com"
-            ariaLabel="Enter email"
-            value={email}
-            error={inputErrors.email}
-            onChange={(value) => {
-              setEmail(value);
-              setInputErrors((prev) => ({ ...prev, email: undefined }));
-            }}
-          />
-          <AuthPasswordField
-            id="signup-password"
-            label="Password"
-            name="password"
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-            ariaLabel="Set up password"
-            value={password}
-            error={inputErrors.pError}
-            onChange={(value) => {
-              setPassword(value);
-              setInputErrors((prev) => ({ ...prev, pError: undefined }));
-            }}
+          {!isDeveloper ? <SignUpRoleField role={role} onRoleChange={setRole} /> : null}
+          <SignUpFields
+            firstName={firstName}
+            lastName={lastName}
+            email={email}
+            password={password}
+            confirmPassword={confirmPassword}
+            errors={inputErrors}
             showPassword={showPassword}
+            onFirstNameChange={handleFieldChange(setFirstName, 'firstName')}
+            onLastNameChange={handleFieldChange(setLastName, 'lastName')}
+            onEmailChange={handleFieldChange(setEmail, 'email')}
+            onPasswordChange={handleFieldChange(setPassword, 'pError')}
+            onConfirmPasswordChange={handleFieldChange(setConfirmPassword, 'confirmPError')}
             onToggleShowPassword={() => setShowPassword((prev) => !prev)}
           />
-          <AuthTextField
-            id="signup-confirm-password"
-            label="Confirm password"
-            name="confirm-password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
-            placeholder="Re-enter your password"
-            ariaLabel="Confirm password"
-            value={confirmPassword}
-            error={inputErrors.confirmPError}
-            onChange={(value) => {
-              setConfirmPassword(value);
-              setInputErrors((prev) => ({ ...prev, confirmPError: undefined }));
-            }}
+          <SignUpTermsField
+            agree={agree}
+            error={inputErrors.agree}
+            onAgreeChange={handleFieldChange(setAgree, 'agree')}
           />
-          <label
-            style={{
-              display: 'flex',
-              gap: 11,
-              alignItems: 'flex-start',
-              cursor: 'pointer',
-              marginTop: 3,
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                ...TERMS_CHECKBOX_STYLE,
-                border: `1.5px solid ${agree ? 'var(--blue)' : 'var(--divider)'}`,
-                background: agree ? 'var(--blue)' : 'var(--field-bg)',
-              }}
-            >
-              {agree ? <IoCheckmark style={{ fontSize: 14, color: '#fff' }} /> : null}
-            </span>
-            <input
-              type="checkbox"
-              checked={agree}
-              aria-label="I agree to the terms and conditions and privacy policy"
-              onChange={(e) => {
-                setAgree(e.target.checked);
-                setInputErrors((prev) => ({ ...prev, agree: undefined }));
-              }}
-              style={VISUALLY_HIDDEN_CHECKBOX_STYLE}
-            />
-            <span
-              style={{
-                fontSize: 13.5,
-                lineHeight: 1.5,
-                color: 'var(--ink-muted)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              I agree to the{' '}
-              <Link
-                href="/terms-and-conditions?ref=signup"
-                style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
-              >
-                Terms
-              </Link>{' '}
-              and{' '}
-              <Link
-                href="/privacy-policy?ref=signup"
-                style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
-              >
-                Privacy policy
-              </Link>
-              .
-            </span>
-          </label>
-          <FieldError message={inputErrors.agree} />
           <AuthSubmitButton
             idle="Create account"
             busy="Creating account..."
@@ -473,16 +554,7 @@ const SignUp = ({
           />
         </AuthForm>
         {effectiveDeveloper ? <GithubSignInButton /> : null}
-        <AuthAltNote>
-          Pet parent? Your account lives in the{' '}
-          <Link
-            href="/pet-parents"
-            style={{ color: 'var(--nav-active)', textDecoration: 'none', fontWeight: 600 }}
-          >
-            mobile app
-          </Link>
-          .
-        </AuthAltNote>
+        <SignUpPetParentNote />
       </AuthShell>
       <OtpModal
         email={normalizeEmail(email)}

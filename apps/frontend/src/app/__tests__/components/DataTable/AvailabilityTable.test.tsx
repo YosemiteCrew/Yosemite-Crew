@@ -35,10 +35,7 @@ jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
 // Mock Next.js Image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt }: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} data-testid="profile-image" />
-  ),
+  default: ({ src, alt }: any) => <img src={src} alt={alt} data-testid="profile-image" />,
 }));
 
 // Mock Icons

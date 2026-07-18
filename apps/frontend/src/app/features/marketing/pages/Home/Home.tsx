@@ -411,146 +411,327 @@ function PillarCopy({ eyebrow, eyebrowAs, heading, body, linkHref, linkText }: P
 
 /* ─────────────────────────── HERO ─────────────────────────── */
 
+function HeroAppointmentCard() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: '5%',
+        top: '23%',
+        animation: 'ycFloatA 7s ease-in-out 1.2s infinite',
+        zIndex: 2,
+      }}
+    >
+      <div style={HERO_GLASS_CARD_STYLE}>
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 9999,
+            background: 'var(--success)',
+            animation: 'ycPulse 2.4s ease-out infinite',
+          }}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--ink-body)',
+            }}
+          >
+            Appointment confirmed
+          </span>
+          <span style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+            Bella · Sat 09:00 · Dr. Weber
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroMessageCard() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        right: '4.5%',
+        top: '27%',
+        animation: 'ycFloatB 9s ease-in-out 0.6s infinite',
+        zIndex: 2,
+      }}
+    >
+      <div style={HERO_GLASS_CARD_WIDE_STYLE}>
+        <span style={HERO_MESSAGE_AVATAR_STYLE}>SW</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--ink-body)',
+            }}
+          >
+            Dr. Weber <span style={{ fontWeight: 400, color: 'var(--ink-faint2)' }}>· 14:02</span>
+          </span>
+          <span
+            style={{
+              fontSize: 14,
+              color: 'var(--ink-muted)',
+              letterSpacing: '-0.01em',
+              lineHeight: 1.4,
+            }}
+          >
+            Bloodwork is in, all clear. See you Saturday.
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroExportCard() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: '9%',
+        bottom: '17%',
+        animation: 'ycFloatB 8s ease-in-out 2s infinite',
+        zIndex: 2,
+      }}
+    >
+      <div style={HERO_GLASS_CARD_STYLE}>
+        <span style={HERO_EXPORT_ICON_STYLE}>
+          <IoDownloadOutline style={{ fontSize: 16 }} aria-hidden="true" />
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--ink-body)',
+            }}
+          >
+            Full history exported
+          </span>
+          <span style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+            247 records · yours to keep
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroRecoveryCard() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        right: '8%',
+        bottom: '15%',
+        animation: 'ycFloatA 6.5s ease-in-out 0.2s infinite',
+        zIndex: 2,
+      }}
+    >
+      <div style={HERO_STAT_CARD_STYLE}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 26 }}>
+          <span style={{ width: 4, height: '40%', background: '#99bdec', borderRadius: 2 }} />
+          <span style={{ width: 4, height: '65%', background: '#6aa1eb', borderRadius: 2 }} />
+          <span style={{ width: 4, height: '50%', background: '#3b87ec', borderRadius: 2 }} />
+          <span style={{ width: 4, height: '90%', background: 'var(--blue)', borderRadius: 2 }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--ink-body)',
+            }}
+          >
+            Recovery on track
+          </span>
+          <span style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+            Weight stable · 4 weeks
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function HeroFloatingCards() {
   return (
     <div data-hide-m="true" aria-hidden="true">
-      <div
+      <HeroAppointmentCard />
+      <HeroMessageCard />
+      <HeroExportCard />
+      <HeroRecoveryCard />
+    </div>
+  );
+}
+
+type HeroMagnetRef = ReturnType<typeof useMagnet<HTMLAnchorElement>>;
+
+function HeroHeading() {
+  return (
+    <h1 style={HERO_HEADING_STYLE}>
+      <span
         style={{
-          position: 'absolute',
-          left: '5%',
-          top: '23%',
-          animation: 'ycFloatA 7s ease-in-out 1.2s infinite',
-          zIndex: 2,
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.1s both',
         }}
       >
-        <div style={HERO_GLASS_CARD_STYLE}>
+        See
+      </span>
+      <span
+        style={{
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.24s both',
+        }}
+      >
+        the
+      </span>
+      <em
+        style={{
+          display: 'inline-block',
+          fontStyle: 'italic',
+          fontWeight: 480,
+          color: 'var(--blue-text)',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.38s both',
+        }}
+      >
+        <InkAnnotate type="circle" delay={1300}>
+          whole
+        </InkAnnotate>
+      </em>
+      <span
+        style={{
+          display: 'inline-block',
+          opacity: 0,
+          animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.52s both',
+        }}
+      >
+        animal.
+      </span>
+    </h1>
+  );
+}
+
+function HeroCtaButtons({
+  primaryRef,
+  starRef,
+}: Readonly<{ primaryRef: HeroMagnetRef; starRef: HeroMagnetRef }>) {
+  return (
+    <div
+      data-stack-m="true"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        marginTop: 40,
+        opacity: 0,
+        animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.45s both',
+      }}
+    >
+      <Link href="/signup" ref={primaryRef} style={CTA_PRIMARY_BUTTON_STYLE}>
+        Get started free <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
+      </Link>
+      <a
+        href={GITHUB_REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        ref={starRef}
+        data-star
+        style={HERO_GITHUB_BUTTON_STYLE}
+      >
+        <IoLogoGithub style={{ fontSize: 18 }} aria-hidden="true" /> Star on GitHub
+      </a>
+    </div>
+  );
+}
+
+function HeroSocialProof() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        marginTop: 30,
+        opacity: 0,
+        animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.6s both',
+      }}
+    >
+      <div style={{ display: 'flex' }}>
+        {HERO_AVATARS.map((src, i) => (
           <span
+            key={src}
             style={{
-              width: 10,
-              height: 10,
+              display: 'inline-block',
+              width: 40,
+              height: 40,
               borderRadius: 9999,
-              background: 'var(--success)',
-              animation: 'ycPulse 2.4s ease-out infinite',
+              overflow: 'hidden',
+              marginLeft: i === 0 ? 0 : -12,
+              boxShadow: '0 0 0 2px var(--page)',
+              background: '#e6e3e0',
+              animation: `ycFloatA 4.5s ease-in-out ${(i * 0.45).toFixed(2)}s infinite`,
             }}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-body)',
-              }}
-            >
-              Appointment confirmed
-            </span>
-            <span style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
-              Bella · Sat 09:00 · Dr. Weber
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          position: 'absolute',
-          right: '4.5%',
-          top: '27%',
-          animation: 'ycFloatB 9s ease-in-out 0.6s infinite',
-          zIndex: 2,
-        }}
-      >
-        <div style={HERO_GLASS_CARD_WIDE_STYLE}>
-          <span style={HERO_MESSAGE_AVATAR_STYLE}>SW</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-body)',
-              }}
-            >
-              Dr. Weber <span style={{ fontWeight: 400, color: 'var(--ink-faint2)' }}>· 14:02</span>
-            </span>
-            <span
-              style={{
-                fontSize: 14,
-                color: 'var(--ink-muted)',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.4,
-              }}
-            >
-              Bloodwork is in, all clear. See you Saturday.
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          position: 'absolute',
-          left: '9%',
-          bottom: '17%',
-          animation: 'ycFloatB 8s ease-in-out 2s infinite',
-          zIndex: 2,
-        }}
-      >
-        <div style={HERO_GLASS_CARD_STYLE}>
-          <span style={HERO_EXPORT_ICON_STYLE}>
-            <IoDownloadOutline style={{ fontSize: 16 }} aria-hidden="true" />
+          >
+            <Image
+              src={src}
+              alt="A companion cared for with Yosemite Crew"
+              width={40}
+              height={40}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
           </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-body)',
-              }}
-            >
-              Full history exported
-            </span>
-            <span style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
-              247 records · yours to keep
-            </span>
-          </div>
+        ))}
+        <span style={HERO_AVATAR_BADGE_STYLE}>+9k</span>
+      </div>
+      <div style={{ textAlign: 'left' }}>
+        <div
+          style={{
+            fontSize: 15.5,
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
+            color: 'var(--ink-body)',
+          }}
+        >
+          Trusted by <CountUp value="67,134" style={{ color: 'var(--ink)' }} /> self-hosters
+        </div>
+        <div style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-6b)' }}>
+          Clinics and developers running it in the open, no platform fees.
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div
-        style={{
-          position: 'absolute',
-          right: '8%',
-          bottom: '15%',
-          animation: 'ycFloatA 6.5s ease-in-out 0.2s infinite',
-          zIndex: 2,
-        }}
-      >
-        <div style={HERO_STAT_CARD_STYLE}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 26 }}>
-            <span style={{ width: 4, height: '40%', background: '#99bdec', borderRadius: 2 }} />
-            <span style={{ width: 4, height: '65%', background: '#6aa1eb', borderRadius: 2 }} />
-            <span style={{ width: 4, height: '50%', background: '#3b87ec', borderRadius: 2 }} />
-            <span style={{ width: 4, height: '90%', background: 'var(--blue)', borderRadius: 2 }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-body)',
-              }}
-            >
-              Recovery on track
-            </span>
-            <span style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
-              Weight stable · 4 weeks
-            </span>
-          </div>
-        </div>
-      </div>
+function HeroScrollHint() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        bottom: 28,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        color: 'var(--ink-faint2)',
+        opacity: 0,
+        animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 1.4s both',
+      }}
+    >
+      <IoChevronDownOutline style={{ fontSize: 20 }} />
     </div>
   );
 }
@@ -610,49 +791,7 @@ function Hero() {
           <ReleasePill variant="latest" version="v2.0 beta" />
         </span>
 
-        <h1 style={HERO_HEADING_STYLE}>
-          <span
-            style={{
-              display: 'inline-block',
-              opacity: 0,
-              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.1s both',
-            }}
-          >
-            See
-          </span>
-          <span
-            style={{
-              display: 'inline-block',
-              opacity: 0,
-              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.24s both',
-            }}
-          >
-            the
-          </span>
-          <em
-            style={{
-              display: 'inline-block',
-              fontStyle: 'italic',
-              fontWeight: 480,
-              color: 'var(--blue-text)',
-              opacity: 0,
-              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.38s both',
-            }}
-          >
-            <InkAnnotate type="circle" delay={1300}>
-              whole
-            </InkAnnotate>
-          </em>
-          <span
-            style={{
-              display: 'inline-block',
-              opacity: 0,
-              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.52s both',
-            }}
-          >
-            animal.
-          </span>
-        </h1>
+        <HeroHeading />
 
         <p style={HERO_SUBTITLE_STYLE}>
           Most animals are cared for in slices, a vet here, a lab there, a note nobody opens.
@@ -660,102 +799,13 @@ function Hero() {
           story on one screen: for the clinic, the pet parent, and whoever cares for them next.
         </p>
 
-        <div
-          data-stack-m="true"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            marginTop: 40,
-            opacity: 0,
-            animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.45s both',
-          }}
-        >
-          <Link href="/signup" ref={primaryRef} style={CTA_PRIMARY_BUTTON_STYLE}>
-            Get started free <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
-          </Link>
-          <a
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            ref={starRef}
-            data-star
-            style={HERO_GITHUB_BUTTON_STYLE}
-          >
-            <IoLogoGithub style={{ fontSize: 18 }} aria-hidden="true" /> Star on GitHub
-          </a>
-        </div>
+        <HeroCtaButtons primaryRef={primaryRef} starRef={starRef} />
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            marginTop: 30,
-            opacity: 0,
-            animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.6s both',
-          }}
-        >
-          <div style={{ display: 'flex' }}>
-            {HERO_AVATARS.map((src, i) => (
-              <span
-                key={src}
-                style={{
-                  display: 'inline-block',
-                  width: 40,
-                  height: 40,
-                  borderRadius: 9999,
-                  overflow: 'hidden',
-                  marginLeft: i === 0 ? 0 : -12,
-                  boxShadow: '0 0 0 2px var(--page)',
-                  background: '#e6e3e0',
-                  animation: `ycFloatA 4.5s ease-in-out ${(i * 0.45).toFixed(2)}s infinite`,
-                }}
-              >
-                <Image
-                  src={src}
-                  alt="A companion cared for with Yosemite Crew"
-                  width={40}
-                  height={40}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-              </span>
-            ))}
-            <span style={HERO_AVATAR_BADGE_STYLE}>+9k</span>
-          </div>
-          <div style={{ textAlign: 'left' }}>
-            <div
-              style={{
-                fontSize: 15.5,
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-body)',
-              }}
-            >
-              Trusted by <CountUp value="67,134" style={{ color: 'var(--ink)' }} /> self-hosters
-            </div>
-            <div style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-6b)' }}>
-              Clinics and developers running it in the open, no platform fees.
-            </div>
-          </div>
-        </div>
+        <HeroSocialProof />
       </div>
 
       {/* scroll hint */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: 28,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          color: 'var(--ink-faint2)',
-          opacity: 0,
-          animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 1.4s both',
-        }}
-      >
-        <IoChevronDownOutline style={{ fontSize: 20 }} />
-      </div>
+      <HeroScrollHint />
     </section>
   );
 }
@@ -1017,6 +1067,120 @@ function ScheduleRow({
   );
 }
 
+function PracticeCardHeader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '14px 20px',
+        borderBottom: '1px solid var(--inset)',
+      }}
+    >
+      <WindowDots color="var(--hairline)" />
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
+          color: 'var(--ink-faint)',
+        }}
+      >
+        Today · Thursday 3 July
+      </span>
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 12,
+          color: 'var(--success)',
+          fontWeight: 700,
+        }}
+      >
+        <span style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }} />
+        {'Offline-ready'}
+      </span>
+    </div>
+  );
+}
+
+function PracticeSchedule() {
+  return (
+    <div style={{ padding: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            color: 'var(--ink-body)',
+          }}
+        >
+          Schedule
+        </span>
+        <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
+          12 visits · ↑ 2 from yesterday
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <ScheduleRow
+          time="08:30"
+          initial="B"
+          avatarBg="var(--blue-soft)"
+          avatarColor="var(--blue)"
+          name="Bella · Labrador Retriever"
+          detail="Senior wellness · Dr. Weber"
+          badgeLabel="CHECKED IN"
+          badgeBg="var(--avatar-green-bg)"
+          badgeColor="var(--code-str)"
+        />
+        <ScheduleRow
+          time="09:00"
+          initial="M"
+          avatarBg="var(--avatar-violet-bg)"
+          avatarColor="var(--avatar-violet-ink)"
+          name="Miso · Domestic Shorthair"
+          detail="Dental follow-up · Dr. Osei"
+          badgeLabel="IN PROGRESS"
+          badgeBg="var(--blue-soft)"
+          badgeColor="var(--nav-active)"
+        />
+        <ScheduleRow
+          time="09:30"
+          initial="F"
+          avatarBg="var(--avatar-green-bg)"
+          avatarColor="var(--avatar-green-ink)"
+          name="Fjord · Icelandic Horse"
+          detail="Lameness exam · Dr. Weber · Yard visit"
+          badgeLabel="UPCOMING"
+          badgeBg="var(--inset)"
+          badgeColor="var(--ink-muted)"
+        />
+        <ScheduleRow
+          time="10:15"
+          initial="O"
+          avatarBg="var(--avatar-amber-bg)"
+          avatarColor="var(--avatar-amber-ink)"
+          name="Otto · Dachshund"
+          detail="Vaccination · Nurse Blum"
+          badgeLabel="REQUESTED"
+          badgeBg="var(--avatar-amber-bg)"
+          badgeColor="var(--avatar-amber-ink)"
+        />
+      </div>
+    </div>
+  );
+}
+
 function PetBusinessesPillar() {
   return (
     <section style={{ background: 'var(--band)' }}>
@@ -1060,112 +1224,8 @@ function PetBusinessesPillar() {
               overflow: 'hidden',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 20px',
-                borderBottom: '1px solid var(--inset)',
-              }}
-            >
-              <WindowDots color="var(--hairline)" />
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  letterSpacing: '-0.01em',
-                  color: 'var(--ink-faint)',
-                }}
-              >
-                Today · Thursday 3 July
-              </span>
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 12,
-                  color: 'var(--success)',
-                  fontWeight: 700,
-                }}
-              >
-                <span
-                  style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }}
-                />
-                {'Offline-ready'}
-              </span>
-            </div>
-            <div style={{ padding: 20 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 16,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    letterSpacing: '-0.02em',
-                    color: 'var(--ink-body)',
-                  }}
-                >
-                  Schedule
-                </span>
-                <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
-                  12 visits · ↑ 2 from yesterday
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <ScheduleRow
-                  time="08:30"
-                  initial="B"
-                  avatarBg="var(--blue-soft)"
-                  avatarColor="var(--blue)"
-                  name="Bella · Labrador Retriever"
-                  detail="Senior wellness · Dr. Weber"
-                  badgeLabel="CHECKED IN"
-                  badgeBg="var(--avatar-green-bg)"
-                  badgeColor="var(--code-str)"
-                />
-                <ScheduleRow
-                  time="09:00"
-                  initial="M"
-                  avatarBg="var(--avatar-violet-bg)"
-                  avatarColor="var(--avatar-violet-ink)"
-                  name="Miso · Domestic Shorthair"
-                  detail="Dental follow-up · Dr. Osei"
-                  badgeLabel="IN PROGRESS"
-                  badgeBg="var(--blue-soft)"
-                  badgeColor="var(--nav-active)"
-                />
-                <ScheduleRow
-                  time="09:30"
-                  initial="F"
-                  avatarBg="var(--avatar-green-bg)"
-                  avatarColor="var(--avatar-green-ink)"
-                  name="Fjord · Icelandic Horse"
-                  detail="Lameness exam · Dr. Weber · Yard visit"
-                  badgeLabel="UPCOMING"
-                  badgeBg="var(--inset)"
-                  badgeColor="var(--ink-muted)"
-                />
-                <ScheduleRow
-                  time="10:15"
-                  initial="O"
-                  avatarBg="var(--avatar-amber-bg)"
-                  avatarColor="var(--avatar-amber-ink)"
-                  name="Otto · Dachshund"
-                  detail="Vaccination · Nurse Blum"
-                  badgeLabel="REQUESTED"
-                  badgeBg="var(--avatar-amber-bg)"
-                  badgeColor="var(--avatar-amber-ink)"
-                />
-              </div>
-            </div>
+            <PracticeCardHeader />
+            <PracticeSchedule />
           </div>
         </Reveal>
       </div>
@@ -1223,6 +1283,149 @@ function CompanionTile({ initial, name, avatarBg, avatarColor, active }: Compani
   );
 }
 
+function PhoneStatusBar() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 22px 6px',
+      }}
+    >
+      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>9:41</span>
+      <span style={{ width: 74, height: 20, borderRadius: 9999, background: '#1d1c1b' }} />
+      <span
+        style={{ display: 'flex', gap: 4, color: 'var(--ink-body)', fontSize: 12 }}
+        aria-hidden="true"
+      >
+        ●●
+      </span>
+    </div>
+  );
+}
+
+function PhoneNextVisitCard() {
+  return (
+    <div
+      style={{
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
+        borderRadius: 20,
+        padding: 14,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 10,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            color: 'var(--ink-body)',
+          }}
+        >
+          Next visit
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            padding: '4px 8px',
+            borderRadius: 9999,
+            background: 'var(--inset)',
+            color: 'var(--ink-muted)',
+          }}
+        >
+          UPCOMING
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={PHONE_CALENDAR_ICON_STYLE}>
+          <IoCalendarOutline style={{ fontSize: 18 }} aria-hidden="true" />
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-body)' }}>
+            Sat 5 July · 09:00
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
+            Senior wellness · Dr. Weber
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PhoneRecordsCard() {
+  return (
+    <div
+      style={{
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
+        borderRadius: 20,
+        padding: 14,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 9,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink-body)',
+        }}
+      >
+        Bella&apos;s records
+      </span>
+      <RecordRow
+        icon={<IoDocumentTextOutline style={{ fontSize: 15 }} aria-hidden="true" />}
+        text="Bloodwork panel, all clear"
+        meta="Tue"
+      />
+      <RecordRow
+        icon={<IoMedkitOutline style={{ fontSize: 15 }} aria-hidden="true" />}
+        text="Carprofen 75mg · 1/day"
+        meta="Ongoing"
+      />
+      <RecordRow
+        icon={<IoImagesOutline style={{ fontSize: 15 }} aria-hidden="true" />}
+        text="Hip X-ray · shared by clinic"
+        meta="May"
+      />
+    </div>
+  );
+}
+
+function PhoneBottomNav() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        padding: '10px 6px 4px',
+        borderTop: '1px solid var(--inset)',
+      }}
+      aria-hidden="true"
+    >
+      <IoHome style={{ fontSize: 20, color: 'var(--blue)' }} />
+      <IoCalendarOutline style={{ fontSize: 20, color: 'var(--ink-faint2)' }} />
+      <IoChatbubbleOutline style={{ fontSize: 20, color: 'var(--ink-faint2)' }} />
+      <IoPersonOutline style={{ fontSize: 20, color: 'var(--ink-faint2)' }} />
+    </div>
+  );
+}
+
 function PhoneMockup() {
   return (
     <div
@@ -1235,23 +1438,7 @@ function PhoneMockup() {
       }}
     >
       <div style={{ background: 'var(--page)', borderRadius: 37, overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 22px 6px',
-          }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>9:41</span>
-          <span style={{ width: 74, height: 20, borderRadius: 9999, background: '#1d1c1b' }} />
-          <span
-            style={{ display: 'flex', gap: 4, color: 'var(--ink-body)', fontSize: 12 }}
-            aria-hidden="true"
-          >
-            ●●
-          </span>
-        </div>
+        <PhoneStatusBar />
         <div
           style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}
         >
@@ -1295,112 +1482,9 @@ function PhoneMockup() {
               <CompanionTile key={tile.name} {...tile} />
             ))}
           </div>
-          <div
-            style={{
-              background: 'var(--screen)',
-              border: '1px solid var(--hairline)',
-              borderRadius: 20,
-              padding: 14,
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 10,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: '-0.02em',
-                  color: 'var(--ink-body)',
-                }}
-              >
-                Next visit
-              </span>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  padding: '4px 8px',
-                  borderRadius: 9999,
-                  background: 'var(--inset)',
-                  color: 'var(--ink-muted)',
-                }}
-              >
-                UPCOMING
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={PHONE_CALENDAR_ICON_STYLE}>
-                <IoCalendarOutline style={{ fontSize: 18 }} aria-hidden="true" />
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-body)' }}>
-                  Sat 5 July · 09:00
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
-                  Senior wellness · Dr. Weber
-                </span>
-              </div>
-            </div>
-          </div>
-          <div
-            style={{
-              background: 'var(--screen)',
-              border: '1px solid var(--hairline)',
-              borderRadius: 20,
-              padding: 14,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 9,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-body)',
-              }}
-            >
-              Bella&apos;s records
-            </span>
-            <RecordRow
-              icon={<IoDocumentTextOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-              text="Bloodwork panel, all clear"
-              meta="Tue"
-            />
-            <RecordRow
-              icon={<IoMedkitOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-              text="Carprofen 75mg · 1/day"
-              meta="Ongoing"
-            />
-            <RecordRow
-              icon={<IoImagesOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-              text="Hip X-ray · shared by clinic"
-              meta="May"
-            />
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-around',
-              alignItems: 'center',
-              padding: '10px 6px 4px',
-              borderTop: '1px solid var(--inset)',
-            }}
-            aria-hidden="true"
-          >
-            <IoHome style={{ fontSize: 20, color: 'var(--blue)' }} />
-            <IoCalendarOutline style={{ fontSize: 20, color: 'var(--ink-faint2)' }} />
-            <IoChatbubbleOutline style={{ fontSize: 20, color: 'var(--ink-faint2)' }} />
-            <IoPersonOutline style={{ fontSize: 20, color: 'var(--ink-faint2)' }} />
-          </div>
+          <PhoneNextVisitCard />
+          <PhoneRecordsCard />
+          <PhoneBottomNav />
         </div>
       </div>
     </div>
@@ -1452,6 +1536,130 @@ function PetParentsPillar() {
 
 /* ─────────────────────────── PILLAR 3: DEVELOPERS ─────────────────────────── */
 
+function DevApiHeader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '14px 20px',
+        borderBottom: '1px solid #302f2e',
+      }}
+    >
+      <WindowDots color="#454341" />
+      <span
+        style={{
+          fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+          fontSize: 12,
+          color: '#8f8984',
+        }}
+      >
+        GET /fhir/Patient/bella
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: '#33a57d', letterSpacing: '0.06em' }}>
+        200 OK
+      </span>
+    </div>
+  );
+}
+
+function DevApiResponse() {
+  return (
+    <pre
+      style={{
+        margin: 0,
+        padding: 24,
+        fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+        fontSize: 13.5,
+        lineHeight: 1.7,
+        color: '#d6d1cd',
+        overflowX: 'auto',
+      }}
+    >
+      <span style={{ color: '#8f8984' }}>{'{'}</span>
+      {'\n  '}
+      <span style={{ color: '#82afec' }}>&quot;resourceType&quot;</span>
+      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: '#8acbb4' }}>&quot;Patient&quot;</span>
+      <span style={{ color: '#8f8984' }}>,</span>
+      {'\n  '}
+      <span style={{ color: '#82afec' }}>&quot;id&quot;</span>
+      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: '#8acbb4' }}>&quot;bella-2014&quot;</span>
+      <span style={{ color: '#8f8984' }}>,</span>
+      {'\n  '}
+      <span style={{ color: '#82afec' }}>&quot;extension&quot;</span>
+      <span style={{ color: '#8f8984' }}>: [{'{'}</span>
+      {'\n    '}
+      <span style={{ color: '#82afec' }}>&quot;url&quot;</span>
+      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: '#8acbb4' }}>&quot;.../animal-species&quot;</span>
+      <span style={{ color: '#8f8984' }}>,</span>
+      {'\n    '}
+      <span style={{ color: '#82afec' }}>&quot;valueCode&quot;</span>
+      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: '#8acbb4' }}>&quot;canine&quot;</span>
+      {'\n  '}
+      <span style={{ color: '#8f8984' }}>{'}],'}</span>
+      {'\n  '}
+      <span style={{ color: '#82afec' }}>&quot;name&quot;</span>
+      <span style={{ color: '#8f8984' }}>: [{'{'}</span>{' '}
+      <span style={{ color: '#82afec' }}>&quot;text&quot;</span>
+      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: '#8acbb4' }}>&quot;Bella&quot;</span>{' '}
+      <span style={{ color: '#8f8984' }}>{'}],'}</span>
+      {'\n  '}
+      <span style={{ color: '#82afec' }}>&quot;managingOrganization&quot;</span>
+      <span style={{ color: '#8f8984' }}>: {'{'}</span>
+      {'\n    '}
+      <span style={{ color: '#82afec' }}>&quot;display&quot;</span>
+      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: '#8acbb4' }}>&quot;Alpenblick Clinic&quot;</span>
+      {'\n  '}
+      <span style={{ color: '#8f8984' }}>{'}'}</span>
+      {'\n'}
+      <span style={{ color: '#8f8984' }}>{'}'}</span>
+    </pre>
+  );
+}
+
+function DevPluginCard() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        margin: '0 20px 20px',
+        padding: '14px 16px',
+        background: '#302f2e',
+        borderRadius: 16,
+      }}
+    >
+      <span style={DEV_PLUGIN_ICON_STYLE}>
+        <IoExtensionPuzzleOutline style={{ fontSize: 17 }} aria-hidden="true" />
+      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
+        <span
+          style={{
+            fontSize: 13.5,
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            color: '#eae2d5',
+          }}
+        >
+          AI Scribe · your plugin here
+        </span>
+        <span style={{ fontSize: 12, color: '#8f8984' }}>
+          Publish to the marketplace in an afternoon
+        </span>
+      </div>
+      <span style={{ fontSize: 12, color: '#82afec', fontWeight: 500 }}>Install</span>
+    </div>
+  );
+}
+
 function DevelopersPillar() {
   return (
     <section style={{ background: 'var(--band)' }}>
@@ -1496,117 +1704,9 @@ function DevelopersPillar() {
               overflow: 'hidden',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 20px',
-                borderBottom: '1px solid #302f2e',
-              }}
-            >
-              <WindowDots color="#454341" />
-              <span
-                style={{
-                  fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-                  fontSize: 12,
-                  color: '#8f8984',
-                }}
-              >
-                GET /fhir/Patient/bella
-              </span>
-              <span
-                style={{ fontSize: 12, fontWeight: 700, color: '#33a57d', letterSpacing: '0.06em' }}
-              >
-                200 OK
-              </span>
-            </div>
-            <pre
-              style={{
-                margin: 0,
-                padding: 24,
-                fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-                fontSize: 13.5,
-                lineHeight: 1.7,
-                color: '#d6d1cd',
-                overflowX: 'auto',
-              }}
-            >
-              <span style={{ color: '#8f8984' }}>{'{'}</span>
-              {'\n  '}
-              <span style={{ color: '#82afec' }}>&quot;resourceType&quot;</span>
-              <span style={{ color: '#8f8984' }}>:</span>{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;Patient&quot;</span>
-              <span style={{ color: '#8f8984' }}>,</span>
-              {'\n  '}
-              <span style={{ color: '#82afec' }}>&quot;id&quot;</span>
-              <span style={{ color: '#8f8984' }}>:</span>{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;bella-2014&quot;</span>
-              <span style={{ color: '#8f8984' }}>,</span>
-              {'\n  '}
-              <span style={{ color: '#82afec' }}>&quot;extension&quot;</span>
-              <span style={{ color: '#8f8984' }}>: [{'{'}</span>
-              {'\n    '}
-              <span style={{ color: '#82afec' }}>&quot;url&quot;</span>
-              <span style={{ color: '#8f8984' }}>:</span>{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;.../animal-species&quot;</span>
-              <span style={{ color: '#8f8984' }}>,</span>
-              {'\n    '}
-              <span style={{ color: '#82afec' }}>&quot;valueCode&quot;</span>
-              <span style={{ color: '#8f8984' }}>:</span>{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;canine&quot;</span>
-              {'\n  '}
-              <span style={{ color: '#8f8984' }}>{'}],'}</span>
-              {'\n  '}
-              <span style={{ color: '#82afec' }}>&quot;name&quot;</span>
-              <span style={{ color: '#8f8984' }}>: [{'{'}</span>{' '}
-              <span style={{ color: '#82afec' }}>&quot;text&quot;</span>
-              <span style={{ color: '#8f8984' }}>:</span>{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;Bella&quot;</span>{' '}
-              <span style={{ color: '#8f8984' }}>{'}],'}</span>
-              {'\n  '}
-              <span style={{ color: '#82afec' }}>&quot;managingOrganization&quot;</span>
-              <span style={{ color: '#8f8984' }}>: {'{'}</span>
-              {'\n    '}
-              <span style={{ color: '#82afec' }}>&quot;display&quot;</span>
-              <span style={{ color: '#8f8984' }}>:</span>{' '}
-              <span style={{ color: '#8acbb4' }}>&quot;Alpenblick Clinic&quot;</span>
-              {'\n  '}
-              <span style={{ color: '#8f8984' }}>{'}'}</span>
-              {'\n'}
-              <span style={{ color: '#8f8984' }}>{'}'}</span>
-            </pre>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                margin: '0 20px 20px',
-                padding: '14px 16px',
-                background: '#302f2e',
-                borderRadius: 16,
-              }}
-            >
-              <span style={DEV_PLUGIN_ICON_STYLE}>
-                <IoExtensionPuzzleOutline style={{ fontSize: 17 }} aria-hidden="true" />
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
-                <span
-                  style={{
-                    fontSize: 13.5,
-                    fontWeight: 700,
-                    letterSpacing: '-0.02em',
-                    color: '#eae2d5',
-                  }}
-                >
-                  AI Scribe · your plugin here
-                </span>
-                <span style={{ fontSize: 12, color: '#8f8984' }}>
-                  Publish to the marketplace in an afternoon
-                </span>
-              </div>
-              <span style={{ fontSize: 12, color: '#82afec', fontWeight: 500 }}>Install</span>
-            </div>
+            <DevApiHeader />
+            <DevApiResponse />
+            <DevPluginCard />
           </div>
         </Reveal>
       </div>
@@ -1673,6 +1773,69 @@ function PrincipleCell({
   );
 }
 
+function PrinciplesGrid() {
+  return (
+    <div
+      data-grid-1-m="true"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 0,
+        marginTop: 'clamp(48px, 6vw, 80px)',
+        borderTop: '1px solid var(--divider)',
+      }}
+    >
+      <PrincipleCell number="01" title="Leaving is free." delay={0} padding="40px 48px 40px 0">
+        Everything exports: every record, every invoice, every note. A clinic can walk out tomorrow
+        and take it all. The trust is real precisely because it costs us the lock-in.
+      </PrincipleCell>
+      <PrincipleCell
+        number="02"
+        title="No toll booth."
+        delay={100}
+        padding="40px 0 40px 48px"
+        borderLeft
+      >
+        You pay your vet, and your statement says your vet.{' '}
+        <strong
+          style={{
+            fontWeight: 700,
+            color: 'var(--ink-body)',
+            textDecoration: 'underline',
+            textDecorationColor: 'var(--blue)',
+            textDecorationThickness: 2,
+            textUnderlineOffset: 3,
+          }}
+        >
+          We take no cut of payments
+        </strong>
+        {
+          ', because toll collectors stop making the product better, and we intend to keep making it better.'
+        }
+      </PrincipleCell>
+      <PrincipleCell
+        number="03"
+        title="Built for the worst afternoon."
+        delay={150}
+        padding="40px 48px 40px 0"
+      >
+        Offline-first, with the database on your machine. When the wifi blinks mid-emergency,
+        nothing you typed is lost, and the software keeps working whether the internet does or not.
+      </PrincipleCell>
+      <PrincipleCell
+        number="04"
+        title="Your data answers to your flag."
+        delay={250}
+        padding="40px 0 40px 48px"
+        borderLeft
+      >
+        Records stay in the country where you practice, under laws you actually agreed to, not
+        wherever cheap servers happened to have spare room that week.
+      </PrincipleCell>
+    </div>
+  );
+}
+
 function Principles() {
   return (
     <section style={{ background: 'var(--inset)' }}>
@@ -1714,65 +1877,7 @@ function Principles() {
           </p>
         </Reveal>
 
-        <div
-          data-grid-1-m="true"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 0,
-            marginTop: 'clamp(48px, 6vw, 80px)',
-            borderTop: '1px solid var(--divider)',
-          }}
-        >
-          <PrincipleCell number="01" title="Leaving is free." delay={0} padding="40px 48px 40px 0">
-            Everything exports: every record, every invoice, every note. A clinic can walk out
-            tomorrow and take it all. The trust is real precisely because it costs us the lock-in.
-          </PrincipleCell>
-          <PrincipleCell
-            number="02"
-            title="No toll booth."
-            delay={100}
-            padding="40px 0 40px 48px"
-            borderLeft
-          >
-            You pay your vet, and your statement says your vet.{' '}
-            <strong
-              style={{
-                fontWeight: 700,
-                color: 'var(--ink-body)',
-                textDecoration: 'underline',
-                textDecorationColor: 'var(--blue)',
-                textDecorationThickness: 2,
-                textUnderlineOffset: 3,
-              }}
-            >
-              We take no cut of payments
-            </strong>
-            {
-              ', because toll collectors stop making the product better, and we intend to keep making it better.'
-            }
-          </PrincipleCell>
-          <PrincipleCell
-            number="03"
-            title="Built for the worst afternoon."
-            delay={150}
-            padding="40px 48px 40px 0"
-          >
-            Offline-first, with the database on your machine. When the wifi blinks mid-emergency,
-            nothing you typed is lost, and the software keeps working whether the internet does or
-            not.
-          </PrincipleCell>
-          <PrincipleCell
-            number="04"
-            title="Your data answers to your flag."
-            delay={250}
-            padding="40px 0 40px 48px"
-            borderLeft
-          >
-            Records stay in the country where you practice, under laws you actually agreed to, not
-            wherever cheap servers happened to have spare room that week.
-          </PrincipleCell>
-        </div>
+        <PrinciplesGrid />
 
         <Reveal
           delay={0}

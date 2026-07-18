@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { IoLogoGithub, IoMenuOutline, IoCloseOutline } from 'react-icons/io5';
@@ -132,6 +132,147 @@ const PANEL_GET_STARTED_STYLE: CSSProperties = {
   borderRadius: 9999,
 };
 
+function NavLinks({ active }: Readonly<Pick<SiteNavProps, 'active'>>) {
+  return (
+    <nav
+      aria-label="Primary"
+      className="yc-nav-links"
+      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+    >
+      {NAV_ITEMS.map((item) => {
+        const isActive = item.key === active;
+        return (
+          <Link
+            key={item.key}
+            href={item.href}
+            aria-current={isActive ? 'page' : undefined}
+            style={{
+              ...linkBase,
+              color: isActive ? 'var(--nav-active)' : 'var(--ink-muted)',
+              background: isActive ? 'var(--nav-active-bg)' : 'transparent',
+            }}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function DesktopActions({ starsLabel }: Readonly<{ starsLabel: string }>) {
+  return (
+    <div className="yc-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <ThemeToggle style={{ width: 40, height: 40 }} />
+      <a
+        href={GITHUB_REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={GITHUB_STAR_LINK_STYLE}
+      >
+        <IoLogoGithub style={{ fontSize: 16 }} aria-hidden="true" />
+        <span>Star</span>
+        <span
+          style={{
+            color: 'var(--ink-faint)',
+            fontWeight: 400,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {starsLabel}
+        </span>
+      </a>
+      <Link href="/signup" style={GET_STARTED_LINK_STYLE}>
+        Get started
+      </Link>
+    </div>
+  );
+}
+
+function BurgerButton({
+  menuOpen,
+  onToggle,
+}: Readonly<{ menuOpen: boolean; onToggle: () => void }>) {
+  return (
+    <button
+      type="button"
+      aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+      aria-expanded={menuOpen}
+      onClick={onToggle}
+      className="yc-nav-burger"
+      style={BURGER_BUTTON_STYLE}
+    >
+      {menuOpen ? (
+        <IoCloseOutline style={{ fontSize: 24 }} />
+      ) : (
+        <IoMenuOutline style={{ fontSize: 24 }} />
+      )}
+    </button>
+  );
+}
+
+interface MobilePanelProps {
+  active?: NavKey;
+  menuOpen: boolean;
+  panelRef: RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+}
+
+function MobilePanel({ active, menuOpen, panelRef, onClose }: Readonly<MobilePanelProps>) {
+  return (
+    <div
+      ref={panelRef}
+      className="yc-nav-panel"
+      // Kept mounted for the slide transition; while closed it is removed from
+      // the tab order and the accessibility tree so hidden links are not focusable.
+      inert={!menuOpen}
+      aria-hidden={!menuOpen}
+      style={{
+        ...NAV_PANEL_STYLE,
+        transform: menuOpen ? 'translateY(0)' : 'translateY(-12px)',
+        opacity: menuOpen ? 1 : 0,
+        pointerEvents: menuOpen ? 'auto' : 'none',
+      }}
+    >
+      {NAV_ITEMS.map((item) => (
+        <Link
+          key={item.key}
+          href={item.href}
+          onClick={onClose}
+          aria-current={item.key === active ? 'page' : undefined}
+          style={{
+            textDecoration: 'none',
+            color: item.key === active ? 'var(--nav-active)' : 'var(--ink-body)',
+            fontSize: 17,
+            fontWeight: 500,
+            letterSpacing: '-0.02em',
+            padding: '14px 16px',
+            borderRadius: 14,
+          }}
+        >
+          {item.label}
+        </Link>
+      ))}
+      <div style={{ height: 1, background: 'var(--hairline)', margin: '10px 4px' }} />
+      <a
+        href={GITHUB_REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onClose}
+        style={PANEL_GITHUB_LINK_STYLE}
+      >
+        <IoLogoGithub style={{ fontSize: 16 }} aria-hidden="true" /> Star on GitHub
+      </a>
+      <div style={{ display: 'flex', gap: 8, margin: '4px 0' }}>
+        <Link href="/signup" onClick={onClose} style={PANEL_GET_STARTED_STYLE}>
+          Get started
+        </Link>
+        <ThemeToggle />
+      </div>
+    </div>
+  );
+}
+
 export function SiteNav({ active }: Readonly<SiteNavProps>) {
   const scrolled = useScrolled();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -195,121 +336,19 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
           />
         </Link>
 
-        <nav
-          aria-label="Primary"
-          className="yc-nav-links"
-          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-        >
-          {NAV_ITEMS.map((item) => {
-            const isActive = item.key === active;
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                aria-current={isActive ? 'page' : undefined}
-                style={{
-                  ...linkBase,
-                  color: isActive ? 'var(--nav-active)' : 'var(--ink-muted)',
-                  background: isActive ? 'var(--nav-active-bg)' : 'transparent',
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <NavLinks active={active} />
 
-        <div className="yc-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <ThemeToggle style={{ width: 40, height: 40 }} />
-          <a
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={GITHUB_STAR_LINK_STYLE}
-          >
-            <IoLogoGithub style={{ fontSize: 16 }} aria-hidden="true" />
-            <span>Star</span>
-            <span
-              style={{
-                color: 'var(--ink-faint)',
-                fontWeight: 400,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {starsLabel}
-            </span>
-          </a>
-          <Link href="/signup" style={GET_STARTED_LINK_STYLE}>
-            Get started
-          </Link>
-        </div>
+        <DesktopActions starsLabel={starsLabel} />
 
-        <button
-          type="button"
-          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((v) => !v)}
-          className="yc-nav-burger"
-          style={BURGER_BUTTON_STYLE}
-        >
-          {menuOpen ? (
-            <IoCloseOutline style={{ fontSize: 24 }} />
-          ) : (
-            <IoMenuOutline style={{ fontSize: 24 }} />
-          )}
-        </button>
+        <BurgerButton menuOpen={menuOpen} onToggle={() => setMenuOpen((v) => !v)} />
       </div>
 
-      <div
-        ref={panelRef}
-        className="yc-nav-panel"
-        // Kept mounted for the slide transition; while closed it is removed from
-        // the tab order and the accessibility tree so hidden links are not focusable.
-        inert={!menuOpen}
-        aria-hidden={!menuOpen}
-        style={{
-          ...NAV_PANEL_STYLE,
-          transform: menuOpen ? 'translateY(0)' : 'translateY(-12px)',
-          opacity: menuOpen ? 1 : 0,
-          pointerEvents: menuOpen ? 'auto' : 'none',
-        }}
-      >
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.key}
-            href={item.href}
-            onClick={() => setMenuOpen(false)}
-            aria-current={item.key === active ? 'page' : undefined}
-            style={{
-              textDecoration: 'none',
-              color: item.key === active ? 'var(--nav-active)' : 'var(--ink-body)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              padding: '14px 16px',
-              borderRadius: 14,
-            }}
-          >
-            {item.label}
-          </Link>
-        ))}
-        <div style={{ height: 1, background: 'var(--hairline)', margin: '10px 4px' }} />
-        <a
-          href={GITHUB_REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => setMenuOpen(false)}
-          style={PANEL_GITHUB_LINK_STYLE}
-        >
-          <IoLogoGithub style={{ fontSize: 16 }} aria-hidden="true" /> Star on GitHub
-        </a>
-        <div style={{ display: 'flex', gap: 8, margin: '4px 0' }}>
-          <Link href="/signup" onClick={() => setMenuOpen(false)} style={PANEL_GET_STARTED_STYLE}>
-            Get started
-          </Link>
-          <ThemeToggle />
-        </div>
-      </div>
+      <MobilePanel
+        active={active}
+        menuOpen={menuOpen}
+        panelRef={panelRef}
+        onClose={() => setMenuOpen(false)}
+      />
     </header>
   );
 }

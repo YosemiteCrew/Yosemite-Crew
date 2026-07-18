@@ -512,6 +512,775 @@ function TextAreaField({
   );
 }
 
+/* ---------- form value + setter bundles (threaded from ContactusPage) ---------- */
+
+type ContactFormValues = {
+  selectedQueryType: TicketCategory;
+  fullName: string;
+  email: string;
+  phone: string;
+  message: string;
+  area: string;
+  subselectedRequest: DsraRequesterType | '';
+  selectedRequest: string;
+  confirmSelections: string[];
+  complaintLink: string;
+  complaintImage: File | null;
+};
+
+type ContactFormSetters = {
+  setSelectedQueryType: React.Dispatch<React.SetStateAction<TicketCategory>>;
+  setFullName: React.Dispatch<React.SetStateAction<string>>;
+  setEmail: React.Dispatch<React.SetStateAction<string>>;
+  setPhone: React.Dispatch<React.SetStateAction<string>>;
+  setMessage: React.Dispatch<React.SetStateAction<string>>;
+  setArea: React.Dispatch<React.SetStateAction<string>>;
+  setSubselectedRequest: React.Dispatch<React.SetStateAction<DsraRequesterType | ''>>;
+  setSelectedRequest: React.Dispatch<React.SetStateAction<string>>;
+  setComplaintLink: React.Dispatch<React.SetStateAction<string>>;
+  setComplaintImage: React.Dispatch<React.SetStateAction<File | null>>;
+};
+
+type ConfirmBundle = {
+  selections: string[];
+  onToggle: (option: string) => void;
+};
+
+/* ---------- pure helpers hoisted out of the component ---------- */
+
+const getTabStyle = (active: boolean): CSSProperties => ({
+  flex: '1 1 auto',
+  minWidth: 0,
+  textAlign: 'center',
+  cursor: 'pointer',
+  fontSize: 13.5,
+  fontWeight: 600,
+  letterSpacing: '-0.01em',
+  padding: '10px 10px',
+  borderRadius: 12,
+  whiteSpace: 'nowrap',
+  transition: 'background 200ms, color 200ms, box-shadow 200ms',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: active ? 'var(--pill-raised)' : 'transparent',
+  color: active ? 'var(--ink)' : 'var(--ink-muted)',
+  boxShadow: active ? '0 2px 8px var(--sh10)' : 'none',
+});
+
+const validateContactForm = (fullName: string, email: string, message: string): FormErrors => {
+  const newErrors: FormErrors = {};
+  if (!fullName.trim()) newErrors.fullName = 'Full name is required';
+  if (!message.trim()) newErrors.message = 'Message is required';
+  if (!email.trim()) {
+    newErrors.email = 'Email is required';
+  } else if (!isValidEmail(email)) {
+    newErrors.email = 'Invalid email address';
+  }
+  return newErrors;
+};
+
+const buildDsarDetails = (
+  area: string,
+  subselectedRequest: DsraRequesterType | '',
+  selectedRequest: string,
+  confirmSelections: string[]
+): ContactPayload['dsarDetails'] => {
+  const lawBasis = getDsarLawBasis(area);
+  const selectedAreaOption = areaOptions.find((option) => option.value === area);
+  const selectedRightOption = requestOptions.find((option) => option.label === selectedRequest);
+
+  return {
+    requesterType: subselectedRequest as DsraRequesterType,
+    lawBasis,
+    rightsRequested: selectedRightOption ? [selectedRightOption.value] : [],
+    declarationAccepted: confirmSelections.length === confirmOptions.length,
+    ...(lawBasis === 'OTHER' && selectedAreaOption?.label
+      ? { otherLawText: selectedAreaOption.label }
+      : {}),
+    ...(selectedRightOption?.value === 'OTHER' && selectedRightOption.label
+      ? { otherRightText: selectedRightOption.label }
+      : {}),
+  };
+};
+
+const buildPayload = (values: ContactFormValues): ContactPayload => {
+  const payload: ContactPayload = {
+    type: CONTACT_TYPE_MAP[values.selectedQueryType],
+    message: values.message.trim(),
+    fullName: values.fullName.trim(),
+    email: values.email.trim(),
+    source: 'PMS_WEB',
+  };
+
+  if (values.phone.trim()) payload.phone = values.phone.trim();
+  if (values.selectedQueryType === 'Data Service Access Request') {
+    payload.dsarDetails = buildDsarDetails(
+      values.area,
+      values.subselectedRequest,
+      values.selectedRequest,
+      values.confirmSelections
+    );
+  }
+
+  return payload;
+};
+
+const computeSubmitDisabled = (submitting: boolean, values: ContactFormValues): boolean => {
+  const allConfirmed = values.confirmSelections.length === confirmOptions.length;
+  const isComplaintValid = Boolean(
+    values.fullName && values.email && values.message && values.subselectedRequest && allConfirmed
+  );
+  const isGeneralValid = Boolean(values.fullName && values.email && values.message);
+  const isDSARValid = Boolean(
+    values.fullName &&
+    values.email &&
+    values.message &&
+    values.subselectedRequest &&
+    values.area &&
+    values.selectedRequest &&
+    allConfirmed
+  );
+  const { selectedQueryType } = values;
+
+  return (
+    submitting ||
+    (selectedQueryType === 'Complaint' && !isComplaintValid) ||
+    (selectedQueryType === 'Data Service Access Request' && !isDSARValid) ||
+    ((selectedQueryType === 'General Enquiry' || selectedQueryType === 'Feature Request') &&
+      !isGeneralValid)
+  );
+};
+
+/* ---------- left column: hero copy + contact channels ---------- */
+
+function ContactHero() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        paddingTop: 8,
+      }}
+    >
+      <div style={HERO_BADGE_STYLE}>
+        <span
+          aria-hidden="true"
+          style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }}
+        />
+        {'A person reads every message'}
+      </div>
+      <h1
+        style={{
+          margin: '24px 0 0',
+          fontFamily: NEWSREADER,
+          fontSize: 'clamp(40px, 5.2vw, 72px)',
+          fontWeight: 500,
+          lineHeight: 1.03,
+          letterSpacing: '-0.06em',
+          color: 'var(--ink)',
+          textWrap: 'balance',
+        }}
+      >
+        Talk to a{' '}
+        <em style={{ fontStyle: 'italic', fontWeight: 480, color: 'var(--blue-text)' }}>human.</em>
+      </h1>
+      <p
+        style={{
+          margin: '22px 0 0',
+          maxWidth: 420,
+          fontSize: 18,
+          lineHeight: 1.6,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink-muted)',
+          animation: `ycHeroUp 1s ${EASE} 0.5s both`,
+          textWrap: 'pretty',
+        }}
+      >
+        Run a clinic, live with a house full of animals, or want to build on the platform. Tell us
+        which, and it reaches the right desk, not a queue.
+      </p>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          marginTop: 34,
+          width: '100%',
+          animation: `ycHeroUp 1s ${EASE} 0.62s both`,
+        }}
+      >
+        <ChannelCard
+          href="mailto:support@yosemitecrew.com"
+          iconBg="rgba(37,123,237,0.10)"
+          iconBorder="rgba(37,123,237,0.18)"
+          iconColor="var(--blue)"
+          icon={<IoAtOutline aria-hidden="true" style={{ fontSize: 22 }} />}
+          kicker="Email"
+          label="support@yosemitecrew.com"
+        />
+        <ChannelCard
+          href="tel:+4915227763275"
+          iconBg="rgba(0,143,93,0.10)"
+          iconBorder="rgba(0,143,93,0.18)"
+          iconColor="var(--success)"
+          icon={<IoCallOutline aria-hidden="true" style={{ fontSize: 20 }} />}
+          kicker="Phone"
+          label="+49 152 277 63275"
+        />
+        <ChannelCard
+          href={DISCORD_INVITE_URL}
+          external
+          iconBg="rgba(88,101,242,0.12)"
+          iconBorder="rgba(88,101,242,0.22)"
+          iconColor="#5865F2"
+          icon={<IoLogoDiscord aria-hidden="true" style={{ fontSize: 20 }} />}
+          kicker="Community"
+          label="Join the Discord"
+        />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 14,
+            padding: '6px 18px 0',
+          }}
+        >
+          <span
+            style={{
+              flex: 'none',
+              width: 42,
+              display: 'flex',
+              justifyContent: 'center',
+              color: 'var(--ink-faint2)',
+              paddingTop: 2,
+            }}
+          >
+            <IoBusinessOutline aria-hidden="true" style={{ fontSize: 18 }} />
+          </span>
+          <div
+            style={{
+              fontSize: 13.5,
+              lineHeight: 1.5,
+              color: 'var(--ink-faint)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            DuneXploration UG (haftungsbeschränkt)
+            <br />
+            Am Finther Weg 7, 55127 Mainz, Germany
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- query-type selector ---------- */
+
+interface ContactTypeSelectorProps {
+  selectedQueryType: TicketCategory;
+  onSelect: (type: TicketCategory) => void;
+}
+
+function ContactTypeSelector({ selectedQueryType, onSelect }: Readonly<ContactTypeSelectorProps>) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          letterSpacing: '-0.01em',
+          color: 'var(--ink-body)',
+          marginBottom: 10,
+        }}
+      >
+        What brings you here?
+      </div>
+      <div
+        role="radiogroup"
+        aria-label="What brings you here?"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 6,
+          background: 'var(--inset)',
+          padding: 5,
+          borderRadius: 16,
+        }}
+      >
+        {queryTypes.map((type) => (
+          <label key={type} style={getTabStyle(selectedQueryType === type)}>
+            <input
+              type="radio"
+              name="queryType"
+              aria-label={type}
+              value={type}
+              checked={selectedQueryType === type}
+              onChange={() => onSelect(type)}
+              style={VISUALLY_HIDDEN_INPUT_STYLE}
+            />
+            {type}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- name / email / phone fields ---------- */
+
+interface IdentityFieldsProps {
+  values: ContactFormValues;
+  setters: ContactFormSetters;
+  errors: FormErrors;
+}
+
+function IdentityFields({ values, setters, errors }: Readonly<IdentityFieldsProps>) {
+  return (
+    <>
+      <div data-two style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <TextField
+          label="Full Name"
+          value={values.fullName}
+          onChange={setters.setFullName}
+          placeholder="Lena Weber"
+          required
+          error={errors?.fullName}
+        />
+        <TextField
+          label="Enter Email Address"
+          type="email"
+          value={values.email}
+          onChange={setters.setEmail}
+          placeholder="you@example.com"
+          required
+          error={errors?.email}
+        />
+      </div>
+
+      <TextField
+        label="Phone number (optional)"
+        type="tel"
+        value={values.phone}
+        onChange={setters.setPhone}
+        placeholder="+49 …"
+      />
+    </>
+  );
+}
+
+/* ---------- general enquiry / feature request message ---------- */
+
+interface GeneralEnquiryFieldsProps {
+  message: string;
+  onMessage: (v: string) => void;
+  error?: string;
+}
+
+function GeneralEnquiryFields({ message, onMessage, error }: Readonly<GeneralEnquiryFieldsProps>) {
+  return (
+    <div className="yc-group" style={groupBlock}>
+      <TextAreaField
+        label="Please leave details regarding your request"
+        ariaLabel="Request details"
+        value={message}
+        onChange={onMessage}
+        placeholder="Your Message"
+        required
+        error={error}
+      />
+    </div>
+  );
+}
+
+/* ---------- "submitting this as" radio group ---------- */
+
+interface SubmitAsGroupProps {
+  name: string;
+  heading: string;
+  selected: DsraRequesterType | '';
+  onSelect: (value: DsraRequesterType) => void;
+}
+
+function SubmitAsGroup({ name, heading, selected, onSelect }: Readonly<SubmitAsGroupProps>) {
+  return (
+    <div style={groupBlock}>
+      <div style={groupHeading}>{heading}</div>
+      {subrequestOptions.map((option) => (
+        <OptionRow
+          key={option.value}
+          type="radio"
+          name={name}
+          control={controlStyle}
+          ariaLabel={
+            name === 'complaintSubmitAs'
+              ? `Submit complaint as ${option.label}`
+              : `Submit data service access request as ${option.label}`
+          }
+          value={option.value}
+          checked={selected === option.value}
+          onChange={() => onSelect(option.value)}
+          label={option.label}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ---------- "I confirm that" checklist ---------- */
+
+interface ConfirmChecklistProps {
+  name: string;
+  selections: string[];
+  onToggle: (option: string) => void;
+}
+
+function ConfirmChecklist({ name, selections, onToggle }: Readonly<ConfirmChecklistProps>) {
+  return (
+    <div style={groupBlock}>
+      <div style={groupHeading}>I confirm that</div>
+      {confirmOptions.map((option) => (
+        <OptionRow
+          key={option}
+          type="checkbox"
+          name={name}
+          control={{ ...controlStyle, borderRadius: 6 }}
+          ariaLabel={`Confirm ${option}`}
+          value={option}
+          checked={selections.includes(option)}
+          onChange={() => onToggle(option)}
+          label={option}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ---------- submit button ---------- */
+
+interface SubmitButtonProps {
+  submitRef: React.Ref<HTMLButtonElement>;
+  onSubmit: () => void;
+  disabled: boolean;
+  label: string;
+}
+
+function SubmitButton({ submitRef, onSubmit, disabled, label }: Readonly<SubmitButtonProps>) {
+  return (
+    <button
+      ref={submitRef}
+      type="button"
+      onClick={onSubmit}
+      disabled={disabled}
+      className="yc-btn-primary"
+      style={{
+        ...SUBMIT_BUTTON_STYLE,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        pointerEvents: disabled ? 'none' : 'auto',
+      }}
+    >
+      {label}
+      <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: 17 }} />
+    </button>
+  );
+}
+
+/* ---------- inline submit error ---------- */
+
+function SubmitError({ message }: Readonly<{ message: string }>) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 14,
+        color: '#d53225',
+        letterSpacing: '-0.01em',
+      }}
+    >
+      <IoAlertCircleOutline aria-hidden="true" style={{ fontSize: 17, flex: 'none' }} />
+      {message}
+    </div>
+  );
+}
+
+/* ---------- privacy footnote ---------- */
+
+function PrivacyNote() {
+  return (
+    <p
+      style={{
+        margin: 0,
+        fontSize: 12.5,
+        lineHeight: 1.5,
+        color: 'var(--ink-faint2)',
+        textAlign: 'center',
+        letterSpacing: '-0.01em',
+      }}
+    >
+      We use your details only to handle this request. No lists, no selling, no noise.
+    </p>
+  );
+}
+
+/* ---------- Data Service Access Request section ---------- */
+
+interface DsarFieldsProps {
+  values: ContactFormValues;
+  setters: ContactFormSetters;
+  errors: FormErrors;
+  confirm: ConfirmBundle;
+  submit: SubmitButtonProps;
+}
+
+function DsarFields({ values, setters, errors, confirm, submit }: Readonly<DsarFieldsProps>) {
+  return (
+    <div className="yc-group" style={groupBlock}>
+      <div
+        style={{
+          fontSize: 13,
+          lineHeight: 1.55,
+          letterSpacing: '-0.01em',
+          color: 'var(--ink-muted)',
+          background: 'var(--inset)',
+          borderRadius: 14,
+          padding: '14px 16px',
+        }}
+      >
+        Under the GDPR you can access, correct, export, restrict or delete your personal data, or
+        object to how it is used. We verify identity before acting and respond within one month.
+      </div>
+
+      <SubmitAsGroup
+        name="dsarSubmitAs"
+        heading="You are submitting this request as"
+        selected={values.subselectedRequest}
+        onSelect={setters.setSubselectedRequest}
+      />
+
+      <div style={groupBlock}>
+        <label className="yc-lbl" htmlFor="dsar-area">
+          Under the rights of which law are you making this request?
+          {requiredMark}
+        </label>
+        <select
+          id="dsar-area"
+          className="yc-field"
+          data-testid="dynamic-select"
+          aria-label="Under the rights of which law are you making this request?"
+          value={values.area}
+          onChange={(e) => setters.setArea(e.target.value)}
+        >
+          <option value="">Select one</option>
+          {areaOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={groupBlock}>
+        <div style={groupHeading}>You are submitting this request to</div>
+        {requestOptions.map((option) => (
+          <OptionRow
+            key={option.label}
+            type="radio"
+            name="dsarRequestTo"
+            control={controlStyle}
+            ariaLabel={`Submit data service access request to ${option.label}`}
+            value={option.value}
+            checked={values.selectedRequest === option.label}
+            onChange={() => setters.setSelectedRequest(option.label)}
+            label={option.label}
+          />
+        ))}
+      </div>
+
+      <TextAreaField
+        label="Please leave details regarding your action request or question"
+        ariaLabel="Data service access request details"
+        value={values.message}
+        onChange={setters.setMessage}
+        placeholder="Your Message"
+        minHeight={90}
+        error={errors?.message}
+      />
+
+      <ConfirmChecklist
+        name="confirmDsar"
+        selections={confirm.selections}
+        onToggle={confirm.onToggle}
+      />
+
+      <SubmitButton {...submit} />
+    </div>
+  );
+}
+
+/* ---------- Complaint section ---------- */
+
+interface ComplaintFieldsProps {
+  values: ContactFormValues;
+  setters: ContactFormSetters;
+  errors: FormErrors;
+  confirm: ConfirmBundle;
+  submit: SubmitButtonProps;
+}
+
+function ComplaintFields({
+  values,
+  setters,
+  errors,
+  confirm,
+  submit,
+}: Readonly<ComplaintFieldsProps>) {
+  const hasComplaintImage = values.complaintImage !== null;
+
+  return (
+    <div className="yc-group" style={groupBlock}>
+      <SubmitAsGroup
+        name="complaintSubmitAs"
+        heading="You are submitting this complaint as"
+        selected={values.subselectedRequest}
+        onSelect={setters.setSubselectedRequest}
+      />
+
+      <TextAreaField
+        label="Please leave details regarding your complaint."
+        ariaLabel="Complaint details"
+        value={values.message}
+        onChange={setters.setMessage}
+        placeholder="Your Message"
+        error={errors?.message}
+      />
+
+      <div style={groupBlock}>
+        <div style={groupHeading}>Please add link regarding your complaint (optional)</div>
+        <TextField
+          label="Paste link (optional)"
+          value={values.complaintLink}
+          onChange={setters.setComplaintLink}
+          placeholder="Paste link (optional)"
+        />
+      </div>
+
+      <div style={groupBlock}>
+        <div style={groupHeading}>Please add image regarding your complaint (optional)</div>
+        <input
+          id="complaintImage"
+          type="file"
+          accept="image/*"
+          aria-label="Upload Image"
+          onChange={(e) => setters.setComplaintImage(e.target.files?.[0] || null)}
+          style={{
+            fontSize: 13,
+            color: 'var(--ink-muted)',
+          }}
+        />
+        {hasComplaintImage ? (
+          <div
+            style={{
+              fontSize: 12.5,
+              color: 'var(--ink-faint)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {values.complaintImage?.name}
+          </div>
+        ) : null}
+      </div>
+
+      <ConfirmChecklist
+        name="confirmComplaint"
+        selections={confirm.selections}
+        onToggle={confirm.onToggle}
+      />
+
+      <SubmitButton {...submit} />
+    </div>
+  );
+}
+
+/* ---------- right column: the contact form ---------- */
+
+interface ContactFormProps {
+  values: ContactFormValues;
+  setters: ContactFormSetters;
+  errors: FormErrors;
+  confirm: ConfirmBundle;
+  submit: SubmitButtonProps;
+}
+
+function ContactForm({ values, setters, errors, confirm, submit }: Readonly<ContactFormProps>) {
+  const { selectedQueryType } = values;
+  const isGeneralOrFeature =
+    selectedQueryType === 'General Enquiry' || selectedQueryType === 'Feature Request';
+
+  return (
+    <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit.onSubmit();
+        }}
+        style={FORM_STYLE}
+      >
+        {/* type selector */}
+        <ContactTypeSelector
+          selectedQueryType={selectedQueryType}
+          onSelect={setters.setSelectedQueryType}
+        />
+
+        {/* name + email + phone */}
+        <IdentityFields values={values} setters={setters} errors={errors} />
+
+        {/* GENERAL / FEATURE */}
+        {isGeneralOrFeature && (
+          <GeneralEnquiryFields
+            message={values.message}
+            onMessage={setters.setMessage}
+            error={errors?.message}
+          />
+        )}
+
+        {/* DSAR */}
+        {selectedQueryType === 'Data Service Access Request' && (
+          <DsarFields
+            values={values}
+            setters={setters}
+            errors={errors}
+            confirm={confirm}
+            submit={submit}
+          />
+        )}
+
+        {/* COMPLAINT */}
+        {selectedQueryType === 'Complaint' && (
+          <ComplaintFields
+            values={values}
+            setters={setters}
+            errors={errors}
+            confirm={confirm}
+            submit={submit}
+          />
+        )}
+
+        {/* GENERAL / FEATURE submit lives outside the per-type block */}
+        {isGeneralOrFeature && <SubmitButton {...submit} />}
+
+        {errors?.submit ? <SubmitError message={errors.submit} /> : null}
+
+        <PrivacyNote />
+      </form>
+    </div>
+  );
+}
+
 const ContactusPage = () => {
   const submitRef = useMagnet<HTMLButtonElement>();
 
@@ -538,75 +1307,37 @@ const ContactusPage = () => {
   const [complaintLink, setComplaintLink] = useState<string>('');
   const [complaintImage, setComplaintImage] = useState<File | null>(null);
 
-  const hasComplaintImage = complaintImage !== null;
+  const formValues: ContactFormValues = {
+    selectedQueryType,
+    fullName,
+    email,
+    phone,
+    message,
+    area,
+    subselectedRequest,
+    selectedRequest,
+    confirmSelections,
+    complaintLink,
+    complaintImage,
+  };
 
-  const isComplaintValid =
-    fullName &&
-    email &&
-    message &&
-    subselectedRequest &&
-    confirmSelections.length === confirmOptions.length;
-  const isGeneralValid = fullName && email && message;
-  const isDSARValid =
-    fullName &&
-    email &&
-    message &&
-    subselectedRequest &&
-    area &&
-    selectedRequest &&
-    confirmSelections.length === confirmOptions.length;
+  const setters: ContactFormSetters = {
+    setSelectedQueryType,
+    setFullName,
+    setEmail,
+    setPhone,
+    setMessage,
+    setArea,
+    setSubselectedRequest,
+    setSelectedRequest,
+    setComplaintLink,
+    setComplaintImage,
+  };
 
   const toggleConfirmOption = (option: string) => {
     setConfirmSelections((prev) =>
       prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
     );
-  };
-  const validateContactForm = (): FormErrors => {
-    const newErrors: FormErrors = {};
-    if (!fullName.trim()) newErrors.fullName = 'Full name is required';
-    if (!message.trim()) newErrors.message = 'Message is required';
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!isValidEmail(email)) {
-      newErrors.email = 'Invalid email address';
-    }
-    return newErrors;
-  };
-
-  const buildDsarDetails = (): ContactPayload['dsarDetails'] => {
-    const lawBasis = getDsarLawBasis(area);
-    const selectedAreaOption = areaOptions.find((option) => option.value === area);
-    const selectedRightOption = requestOptions.find((option) => option.label === selectedRequest);
-
-    return {
-      requesterType: subselectedRequest as DsraRequesterType,
-      lawBasis,
-      rightsRequested: selectedRightOption ? [selectedRightOption.value] : [],
-      declarationAccepted: confirmSelections.length === confirmOptions.length,
-      ...(lawBasis === 'OTHER' && selectedAreaOption?.label
-        ? { otherLawText: selectedAreaOption.label }
-        : {}),
-      ...(selectedRightOption?.value === 'OTHER' && selectedRightOption.label
-        ? { otherRightText: selectedRightOption.label }
-        : {}),
-    };
-  };
-
-  const buildPayload = (): ContactPayload => {
-    const payload: ContactPayload = {
-      type: CONTACT_TYPE_MAP[selectedQueryType],
-      message: message.trim(),
-      fullName: fullName.trim(),
-      email: email.trim(),
-      source: 'PMS_WEB',
-    };
-
-    if (phone.trim()) payload.phone = phone.trim();
-    if (selectedQueryType === 'Data Service Access Request') {
-      payload.dsarDetails = buildDsarDetails();
-    }
-
-    return payload;
   };
 
   const resetForm = () => {
@@ -625,13 +1356,13 @@ const ContactusPage = () => {
   };
 
   const handleContectSubmit = async () => {
-    const newErrors = validateContactForm();
+    const newErrors = validateContactForm(fullName, email, message);
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     setSubmitting(true);
     try {
-      const payload = buildPayload();
+      const payload = buildPayload(formValues);
       await postData('/v1/contact-us/contact-web', payload);
       resetForm();
     } catch (error) {
@@ -644,98 +1375,12 @@ const ContactusPage = () => {
     }
   };
 
-  const tabStyle = (t: TicketCategory): CSSProperties => {
-    const active = selectedQueryType === t;
-    return {
-      flex: '1 1 auto',
-      minWidth: 0,
-      textAlign: 'center',
-      cursor: 'pointer',
-      fontSize: 13.5,
-      fontWeight: 600,
-      letterSpacing: '-0.01em',
-      padding: '10px 10px',
-      borderRadius: 12,
-      whiteSpace: 'nowrap',
-      transition: 'background 200ms, color 200ms, box-shadow 200ms',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: active ? 'var(--pill-raised)' : 'transparent',
-      color: active ? 'var(--ink)' : 'var(--ink-muted)',
-      boxShadow: active ? '0 2px 8px var(--sh10)' : 'none',
-    };
+  const submit: SubmitButtonProps = {
+    submitRef,
+    onSubmit: handleContectSubmit,
+    disabled: computeSubmitDisabled(submitting, formValues),
+    label: submitting ? 'submitting...' : 'Send message',
   };
-
-  const submitDisabled =
-    submitting ||
-    (selectedQueryType === 'Complaint' && !isComplaintValid) ||
-    (selectedQueryType === 'Data Service Access Request' && !isDSARValid) ||
-    ((selectedQueryType === 'General Enquiry' || selectedQueryType === 'Feature Request') &&
-      !isGeneralValid);
-
-  const submitLabel = submitting ? 'submitting...' : 'Send message';
-
-  const renderSubmit = () => (
-    <button
-      ref={submitRef}
-      type="button"
-      onClick={handleContectSubmit}
-      disabled={submitDisabled}
-      className="yc-btn-primary"
-      style={{
-        ...SUBMIT_BUTTON_STYLE,
-        cursor: submitDisabled ? 'not-allowed' : 'pointer',
-        opacity: submitDisabled ? 0.5 : 1,
-        pointerEvents: submitDisabled ? 'none' : 'auto',
-      }}
-    >
-      {submitLabel}
-      <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: 17 }} />
-    </button>
-  );
-
-  const renderConfirmChecklist = (name: string) => (
-    <div style={groupBlock}>
-      <div style={groupHeading}>I confirm that</div>
-      {confirmOptions.map((option) => (
-        <OptionRow
-          key={option}
-          type="checkbox"
-          name={name}
-          control={{ ...controlStyle, borderRadius: 6 }}
-          ariaLabel={`Confirm ${option}`}
-          value={option}
-          checked={confirmSelections.includes(option)}
-          onChange={() => toggleConfirmOption(option)}
-          label={option}
-        />
-      ))}
-    </div>
-  );
-
-  const renderSubmitAsGroup = (name: string, heading: string) => (
-    <div style={groupBlock}>
-      <div style={groupHeading}>{heading}</div>
-      {subrequestOptions.map((option) => (
-        <OptionRow
-          key={option.value}
-          type="radio"
-          name={name}
-          control={controlStyle}
-          ariaLabel={
-            name === 'complaintSubmitAs'
-              ? `Submit complaint as ${option.label}`
-              : `Submit data service access request as ${option.label}`
-          }
-          value={option.value}
-          checked={subselectedRequest === option.value}
-          onChange={() => setSubselectedRequest(option.value)}
-          label={option.label}
-        />
-      ))}
-    </div>
-  );
 
   return (
     <section
@@ -755,394 +1400,15 @@ const ContactusPage = () => {
         animation="ycDrift 34s ease-in-out infinite alternate"
       />
       <div data-grid-1-m style={HERO_GRID_STYLE}>
-        {/* left: copy + details */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            paddingTop: 8,
-          }}
-        >
-          <div style={HERO_BADGE_STYLE}>
-            <span
-              aria-hidden="true"
-              style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }}
-            />
-            {'A person reads every message'}
-          </div>
-          <h1
-            style={{
-              margin: '24px 0 0',
-              fontFamily: NEWSREADER,
-              fontSize: 'clamp(40px, 5.2vw, 72px)',
-              fontWeight: 500,
-              lineHeight: 1.03,
-              letterSpacing: '-0.06em',
-              color: 'var(--ink)',
-              textWrap: 'balance',
-            }}
-          >
-            Talk to a{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 480, color: 'var(--blue-text)' }}>
-              human.
-            </em>
-          </h1>
-          <p
-            style={{
-              margin: '22px 0 0',
-              maxWidth: 420,
-              fontSize: 18,
-              lineHeight: 1.6,
-              letterSpacing: '-0.02em',
-              color: 'var(--ink-muted)',
-              animation: `ycHeroUp 1s ${EASE} 0.5s both`,
-              textWrap: 'pretty',
-            }}
-          >
-            Run a clinic, live with a house full of animals, or want to build on the platform. Tell
-            us which, and it reaches the right desk, not a queue.
-          </p>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              marginTop: 34,
-              width: '100%',
-              animation: `ycHeroUp 1s ${EASE} 0.62s both`,
-            }}
-          >
-            <ChannelCard
-              href="mailto:support@yosemitecrew.com"
-              iconBg="rgba(37,123,237,0.10)"
-              iconBorder="rgba(37,123,237,0.18)"
-              iconColor="var(--blue)"
-              icon={<IoAtOutline aria-hidden="true" style={{ fontSize: 22 }} />}
-              kicker="Email"
-              label="support@yosemitecrew.com"
-            />
-            <ChannelCard
-              href="tel:+4915227763275"
-              iconBg="rgba(0,143,93,0.10)"
-              iconBorder="rgba(0,143,93,0.18)"
-              iconColor="var(--success)"
-              icon={<IoCallOutline aria-hidden="true" style={{ fontSize: 20 }} />}
-              kicker="Phone"
-              label="+49 152 277 63275"
-            />
-            <ChannelCard
-              href={DISCORD_INVITE_URL}
-              external
-              iconBg="rgba(88,101,242,0.12)"
-              iconBorder="rgba(88,101,242,0.22)"
-              iconColor="#5865F2"
-              icon={<IoLogoDiscord aria-hidden="true" style={{ fontSize: 20 }} />}
-              kicker="Community"
-              label="Join the Discord"
-            />
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 14,
-                padding: '6px 18px 0',
-              }}
-            >
-              <span
-                style={{
-                  flex: 'none',
-                  width: 42,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  color: 'var(--ink-faint2)',
-                  paddingTop: 2,
-                }}
-              >
-                <IoBusinessOutline aria-hidden="true" style={{ fontSize: 18 }} />
-              </span>
-              <div
-                style={{
-                  fontSize: 13.5,
-                  lineHeight: 1.5,
-                  color: 'var(--ink-faint)',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                DuneXploration UG (haftungsbeschränkt)
-                <br />
-                Am Finther Weg 7, 55127 Mainz, Germany
-              </div>
-            </div>
-          </div>
-        </div>
+        <ContactHero />
 
-        {/* right: form */}
-        <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void handleContectSubmit();
-            }}
-            style={FORM_STYLE}
-          >
-            {/* type selector */}
-            <div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: '-0.01em',
-                  color: 'var(--ink-body)',
-                  marginBottom: 10,
-                }}
-              >
-                What brings you here?
-              </div>
-              <div
-                role="radiogroup"
-                aria-label="What brings you here?"
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 6,
-                  background: 'var(--inset)',
-                  padding: 5,
-                  borderRadius: 16,
-                }}
-              >
-                {queryTypes.map((type) => (
-                  <label key={type} style={tabStyle(type)}>
-                    <input
-                      type="radio"
-                      name="queryType"
-                      aria-label={type}
-                      value={type}
-                      checked={selectedQueryType === type}
-                      onChange={() => setSelectedQueryType(type)}
-                      style={VISUALLY_HIDDEN_INPUT_STYLE}
-                    />
-                    {type}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* name + email */}
-            <div data-two style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <TextField
-                label="Full Name"
-                value={fullName}
-                onChange={setFullName}
-                placeholder="Lena Weber"
-                required
-                error={errors?.fullName}
-              />
-              <TextField
-                label="Enter Email Address"
-                type="email"
-                value={email}
-                onChange={setEmail}
-                placeholder="you@example.com"
-                required
-                error={errors?.email}
-              />
-            </div>
-
-            <TextField
-              label="Phone number (optional)"
-              type="tel"
-              value={phone}
-              onChange={setPhone}
-              placeholder="+49 …"
-            />
-
-            {/* GENERAL / FEATURE */}
-            {(selectedQueryType === 'General Enquiry' ||
-              selectedQueryType === 'Feature Request') && (
-              <div className="yc-group" style={groupBlock}>
-                <TextAreaField
-                  label="Please leave details regarding your request"
-                  ariaLabel="Request details"
-                  value={message}
-                  onChange={setMessage}
-                  placeholder="Your Message"
-                  required
-                  error={errors?.message}
-                />
-              </div>
-            )}
-
-            {/* DSAR */}
-            {selectedQueryType === 'Data Service Access Request' && (
-              <div className="yc-group" style={groupBlock}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.55,
-                    letterSpacing: '-0.01em',
-                    color: 'var(--ink-muted)',
-                    background: 'var(--inset)',
-                    borderRadius: 14,
-                    padding: '14px 16px',
-                  }}
-                >
-                  Under the GDPR you can access, correct, export, restrict or delete your personal
-                  data, or object to how it is used. We verify identity before acting and respond
-                  within one month.
-                </div>
-
-                {renderSubmitAsGroup('dsarSubmitAs', 'You are submitting this request as')}
-
-                <div style={groupBlock}>
-                  <label className="yc-lbl" htmlFor="dsar-area">
-                    Under the rights of which law are you making this request?
-                    {requiredMark}
-                  </label>
-                  <select
-                    id="dsar-area"
-                    className="yc-field"
-                    data-testid="dynamic-select"
-                    aria-label="Under the rights of which law are you making this request?"
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                  >
-                    <option value="">Select one</option>
-                    {areaOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={groupBlock}>
-                  <div style={groupHeading}>You are submitting this request to</div>
-                  {requestOptions.map((option) => (
-                    <OptionRow
-                      key={option.label}
-                      type="radio"
-                      name="dsarRequestTo"
-                      control={controlStyle}
-                      ariaLabel={`Submit data service access request to ${option.label}`}
-                      value={option.value}
-                      checked={selectedRequest === option.label}
-                      onChange={() => setSelectedRequest(option.label)}
-                      label={option.label}
-                    />
-                  ))}
-                </div>
-
-                <TextAreaField
-                  label="Please leave details regarding your action request or question"
-                  ariaLabel="Data service access request details"
-                  value={message}
-                  onChange={setMessage}
-                  placeholder="Your Message"
-                  minHeight={90}
-                  error={errors?.message}
-                />
-
-                {renderConfirmChecklist('confirmDsar')}
-
-                {renderSubmit()}
-              </div>
-            )}
-
-            {/* COMPLAINT */}
-            {selectedQueryType === 'Complaint' && (
-              <div className="yc-group" style={groupBlock}>
-                {renderSubmitAsGroup('complaintSubmitAs', 'You are submitting this complaint as')}
-
-                <TextAreaField
-                  label="Please leave details regarding your complaint."
-                  ariaLabel="Complaint details"
-                  value={message}
-                  onChange={setMessage}
-                  placeholder="Your Message"
-                  error={errors?.message}
-                />
-
-                <div style={groupBlock}>
-                  <div style={groupHeading}>
-                    Please add link regarding your complaint (optional)
-                  </div>
-                  <TextField
-                    label="Paste link (optional)"
-                    value={complaintLink}
-                    onChange={setComplaintLink}
-                    placeholder="Paste link (optional)"
-                  />
-                </div>
-
-                <div style={groupBlock}>
-                  <div style={groupHeading}>
-                    Please add image regarding your complaint (optional)
-                  </div>
-                  <input
-                    id="complaintImage"
-                    type="file"
-                    accept="image/*"
-                    aria-label="Upload Image"
-                    onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
-                    style={{
-                      fontSize: 13,
-                      color: 'var(--ink-muted)',
-                    }}
-                  />
-                  {hasComplaintImage ? (
-                    <div
-                      style={{
-                        fontSize: 12.5,
-                        color: 'var(--ink-faint)',
-                        letterSpacing: '-0.01em',
-                      }}
-                    >
-                      {complaintImage?.name}
-                    </div>
-                  ) : null}
-                </div>
-
-                {renderConfirmChecklist('confirmComplaint')}
-
-                {renderSubmit()}
-              </div>
-            )}
-
-            {/* GENERAL / FEATURE submit lives outside the per-type block */}
-            {(selectedQueryType === 'General Enquiry' || selectedQueryType === 'Feature Request') &&
-              renderSubmit()}
-
-            {errors?.submit ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 14,
-                  color: '#d53225',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                <IoAlertCircleOutline aria-hidden="true" style={{ fontSize: 17, flex: 'none' }} />
-                {errors.submit}
-              </div>
-            ) : null}
-
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12.5,
-                lineHeight: 1.5,
-                color: 'var(--ink-faint2)',
-                textAlign: 'center',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              We use your details only to handle this request. No lists, no selling, no noise.
-            </p>
-          </form>
-        </div>
+        <ContactForm
+          values={formValues}
+          setters={setters}
+          errors={errors}
+          confirm={{ selections: confirmSelections, onToggle: toggleConfirmOption }}
+          submit={submit}
+        />
       </div>
     </section>
   );
