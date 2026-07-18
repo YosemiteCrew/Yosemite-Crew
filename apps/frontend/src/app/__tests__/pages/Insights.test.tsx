@@ -23,8 +23,12 @@ const stats = {
   contributors: '28',
   discord: '196',
 };
-const release = { tag: 'v0.1.0-beta.2', date: 'Jul 2, 2026', url: 'https://gh/releases/latest' };
-const repo = {
+const defaultRelease = {
+  tag: 'v0.1.0-beta.2',
+  date: 'Jul 2, 2026',
+  url: 'https://gh/releases/latest',
+};
+const defaultRepo = {
   facts: { forks: '128', issues: '12', watching: '34', license: 'AGPL-3.0', lastPush: '2h ago' },
   forks: '128',
   languages: [
@@ -35,15 +39,19 @@ const repo = {
     {
       message: 'feat: add the insights page',
       login: 'ada',
-      avatar: null,
+      avatar: null as string | null,
       sha: 'abcdef1',
       when: '2h ago',
       url: 'https://gh/c/1',
     },
   ],
   contributors: [{ login: 'ada', avatar: 'https://av/ada.png', url: 'https://gh/ada' }],
-  heartbeat: [1, 5, 3, 9],
+  heartbeat: [1, 5, 3, 9] as number[] | null,
 };
+
+// Reassigned per test so individual cases can drive the loading / null render paths.
+let release: typeof defaultRelease = defaultRelease;
+let repo: typeof defaultRepo = defaultRepo;
 
 jest.mock('@/app/features/marketing/site', () => {
   const R = jest.requireActual<typeof import('react')>('react');
@@ -65,6 +73,11 @@ jest.mock('@/app/features/marketing/site', () => {
 import { Insights } from '@/app/features/marketing/pages/Insights/Insights';
 
 describe('Insights page', () => {
+  beforeEach(() => {
+    release = defaultRelease;
+    repo = defaultRepo;
+  });
+
   test('renders the hero and its live self-hoster proof', () => {
     render(<Insights />);
     // The heading is real text (with spaces) so its accessible name reads cleanly.
@@ -107,5 +120,33 @@ describe('Insights page', () => {
     expect(screen.getByText('Honest by default')).toBeInTheDocument();
     expect(screen.getByText(/Read the numbers\./)).toBeInTheDocument();
     expect(screen.getByText('Then read the code.')).toBeInTheDocument();
+  });
+
+  test('shows the loading placeholders while the live data is still empty', () => {
+    repo = {
+      ...defaultRepo,
+      facts: null as unknown as typeof defaultRepo.facts,
+      forks: null as unknown as string,
+      languages: null as unknown as typeof defaultRepo.languages,
+      commits: null as unknown as typeof defaultRepo.commits,
+      contributors: null as unknown as typeof defaultRepo.contributors,
+      heartbeat: null,
+    };
+    release = { ...defaultRelease, date: null as unknown as string };
+
+    render(<Insights />);
+    expect(screen.getByText(/Reading the repository/)).toBeInTheDocument();
+    expect(screen.getByText(/Fetching the latest commit/)).toBeInTheDocument();
+    expect(screen.getByText(/Tagged and published on GitHub Releases/)).toBeInTheDocument();
+  });
+
+  test('renders a commit avatar image when the author has one', () => {
+    repo = {
+      ...defaultRepo,
+      commits: [{ ...defaultRepo.commits[0], avatar: 'https://av/ada.png' }],
+    };
+
+    const { container } = render(<Insights />);
+    expect(container.querySelector('img[src="https://av/ada.png"]')).toBeInTheDocument();
   });
 });

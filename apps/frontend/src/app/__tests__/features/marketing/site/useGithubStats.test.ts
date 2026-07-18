@@ -169,4 +169,48 @@ describe('useGithubStats hooks', () => {
     const { result } = renderHook(() => useMobileRelease());
     await waitFor(() => expect(result.current.url).toBe('https://x/m'));
   });
+
+  it('falls back to the default count when every request rejects', async () => {
+    // Every fetch throwing exercises the fetchJson and fetchContributors catch paths.
+    globalThis.fetch = jest.fn(() => Promise.reject(new Error('network'))) as unknown as FetchLike;
+    const { result } = renderHook(() => useGithubStats());
+    await waitFor(() => expect(result.current.selfHosters).toBe('67,100'));
+    expect(result.current.contributors).toBeNull();
+    expect(result.current.stars).toBeNull();
+  });
+
+  it('falls back when the summary has neither a clones total nor a chart dataset', async () => {
+    globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('summary.json')) return Promise.resolve(makeRes({}));
+      return Promise.resolve(notOk());
+    }) as unknown as FetchLike;
+    const { result } = renderHook(() => useGithubStats());
+    await waitFor(() => expect(result.current.selfHosters).toBe('67,100'));
+  });
+
+  it('seeds the platform release from the session cache before the network answers', async () => {
+    sessionStorage.setItem(
+      'yc_rel_platform_v1',
+      JSON.stringify({ tag: 'v9.9.9', date: 'Jan 1, 2026', url: 'https://x/cached' })
+    );
+    // A tag-less response leaves the seeded cache in place.
+    globalThis.fetch = jest.fn(() => Promise.resolve(makeRes(null))) as unknown as FetchLike;
+    const { result } = renderHook(() => useLatestRelease());
+    await waitFor(() => expect(result.current.tag).toBe('v9.9.9'));
+    expect(result.current.url).toBe('https://x/cached');
+  });
+
+  it('seeds the mobile release from cache and keeps it when no release tag is mobile', async () => {
+    sessionStorage.setItem(
+      'yc_rel_mobile_v1',
+      JSON.stringify({ tag: 'm9.9', date: 'Jan 1, 2026', url: 'https://x/cached-m' })
+    );
+    globalThis.fetch = jest.fn(() =>
+      Promise.resolve(makeRes([{ tag_name: 'backend-v2', html_url: 'https://x/b' }]))
+    ) as unknown as FetchLike;
+    const { result } = renderHook(() => useMobileRelease());
+    await waitFor(() => expect(result.current.tag).toBe('m9.9'));
+    expect(result.current.url).toBe('https://x/cached-m');
+  });
 });
