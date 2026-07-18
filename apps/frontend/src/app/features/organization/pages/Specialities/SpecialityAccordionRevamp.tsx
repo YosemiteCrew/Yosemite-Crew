@@ -1,8 +1,8 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useId, useMemo, useRef, useState } from 'react';
 import type { ServicesTabHandle } from '@/app/features/organization/pages/Specialities/ServicesTab';
 import type { PackagesTabHandle } from '@/app/features/organization/pages/Specialities/PackagesTab';
 import { IoIosArrowDown } from 'react-icons/io';
-import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
 import ArchiveTab from '@/app/features/organization/pages/Specialities/ArchiveTab';
@@ -10,9 +10,11 @@ import { SpecialityRevamp } from '@/app/features/organization/types/revamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useNotify } from '@/app/hooks/useNotify';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { Team } from '@/app/features/organization/types/team';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
-import { TABS, panelId, type ActiveTab, type SearchResult } from './specialityAccordionHelpers';
+import { TABS, type ActiveTab, type SearchResult } from './specialityAccordionHelpers';
 import SpecialitySearchBar from './SpecialitySearchBar';
 import SpecialityDeleteModal from './SpecialityDeleteModal';
 import SpecialityNameEditor from './SpecialityNameEditor';
@@ -25,7 +27,7 @@ type SpecialityAccordionRevampProps = {
 type SpecialityAccordionHeaderProps = {
   speciality: SpecialityRevamp;
   activeTab: ActiveTab;
-  totalCount: number;
+  subtitle: string;
   open: boolean;
   editingName: boolean;
   nameInputId: string;
@@ -55,7 +57,7 @@ type SpecialityAccordionHeaderProps = {
 const SpecialityAccordionHeader = ({
   speciality,
   activeTab,
-  totalCount,
+  subtitle,
   open,
   editingName,
   nameInputId,
@@ -105,7 +107,7 @@ const SpecialityAccordionHeader = ({
           nameValue={nameValue}
           nameError={nameError}
           specialityName={speciality.name}
-          totalCount={totalCount}
+          subtitle={subtitle}
           onToggleOpen={onToggleOpen}
           onNameChange={onNameChange}
           onNameKeyDown={onNameKeyDown}
@@ -167,25 +169,28 @@ const SpecialityAccordionPanel = ({
   onTabChange,
 }: SpecialityAccordionPanelProps) => (
   <div className="border-t border-card-border">
-    <TabToggle
-      tabs={TABS}
-      activeKey={activeTab}
-      onChange={(key) => onTabChange(key as ActiveTab)}
-      panelId={panelId}
-    />
+    <div className="flex px-5 py-3">
+      <SegmentedPill
+        ariaLabel="Speciality catalog view"
+        options={TABS.map((tab) => ({ value: tab.key as ActiveTab, label: tab.label }))}
+        value={activeTab}
+        onChange={onTabChange}
+      />
+    </div>
 
     <div className="px-5 pt-3">
       {activeTab === 'services' && (
-        <div id={panelId('services')} role="tabpanel" aria-labelledby="tab-services">
+        <div>
           <ServicesTab
             ref={servicesTabRef}
             specialityId={speciality.id}
             organisationId={speciality.organisationId}
+            specialityName={speciality.name}
           />
         </div>
       )}
       {activeTab === 'packages' && (
-        <div id={panelId('packages')} role="tabpanel" aria-labelledby="tab-packages">
+        <div>
           <PackagesTab
             ref={packagesTabRef}
             specialityId={speciality.id}
@@ -194,7 +199,7 @@ const SpecialityAccordionPanel = ({
         </div>
       )}
       {activeTab === 'archive' && (
-        <div id={panelId('archive')} role="tabpanel" aria-labelledby="tab-archive">
+        <div>
           <ArchiveTab specialityId={speciality.id} organisationId={speciality.organisationId} />
         </div>
       )}
@@ -257,7 +262,19 @@ const SpecialityAccordionRevamp = ({
   );
 
   const { notify } = useNotify();
-  const totalCount = serviceCount + packageCount;
+
+  const teams = useTeamForPrimaryOrg();
+  const staffNameById = useMemo(() => {
+    return (teams ?? []).reduce((acc: Record<string, string>, member: Team) => {
+      const name = member.name ?? '';
+      if (member.practionerId) acc[member.practionerId] = name;
+      if (member._id) acc[member._id] = name;
+      return acc;
+    }, {});
+  }, [teams]);
+  const leadName = speciality.headVetId ? staffNameById[speciality.headVetId] : undefined;
+  const catalogSummary = `${serviceCount} ${serviceCount === 1 ? 'service' : 'services'} · ${packageCount} ${packageCount === 1 ? 'package' : 'packages'}`;
+  const subtitle = leadName ? `${catalogSummary} · lead ${leadName}` : catalogSummary;
 
   const nameInputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -400,7 +417,7 @@ const SpecialityAccordionRevamp = ({
       <SpecialityAccordionHeader
         speciality={speciality}
         activeTab={activeTab}
-        totalCount={totalCount}
+        subtitle={subtitle}
         open={open}
         editingName={editingName}
         nameInputId={nameInputId}

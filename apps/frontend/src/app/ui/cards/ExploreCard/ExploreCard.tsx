@@ -56,8 +56,10 @@ const Explorecard = () => {
             className="yc-card-elevated p-3 w-full rounded-2xl border border-card-border bg-neutral-0 flex flex-col gap-1"
             key={stat.name}
           >
-            <div className="text-body-3 text-text-tertiary">{stat.name}</div>
-            <p className="text-heading-1 text-text-primary">{stat.value}</p>
+            <div className="text-[12.5px] text-[var(--ink-faint)]">{stat.name}</div>
+            <p className="text-[24px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
+              {stat.value}
+            </p>
           </div>
         ))}
       </div>

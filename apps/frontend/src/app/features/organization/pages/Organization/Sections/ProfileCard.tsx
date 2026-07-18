@@ -430,7 +430,7 @@ const ProfileCard = ({
                   onSave={updateOrgLogo}
                   disabled={isDisabled}
                 />
-                <div className="text-[20px] font-newsreader tracking-[-0.015em] text-[var(--ink)]">
+                <div className="text-[24px] font-newsreader tracking-[-0.015em] text-[var(--ink)]">
                   {org.name}
                 </div>
                 <span

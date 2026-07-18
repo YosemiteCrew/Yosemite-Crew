@@ -52,22 +52,15 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
           aria-label={`Filter ${title} by time period: ${selectedValue}`}
           aria-expanded={open}
           aria-haspopup="listbox"
-          className="outline-none w-[140px] flex items-center justify-end gap-2 border-0 bg-neutral-0"
+          className="outline-none inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)]"
         >
-          <span className="text-body-4 text-text-primary" aria-hidden="true">
-            {selectedValue}
-          </span>
-          <IoChevronDownOutline
-            color="var(--color-neutral-900)"
-            size={14}
-            className="mt-0.5"
-            aria-hidden="true"
-          />
+          <span aria-hidden="true">{selectedValue}</span>
+          <IoChevronDownOutline color="var(--ink-faint)" size={12} aria-hidden="true" />
         </button>
         {open && (
           <div
             aria-label={`Filter ${title} by time period`}
-            className="bg-neutral-0 border border-card-border px-2 py-1 w-full absolute top-[120%] left-0 flex flex-col rounded-2xl z-10"
+            className="bg-neutral-0 border border-card-border px-2 py-1 min-w-full whitespace-nowrap absolute top-[120%] right-0 flex flex-col rounded-2xl z-10"
           >
             {options.map((option: string) => (
               <button

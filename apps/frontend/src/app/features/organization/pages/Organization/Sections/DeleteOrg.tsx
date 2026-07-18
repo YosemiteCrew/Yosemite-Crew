@@ -1,4 +1,4 @@
-import Delete from '@/app/ui/primitives/Buttons/Delete';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 import DeleteConfirmationModal from '@/app/ui/overlays/Modal/DeleteConfirmationModal';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { deleteOrg } from '@/app/features/organization/services/orgService';
@@ -28,7 +28,13 @@ const DeleteOrg = () => {
             Removes the clinic and revokes all team access
           </div>
         </div>
-        <Delete href="#" onClick={() => setDeletePopup(true)} text="Delete…" />
+        <Secondary
+          danger
+          href="#"
+          text="Delete…"
+          onClick={() => setDeletePopup(true)}
+          className="min-h-0! h-[34px]! px-[15px]! text-[12px]! font-bold!"
+        />
       </div>
       <DeleteConfirmationModal
         showModal={deletePopup}

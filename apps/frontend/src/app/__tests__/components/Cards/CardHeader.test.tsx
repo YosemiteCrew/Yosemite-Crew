@@ -17,6 +17,34 @@ describe('CardHeader', () => {
     ).toBeInTheDocument();
   });
 
+  test('period trigger renders as a hairline rounded-full pill', () => {
+    render(<CardHeader title="Explore" options={options} />);
+
+    const toggle = screen.getByRole('button', {
+      name: /Filter Explore by time period: Last week/i,
+    });
+    expect(toggle).toHaveClass('rounded-full', 'border', 'border-[var(--hairline)]');
+    expect(toggle).toHaveClass('text-[12px]', 'font-semibold', 'text-[var(--ink-muted)]');
+  });
+
+  test('uses controlled selection and calls onSelect', () => {
+    const onSelect = jest.fn();
+    render(
+      <CardHeader title="Explore" options={options} selected="Last month" onSelect={onSelect} />
+    );
+
+    // Controlled value is reflected in the trigger label
+    expect(
+      screen.getByRole('button', { name: /Filter Explore by time period: Last month/i })
+    ).toBeInTheDocument();
+
+    const toggle = screen.getByRole('button', { name: /Filter Explore by time period/i });
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: 'Last 6 months' }));
+
+    expect(onSelect).toHaveBeenCalledWith('Last 6 months');
+  });
+
   test('updates selection when option is clicked', () => {
     render(<CardHeader title="Explore" options={options} />);
 

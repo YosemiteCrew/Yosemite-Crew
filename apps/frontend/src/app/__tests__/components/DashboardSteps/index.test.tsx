@@ -84,6 +84,22 @@ describe('DashboardSteps', () => {
     expect(screen.queryByText('Connect Stripe')).not.toBeInTheDocument();
   });
 
+  it('marks completed steps with a check and pending steps with a ring', () => {
+    usePrimaryOrgMock.mockReturnValue({ _id: 'org1', isVerified: true });
+    useSubscriptionMock.mockReturnValue({
+      connectAccountId: 'acct_1',
+      connectChargesEnabled: false,
+    });
+    useServicesMock.mockReturnValue([{ id: 'svc' }]);
+    useTeamMock.mockReturnValue([{ _id: 'u1' }]);
+
+    render(<DashboardSteps />);
+
+    expect(screen.getByText('1 of 3 done')).toBeInTheDocument();
+    expect(screen.getByTitle('Step complete')).toBeInTheDocument();
+    expect(screen.getAllByTitle('Step incomplete')).toHaveLength(2);
+  });
+
   it('returns null when all steps are completed', () => {
     usePrimaryOrgMock.mockReturnValue({ _id: 'org1', isVerified: true });
     useSubscriptionMock.mockReturnValue({

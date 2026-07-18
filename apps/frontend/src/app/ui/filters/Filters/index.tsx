@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { IoAdd, IoCaretDown, IoWarning } from 'react-icons/io5';
+import { IoAdd, IoChevronDown, IoWarning } from 'react-icons/io5';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
@@ -67,6 +67,8 @@ const Filters = ({
 
   const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
   const hasFilterOptions = Boolean(filterOptions?.length);
+  const isAllStatus = (selectedStatus?.key?.toLowerCase() ?? 'all') === 'all';
+  const showStatusTint = !isAllStatus && Boolean(selectedStatus?.bg);
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;
     setActiveFilter(activeFilter === filterKey ? 'all' : filterKey);
@@ -177,31 +179,20 @@ const Filters = ({
               ref={triggerRef}
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors"
               style={
-                selectedStatus?.bg
+                showStatusTint
                   ? {
-                      backgroundColor: selectedStatus.bg,
-                      color: selectedStatus.text ?? 'var(--color-black-pure)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: selectedStatus.border ?? selectedStatus.bg,
+                      backgroundColor: selectedStatus?.bg,
+                      color: selectedStatus?.text ?? 'var(--color-black-pure)',
+                      borderColor: selectedStatus?.border ?? selectedStatus?.bg,
                     }
-                  : {
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: 'var(--color-card-border)',
-                      color: 'var(--color-text-tertiary)',
-                    }
+                  : undefined
               }
             >
-              <span>
-                {selectedStatus?.key?.toLowerCase() === 'all'
-                  ? 'Status'
-                  : (selectedStatus?.name ?? 'Status')}
-              </span>
-              <IoCaretDown
-                size={14}
+              <span>{isAllStatus ? 'All statuses' : (selectedStatus?.name ?? 'All statuses')}</span>
+              <IoChevronDown
+                size={12}
                 className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
               />
             </button>

@@ -820,6 +820,25 @@ describe('ChatContainer', () => {
     }
   });
 
+  it('renders the Chat sidebar heading and a neutral segmented audience switcher', async () => {
+    await act(async () => {
+      render(<ChatContainer scope="clients" />);
+    });
+    await waitFor(() => expect(screen.getByTestId('channel-list')).toBeInTheDocument());
+
+    // Sidebar title is the "Chat" heading, not the old "Messages".
+    expect(screen.queryByText('Messages')).not.toBeInTheDocument();
+
+    // The colored sliding pill is replaced by the neutral SegmentedPill (role=group).
+    const switcher = screen.getByRole('group', { name: 'Chat audience' });
+    expect(switcher).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clients' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Colleagues' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+  });
+
   it('routes Send form to the invoice workspace step', async () => {
     const clientChannel = {
       ...defaultMockChannel,
@@ -2162,7 +2181,8 @@ describe('ChatContainer', () => {
     });
 
     await waitFor(() => expect(screen.getByTestId('chat-window')).toBeInTheDocument());
-    expect(screen.getByText('Chat')).toBeInTheDocument();
+    // Both the sidebar heading and the generic (channel-less) header title read "Chat".
+    expect(screen.getAllByText('Chat').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Offline')).toBeInTheDocument();
     // No channel means no scope, so neither the client nor the group affordances show.
     expect(screen.queryByText('Pet parent')).not.toBeInTheDocument();
