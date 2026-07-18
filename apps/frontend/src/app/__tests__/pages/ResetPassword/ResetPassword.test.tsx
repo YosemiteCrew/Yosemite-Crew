@@ -84,6 +84,10 @@ describe('ResetPassword landing page', () => {
 
     expect(screen.getByText('Enter a new password')).toBeInTheDocument();
     expect(screen.getByText('Confirm your new password')).toBeInTheDocument();
+    // Inline errors are associated with their password fields for screen readers.
+    const newPassword = screen.getByLabelText('New password');
+    expect(newPassword).toHaveAttribute('aria-invalid', 'true');
+    expect(newPassword).toHaveAttribute('aria-describedby', 'reset-password-error');
     expect(mockResetPassword).not.toHaveBeenCalled();
   });
 

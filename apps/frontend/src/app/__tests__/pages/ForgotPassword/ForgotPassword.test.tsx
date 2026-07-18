@@ -73,7 +73,11 @@ describe('ForgotPassword page (reset link flow)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
 
     expect(screen.getByText('Email is required')).toBeInTheDocument();
-    expect(screen.getByLabelText('Work email')).toHaveAttribute('aria-invalid', 'true');
+    const field = screen.getByLabelText('Work email');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    // The inline error is associated with the field so screen readers announce it.
+    expect(field).toHaveAttribute('aria-describedby', 'forgot-email-error');
+    expect(screen.getByRole('alert')).toHaveAttribute('id', 'forgot-email-error');
     expect(forgotPasswordMock).not.toHaveBeenCalled();
   });
 
@@ -137,6 +141,38 @@ describe('ForgotPassword page (reset link flow)', () => {
       )
     );
     expect(screen.getByLabelText('Work email')).toBeInTheDocument();
+  });
+
+  test('treats a not-allowed reset as a neutral confirmation without leaking the reason', async () => {
+    // SuperTokens' account-takeover protection: the reason must never reach the user.
+    const notAllowed = Object.assign(new Error('User signed up with a social login'), {
+      code: 'PASSWORD_RESET_NOT_ALLOWED',
+    });
+    forgotPasswordMock.mockRejectedValue(notAllowed);
+    render(<ForgotPassword />);
+
+    submitEmail('user@example.com');
+
+    await screen.findByTestId('forgot-sent');
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+    // No toast, and the backend reason is nowhere in the DOM.
+    expect(showErrorTostMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/social login/i)).not.toBeInTheDocument();
+  });
+
+  test('shows a generic message when the failure is not an Error object', async () => {
+    forgotPasswordMock.mockRejectedValue('boom');
+    render(<ForgotPassword />);
+
+    submitEmail();
+
+    await waitFor(() =>
+      expect(showErrorTostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'We could not send the reset email. Please try again.',
+        })
+      )
+    );
   });
 
   test('has no axe accessibility violations', async () => {

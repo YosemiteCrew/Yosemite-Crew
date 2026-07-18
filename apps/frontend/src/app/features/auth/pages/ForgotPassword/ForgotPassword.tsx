@@ -105,6 +105,13 @@ const ForgotPassword = () => {
       // the confirmation is deliberately neutral (no account-existence leak).
       setSentTo(normalized);
     } catch (error) {
+      // PASSWORD_RESET_NOT_ALLOWED is SuperTokens' account-takeover protection; its
+      // reason must never be surfaced, or it leaks account state. Treat it exactly
+      // like a successful send so the outcome is indistinguishable to an attacker.
+      if ((error as { code?: string })?.code === 'PASSWORD_RESET_NOT_ALLOWED') {
+        setSentTo(normalized);
+        return;
+      }
       setIsSubmitting(false);
       showErrorTost({
         message:
