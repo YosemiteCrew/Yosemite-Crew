@@ -95,6 +95,19 @@ describe('SignUp page', () => {
     expect(screen.getByText('Please check the Terms and Conditions box')).toBeInTheDocument();
   });
 
+  test('shows a visible focus ring on the terms box while the checkbox is focused', () => {
+    render(<SignUp />);
+    const checkbox = screen.getByRole('checkbox', { name: /terms and conditions/i });
+    // The visible custom box is the aria-hidden span immediately before the input.
+    const box = checkbox.previousElementSibling as HTMLElement;
+
+    expect(box.style.outlineOffset).toBe('');
+    fireEvent.focus(checkbox);
+    expect(box.style.outlineOffset).toBe('2px');
+    fireEvent.blur(checkbox);
+    expect(box.style.outlineOffset).toBe('');
+  });
+
   test('clears first and last name errors as the user updates those fields', () => {
     render(<SignUp />);
 

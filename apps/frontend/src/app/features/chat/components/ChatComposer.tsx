@@ -57,10 +57,10 @@ function ComposerIconButton({
       aria-label={label}
       onClick={onClick}
       className={clsx(
-        'inline-flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active',
+        'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]',
         active
-          ? 'bg-chat-panel text-primary-600'
-          : 'text-neutral-500 hover:bg-chat-panel hover:text-neutral-900'
+          ? 'bg-[var(--screen-2)] text-[var(--blue)]'
+          : 'text-[var(--ink-soft)] hover:bg-[var(--screen-2)] hover:text-[var(--ink-body)]'
       )}
     >
       {children}
@@ -110,11 +110,11 @@ export function ChatComposer() {
   };
 
   return (
-    <div className="border-t border-chat-divider bg-neutral-0 px-2 py-2.5 sm:px-3 sm:py-3">
+    <div className="border-t border-[var(--hairline)] bg-[var(--screen)] px-[22px] py-[14px]">
       <AttachmentPreviewList />
       {uploadError && (
         <div role="alert" className="mb-2">
-          <Text as="p" variant="caption-1" className="text-danger-600">
+          <Text as="p" variant="caption-1" className="text-[var(--danger-text)]">
             {uploadError}
           </Text>
         </div>
@@ -125,7 +125,7 @@ export function ChatComposer() {
             key={t.label}
             type="button"
             onClick={() => composer.textComposer.setText(t.text)}
-            className="shrink-0 whitespace-nowrap rounded-full border border-chat-divider bg-chat-surface px-3 py-1.5 font-satoshi text-xs font-semibold text-neutral-600 transition-colors hover:border-primary-300 hover:bg-chat-panel hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active"
+            className="shrink-0 whitespace-nowrap rounded-full border border-[var(--hairline)] bg-[var(--screen-2)] px-3 py-1.5 font-satoshi text-xs font-semibold text-[var(--ink-soft)] transition-colors hover:border-[var(--blue)] hover:bg-[var(--blue-soft)] hover:text-[var(--blue)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
           >
             {t.label}
           </button>
@@ -151,24 +151,24 @@ export function ChatComposer() {
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={() => setAttachOpen(false)}
               />
-              <div className="absolute bottom-11 left-0 z-20 w-44 rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
+              <div className="absolute bottom-11 left-0 z-20 w-44 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-1.5 shadow-lg">
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
                 >
-                  <IoImageOutline className="h-4 w-4 shrink-0 text-primary-600" />
-                  <Text as="span" variant="body-4" className="text-neutral-900">
+                  <IoImageOutline className="h-4 w-4 shrink-0 text-[var(--blue)]" />
+                  <Text as="span" variant="body-4" className="text-[var(--ink-body)]">
                     Photo
                   </Text>
                 </button>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
                 >
-                  <IoDocumentTextOutline className="h-4 w-4 shrink-0 text-primary-600" />
-                  <Text as="span" variant="body-4" className="text-neutral-900">
+                  <IoDocumentTextOutline className="h-4 w-4 shrink-0 text-[var(--blue)]" />
+                  <Text as="span" variant="body-4" className="text-[var(--ink-body)]">
                     Document
                   </Text>
                 </button>
@@ -178,10 +178,10 @@ export function ChatComposer() {
                     if (channel?.id) openShare(channel.id);
                     setAttachOpen(false);
                   }}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
                 >
-                  <IoShareSocialOutline className="h-4 w-4 shrink-0 text-primary-600" />
-                  <Text as="span" variant="body-4" className="text-neutral-900">
+                  <IoShareSocialOutline className="h-4 w-4 shrink-0 text-[var(--blue)]" />
+                  <Text as="span" variant="body-4" className="text-[var(--ink-body)]">
                     Share from PIMS
                   </Text>
                 </button>
@@ -190,12 +190,12 @@ export function ChatComposer() {
           )}
         </div>
 
-        <div className="flex min-h-11 flex-1 items-center rounded-full border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-4 transition-colors focus-within:border-input-border-active">
+        <div className="flex min-h-11 flex-1 items-center rounded-full border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-4 transition-colors focus-within:border-[var(--blue)]">
           <TextareaComposer
             placeholder="Write a message…"
             minRows={1}
             maxRows={6}
-            className="block w-full resize-none self-center bg-transparent font-satoshi text-body-4 leading-6 text-text-primary outline-none placeholder:text-input-text-placeholder"
+            className="block w-full resize-none self-center bg-transparent font-satoshi text-body-4 leading-6 text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
             containerClassName="flex-1"
           />
         </div>
@@ -219,7 +219,7 @@ export function ChatComposer() {
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={() => setEmojiOpen(false)}
               />
-              <div className="absolute bottom-11 right-0 z-20 flex w-56 flex-wrap gap-1 rounded-2xl border border-chat-divider bg-neutral-0 p-2 shadow-lg">
+              <div className="absolute bottom-11 right-0 z-20 flex w-56 flex-wrap gap-1 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-2 shadow-lg">
                 {EMOJIS.map((emoji) => (
                   <button
                     key={emoji}
@@ -228,7 +228,7 @@ export function ChatComposer() {
                       insert(emoji);
                       setEmojiOpen(false);
                     }}
-                    className="flex size-9 items-center justify-center rounded-lg text-lg hover:bg-chat-surface-soft"
+                    className="flex size-9 items-center justify-center rounded-lg text-lg hover:bg-[var(--screen-2)]"
                   >
                     {emoji}
                   </button>
@@ -243,7 +243,7 @@ export function ChatComposer() {
           aria-label="Voice message"
           title="Voice messages are coming soon"
           disabled
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-400 disabled:cursor-not-allowed"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--ink-faint)] disabled:cursor-not-allowed"
         >
           <IoMicOutline className="h-5 w-5" />
         </button>
@@ -253,7 +253,7 @@ export function ChatComposer() {
           aria-label="Send message"
           onClick={send}
           disabled={Boolean(cooldownRemaining)}
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--cta)] text-[var(--cta-text)] transition-colors hover:bg-[var(--cta-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--blue)] text-white shadow-[0_8px_20px_var(--glow-b26)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <IoSend className="h-5 w-5" />
         </button>

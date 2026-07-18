@@ -388,12 +388,14 @@ textarea:focus-visible {
   --color-calendar-preview-overlay: rgba(36, 122, 237, 0.18);
   --color-calendar-dim-overlay: rgba(0, 0, 0, 0.045);
   --color-overlay-backdrop: rgba(48, 47, 46, 0.5);
-  --color-chat-surface: #f8fbff;
-  --color-chat-panel: #eff6ff;
-  --color-chat-panel-border: #dbeafe;
-  --color-chat-divider: #e5e7eb;
-  --color-chat-divider-soft: #f3f4f6;
-  --color-chat-surface-soft: #f9fafb;
+  /* Warm-bone chat surfaces (aligned with --screen/--screen-2/--hairline so the
+     chat workspace matches the PIMS design instead of the old cool-blue theme). */
+  --color-chat-surface: #f7f3ec;
+  --color-chat-panel: #f1ebe1;
+  --color-chat-panel-border: #e5dccf;
+  --color-chat-divider: #e5dccf;
+  --color-chat-divider-soft: #efe8dc;
+  --color-chat-surface-soft: #f1ebe1;
   --color-success-bright: #22c55e;
   --color-success-bright-ring: rgba(34, 197, 94, 0.18);
   --color-shadow-soft: rgba(15, 23, 42, 0.08);
@@ -413,7 +415,7 @@ textarea:focus-visible {
   --color-text-strong: #333333;
   --color-text-body-dark: #222222;
   --color-linkedin-blue: #0a66c2;
-  --color-chat-empty-bg: #fdfefe;
+  --color-chat-empty-bg: #faf7f0;
   --color-onboarding-accent-border: #b7c8ff;
   --color-onboarding-accent-bg: #f8fbff;
   --color-surface-muted: #f4f4f4;

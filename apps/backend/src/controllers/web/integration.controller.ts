@@ -134,31 +134,6 @@ export const IntegrationController = {
     }
   },
 
-  credentialMeta: async (req: Request, res: Response) => {
-    try {
-      const organisationId = resolveOrganisationId(req);
-      if (!organisationId) {
-        return res.status(400).json({ message: "organisationId is required." });
-      }
-
-      const { provider } = req.params;
-      const meta = await IntegrationService.getCredentialMeta(
-        organisationId,
-        provider,
-      );
-
-      return res.status(200).json(meta);
-    } catch (error) {
-      if (error instanceof IntegrationServiceError) {
-        return res.status(error.statusCode).json({ message: error.message });
-      }
-      logger.error("Failed to fetch integration credential metadata", error);
-      return res.status(500).json({
-        message: "Failed to fetch integration credential metadata.",
-      });
-    }
-  },
-
   validate: async (req: Request, res: Response) => {
     try {
       const organisationId = resolveOrganisationId(req);
