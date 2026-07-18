@@ -33,6 +33,39 @@ const requireSafeString = (value: string, field: string) => {
   return trimmed;
 };
 
+const toOrganizationDocumentDocument = (doc: {
+  id: string;
+  organisationId: string;
+  title: string;
+  description: string | null;
+  category: PrismaOrgDocumentCategory;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileType: string | null;
+  fileSize: number | null;
+  visibility: PrismaOrgDocumentVisibility;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): OrganizationDocumentDocument => {
+  const { id, ...rest } = doc;
+  return {
+    _id: id,
+    organisationId: rest.organisationId,
+    title: rest.title,
+    description: rest.description ?? undefined,
+    category: rest.category,
+    fileUrl: rest.fileUrl ?? undefined,
+    fileName: rest.fileName ?? undefined,
+    fileType: rest.fileType ?? undefined,
+    fileSize: rest.fileSize ?? undefined,
+    visibility: rest.visibility,
+    version: rest.version,
+    createdAt: rest.createdAt,
+    updatedAt: rest.updatedAt,
+  };
+};
+
 type Visibility = "INTERNAL" | "PUBLIC";
 
 export interface CreateOrgDocumentInput {
@@ -91,7 +124,7 @@ export const OrganizationDocumentService = {
         version: 1,
       },
     });
-    return doc as unknown as OrganizationDocumentDocument;
+    return toOrganizationDocumentDocument(doc);
   },
 
   /**
@@ -138,7 +171,7 @@ export const OrganizationDocumentService = {
       },
     });
 
-    return updated as unknown as OrganizationDocumentDocument;
+    return toOrganizationDocumentDocument(updated);
   },
 
   /**
@@ -168,7 +201,7 @@ export const OrganizationDocumentService = {
     if (!doc) {
       throw new OrgDocumentServiceError("Document not found", 404);
     }
-    return doc as unknown as OrganizationDocumentDocument;
+    return toOrganizationDocumentDocument(doc);
   },
 
   /**
@@ -204,7 +237,7 @@ export const OrganizationDocumentService = {
       orderBy: { updatedAt: "desc" },
     });
 
-    return docs as unknown as OrganizationDocumentDocument[];
+    return docs.map((doc) => toOrganizationDocumentDocument(doc));
   },
 
   /**
@@ -241,7 +274,7 @@ export const OrganizationDocumentService = {
       orderBy: { updatedAt: "desc" },
     });
 
-    return docs as unknown as OrganizationDocumentDocument[];
+    return docs.map((doc) => toOrganizationDocumentDocument(doc));
   },
 
   /**

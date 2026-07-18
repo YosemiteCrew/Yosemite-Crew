@@ -184,6 +184,75 @@ const mapBucketToDateParts = (date: dayjs.Dayjs, bucket: DashboardBucket) => {
 const isOnDutyStatus = (status: string) =>
   status === "Consulting" || status === "Available";
 
+const buildRevenueTrendQuery = ({
+  bucket,
+  organisationId,
+  from,
+  to,
+}: {
+  bucket: DashboardBucket;
+  organisationId: string;
+  from: Date;
+  to: Date;
+}) => Prisma.sql`
+  SELECT
+    date_trunc(
+      ${bucket === "day" ? "day" : "month"},
+      CASE
+        WHEN status = 'PAID' THEN "paidAt"
+        ELSE "updatedAt"
+      END
+    ) AS "bucket",
+    COALESCE(
+      SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
+      0
+    ) AS "revenue",
+    COALESCE(
+      SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
+      0
+    ) AS "paidRevenue",
+    COALESCE(
+      SUM(CASE WHEN status = 'CANCELLED' THEN "totalAmount" ELSE 0 END),
+      0
+    ) AS "cancelledRevenue"
+  FROM "Invoice"
+  WHERE
+    "organisationId" = ${organisationId}
+    AND (
+      (status = 'PAID' AND "paidAt" >= ${from} AND "paidAt" <= ${to})
+      OR (status = 'CANCELLED' AND "updatedAt" >= ${from} AND "updatedAt" <= ${to})
+    )
+  GROUP BY 1
+  ORDER BY 1 ASC
+`;
+
+const mapRevenueTrendRows = (
+  rows: Array<{
+    bucket: Date;
+    revenue: number;
+    paidRevenue: number;
+    cancelledRevenue: number;
+  }>,
+  bucket: DashboardBucket,
+) => {
+  const bucketMap = new Map<
+    string,
+    { revenue: number; paidRevenue: number; cancelledRevenue: number }
+  >();
+
+  for (const row of rows) {
+    const d = dayjs(row.bucket);
+    const key = getBucketKey(d, bucket);
+    bucketMap.set(key, {
+      revenue: row.revenue ?? 0,
+      paidRevenue: row.paidRevenue ?? 0,
+      cancelledRevenue: row.cancelledRevenue ?? 0,
+    });
+  }
+
+  return bucketMap;
+};
+
 const getStaffOnDutyCount = async (organisationId: string) => {
   const mappings = await prisma.userOrganization.findMany({
     where: { organizationReference: organisationId, active: true },
@@ -352,51 +421,8 @@ export const DashboardService = {
         paidRevenue: number;
         cancelledRevenue: number;
       }>
-    >(Prisma.sql`
-      SELECT
-        date_trunc(
-          ${bucket === "day" ? "day" : "month"},
-          CASE
-            WHEN status = 'PAID' THEN "paidAt"
-            ELSE "updatedAt"
-          END
-        ) AS "bucket",
-        COALESCE(
-          SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
-          0
-        ) AS "revenue",
-        COALESCE(
-          SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
-          0
-        ) AS "paidRevenue",
-        COALESCE(
-          SUM(CASE WHEN status = 'CANCELLED' THEN "totalAmount" ELSE 0 END),
-          0
-        ) AS "cancelledRevenue"
-      FROM "Invoice"
-      WHERE
-        "organisationId" = ${organisationId}
-        AND (
-          (status = 'PAID' AND "paidAt" >= ${from} AND "paidAt" <= ${to})
-          OR (status = 'CANCELLED' AND "updatedAt" >= ${from} AND "updatedAt" <= ${to})
-        )
-      GROUP BY 1
-      ORDER BY 1 ASC
-    `);
-
-    const bucketMap = new Map<
-      string,
-      { revenue: number; paidRevenue: number; cancelledRevenue: number }
-    >();
-    for (const row of rows) {
-      const d = dayjs(row.bucket);
-      const key = getBucketKey(d, bucket);
-      bucketMap.set(key, {
-        revenue: row.revenue ?? 0,
-        paidRevenue: row.paidRevenue ?? 0,
-        cancelledRevenue: row.cancelledRevenue ?? 0,
-      });
-    }
+    >(buildRevenueTrendQuery({ bucket, organisationId, from, to }));
+    const bucketMap = mapRevenueTrendRows(rows, bucket);
 
     return buildBucketSeries(from, to, bucket).map((point) => {
       const key = getBucketKey(point, bucket);

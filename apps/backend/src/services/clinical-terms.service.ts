@@ -13,12 +13,7 @@ export type ClinicalDomain =
   | "Procedure";
 
 export type ClinicalSpecies =
-  | "SA"
-  | "LA"
-  | "FARM"
-  | "EXOTICS"
-  | "EQUINE"
-  | "AVIAN";
+  "SA" | "LA" | "FARM" | "EXOTICS" | "EQUINE" | "AVIAN";
 
 const SUPPORTED_SPECIES = [
   "SA",
@@ -256,23 +251,16 @@ export const ClinicalTermsService = {
         : 10;
     const query = params.q?.trim();
     const fetchLimit = Math.max(safeLimit * 10, 50);
+    const candidateTake = query ? Math.max(fetchLimit, 500) : fetchLimit;
 
     const rows = await prisma.codeEntry.findMany({
       where: {
         system: "YOSEMITECODE",
         type: "CLINICAL_TERM",
         active: true,
-        ...(query
-          ? {
-              OR: [
-                { display: { contains: query, mode: "insensitive" } },
-                { code: { contains: query, mode: "insensitive" } },
-              ],
-            }
-          : {}),
       },
       orderBy: { display: "asc" },
-      take: fetchLimit,
+      take: candidateTake,
     });
 
     const candidates = rows.map((row) => toSuggestion(row));

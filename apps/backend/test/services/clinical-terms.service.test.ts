@@ -203,5 +203,49 @@ describe("ClinicalTermsService", () => {
         },
       ]);
     });
+
+    it("returns terms that only match through a synonym", async () => {
+      process.env.READ_FROM_POSTGRES = "true";
+      (prisma.codeEntry.findMany as jest.Mock).mockResolvedValue([
+        {
+          code: "YC-9",
+          display: "Vomiting",
+          synonyms: ["Emesis"],
+          meta: {
+            domain: "Diagnosis",
+            species: ["SA"],
+            source: "VeNom",
+          },
+        },
+      ]);
+
+      const result = await ClinicalTermsService.suggestTerms({
+        q: "emesis",
+        domain: "Diagnosis",
+        species: ["SA"],
+        limit: 5,
+      });
+
+      expect(prisma.codeEntry.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            system: "YOSEMITECODE",
+            type: "CLINICAL_TERM",
+            active: true,
+          },
+          take: 500,
+        }),
+      );
+      expect(result).toEqual([
+        {
+          ycCode: "YC-9",
+          label: "Vomiting",
+          domain: "Diagnosis",
+          species: ["SA"],
+          synonyms: ["Emesis"],
+          source: "VeNom",
+        },
+      ]);
+    });
   });
 });

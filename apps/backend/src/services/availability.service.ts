@@ -266,8 +266,13 @@ export const AvailabilityService = {
       orderBy: { dayOfWeek: "asc" },
     });
     return rows.map((row) => ({
+      _id: row.id,
+      userId: row.userId,
+      organisationId: row.organisationId,
       dayOfWeek: row.dayOfWeek as DayOfWeek,
       slots: row.slots as unknown as AvailabilitySlotMongo[],
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     }));
   },
 

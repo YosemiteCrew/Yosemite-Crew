@@ -72,6 +72,12 @@ const ensureDsarDetails = (input: {
 const toPrismaJson = <T>(value: T | undefined) =>
   value ? (value as unknown as Prisma.InputJsonValue) : undefined;
 
+const buildComplaintContext = (input: { fullName: string; phone?: string }) =>
+  ({
+    fullName: input.fullName.trim(),
+    ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
+  }) as Prisma.InputJsonValue;
+
 export const ContactService = {
   async createRequest(input: CreateContactRequestInput) {
     // Basic validations
@@ -129,6 +135,10 @@ export const ContactService = {
         source: input.source,
         subject: input.type,
         message: input.message.trim(),
+        complaintContext: buildComplaintContext({
+          fullName: input.fullName,
+          phone: input.phone,
+        }),
         email: input.email.trim(),
         dsarDetails,
         attachments,

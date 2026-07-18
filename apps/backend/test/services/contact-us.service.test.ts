@@ -147,6 +147,7 @@ describe("ContactService", () => {
       message: "Need help",
       fullName: "Web User",
       email: "web@user.com",
+      phone: " 1234567890 ",
     };
 
     it("should require message, fullName, and email", async () => {
@@ -177,6 +178,10 @@ describe("ContactService", () => {
           data: expect.objectContaining({
             subject: "GENERAL_ENQUIRY",
             email: "web@user.com",
+            complaintContext: {
+              fullName: "Web User",
+              phone: "1234567890",
+            },
             status: "OPEN",
           }),
         }),
