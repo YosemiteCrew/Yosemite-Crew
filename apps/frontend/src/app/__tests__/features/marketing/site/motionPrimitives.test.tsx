@@ -67,16 +67,18 @@ describe('InkAnnotate', () => {
   let heightSpy: jest.SpyInstance;
   let ioCallback:
     ((entries: Array<{ intersectionRatio: number; isIntersecting: boolean }>) => void) | null;
+  let inkLen: number;
 
   beforeEach(() => {
     setReducedMotion(false);
     ioCallback = null;
+    inkLen = 120;
     // jsdom reports 0 layout + no SVG geometry; stub what the draw needs.
     widthSpy = jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(80);
     heightSpy = jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(24);
     (
       globalThis.SVGElement.prototype as unknown as { getTotalLength: () => number }
-    ).getTotalLength = () => 120;
+    ).getTotalLength = () => inkLen;
     (globalThis as { IntersectionObserver: unknown }).IntersectionObserver = class {
       constructor(
         cb: (entries: Array<{ intersectionRatio: number; isIntersecting: boolean }>) => void
@@ -159,6 +161,21 @@ describe('InkAnnotate', () => {
     widthSpy.mockReturnValue(160);
     resizeViewport();
     expect(path.style.strokeDashoffset).toBe('0');
+  });
+
+  it('retracts to the refitted length when scrolled out after the mark grows', () => {
+    render(<InkAnnotate type="underline">grow</InkAnnotate>);
+    act(() => ioCallback?.([{ intersectionRatio: 0.6, isIntersecting: true }])); // play -> shown
+    const path = document.querySelector('[data-ink] path') as SVGPathElement;
+    expect(path.style.strokeDashoffset).toBe('0');
+    // The word grows on resize, so the traced path gets longer.
+    inkLen = 200;
+    widthSpy.mockReturnValue(200);
+    resizeViewport();
+    expect(path.style.strokeDasharray).toBe('200');
+    // Scrolling out of view must retract to the NEW length, not the stale draw-time one.
+    act(() => ioCallback?.([{ intersectionRatio: 0, isIntersecting: false }]));
+    expect(path.style.strokeDashoffset).toBe('200');
   });
 
   it('ignores a resize that does not change the box', () => {

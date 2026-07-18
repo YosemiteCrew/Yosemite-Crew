@@ -681,7 +681,9 @@ function observeInkReplay(
   };
   const rewind = () => {
     path.style.transition = 'none';
-    path.style.strokeDashoffset = String(len);
+    // Re-read the length: a mark refitted to a new size (refitInk) has a new dash array,
+    // so hiding with the original `len` would leave part of a grown mark visible.
+    path.style.strokeDashoffset = String(path.getTotalLength());
     path.getBoundingClientRect();
   };
   path.style.strokeDasharray = String(len);
