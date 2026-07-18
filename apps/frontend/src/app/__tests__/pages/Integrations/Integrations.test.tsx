@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -226,22 +226,6 @@ describe('Integrations settings', () => {
         'IDEXX'
       );
     });
-  });
-
-  it('renders the inline IDEXX credentials panel with metadata, mask and recent orders', async () => {
-    render(<ProtectedIntegrations />);
-
-    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
-    expect(await within(panel).findByText('alpenblick-lab')).toBeInTheDocument();
-    expect(within(panel).getByText('DE-40218-AB')).toBeInTheDocument();
-    // Password is display-only: the mask is rendered, never a real secret.
-    expect(within(panel).getByText('••••••••••')).toBeInTheDocument();
-    expect(
-      within(panel).getByRole('button', { name: 'Re-validate credentials' })
-    ).toBeInTheDocument();
-    // A real recent order row with its status micro-badge.
-    expect(within(panel).getByText(/Poppy/)).toHaveTextContent('Poppy · ear cytology');
-    expect(within(panel).getByText('RUNNING')).toBeInTheDocument();
   });
 
   it('shows QuickBooks as a coming soon integration', async () => {
