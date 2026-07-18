@@ -1366,6 +1366,41 @@ const useCompanionHistoryTimelineView = ({
     [notify]
   );
 
+  // The drawer's "Download PDF" action resolves the document's real URL and hands
+  // it to the browser for download/open, rather than re-opening the in-app viewer.
+  const handleDownloadRecord = useCallback(
+    async (entry: HistoryEntry) => {
+      const payloadDocumentId = entry.payload.documentId;
+      const entryDocumentId =
+        typeof payloadDocumentId === 'string' && payloadDocumentId.trim()
+          ? payloadDocumentId
+          : entry.link.id;
+      setPdfLoadingId(entry.id);
+      try {
+        const urls = await loadDocumentDownloadURL(entryDocumentId);
+        const pdfUrl = urls.find((item) => typeof item?.url === 'string' && item.url.trim())?.url;
+        if (!pdfUrl) {
+          notify('error', {
+            title: 'Document unavailable',
+            text: 'No downloadable file is available for this document.',
+          });
+          return;
+        }
+        const anchor = document.createElement('a');
+        anchor.href = pdfUrl;
+        anchor.download = entry.title || 'medical-record.pdf';
+        anchor.rel = 'noopener';
+        anchor.target = '_blank';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      } finally {
+        setPdfLoadingId((current) => (current === entry.id ? null : current));
+      }
+    },
+    [notify]
+  );
+
   const openLabResult = useCallback(
     (entry: HistoryEntry) => {
       const appointmentId = resolveEntryAppointmentId(entry);
@@ -1828,7 +1863,8 @@ const useCompanionHistoryTimelineView = ({
           results={selectedResults}
           linkedLabel={selectedLinkedLabel}
           onClose={() => setSelectedEntry(null)}
-          onDownload={handleTimelineOpen}
+          onView={handleTimelineOpen}
+          onDownload={handleDownloadRecord}
           onOpenLinked={handleOpenLinkedFromDrawer}
           onShare={handleShareRecord}
           onDiscuss={handleDiscussRecord}

@@ -29,6 +29,7 @@ const buildProps = (overrides: Record<string, unknown> = {}) => ({
   ],
   linkedLabel: 'Annual check-up',
   onClose: jest.fn(),
+  onView: jest.fn(),
   onDownload: jest.fn(),
   onOpenLinked: jest.fn(),
   onShare: jest.fn(),
@@ -69,6 +70,9 @@ describe('HistoryRecordDrawer', () => {
   it('fires every action callback with the entry', () => {
     const props = buildProps();
     render(<HistoryRecordDrawer {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'View document' }));
+    expect(props.onView).toHaveBeenCalledWith(baseEntry);
 
     fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
     expect(props.onDownload).toHaveBeenCalledWith(baseEntry);

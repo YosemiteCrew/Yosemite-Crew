@@ -5,6 +5,7 @@ import {
   IoChevronForwardOutline,
   IoClose,
   IoDownloadOutline,
+  IoEyeOutline,
   IoShareOutline,
 } from 'react-icons/io5';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
@@ -20,6 +21,7 @@ type HistoryRecordDrawerProps = {
   results: RecordDetailPair[];
   linkedLabel: string | null;
   onClose: () => void;
+  onView: (entry: HistoryEntry) => void;
   onDownload: (entry: HistoryEntry) => void;
   onOpenLinked: (entry: HistoryEntry) => void;
   onShare: (entry: HistoryEntry) => void;
@@ -37,6 +39,7 @@ const HistoryRecordDrawer = ({
   results,
   linkedLabel,
   onClose,
+  onView,
   onDownload,
   onOpenLinked,
   onShare,
@@ -132,10 +135,18 @@ const HistoryRecordDrawer = ({
         <footer className="flex flex-none flex-col gap-2 border-t border-hairline px-5 pb-5 pt-3.5">
           <button
             type="button"
-            onClick={() => onDownload(entry)}
+            onClick={() => onView(entry)}
             className="flex h-[42px] items-center justify-center gap-1.5 rounded-full! bg-[var(--cta)] text-[13px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
           >
-            <IoDownloadOutline size={15} aria-hidden="true" />
+            <IoEyeOutline size={15} aria-hidden="true" />
+            View document
+          </button>
+          <button
+            type="button"
+            onClick={() => onDownload(entry)}
+            className={FOOTER_SECONDARY_CLASS}
+          >
+            <IoDownloadOutline size={13} aria-hidden="true" />
             Download PDF
           </button>
           <div className="flex gap-2">
