@@ -866,14 +866,13 @@ describe("InventoryConsumptionService", () => {
       status: "PENDING",
       medications: [
         {
+          // No frequency/duration: quantity is dispensed as a direct total, so
+          // this case exercises the allocated-stock path without the course
+          // (perDose x frequency x duration) computation.
           inventoryItemId: "item-approve-2",
           quantity: 200,
           stockUnitQuantity: 100,
           stockUnitQty: 100,
-          frequency: "BID",
-          frequencyPerDay: 2,
-          durationDays: 20,
-          doseQty: 5,
           doseUnit: "ml",
           sourceLineKey: "line-1",
         },
@@ -923,6 +922,74 @@ describe("InventoryConsumptionService", () => {
     expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { onHand: 3, allocated: 3 },
+      }),
+    );
+  });
+
+  it("deducts the full multi-week course, not the per-dose quantity (#1880)", async () => {
+    // Real dispense request: Paracetamol, Qnt 3, BID (2/day), Duration 2 weeks,
+    // 15 capsules per strip. The modal quotes 3 x 2/day x 14 days = 84 capsules
+    // => 6 strips. Stock must drop by 6 strips, not by 1 (the raw per-dose 3
+    // rounded up over a 15-capsule strip).
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-1880",
+      prescriptionId: "rx-1880",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [
+        {
+          inventoryItemId: "item-1880",
+          quantity: 3,
+          frequency: "BID",
+          frequencyPerDay: 2,
+          durationDays: 14,
+          stockUnitQuantity: 15,
+          stockUnitQty: 15,
+          sourceLineKey: "line-1",
+        },
+      ],
+      metadata: {
+        appointmentKind: "OUTPATIENT",
+        dispenseStockSource: "NORMAL",
+      },
+    });
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-1880",
+      organisationId: "org-1",
+      onHand: 20,
+      allocated: 0,
+    });
+    mockedPrisma.inventoryBatch.findMany
+      .mockResolvedValueOnce([{ id: "batch-1880", quantity: 20, allocated: 0 }])
+      .mockResolvedValueOnce([
+        { id: "batch-1880", quantity: 14, allocated: 0 },
+      ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-1880",
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
+      id: "request-1880",
+      prescriptionId: "rx-1880",
+      organisationId: "org-1",
+      status: "DISPENSED",
+    });
+
+    const events =
+      await InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-1880",
+        medications: [],
+        reviewedBy: "user-1",
+      });
+
+    expect(events).toHaveLength(1);
+    // 84 capsules / 15 per strip = ceil(5.6) = 6 strips; 20 - 6 = 14.
+    expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { onHand: 14 },
       }),
     );
   });
