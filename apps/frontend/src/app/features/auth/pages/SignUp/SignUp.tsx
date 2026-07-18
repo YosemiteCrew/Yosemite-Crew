@@ -339,62 +339,71 @@ type SignUpTermsFieldProps = {
   onAgreeChange: (checked: boolean) => void;
 };
 
-const SignUpTermsField = ({ agree, error, onAgreeChange }: SignUpTermsFieldProps) => (
-  <>
-    <label
-      style={{
-        display: 'flex',
-        gap: 11,
-        alignItems: 'flex-start',
-        cursor: 'pointer',
-        marginTop: 3,
-      }}
-    >
-      <span
-        aria-hidden="true"
+const SignUpTermsField = ({ agree, error, onAgreeChange }: SignUpTermsFieldProps) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <>
+      <label
         style={{
-          ...TERMS_CHECKBOX_STYLE,
-          border: `1.5px solid ${agree ? 'var(--blue)' : 'var(--divider)'}`,
-          background: agree ? 'var(--blue)' : 'var(--field-bg)',
+          display: 'flex',
+          gap: 11,
+          alignItems: 'flex-start',
+          cursor: 'pointer',
+          marginTop: 3,
         }}
       >
-        {agree ? <IoCheckmark style={{ fontSize: 14, color: '#fff' }} /> : null}
-      </span>
-      <input
-        type="checkbox"
-        checked={agree}
-        aria-label="I agree to the terms and conditions and privacy policy"
-        onChange={(e) => onAgreeChange(e.target.checked)}
-        style={VISUALLY_HIDDEN_CHECKBOX_STYLE}
-      />
-      <span
-        style={{
-          fontSize: 13.5,
-          lineHeight: 1.5,
-          color: 'var(--ink-muted)',
-          letterSpacing: '-0.01em',
-        }}
-      >
-        I agree to the{' '}
-        <Link
-          href="/terms-and-conditions?ref=signup"
-          style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+        <span
+          aria-hidden="true"
+          style={{
+            ...TERMS_CHECKBOX_STYLE,
+            border: `1.5px solid ${agree ? 'var(--blue)' : 'var(--divider)'}`,
+            background: agree ? 'var(--blue)' : 'var(--field-bg)',
+            // Mirror the hidden input's focus onto the visible box so keyboard
+            // users see a focus indicator on the required Terms control.
+            outline: focused ? '2px solid var(--blue)' : undefined,
+            outlineOffset: focused ? 2 : undefined,
+          }}
         >
-          Terms
-        </Link>{' '}
-        and{' '}
-        <Link
-          href="/privacy-policy?ref=signup"
-          style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+          {agree ? <IoCheckmark style={{ fontSize: 14, color: '#fff' }} /> : null}
+        </span>
+        <input
+          type="checkbox"
+          checked={agree}
+          aria-label="I agree to the terms and conditions and privacy policy"
+          onChange={(e) => onAgreeChange(e.target.checked)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={VISUALLY_HIDDEN_CHECKBOX_STYLE}
+        />
+        <span
+          style={{
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            color: 'var(--ink-muted)',
+            letterSpacing: '-0.01em',
+          }}
         >
-          Privacy policy
-        </Link>
-        .
-      </span>
-    </label>
-    <FieldError message={error} />
-  </>
-);
+          I agree to the{' '}
+          <Link
+            href="/terms-and-conditions?ref=signup"
+            style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+          >
+            Terms
+          </Link>{' '}
+          and{' '}
+          <Link
+            href="/privacy-policy?ref=signup"
+            style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+          >
+            Privacy policy
+          </Link>
+          .
+        </span>
+      </label>
+      <FieldError message={error} />
+    </>
+  );
+};
 
 const SignUpPetParentNote = () => (
   <AuthAltNote>
