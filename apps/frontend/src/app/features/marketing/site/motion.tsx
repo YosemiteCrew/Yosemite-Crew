@@ -613,6 +613,14 @@ interface InkOptions {
   reduced: boolean;
 }
 
+interface InkState {
+  /** Whether the mark is currently fully drawn (shown) rather than retracted (hidden).
+   *  Tracked explicitly so a resize re-fit never has to read visibility back from the
+   *  serialized style — Safari/WebKit reports strokeDashoffset '0' as '0px', which would
+   *  make a string check misread a visible mark as hidden and retract it on every resize. */
+  revealed: boolean;
+}
+
 /** Fit the ink svg's viewBox/size and the path `d` to the host box. Shared by the first
  *  draw and every resize, so the mark always traces the word's current metrics. */
 function setInkGeometry(
@@ -666,7 +674,8 @@ function buildInkSvg(
 function observeInkReplay(
   host: HTMLElement,
   path: SVGPathElement,
-  opts: InkOptions
+  opts: InkOptions,
+  state: InkState
 ): IntersectionObserver | null {
   const len = path.getTotalLength();
   const dur = opts.type === 'circle' ? 1550 : 1150;
@@ -677,6 +686,7 @@ function observeInkReplay(
   const play = () => {
     path.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.6,0.04,0.28,1) ${first ? opts.delay : 220}ms`;
     first = false;
+    state.revealed = true;
     afterTwoFrames(reveal);
   };
   const rewind = () => {
@@ -684,6 +694,7 @@ function observeInkReplay(
     // Re-read the length: a mark refitted to a new size (refitInk) has a new dash array,
     // so hiding with the original `len` would leave part of a grown mark visible.
     path.style.strokeDashoffset = String(path.getTotalLength());
+    state.revealed = false;
     path.getBoundingClientRect();
   };
   path.style.strokeDasharray = String(len);
@@ -712,15 +723,15 @@ function refitInk(
   path: SVGPathElement,
   w: number,
   h: number,
-  opts: InkOptions
+  opts: InkOptions,
+  revealed: boolean
 ): void {
-  const shown = path.style.strokeDashoffset === '0';
   setInkGeometry(svg, path, w, h, opts.type);
   if (opts.reduced) return;
   const len = path.getTotalLength();
   path.style.transition = 'none';
   path.style.strokeDasharray = String(len);
-  path.style.strokeDashoffset = shown ? '0' : String(len);
+  path.style.strokeDashoffset = revealed ? '0' : String(len);
 }
 
 /** Draw the ink mark (once fonts settle), wire its replay, and keep it fitted to the word
@@ -734,16 +745,17 @@ function runInkAnnotation(host: HTMLElement, opts: InkOptions): () => void {
   let path: SVGPathElement | null = null;
   let lastW = 0;
   let lastH = 0;
+  const state: InkState = { revealed: false };
 
   const relayout = () => {
     resizeRaf = 0;
     const w = host.offsetWidth;
     const h = host.offsetHeight;
-    // Only re-trace when the traced word box actually changed size.
-    if (!svg || !path || (w === lastW && h === lastH)) return;
+    // Re-trace only when the box changed to a real (non-zero) new size.
+    if (!svg || !path || !w || !h || (w === lastW && h === lastH)) return;
     lastW = w;
     lastH = h;
-    refitInk(svg, path, w, h, opts);
+    refitInk(svg, path, w, h, opts, state.revealed);
   };
 
   // Coalesce a burst of resize notifications into a single re-fit on the next frame.
@@ -775,7 +787,12 @@ function runInkAnnotation(host: HTMLElement, opts: InkOptions): () => void {
     path = built.path;
     lastW = w;
     lastH = h;
-    if (!opts.reduced) io = observeInkReplay(host, path, opts);
+    if (opts.reduced) {
+      // The reduced-motion mark carries no dash, so it is drawn (shown) from the start.
+      state.revealed = true;
+    } else {
+      io = observeInkReplay(host, path, opts, state);
+    }
     observeResize();
   };
 
