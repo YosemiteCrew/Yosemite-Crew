@@ -47,20 +47,21 @@ describe('ChatAvatar', () => {
 
   it('renders the online presence dot when online is true', () => {
     const { container } = render(<ChatAvatar name="Bella" online />);
-    expect(container.querySelector('.bg-success-bright')).toBeInTheDocument();
+    expect(container.querySelector('.chat-presence-dot')).toBeInTheDocument();
   });
 
   it('does not render the presence dot when online is falsy', () => {
     const { container } = render(<ChatAvatar name="Bella" />);
-    expect(container.querySelector('.bg-success-bright')).not.toBeInTheDocument();
+    expect(container.querySelector('.chat-presence-dot')).not.toBeInTheDocument();
   });
 
   it('renders the group glyph instead of initials when group is true', () => {
     const { container } = render(<ChatAvatar name="Care Team" group />);
     // No initials text rendered.
     expect(screen.queryByText('CT')).not.toBeInTheDocument();
-    // Group styling applied; an svg icon is rendered.
-    expect(container.querySelector('.bg-chat-panel.text-primary-600')).toBeInTheDocument();
+    // Group styling applied (warm-bone band background); an svg icon is rendered.
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain('var(--band)');
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
@@ -76,8 +77,10 @@ describe('ChatAvatar', () => {
 
   it('applies an accent class from the palette for non-group avatars', () => {
     const { container } = render(<ChatAvatar name="Daisy" />);
-    // The inner badge carries the deterministic accent class.
-    expect(container.querySelector(`.${accentFor('Daisy').split(' ')[0]}`)).toBeInTheDocument();
+    // The inner badge carries the deterministic accent class (arbitrary-value
+    // token class, so assert via className rather than as a CSS selector).
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain(accentFor('Daisy').split(' ')[0]);
   });
 
   it('hashes different names to (potentially) different accents and renders both', () => {

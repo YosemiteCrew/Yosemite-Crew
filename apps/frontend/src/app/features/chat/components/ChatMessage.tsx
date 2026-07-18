@@ -113,9 +113,10 @@ function MsgIconButton({
 /** Read-receipt indicator for an outgoing message. */
 function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen: boolean }>) {
   if (sending)
-    return <IoTimeOutline aria-label="Sending" className="h-3.5 w-3.5 text-neutral-400" />;
-  if (seen) return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue)]" />;
-  return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-neutral-400" />;
+    return <IoTimeOutline aria-label="Sending" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
+  if (seen)
+    return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue-text)]" />;
+  return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
 }
 
 /** Hover actions: react and reply, plus edit/delete for the user's own messages. */
@@ -294,16 +295,19 @@ function MessageBubble({
       {text.length > 0 && (
         <div
           className={clsx(
-            'px-4 py-2.5',
+            'px-[15px] py-[11px]',
             mine
-              ? 'rounded-2xl rounded-br-md bg-[var(--cta)] text-[var(--cta-text)]'
-              : 'rounded-2xl rounded-bl-md border border-[var(--hairline)] bg-neutral-100 text-neutral-900'
+              ? 'rounded-[16px_16px_5px_16px] bg-[var(--cta)] text-[var(--cta-text)]'
+              : 'rounded-[16px_16px_16px_5px] border border-[var(--hairline)] bg-[var(--screen-2)] text-[var(--ink-body)]'
           )}
         >
           <Text
             as="p"
             variant="body-4"
-            className={mine ? 'text-[var(--cta-text)]' : 'text-neutral-900'}
+            className={clsx(
+              'text-[13.5px] leading-normal',
+              mine ? 'text-[var(--cta-text)]' : 'text-[var(--ink-body)]'
+            )}
           >
             <MentionAwareText body={text} mine={mine} />
           </Text>
@@ -446,7 +450,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         </div>
         <span className="flex items-center gap-2 px-1">
           <MessageReactions reactions={reactions} onToggle={handleReaction} />
-          <Text as="span" variant="caption-2" className="text-neutral-500">
+          <Text as="span" variant="caption-2" className="text-[var(--ink-faint)] text-[10.5px]">
             {formatMessageTimeLabel(mine, time, senderName)}
           </Text>
           {mine && <MessageStatusIcon sending={sending} seen={seen} />}

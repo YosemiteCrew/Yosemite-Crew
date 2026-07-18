@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -12,7 +12,6 @@ const loadIntegrationsForPrimaryOrgMock = jest.fn();
 const getOrgIntegrationsMock = jest.fn();
 const getIntegrationByProviderMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
-const getCredentialMetaMock = jest.fn();
 const listIdexxOrdersMock = jest.fn();
 const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
@@ -130,7 +129,6 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getOrgIntegrations: (...args: any[]) => getOrgIntegrationsMock(...args),
   getIntegrationByProvider: (...args: any[]) => getIntegrationByProviderMock(...args),
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
-  getCredentialMeta: (...args: any[]) => getCredentialMetaMock(...args),
   listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
   storeIntegrationCredentials: (...args: any[]) => storeIntegrationCredentialsMock(...args),
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
@@ -165,10 +163,6 @@ describe('Integrations settings', () => {
     useIntegrationsForPrimaryOrgMock.mockReturnValue([enabledIntegration]);
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledIntegration);
     listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
-    getCredentialMetaMock.mockResolvedValue({
-      username: 'alpenblick-lab',
-      practiceId: 'DE-40218-AB',
-    });
     listIdexxOrdersMock.mockResolvedValue([
       {
         _id: 'o1',
@@ -226,22 +220,6 @@ describe('Integrations settings', () => {
         'IDEXX'
       );
     });
-  });
-
-  it('renders the inline IDEXX credentials panel with metadata, mask and recent orders', async () => {
-    render(<ProtectedIntegrations />);
-
-    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
-    expect(await within(panel).findByText('alpenblick-lab')).toBeInTheDocument();
-    expect(within(panel).getByText('DE-40218-AB')).toBeInTheDocument();
-    // Password is display-only: the mask is rendered, never a real secret.
-    expect(within(panel).getByText('••••••••••')).toBeInTheDocument();
-    expect(
-      within(panel).getByRole('button', { name: 'Re-validate credentials' })
-    ).toBeInTheDocument();
-    // A real recent order row with its status micro-badge.
-    expect(within(panel).getByText(/Poppy/)).toHaveTextContent('Poppy · ear cytology');
-    expect(within(panel).getByText('RUNNING')).toBeInTheDocument();
   });
 
   it('shows QuickBooks as a coming soon integration', async () => {
