@@ -918,7 +918,7 @@ const useAddCompanionCentralModalContent = ({
             <button
               type="button"
               onClick={handleDiscardAndClose}
-              className="yc-primary-button rounded-2xl! px-4 py-[11px] font-satoshi text-base font-medium leading-[1.5rem] text-white!"
+              className="yc-primary-button rounded-2xl! px-4 py-[11px] font-satoshi text-base font-medium leading-[1.5rem]"
               onPointerDown={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);

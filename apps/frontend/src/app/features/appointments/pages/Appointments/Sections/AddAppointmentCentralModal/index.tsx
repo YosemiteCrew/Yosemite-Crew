@@ -972,7 +972,7 @@ export const DiscardConfirmationModal = ({
         <button
           type="button"
           onClick={onDiscard}
-          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] text-white! disabled:cursor-not-allowed disabled:opacity-60"
+          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] disabled:cursor-not-allowed disabled:opacity-60"
           onPointerDown={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
