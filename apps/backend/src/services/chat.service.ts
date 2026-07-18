@@ -206,6 +206,11 @@ const assertCanCloseSession = (
   }
 };
 
+// Prisma exposes the session id as `id`; the API/type layer expects the Mongo
+// shaped `_id`. Centralise the conversion so every session response is uniform.
+const toChatSessionDocument = (session: { id: string }): ChatSessionDocument =>
+  ({ ...session, _id: session.id }) as unknown as ChatSessionDocument;
+
 export const ChatService = {
   /* ------------------------------ AUTH ----------------------------------- */
 
@@ -242,10 +247,7 @@ export const ChatService = {
       where: { appointmentId },
     });
     if (existing) {
-      return {
-        ...existing,
-        _id: existing.id,
-      } as unknown as ChatSessionDocument;
+      return toChatSessionDocument(existing);
     }
 
     const companion = appointment.patient as {
@@ -321,7 +323,7 @@ export const ChatService = {
       },
     });
 
-    return { ...session, _id: session.id } as unknown as ChatSessionDocument;
+    return toChatSessionDocument(session);
   },
 
   /* ---------------------------- ORG DIRECT CHAT --------------------------- */
@@ -347,11 +349,7 @@ export const ChatService = {
       },
     });
 
-    if (existing)
-      return {
-        ...existing,
-        _id: existing.id,
-      } as unknown as ChatSessionDocument;
+    if (existing) return toChatSessionDocument(existing);
 
     // Upsert users in Stream
     for (const userId of members) {
@@ -392,7 +390,7 @@ export const ChatService = {
         status: "ACTIVE",
       },
     });
-    return { ...session, _id: session.id } as unknown as ChatSessionDocument;
+    return toChatSessionDocument(session);
   },
 
   /* ----------------------------- ORG GROUP CHAT --------------------------- */
@@ -458,7 +456,7 @@ export const ChatService = {
         status: "ACTIVE",
       },
     });
-    return { ...session, _id: session.id } as unknown as ChatSessionDocument;
+    return toChatSessionDocument(session);
   },
 
   /* ------------------------------- OPEN CHAT ------------------------------ */
@@ -544,8 +542,7 @@ export const ChatService = {
 
     const newMembers = memberIds.filter((id) => !session.members.includes(id));
 
-    if (newMembers.length === 0)
-      return { ...session, _id: session.id } as unknown as ChatSessionDocument;
+    if (newMembers.length === 0) return toChatSessionDocument(session);
 
     await assertUsersInOrg(newMembers, session.organisationId);
 
@@ -575,7 +572,7 @@ export const ChatService = {
     const channel = streamServer.channel("team", session.channelId);
     await channel.addMembers(newMembers);
 
-    return { ...updated, _id: updated.id } as unknown as ChatSessionDocument;
+    return toChatSessionDocument(updated);
   },
 
   async removeMembersFromGroup(
@@ -611,7 +608,7 @@ export const ChatService = {
     const channel = streamServer.channel("team", session.channelId);
     await channel.removeMembers(memberIds);
 
-    return { ...updated, _id: updated.id } as unknown as ChatSessionDocument;
+    return toChatSessionDocument(updated);
   },
 
   async updateGroup(
@@ -647,7 +644,7 @@ export const ChatService = {
     };
 
     await channel.updatePartial({ set: data });
-    return { ...updated, _id: updated.id } as unknown as ChatSessionDocument;
+    return toChatSessionDocument(updated);
   },
 
   async deleteGroup(sessionId: string, actorUserId: string) {

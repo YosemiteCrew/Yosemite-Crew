@@ -5,6 +5,12 @@ import { CodeService } from "src/services/code.service";
 import { prisma } from "src/config/prisma";
 import { z } from "zod";
 
+// A queried autocomplete scans a large but bounded slice of active clinical
+// terms so synonym-only matches on later alphabetic rows are not dropped, while
+// still capping the rows pulled into memory. Sized to comfortably exceed the
+// curated clinical terminology; browsing (no query) stays bounded by fetchLimit.
+const CLINICAL_TERM_QUERY_SCAN_LIMIT = 5000;
+
 export type ClinicalDomain =
   | "ReasonForVisit"
   | "PresentingComplaint"
@@ -259,10 +265,7 @@ export const ClinicalTermsService = {
         active: true,
       },
       orderBy: { display: "asc" },
-      // With a query we must scan every active term so synonym-only matches on
-      // later alphabetic rows are not dropped by a candidate cap; browsing
-      // (no query) stays bounded by fetchLimit.
-      take: query ? undefined : fetchLimit,
+      take: query ? CLINICAL_TERM_QUERY_SCAN_LIMIT : fetchLimit,
     });
 
     const candidates = rows.map((row) => toSuggestion(row));
