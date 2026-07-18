@@ -3,7 +3,7 @@ import { fn } from 'storybook/test';
 import FormCard from './index';
 import type { FormsProps } from '@/app/features/forms/types/forms';
 // The status micro-pill (.appointment-status) geometry ships in the shared table CSS.
-import '@/app/ui/tables/DataTable.css';
+import '../../tables/DataTable.css';
 
 const baseForm = {
   _id: 'form-1',

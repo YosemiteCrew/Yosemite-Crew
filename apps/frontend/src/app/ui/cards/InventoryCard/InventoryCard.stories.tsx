@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from 'storybook/test';
 import InventoryCard from './index';
 // The status micro-pill (.appointment-status) geometry ships in the shared table CSS.
-import '@/app/ui/tables/DataTable.css';
+import '../../tables/DataTable.css';
 
 const baseItem = {
   basicInfo: { name: 'Amoxicillin 250mg', category: 'Antibiotic', status: 'active' },

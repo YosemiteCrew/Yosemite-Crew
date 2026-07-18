@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import InventoryTurnoverCard from './index';
 // The status micro-pill (.appointment-status) geometry ships in the shared table CSS.
-import '@/app/ui/tables/DataTable.css';
+import '../../tables/DataTable.css';
 
 const baseItem = {
   name: 'Nitrile Gloves',
