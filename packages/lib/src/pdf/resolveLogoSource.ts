@@ -1,6 +1,8 @@
 import axios from 'axios';
 import dns from 'node:dns';
 import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 import net from 'node:net';
 
 const LOGO_FETCH_TIMEOUT_MS = 5_000;
@@ -50,21 +52,54 @@ const isPrivateAddress = (address: string): boolean =>
   net.isIPv4(address) ? isPrivateIpv4(address) : isPrivateIpv6(address);
 
 /**
- * Resolve every address the host maps to and reject if any is private. Checking
- * all records rather than the first keeps a hostname that mixes public and
- * internal answers from slipping through.
+ * Resolve every address the host maps to and return them only if all are
+ * public. Checking all records rather than the first keeps a hostname that
+ * mixes public and internal answers from slipping through. Returning the
+ * validated addresses (rather than a boolean) lets the caller pin the
+ * connection to them.
  */
-const resolvesToPublicAddress = async (hostname: string): Promise<boolean> => {
+const resolvePublicAddresses = async (hostname: string): Promise<string[] | null> => {
   if (net.isIP(hostname)) {
-    return !isPrivateAddress(hostname);
+    return isPrivateAddress(hostname) ? null : [hostname];
   }
 
   try {
     const records = await dns.promises.lookup(hostname, { all: true });
-    return records.length > 0 && records.every((record) => !isPrivateAddress(record.address));
+    if (records.length === 0) return null;
+    if (records.some((record) => isPrivateAddress(record.address))) return null;
+    return records.map((record) => record.address);
   } catch {
-    return false;
+    return null;
   }
+};
+
+/**
+ * Build an HTTP(S) agent whose DNS lookup always returns one of the addresses
+ * we already validated as public. Pinning the socket to a checked address
+ * closes the DNS-rebinding TOCTOU window: without it, the fetch below would
+ * re-resolve the hostname and could connect to a loopback / cloud-metadata
+ * address that the name was rebound to after the check.
+ */
+const buildPinnedAgent = (protocol: string, addresses: string[]): http.Agent | https.Agent => {
+  const entries: dns.LookupAddress[] = addresses.map((address) => ({
+    address,
+    family: net.isIPv6(address) ? 6 : 4,
+  }));
+
+  const lookup = ((
+    _hostname: string,
+    options: dns.LookupOneOptions | dns.LookupAllOptions | number,
+    callback: (...args: unknown[]) => void
+  ): void => {
+    if (typeof options === 'object' && options.all) {
+      callback(null, entries);
+    } else {
+      const [first] = entries;
+      callback(null, first.address, first.family);
+    }
+  }) as unknown as net.LookupFunction;
+
+  return protocol === 'https:' ? new https.Agent({ lookup }) : new http.Agent({ lookup });
 };
 
 /**
@@ -96,11 +131,13 @@ export const resolveLogoSource = async (
       return null;
     }
 
-    if (!(await resolvesToPublicAddress(hostname))) {
+    const publicAddresses = await resolvePublicAddresses(hostname);
+    if (!publicAddresses) {
       return null;
     }
 
     try {
+      const pinnedAgent = buildPinnedAgent(parsed.protocol, publicAddresses);
       const response = await axios.get<ArrayBuffer>(parsed.toString(), {
         responseType: 'arraybuffer',
         timeout: LOGO_FETCH_TIMEOUT_MS,
@@ -108,6 +145,8 @@ export const resolveLogoSource = async (
         maxContentLength: LOGO_MAX_BYTES,
         maxBodyLength: LOGO_MAX_BYTES,
         validateStatus: (status) => status >= 200 && status < 300,
+        httpAgent: pinnedAgent,
+        httpsAgent: pinnedAgent,
       });
 
       const contentType = String(response.headers?.['content-type'] ?? '').toLowerCase();
