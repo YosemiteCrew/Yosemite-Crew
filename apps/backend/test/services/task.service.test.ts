@@ -95,7 +95,13 @@ describe("TaskService", () => {
   const dueAt = new Date("2026-01-01T12:00:00.000Z");
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // resetAllMocks, not clearAllMocks: clearAllMocks only wipes call records
+    // and leaves queued mockResolvedValueOnce values in place, so a test that
+    // throws before consuming its queue poisons the next test with its
+    // leftovers and one real failure cascades into several phantom ones.
+    // Nothing here sets a base implementation outside a test, so dropping
+    // implementations costs nothing.
+    jest.resetAllMocks();
   });
 
   it("creates a custom task and sends an assignment email", async () => {
@@ -405,6 +411,338 @@ describe("TaskService", () => {
     await expect(
       TaskService.updateTask("task-1", { assignedTo: "user-3" }, "user-2"),
     ).rejects.toThrow("Only task creator can reassign task");
+  });
+
+  it("lets a non-creator edit a task when assignedTo is resent unchanged", async () => {
+    // Clients PATCH the whole entity, so assignedTo is echoed back untouched.
+    // That is a no-op, not a reassignment, and must not 403 the assignee.
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: null,
+      name: "Old name",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      assignedTo: "user-2",
+      name: "New name",
+    });
+
+    const result = await TaskService.updateTask(
+      "task-1",
+      { name: "New name", assignedTo: "user-2" },
+      "user-2",
+    );
+
+    expect(mockedPrisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "New name",
+          assignedTo: "user-2",
+        }),
+      }),
+    );
+    expect(result.name).toBe("New name");
+  });
+
+  it("does not treat an absent assignedTo as a reassignment for non-creators", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: null,
+      assignedBy: "user-1",
+      name: "Old name",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      assignedTo: "user-2",
+      name: "New name",
+    });
+
+    await expect(
+      TaskService.updateTask("task-1", { name: "New name" }, "user-2"),
+    ).resolves.toEqual(expect.objectContaining({ name: "New name" }));
+
+    // Neither assignment field is in the payload, so the assignment is left
+    // entirely alone: assignedBy stays the original assigner, not the actor.
+    expect(mockedPrisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assignedTo: "user-2",
+          assignedBy: "user-1",
+        }),
+      }),
+    );
+  });
+
+  it("still blocks a non-creator when assignedTo genuinely changes", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: null,
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+
+    await expect(
+      TaskService.updateTask(
+        "task-1",
+        { name: "New name", assignedTo: "user-3" },
+        "user-2",
+      ),
+    ).rejects.toThrow("Only task creator can reassign task");
+    expect(mockedPrisma.task.update).not.toHaveBeenCalled();
+  });
+
+  it("lets a non-creator edit a task when assignedGroupId is resent unchanged", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      name: "Old name",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      assignedGroupId: "group-1",
+      name: "New name",
+    });
+
+    const result = await TaskService.updateTask(
+      "task-1",
+      { name: "New name", assignedGroupId: "group-1" },
+      "user-2",
+    );
+
+    expect(result.name).toBe("New name");
+  });
+
+  it("lets a non-creator edit a task when a null assignedGroupId is resent on an ungrouped task", async () => {
+    // A whole-entity PATCH of a task with no group sends assignedGroupId: null.
+    // null === null is a no-op, not a clear, so it must not 403.
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: null,
+      name: "Old name",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      assignedGroupId: null,
+      name: "New name",
+    });
+
+    const result = await TaskService.updateTask(
+      "task-1",
+      { name: "New name", assignedGroupId: null },
+      "user-2",
+    );
+
+    expect(result.name).toBe("New name");
+  });
+
+  it("does not treat an absent assignedGroupId as a group reassignment", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      name: "Old name",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      assignedGroupId: "group-1",
+      name: "New name",
+    });
+
+    await expect(
+      TaskService.updateTask("task-1", { name: "New name" }, "user-2"),
+    ).resolves.toEqual(expect.objectContaining({ name: "New name" }));
+  });
+
+  it("still blocks a non-creator when assignedGroupId genuinely changes", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+
+    await expect(
+      TaskService.updateTask(
+        "task-1",
+        { name: "New name", assignedGroupId: "group-2" },
+        "user-2",
+      ),
+    ).rejects.toThrow("Only task creator can reassign task");
+    expect(mockedPrisma.task.update).not.toHaveBeenCalled();
+  });
+
+  it("still blocks a non-creator clearing assignedGroupId to null", async () => {
+    // Clearing a group IS a reassignment, so null must stay guarded.
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+
+    await expect(
+      TaskService.updateTask(
+        "task-1",
+        { name: "New name", assignedGroupId: null },
+        "user-2",
+      ),
+    ).rejects.toThrow("Only task creator can reassign task");
+    expect(mockedPrisma.task.update).not.toHaveBeenCalled();
+  });
+
+  it("does not rewrite assignedBy or emit TASK_REASSIGNED for a no-op whole-entity PATCH", async () => {
+    // The client echoes both assignment fields back unchanged. That is not a
+    // reassignment: assignedBy must stay the original assigner and no audit
+    // event may be emitted, or the audit trail fills with false reassignments.
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      patientId: "comp-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      assignedBy: "user-1",
+      name: "Old name",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    // organisationId + patientId must both be set on the updated row, or
+    // recordTaskAudit early-returns and the audit assertion below is vacuous.
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      patientId: "comp-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      assignedBy: "user-1",
+      name: "New name",
+    });
+
+    await TaskService.updateTask(
+      "task-1",
+      { name: "New name", assignedTo: "user-2", assignedGroupId: "group-1" },
+      "user-2",
+    );
+
+    expect(mockedPrisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ assignedBy: "user-1" }),
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).not.toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "TASK_REASSIGNED" }),
+    );
+  });
+
+  it("sets assignedBy and emits TASK_REASSIGNED with correct values on a real user reassignment", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      patientId: "comp-1",
+      createdBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: null,
+      assignedBy: "user-1",
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      patientId: "comp-1",
+      assignedTo: "user-3",
+      assignedGroupId: null,
+      assignedBy: "user-1",
+    });
+
+    await TaskService.updateTask("task-1", { assignedTo: "user-3" }, "user-1");
+
+    expect(mockedPrisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assignedTo: "user-3",
+          assignedBy: "user-1",
+        }),
+      }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "TASK_REASSIGNED",
+        entityId: "task-1",
+        metadata: expect.objectContaining({
+          previousAssignedTo: "user-2",
+          assignedTo: "user-3",
+        }),
+      }),
+    );
   });
 
   it("reassigns a task to a group for creators", async () => {

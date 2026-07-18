@@ -393,7 +393,7 @@ describe('Inventory page helpers', () => {
     expect(record.items?.[0]?.name).toBe('inv-id-only');
   });
 
-  it('filters dispensary records by request type, status, and multi-field search', () => {
+  it('filters dispensary records by status and multi-field search', () => {
     const records = [
       {
         id: '1',
@@ -415,13 +415,24 @@ describe('Inventory page helpers', () => {
       },
     ] as any[];
 
-    expect(filterDispensaryRecords(records, 'PATIENT', 'ALL', 'milo')).toHaveLength(1);
-    expect(filterDispensaryRecords(records, 'ALL', 'DISPENSED', 'bella')).toHaveLength(1);
-    expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'treatment')).toHaveLength(1);
-    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'amoxicillin')).toHaveLength(1);
-    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'milo')).toHaveLength(1);
-    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'missing')).toHaveLength(0);
-    expect(filterDispensaryRecords(records, 'IN_HOUSE', 'PENDING', '')).toHaveLength(0);
+    // status pass-through, search by patient name
+    expect(filterDispensaryRecords(records, 'ALL', 'milo')).toHaveLength(1);
+    // status filter narrows to the matching record
+    expect(filterDispensaryRecords(records, 'DISPENSED', 'bella')).toHaveLength(1);
+    // search by location
+    expect(filterDispensaryRecords(records, 'PENDING', 'treatment')).toHaveLength(1);
+    // search by item name
+    expect(filterDispensaryRecords(records, 'ALL', 'amoxicillin')).toHaveLength(1);
+    // search by lead
+    expect(filterDispensaryRecords(records, 'ALL', 'dr test')).toHaveLength(1);
+    // empty search returns every record matching the status
+    expect(filterDispensaryRecords(records, 'ALL', '')).toHaveLength(2);
+    // status mismatch excludes the record even with an empty search
+    expect(filterDispensaryRecords(records, 'NOT_DISPENSED', '')).toHaveLength(0);
+    // search miss excludes everything
+    expect(filterDispensaryRecords(records, 'ALL', 'missing')).toHaveLength(0);
+    // status and search must both match
+    expect(filterDispensaryRecords(records, 'DISPENSED', 'milo')).toHaveLength(0);
   });
 
   it('returns labels and titles for inventory view variants', () => {

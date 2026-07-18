@@ -12,6 +12,7 @@ const loadIntegrationsForPrimaryOrgMock = jest.fn();
 const getOrgIntegrationsMock = jest.fn();
 const getIntegrationByProviderMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
+const listIdexxOrdersMock = jest.fn();
 const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
 const enableIntegrationMock = jest.fn();
@@ -128,6 +129,7 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getOrgIntegrations: (...args: any[]) => getOrgIntegrationsMock(...args),
   getIntegrationByProvider: (...args: any[]) => getIntegrationByProviderMock(...args),
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
+  listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
   storeIntegrationCredentials: (...args: any[]) => storeIntegrationCredentialsMock(...args),
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
   enableIntegration: (...args: any[]) => enableIntegrationMock(...args),
@@ -161,6 +163,17 @@ describe('Integrations settings', () => {
     useIntegrationsForPrimaryOrgMock.mockReturnValue([enabledIntegration]);
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledIntegration);
     listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        companionId: 'c1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        modality: 'REFERENCE_LAB',
+        status: 'RUNNING',
+      },
+    ]);
     loadIntegrationsForPrimaryOrgMock.mockResolvedValue(undefined);
     storeIntegrationCredentialsMock.mockResolvedValue({
       _id: 'int-1',
@@ -187,10 +200,10 @@ describe('Integrations settings', () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
     fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'user-a' } });
     fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'pass-a' } });
     fireEvent.click(screen.getByRole('button', { name: /Store credentials|Update credentials/ }));
@@ -224,10 +237,10 @@ describe('Integrations settings', () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
     fireEvent.click(screen.getByRole('button', { name: 'Disable IDEXX' }));
 
     await waitFor(() => {
@@ -258,7 +271,7 @@ describe('Integrations settings', () => {
       expect(screen.getByRole('button', { name: 'Enable' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
 
     const enableInSettingsButton = await screen.findByRole('button', { name: 'Enable IDEXX' });
     expect(enableInSettingsButton).not.toBeDisabled();
@@ -361,8 +374,8 @@ describe('Integrations settings', () => {
 
   it('shows validated successfully message after validate click', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('button', { name: 'Settings' });
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await screen.findByText('Credentials validated successfully.');
   });
@@ -397,5 +410,51 @@ describe('Integrations settings', () => {
     await waitFor(() => {
       expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
     });
+  });
+
+  it('renders the workspace subtitle under the Integrations heading', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    expect(
+      screen.getByText('Connect labs, references and devices to the workspace')
+    ).toBeInTheDocument();
+  });
+
+  it('renders the live status pill (dot branch) for an enabled integration', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    // Enabled IDEXX reads as CONNECTED (design copy) and exercises the isLive === true
+    // branch that adds the success indicator dot. The status pill is a <span>; the
+    // "Connected" filter tab is a <button>, so scope the assertion to the pill span.
+    const connectedNodes = screen.getAllByText('Connected');
+    expect(connectedNodes.some((el) => el.tagName === 'SPAN')).toBe(true);
+  });
+
+  it('shows the developer-portal plugin hint row', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    expect(
+      screen.getByText(/More integrations ship as plugins\. Browse the developer portal/i)
+    ).toBeInTheDocument();
+  });
+
+  it('renders the status pill without the live dot when the integration is disabled', async () => {
+    const disabledIntegration = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'disabled',
+      credentialsStatus: 'missing',
+      enabledAt: null,
+      lastValidatedAt: null,
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([disabledIntegration]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(disabledIntegration);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    // The disabled IDEXX pill (plus other providers defaulting to disabled) exercises the
+    // isLive === false branch (no indicator dot).
+    expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
   });
 });

@@ -153,7 +153,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
               {records.map((doc) => (
                 <div
                   key={doc.id}
-                  className="w-full rounded-2xl border border-card-border bg-white p-4 flex flex-col gap-3"
+                  className="w-full rounded-2xl border border-card-border bg-neutral-0 p-4 flex flex-col gap-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">

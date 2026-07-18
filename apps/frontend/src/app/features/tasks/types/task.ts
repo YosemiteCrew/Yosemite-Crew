@@ -209,6 +209,6 @@ export const TaskStatusFilters: StatusOption[] = [
 
 export const TaskFilters: FilterOption[] = [
   filter('All', 'all'),
-  filter('Organizations', 'employee_task'),
-  filter('Companions', 'parent_task'),
+  filter('Team', 'employee_task'),
+  filter('Pet parents', 'parent_task'),
 ];

@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef 
 import { createPortal } from 'react-dom';
 import { IoIosWarning } from 'react-icons/io';
 import { Option } from '@/app/features/companions/types/companion';
-import { IoChevronDown } from 'react-icons/io5';
-import { FiCheck } from 'react-icons/fi';
+import { IoCheckmarkOutline, IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions } from '@/app/hooks/useDropdown';
 
 type DropdownProps = {
@@ -35,6 +34,7 @@ const usePortalPositioning = (
   const [portalStyle, setPortalStyle] = React.useState<React.CSSProperties | null>(null);
 
   const computeStyle = useCallback(() => {
+    /* v8 ignore next 2 -- dropdownRef is always mounted while the dropdown is open (computeStyle only runs behind an `open` guard), so getBoundingClientRect never returns undefined */
     const rect = dropdownRef.current?.getBoundingClientRect();
     if (!rect) return;
     const spaceBelow = globalThis.window.innerHeight - rect.bottom;
@@ -191,30 +191,6 @@ const useActiveOption = ({
   return { activeIndex, activeOptionId, setActiveIndex, handleKeyDown };
 };
 
-const getFloatingLabelStyle = (isFloated: boolean): React.CSSProperties => {
-  const baseStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-satoshi), sans-serif',
-    fontWeight: 400,
-    lineHeight: '120%',
-  };
-  if (isFloated) {
-    return {
-      ...baseStyle,
-      top: 0,
-      transform: 'translateY(-50%)',
-      fontSize: 12,
-      color: 'var(--color-neutral-900)',
-    };
-  }
-  return {
-    ...baseStyle,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    fontSize: 16,
-    color: 'var(--color-input-text-placeholder)',
-  };
-};
-
 type MultiSelectPanelProps = {
   listboxId: string;
   filteredOptions: Option[];
@@ -241,7 +217,7 @@ const MultiSelectPanel = ({
   <div
     id={listboxId}
     data-portal-dropdown
-    className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-2xl border border-t bg-white flex flex-col items-stretch w-full px-3 py-2.5"
+    className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
     style={shouldPortal ? (portalStyle ?? undefined) : undefined}
   >
     {filteredOptions.length > 0 ? (
@@ -270,7 +246,11 @@ const MultiSelectPanel = ({
               )}
             </span>
             {isSelected && (
-              <FiCheck size={14} className="shrink-0 text-text-brand" aria-hidden="true" />
+              <IoCheckmarkOutline
+                size={14}
+                className="shrink-0 text-text-brand"
+                aria-hidden="true"
+              />
             )}
           </button>
         );
@@ -285,12 +265,16 @@ const MultiSelectPanel = ({
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
   const base =
-    'relative w-full flex min-h-12 items-center px-5 pr-11 py-2.75 min-w-30 border cursor-pointer bg-(--whitebg) focus-visible:outline-none!';
-  const borderState = open
-    ? 'border-input-text-placeholder-active! border-b-0! rounded-t-2xl! z-20'
-    : 'border-input-border-default! rounded-2xl!';
-  const errorState = !hasSelection && error ? 'border-input-border-error!' : '';
-  return `${base} ${borderState} ${errorState}`;
+    'relative w-full flex h-[42px] items-center px-3.5 pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  let borderState: string;
+  if (open) {
+    borderState = 'border-input-border-active! border-b-0! rounded-t-xl! z-20';
+  } else if (!hasSelection && error) {
+    borderState = 'border-input-border-error! rounded-xl!';
+  } else {
+    borderState = 'border-input-border-default! rounded-xl!';
+  }
+  return `${base} ${borderState}`;
 };
 
 type TriggerContentProps = {
@@ -339,13 +323,13 @@ const MultiSelectTriggerContent = ({
           onKeyDown(event);
         }}
         placeholder={hasSelection ? selectedLabel : ''}
-        className="w-full bg-transparent text-left text-body-4 text-black-text outline-none placeholder:text-input-text-placeholder"
+        className="w-full bg-transparent text-left text-[14px] text-text-primary outline-none placeholder:text-input-text-placeholder"
       />
     );
   }
   return (
     <span
-      className="min-w-0 flex-1 truncate text-left text-body-4 text-black-text"
+      className="min-w-0 flex-1 truncate text-left text-[14px] text-text-primary"
       title={hasSelection ? selectedLabel : placeholder}
     >
       {hasSelection ? selectedLabel : ''}
@@ -430,6 +414,10 @@ const MultiSelectDropdown = ({
 
   return (
     <div className="flex flex-col">
+      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-neutral-800">
+        {icon}
+        {placeholder}
+      </span>
       <div className="relative w-full" ref={dropdownRef}>
         <button
           type="button"
@@ -459,13 +447,13 @@ const MultiSelectDropdown = ({
             onSearchChange={setSearchQuery}
             onKeyDown={handleKeyDown}
           />
-          <span className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center">
+          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center">
             <IoChevronDown
-              size={15}
+              size={14}
               aria-hidden="true"
               style={{
                 flexShrink: 0,
-                color: 'var(--color-input-text-placeholder-active)',
+                color: 'var(--color-neutral-600)',
                 transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform 150ms ease',
               }}
@@ -476,19 +464,11 @@ const MultiSelectDropdown = ({
             />
           </span>
         </button>
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-5 z-30 flex items-center gap-1 bg-(--whitebg) px-1 transition-all duration-150"
-          style={getFloatingLabelStyle(hasSelection || open)}
-        >
-          {icon}
-          {placeholder}
-        </span>
         {open && shouldPortal && portalStyle && createPortal(panel, document.body)}
         {open && !shouldPortal && <div className="absolute top-full left-0 w-full">{panel}</div>}
       </div>
       {error && (
-        <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
+        <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
           <IoIosWarning className="text-text-error" size={14} />
           <span>{error}</span>
         </div>

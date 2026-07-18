@@ -163,7 +163,8 @@ describe('FormInfo', () => {
     expect(screen.getByRole('button', { name: 'Unpublish' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'close' })).toHaveLength(2);
+    // Only the real close control is a button; the centring spacer is inert markup.
+    expect(screen.getAllByRole('button', { name: 'close' })).toHaveLength(1);
   });
 
   it('uses form view copy for non-editable legacy forms', () => {

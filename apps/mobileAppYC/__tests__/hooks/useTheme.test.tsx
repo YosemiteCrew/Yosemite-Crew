@@ -138,8 +138,7 @@ describe('useTheme Hook', () => {
   it('syncs system theme and exposes dark-mode controls in system mode', () => {
     const remove = jest.fn();
     let appearanceListener:
-      | ((event: {colorScheme: 'light' | 'dark' | null}) => void)
-      | undefined;
+      ((event: {colorScheme: 'light' | 'dark' | null}) => void) | undefined;
 
     (Appearance.getColorScheme as jest.Mock).mockReturnValue('dark');
     (Appearance.addChangeListener as jest.Mock).mockImplementation(listener => {

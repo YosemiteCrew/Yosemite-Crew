@@ -136,6 +136,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
     appointment.status === 'UPCOMING' ? 'Start Appointment' : 'View Appointment';
   const openWorkspace = (intent?: AppointmentViewIntent) => {
     if (!appointment.id) return;
+    /* v8 ignore next 4 -- unreachable: both openWorkspace callers (WorkspaceQuickActions and the primary action button) are only rendered when canOpenWorkspace is true, and both read the same render's value */
     if (!canOpenWorkspace) {
       onClose();
       return;
@@ -149,7 +150,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
       id={popoverId}
       ref={popoverDialogRef}
       open
-      className="fixed z-1000 w-110 rounded-3xl border border-card-border bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
+      className="yc-glass-overlay fixed z-[1000] w-[440px] rounded-3xl p-5"
       style={popoverStyle}
       aria-labelledby={titleId}
       aria-modal="false"

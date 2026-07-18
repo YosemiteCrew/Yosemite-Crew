@@ -186,10 +186,7 @@ const loadAppointmentForFormsRecord = async (
 };
 
 type NormalizableObjectId =
-  | Types.ObjectId
-  | string
-  | { toHexString(): string }
-  | { toString(): string };
+  Types.ObjectId | string | { toHexString(): string } | { toString(): string };
 
 const normalizeObjectId = (
   id: NormalizableObjectId | null | undefined,
@@ -792,11 +789,7 @@ const assertSoapAppointmentAccess = (params: {
 };
 
 type SoapNoteType =
-  | "Subjective"
-  | "Objective"
-  | "Assessment"
-  | "Plan"
-  | "Discharge";
+  "Subjective" | "Objective" | "Assessment" | "Plan" | "Discharge";
 
 type SoapNoteEntry = {
   submissionId: string;

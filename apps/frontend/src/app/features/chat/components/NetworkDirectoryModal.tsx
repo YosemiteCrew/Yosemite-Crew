@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { LuSearch, LuX, LuUsers } from 'react-icons/lu';
+import { IoClose, IoPeopleOutline, IoSearchOutline } from 'react-icons/io5';
 import Text from '@/app/ui/Text';
 import {
   searchNetworkColleagues,
@@ -101,7 +101,7 @@ export function NetworkDirectoryModal({
       <div className="relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
         <div className="flex items-center justify-between border-b border-chat-divider px-4 py-3">
           <span className="flex items-center gap-2">
-            <LuUsers className="size-4 text-primary-600" />
+            <IoPeopleOutline className="h-4 w-4 text-primary-600" />
             <Text as="span" variant="body-3-emphasis" className="text-neutral-900">
               Message a colleague at another clinic
             </Text>
@@ -112,12 +112,12 @@ export function NetworkDirectoryModal({
             onClick={onClose}
             className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
           >
-            <LuX className="size-4" />
+            <IoClose className="h-4 w-4" />
           </button>
         </div>
 
         <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-2">
-          <LuSearch className="size-4 shrink-0 text-neutral-400" />
+          <IoSearchOutline className="h-4 w-4 shrink-0 text-neutral-400" />
           <input
             autoFocus
             value={query}
@@ -128,7 +128,7 @@ export function NetworkDirectoryModal({
           />
           {hasQuery && (
             <button type="button" aria-label="Clear search" onClick={() => setQuery('')}>
-              <LuX className="size-4 text-neutral-400" />
+              <IoClose className="h-4 w-4 text-neutral-400" />
             </button>
           )}
         </div>

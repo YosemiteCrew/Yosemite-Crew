@@ -12,10 +12,16 @@ import {
 import AppointmentCardContent from '@/app/features/appointments/components/AppointmentCardContent';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
-import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
-import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
+import {
+  IoBusinessOutline,
+  IoCardOutline,
+  IoCheckmarkCircle,
+  IoDocumentTextOutline,
+  IoEyeOutline,
+  IoFlaskOutline,
+  IoSyncOutline,
+} from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCheckCircle } from 'react-icons/fa';
 import { rejectAppointment } from '@/app/features/appointments/services/appointmentService';
 import { useOrgStore } from '@/app/stores/orgStore';
 
@@ -48,7 +54,7 @@ const AppointmentCard = ({
   const appointmentCompanionName = getAppointmentCompanion(appointment).name || 'appointment';
 
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <AppointmentCardContent appointment={appointment} />
       <div className="flex gap-3 w-full justify-center">
         {isRequestedLikeStatus(appointment.status) ? (
@@ -61,7 +67,7 @@ const AppointmentCard = ({
                 onClick={() => handleChangeStatusAppointment?.(appointment)}
                 aria-label={`Accept request for ${appointmentCompanionName}`}
               >
-                <FaCheckCircle size={22} color="var(--color-success-400)" />
+                <IoCheckmarkCircle size={22} color="var(--color-success-400)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Decline request" side="bottom">
@@ -69,7 +75,11 @@ const AppointmentCard = ({
                 type="button"
                 className="size-10 rounded-full! flex items-center justify-center cursor-pointer"
                 style={{ background: 'var(--color-danger-100)' }}
-                onClick={() => void rejectAppointment(appointment)}
+                onClick={() =>
+                  void rejectAppointment(appointment).catch((error) => {
+                    console.error('Failed to decline appointment request:', error);
+                  })
+                }
                 aria-label={`Decline request for ${appointmentCompanionName}`}
               >
                 <IoIosCloseCircle size={24} color="var(--color-danger-600)" />
@@ -98,7 +108,7 @@ const AppointmentCard = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                  <IoSyncOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -124,7 +134,7 @@ const AppointmentCard = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Assign room"
                 >
-                  <MdMeetingRoom size={18} color="var(--color-neutral-900)" />
+                  <IoBusinessOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -173,7 +183,7 @@ const AppointmentCard = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Lab tests"
               >
-                <MdScience size={18} color="var(--color-neutral-900)" />
+                <IoFlaskOutline size={18} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           </div>

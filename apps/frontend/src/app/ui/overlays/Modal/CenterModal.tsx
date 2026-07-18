@@ -28,7 +28,7 @@ const CenterModal = ({
       showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
     }`}
     overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
-    containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 transition-opacity duration-100 ease-out -translate-y-1/2 w-[90%] sm:w-[500px] z-[1200] bg-white p-3 flex flex-col gap-3 rounded-2xl border border-card-border shadow-xl ${
+    containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 transition-opacity duration-100 ease-out -translate-y-1/2 w-[90%] sm:w-[500px] z-[1200] bg-neutral-0 p-3 flex flex-col gap-3 rounded-2xl border border-card-border shadow-xl ${
       showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
     } ${containerClassName ?? ''}`}
   >

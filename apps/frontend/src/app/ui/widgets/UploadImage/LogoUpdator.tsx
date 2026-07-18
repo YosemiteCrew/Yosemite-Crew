@@ -1,11 +1,10 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import Image from 'next/image';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
-import { MdArrowRightAlt } from 'react-icons/md';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { postData } from '@/app/services/axios';
 import axios from 'axios';
-import { IoCamera } from 'react-icons/io5';
+import { IoArrowForwardOutline, IoCamera } from 'react-icons/io5';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getSafeImageUrl } from '@/app/lib/urls';
 
@@ -158,7 +157,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
               }}
               className="rounded-full size-25 object-cover"
             />
-            <MdArrowRightAlt size={24} color="var(--color-neutral-900)" />
+            <IoArrowForwardOutline size={24} color="var(--color-neutral-900)" />
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 <input
@@ -172,7 +171,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                 />
                 <label
                   htmlFor={inputId}
-                  className={`size-25 relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${safePreviewSrc ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
+                  className={`size-25 relative rounded-full bg-neutral-0 hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${safePreviewSrc ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
                   aria-label="Upload logo"
                 >
                   {safePreviewSrc ? (

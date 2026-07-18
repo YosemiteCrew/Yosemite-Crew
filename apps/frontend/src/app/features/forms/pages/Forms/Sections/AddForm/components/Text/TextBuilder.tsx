@@ -38,7 +38,6 @@ const TextBuilder: React.FC<{
             value={field.label || ''}
             inlabel="Label"
             onChange={(e) => onChange({ ...field, label: e.target.value })}
-            className="min-h-12!"
           />
           <FormDesc
             intype="text"

@@ -120,16 +120,16 @@ describe('Stripe onboarding page', () => {
     await expect(loadConnectMock.mock.calls[0][0].fetchClientSecret()).resolves.toBe('secret');
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Stripe Onboarding' })
+      screen.getByRole('heading', { level: 1, name: 'Stripe onboarding' })
     ).toBeInTheDocument();
     const backButton = screen.getByRole('button', { name: 'Back' });
-    const heading = screen.getByRole('heading', { level: 1, name: 'Stripe Onboarding' });
+    const heading = screen.getByRole('heading', { level: 1, name: 'Stripe onboarding' });
     expect(backButton.compareDocumentPosition(heading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Tax Business Details' })
+      screen.getByRole('heading', { level: 2, name: 'Tax business details' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Tax Registrations' })
+      screen.getByRole('heading', { level: 2, name: 'Tax registrations' })
     ).toBeInTheDocument();
     expect(screen.getByTestId('connect-provider')).toBeInTheDocument();
     expect(screen.getByTestId('connect-onboarding')).toBeInTheDocument();

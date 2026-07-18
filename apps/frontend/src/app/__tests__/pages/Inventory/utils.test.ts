@@ -19,6 +19,7 @@ import {
   formatCurrencyValue,
   formatPercentValue,
   getDerivedStockHealth,
+  effectiveStockHealthKey,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { BusinessType } from '@/app/features/organization/types/org';
 import {
@@ -917,6 +918,37 @@ describe('Inventory Utils', () => {
     it("defaults to 'Active' if nothing present", () => {
       const item = { basicInfo: {} } as InventoryItem;
       expect(displayStatusLabel(item)).toBe('Active');
+    });
+  });
+
+  describe('effectiveStockHealthKey', () => {
+    it('uses the explicit stockHealth when the item carries one', () => {
+      const item = { status: 'ACTIVE', stockHealth: 'LOW_STOCK', basicInfo: {} } as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('LOW_STOCK');
+    });
+
+    it('derives EXPIRED from a past batch when stockHealth is absent', () => {
+      const item = {
+        status: 'ACTIVE',
+        basicInfo: {},
+        batch: { expiryDate: '2020-01-01' },
+        stock: { current: 5 },
+      } as unknown as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('EXPIRED');
+    });
+
+    it('derives LOW_STOCK from the reorder level when stockHealth is absent', () => {
+      const item = {
+        status: 'ACTIVE',
+        basicInfo: {},
+        stock: { current: 2, reorderLevel: 5 },
+      } as unknown as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('LOW_STOCK');
+    });
+
+    it('returns an empty key when there is nothing to classify', () => {
+      const item = { basicInfo: {} } as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('');
     });
   });
 

@@ -26,6 +26,7 @@ import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { buildAppointmentColumns, normalizeLeadId } from '@/app/ui/tables/appointmentsTableColumns';
 
 import './DataTable.css';
+import PaginatedCardList from '@/app/ui/tables/PaginatedCardList';
 
 type AppointmentTableProps = {
   filteredList: Appointment[];
@@ -175,30 +176,25 @@ const AppointmentsComponent = ({
           tableClassName="appointments-table-fixed"
         />
       </div>
-      <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 sm:pb-3 flex gap-4 sm:gap-6 flex-wrap content-start">
-        {(() => {
-          if (filteredList.length === 0) {
-            return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
-            );
-          }
-          return filteredList.map((item) => (
-            <AppointmentCard
-              key={item.id}
-              appointment={item}
-              handleViewAppointment={handleViewAppointment}
-              handleWorkspaceAppointment={handleWorkspaceAppointment}
-              getSoapViewIntent={getSoapViewIntent}
-              handleRescheduleAppointment={handleRescheduleAppointment}
-              handleChangeStatusAppointment={handleChangeStatusAppointment}
-              handleChangeRoomAppointment={handleChangeRoomAppointment}
-              canEditAppointments={canEditAppointments}
-            />
-          ));
-        })()}
-      </div>
+      <PaginatedCardList
+        items={filteredList}
+        pageSize={small ? 5 : 10}
+        className="xl:hidden"
+        listClassName="pb-2 sm:pb-3"
+        renderCard={(item) => (
+          <AppointmentCard
+            key={item.id}
+            appointment={item}
+            handleViewAppointment={handleViewAppointment}
+            handleWorkspaceAppointment={handleWorkspaceAppointment}
+            getSoapViewIntent={getSoapViewIntent}
+            handleRescheduleAppointment={handleRescheduleAppointment}
+            handleChangeStatusAppointment={handleChangeStatusAppointment}
+            handleChangeRoomAppointment={handleChangeRoomAppointment}
+            canEditAppointments={canEditAppointments}
+          />
+        )}
+      />
     </div>
   );
 };

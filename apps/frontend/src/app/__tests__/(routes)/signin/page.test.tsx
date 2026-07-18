@@ -1,8 +1,9 @@
 import React from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import Page from '@/app/(routes)/(public)/signin/page';
 import { useAuthStore } from '@/app/stores/authStore';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 jest.mock('@/app/features/auth/pages/SignIn/SignIn', () => {
   return function MockSignIn() {
@@ -11,7 +12,7 @@ jest.mock('@/app/features/auth/pages/SignIn/SignIn', () => {
 });
 
 jest.mock('next/navigation', () => ({
-  redirect: jest.fn(() => null),
+  useRouter: jest.fn(),
 }));
 
 jest.mock('@/app/stores/authStore', () => ({
@@ -22,26 +23,20 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
 }));
 
-jest.mock('@/app/features/auth/components/PostAuthRedirect', () => ({
-  __esModule: true,
-  default: ({ fallbackRole }: { fallbackRole?: string | null }) => {
-    redirect(fallbackRole === 'owner' ? '/dashboard' : '/');
-    return null;
-  },
-}));
-
 describe('Signin Page', () => {
+  const mockReplace = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
+    (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace });
     (useAuthStore as unknown as jest.Mock).mockImplementation(
       (selector: (state: unknown) => unknown) => selector({ status: 'idle', role: 'owner' })
     );
+    (resolvePostAuthRedirect as jest.Mock).mockResolvedValue('/dashboard');
   });
 
-  it('renders the SignIn component', async () => {
-    await act(async () => {
-      render(<Page />);
-    });
+  it('renders the SignIn component', () => {
+    render(<Page />);
     expect(screen.getByTestId('mock-signin')).toBeInTheDocument();
   });
 
@@ -54,7 +49,8 @@ describe('Signin Page', () => {
     render(<Page />);
 
     await waitFor(() => {
-      expect(redirect).toHaveBeenCalledWith('/dashboard');
+      expect(resolvePostAuthRedirect).toHaveBeenCalledWith({ fallbackRole: 'owner' });
+      expect(mockReplace).toHaveBeenCalledWith('/dashboard');
     });
   });
 
@@ -69,6 +65,7 @@ describe('Signin Page', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mock-signin')).toBeInTheDocument();
     });
-    expect(redirect).not.toHaveBeenCalled();
+    expect(resolvePostAuthRedirect).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

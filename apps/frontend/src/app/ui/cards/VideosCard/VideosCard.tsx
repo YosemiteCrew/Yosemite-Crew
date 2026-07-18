@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { FaCirclePlay } from 'react-icons/fa6';
+import { IoPlayCircle } from 'react-icons/io5';
 
 import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -35,12 +35,19 @@ const VideosCard = () => {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-0">
+        {/* The heading is the flexible half: it wraps. The actions must not -
+            without min-w-0 + shrink-0 the heading squeezes the button until
+            "View more" breaks across two lines on a phone. */}
         <div className="flex items-center justify-between w-full gap-3">
-          <div className="text-body-1 text-text-primary">
-            {'Make the most of your wait — Start exploring instead.'}
+          <div className="min-w-0 text-body-1 text-text-primary">
+            {'Make the most of your wait, start exploring instead'}
           </div>
-          <div className="flex items-center gap-2">
-            <Primary text="View More" href="/guides" className="px-5! py-2! text-body-4" />
+          <div className="flex shrink-0 items-center gap-2">
+            <Primary
+              text="View more"
+              href="/guides"
+              className="px-5! py-2! text-body-4 whitespace-nowrap"
+            />
             <Close onClick={handleClose} />
           </div>
         </div>
@@ -52,7 +59,7 @@ const VideosCard = () => {
         {previewVideos.map((video) => (
           <button
             type="button"
-            className="rounded-2xl! border border-card-border bg-white flex flex-col cursor-pointer text-left"
+            className="rounded-2xl! border border-card-border bg-neutral-0 flex flex-col cursor-pointer text-left"
             key={video.id}
             onClick={() => handleOpenVideo(video)}
             aria-label={`Play video: ${video.title}`}
@@ -63,7 +70,7 @@ const VideosCard = () => {
             >
               <div className="absolute inset-0 bg-black/40 rounded-t-2xl"></div>
               <div className="relative">
-                <FaCirclePlay size={50} color="var(--color-neutral-0)" />
+                <IoPlayCircle size={50} color="var(--color-neutral-0)" />
               </div>
             </div>
             <div className="px-3 py-[20px] text-body-2 text-text-primary">{video.title}</div>

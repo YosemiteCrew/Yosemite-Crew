@@ -113,26 +113,62 @@ jest.mock('@/app/ui/primitives/Icons/Next', () => ({
   ),
 }));
 
-jest.mock('react-icons/io', () => ({
-  IoIosCalendar: () => <span>reschedule</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io5', () => ({
-  IoChevronForward: () => <span>chevron</span>,
-  IoArrowForward: () => <span>arrow</span>,
-  IoEyeOutline: () => <span>view</span>,
-  IoCalendarOutline: () => <span>reschedule</span>,
-  IoDocumentTextOutline: () => <span>soap</span>,
-  IoCardOutline: () => <span>finance</span>,
-  IoFlaskOutline: () => <span>lab</span>,
-  IoPerson: () => <span>person</span>,
-  IoTimeOutline: () => <span>time</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdMeetingRoom: () => <span>room</span>,
-  MdOutlineAutorenew: () => <span>change-status</span>,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 describe('DayCalendar (Appointments)', () => {
   const handleViewAppointment = jest.fn();

@@ -10,7 +10,7 @@ import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { createRoom } from '@/app/features/organization/services/roomService';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { useNotify } from '@/app/hooks/useNotify';
-import { FiCheck } from 'react-icons/fi';
+import { IoCheckmarkOutline } from 'react-icons/io5';
 import {
   AvailabilitySection,
   BasicDetailsSection,
@@ -190,6 +190,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
   };
 
   const addUnitDraft = () => {
+    /* v8 ignore next -- unreachable guard: the "Add unit type" control only renders for unit-capable room types */
     if (!supportsUnits) return;
 
     setFormData((prev) => ({
@@ -372,7 +373,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
               href="#"
               text={saving ? 'Adding room...' : 'Add room'}
               onClick={handleSave}
-              icon={<FiCheck size={16} aria-hidden="true" />}
+              icon={<IoCheckmarkOutline size={16} aria-hidden="true" />}
             />
           </div>
         </div>

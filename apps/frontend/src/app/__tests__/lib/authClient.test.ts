@@ -43,6 +43,11 @@ jest.mock('supertokens-web-js/recipe/totp', () => ({
   default: { init: jest.fn(() => 'totp-recipe') },
 }));
 
+jest.mock('supertokens-web-js/recipe/thirdparty', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => 'thirdparty-recipe') },
+}));
+
 jest.mock('@/app/lib/logger', () => ({
   logger: {
     debug: jest.fn(),
@@ -115,6 +120,7 @@ describe('authClient', () => {
           'emailpassword-recipe',
           'emailverification-recipe',
           'passwordless-recipe',
+          'thirdparty-recipe',
           'multifactorauth-recipe',
           'totp-recipe',
           'session-recipe',

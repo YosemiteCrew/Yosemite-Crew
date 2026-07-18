@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #bfbfbe;
+  border: 1px dashed var(--color-card-border);
   position: relative;
 }
 .step-logo-title-container {

@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 
@@ -162,7 +162,7 @@ const InventoryTurnoverFilters = ({
           style={getTurnoverStatusButtonStyle(selectedStatus)}
         >
           <span>{selectedStatus.key === 'ALL' ? 'Status' : selectedStatus.name}</span>
-          <FaCaretDown
+          <IoCaretDown
             size={14}
             className={clsx('shrink-0 transition-transform', dropdownOpen && 'rotate-180')}
           />
@@ -173,7 +173,7 @@ const InventoryTurnoverFilters = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="yc-glass-overlay rounded-2xl overflow-hidden"
               style={dropdownStyle}
             >
               {STATUS_OPTIONS.map((option) => {

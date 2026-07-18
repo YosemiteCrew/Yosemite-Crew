@@ -8,11 +8,7 @@ type ModalHeaderProps = {
 
 const ModalHeader = ({ title, onClose }: ModalHeaderProps) => (
   <div className="flex justify-between items-center">
-    {/* Spacer that mirrors the Close button size — keeps title visually centred */}
-    <div aria-hidden="true" className="size-9 shrink-0" />
-    <div className="flex justify-center items-center gap-2">
-      <div className="text-body-1 text-text-primary">{title}</div>
-    </div>
+    <div className="text-body-1 text-text-primary">{title}</div>
     <Close onClick={onClose} />
   </div>
 );

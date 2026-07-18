@@ -489,9 +489,6 @@ importers:
       amazon-cognito-identity-js:
         specifier: ^6.3.15
         version: 6.3.20
-      aos:
-        specifier: ^2.3.4
-        version: 2.3.4
       axios:
         specifier: 1.16.0
         version: 1.16.0(debug@4.4.3)
@@ -6661,7 +6658,7 @@ packages:
       fs-extra: 11.3.3
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      sitemap: '@npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap@7.1.2-tuxcare.2'
+      sitemap: '@npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap/7.1.2-tuxcare.2'
       tslib: 2.8.1
     transitivePeerDependencies:
       - '@docusaurus/faster'
@@ -15562,14 +15559,6 @@ packages:
       normalize-path: 3.0.0
       picomatch: 2.3.2
 
-  /aos@2.3.4:
-    resolution: {integrity: sha512-zh/ahtR2yME4I51z8IttIt4lC1Nw0ktsFtmeDzID1m9naJnWXhCoARaCgNOGXb5CLy3zm+wqmRAEgMYB5E2HUw==}
-    dependencies:
-      classlist-polyfill: 1.2.0
-      lodash.debounce: 4.0.8
-      lodash.throttle: 4.1.1
-    dev: false
-
   /app-builder-lib@26.15.3(dmg-builder@26.15.3)(electron-builder-squirrel-windows@26.15.3):
     resolution: {integrity: sha512-2VnyWkqsP5v5XbBhL3tD5Syx8iNPBYsoU7kY4S2fz7wg8Rj/nztWKCUzGKaFRTv0Xwf3/H058CR1Kvtd/3lRow==}
     engines: {node: '>=14.0.0'}
@@ -17136,10 +17125,6 @@ packages:
       '@types/validator': 13.15.10
       libphonenumber-js: 1.12.36
       validator: 13.15.22
-    dev: false
-
-  /classlist-polyfill@1.2.0:
-    resolution: {integrity: sha512-GzIjNdcEtH4ieA2S8NmrSxv7DfEV5fmixQeyTmqmRmRJPGpRBaSnA2a0VrCjyT8iW8JjEdMbKzDotAJf+ajgaQ==}
     dev: false
 
   /classnames@2.5.1:
@@ -33456,7 +33441,7 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
     dev: false
 
-  '@npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap@7.1.2-tuxcare.2':
+  '@npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap/7.1.2-tuxcare.2':
     resolution: {tarball: https://npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap@7.1.2-tuxcare.2}
     name: sitemap
     version: 7.1.2-tuxcare.2

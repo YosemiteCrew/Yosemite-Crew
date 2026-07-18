@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import SegmentedPill, {
+  SegmentedPillOption,
+} from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useRouter } from 'next/navigation';
@@ -16,6 +17,19 @@ import {
   isValidAnimalTerminology,
   normalizePmsPreferences,
 } from '@/app/features/settings/utils/pmsPreferences';
+
+// Short single-word (plural) labels for the inline pill, derived from the shared
+// "Singular / Plural" option labels (e.g. "Companion / Companions" -> "Companions").
+const toShortLabel = (label: string): string => {
+  const plural = label.split('/').at(-1)?.trim();
+  return plural && plural.length > 0 ? plural : label;
+};
+
+const TERMINOLOGY_PILL_OPTIONS: ReadonlyArray<SegmentedPillOption<CompanionTerminologyOption>> =
+  getCompanionTerminologyOptions().map((option) => ({
+    value: option.value as CompanionTerminologyOption,
+    label: toShortLabel(option.label),
+  }));
 
 const CompanionTerminologyPreference = () => {
   const router = useRouter();
@@ -42,7 +56,10 @@ const CompanionTerminologyPreference = () => {
     setSelection(profileTerminology);
   }
 
-  const handleSave = async () => {
+  const handleSelect = async (next: CompanionTerminologyOption) => {
+    if (next === selection) return;
+    setSelection(next);
+
     if (!primaryOrgId) {
       notify('error', {
         title: 'Organization not selected',
@@ -51,28 +68,23 @@ const CompanionTerminologyPreference = () => {
       return;
     }
 
-    const localSaved = setCompanionTerminologyForOrg(primaryOrgId, selection);
+    const localSaved = setCompanionTerminologyForOrg(primaryOrgId, next);
     try {
       await patchUserProfile(primaryOrgId, {
         personalDetails: {
           ...profile?.personalDetails,
           pmsPreferences: {
             ...pmsPreferences,
-            animalTerminology: selection,
+            animalTerminology: next,
           },
         },
       });
-      if (localSaved) {
-        notify('success', {
-          title: 'Terminology updated',
-          text: 'Animal terminology preference has been saved.',
-        });
-      } else {
-        notify('success', {
-          title: 'Terminology updated',
-          text: 'Saved to profile. Local cache refresh may require reloading.',
-        });
-      }
+      notify('success', {
+        title: 'Terminology updated',
+        text: localSaved
+          ? 'Animal terminology preference has been saved.'
+          : 'Saved to profile. Local cache refresh may require reloading.',
+      });
       router.refresh();
       return;
     } catch {
@@ -84,21 +96,23 @@ const CompanionTerminologyPreference = () => {
   };
 
   return (
-    <div className="border border-card-border rounded-2xl">
-      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">Animal terminology</div>
-      </div>
-      <div className="flex flex-col gap-3 px-6! py-6!">
-        <div data-terminology-lock="true">
-          <LabelDropdown
-            placeholder="How should pets be named?"
-            options={getCompanionTerminologyOptions()}
-            defaultOption={selection}
-            onSelect={(option) => setSelection(option.value as CompanionTerminologyOption)}
-          />
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
+        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+          Companion terminology
         </div>
-        <div className="w-full flex justify-end!">
-          <Primary href="#" text="Save terminology" onClick={handleSave} />
+      </div>
+      <div className="flex items-center justify-between gap-4 px-5! py-5!">
+        <div className="text-[12.5px] text-[var(--ink-faint)]">
+          How patients are named across the app.
+        </div>
+        <div data-terminology-lock="true">
+          <SegmentedPill
+            options={TERMINOLOGY_PILL_OPTIONS}
+            value={selection}
+            onChange={handleSelect}
+            ariaLabel="Companion terminology"
+          />
         </div>
       </div>
     </div>

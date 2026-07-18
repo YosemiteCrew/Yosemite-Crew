@@ -49,12 +49,7 @@ import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/ap
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter =
-  | 'all'
-  | 'hospital'
-  | 'groomer'
-  | 'breeder'
-  | 'pet_center'
-  | 'boarder';
+  'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
 
 const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
   {id: 'all', label: 'All'},
