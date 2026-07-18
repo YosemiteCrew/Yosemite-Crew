@@ -1,6 +1,5 @@
 import axios from 'axios';
 import dns from 'node:dns';
-import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
@@ -36,19 +35,73 @@ const isPrivateIpv4 = (address: string): boolean => {
   return false;
 };
 
+// Expand any valid IPv6 literal (including `::` compression and an embedded
+// dotted-quad tail) to its 16 bytes. Returns null for anything unparseable so
+// the caller can fail closed.
+const expandIpv6ToBytes = (address: string): number[] | null => {
+  let addr = address.toLowerCase().trim();
+  const zone = addr.indexOf('%');
+  if (zone !== -1) addr = addr.slice(0, zone);
+
+  // Fold a trailing dotted-quad (e.g. `::ffff:1.2.3.4`) into two hextets.
+  const dotted = /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(addr);
+  if (dotted) {
+    const quad = [dotted[2], dotted[3], dotted[4], dotted[5]].map(Number);
+    if (quad.some((octet) => octet > 255)) return null;
+    const [a, b, c, d] = quad as [number, number, number, number];
+    addr = dotted[1] + (((a << 8) | b).toString(16) + ':' + ((c << 8) | d).toString(16));
+  }
+
+  const halves = addr.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  let groups: string[];
+  if (halves.length === 2) {
+    const fill = 8 - head.length - tail.length;
+    if (fill < 0) return null;
+    groups = [...head, ...Array<string>(fill).fill('0'), ...tail];
+  } else {
+    groups = head;
+  }
+  if (groups.length !== 8) return null;
+
+  const bytes: number[] = [];
+  for (const group of groups) {
+    if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
+    const value = parseInt(group, 16);
+    bytes.push((value >> 8) & 0xff, value & 0xff);
+  }
+  return bytes;
+};
+
+// Default-deny IPv6 classifier. Only global-unicast space (2000::/3) is treated
+// as potentially public; everything else — loopback, unspecified, ULA (fc00::/7),
+// link-local (fe80::/10), IPv4-mapped/compatible, and NAT64 (64:ff9b::/96) — is
+// private. Within global unicast, the two prefixes that tunnel an IPv4 address
+// (6to4 2002::/16 and Teredo 2001:0000::/32) are decoded and re-checked, so a
+// hostile AAAA record cannot smuggle a loopback/metadata target past the guard.
 const isPrivateIpv6 = (address: string): boolean => {
-  const normalized = address.toLowerCase();
-  if (normalized === '::1' || normalized === '::') return true;
-  // Unique-local and link-local.
-  if (/^f[cd]/.test(normalized)) return true;
-  if (normalized.startsWith('fe80')) return true;
-  // IPv4-mapped addresses reuse the IPv4 rules.
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(normalized);
-  if (mapped?.[1]) return isPrivateIpv4(mapped[1]);
+  const bytes = expandIpv6ToBytes(address);
+  if (!bytes) return true;
+
+  const [b0, b1, b2, b3] = bytes as number[];
+  if ((b0 & 0xe0) !== 0x20) return true;
+
+  // 6to4: embedded IPv4 sits in bytes 2..5.
+  if (b0 === 0x20 && b1 === 0x02) {
+    return isPrivateIpv4(`${bytes[2]}.${bytes[3]}.${bytes[4]}.${bytes[5]}`);
+  }
+  // Teredo: the client IPv4 is the last four bytes XOR 0xff.
+  if (b0 === 0x20 && b1 === 0x01 && b2 === 0x00 && b3 === 0x00) {
+    const client = [12, 13, 14, 15].map((index) => bytes[index] ^ 0xff);
+    return isPrivateIpv4(client.join('.'));
+  }
   return false;
 };
 
-const isPrivateAddress = (address: string): boolean =>
+// Exported for direct security testing of the SSRF address guard.
+export const isPrivateAddress = (address: string): boolean =>
   net.isIPv4(address) ? isPrivateIpv4(address) : isPrivateIpv6(address);
 
 /**
@@ -160,9 +213,9 @@ export const resolveLogoSource = async (
     }
   }
 
-  // A non-URL value is only ever a bundled asset path shipped with the renderer.
-  if (!fs.existsSync(logoUrl)) {
-    return null;
-  }
-  return logoUrl;
+  // Only validated remote URLs are fetched. The renderer ships no bundled logo
+  // assets and the value comes from an organisation record, so treating a
+  // non-URL string as a filesystem path would be an arbitrary-read / file
+  // existence-oracle sink. Reject it.
+  return null;
 };
