@@ -472,7 +472,7 @@ describe("ChatController.listMySessions", () => {
     expect(findMany).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith([
-      expect.objectContaining({ id: "s1" }),
+      expect.objectContaining({ _id: "s1", id: "s1" }),
     ]);
   });
 

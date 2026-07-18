@@ -2,7 +2,6 @@ import validator from "validator";
 
 import { type CreateOrganisationInviteInput } from "../models/organisationInvite";
 import { type OrganizationMongo } from "../models/organization";
-import { type SpecialityDocument } from "../models/speciality";
 import logger from "../utils/logger";
 import type { OrganisationInvite } from "@yosemite-crew/types";
 import {
@@ -40,10 +39,12 @@ const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const INVITE_TOKEN_BYTES = 32;
 
 type OrganisationIdentity = Pick<OrganizationMongo, "name" | "type"> & {
-  _id: string;
+  id: string;
 };
 
-type DepartmentIdentity = Pick<SpecialityDocument, "_id">;
+type DepartmentIdentity = {
+  id: string;
+};
 
 export class OrganisationInviteServiceError extends Error {
   constructor(
@@ -271,7 +272,7 @@ const findOrganisationOrThrow = async (
   }
 
   return {
-    _id: organisation._id,
+    id: organisation.id,
     name: organisation.name,
     type: organisation.type,
   };
@@ -294,7 +295,7 @@ const ensureDepartmentBelongsToOrganisation = async (
   }
 
   return {
-    _id: department._id,
+    id: department.id,
   };
 };
 
@@ -346,7 +347,7 @@ const addUserToDepartment = async (
   userId: string,
 ) => {
   await prisma.speciality.update({
-    where: { id: department._id.toString() },
+    where: { id: department.id.toString() },
     data: { memberUserIds: { push: userId } },
   });
 };

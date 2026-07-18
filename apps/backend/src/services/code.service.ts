@@ -101,27 +101,27 @@ const normalizeLimit = (value?: number) =>
     ? Math.floor(value)
     : undefined;
 
-const applyEntryQueryWhere = (
-  query: string | undefined,
-  where: Prisma.CodeEntryWhereInput,
+const isStringArray = (
+  value: Prisma.JsonValue | null | undefined,
+): value is string[] =>
+  Array.isArray(value) && value.every((entry) => typeof entry === "string");
+
+const matchesEntryQuery = (
+  entry: { code: string; display: string; synonyms?: Prisma.JsonValue | null },
+  query: string,
 ) => {
-  if (!query) {
-    return;
-  }
-
-  if (typeof query !== "string") {
-    throw new CodeServiceError("Invalid query", 400);
-  }
-
-  const trimmedQuery = query.trim();
+  const trimmedQuery = query.trim().toLowerCase();
   if (!trimmedQuery) {
-    return;
+    return true;
   }
 
-  where.OR = [
-    { code: { contains: trimmedQuery, mode: "insensitive" } },
-    { display: { contains: trimmedQuery, mode: "insensitive" } },
+  const values = [
+    entry.code,
+    entry.display,
+    ...(isStringArray(entry.synonyms) ? entry.synonyms : []),
   ];
+
+  return values.some((value) => value.toLowerCase().includes(trimmedQuery));
 };
 
 const buildCodeMappingFilter = (params: {
@@ -186,13 +186,26 @@ export const CodeService = {
     if (safeSystem) where.system = safeSystem;
     if (safeType) where.type = safeType;
     if (typeof active === "boolean") where.active = active;
-    applyEntryQueryWhere(query, where);
 
-    return prisma.codeEntry.findMany({
+    if (typeof query !== "undefined" && typeof query !== "string") {
+      throw new CodeServiceError("Invalid query", 400);
+    }
+
+    if (!query?.trim()) {
+      return prisma.codeEntry.findMany({
+        where,
+        orderBy: { display: "asc" },
+        take: safeLimit && safeLimit > 0 ? safeLimit : undefined,
+      });
+    }
+
+    const entries = await prisma.codeEntry.findMany({
       where,
       orderBy: { display: "asc" },
-      take: safeLimit && safeLimit > 0 ? safeLimit : undefined,
     });
+    const filtered = entries.filter((entry) => matchesEntryQuery(entry, query));
+
+    return safeLimit && safeLimit > 0 ? filtered.slice(0, safeLimit) : filtered;
   },
 
   async listMappings(params: {

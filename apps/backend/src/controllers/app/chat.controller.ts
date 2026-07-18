@@ -25,6 +25,7 @@ type ChatSessionRow = Awaited<
 >[number];
 
 const toChatSessionResponse = (session: ChatSessionRow) => ({
+  _id: session.id,
   id: session.id,
   type: session.type,
   appointmentId: session.appointmentId,

@@ -35,6 +35,7 @@ jest.mock("../../src/services/invoice.service", () => ({
     getOrCreateDraftForAppointment: jest.fn(),
     handleAppointmentCancellation: jest.fn(),
     setInvoiceDepositTarget: jest.fn(),
+    updateStatus: jest.fn(),
   },
 }));
 
@@ -124,6 +125,7 @@ jest.mock("src/config/prisma", () => ({
     service: { findFirst: jest.fn() },
     appointment: {
       create: jest.fn(),
+      deleteMany: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
@@ -637,6 +639,7 @@ describe("AppointmentService", () => {
 
       const result = await AppointmentService.createRequestedFromMobile(dto);
 
+      expect(prisma.$transaction).toHaveBeenCalled();
       expect(prisma.appointment.create).toHaveBeenCalled();
       expect(CompanionOrganisationService.linkByParent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -737,6 +740,7 @@ describe("AppointmentService", () => {
         "inv_2",
         25,
       );
+      expect(prisma.$transaction).toHaveBeenCalled();
     });
 
     it("should collapse package catalog selections to a single invoice line and persist productItemId", async () => {
@@ -1211,7 +1215,97 @@ describe("AppointmentService", () => {
       } as any);
 
       expect(prisma.appointment.update).toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalled();
       expect(res).toBeDefined();
+    });
+
+    it("rolls back PMS appointment creation if checkout creation fails", async () => {
+      const { prisma } = require("src/config/prisma");
+      const startTime = new Date("2026-02-01T10:00:00Z");
+      const endTime = new Date("2026-02-01T11:00:00Z");
+
+      prisma.service.findFirst.mockResolvedValue({
+        id: "service_1",
+        organisationId: "org_1",
+        isActive: true,
+        serviceType: "STANDARD",
+      });
+      prisma.organizationBilling.findUnique.mockResolvedValue({ plan: "free" });
+      prisma.organizationUsageCounter.findUnique.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 0,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 0,
+        freeToolsLimit: 5,
+      });
+      prisma.organizationUsageCounter.update.mockResolvedValue({
+        orgId: "org_1",
+        appointmentsUsed: 1,
+        freeAppointmentsLimit: 5,
+        toolsUsed: 0,
+        freeToolsLimit: 5,
+        freeLimitReachedAt: null,
+        usersActiveCount: 0,
+        usersBillableCount: 0,
+        freeUsersLimit: 10,
+        updatedAt: new Date(),
+      });
+      prisma.organizationUsageCounter.updateMany.mockResolvedValue({
+        count: 0,
+      });
+      prisma.appointment.create.mockResolvedValue(
+        createPrismaAppointment({
+          id: "appt_rollback",
+          organisationId: "org_1",
+          startTime,
+          endTime,
+          appointmentDate: startTime,
+        }),
+      );
+      prisma.appointment.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.occupancy.deleteMany.mockResolvedValue({ count: 1 });
+      (InvoiceService.createDraftForAppointment as jest.Mock).mockResolvedValue(
+        {
+          id: "inv_rollback",
+          totalAmount: 25,
+        },
+      );
+      (
+        StripeService.createCheckoutSessionForInvoice as jest.Mock
+      ).mockRejectedValue(new Error("checkout failed"));
+      prisma.invoice.findMany.mockResolvedValue([]);
+
+      await expect(
+        AppointmentService.createAppointmentFromPms(
+          {
+            organisationId: "org_1",
+            lead: { id: "vet_1", name: "Vet" },
+            companion: {
+              id: "comp_1",
+              parent: { id: "parent_1" },
+              name: "Pet",
+            },
+            appointmentType: { id: "service_1", name: "Checkup" },
+            startTime,
+            endTime,
+            durationMinutes: 30,
+            concern: "check",
+            isEmergency: false,
+            formIds: [],
+          } as any,
+          true,
+          "PAYMENT_LINK",
+        ),
+      ).rejects.toThrow(
+        new AppointmentServiceError("Unable to create appointment", 500),
+      );
+
+      expect(InvoiceService.updateStatus).toHaveBeenCalledWith(
+        "inv_rollback",
+        "CANCELLED",
+      );
+      expect(prisma.occupancy.deleteMany).toHaveBeenCalled();
+      expect(prisma.appointment.deleteMany).toHaveBeenCalled();
     });
 
     it("checkInAppointment uses prisma path", async () => {

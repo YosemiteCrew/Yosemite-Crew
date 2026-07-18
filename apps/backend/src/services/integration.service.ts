@@ -28,6 +28,14 @@ const prismaIntegrationAccountSelect = {
   updatedAt: true,
 };
 
+const toPublicIntegrationAccount = <T extends object>(account: T) => {
+  const publicAccount = {
+    ...(account as Record<string, unknown>),
+  };
+  delete publicAccount.credentials;
+  return publicAccount as Omit<T, "credentials">;
+};
+
 export class IntegrationServiceError extends Error {
   constructor(
     message: string,
@@ -92,19 +100,25 @@ const enableMerckIntegrationInPostgres = async (organisationId: string) => {
   });
 
   if (existing) {
-    return prisma.integrationAccount.update({
+    const updated = await prisma.integrationAccount.update({
       where: { id: existing.id },
       data: buildEnabledIntegrationData(),
+      select: prismaIntegrationAccountSelect,
     });
+
+    return toPublicIntegrationAccount(updated);
   }
 
-  return prisma.integrationAccount.create({
+  const created = await prisma.integrationAccount.create({
     data: {
       organisationId,
       provider: "MERCK_MANUALS",
       ...buildEnabledIntegrationData(),
     },
+    select: prismaIntegrationAccountSelect,
   });
+
+  return toPublicIntegrationAccount(created);
 };
 
 const enableNonMerckIntegrationInPostgres = async (
@@ -137,7 +151,7 @@ const enableNonMerckIntegrationInPostgres = async (
     );
   }
 
-  return prisma.integrationAccount.update({
+  const updated = await prisma.integrationAccount.update({
     where: { id: existing.id },
     data: {
       status: "enabled",
@@ -145,7 +159,10 @@ const enableNonMerckIntegrationInPostgres = async (
       disabledAt: null,
       lastError: null,
     },
+    select: prismaIntegrationAccountSelect,
   });
+
+  return toPublicIntegrationAccount(updated);
 };
 
 export const IntegrationService = {
@@ -162,10 +179,10 @@ export const IntegrationService = {
     });
 
     if (existing) {
-      return existing;
+      return toPublicIntegrationAccount(existing);
     }
 
-    return prisma.integrationAccount.create({
+    const created = await prisma.integrationAccount.create({
       data: {
         organisationId: safeOrganisationId,
         provider: "MERCK_MANUALS",
@@ -178,6 +195,8 @@ export const IntegrationService = {
       },
       select: prismaIntegrationAccountSelect,
     });
+
+    return toPublicIntegrationAccount(created);
   },
 
   async listForOrganisation(organisationId: string) {
@@ -201,10 +220,12 @@ export const IntegrationService = {
   async getForOrganisation(organisationId: string, provider: string) {
     const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
-    return prisma.integrationAccount.findFirst({
+    const account = await prisma.integrationAccount.findFirst({
       where: { organisationId: safeOrganisationId, provider: normalized },
       select: prismaIntegrationAccountSelect,
     });
+
+    return account ? toPublicIntegrationAccount(account) : account;
   },
 
   async upsertCredentials(
@@ -231,7 +252,7 @@ export const IntegrationService = {
 
     const safeOrganisationId = requireOrganisationId(organisationId);
 
-    return prisma.integrationAccount.upsert({
+    const account = await prisma.integrationAccount.upsert({
       where: {
         organisationId_provider: {
           organisationId: safeOrganisationId,
@@ -258,7 +279,10 @@ export const IntegrationService = {
         lastValidatedAt: new Date(),
         lastError: null,
       },
+      select: prismaIntegrationAccountSelect,
     });
+
+    return toPublicIntegrationAccount(account);
   },
 
   async setEnabled(organisationId: string, provider: string) {
@@ -286,7 +310,7 @@ export const IntegrationService = {
       });
 
       if (!existing) {
-        return prisma.integrationAccount.create({
+        const created = await prisma.integrationAccount.create({
           data: {
             organisationId: safeOrganisationId,
             provider: normalized,
@@ -297,17 +321,23 @@ export const IntegrationService = {
             credentialsStatus: "valid",
             lastValidatedAt: new Date(),
           },
+          select: prismaIntegrationAccountSelect,
         });
+
+        return toPublicIntegrationAccount(created);
       }
 
-      return prisma.integrationAccount.update({
+      const updated = await prisma.integrationAccount.update({
         where: { id: existing.id },
         data: {
           status: "disabled",
           disabledAt: new Date(),
           enabledAt: null,
         },
+        select: prismaIntegrationAccountSelect,
       });
+
+      return toPublicIntegrationAccount(updated);
     }
 
     const existing = await prisma.integrationAccount.findFirst({
@@ -318,13 +348,16 @@ export const IntegrationService = {
       throw new IntegrationServiceError("Integration not found.", 404);
     }
 
-    return prisma.integrationAccount.update({
+    const updated = await prisma.integrationAccount.update({
       where: { id: existing.id },
       data: {
         status: "disabled",
         disabledAt: new Date(),
       },
+      select: prismaIntegrationAccountSelect,
     });
+
+    return toPublicIntegrationAccount(updated);
   },
 
   async validateCredentials(

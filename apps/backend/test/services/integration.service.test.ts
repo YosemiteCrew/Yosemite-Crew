@@ -82,6 +82,8 @@ describe("IntegrationService", () => {
   it("upserts credentials when validation passes", async () => {
     (prisma.integrationAccount.upsert as jest.Mock).mockResolvedValue({
       id: "1",
+      provider: "IDEXX",
+      credentials: { username: "u", password: "secret" },
     });
 
     const result = await IntegrationService.upsertCredentials(
@@ -90,7 +92,8 @@ describe("IntegrationService", () => {
       { username: "u", password: "p" } as any,
     );
 
-    expect(result).toEqual({ id: "1" });
+    expect(result).toEqual({ id: "1", provider: "IDEXX" });
+    expect(result).not.toHaveProperty("credentials");
     expect(adapter.validateCredentials).toHaveBeenCalled();
   });
 

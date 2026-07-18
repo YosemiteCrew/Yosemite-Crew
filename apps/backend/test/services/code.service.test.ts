@@ -111,6 +111,14 @@ describe("CodeService", () => {
         system: "YOSEMITECODE",
         code: "YSPEC:CANINE",
         display: "Canine",
+        synonyms: ["Dog", "Puppy"],
+      },
+      {
+        id: "entry-2",
+        system: "YOSEMITECODE",
+        code: "YSPEC:FELINE",
+        display: "Feline",
+        synonyms: ["Cat"],
       },
     ]);
 
@@ -119,10 +127,14 @@ describe("CodeService", () => {
         system: "YOSEMITECODE",
         type: "SPECIES",
         active: true,
-        query: " Canine ",
+        query: " puppy ",
         limit: 7,
       }),
-    ).resolves.toHaveLength(1);
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "entry-1",
+      }),
+    ]);
 
     expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -130,12 +142,8 @@ describe("CodeService", () => {
           system: "YOSEMITECODE",
           type: "SPECIES",
           active: true,
-          OR: [
-            { code: { contains: "Canine", mode: "insensitive" } },
-            { display: { contains: "Canine", mode: "insensitive" } },
-          ],
         }),
-        take: 7,
+        orderBy: { display: "asc" },
       }),
     );
   });

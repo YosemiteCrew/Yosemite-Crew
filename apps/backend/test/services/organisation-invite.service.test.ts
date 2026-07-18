@@ -67,7 +67,7 @@ describe("OrganisationInviteService", () => {
       name: "Org",
       type: "HOSPITAL",
     });
-    mockedPrisma.speciality.findFirst.mockResolvedValue({ _id: "dept-db" });
+    mockedPrisma.speciality.findFirst.mockResolvedValue({ id: "dept-db" });
     mockedUserOrganizationService.createUserOrganizationMapping.mockResolvedValue(
       undefined,
     );
