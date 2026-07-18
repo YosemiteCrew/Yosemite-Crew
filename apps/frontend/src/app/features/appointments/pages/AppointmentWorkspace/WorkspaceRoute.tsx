@@ -1,12 +1,11 @@
 'use client';
 import React, { useMemo } from 'react';
-import { redirect, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   useAppointmentsForPrimaryOrg,
   useLoadAppointmentsForPrimaryOrg,
 } from '@/app/hooks/useAppointments';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import AppointmentWorkspace from '@/app/features/appointments/pages/AppointmentWorkspace';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -27,7 +26,7 @@ type WorkspaceRouteProps = {
 /**
  * Client entry for the workspace route. Loads org appointments, resolves the one
  * named in the URL, and renders the workspace. Falls back to /appointments when
- * the revamp flag is off or the appointment cannot be found.
+ * the appointment cannot be found.
  */
 const WorkspaceRouteContent = ({ appointmentId }: WorkspaceRouteProps) => {
   const router = useRouter();
@@ -35,14 +34,10 @@ const WorkspaceRouteContent = ({ appointmentId }: WorkspaceRouteProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const status = useAppointmentStore((s) => s.status);
 
-  const revampEnabled = isAppointmentRevampEnabled();
-
   const appointment = useMemo(
     () => appointments.find((a) => a.id === appointmentId),
     [appointments, appointmentId]
   );
-
-  if (!revampEnabled) redirect('/appointments');
 
   if (appointment) {
     if (canEnterAppointmentWorkspace(appointment.status)) {

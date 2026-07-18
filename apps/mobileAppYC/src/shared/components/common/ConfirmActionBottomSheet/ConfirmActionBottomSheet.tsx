@@ -154,8 +154,7 @@ export const ConfirmActionBottomSheet = ({
     ]) as TextStyle | undefined;
 
     const buttonStyle = StyleSheet.flatten([styles.button, config.style]) as
-      | ViewStyle
-      | undefined;
+      ViewStyle | undefined;
 
     const handlePress = () => {
       const result = config.onPress();

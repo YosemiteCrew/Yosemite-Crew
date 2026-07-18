@@ -1,16 +1,12 @@
 import { Request, Response } from "express";
 import logger from "../../utils/logger";
-import { Types } from "mongoose";
 import {
   CompanionOrganisationService,
   CompanionOrganisationServiceError,
 } from "../../services/companion-organisation.service";
 import { ParentService } from "src/services/parent.service";
-import OrganizationModel, {
-  type OrganizationMongo,
-} from "src/models/organization";
+import { type OrganizationMongo } from "src/models/organization";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 
@@ -180,9 +176,9 @@ export const CompanionOrganisationController = {
           .json({ message: "CompanionId and OrganisationId is required." });
       }
 
-      const organisation = isReadFromPostgres()
-        ? await prisma.organization.findFirst({ where: { id: organisationId } })
-        : await OrganizationModel.findById(organisationId);
+      const organisation = await prisma.organization.findFirst({
+        where: { id: organisationId },
+      });
       if (!organisation || !isOrganisationType(organisation.type)) {
         return res
           .status(404)
@@ -230,7 +226,7 @@ export const CompanionOrganisationController = {
       const { linkId } = req.params;
 
       const updatedLink = await CompanionOrganisationService.parentApproveLink(
-        new Types.ObjectId(resolveParentId(requestingParent)),
+        resolveParentId(requestingParent),
         linkId,
       );
 
@@ -299,7 +295,7 @@ export const CompanionOrganisationController = {
       const { linkId } = req.params;
 
       const updatedLink = await CompanionOrganisationService.parentRejectLink(
-        new Types.ObjectId(resolveParentId(requestingParent)),
+        resolveParentId(requestingParent),
         linkId,
       );
 

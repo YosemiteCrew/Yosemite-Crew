@@ -5,10 +5,10 @@ import axios from 'axios';
 
 jest.mock('axios');
 
-jest.mock('react-icons/fa', () => ({
-  FaCloudUploadAlt: () => <span data-testid="icon-cloud" />,
-  FaFilePdf: () => <span data-testid="icon-pdf" />,
-  FaTrashAlt: () => <span data-testid="icon-trash" />,
+jest.mock('react-icons/io5', () => ({
+  IoCloudUploadOutline: () => <span data-testid="icon-cloud" />,
+  IoDocumentTextOutline: () => <span data-testid="icon-pdf" />,
+  IoTrashOutline: () => <span data-testid="icon-trash" />,
 }));
 
 describe('PdfDocUploader', () => {

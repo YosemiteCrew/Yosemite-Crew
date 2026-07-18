@@ -46,12 +46,14 @@ const CrossClinicMessagingPreference = () => {
   };
 
   return (
-    <div className="border border-card-border rounded-2xl">
-      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">Cross-clinic messaging</div>
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
+        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+          Cross-clinic messaging
+        </div>
       </div>
-      <div className="flex items-start justify-between gap-4 px-6! py-6!">
-        <p className="text-body-4 text-text-secondary">
+      <div className="flex items-start justify-between gap-4 px-5! py-5!">
+        <p className="max-w-[70%] text-[12.5px] leading-relaxed text-[var(--ink-faint)]">
           Let your staff message colleagues at other clinics on the network, and be discoverable to
           them. Both clinics must enable this for a conversation to start. Off by default.
         </p>

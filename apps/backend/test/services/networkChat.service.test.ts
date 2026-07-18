@@ -13,44 +13,23 @@ jest.mock("stream-chat", () => ({
   },
 }));
 
-jest.mock("src/models/chatSession", () => ({
-  __esModule: true,
-  default: { findOne: jest.fn(), create: jest.fn() },
-}));
-jest.mock("src/models/user-organization", () => ({
-  __esModule: true,
-  default: { findOne: jest.fn() },
-}));
 jest.mock("src/services/user-profile.service", () => ({
   UserProfileService: { getByUserId: jest.fn() },
 }));
 jest.mock("src/services/user.service", () => ({
   UserService: { getById: jest.fn() },
 }));
-let mockDualWriteEnabled = false;
-jest.mock("src/utils/dual-write", () => ({
-  handleDualWriteError: jest.fn(),
-  get shouldDualWrite() {
-    return mockDualWriteEnabled;
-  },
-}));
-jest.mock("src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(() => true),
-}));
 jest.mock("src/config/prisma", () => ({
   prisma: {
     userOrganization: { findFirst: jest.fn(), findMany: jest.fn() },
     organization: { findFirst: jest.fn(), findMany: jest.fn() },
     user: { findFirst: jest.fn() },
-    chatSession: { upsert: jest.fn() },
+    chatSession: { findFirst: jest.fn(), create: jest.fn() },
   },
 }));
 
 import { NetworkChatService } from "src/services/networkChat.service";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import ChatSessionModel from "src/models/chatSession";
-import UserOrganizationModel from "src/models/user-organization";
 import { UserProfileService } from "src/services/user-profile.service";
 import { UserService } from "src/services/user.service";
 
@@ -58,23 +37,13 @@ const mockedPrisma = prisma as unknown as {
   userOrganization: { findFirst: jest.Mock; findMany: jest.Mock };
   organization: { findFirst: jest.Mock; findMany: jest.Mock };
   user: { findFirst: jest.Mock };
-  chatSession: { upsert: jest.Mock };
-};
-const mockedReadSwitch = isReadFromPostgres as unknown as jest.Mock;
-const mockedChatSessionModel = ChatSessionModel as unknown as {
-  findOne: jest.Mock;
-  create: jest.Mock;
-};
-const mockedUserOrgModel = UserOrganizationModel as unknown as {
-  findOne: jest.Mock;
+  chatSession: { findFirst: jest.Mock; create: jest.Mock };
 };
 const mockedUserProfile = UserProfileService.getByUserId as jest.Mock;
 const mockedUserService = UserService.getById as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockedReadSwitch.mockReturnValue(true);
-  mockDualWriteEnabled = false;
 });
 
 describe("NetworkChatService.searchNetworkColleagues", () => {
@@ -229,21 +198,6 @@ describe("NetworkChatService.searchNetworkColleagues", () => {
     expect(result.colleagues).toEqual([]);
     expect(mockedPrisma.userOrganization.findMany).not.toHaveBeenCalled();
   });
-
-  it("probes membership through the Mongo path when not reading from Postgres", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedUserOrgModel.findOne.mockResolvedValue(null);
-
-    await expect(
-      NetworkChatService.searchNetworkColleagues({
-        requesterUserId: "userA",
-        requesterOrgId: "org1",
-        query: "",
-      }),
-    ).rejects.toMatchObject({ statusCode: 403 });
-    expect(mockedUserOrgModel.findOne).toHaveBeenCalled();
-    expect(mockedPrisma.userOrganization.findFirst).not.toHaveBeenCalled();
-  });
 });
 
 describe("NetworkChatService.createNetworkDirectChat", () => {
@@ -340,7 +294,7 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
   it("returns the existing session when one already exists (dedupe)", async () => {
     bothOrgsEnabled();
     const existing = { id: "existing", members: ["userA", "userB"] };
-    mockedChatSessionModel.findOne.mockResolvedValue(existing);
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(existing);
 
     const result = await NetworkChatService.createNetworkDirectChat({
       requesterUserId: "userA",
@@ -351,14 +305,15 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
 
     expect(result).toBe(existing);
     expect(mockChannel).not.toHaveBeenCalled();
-    expect(mockedChatSessionModel.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.chatSession.create).not.toHaveBeenCalled();
   });
 
-  // Matching on members alone also matches the same-org ORG_DIRECT sessions written by
-  // chat.service, which would hand a within-clinic session to a cross-clinic request.
-  it("scopes the dedupe lookup to the requested org pair", async () => {
+  it("scopes the dedupe lookup to the requested org pair, both orderings", async () => {
+    // Matching on members alone would also return the same-org ORG_DIRECT
+    // sessions created by chat.service. The lookup must be bound to this org
+    // pair, and either clinic may have opened the conversation.
     bothOrgsEnabled();
-    mockedChatSessionModel.findOne.mockResolvedValue({ id: "existing" });
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
 
     await NetworkChatService.createNetworkDirectChat({
       requesterUserId: "userA",
@@ -367,48 +322,22 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
       otherOrgId: "org2",
     });
 
-    const filter = mockedChatSessionModel.findOne.mock.calls[0][0];
-    expect(filter).toMatchObject({
-      type: "ORG_DIRECT",
-      $or: [
-        {
-          organisationId: { $eq: "org1" },
-          counterpartOrganisationId: { $eq: "org2" },
-        },
-        {
-          organisationId: { $eq: "org2" },
-          counterpartOrganisationId: { $eq: "org1" },
-        },
-      ],
-    });
-  });
-
-  it("matches the session when the other clinic opened the conversation", async () => {
-    bothOrgsEnabled();
-    const existing = { id: "existing", organisationId: "org2" };
-    mockedChatSessionModel.findOne.mockImplementation((filter: any) => {
-      const matchesReversed = filter.$or?.some(
-        (clause: any) =>
-          clause.organisationId?.$eq === "org2" &&
-          clause.counterpartOrganisationId?.$eq === "org1",
-      );
-      return Promise.resolve(matchesReversed ? existing : null);
-    });
-
-    const result = await NetworkChatService.createNetworkDirectChat({
-      requesterUserId: "userA",
-      requesterOrgId: "org1",
-      otherUserId: "userB",
-      otherOrgId: "org2",
-    });
-
-    expect(result).toBe(existing);
-    expect(mockedChatSessionModel.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.chatSession.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: "ORG_DIRECT",
+          OR: [
+            { organisationId: "org1", counterpartOrganisationId: "org2" },
+            { organisationId: "org2", counterpartOrganisationId: "org1" },
+          ],
+        }),
+      }),
+    );
   });
 
   it("creates a Stream channel and a cross-org session when both flags are true", async () => {
     bothOrgsEnabled();
-    mockedChatSessionModel.findOne.mockResolvedValue(null);
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
     mockedUserProfile.mockResolvedValue({
       profile: { personalDetails: { profilePictureUrl: "pic" } },
     });
@@ -416,11 +345,8 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
       firstName: "Test",
       lastName: "User",
     });
-    const created = {
-      id: "new",
-      toObject: () => ({}),
-    };
-    mockedChatSessionModel.create.mockResolvedValue(created);
+    const created = { id: "new" };
+    mockedPrisma.chatSession.create.mockResolvedValue(created);
 
     const result = await NetworkChatService.createNetworkDirectChat({
       requesterUserId: "userA",
@@ -432,7 +358,7 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
     expect(mockUpsertUser).toHaveBeenCalledTimes(2);
     expect(mockChannel).toHaveBeenCalledTimes(1);
     expect(mockCreate).toHaveBeenCalledTimes(1);
-    const createArgs = mockedChatSessionModel.create.mock.calls[0][0];
+    const createArgs = mockedPrisma.chatSession.create.mock.calls[0][0].data;
     expect(createArgs).toMatchObject({
       type: "ORG_DIRECT",
       organisationId: "org1",
@@ -456,90 +382,5 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
       }),
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(mockChannel).not.toHaveBeenCalled();
-  });
-
-  it("dual-writes the new session to Postgres when dual-write is enabled", async () => {
-    mockDualWriteEnabled = true;
-    bothOrgsEnabled();
-    mockedChatSessionModel.findOne.mockResolvedValue(null);
-    mockedUserProfile.mockResolvedValue({
-      profile: { personalDetails: { profilePictureUrl: "pic" } },
-    });
-    mockedUserService.mockResolvedValue({
-      firstName: "Test",
-      lastName: "User",
-    });
-    mockedChatSessionModel.create.mockResolvedValue({
-      id: "new",
-      toObject: () => ({
-        _id: { toString: () => "sess-1" },
-        type: "ORG_DIRECT",
-        channelId: "nd_x",
-        organisationId: "org1",
-        counterpartOrganisationId: "org2",
-        createdBy: "userA",
-        isPrivate: true,
-        members: ["userA", "userB"],
-        status: "ACTIVE",
-      }),
-    });
-
-    await NetworkChatService.createNetworkDirectChat({
-      requesterUserId: "userA",
-      requesterOrgId: "org1",
-      otherUserId: "userB",
-      otherOrgId: "org2",
-    });
-
-    expect(mockedPrisma.chatSession.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "sess-1" },
-        create: expect.objectContaining({
-          id: "sess-1",
-          counterpartOrganisationId: "org2",
-          members: ["userA", "userB"],
-        }),
-      }),
-    );
-  });
-
-  it("swallows a Postgres dual-write failure via handleDualWriteError", async () => {
-    mockDualWriteEnabled = true;
-    bothOrgsEnabled();
-    mockedChatSessionModel.findOne.mockResolvedValue(null);
-    mockedUserProfile.mockResolvedValue({ profile: { personalDetails: {} } });
-    mockedUserService.mockResolvedValue({
-      firstName: "Test",
-      lastName: "User",
-    });
-    mockedChatSessionModel.create.mockResolvedValue({
-      id: "new",
-      toObject: () => ({
-        _id: { toString: () => "sess-2" },
-        type: "ORG_DIRECT",
-        channelId: "nd_y",
-        organisationId: "org1",
-        members: ["userA", "userB"],
-        status: "ACTIVE",
-      }),
-    });
-    mockedPrisma.chatSession.upsert.mockRejectedValueOnce(new Error("db down"));
-
-    await expect(
-      NetworkChatService.createNetworkDirectChat({
-        requesterUserId: "userA",
-        requesterOrgId: "org1",
-        otherUserId: "userB",
-        otherOrgId: "org2",
-      }),
-    ).resolves.toBeDefined();
-
-    const dualWrite = jest.requireMock("src/utils/dual-write") as {
-      handleDualWriteError: jest.Mock;
-    };
-    expect(dualWrite.handleDualWriteError).toHaveBeenCalledWith(
-      "ChatSession",
-      expect.any(Error),
-    );
   });
 });

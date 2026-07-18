@@ -73,9 +73,7 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
+          <div className="size-8" aria-hidden="true" />
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Add document</div>
           </div>
@@ -92,7 +90,6 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
                 inlabel="Document title"
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 error={formDataErrors.title}
-                className="min-h-12!"
               />
               <LabelDropdown
                 placeholder="Type"

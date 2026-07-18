@@ -1,13 +1,20 @@
 'use client';
 import React from 'react';
 
-type PageSkeletonVariant = 'planner' | 'list' | 'settings' | 'dashboard';
+type PageSkeletonVariant = 'planner' | 'list' | 'settings' | 'dashboard' | 'generic';
 
 type PageSkeletonProps = {
   variant?: PageSkeletonVariant;
 };
 
 const shimmer = 'animate-pulse bg-card-hover rounded-xl';
+
+const TILE_IDS = ['tile-a', 'tile-b', 'tile-c'];
+const GENERIC_ROWS = [
+  { id: 'row-a', opacity: 1 },
+  { id: 'row-b', opacity: 0.7 },
+  { id: 'row-c', opacity: 0.45 },
+];
 
 const PlannerSkeleton = () => (
   <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3!">
@@ -84,10 +91,45 @@ const DashboardSkeleton = () => (
   </div>
 );
 
+// Full-page loading skeleton per the design spec: a --screen card with an
+// eyebrow, a title bar, a 3-col tile grid and stacked rows that shimmer via the
+// ycShimmer keyframe (see globals.css). No spinners — the shape mirrors the page.
+const GenericSkeleton = () => (
+  <div className="mx-auto my-8 flex w-full max-w-[460px] flex-col gap-4 rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] p-6 shadow-[0_1px_2px_var(--sh05),0_12px_30px_var(--sh08)]">
+    <div className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+      Page loading · skeleton
+    </div>
+    <div className="yc-shimmer h-[22px] w-[180px] rounded-lg bg-[var(--inset)]" />
+    <div className="grid grid-cols-3 gap-3">
+      {TILE_IDS.map((id, index) => (
+        <div
+          key={id}
+          className="yc-shimmer h-[74px] rounded-xl bg-[var(--inset)]"
+          style={{ animationDelay: `${index * 0.12}s` }}
+        />
+      ))}
+    </div>
+    <div className="flex flex-col gap-2.5">
+      {GENERIC_ROWS.map((row, index) => (
+        <div key={row.id} style={{ opacity: row.opacity }}>
+          <div
+            className="yc-shimmer h-[46px] rounded-xl bg-[var(--inset)]"
+            style={{ animationDelay: `${index * 0.16}s` }}
+          />
+        </div>
+      ))}
+    </div>
+    <div className="text-center text-[12px] text-[var(--ink-muted)]">
+      Structure mirrors the loaded page. No spinners for full-page loads.
+    </div>
+  </div>
+);
+
 const PageSkeleton = ({ variant = 'planner' }: PageSkeletonProps) => {
   if (variant === 'list') return <ListSkeleton />;
   if (variant === 'settings') return <SettingsSkeleton />;
   if (variant === 'dashboard') return <DashboardSkeleton />;
+  if (variant === 'generic') return <GenericSkeleton />;
   return <PlannerSkeleton />;
 };
 

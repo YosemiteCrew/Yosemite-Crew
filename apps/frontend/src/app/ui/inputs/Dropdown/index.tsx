@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import { IoIosWarning } from 'react-icons/io';
 
 type Option = {
@@ -168,12 +168,12 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
         ) : (
           <div className="text-black-text text-body-4 truncate max-w-[200px]">{placeholder}</div>
         )}
-        <FaCaretDown size={20} className={`text-black-text transition-transform cursor-pointer`} />
+        <IoCaretDown size={20} className={`text-black-text transition-transform cursor-pointer`} />
       </button>
       {open && (
         <div
           id={listboxId}
-          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-white flex flex-col items-center w-full px-3 py-2.5"
+          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
         >
           {options.map((option, i) => (
             <button

@@ -15,12 +15,7 @@ export const dynamic = 'force-dynamic';
 function Page() {
   return (
     <Suspense fallback={<div></div>}>
-      <SignIn
-        redirectPath="/developers/home"
-        signupHref="/developers/signup"
-        allowNext={false}
-        isDeveloper
-      />
+      <SignIn signupHref="/developers/signup" allowNext={false} isDeveloper />
     </Suspense>
   );
 }

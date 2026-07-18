@@ -147,7 +147,7 @@ describe('AddSpeciality', () => {
   it('closes the modal via the Close icon', () => {
     const setShowModal = jest.fn();
     render(<AddSpeciality showModal setShowModal={setShowModal} specialities={[]} />);
-    fireEvent.click(screen.getAllByText('close')[1]);
+    fireEvent.click(screen.getByText('close'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 

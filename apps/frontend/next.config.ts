@@ -43,6 +43,8 @@ const nextConfig: NextConfig = {
         hostname: 'upload.wikimedia.org',
         pathname: '/wikipedia/commons/**',
       },
+      // Live contributor + commit avatars on the public Insights page.
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
     ],
   },
   outputFileTracingExcludes: {

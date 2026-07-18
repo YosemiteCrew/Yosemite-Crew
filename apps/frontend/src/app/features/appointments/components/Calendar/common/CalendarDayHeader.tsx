@@ -25,7 +25,7 @@ export const CalendarDayNav = ({
   onPrevDay,
   onNextDay,
 }: CalendarDayNavProps) => (
-  <div className="sticky left-0 z-30 flex w-fit items-center gap-2 p-2 bg-white shrink-0">
+  <div className="sticky left-0 z-30 flex w-fit items-center gap-2 p-2 bg-neutral-0 shrink-0">
     <Back onClick={onPrevDay} />
     <div className="flex items-center gap-2">
       <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
@@ -54,7 +54,7 @@ const CalendarDayHeader = ({
   onPrevDay,
   onNextDay,
 }: CalendarDayHeaderProps) => (
-  <div className="min-w-max bg-white shrink-0">
+  <div className="min-w-max bg-neutral-0 shrink-0">
     <CalendarDayNav
       weekday={weekday}
       dateNumber={dateNumber}

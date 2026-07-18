@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -66,6 +65,49 @@ describe('FormInputPass', () => {
     expect(error).toHaveTextContent('Required');
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveAttribute('aria-describedby', error.id);
+  });
+
+  test('renders an undefined value as empty and fires focus/blur', () => {
+    const onFocus = jest.fn();
+    const onBlur = jest.fn();
+    render(
+      <FormInputPass
+        intype="password"
+        inname="password"
+        inlabel="Password"
+        value={undefined as unknown as string}
+        onChange={jest.fn()}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        autoComplete="new-password"
+      />
+    );
+
+    const input = screen.getByLabelText<HTMLInputElement>('Password');
+    expect(input.value).toBe('');
+    expect(input).toHaveAttribute('autocomplete', 'new-password');
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    expect(onFocus).toHaveBeenCalled();
+    expect(onBlur).toHaveBeenCalled();
+  });
+
+  test('renders a static top label tied to the field', () => {
+    render(
+      <FormInputPass
+        intype="password"
+        inname="password"
+        inlabel="Password"
+        value=""
+        onChange={jest.fn()}
+      />
+    );
+
+    const label = screen.getByText('Password');
+    expect(label.tagName).toBe('LABEL');
+    const input = screen.getByLabelText('Password');
+    expect(label).toHaveAttribute('for', input.getAttribute('id') ?? '');
   });
 
   test('has no axe accessibility violations in default state', async () => {

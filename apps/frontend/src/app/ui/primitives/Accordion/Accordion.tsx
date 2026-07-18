@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { RiEdit2Fill } from 'react-icons/ri';
+import { IoCreate, IoTrash } from 'react-icons/io5';
 import { IoIosArrowDown } from 'react-icons/io';
-import { MdDeleteForever } from 'react-icons/md';
 
 export interface AccordionProps {
   title: string;
@@ -95,7 +94,7 @@ const Accordion: React.FC<AccordionProps> = ({
               }}
               onKeyDown={handleEditKeyDown}
             >
-              <RiEdit2Fill size={20} color="var(--color-neutral-900)" aria-hidden="true" />
+              <IoCreate size={20} color="var(--color-neutral-900)" aria-hidden="true" />
             </button>
           )}
 
@@ -107,7 +106,7 @@ const Accordion: React.FC<AccordionProps> = ({
               onClick={() => onDeleteClick?.()}
               onKeyDown={handleDeleteKeyDown}
             >
-              <MdDeleteForever size={20} color="var(--color-danger-600)" aria-hidden="true" />
+              <IoTrash size={20} color="var(--color-danger-600)" aria-hidden="true" />
             </button>
           )}
         </div>

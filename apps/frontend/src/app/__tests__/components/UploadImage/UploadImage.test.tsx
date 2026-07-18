@@ -11,19 +11,30 @@ jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => {
     // We render a standard img tag to allow firing 'load' events
-    // eslint-disable-next-line @next/next/no-img-element
+
     return <img {...props} alt={props.alt || 'mock-img'} />;
   },
 }));
 
 // Mock Icons
-jest.mock('react-icons/fa', () => ({
-  FaCloudUploadAlt: () => <span data-testid="icon-upload">Upload</span>,
-  FaFilePdf: () => <span data-testid="icon-pdf">PDF</span>,
-  FaFileWord: () => <span data-testid="icon-word">Word</span>,
-  FaFileImage: () => <span data-testid="icon-image">Image</span>,
-  FaTrashAlt: () => <span data-testid="icon-trash">Delete</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 // Mock URL API methods
 const mockCreateObjectURL = jest.fn();
@@ -56,7 +67,7 @@ describe('UploadImage Component', () => {
     expect(screen.getByText('Upload Documents')).toBeInTheDocument();
     // Use regex to match multi-line text or parts of it
     expect(screen.getByText(/Only DOC, PDF, PNG, JPEG/)).toBeInTheDocument();
-    expect(screen.getByTestId('icon-upload')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCloudUploadOutline')).toBeInTheDocument();
   });
 
   it('renders existing files correctly', () => {
@@ -77,7 +88,7 @@ describe('UploadImage Component', () => {
 
     // Check PDF rendering (icon)
     expect(screen.getByText('test.pdf')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-pdf')).toBeInTheDocument();
+    expect(screen.getByTestId('IoDocumentTextOutline')).toBeInTheDocument();
 
     // Check Image rendering (img tag)
     const img = screen.getByAltText('image.png');
@@ -103,7 +114,7 @@ describe('UploadImage Component', () => {
     expect(mockOnChange).toHaveBeenCalled();
     // Verify file added to UI list
     expect(screen.getByText('doc.pdf')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-pdf')).toBeInTheDocument();
+    expect(screen.getByTestId('IoDocumentTextOutline')).toBeInTheDocument();
   });
 
   it('filters out invalid file types', () => {
@@ -193,7 +204,7 @@ describe('UploadImage Component', () => {
     expect(screen.getByText('delete-me.pdf')).toBeInTheDocument();
 
     // Click delete button
-    const deleteBtn = screen.getAllByTestId('icon-trash')[0].closest('button')!;
+    const deleteBtn = screen.getAllByTestId('IoTrashOutline')[0].closest('button')!;
     fireEvent.click(deleteBtn);
 
     expect(screen.queryByText('delete-me.pdf')).not.toBeInTheDocument();
@@ -207,7 +218,7 @@ describe('UploadImage Component', () => {
 
     expect(screen.getByText('existing.pdf')).toBeInTheDocument();
 
-    const deleteBtn = screen.getAllByTestId('icon-trash')[0].closest('button')!;
+    const deleteBtn = screen.getAllByTestId('IoTrashOutline')[0].closest('button')!;
     fireEvent.click(deleteBtn);
 
     expect(screen.queryByText('existing.pdf')).not.toBeInTheDocument();
@@ -232,8 +243,8 @@ describe('UploadImage Component', () => {
     const fileObjects = files.map((f) => new File([''], f.name, { type: f.type }));
     fireEvent.change(input, { target: { files: fileObjects } });
 
-    // Expect 2 Word icons
-    expect(screen.getAllByTestId('icon-word')).toHaveLength(2);
+    // Expect 2 Word icons (both render IoDocumentTextOutline)
+    expect(screen.getAllByTestId('IoDocumentTextOutline')).toHaveLength(2);
   });
 
   it("renders correctly when passed initial 'value' prop (files)", () => {

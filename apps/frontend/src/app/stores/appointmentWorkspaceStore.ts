@@ -22,6 +22,8 @@ import type {
   WorkspaceDocument,
   WorkspaceLockState,
   WorkspaceCapabilities,
+  WorkspaceSaveStatus,
+  WorkspaceSaveState,
 } from '@/app/features/appointments/types/workspace';
 import { buildEmptyEncounter } from '@/app/features/appointments/services/workspaceInitialData';
 import { isRichTextEmpty } from '@/app/lib/richText';
@@ -47,6 +49,9 @@ const defaultAnswersFromSchema = (
   const walk = (items: NonNullable<SoapTemplate['customSchema']>) => {
     items.forEach((field) => {
       if (field.type === 'group') {
+        // GroupField.fields is a required array (packages/types form.ts), so the
+        // `?? []` fallback is unreachable via the typed API — kept as a defensive guard.
+        /* v8 ignore next */
         walk(field.fields ?? []);
         return;
       }
@@ -114,6 +119,13 @@ type AppointmentWorkspaceState = {
    * schedule row's "View" is clicked, consumed + cleared by the panel.
    */
   focusTaskId: string | null;
+  /**
+   * Autosave lifecycle per appointment, driven off the existing explicit-save flow
+   * (no separate autosave engine): the SOAP and Summary save handlers push
+   * `saving` → `saved`/`offline` so the workspace can render the design's autosave
+   * indicator without fabricating a new persistence path.
+   */
+  saveStatusByAppointmentId: Record<string, WorkspaceSaveState>;
 
   initEncounter: (
     appointmentId: string,
@@ -167,6 +179,12 @@ type AppointmentWorkspaceState = {
   setActiveStep: (step: WorkspaceStep) => void;
   setActiveSideAction: (action: SideAction | null) => void;
   setFocusTaskId: (taskId: string | null) => void;
+  /**
+   * Record the current autosave lifecycle state for an appointment. `saved` stamps
+   * the current time (unless `at` is supplied) so the indicator can show "Autosaved
+   * HH:MM"; other states clear the stamp.
+   */
+  setSaveStatus: (appointmentId: string, status: WorkspaceSaveStatus, at?: string) => void;
   /** Open the Quick Actions Tasks panel focused on a specific task (schedule View). */
   openTaskInQuickActions: (taskId: string) => void;
   setStepStatus: (
@@ -431,6 +449,7 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
   activeStep: 'SOAP',
   activeSideAction: null,
   focusTaskId: null,
+  saveStatusByAppointmentId: {},
 
   initEncounter: (appointmentId, mode, staff) =>
     set((state) => {
@@ -479,6 +498,16 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
   setActiveStep: (step) => set({ activeStep: step }),
   setActiveSideAction: (action) => set({ activeSideAction: action }),
   setFocusTaskId: (taskId) => set({ focusTaskId: taskId }),
+  setSaveStatus: (appointmentId, status, at) =>
+    set((state) => ({
+      saveStatusByAppointmentId: {
+        ...state.saveStatusByAppointmentId,
+        [appointmentId]: {
+          status,
+          at: status === 'saved' ? (at ?? nowIso()) : undefined,
+        },
+      },
+    })),
   openTaskInQuickActions: (taskId) => set({ activeSideAction: 'TASKS', focusTaskId: taskId }),
 
   setStepStatus: (appointmentId, step, status) =>

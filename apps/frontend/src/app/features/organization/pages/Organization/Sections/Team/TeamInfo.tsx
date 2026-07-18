@@ -23,11 +23,14 @@ import {
   updateMember,
 } from '@/app/features/organization/services/teamService';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
+import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
-import { GenderOptions } from '@/app/features/companions/types/companion';
-import { MdDeleteForever } from 'react-icons/md';
+import {
+  UserEmploymentTypeOptions,
+  UserGenderOptions,
+  UserProfile,
+} from '@/app/features/users/types/profile';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
@@ -35,7 +38,7 @@ import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { upsertTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
-import { UserProfile } from '@/app/features/users/types/profile';
+import { IoTrash } from 'react-icons/io5';
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -69,7 +72,10 @@ const getFields = ({
       label: 'Employment type',
       key: 'employmentType',
       type: 'select',
-      options: EmploymentTypes,
+      // personalDetails is a user profile, so it takes the profile enums. The
+      // invite-facing EmploymentTypes ('CONTRACTOR') and the pet GenderOptions
+      // ('OTHERS') look interchangeable but the API rejects both.
+      options: UserEmploymentTypeOptions,
       editable: canEditEmploymentType,
     },
     {
@@ -83,7 +89,7 @@ const getFields = ({
 
 const PersonalFields = [
   { label: 'Name', key: 'name', type: 'text' },
-  { label: 'Gender', key: 'gender', type: 'select', options: GenderOptions },
+  { label: 'Gender', key: 'gender', type: 'select', options: UserGenderOptions },
   { label: 'Date of birth', key: 'dateOfBirth', type: 'date' },
   { label: 'Country', key: 'country', type: 'country' },
   { label: 'Phone number', key: 'phoneNumber', type: 'text' },
@@ -499,9 +505,7 @@ const useTeamInfoContent = ({
       <Modal showModal={showModal} setShowModal={handleModalVisibility}>
         <div className="flex flex-col h-full gap-6">
           <div className="flex justify-between items-center">
-            <div className="opacity-0">
-              <Close onClick={() => {}} />
-            </div>
+            <div className="size-8" aria-hidden="true" />
             <div className="flex justify-center items-center gap-2">
               <div className="text-body-1 text-text-primary">View team</div>
             </div>
@@ -512,7 +516,7 @@ const useTeamInfoContent = ({
               <div className="flex items-center justify-between w-full">
                 <div className="text-body-2 text-text-primary">{activeTeam.name || '-'}</div>
                 {canDeleteMember && (
-                  <MdDeleteForever
+                  <IoTrash
                     className="cursor-pointer"
                     onClick={() => setShowDeleteModal(true)}
                     size={26}

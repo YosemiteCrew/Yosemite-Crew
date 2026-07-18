@@ -29,38 +29,11 @@ jest.mock("stream-chat", () => ({
   },
 }));
 
-jest.mock("src/models/chatSession", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-    findOne: jest.fn(),
-    create: jest.fn(),
-    deleteOne: jest.fn(),
-  },
-}));
-jest.mock("src/models/appointment", () => ({
-  __esModule: true,
-  default: { findById: jest.fn(), findOne: jest.fn() },
-}));
-jest.mock("src/models/user-organization", () => ({
-  __esModule: true,
-  default: { findOne: jest.fn() },
-}));
 jest.mock("src/services/user-profile.service", () => ({
   UserProfileService: { getByUserId: jest.fn() },
 }));
 jest.mock("src/services/user.service", () => ({
   UserService: { getById: jest.fn() },
-}));
-let mockDualWriteEnabled = false;
-jest.mock("src/utils/dual-write", () => ({
-  handleDualWriteError: jest.fn(),
-  get shouldDualWrite() {
-    return mockDualWriteEnabled;
-  },
-}));
-jest.mock("src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(() => true),
 }));
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -71,7 +44,6 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       create: jest.fn(),
       deleteMany: jest.fn(),
-      upsert: jest.fn(),
     },
     appointment: { findFirst: jest.fn() },
   },
@@ -79,10 +51,6 @@ jest.mock("src/config/prisma", () => ({
 
 import { ChatService } from "src/services/chat.service";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import ChatSessionModel from "src/models/chatSession";
-import AppointmentModel from "src/models/appointment";
-import UserOrganizationModel from "src/models/user-organization";
 import { UserProfileService } from "src/services/user-profile.service";
 import { UserService } from "src/services/user.service";
 
@@ -94,36 +62,18 @@ const mockedPrisma = prisma as unknown as {
     update: jest.Mock;
     create: jest.Mock;
     deleteMany: jest.Mock;
-    upsert: jest.Mock;
   };
   appointment: { findFirst: jest.Mock };
-};
-const mockedReadSwitch = isReadFromPostgres as unknown as jest.Mock;
-const mockedChatSessionModel = ChatSessionModel as unknown as {
-  findById: jest.Mock;
-  findOne: jest.Mock;
-  create: jest.Mock;
-  deleteOne: jest.Mock;
-};
-const mockedAppointmentModel = AppointmentModel as unknown as {
-  findById: jest.Mock;
 };
 const mockedUserProfile = UserProfileService as unknown as {
   getByUserId: jest.Mock;
 };
 const mockedUserService = UserService as unknown as { getById: jest.Mock };
-const mockedUserOrgModel = UserOrganizationModel as unknown as {
-  findOne: jest.Mock;
-};
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockDualWriteEnabled = false;
-  // default: Postgres read path
-  mockedReadSwitch.mockReturnValue(true);
-  // org-membership checks pass by default (Postgres + Mongo paths)
+  // org-membership checks pass by default
   mockedPrisma.userOrganization.findFirst.mockResolvedValue({ id: "map1" });
-  mockedUserOrgModel.findOne.mockResolvedValue({ id: "map1" });
   // stream stubs resolve
   mockCreateToken.mockReturnValue("stream-token");
   mockUpsertUser.mockResolvedValue(undefined);
@@ -172,7 +122,7 @@ describe("ChatService.initSystemUserOnce", () => {
 
 /* --------------------------- ensureAppointmentChat ------------------------- */
 
-describe("ChatService.ensureAppointmentChat (Postgres path)", () => {
+describe("ChatService.ensureAppointmentChat", () => {
   it("returns the existing session when one already exists", async () => {
     mockedPrisma.appointment.findFirst.mockResolvedValue({ id: "a1" });
     const existing = { id: "s1", channelId: "appointment-a1" };
@@ -180,7 +130,7 @@ describe("ChatService.ensureAppointmentChat (Postgres path)", () => {
 
     const res = await ChatService.ensureAppointmentChat("a1");
 
-    expect(res).toBe(existing);
+    expect(res).toEqual({ ...existing, _id: existing.id });
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -219,7 +169,7 @@ describe("ChatService.ensureAppointmentChat (Postgres path)", () => {
         }),
       }),
     );
-    expect(res).toBe(created);
+    expect(res).toEqual({ ...created, _id: created.id });
   });
 
   it("creates a session with only the parent when no vet (lead) is set", async () => {
@@ -268,62 +218,6 @@ describe("ChatService.ensureAppointmentChat (Postgres path)", () => {
   });
 });
 
-describe("ChatService.ensureAppointmentChat (Mongo path)", () => {
-  beforeEach(() => mockedReadSwitch.mockReturnValue(false));
-
-  it("returns the existing Mongo session when present", async () => {
-    mockedAppointmentModel.findById.mockResolvedValue({
-      patient: { id: "pet1", name: "Rex", parent: { id: "parent1" } },
-      lead: { id: "vet1" },
-      organisationId: "org1",
-      startTime: new Date(),
-    });
-    const existing = { id: "s1", channelId: "appointment-a1" };
-    mockedChatSessionModel.findOne.mockResolvedValue(existing);
-
-    const res = await ChatService.ensureAppointmentChat("a1");
-
-    expect(res).toBe(existing);
-    expect(mockCreate).not.toHaveBeenCalled();
-  });
-
-  it("creates a channel and Mongo session when none exists", async () => {
-    mockedAppointmentModel.findById.mockResolvedValue({
-      patient: {
-        id: "pet1",
-        name: "Rex",
-        parent: { id: "parent1", name: "Owner" },
-      },
-      lead: { id: "vet1", name: "Dr Vet" },
-      organisationId: "org1",
-      startTime: new Date("2026-06-26T10:00:00Z"),
-    });
-    mockedChatSessionModel.findOne.mockResolvedValue(null);
-    const created = { id: "s-new", save: jest.fn() };
-    mockedChatSessionModel.create.mockResolvedValue(created);
-
-    const res = await ChatService.ensureAppointmentChat("a1");
-
-    expect(mockChannel).toHaveBeenCalledWith(
-      "messaging",
-      "appointment-a1",
-      expect.objectContaining({ created_by_id: "parent1" }),
-    );
-    expect(mockedChatSessionModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ members: ["parent1", "vet1"] }),
-    );
-    expect(res).toBe(created);
-  });
-
-  it("throws 404 when the Mongo appointment is missing", async () => {
-    mockedAppointmentModel.findById.mockResolvedValue(null);
-
-    await expect(ChatService.ensureAppointmentChat("x")).rejects.toMatchObject({
-      statusCode: 404,
-    });
-  });
-});
-
 /* ----------------------------- createOrgDirectChat ------------------------- */
 
 describe("ChatService.createOrgDirectChat", () => {
@@ -335,18 +229,18 @@ describe("ChatService.createOrgDirectChat", () => {
 
   it("returns the existing direct chat early when one exists", async () => {
     const existing = { id: "s1", channelId: "od_x" };
-    mockedChatSessionModel.findOne.mockResolvedValue(existing);
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(existing);
 
     const res = await ChatService.createOrgDirectChat("org1", "userB", "userA");
 
-    expect(res).toBe(existing);
+    expect(res).toEqual({ ...existing, _id: existing.id });
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("creates a new direct chat, upserting both users", async () => {
-    mockedChatSessionModel.findOne.mockResolvedValue(null);
-    const created = { id: "s-new", save: jest.fn() };
-    mockedChatSessionModel.create.mockResolvedValue(created);
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
+    const created = { id: "s-new", channelId: "od_x" };
+    mockedPrisma.chatSession.create.mockResolvedValue(created);
 
     const res = await ChatService.createOrgDirectChat("org1", "userB", "userA");
 
@@ -357,13 +251,15 @@ describe("ChatService.createOrgDirectChat", () => {
       expect.objectContaining({ members: ["userA", "userB"] }),
     );
     expect(mockUpsertUser).toHaveBeenCalledTimes(2);
-    expect(mockedChatSessionModel.create).toHaveBeenCalledWith(
+    expect(mockedPrisma.chatSession.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: "ORG_DIRECT",
-        members: ["userA", "userB"],
+        data: expect.objectContaining({
+          type: "ORG_DIRECT",
+          members: ["userA", "userB"],
+        }),
       }),
     );
-    expect(res).toBe(created);
+    expect(res).toEqual({ ...created, _id: created.id });
   });
 });
 
@@ -383,7 +279,7 @@ describe("ChatService.createOrgGroupChat", () => {
 
   it("creates a group chat with a team channel", async () => {
     const created = { id: "g1" };
-    mockedChatSessionModel.create.mockResolvedValue(created);
+    mockedPrisma.chatSession.create.mockResolvedValue(created);
 
     const res = await ChatService.createOrgGroupChat({
       organisationId: "org1",
@@ -397,16 +293,18 @@ describe("ChatService.createOrgGroupChat", () => {
       expect.stringMatching(/^org-group-/),
       expect.objectContaining({ name: "Team", created_by_id: "owner" }),
     );
-    expect(mockedChatSessionModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "ORG_GROUP", title: "Team" }),
+    expect(mockedPrisma.chatSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "ORG_GROUP", title: "Team" }),
+      }),
     );
-    expect(res).toBe(created);
+    expect(res).toEqual({ ...created, _id: created.id });
   });
 });
 
 /* --------------------------- openChatBySessionId --------------------------- */
 
-describe("ChatService.openChatBySessionId (Postgres path)", () => {
+describe("ChatService.openChatBySessionId", () => {
   it("opens a non-appointment chat for a member", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue({
       id: "s1",
@@ -484,52 +382,10 @@ describe("ChatService.openChatBySessionId (Postgres path)", () => {
   });
 });
 
-describe("ChatService.openChatBySessionId (Mongo path)", () => {
-  beforeEach(() => mockedReadSwitch.mockReturnValue(false));
-
-  it("opens a non-appointment Mongo chat for a member", async () => {
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "ORG_GROUP",
-      status: "ACTIVE",
-      members: ["u1"],
-      channelId: "ch1",
-    });
-
-    const res = await ChatService.openChatBySessionId("s1", "u1");
-    expect(res.channelId).toBe("ch1");
-  });
-
-  it("throws 404 when the Mongo session is missing", async () => {
-    mockedChatSessionModel.findById.mockResolvedValue(null);
-    await expect(
-      ChatService.openChatBySessionId("s1", "u1"),
-    ).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("opens an appointment Mongo chat inside the window", async () => {
-    const now = new Date();
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "APPOINTMENT",
-      status: "ACTIVE",
-      members: ["u1"],
-      channelId: "ch1",
-      appointmentId: "a1",
-      allowedFrom: new Date(now.getTime() - 1000),
-      allowedUntil: new Date(now.getTime() + 60000),
-    });
-    mockedAppointmentModel.findById.mockResolvedValue({
-      status: "IN_PROGRESS",
-    });
-
-    const res = await ChatService.openChatBySessionId("s1", "u1");
-    expect(res.channelId).toBe("ch1");
-  });
-});
-
 /* -------------------------------- closeSession ----------------------------- */
 
 describe("ChatService.closeSession success paths", () => {
-  it("closes via the Postgres path and posts a system message", async () => {
+  it("closes the session and posts a system message", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue({
       id: "s1",
       type: "ORG_GROUP",
@@ -567,26 +423,8 @@ describe("ChatService.closeSession success paths", () => {
     expect(mockedPrisma.chatSession.update).toHaveBeenCalled();
   });
 
-  it("closes via the Mongo path and saves the document", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    const save = jest.fn().mockResolvedValue(undefined);
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "ORG_GROUP",
-      createdBy: "owner",
-      status: "ACTIVE",
-      members: ["owner", "m2"],
-      channelId: "ch1",
-      save,
-    });
-
-    await ChatService.closeSession("s1", "owner");
-
-    expect(save).toHaveBeenCalled();
-  });
-
-  it("is a no-op in the Mongo path when the session is missing", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue(null);
+  it("is a no-op when the session is missing", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
 
     await expect(
       ChatService.closeSession("s1", "owner"),
@@ -607,17 +445,17 @@ describe("ChatService.addMembersToGroup", () => {
     channelId: "ch1",
   };
 
-  it("returns early (Postgres) when there are no new members", async () => {
+  it("returns early when there are no new members", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
 
     const res = await ChatService.addMembersToGroup("s1", "owner", ["m2"]);
 
-    expect(res).toBe(baseGroup);
+    expect(res).toEqual({ ...baseGroup, _id: baseGroup.id });
     expect(mockAddMembers).not.toHaveBeenCalled();
     expect(mockedPrisma.chatSession.update).not.toHaveBeenCalled();
   });
 
-  it("adds new members via the Postgres path", async () => {
+  it("adds new members", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     const updated = { ...baseGroup, members: ["owner", "m2", "m3"] };
     mockedPrisma.chatSession.update.mockResolvedValue(updated);
@@ -629,43 +467,11 @@ describe("ChatService.addMembersToGroup", () => {
       data: { members: ["owner", "m2", "m3"] },
     });
     expect(mockAddMembers).toHaveBeenCalledWith(["m3"]);
-    expect(res).toBe(updated);
+    expect(res).toEqual({ ...updated, _id: updated.id });
   });
 
-  it("throws 404 (Postgres) when the session is missing", async () => {
+  it("throws 404 when the session is missing", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
-    await expect(
-      ChatService.addMembersToGroup("s1", "owner", ["m3"]),
-    ).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("adds new members via the Mongo path", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    const save = jest.fn().mockResolvedValue(undefined);
-    const session = { ...baseGroup, members: ["owner", "m2"], save };
-    mockedChatSessionModel.findById.mockResolvedValue(session);
-
-    const res = await ChatService.addMembersToGroup("s1", "owner", ["m3"]);
-
-    expect(save).toHaveBeenCalled();
-    expect(mockAddMembers).toHaveBeenCalledWith(["m3"]);
-    expect(res).toBe(session);
-  });
-
-  it("returns early (Mongo) when there are no new members", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    const session = { ...baseGroup, members: ["owner", "m2"], save: jest.fn() };
-    mockedChatSessionModel.findById.mockResolvedValue(session);
-
-    const res = await ChatService.addMembersToGroup("s1", "owner", ["m2"]);
-
-    expect(res).toBe(session);
-    expect(mockAddMembers).not.toHaveBeenCalled();
-  });
-
-  it("throws 404 (Mongo) when the session is missing", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue(null);
     await expect(
       ChatService.addMembersToGroup("s1", "owner", ["m3"]),
     ).rejects.toMatchObject({ statusCode: 404 });
@@ -685,7 +491,7 @@ describe("ChatService.removeMembersFromGroup", () => {
     channelId: "ch1",
   };
 
-  it("removes a member via the Postgres path", async () => {
+  it("removes a member", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     const updated = { ...baseGroup, members: ["owner", "m2"] };
     mockedPrisma.chatSession.update.mockResolvedValue(updated);
@@ -697,17 +503,17 @@ describe("ChatService.removeMembersFromGroup", () => {
       data: { members: ["owner", "m2"] },
     });
     expect(mockRemoveMembers).toHaveBeenCalledWith(["m3"]);
-    expect(res).toBe(updated);
+    expect(res).toEqual({ ...updated, _id: updated.id });
   });
 
-  it("throws 400 (Postgres) when removing the owner", async () => {
+  it("throws 400 when removing the owner", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     await expect(
       ChatService.removeMembersFromGroup("s1", "owner", ["owner"]),
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it("throws 400 (Postgres) when dropping below 2 members", async () => {
+  it("throws 400 when dropping below 2 members", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue({
       ...baseGroup,
       members: ["owner", "m2"],
@@ -717,57 +523,8 @@ describe("ChatService.removeMembersFromGroup", () => {
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it("throws 404 (Postgres) when the session is missing", async () => {
+  it("throws 404 when the session is missing", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
-    await expect(
-      ChatService.removeMembersFromGroup("s1", "owner", ["m3"]),
-    ).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("removes a member via the Mongo path", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    const save = jest.fn().mockResolvedValue(undefined);
-    const session = {
-      ...baseGroup,
-      members: ["owner", "m2", "m3"],
-      save,
-    };
-    mockedChatSessionModel.findById.mockResolvedValue(session);
-
-    const res = await ChatService.removeMembersFromGroup("s1", "owner", ["m3"]);
-
-    expect(save).toHaveBeenCalled();
-    expect(mockRemoveMembers).toHaveBeenCalledWith(["m3"]);
-    expect(res).toBe(session);
-  });
-
-  it("throws 400 (Mongo) when removing the owner", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue({
-      ...baseGroup,
-      members: ["owner", "m2", "m3"],
-      save: jest.fn(),
-    });
-    await expect(
-      ChatService.removeMembersFromGroup("s1", "owner", ["owner"]),
-    ).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it("throws 400 (Mongo) when dropping below 2 members", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue({
-      ...baseGroup,
-      members: ["owner", "m2"],
-      save: jest.fn(),
-    });
-    await expect(
-      ChatService.removeMembersFromGroup("s1", "owner", ["m2"]),
-    ).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it("throws 404 (Mongo) when the session is missing", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue(null);
     await expect(
       ChatService.removeMembersFromGroup("s1", "owner", ["m3"]),
     ).rejects.toMatchObject({ statusCode: 404 });
@@ -789,7 +546,7 @@ describe("ChatService.updateGroup", () => {
     isPrivate: true,
   };
 
-  it("updates title and privacy via the Postgres path", async () => {
+  it("updates title and privacy", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     const updated = { ...baseGroup, title: "New", isPrivate: false };
     mockedPrisma.chatSession.update.mockResolvedValue(updated);
@@ -806,10 +563,10 @@ describe("ChatService.updateGroup", () => {
     expect(mockUpdatePartial).toHaveBeenCalledWith({
       set: { name: "New", isPrivate: false },
     });
-    expect(res).toBe(updated);
+    expect(res).toEqual({ ...updated, _id: updated.id });
   });
 
-  it("falls back to existing values when updates are omitted (Postgres)", async () => {
+  it("falls back to existing values when updates are omitted", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     mockedPrisma.chatSession.update.mockResolvedValue(baseGroup);
 
@@ -821,47 +578,8 @@ describe("ChatService.updateGroup", () => {
     });
   });
 
-  it("throws 404 (Postgres) when the session is missing", async () => {
+  it("throws 404 when the session is missing", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
-    await expect(
-      ChatService.updateGroup("s1", "owner", { title: "x" }),
-    ).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("updates via the Mongo path and saves", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    const save = jest.fn().mockResolvedValue(undefined);
-    const session = { ...baseGroup, save };
-    mockedChatSessionModel.findById.mockResolvedValue(session);
-
-    const res = await ChatService.updateGroup("s1", "owner", {
-      title: "New",
-      isPrivate: false,
-    });
-
-    expect(session.title).toBe("New");
-    expect(session.isPrivate).toBe(false);
-    expect(save).toHaveBeenCalled();
-    expect(mockUpdatePartial).toHaveBeenCalled();
-    expect(res).toBe(session);
-  });
-
-  it("leaves fields untouched when updates omitted (Mongo)", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    const save = jest.fn().mockResolvedValue(undefined);
-    const session = { ...baseGroup, save };
-    mockedChatSessionModel.findById.mockResolvedValue(session);
-
-    await ChatService.updateGroup("s1", "owner", {});
-
-    expect(session.title).toBe("Old");
-    expect(session.isPrivate).toBe(true);
-    expect(save).toHaveBeenCalled();
-  });
-
-  it("throws 404 (Mongo) when the session is missing", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue(null);
     await expect(
       ChatService.updateGroup("s1", "owner", { title: "x" }),
     ).rejects.toMatchObject({ statusCode: 404 });
@@ -881,7 +599,7 @@ describe("ChatService.deleteGroup", () => {
     channelId: "ch1",
   };
 
-  it("deletes via the Postgres path", async () => {
+  it("deletes the group", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     mockedPrisma.chatSession.deleteMany.mockResolvedValue({ count: 1 });
 
@@ -893,7 +611,7 @@ describe("ChatService.deleteGroup", () => {
     });
   });
 
-  it("swallows Stream delete errors (Postgres) and still cleans the DB", async () => {
+  it("swallows Stream delete errors and still cleans the DB", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     mockDelete.mockRejectedValue(new Error("stream down"));
     mockedPrisma.chatSession.deleteMany.mockResolvedValue({ count: 1 });
@@ -903,7 +621,7 @@ describe("ChatService.deleteGroup", () => {
     expect(mockedPrisma.chatSession.deleteMany).toHaveBeenCalled();
   });
 
-  it("is a no-op (Postgres) when the session is missing", async () => {
+  it("is a no-op when the session is missing", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -911,47 +629,12 @@ describe("ChatService.deleteGroup", () => {
     ).resolves.toBeUndefined();
     expect(mockDelete).not.toHaveBeenCalled();
   });
-
-  it("deletes via the Mongo path", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue(baseGroup);
-    const deleteOne = jest.fn().mockResolvedValue({});
-    (mockedChatSessionModel as unknown as { deleteOne: jest.Mock }).deleteOne =
-      deleteOne;
-
-    await ChatService.deleteGroup("s1", "owner");
-
-    expect(mockDelete).toHaveBeenCalled();
-    expect(deleteOne).toHaveBeenCalledWith({ _id: "s1" });
-  });
-
-  it("is a no-op (Mongo) when the session is missing", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue(null);
-
-    await expect(
-      ChatService.deleteGroup("s1", "owner"),
-    ).resolves.toBeUndefined();
-  });
-
-  it("swallows Stream delete errors (Mongo) and still deletes the document", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue(baseGroup);
-    mockDelete.mockRejectedValue(new Error("stream down"));
-    const deleteOne = jest.fn().mockResolvedValue({});
-    (mockedChatSessionModel as unknown as { deleteOne: jest.Mock }).deleteOne =
-      deleteOne;
-
-    await ChatService.deleteGroup("s1", "owner");
-
-    expect(deleteOne).toHaveBeenCalledWith({ _id: "s1" });
-  });
 });
 
 /* ---------------------- openChatBySessionId access guards ------------------ */
 
 describe("ChatService.openChatBySessionId access guards", () => {
-  it("throws 403 (Postgres) when the session is CLOSED", async () => {
+  it("throws 403 when the session is CLOSED", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue({
       id: "s1",
       type: "ORG_GROUP",
@@ -965,7 +648,7 @@ describe("ChatService.openChatBySessionId access guards", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("throws 403 (Postgres) when the user is not a member", async () => {
+  it("throws 403 when the user is not a member", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue({
       id: "s1",
       type: "ORG_GROUP",
@@ -979,7 +662,7 @@ describe("ChatService.openChatBySessionId access guards", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("throws 403 (Postgres) when the appointment window has not opened yet", async () => {
+  it("throws 403 when the appointment window has not opened yet", async () => {
     const now = new Date();
     mockedPrisma.chatSession.findFirst.mockResolvedValue({
       id: "s1",
@@ -1000,7 +683,7 @@ describe("ChatService.openChatBySessionId access guards", () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("throws 403 (Postgres) when the appointment window has already ended", async () => {
+  it("throws 403 when the appointment window has already ended", async () => {
     const now = new Date();
     mockedPrisma.chatSession.findFirst.mockResolvedValue({
       id: "s1",
@@ -1015,41 +698,6 @@ describe("ChatService.openChatBySessionId access guards", () => {
     mockedPrisma.appointment.findFirst.mockResolvedValue({
       status: "UPCOMING",
     });
-
-    await expect(
-      ChatService.openChatBySessionId("s1", "u1"),
-    ).rejects.toMatchObject({ statusCode: 403 });
-  });
-
-  it("throws 404 (Mongo) when the appointment is missing", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "APPOINTMENT",
-      status: "ACTIVE",
-      members: ["u1"],
-      channelId: "ch1",
-      appointmentId: "a1",
-    });
-    mockedAppointmentModel.findById.mockResolvedValue(null);
-
-    await expect(
-      ChatService.openChatBySessionId("s1", "u1"),
-    ).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("throws 403 (Mongo) when the appointment window has ended", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    const now = new Date();
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "APPOINTMENT",
-      status: "ACTIVE",
-      members: ["u1"],
-      channelId: "ch1",
-      appointmentId: "a1",
-      allowedFrom: new Date(now.getTime() - 120000),
-      allowedUntil: new Date(now.getTime() - 60000),
-    });
-    mockedAppointmentModel.findById.mockResolvedValue({ status: "UPCOMING" });
 
     await expect(
       ChatService.openChatBySessionId("s1", "u1"),
@@ -1106,140 +754,5 @@ describe("ChatService assertGroupAdmin guards (via addMembersToGroup)", () => {
     await expect(
       ChatService.addMembersToGroup("s1", "owner", ["m3"]),
     ).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it("throws 403 (Mongo) when the actor is not the group owner", async () => {
-    mockedReadSwitch.mockReturnValue(false);
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "ORG_GROUP",
-      createdBy: "owner",
-      status: "ACTIVE",
-      members: ["owner", "m2"],
-      organisationId: "org1",
-      channelId: "ch1",
-      save: jest.fn(),
-    });
-
-    await expect(
-      ChatService.addMembersToGroup("s1", "intruder", ["m3"]),
-    ).rejects.toMatchObject({ statusCode: 403 });
-  });
-});
-
-/* ------------------------------- dual-write -------------------------------- */
-
-describe("ChatService dual-write to Postgres", () => {
-  const dualWriteModule = jest.requireMock("src/utils/dual-write") as {
-    handleDualWriteError: jest.Mock;
-  };
-
-  beforeEach(() => {
-    mockDualWriteEnabled = true;
-    mockedReadSwitch.mockReturnValue(false);
-    mockedPrisma.chatSession.upsert.mockResolvedValue(undefined);
-    mockedPrisma.chatSession.deleteMany.mockResolvedValue({ count: 1 });
-    mockedChatSessionModel.deleteOne.mockResolvedValue({});
-  });
-
-  it("maps a created Mongo doc and upserts it into Postgres", async () => {
-    const created = {
-      toObject: () => ({
-        _id: { toString: () => "s-new" },
-        type: "ORG_GROUP",
-        channelId: "org-group-1",
-        organisationId: "org1",
-        members: ["owner", "member2"],
-        status: "ACTIVE",
-        title: "Team",
-        isPrivate: true,
-      }),
-    };
-    mockedChatSessionModel.create.mockResolvedValue(created);
-
-    const res = await ChatService.createOrgGroupChat({
-      organisationId: "org1",
-      createdBy: "owner",
-      title: "Team",
-      memberIds: ["owner", "member2"],
-    });
-
-    expect(res).toBe(created);
-    expect(mockedPrisma.chatSession.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "s-new" },
-        create: expect.objectContaining({
-          id: "s-new",
-          members: ["owner", "member2"],
-        }),
-      }),
-    );
-    expect(dualWriteModule.handleDualWriteError).not.toHaveBeenCalled();
-  });
-
-  it("routes upsert failures through handleDualWriteError", async () => {
-    mockedChatSessionModel.create.mockResolvedValue({
-      toObject: () => ({
-        _id: { toString: () => "s-new" },
-        type: "ORG_GROUP",
-        channelId: "org-group-1",
-        organisationId: "org1",
-        members: ["owner", "member2"],
-        status: "ACTIVE",
-      }),
-    });
-    mockedPrisma.chatSession.upsert.mockRejectedValueOnce(new Error("pg down"));
-
-    await ChatService.createOrgGroupChat({
-      organisationId: "org1",
-      createdBy: "owner",
-      title: "Team",
-      memberIds: ["owner", "member2"],
-    });
-
-    expect(dualWriteModule.handleDualWriteError).toHaveBeenCalledWith(
-      "ChatSession",
-      expect.any(Error),
-    );
-  });
-
-  it("dual-write deletes from Postgres when deleting a Mongo group", async () => {
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "ORG_GROUP",
-      createdBy: "owner",
-      status: "ACTIVE",
-      members: ["owner", "m2"],
-      organisationId: "org1",
-      channelId: "ch1",
-    });
-
-    await ChatService.deleteGroup("s1", "owner");
-
-    expect(mockedChatSessionModel.deleteOne).toHaveBeenCalledWith({
-      _id: "s1",
-    });
-    expect(mockedPrisma.chatSession.deleteMany).toHaveBeenCalledWith({
-      where: { id: "s1" },
-    });
-  });
-
-  it("routes dual-write delete failures through handleDualWriteError", async () => {
-    mockedChatSessionModel.findById.mockResolvedValue({
-      type: "ORG_GROUP",
-      createdBy: "owner",
-      status: "ACTIVE",
-      members: ["owner", "m2"],
-      organisationId: "org1",
-      channelId: "ch1",
-    });
-    mockedPrisma.chatSession.deleteMany.mockRejectedValueOnce(
-      new Error("pg down"),
-    );
-
-    await ChatService.deleteGroup("s1", "owner");
-
-    expect(dualWriteModule.handleDualWriteError).toHaveBeenCalledWith(
-      "ChatSession delete",
-      expect.any(Error),
-    );
   });
 });

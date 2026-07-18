@@ -1,17 +1,9 @@
 // src/services/dashboard.service.ts
-/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 import dayjs from "dayjs";
-import { Types } from "mongoose";
 
-import AppointmentModel from "src/models/appointment";
-import TaskModel from "src/models/task";
-import { InventoryItemModel, StockMovementModel } from "src/models/inventory";
-import InvoiceModel from "src/models/invoice";
-import UserOrganizationModel from "src/models/user-organization";
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { AvailabilityService } from "src/services/availability.service";
-// ⬆️ adjust import paths/model names if needed
 
 export class DashboardServiceError extends Error {
   constructor(
@@ -27,10 +19,7 @@ export class DashboardServiceError extends Error {
  * Types for responses
  */
 export type DashboardRange =
-  | "last_week"
-  | "last_month"
-  | "last_6_months"
-  | "last_1_year";
+  "last_week" | "last_month" | "last_6_months" | "last_1_year";
 
 export type LegacyRange =
   | "today"
@@ -99,56 +88,6 @@ export interface ProductTurnoverPoint {
   name: string;
   turnover: number;
 }
-
-type AppointmentSummaryAgg = {
-  _id: null;
-  revenue: number | null | undefined;
-  count: number | null | undefined;
-};
-
-type AppointmentTrendAgg = {
-  _id: { year: number; month: number; day?: number };
-  completed: number | null | undefined;
-  cancelled: number | null | undefined;
-};
-
-type RevenueTrendAgg = {
-  _id: { year: number; month: number; day?: number };
-  revenue: number | null | undefined;
-  paidRevenue?: number | null;
-  cancelledRevenue?: number | null;
-};
-
-type StaffLeaderAgg = {
-  _id: Types.ObjectId | string | null | undefined;
-  completedAppointments: number | null | undefined;
-};
-
-type RevenueLeaderAgg = {
-  _id: string | null | undefined;
-  revenue: number | null | undefined;
-};
-
-type InventoryConsumptionAgg = {
-  _id: null;
-  totalConsumed: number | null | undefined;
-};
-
-type MonthlyConsumptionAgg = {
-  _id: { year: number; month: number };
-  consumed: number | null | undefined;
-};
-
-type ProductConsumptionAgg = {
-  _id: Types.ObjectId;
-  consumed: number | null | undefined;
-};
-
-type InventoryItemLean = {
-  _id: Types.ObjectId;
-  onHand?: number;
-  name?: string;
-};
 
 /**
  * Helper: convert SummaryRange -> date interval
@@ -245,18 +184,80 @@ const mapBucketToDateParts = (date: dayjs.Dayjs, bucket: DashboardBucket) => {
 const isOnDutyStatus = (status: string) =>
   status === "Consulting" || status === "Available";
 
+const buildRevenueTrendQuery = ({
+  bucket,
+  organisationId,
+  from,
+  to,
+}: {
+  bucket: DashboardBucket;
+  organisationId: string;
+  from: Date;
+  to: Date;
+}) => Prisma.sql`
+  SELECT
+    date_trunc(
+      ${bucket === "day" ? "day" : "month"},
+      CASE
+        WHEN status = 'PAID' THEN "paidAt"
+        ELSE "updatedAt"
+      END
+    ) AS "bucket",
+    COALESCE(
+      SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
+      0
+    ) AS "revenue",
+    COALESCE(
+      SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
+      0
+    ) AS "paidRevenue",
+    COALESCE(
+      SUM(CASE WHEN status = 'CANCELLED' THEN "totalAmount" ELSE 0 END),
+      0
+    ) AS "cancelledRevenue"
+  FROM "Invoice"
+  WHERE
+    "organisationId" = ${organisationId}
+    AND (
+      (status = 'PAID' AND "paidAt" >= ${from} AND "paidAt" <= ${to})
+      OR (status = 'CANCELLED' AND "updatedAt" >= ${from} AND "updatedAt" <= ${to})
+    )
+  GROUP BY 1
+  ORDER BY 1 ASC
+`;
+
+const mapRevenueTrendRows = (
+  rows: Array<{
+    bucket: Date;
+    revenue: number;
+    paidRevenue: number;
+    cancelledRevenue: number;
+  }>,
+  bucket: DashboardBucket,
+) => {
+  const bucketMap = new Map<
+    string,
+    { revenue: number; paidRevenue: number; cancelledRevenue: number }
+  >();
+
+  for (const row of rows) {
+    const d = dayjs(row.bucket);
+    const key = getBucketKey(d, bucket);
+    bucketMap.set(key, {
+      revenue: row.revenue ?? 0,
+      paidRevenue: row.paidRevenue ?? 0,
+      cancelledRevenue: row.cancelledRevenue ?? 0,
+    });
+  }
+
+  return bucketMap;
+};
+
 const getStaffOnDutyCount = async (organisationId: string) => {
-  const mappings = isReadFromPostgres()
-    ? await prisma.userOrganization.findMany({
-        where: { organizationReference: organisationId, active: true },
-        select: { practitionerReference: true },
-      })
-    : await UserOrganizationModel.find({
-        organizationReference: organisationId,
-        active: true,
-      })
-        .select({ practitionerReference: 1 })
-        .lean();
+  const mappings = await prisma.userOrganization.findMany({
+    where: { organizationReference: organisationId, active: true },
+    select: { practitionerReference: true },
+  });
 
   const staffIds = Array.from(
     new Set(
@@ -297,93 +298,34 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    if (isReadFromPostgres()) {
-      const [appointmentsCount, taskCount, revenueAgg, staffOnDuty] =
-        await Promise.all([
-          prisma.appointment.count({
-            where: {
-              organisationId,
-              startTime: { gte: from, lte: to },
-            },
-          }),
-          prisma.task.count({
-            where: {
-              organisationId,
-              createdAt: { gte: from, lte: to },
-            },
-          }),
-          prisma.invoice.aggregate({
-            where: {
-              organisationId,
-              status: "PAID",
-              paidAt: { gte: from, lte: to },
-            },
-            _sum: { totalAmount: true },
-          }),
-          getStaffOnDutyCount(organisationId),
-        ]);
-
-      return {
-        revenue: revenueAgg._sum.totalAmount ?? 0,
-        appointments: appointmentsCount ?? 0,
-        tasks: taskCount ?? 0,
-        staffOnDuty,
-      };
-    }
-
-    const [appointmentAgg, taskCount, staffOnDuty] = await Promise.all([
-      AppointmentModel.aggregate<AppointmentSummaryAgg>([
-        {
-          $match: {
+    const [appointmentsCount, taskCount, revenueAgg, staffOnDuty] =
+      await Promise.all([
+        prisma.appointment.count({
+          where: {
             organisationId,
-            startTime: { $gte: from, $lte: to },
+            startTime: { gte: from, lte: to },
           },
-        },
-        {
-          $group: {
-            _id: null,
-            revenue: { $sum: 0 },
-            count: { $sum: 1 },
+        }),
+        prisma.task.count({
+          where: {
+            organisationId,
+            createdAt: { gte: from, lte: to },
           },
-        },
-      ]),
-      TaskModel.countDocuments({
-        organisationId,
-        createdAt: { $gte: from, $lte: to },
-      }).exec(),
-      getStaffOnDutyCount(organisationId),
-    ]);
-
-    const agg =
-      appointmentAgg[0] ??
-      ({
-        _id: null,
-        revenue: 0,
-        count: 0,
-      } satisfies AppointmentSummaryAgg);
-
-    const revenueAgg = await InvoiceModel.aggregate<AppointmentSummaryAgg>([
-      {
-        $match: {
-          organisationId,
-          status: "PAID",
-          paidAt: { $gte: from, $lte: to },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          revenue: { $sum: "$totalAmount" },
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const revenueValue = revenueAgg[0]?.revenue ?? 0;
+        }),
+        prisma.invoice.aggregate({
+          where: {
+            organisationId,
+            status: "PAID",
+            paidAt: { gte: from, lte: to },
+          },
+          _sum: { totalAmount: true },
+        }),
+        getStaffOnDutyCount(organisationId),
+      ]);
 
     return {
-      revenue: revenueValue,
-      appointments: agg.count ?? 0,
+      revenue: revenueAgg._sum.totalAmount ?? 0,
+      appointments: appointmentsCount ?? 0,
       tasks: taskCount ?? 0,
       staffOnDuty,
     };
@@ -406,114 +348,44 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    if (isReadFromPostgres()) {
-      const rows = await prisma.appointment.findMany({
-        where: {
-          organisationId,
-          startTime: { gte: from, lte: to },
-        },
-        select: { startTime: true, status: true },
-      });
+    const rows = await prisma.appointment.findMany({
+      where: {
+        organisationId,
+        startTime: { gte: from, lte: to },
+      },
+      select: { startTime: true, status: true },
+    });
 
-      const bucketMap = new Map<
-        string,
-        {
-          year: number;
-          month: number;
-          day: number | null;
-          completed: number;
-          cancelled: number;
-        }
-      >();
-      for (const row of rows) {
-        const d = dayjs(row.startTime);
-        const { year, month, day } = mapBucketToDateParts(d, bucket);
-        const key = getBucketKey(d, bucket);
-        const entry = bucketMap.get(key) ?? {
-          year,
-          month,
-          day: bucket === "day" ? day : null,
-          completed: 0,
-          cancelled: 0,
-        };
-        if (row.status === "COMPLETED") entry.completed += 1;
-        if (row.status === "CANCELLED") entry.cancelled += 1;
-        bucketMap.set(key, entry);
+    const bucketMap = new Map<
+      string,
+      {
+        year: number;
+        month: number;
+        day: number | null;
+        completed: number;
+        cancelled: number;
       }
-
-      return buildBucketSeries(from, to, bucket).map((point) => {
-        const key = getBucketKey(point, bucket);
-        const existing = bucketMap.get(key);
-        const { year, month, day } = mapBucketToDateParts(point, bucket);
-        return {
-          label: formatBucketLabel(point, bucket),
-          year,
-          month,
-          day: bucket === "day" ? day : null,
-          completed: existing?.completed ?? 0,
-          cancelled: existing?.cancelled ?? 0,
-        };
-      });
+    >();
+    for (const row of rows) {
+      const d = dayjs(row.startTime);
+      const { year, month, day } = mapBucketToDateParts(d, bucket);
+      const key = getBucketKey(d, bucket);
+      const entry = bucketMap.get(key) ?? {
+        year,
+        month,
+        day: bucket === "day" ? day : null,
+        completed: 0,
+        cancelled: 0,
+      };
+      if (row.status === "COMPLETED") entry.completed += 1;
+      if (row.status === "CANCELLED") entry.cancelled += 1;
+      bucketMap.set(key, entry);
     }
 
-    const agg = await AppointmentModel.aggregate<AppointmentTrendAgg>([
-      {
-        $match: {
-          organisationId,
-          startTime: { $gte: from, $lte: to },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$startTime" },
-            month: { $month: "$startTime" },
-            ...(bucket === "day" ? { day: { $dayOfMonth: "$startTime" } } : {}),
-          },
-          completed: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0],
-            },
-          },
-          cancelled: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "CANCELLED"] }, 1, 0],
-            },
-          },
-        },
-      },
-      {
-        $sort: {
-          "_id.year": 1,
-          "_id.month": 1,
-          ...(bucket === "day" ? { "_id.day": 1 } : {}),
-        },
-      },
-    ]);
-
-    const mapped = new Map(
-      agg.map((row) => {
-        const year = row._id.year;
-        const month = row._id.month;
-        const day = row._id.day ?? null;
-        const d = dayjs()
-          .year(year)
-          .month(month - 1)
-          .date(day ?? 1);
-        return [
-          getBucketKey(d, bucket),
-          {
-            completed: row.completed ?? 0,
-            cancelled: row.cancelled ?? 0,
-          },
-        ];
-      }),
-    );
-
     return buildBucketSeries(from, to, bucket).map((point) => {
-      const { year, month, day } = mapBucketToDateParts(point, bucket);
       const key = getBucketKey(point, bucket);
-      const existing = mapped.get(key);
+      const existing = bucketMap.get(key);
+      const { year, month, day } = mapBucketToDateParts(point, bucket);
       return {
         label: formatBucketLabel(point, bucket),
         year,
@@ -542,161 +414,20 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    if (isReadFromPostgres()) {
-      const rows = await prisma.invoice.findMany({
-        where: {
-          organisationId,
-          OR: [
-            { status: "PAID", paidAt: { gte: from, lte: to } },
-            { status: "CANCELLED", updatedAt: { gte: from, lte: to } },
-          ],
-        },
-        select: {
-          paidAt: true,
-          updatedAt: true,
-          totalAmount: true,
-          status: true,
-        },
-      });
-
-      const bucketMap = new Map<
-        string,
-        {
-          year: number;
-          month: number;
-          day: number | null;
-          revenue: number;
-          paidRevenue: number;
-          cancelledRevenue: number;
-        }
-      >();
-      for (const row of rows) {
-        const relevantDate = row.status === "PAID" ? row.paidAt : row.updatedAt;
-        if (!relevantDate) continue;
-        const d = dayjs(relevantDate);
-        const { year, month, day } = mapBucketToDateParts(d, bucket);
-        const key = getBucketKey(d, bucket);
-        const entry = bucketMap.get(key) ?? {
-          year,
-          month,
-          day: bucket === "day" ? day : null,
-          revenue: 0,
-          paidRevenue: 0,
-          cancelledRevenue: 0,
-        };
-        if (row.status === "PAID") {
-          entry.paidRevenue += row.totalAmount ?? 0;
-          entry.revenue += row.totalAmount ?? 0;
-        }
-        if (row.status === "CANCELLED") {
-          entry.cancelledRevenue += row.totalAmount ?? 0;
-        }
-        bucketMap.set(key, entry);
-      }
-
-      return buildBucketSeries(from, to, bucket).map((point) => {
-        const key = getBucketKey(point, bucket);
-        const existing = bucketMap.get(key);
-        const { year, month, day } = mapBucketToDateParts(point, bucket);
-        return {
-          label: formatBucketLabel(point, bucket),
-          year,
-          month,
-          day: bucket === "day" ? day : null,
-          revenue: existing?.revenue ?? 0,
-          paidRevenue: existing?.paidRevenue ?? 0,
-          cancelledRevenue: existing?.cancelledRevenue ?? 0,
-        };
-      });
-    }
-
-    const agg = await InvoiceModel.aggregate<RevenueTrendAgg>([
-      {
-        $match: {
-          organisationId,
-          $or: [
-            { status: "PAID", paidAt: { $gte: from, $lte: to } },
-            { status: "CANCELLED", updatedAt: { $gte: from, $lte: to } },
-          ],
-        },
-      },
-      {
-        $group: {
-          _id: {
-            year: {
-              $year: {
-                $cond: [{ $eq: ["$status", "PAID"] }, "$paidAt", "$updatedAt"],
-              },
-            },
-            month: {
-              $month: {
-                $cond: [{ $eq: ["$status", "PAID"] }, "$paidAt", "$updatedAt"],
-              },
-            },
-            ...(bucket === "day"
-              ? {
-                  day: {
-                    $dayOfMonth: {
-                      $cond: [
-                        { $eq: ["$status", "PAID"] },
-                        "$paidAt",
-                        "$updatedAt",
-                      ],
-                    },
-                  },
-                }
-              : {}),
-          },
-          revenue: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "PAID"] }, "$totalAmount", 0],
-            },
-          },
-          paidRevenue: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "PAID"] }, "$totalAmount", 0],
-            },
-          },
-          cancelledRevenue: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "CANCELLED"] }, "$totalAmount", 0],
-            },
-          },
-        },
-      },
-      {
-        $sort: {
-          "_id.year": 1,
-          "_id.month": 1,
-          ...(bucket === "day" ? { "_id.day": 1 } : {}),
-        },
-      },
-    ]);
-
-    const mapped = new Map(
-      agg.map((row) => {
-        const year = row._id.year;
-        const month = row._id.month;
-        const day = row._id.day ?? null;
-        const d = dayjs()
-          .year(year)
-          .month(month - 1)
-          .date(day ?? 1);
-        return [
-          getBucketKey(d, bucket),
-          {
-            revenue: row.revenue ?? 0,
-            paidRevenue: row.paidRevenue ?? 0,
-            cancelledRevenue: row.cancelledRevenue ?? 0,
-          },
-        ];
-      }),
-    );
+    const rows = await prisma.$queryRaw<
+      Array<{
+        bucket: Date;
+        revenue: number;
+        paidRevenue: number;
+        cancelledRevenue: number;
+      }>
+    >(buildRevenueTrendQuery({ bucket, organisationId, from, to }));
+    const bucketMap = mapRevenueTrendRows(rows, bucket);
 
     return buildBucketSeries(from, to, bucket).map((point) => {
-      const { year, month, day } = mapBucketToDateParts(point, bucket);
       const key = getBucketKey(point, bucket);
-      const existing = mapped.get(key);
+      const existing = bucketMap.get(key);
+      const { year, month, day } = mapBucketToDateParts(point, bucket);
       return {
         label: formatBucketLabel(point, bucket),
         year,
@@ -727,64 +458,31 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    if (isReadFromPostgres()) {
-      const rows = await prisma.appointment.findMany({
-        where: {
-          organisationId,
-          startTime: { gte: from, lte: to },
-          status: "COMPLETED",
-        },
-        select: { lead: true },
-      });
-
-      const counts = new Map<string, number>();
-      for (const row of rows) {
-        if (!row.lead || typeof row.lead !== "object") continue;
-        const leadId = (row.lead as { id?: string }).id;
-        if (!leadId) continue;
-        counts.set(leadId, (counts.get(leadId) ?? 0) + 1);
-      }
-
-      return Array.from(counts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
-        .map(([staffId, completedAppointments]) => ({
-          staffId,
-          completedAppointments,
-          name: undefined,
-        }));
-    }
-
-    // doctorId / clinicianId – adjust to your schema
-    const agg = await AppointmentModel.aggregate<StaffLeaderAgg>([
-      {
-        $match: {
-          organisationId,
-          startTime: { $gte: from, $lte: to },
-          status: "COMPLETED",
-          "lead.id": { $exists: true, $nin: [null, ""] },
-        },
+    const rows = await prisma.appointment.findMany({
+      where: {
+        organisationId,
+        startTime: { gte: from, lte: to },
+        status: "COMPLETED",
       },
-      {
-        $group: {
-          _id: "$lead.id",
-          completedAppointments: { $sum: 1 },
-        },
-      },
-      { $sort: { completedAppointments: -1 } },
-      { $limit: limit },
-    ]);
-
-    const result: StaffLeader[] = agg.map((row) => {
-      const staffId = row._id ? String(row._id) : "unknown";
-      return {
-        staffId,
-        completedAppointments: row.completedAppointments ?? 0,
-        name: undefined, // Optionally populate via separate StaffModel lookup
-      };
+      select: { lead: true },
     });
 
-    return result;
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      if (!row.lead || typeof row.lead !== "object") continue;
+      const leadId = (row.lead as { id?: string }).id;
+      if (!leadId) continue;
+      counts.set(leadId, (counts.get(leadId) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([staffId, completedAppointments]) => ({
+        staffId,
+        completedAppointments,
+        name: undefined,
+      }));
   },
 
   // ─────────────────────────────────────────────
@@ -805,61 +503,32 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    if (isReadFromPostgres()) {
-      const rows = await prisma.invoice.findMany({
-        where: {
-          organisationId,
-          status: "PAID",
-          paidAt: { gte: from, lte: to },
-        },
-        select: { items: true },
-      });
+    const rows = await prisma.invoice.findMany({
+      where: {
+        organisationId,
+        status: "PAID",
+        paidAt: { gte: from, lte: to },
+      },
+      select: { items: true },
+    });
 
-      const totals = new Map<string, number>();
-      for (const row of rows) {
-        const items = Array.isArray(row.items) ? row.items : [];
-        for (const item of items as Array<{ name?: string; total?: number }>) {
-          const name = item.name ?? "Unknown";
-          totals.set(name, (totals.get(name) ?? 0) + (item.total ?? 0));
-        }
+    const totals = new Map<string, number>();
+    for (const row of rows) {
+      const items = Array.isArray(row.items) ? row.items : [];
+      for (const item of items as Array<{ name?: string; total?: number }>) {
+        const name = item.name ?? "Unknown";
+        totals.set(name, (totals.get(name) ?? 0) + (item.total ?? 0));
       }
-
-      return Array.from(totals.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
-        .map(([label, revenue]) => ({
-          serviceKey: label,
-          label,
-          revenue,
-        }));
     }
 
-    const agg = await InvoiceModel.aggregate<RevenueLeaderAgg>([
-      {
-        $match: {
-          organisationId,
-          status: "PAID",
-          paidAt: { $gte: from, $lte: to },
-        },
-      },
-      { $unwind: "$items" },
-      {
-        $group: {
-          _id: "$items.name",
-          revenue: { $sum: "$items.total" },
-        },
-      },
-      { $sort: { revenue: -1 } },
-      { $limit: limit },
-    ]);
-
-    const result: RevenueLeader[] = agg.map((row) => ({
-      serviceKey: row._id ?? "Unknown",
-      label: row._id ?? "Unknown",
-      revenue: row.revenue ?? 0,
-    }));
-
-    return result;
+    return Array.from(totals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([label, revenue]) => ({
+        serviceKey: label,
+        label,
+        revenue,
+      }));
   },
 
   // ─────────────────────────────────────────────
@@ -887,149 +556,69 @@ export const DashboardService = {
           to: dayjs().year(year).endOf("year").toDate(),
         };
 
-    if (isReadFromPostgres()) {
-      const items = await prisma.inventoryItem.findMany({
-        where: { organisationId },
-        select: { id: true, onHand: true, name: true },
-      });
-      const itemIds = items.map((item) => item.id);
+    const items = await prisma.inventoryItem.findMany({
+      where: { organisationId },
+      select: { id: true, onHand: true, name: true },
+    });
+    const itemIds = items.map((item) => item.id);
 
-      const movements = itemIds.length
-        ? await prisma.inventoryStockMovement.findMany({
-            where: {
-              itemId: { in: itemIds },
-              createdAt: { gte: from, lte: to },
-              change: { lt: 0 },
-            },
-            select: { itemId: true, change: true, createdAt: true },
-          })
-        : [];
+    const movements = itemIds.length
+      ? await prisma.inventoryStockMovement.findMany({
+          where: {
+            itemId: { in: itemIds },
+            createdAt: { gte: from, lte: to },
+            change: { lt: 0 },
+          },
+          select: { itemId: true, change: true, createdAt: true },
+        })
+      : [];
 
-      const totalConsumed = movements.reduce(
-        (sum, move) => sum + Math.abs(move.change ?? 0),
-        0,
-      );
+    const totalConsumed = movements.reduce(
+      (sum, move) => sum + Math.abs(move.change ?? 0),
+      0,
+    );
 
-      const totalOnHand = items.reduce(
-        (sum, item) => sum + (item.onHand ?? 0),
-        0,
-      );
-      const avgOnHand = totalOnHand || 1;
-      const turnsPerYear = totalConsumed / avgOnHand;
-      const restockCycleDays =
-        turnsPerYear > 0 ? Math.round(365 / turnsPerYear) : null;
-
-      const bucket = new Map<
-        string,
-        { year: number; month: number; consumed: number }
-      >();
-      for (const move of movements) {
-        const year = dayjs(move.createdAt).year();
-        const month = dayjs(move.createdAt).month() + 1;
-        const key = `${year}-${month}`;
-        const entry = bucket.get(key) ?? { year, month, consumed: 0 };
-        entry.consumed += Math.abs(move.change ?? 0);
-        bucket.set(key, entry);
-      }
-
-      const trend = Array.from(bucket.values())
-        .sort((a, b) => a.year - b.year || a.month - b.month)
-        .map((row) => {
-          const d = dayjs()
-            .year(row.year)
-            .month(row.month - 1);
-          const monthlyAverageOnHand = avgOnHand;
-          const monthlyTurnover =
-            monthlyAverageOnHand > 0 ? row.consumed / monthlyAverageOnHand : 0;
-          return {
-            month: d.format("MMM"),
-            year: row.year,
-            turnover: monthlyTurnover,
-          };
-        });
-
-      return {
-        year,
-        turnsPerYear,
-        restockCycleDays,
-        targetTurnsPerYear,
-        trend,
-      };
-    }
-
-    // 1) Sum up all negative stock movements (consumption)
-    const consumptionAgg = await StockMovementModel.aggregate([
-      {
-        $match: {
-          organisationId,
-          createdAt: { $gte: from, $lte: to },
-          change: { $lt: 0 },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalConsumed: { $sum: { $multiply: ["$change", -1] } },
-        },
-      },
-    ]);
-
-    const totalConsumed = consumptionAgg[0]?.totalConsumed ?? 0;
-
-    // 2) Approximate average inventory value:
-    //    - using average of current onHand across items
-    const items = (await InventoryItemModel.find({ organisationId })
-      .lean()
-      .exec()) as unknown as InventoryItemLean[];
-    let totalOnHand = 0;
-    for (const item of items) {
-      totalOnHand += item.onHand ?? 0;
-    }
-    const avgOnHand = totalOnHand || 1; // avoid division by zero
-
+    const totalOnHand = items.reduce(
+      (sum, item) => sum + (item.onHand ?? 0),
+      0,
+    );
+    const avgOnHand = totalOnHand || 1;
     const turnsPerYear = totalConsumed / avgOnHand;
-
-    // 3) Restock cycle days ~ 365 / turns
     const restockCycleDays =
       turnsPerYear > 0 ? Math.round(365 / turnsPerYear) : null;
 
-    // 4) Monthly trend (rough: same formula grouped per month)
-    const monthlyAgg = await StockMovementModel.aggregate([
-      {
-        $match: {
-          organisationId,
-          createdAt: { $gte: from, $lte: to },
-          change: { $lt: 0 },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
-          },
-          consumed: { $sum: { $multiply: ["$change", -1] } },
-        },
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
-    ]);
-
-    const trend = monthlyAgg.map((row: MonthlyConsumptionAgg) => {
-      const mYear = row._id.year;
-      const mMonth = row._id.month;
-      const d = dayjs()
-        .year(mYear)
-        .month(mMonth - 1);
-      const monthlyAverageOnHand = avgOnHand; // simplification
-      const monthlyTurnover =
-        monthlyAverageOnHand > 0 ? row.consumed! / monthlyAverageOnHand : 0;
-
-      return {
-        month: d.format("MMM"),
-        year: mYear,
-        turnover: monthlyTurnover,
+    const bucket = new Map<
+      string,
+      { year: number; month: number; consumed: number }
+    >();
+    for (const move of movements) {
+      const moveYear = dayjs(move.createdAt).year();
+      const moveMonth = dayjs(move.createdAt).month() + 1;
+      const key = `${moveYear}-${moveMonth}`;
+      const entry = bucket.get(key) ?? {
+        year: moveYear,
+        month: moveMonth,
+        consumed: 0,
       };
-    });
+      entry.consumed += Math.abs(move.change ?? 0);
+      bucket.set(key, entry);
+    }
+
+    const trend = Array.from(bucket.values())
+      .sort((a, b) => a.year - b.year || a.month - b.month)
+      .map((row) => {
+        const d = dayjs()
+          .year(row.year)
+          .month(row.month - 1);
+        const monthlyAverageOnHand = avgOnHand;
+        const monthlyTurnover =
+          monthlyAverageOnHand > 0 ? row.consumed / monthlyAverageOnHand : 0;
+        return {
+          month: d.format("MMM"),
+          year: row.year,
+          turnover: monthlyTurnover,
+        };
+      });
 
     return {
       year,
@@ -1065,104 +654,46 @@ export const DashboardService = {
           to: dayjs().year(year).endOf("year").toDate(),
         };
 
-    if (isReadFromPostgres()) {
-      const items = await prisma.inventoryItem.findMany({
-        where: { organisationId },
-        select: { id: true, name: true, onHand: true },
-      });
-      const itemIds = items.map((item: { id: string }) => item.id);
+    const items = await prisma.inventoryItem.findMany({
+      where: { organisationId },
+      select: { id: true, name: true, onHand: true },
+    });
+    const itemIds = items.map((item: { id: string }) => item.id);
 
-      const movements = itemIds.length
-        ? await prisma.inventoryStockMovement.findMany({
-            where: {
-              itemId: { in: itemIds },
-              createdAt: { gte: from, lte: to },
-              change: { lt: 0 },
-            },
-            select: { itemId: true, change: true },
-          })
-        : [];
+    const movements = itemIds.length
+      ? await prisma.inventoryStockMovement.findMany({
+          where: {
+            itemId: { in: itemIds },
+            createdAt: { gte: from, lte: to },
+            change: { lt: 0 },
+          },
+          select: { itemId: true, change: true },
+        })
+      : [];
 
-      const consumptionByItem = new Map<string, number>();
-      for (const move of movements) {
-        if (!move.itemId) continue;
-        const current = consumptionByItem.get(move.itemId) ?? 0;
-        consumptionByItem.set(
-          move.itemId,
-          current + Math.abs(move.change ?? 0),
-        );
-      }
-
-      const itemMap = new Map(items.map((item) => [item.id, item]));
-
-      return Array.from(
-        consumptionByItem.entries() as Iterable<[string, number]>,
-      )
-        .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
-        .slice(0, limit)
-        .map(([itemId, consumed]: [string, number]) => {
-          const item = itemMap.get(itemId);
-          const onHand = item?.onHand ?? 0;
-          const avgOnHand = onHand || 1;
-          const turnover = consumed / avgOnHand;
-
-          return {
-            itemId,
-            name: item?.name ?? "Unknown",
-            turnover,
-          };
-        });
+    const consumptionByItem = new Map<string, number>();
+    for (const move of movements) {
+      if (!move.itemId) continue;
+      const current = consumptionByItem.get(move.itemId) ?? 0;
+      consumptionByItem.set(move.itemId, current + Math.abs(move.change ?? 0));
     }
 
-    // 1) Consumption per item
-    const agg = await StockMovementModel.aggregate([
-      {
-        $match: {
-          organisationId,
-          createdAt: { $gte: from, $lte: to },
-          change: { $lt: 0 },
-        },
-      },
-      {
-        $group: {
-          _id: "$itemId",
-          consumed: { $sum: { $multiply: ["$change", -1] } },
-        },
-      },
-      { $sort: { consumed: -1 } },
-      { $limit: limit },
-    ]);
+    const itemMap = new Map(items.map((item) => [item.id, item]));
 
-    const itemIds = agg
-      .map((a: ProductConsumptionAgg) => a._id)
-      .filter(Boolean);
-    const items = await InventoryItemModel.find({
-      _id: { $in: itemIds },
-    })
-      .lean()
-      .exec();
-
-    const itemMap = new Map<string, InventoryItemLean>();
-    for (const it of items) {
-      itemMap.set(it._id.toString(), it);
-    }
-
-    const result: ProductTurnoverPoint[] = agg.map(
-      (row: ProductConsumptionAgg) => {
-        const idStr = row._id.toString();
-        const item = itemMap.get(idStr);
+    return Array.from(consumptionByItem.entries() as Iterable<[string, number]>)
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([itemId, consumed]: [string, number]) => {
+        const item = itemMap.get(itemId);
         const onHand = item?.onHand ?? 0;
         const avgOnHand = onHand || 1;
-        const turnover = row.consumed! / avgOnHand;
+        const turnover = consumed / avgOnHand;
 
         return {
-          itemId: idStr,
+          itemId,
           name: item?.name ?? "Unknown",
           turnover,
         };
-      },
-    );
-
-    return result;
+      });
   },
 };

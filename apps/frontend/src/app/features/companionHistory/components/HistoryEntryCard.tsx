@@ -1,29 +1,44 @@
 import React, { useMemo } from 'react';
-import { HistoryEntry } from '@/app/features/companionHistory/types/history';
-import { Badge, Card } from '@/app/ui';
-import { RiExternalLinkLine } from 'react-icons/ri';
 import {
-  formatCurrency,
+  IoChevronForwardOutline,
+  IoClipboardOutline,
+  IoDocumentTextOutline,
+  IoFlaskOutline,
+  IoMedkitOutline,
+  IoReceiptOutline,
+} from 'react-icons/io5';
+import { HistoryEntry, HistoryEntryType } from '@/app/features/companionHistory/types/history';
+import { Badge } from '@/app/ui';
+import { getStatusStyle } from '@/app/config/statusConfig';
+import {
   formatHistoryDate,
   formatHistoryDateTime,
   getHistoryStatusBadgeTone,
-  getHistoryTypeLabel,
-  getHistoryTypeBadgeTone,
-  getPayloadBoolean,
-  getPayloadNumber,
   getPayloadString,
   getPrimaryActionLabel,
 } from '@/app/features/companionHistory/utils/historyFormatters';
-import { getPaymentCollectionMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 type HistoryEntryCardProps = {
   entry: HistoryEntry;
   onOpen: (entry: HistoryEntry) => void;
+  /** Hides the connector line for the final entry in the timeline. */
+  isLast?: boolean;
+  /** Interactive status control (editable pill for appointments/tasks). Falls back to a read-only badge. */
+  statusSlot?: React.ReactNode;
+  /** Inline action chips (PDF preview, accept/reject, expand toggle). */
+  actions?: React.ReactNode;
+  /** Expanded detail region (e.g. structured lab results). */
+  expandedContent?: React.ReactNode;
+  /** When provided, renders a trailing chevron that opens the record detail drawer. */
+  onOpenDetail?: (entry: HistoryEntry) => void;
+  /** Marks the row as the record currently open in the detail drawer. */
+  active?: boolean;
 };
 
-type DetailPair = {
+type AttachmentChip = {
+  key: string;
+  icon: React.ReactNode;
   label: string;
-  value: string;
 };
 
 const ROLE_LABEL_MAP: Record<string, string> = {
@@ -33,131 +48,16 @@ const ROLE_LABEL_MAP: Record<string, string> = {
   SYSTEM: 'System',
 };
 
-const getPayloadStringArray = (payload: Record<string, unknown>, key: string): string[] => {
-  const value = payload?.[key];
-  if (!Array.isArray(value)) return [];
-  return value.reduce<string[]>((items, item) => {
-    const trimmed = String(item ?? '').trim();
-    if (trimmed.length > 0) items.push(trimmed);
-    return items;
-  }, []);
-};
-
-const getAppointmentDetails = (entry: HistoryEntry): DetailPair[] => {
-  const service = getPayloadString(entry.payload, ['serviceName']);
-  const concern = getPayloadString(entry.payload, ['concern', 'reason']);
-  const room = getPayloadString(entry.payload, ['room', 'roomName']);
-  return [
-    { label: 'Service', value: service || '-' },
-    { label: 'Reason', value: concern || '-' },
-    { label: 'Room', value: room || '-' },
-  ];
-};
-
-const getTaskDetails = (entry: HistoryEntry): DetailPair[] => {
-  const audience = getPayloadString(entry.payload, ['audience']);
-  const dueAt = getPayloadString(entry.payload, ['dueAt']);
-  const completedAt = getPayloadString(entry.payload, ['completedAt']);
-  const medication = getPayloadString(entry.payload, ['medicationSummary', 'medication']);
-
-  let statusDate = '-';
-  if (completedAt) {
-    statusDate = formatHistoryDate(completedAt);
-  } else if (dueAt) {
-    statusDate = formatHistoryDate(dueAt);
+// Per-type spine icon. Appointments/vaccines reuse the medical kit glyph, records
+// use the document glyph, diagnostics the flask, billing the receipt.
+const getTypeIcon = (type: HistoryEntryType): React.ReactNode => {
+  if (type === 'LAB_RESULT') return <IoFlaskOutline size={15} aria-hidden="true" />;
+  if (type === 'INVOICE') return <IoReceiptOutline size={15} aria-hidden="true" />;
+  if (type === 'TASK') return <IoClipboardOutline size={15} aria-hidden="true" />;
+  if (type === 'DOCUMENT' || type === 'FORM_SUBMISSION') {
+    return <IoDocumentTextOutline size={15} aria-hidden="true" />;
   }
-
-  return [
-    { label: 'Audience', value: audience || '-' },
-    { label: completedAt ? 'Completed' : 'Due', value: statusDate },
-    { label: 'Medication', value: medication || '-' },
-  ];
-};
-
-const getFormDetails = (entry: HistoryEntry): DetailPair[] => {
-  const category = getPayloadString(entry.payload, ['formCategory', 'category']);
-  const signingPayload =
-    entry.payload && typeof entry.payload.signing === 'object' && entry.payload.signing !== null
-      ? (entry.payload.signing as Record<string, unknown>)
-      : null;
-  const nestedSigningStatus =
-    signingPayload && typeof signingPayload.status === 'string' ? signingPayload.status : null;
-  const signedStatus = nestedSigningStatus || getPayloadString(entry.payload, ['signingStatus']);
-  const submittedAt = getPayloadString(entry.payload, ['submittedAt']);
-  const soapSubtype = getPayloadString(entry.payload, ['soapSubtype']);
-  const signatureLabel = formatStatusLabel(signedStatus || entry.status) || '-';
-
-  return [
-    { label: 'Category', value: category || '-' },
-    { label: 'SOAP type', value: soapSubtype || '-' },
-    { label: 'Submitted', value: submittedAt ? formatHistoryDate(submittedAt) : '-' },
-    { label: 'Signature', value: signatureLabel },
-  ];
-};
-
-const getDocumentSourceLabel = (entry: HistoryEntry): string => {
-  const synced = getPayloadBoolean(entry.payload, ['syncedFromPms']);
-  if (synced === null) {
-    return entry.source;
-  }
-  return synced ? 'Synced' : 'Manual';
-};
-
-const getDocumentDetails = (entry: HistoryEntry): DetailPair[] => {
-  const category = getPayloadString(entry.payload, ['category']);
-  const subcategory = getPayloadString(entry.payload, ['subcategory']);
-  const issueDate = getPayloadString(entry.payload, ['issueDate']);
-  const issuer = getPayloadString(entry.payload, ['issuingBusinessName']);
-  const sourceLabel = getDocumentSourceLabel(entry);
-
-  return [
-    { label: 'Category', value: category || '-' },
-    { label: 'Sub-category', value: subcategory || '-' },
-    { label: 'Issue date', value: issueDate ? formatHistoryDate(issueDate) : '-' },
-    { label: 'Issuer', value: issuer || '-' },
-    { label: 'Source', value: sourceLabel },
-  ];
-};
-
-const getLabDetails = (entry: HistoryEntry): DetailPair[] => {
-  const provider = getPayloadString(entry.payload, ['provider']) || 'IDEXX';
-  const accession = getPayloadString(entry.payload, ['accessionId', 'orderId']);
-  const resultStatus = getPayloadString(entry.payload, ['status']);
-  const abnormalityPreview = getPayloadString(entry.payload, ['abnormalityPreview']);
-
-  return [
-    { label: 'Provider', value: provider },
-    { label: 'Result status', value: resultStatus || entry.status || '-' },
-    { label: 'Accession', value: accession || '-' },
-    { label: 'Preview', value: abnormalityPreview || '-' },
-  ];
-};
-
-const getInvoiceDetails = (entry: HistoryEntry): DetailPair[] => {
-  const totalAmount = getPayloadNumber(entry.payload, ['totalAmount']);
-  const currency = getPayloadString(entry.payload, ['currency']);
-  const collectionMethod = getPaymentCollectionMethodLabel(
-    getPayloadString(entry.payload, ['paymentCollectionMethod'])
-  );
-  const paidAt = getPayloadString(entry.payload, ['paidAt']);
-  const status =
-    formatStatusLabel(getPayloadString(entry.payload, ['status']) || entry.status) || '-';
-
-  return [
-    { label: 'Status', value: status },
-    { label: 'Amount', value: formatCurrency(totalAmount, currency) || '-' },
-    { label: 'Payment method', value: collectionMethod || '-' },
-    { label: 'Paid date', value: paidAt ? formatHistoryDate(paidAt) : '-' },
-  ];
-};
-
-const getDetails = (entry: HistoryEntry): DetailPair[] => {
-  if (entry.type === 'APPOINTMENT') return getAppointmentDetails(entry);
-  if (entry.type === 'TASK') return getTaskDetails(entry);
-  if (entry.type === 'FORM_SUBMISSION') return getFormDetails(entry);
-  if (entry.type === 'DOCUMENT') return getDocumentDetails(entry);
-  if (entry.type === 'LAB_RESULT') return getLabDetails(entry);
-  return getInvoiceDetails(entry);
+  return <IoMedkitOutline size={15} aria-hidden="true" />;
 };
 
 const formatStatusLabel = (status?: string): string => {
@@ -193,162 +93,211 @@ const getDedupedSubtitle = (entry: HistoryEntry): string => {
   return subtitle;
 };
 
-const getContributorDetails = (entry: HistoryEntry): DetailPair[] => {
-  const leadName =
-    getPayloadString(entry.payload, ['leadName', 'leadVet', 'leadVetName']) ||
-    entry.actor?.name?.trim() ||
-    '';
-  const supportNames = getPayloadStringArray(entry.payload, 'supportStaffNames');
-  const supportSingle = getPayloadString(entry.payload, ['supportStaffName']);
-  const supportDisplay = [...supportNames, supportSingle].filter(Boolean).join(', ');
-  const actorName = entry.actor?.name?.trim() || '';
-  const actorRoleKey = String(entry.actor?.role ?? '')
+// The meta line reads "<date · time> · <who>", threading the contributor (lead vet
+// or acting user) after the timestamp exactly as the design mock shows.
+const getContributor = (entry: HistoryEntry): string => {
+  const lead = getPayloadString(entry.payload, [
+    'leadName',
+    'leadVetName',
+    'leadVet',
+    'createdByName',
+    'submittedByName',
+  ]);
+  if (lead) return lead;
+  const actorName = entry.actor?.name?.trim();
+  if (actorName) return actorName;
+  const roleKey = String(entry.actor?.role ?? '')
     .trim()
     .toUpperCase();
-  const actorRoleLabel = ROLE_LABEL_MAP[actorRoleKey] || '';
-
-  if (leadName || supportDisplay) {
-    return [
-      { label: 'Lead', value: leadName || '-' },
-      { label: 'Support', value: supportDisplay || '-' },
-    ].filter((detail) => detail.value !== '-');
-  }
-
-  if (actorName && actorRoleLabel) {
-    return [{ label: 'Updated by', value: `${actorName} • ${actorRoleLabel}` }];
-  }
-  if (actorName) {
-    return [{ label: 'Updated by', value: actorName }];
-  }
-  if (actorRoleLabel) {
-    return [{ label: 'Updated by', value: actorRoleLabel }];
-  }
-  return [];
+  return ROLE_LABEL_MAP[roleKey] ?? '';
 };
 
-const HistoryEntryCard = ({ entry, onOpen }: HistoryEntryCardProps) => {
+const getMetaText = (entry: HistoryEntry): string => {
+  const timestamp = formatHistoryDateTime(entry.occurredAt);
+  const contributor = getContributor(entry);
+  return contributor ? `${timestamp} · ${contributor}` : timestamp;
+};
+
+const getAttachmentLabel = (attachment: unknown): string => {
+  if (typeof attachment === 'string') return attachment.trim();
+  const name = (attachment as { name?: unknown })?.name;
+  return typeof name === 'string' || typeof name === 'number' ? String(name).trim() : '';
+};
+
+const getAttachmentChips = (entry: HistoryEntry): AttachmentChip[] => {
+  const chips: AttachmentChip[] = [];
+  const fileName = getPayloadString(entry.payload, [
+    'fileName',
+    'documentName',
+    'attachmentName',
+    'certificateName',
+  ]);
+  if (fileName) {
+    chips.push({
+      key: 'file',
+      icon: <IoDocumentTextOutline size={11} aria-hidden="true" />,
+      label: fileName,
+    });
+  }
+
+  const attachments = Array.isArray(entry.payload.attachments) ? entry.payload.attachments : [];
+  attachments.forEach((attachment, index) => {
+    const label = getAttachmentLabel(attachment);
+    if (label) {
+      chips.push({
+        key: `attachment-${index}`,
+        icon: <IoDocumentTextOutline size={11} aria-hidden="true" />,
+        label,
+      });
+    }
+  });
+
+  const invoiceNumber = getPayloadString(entry.payload, ['invoiceNumber', 'invoiceRef']);
+  if (invoiceNumber) {
+    chips.push({
+      key: 'invoice',
+      icon: <IoReceiptOutline size={11} aria-hidden="true" />,
+      label: `Invoice #${invoiceNumber}`,
+    });
+  }
+
+  return chips;
+};
+
+const getBadgeTint = (entry: HistoryEntry): React.CSSProperties => {
+  const statusKey = String(entry.status ?? '')
+    .trim()
+    .toLowerCase();
+  if (statusKey) {
+    const style = getStatusStyle(statusKey);
+    return {
+      background: style.backgroundColor,
+      borderColor: style.borderColor,
+      color: style.color,
+    };
+  }
+  // Statusless informational entries (documents, signed forms) use the blue accent.
+  return {
+    background: 'var(--blue-soft)',
+    borderColor: 'var(--status-upcoming-border)',
+    color: 'var(--blue-text)',
+  };
+};
+
+const HistoryEntryCard = ({
+  entry,
+  onOpen,
+  isLast = false,
+  statusSlot,
+  actions,
+  expandedContent,
+  onOpenDetail,
+  active = false,
+}: HistoryEntryCardProps) => {
   const actionLabel = useMemo(() => getPrimaryActionLabel(entry), [entry]);
   const statusLabel = useMemo(() => formatStatusLabel(entry.status), [entry.status]);
-  const details = useMemo(() => {
-    return getDetails(entry)
-      .filter((item) => item.value && item.value !== '-')
-      .slice(0, 3);
-  }, [entry]);
-
-  const contributorDetails = useMemo(() => getContributorDetails(entry), [entry]);
+  const meta = useMemo(() => getMetaText(entry), [entry]);
   const subtitle = useMemo(() => getDedupedSubtitle(entry), [entry]);
-  const serviceReasonDetails = useMemo(
-    () =>
-      entry.type === 'APPOINTMENT'
-        ? details.filter((detail) => detail.label === 'Service' || detail.label === 'Reason')
-        : [],
-    [details, entry.type]
-  );
-  const detailsForGrid = useMemo(
-    () =>
-      entry.type === 'APPOINTMENT'
-        ? details.filter((detail) => detail.label !== 'Service' && detail.label !== 'Reason')
-        : details,
-    [details, entry.type]
-  );
+  const attachmentChips = useMemo(() => getAttachmentChips(entry), [entry]);
+  const tint = useMemo(() => getBadgeTint(entry), [entry]);
+  const tags = entry.tags ?? [];
 
   return (
-    <Card variant="default" className="w-full font-satoshi px-3 py-2.5 md:px-3.5 md:py-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge tone={getHistoryTypeBadgeTone(entry.type)} className="px-2 py-0.5 text-caption-1">
-            {getHistoryTypeLabel(entry.type)}
-          </Badge>
-        </div>
-        {statusLabel ? (
-          <Badge
-            tone={getHistoryStatusBadgeTone(entry.status)}
-            className="px-2 py-0.5 text-caption-1"
+    <li
+      className={`flex gap-[14px] font-satoshi ${
+        active ? 'rounded-[14px] bg-[var(--surface-soft)] px-2 py-1.5' : ''
+      }`}
+    >
+      <span className="flex flex-none flex-col items-center">
+        <span
+          aria-hidden="true"
+          className="flex size-[34px] items-center justify-center rounded-full border"
+          style={tint}
+        >
+          {getTypeIcon(entry.type)}
+        </span>
+        {isLast ? null : (
+          <span
+            aria-hidden="true"
+            className="my-1 flex-1"
+            style={{ width: '1.5px', background: 'var(--hairline)' }}
+          />
+        )}
+      </span>
+
+      <div className={isLast ? 'min-w-0 flex-1' : 'min-w-0 flex-1 pb-4'}>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-label={actionLabel}
+            onClick={() => onOpen(entry)}
+            className="group inline-flex w-fit max-w-full items-center text-left"
           >
-            {statusLabel}
-          </Badge>
+            <span className="truncate text-[14px] font-bold leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--blue-text)] group-hover:underline">
+              {entry.title}
+            </span>
+          </button>
+          {statusSlot ??
+            (statusLabel ? (
+              <Badge tone={getHistoryStatusBadgeTone(entry.status)}>{statusLabel}</Badge>
+            ) : null)}
+          {meta ? <span className="text-[12px] text-[var(--ink-faint)]">{meta}</span> : null}
+        </div>
+
+        {subtitle ? (
+          <span className="mt-[3px] block text-[12.5px] text-[var(--ink-muted)]">{subtitle}</span>
+        ) : null}
+        {entry.summary ? (
+          <span className="mt-[3px] block text-[12.5px] text-[var(--ink-muted)]">
+            {entry.summary}
+          </span>
+        ) : null}
+
+        {attachmentChips.length > 0 || actions ? (
+          <span className="mt-2 flex flex-wrap items-center gap-1.5">
+            {attachmentChips.map((chip) => (
+              <span
+                key={`${entry.id}-${chip.key}`}
+                className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-1 text-[11px] font-semibold text-[var(--ink-body)]"
+                style={{ background: 'var(--inset)' }}
+              >
+                <span aria-hidden="true" className="inline-flex text-[var(--blue-text)]">
+                  {chip.icon}
+                </span>
+                {chip.label}
+              </span>
+            ))}
+            {actions}
+          </span>
+        ) : null}
+
+        {expandedContent}
+
+        {tags.length > 0 ? (
+          <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={`${entry.id}-${tag}`}
+                className="rounded-full bg-card-hover px-2 py-0.5 text-[11px] text-[var(--ink-muted)]"
+              >
+                {tag}
+              </span>
+            ))}
+          </span>
         ) : null}
       </div>
 
-      <div className="mt-1.5 flex flex-col gap-0.5">
+      {onOpenDetail ? (
         <button
           type="button"
-          aria-label={actionLabel}
-          onClick={() => onOpen(entry)}
-          className="group inline-flex w-fit items-center gap-1 text-left"
+          aria-label={`Open record detail for ${entry.title}`}
+          onClick={() => onOpenDetail(entry)}
+          className="flex size-7 flex-none items-center justify-center self-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
-          <span className="text-body-4-emphasis leading-snug text-text-primary transition-colors group-hover:text-text-brand group-hover:underline">
-            {entry.title}
-          </span>
-          <span className="inline-flex items-center justify-center rounded-r-2xl pl-1 pr-0.5 text-text-secondary transition-colors group-hover:text-text-brand">
-            <RiExternalLinkLine size={12} />
-          </span>
+          <IoChevronForwardOutline size={15} aria-hidden="true" />
         </button>
-        {subtitle ? <div className="text-caption-1 text-text-secondary">{subtitle}</div> : null}
-        {entry.summary && entry.type !== 'APPOINTMENT' ? (
-          <div className="text-caption-1 leading-snug text-text-primary">{entry.summary}</div>
-        ) : null}
-      </div>
-
-      {serviceReasonDetails.length > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          {serviceReasonDetails.map((detail, index) => (
-            <div key={`${entry.id}-${detail.label}`} className="inline-flex items-center gap-2">
-              <span className="inline-flex items-center gap-1">
-                <span className="text-caption-1 text-text-extra">{detail.label}:</span>
-                <span className="text-caption-1 text-text-primary">{detail.value}</span>
-              </span>
-              {index < serviceReasonDetails.length - 1 ? (
-                <span className="text-caption-1 text-text-extra">•</span>
-              ) : null}
-            </div>
-          ))}
-        </div>
       ) : null}
-
-      {detailsForGrid.length > 0 ? (
-        <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2">
-          {detailsForGrid.map((detail) => (
-            <div key={`${entry.id}-${detail.label}`} className="flex min-w-0 items-start gap-1.5">
-              <div className="shrink-0 text-caption-1 text-text-extra">{detail.label}:</div>
-              <div className="truncate text-caption-1 text-text-primary">{detail.value}</div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="mt-2 flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-          {contributorDetails.map((detail, index) => (
-            <div key={`${entry.id}-${detail.label}`} className="inline-flex items-center gap-2">
-              <span className="inline-flex items-center gap-1">
-                <span className="text-caption-1 text-text-extra">{detail.label}:</span>
-                <span className="text-caption-1 text-text-primary">{detail.value}</span>
-              </span>
-              {index < contributorDetails.length - 1 ? (
-                <span className="text-caption-1 text-text-extra">•</span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-        <div className="shrink-0 text-caption-1 text-right text-text-secondary">
-          {formatHistoryDateTime(entry.occurredAt)}
-        </div>
-      </div>
-
-      {(entry.tags ?? []).length > 0 ? (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {(entry.tags ?? []).map((tag) => (
-            <span
-              key={`${entry.id}-${tag}`}
-              className="rounded-full bg-card-hover px-2 py-0.5 text-caption-1 text-text-secondary"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
-    </Card>
+    </li>
   );
 };
 

@@ -1,5 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { LuChevronDown, LuCopy, LuPrinter, LuShield, LuTrash2 } from 'react-icons/lu';
+import {
+  IoChevronDownOutline,
+  IoCopyOutline,
+  IoPrintOutline,
+  IoShieldOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
@@ -101,7 +107,7 @@ const FulfillmentDropdown = ({
           </option>
         ))}
       </select>
-      <LuChevronDown
+      <IoChevronDownOutline
         size={16}
         aria-hidden="true"
         className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -124,7 +130,7 @@ const FactChip = ({ label, value }: { label: string; value?: string }) => {
 /** Amber controlled-drug pill, optionally annotated with the DEA schedule. */
 const ControlledPill = ({ schedule }: { schedule?: string }) => (
   <span className="inline-flex items-center gap-1 rounded-2xl border border-pill-warning-text bg-pill-warning-bg px-2 py-0.5 text-caption-2 font-medium text-pill-warning-text">
-    <LuShield size={12} aria-hidden="true" />
+    <IoShieldOutline size={12} aria-hidden="true" />
     {schedule ? `Controlled · ${schedule}` : 'Controlled'}
   </span>
 );
@@ -203,7 +209,7 @@ const InstructionsField = ({
       onClick={() => copyValue(value)}
       className="absolute top-1/2 right-3 -translate-y-1/2 text-text-secondary hover:text-text-brand focus-visible:outline-none"
     >
-      <LuCopy size={16} aria-hidden="true" />
+      <IoCopyOutline size={16} aria-hidden="true" />
     </button>
   </div>
 );
@@ -262,7 +268,7 @@ const PrescriptionRow = ({
           />
           {isBilled ? null : (
             <CircleIconButton
-              icon={<LuTrash2 aria-hidden="true" />}
+              icon={<IoTrashOutline aria-hidden="true" />}
               label={`Remove ${item.medicineName}`}
               variant="danger"
               disabled={deleteLocked}
@@ -282,85 +288,90 @@ const PrescriptionRow = ({
         </div>
       )}
 
-      {/* Prescribing fields (clinician-entered) on one wrapping row. Each control is sized to its
-        content — dropdowns wide enough for their longest option, number fields kept narrow — and
-        Instructions flexes to fill the remaining space with the line price pinned to the end.
-        Strength comes from inventory (chip above), so there is no separate Dose field. Form/Route
-        appear here only when inventory did not define them (else they show as chips above). */}
-      <div className="flex flex-wrap items-start gap-3">
-        {/* Frequency dropdown: widest option is "TID (three times daily)". */}
-        <div className="w-full sm:w-56">
-          <SelectCell
-            label="Frequency"
-            value={item.frequency}
-            options={FREQUENCY_OPTIONS}
-            readOnly={rowReadOnly}
-            onChange={(frequency) => onUpdateItem(item.id, { frequency })}
-          />
-        </div>
-        <div className="w-24">
-          <EditableCell
-            label="Duration"
-            value={item.durationDays ?? ''}
-            readOnly={rowReadOnly}
-            error={errors.durationDays}
-            onChange={(durationDays) => onUpdateItem(item.id, { durationDays })}
-          />
-        </div>
-        <div className="w-full sm:w-36">
-          <SelectCell
-            label="Unit"
-            value={item.durationUnit ?? 'days'}
-            options={DURATION_UNIT_OPTIONS}
-            readOnly={rowReadOnly}
-            onChange={(durationUnit) => onUpdateItem(item.id, { durationUnit })}
-          />
-        </div>
-        <div className="w-20">
-          <EditableCell
-            label="Qty"
-            value={item.qty ?? ''}
-            readOnly={rowReadOnly}
-            error={errors.qty}
-            onChange={(qty) => onUpdateItem(item.id, { qty })}
-          />
-        </div>
-        <div className="w-20">
-          <EditableCell
-            label="Refills"
-            value={item.refill ?? ''}
-            readOnly={rowReadOnly}
-            error={errors.refill}
-            onChange={(refill) => onUpdateItem(item.id, { refill })}
-          />
-        </div>
-        {!hasForm && (
-          <div className="w-full sm:w-36">
+      {/* Prescribing fields (clinician-entered). The fields wrap inside their own flex column so
+        the line price stays pinned to the right edge of the row no matter how many field lines
+        there are. Without that column the price joins the wrap and lands at the start of a new
+        line whenever Form/Route are rendered. Each control is sized to its content: dropdowns
+        wide enough for their longest option, number fields kept narrow, and Instructions flexes
+        to fill the remaining space. Strength comes from inventory (chip above), so there is no
+        separate Dose field. Form/Route appear here only when inventory did not define them
+        (else they show as chips above). */}
+      <div className="flex items-start gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+          {/* Frequency dropdown: widest option is "TID (three times daily)". */}
+          <div className="w-full sm:w-56">
             <SelectCell
-              label="Form"
-              value={item.dosageForm}
-              options={FormOptions}
+              label="Frequency"
+              value={item.frequency}
+              options={FREQUENCY_OPTIONS}
               readOnly={rowReadOnly}
-              onChange={(dosageForm) => onUpdateItem(item.id, { dosageForm })}
+              onChange={(frequency) => onUpdateItem(item.id, { frequency })}
             />
           </div>
-        )}
-        {!hasRoute && (
-          <div className="w-full sm:w-36">
-            <SelectCell
-              label="Route"
-              value={item.route}
-              options={AdminstrationOptions}
+          <div className="w-24">
+            <EditableCell
+              label="Duration"
+              value={item.durationDays ?? ''}
               readOnly={rowReadOnly}
-              onChange={(route) => onUpdateItem(item.id, { route })}
+              error={errors.durationDays}
+              onChange={(durationDays) => onUpdateItem(item.id, { durationDays })}
             />
           </div>
-        )}
-        <InstructionsField
-          value={item.instructions ?? ''}
-          readOnly={rowReadOnly}
-          onChange={(value) => onUpdateItem(item.id, { instructions: value })}
-        />
+          <div className="w-full sm:w-36">
+            <SelectCell
+              label="Unit"
+              value={item.durationUnit ?? 'days'}
+              options={DURATION_UNIT_OPTIONS}
+              readOnly={rowReadOnly}
+              onChange={(durationUnit) => onUpdateItem(item.id, { durationUnit })}
+            />
+          </div>
+          <div className="w-20">
+            <EditableCell
+              label="Qty"
+              value={item.qty ?? ''}
+              readOnly={rowReadOnly}
+              error={errors.qty}
+              onChange={(qty) => onUpdateItem(item.id, { qty })}
+            />
+          </div>
+          <div className="w-20">
+            <EditableCell
+              label="Refills"
+              value={item.refill ?? ''}
+              readOnly={rowReadOnly}
+              error={errors.refill}
+              onChange={(refill) => onUpdateItem(item.id, { refill })}
+            />
+          </div>
+          {!hasForm && (
+            <div className="w-full sm:w-36">
+              <SelectCell
+                label="Form"
+                value={item.dosageForm}
+                options={FormOptions}
+                readOnly={rowReadOnly}
+                onChange={(dosageForm) => onUpdateItem(item.id, { dosageForm })}
+              />
+            </div>
+          )}
+          {!hasRoute && (
+            <div className="w-full sm:w-36">
+              <SelectCell
+                label="Route"
+                value={item.route}
+                options={AdminstrationOptions}
+                readOnly={rowReadOnly}
+                onChange={(route) => onUpdateItem(item.id, { route })}
+              />
+            </div>
+          )}
+          <InstructionsField
+            value={item.instructions ?? ''}
+            readOnly={rowReadOnly}
+            onChange={(value) => onUpdateItem(item.id, { instructions: value })}
+          />
+        </div>
         <span className="shrink-0 self-center text-body-3-emphasis font-bold text-text-primary">
           {item.priceCents == null ? '-' : formatCents(item.priceCents)}
         </span>
@@ -410,7 +421,7 @@ const PrescriptionEditor = ({
           steps); results surface as a dropdown on type. */}
       <div className="relative z-50 flex items-center justify-end gap-3">
         <CircleIconButton
-          icon={<LuPrinter aria-hidden="true" />}
+          icon={<IoPrintOutline aria-hidden="true" />}
           label="Print Labels"
           onClick={onPrint}
         />

@@ -1,8 +1,3 @@
-import { Types, type FilterQuery } from "mongoose";
-import ServiceModel, {
-  type ServiceMongo,
-  type ServiceDocument,
-} from "../models/service";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import {
@@ -11,19 +6,11 @@ import {
   ServiceRequestDTO,
   Service,
 } from "@yosemite-crew/types";
-import OrganizationModel, {
-  type OrganizationMongo,
-} from "src/models/organization";
-import escapeStringRegexp from "escape-string-regexp";
-import SpecialityModel from "src/models/speciality";
 import { AvailabilitySlotMongo } from "src/models/base-availability";
 import { AvailabilityService } from "./availability.service";
 import helpers from "src/utils/helper";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { ServiceType } from "@prisma/client";
-import { isReadFromPostgres } from "src/config/read-switch";
-import UserProfileModel from "src/models/user-profile";
 import {
   addCachedPromise,
   type CachedPromise,
@@ -105,14 +92,6 @@ export class ServiceServiceError extends Error {
   }
 }
 
-const ensureObjectId = (id: string | Types.ObjectId, field: string) => {
-  if (id instanceof Types.ObjectId) return id;
-  if (!Types.ObjectId.isValid(id)) {
-    throw new ServiceServiceError(`Invalid ${field}`, 400);
-  }
-  return new Types.ObjectId(id);
-};
-
 const requireSafeString = (value: string, field: string) => {
   if (!value || typeof value !== "string") {
     throw new ServiceServiceError(`Invalid ${field}`, 400);
@@ -149,39 +128,6 @@ const listOrganisationsProvidingServiceFromPostgres = async (
   return organisations.map((org) => mapOrganisationWithAddress(org));
 };
 
-const listOrganisationsProvidingServiceFromMongo = async (
-  serviceName: string,
-) => {
-  const safe = escapeStringRegexp(serviceName.trim());
-  const searchRegex = new RegExp(safe);
-
-  const services = (await ServiceModel.find({
-    name: searchRegex,
-  }).lean()) as Array<{ organisationId: Types.ObjectId }>;
-
-  if (!services.length) return [];
-
-  const orgIds = [...new Set(services.map((s) => s.organisationId.toString()))];
-  const organisations = (await OrganizationModel.find({
-    _id: { $in: orgIds },
-  })
-    .lean()
-    .exec()) as Array<OrganizationMongo & { _id: Types.ObjectId }>;
-
-  return organisations.map((org) =>
-    mapOrganisationWithAddress({
-      id: org._id.toString(),
-      name: org.name,
-      imageURL: org.imageURL,
-      phoneNo: org.phoneNo,
-      type: org.type,
-      appointmentCheckInBufferMinutes: org.appointmentCheckInBufferMinutes,
-      appointmentCheckInRadiusMeters: org.appointmentCheckInRadiusMeters,
-      address: org.address,
-    }),
-  );
-};
-
 const mapServiceRecordToDomain = (service: ServiceRecord): Service => ({
   id: service.id,
   organisationId: service.organisationId,
@@ -198,105 +144,29 @@ const mapServiceRecordToDomain = (service: ServiceRecord): Service => ({
   updatedAt: service.updatedAt,
 });
 
-const mapDocToDomain = (doc: ServiceDocument): Service => {
-  const o = doc.toObject() as ServiceMongo & { _id: Types.ObjectId };
-
-  return mapServiceRecordToDomain({
-    id: o._id.toString(),
-    organisationId: o.organisationId.toString(),
-    name: o.name,
-    description: o.description ?? null,
-    durationMinutes: o.durationMinutes,
-    cost: o.cost,
-    maxDiscount: o.maxDiscount ?? null,
-    specialityId: o.specialityId?.toString() ?? null,
-    serviceType: o.serviceType ?? "CONSULTATION",
-    observationToolId: o.observationToolId?.toString() ?? null,
-    isActive: o.isActive,
-    createdAt: o.createdAt ?? o.updatedAt ?? new Date(),
-    updatedAt: o.updatedAt ?? o.createdAt ?? new Date(),
-  });
-};
-
-const toPrismaServiceData = (doc: ServiceDocument) => {
-  const obj = doc.toObject() as ServiceMongo & {
-    _id: Types.ObjectId;
-    createdAt?: Date;
-    updatedAt?: Date;
-  };
-
-  return {
-    id: obj._id.toString(),
-    organisationId: obj.organisationId.toString(),
-    name: obj.name,
-    description: obj.description ?? undefined,
-    durationMinutes: obj.durationMinutes,
-    cost: obj.cost,
-    maxDiscount: obj.maxDiscount ?? undefined,
-    specialityId: obj.specialityId?.toString() ?? undefined,
-    serviceType: obj.serviceType as ServiceType,
-    observationToolId: obj.observationToolId?.toString() ?? undefined,
-    isActive: obj.isActive ?? true,
-    createdAt: obj.createdAt ?? undefined,
-    updatedAt: obj.updatedAt ?? undefined,
-  };
-};
-
-const syncServiceToPostgres = async (doc: ServiceDocument) => {
-  if (!shouldDualWrite) return;
-  try {
-    const data = toPrismaServiceData(doc);
-    await prisma.service.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-  } catch (err) {
-    handleDualWriteError("Service", err);
-  }
-};
-
 const getServiceSchedulingContext = async (
   serviceId: string,
   organisationId: string,
 ): Promise<ServiceSchedulingContext> => {
-  if (isReadFromPostgres()) {
-    const safeServiceId = requireSafeString(serviceId, "serviceId");
-    const safeOrganisationId = requireSafeString(
-      organisationId,
-      "organisationId",
-    );
+  const safeServiceId = requireSafeString(serviceId, "serviceId");
+  const safeOrganisationId = requireSafeString(
+    organisationId,
+    "organisationId",
+  );
 
-    const service = await prisma.service.findFirst({
-      where: { id: safeServiceId, organisationId: safeOrganisationId },
-    });
-    if (!service) throw new Error("Service not found");
-
-    const speciality = await prisma.speciality.findFirst({
-      where: { id: service.specialityId ?? undefined },
-    });
-    if (!speciality) throw new Error("Speciality not found");
-
-    return {
-      serviceId: service.id,
-      organisationId: service.organisationId,
-      durationMinutes: service.durationMinutes,
-      vetIds: speciality.memberUserIds || [],
-    };
-  }
-
-  const id = ensureObjectId(serviceId, "serviceId");
-  ensureObjectId(organisationId, "organisationId");
-
-  const service = await ServiceModel.findById(id);
+  const service = await prisma.service.findFirst({
+    where: { id: safeServiceId, organisationId: safeOrganisationId },
+  });
   if (!service) throw new Error("Service not found");
 
-  const speciality = await SpecialityModel.findById(service.specialityId);
+  const speciality = await prisma.speciality.findFirst({
+    where: { id: service.specialityId ?? undefined },
+  });
   if (!speciality) throw new Error("Speciality not found");
 
   return {
-    serviceId: service._id.toString(),
-    organisationId: service.organisationId.toString(),
+    serviceId: service.id,
+    organisationId: service.organisationId,
     durationMinutes: service.durationMinutes,
     vetIds: speciality.memberUserIds || [],
   };
@@ -409,30 +279,33 @@ export const ServiceService = {
       }
       throw error;
     }
-    const orgId = ensureObjectId(service.organisationId, "organisationId");
+    const organisationId = requireSafeString(
+      service.organisationId,
+      "organisationId",
+    );
+    const specialityId = service.specialityId
+      ? requireSafeString(service.specialityId, "specialityId")
+      : undefined;
+    const observationToolId = service.observationToolId
+      ? requireSafeString(service.observationToolId, "observationToolId")
+      : undefined;
 
-    const mongoPayload: ServiceMongo = {
-      organisationId: orgId,
-      name: service.name,
-      description: service.description ?? null,
-      durationMinutes: service.durationMinutes,
-      cost: service.cost,
-      maxDiscount: service.maxDiscount ?? null,
-      specialityId: service.specialityId
-        ? ensureObjectId(service.specialityId, "specialityId")
-        : null,
-      serviceType: service.serviceType,
-      observationToolId: service.observationToolId
-        ? ensureObjectId(service.observationToolId, "observationToolId")
-        : null,
-      isActive: service.isActive,
-    };
+    const created = await prisma.service.create({
+      data: {
+        organisationId,
+        name: service.name,
+        description: service.description ?? undefined,
+        durationMinutes: service.durationMinutes,
+        cost: service.cost,
+        maxDiscount: service.maxDiscount ?? undefined,
+        specialityId,
+        serviceType: service.serviceType,
+        observationToolId,
+        isActive: service.isActive,
+      },
+    });
 
-    const doc = await ServiceModel.create(mongoPayload);
-
-    await syncServiceToPostgres(doc);
-
-    return toServiceResponseDTO(mapDocToDomain(doc));
+    return toServiceResponseDTO(mapServiceRecordToDomain(created));
   },
 
   async createMany(dtos: ServiceRequestDTO[]) {
@@ -460,39 +333,22 @@ export const ServiceService = {
   },
 
   async getById(id: string) {
-    if (isReadFromPostgres()) {
-      const safeId = requireSafeString(id, "serviceId");
-      const service = await prisma.service.findFirst({
-        where: { id: safeId },
-      });
-      if (!service) return null;
-      return toServiceResponseDTO(mapServiceRecordToDomain(service));
-    }
-
-    const oid = ensureObjectId(id, "serviceId");
-    const doc = await ServiceModel.findById(oid);
-    if (!doc) return null;
-    return toServiceResponseDTO(mapDocToDomain(doc));
+    const safeId = requireSafeString(id, "serviceId");
+    const service = await prisma.service.findFirst({
+      where: { id: safeId },
+    });
+    if (!service) return null;
+    return toServiceResponseDTO(mapServiceRecordToDomain(service));
   },
 
   async listByOrganisation(organisationId: string) {
-    if (isReadFromPostgres()) {
-      const safeOrgId = requireSafeString(organisationId, "organisationId");
-      const services = await prisma.service.findMany({
-        where: { organisationId: safeOrgId, isActive: true },
-      });
-      return services.map((service) =>
-        toServiceResponseDTO(mapServiceRecordToDomain(service)),
-      );
-    }
-
-    const oid = ensureObjectId(organisationId, "organisationId");
-    const docs = await ServiceModel.find({
-      organisationId: oid,
-      isActive: true,
+    const safeOrgId = requireSafeString(organisationId, "organisationId");
+    const services = await prisma.service.findMany({
+      where: { organisationId: safeOrgId, isActive: true },
     });
-
-    return docs.map((d) => toServiceResponseDTO(mapDocToDomain(d)));
+    return services.map((service) =>
+      toServiceResponseDTO(mapServiceRecordToDomain(service)),
+    );
   },
 
   async update(
@@ -502,180 +358,147 @@ export const ServiceService = {
   ) {
     const serviceUpdates = fromServiceRequestDTO(fhirDto);
 
-    const oid = ensureObjectId(id, "serviceId");
+    const safeId = requireSafeString(id, "serviceId");
+    const safeOrganisationId =
+      organisationId !== undefined
+        ? requireSafeString(organisationId, "organisationId")
+        : undefined;
 
-    const doc = await ServiceModel.findById(oid);
-    if (!doc) {
+    const existing = await prisma.service.findFirst({ where: { id: safeId } });
+    if (!existing) {
       throw new ServiceServiceError("Service not found", 404);
     }
     // Org binding: a service belonging to another organisation is treated as
     // not-found. Compared post-fetch (not via a query object built from the
     // user-supplied organisationId) to keep the lookup injection-safe.
     if (
-      organisationId !== undefined &&
-      doc.organisationId?.toString() !==
-        ensureObjectId(organisationId, "organisationId").toString()
+      safeOrganisationId !== undefined &&
+      existing.organisationId !== safeOrganisationId
     ) {
       throw new ServiceServiceError("Service not found", 404);
     }
 
     // Safe partial merge:
-    if (serviceUpdates.name) doc.name = serviceUpdates.name;
+    const data: {
+      name?: string;
+      description?: string | null;
+      durationMinutes?: number;
+      cost?: number;
+      maxDiscount?: number;
+      serviceType?: ServiceType;
+      observationToolId?: string | null;
+      specialityId?: string;
+      isActive?: boolean;
+    } = {};
+
+    if (serviceUpdates.name) data.name = serviceUpdates.name;
     if (serviceUpdates.description !== undefined)
-      doc.description = serviceUpdates.description;
+      data.description = serviceUpdates.description;
 
     if (serviceUpdates.durationMinutes != null)
-      doc.durationMinutes = serviceUpdates.durationMinutes;
+      data.durationMinutes = serviceUpdates.durationMinutes;
 
-    if (serviceUpdates.cost != null) doc.cost = serviceUpdates.cost;
+    if (serviceUpdates.cost != null) data.cost = serviceUpdates.cost;
     if (serviceUpdates.maxDiscount != null)
-      doc.maxDiscount = serviceUpdates.maxDiscount;
+      data.maxDiscount = serviceUpdates.maxDiscount;
 
     if (serviceUpdates.serviceType) {
-      doc.serviceType = serviceUpdates.serviceType;
+      data.serviceType = serviceUpdates.serviceType;
     }
 
     if (serviceUpdates.observationToolId !== undefined) {
-      doc.observationToolId = serviceUpdates.observationToolId
-        ? ensureObjectId(serviceUpdates.observationToolId, "observationToolId")
+      data.observationToolId = serviceUpdates.observationToolId
+        ? requireSafeString(
+            serviceUpdates.observationToolId,
+            "observationToolId",
+          )
         : null;
     }
 
     if (serviceUpdates.specialityId)
-      doc.specialityId = ensureObjectId(
+      data.specialityId = requireSafeString(
         serviceUpdates.specialityId,
         "specialityId",
       );
 
-    if (serviceUpdates.isActive != null) doc.isActive = serviceUpdates.isActive;
+    if (serviceUpdates.isActive != null)
+      data.isActive = serviceUpdates.isActive;
 
-    await doc.save();
+    const updated = await prisma.service.update({
+      where: { id: safeId },
+      data,
+    });
 
-    await syncServiceToPostgres(doc);
-
-    return toServiceResponseDTO(mapDocToDomain(doc));
+    return toServiceResponseDTO(mapServiceRecordToDomain(updated));
   },
 
   async delete(id: string, organisationId?: string) {
-    const oid = ensureObjectId(id, "serviceId");
+    const safeId = requireSafeString(id, "serviceId");
 
-    const doc = await ServiceModel.findById(oid);
-    if (!doc) return null;
     // Org binding: a service from another organisation is treated as not-found.
-    if (
-      organisationId !== undefined &&
-      doc.organisationId?.toString() !==
-        ensureObjectId(organisationId, "organisationId").toString()
-    ) {
-      return null;
-    }
+    const result = await prisma.service.deleteMany({
+      where:
+        organisationId === undefined
+          ? { id: safeId }
+          : {
+              id: safeId,
+              organisationId: requireSafeString(
+                organisationId,
+                "organisationId",
+              ),
+            },
+    });
 
-    await doc.deleteOne();
-
-    if (shouldDualWrite) {
-      try {
-        await prisma.service.deleteMany({
-          where:
-            organisationId === undefined
-              ? { id: id }
-              : {
-                  id: id,
-                  organisationId: requireSafeString(
-                    organisationId,
-                    "organisationId",
-                  ),
-                },
-        });
-      } catch (err) {
-        handleDualWriteError("Service delete", err);
-      }
-    }
+    if (result.count === 0) return null;
 
     return true;
   },
 
   async deleteAllBySpecialityId(specialityId: string) {
-    await ServiceModel.deleteMany({
-      specialityId: specialityId,
-    }).exec();
-
-    if (shouldDualWrite) {
-      try {
-        await prisma.service.deleteMany({
-          where: { specialityId },
-        });
-      } catch (err) {
-        handleDualWriteError("Service deleteAllBySpecialityId", err);
-      }
-    }
+    await prisma.service.deleteMany({
+      where: { specialityId },
+    });
   },
 
   async search(query: string, organisationId?: string) {
-    if (isReadFromPostgres()) {
-      const where: {
-        isActive: boolean;
-        organisationId?: string;
-        name?: { contains: string; mode: "insensitive" };
-      } = { isActive: true };
+    const where: {
+      isActive: boolean;
+      organisationId?: string;
+      name?: { contains: string; mode: "insensitive" };
+    } = { isActive: true };
 
-      if (organisationId) {
-        where.organisationId = requireSafeString(
-          organisationId,
-          "organisationId",
-        );
-      }
-
-      if (query?.trim()) {
-        where.name = { contains: query.trim(), mode: "insensitive" };
-      }
-
-      const services = await prisma.service.findMany({
-        where,
-        take: 50,
-      });
-      return services.map((service) =>
-        toServiceResponseDTO(mapServiceRecordToDomain(service)),
+    if (organisationId) {
+      where.organisationId = requireSafeString(
+        organisationId,
+        "organisationId",
       );
     }
 
-    const filter: FilterQuery<ServiceMongo> = { isActive: true };
-
-    if (organisationId) {
-      filter.organisationId = ensureObjectId(organisationId, "organisationId");
+    if (query?.trim()) {
+      where.name = { contains: query.trim(), mode: "insensitive" };
     }
 
-    const docs = await ServiceModel.find(
-      query ? { ...filter, $text: { $search: query } } : filter,
-    ).limit(50);
-
-    return docs.map((d) => toServiceResponseDTO(mapDocToDomain(d)));
+    const services = await prisma.service.findMany({
+      where,
+      take: 50,
+    });
+    return services.map((service) =>
+      toServiceResponseDTO(mapServiceRecordToDomain(service)),
+    );
   },
 
   async listBySpeciality(specialityId: string) {
-    if (isReadFromPostgres()) {
-      const safeSpecId = requireSafeString(specialityId, "specialityId");
-      const services = await prisma.service.findMany({
-        where: { specialityId: safeSpecId, isActive: true },
-      });
-      return services.map((service) =>
-        toServiceResponseDTO(mapServiceRecordToDomain(service)),
-      );
-    }
-
-    const specId = ensureObjectId(specialityId, "specialityId");
-
-    const docs = await ServiceModel.find({
-      specialityId: specId,
-      isActive: true,
+    const safeSpecId = requireSafeString(specialityId, "specialityId");
+    const services = await prisma.service.findMany({
+      where: { specialityId: safeSpecId, isActive: true },
     });
-
-    return docs.map((d) => toServiceResponseDTO(mapDocToDomain(d)));
+    return services.map((service) =>
+      toServiceResponseDTO(mapServiceRecordToDomain(service)),
+    );
   },
 
   async listOrganisationsProvidingService(serviceName: string) {
-    return isReadFromPostgres()
-      ? listOrganisationsProvidingServiceFromPostgres(serviceName)
-      : listOrganisationsProvidingServiceFromMongo(serviceName);
+    return listOrganisationsProvidingServiceFromPostgres(serviceName);
   },
 
   async getBookableSlotsService(
@@ -736,41 +559,28 @@ export const ServiceService = {
           organisationId: safeOrganisationId,
           leadId: safeLeadId,
           getLeadPersonalDetails: async (organisationId, leadId) =>
-            isReadFromPostgres()
-              ? (
-                  await prisma.userProfile.findFirst({
-                    where: {
-                      organizationId: organisationId,
-                      userId: leadId,
-                    },
-                    select: {
-                      personalDetails: true,
-                    },
-                  })
-                )?.personalDetails
-              : (
-                  await UserProfileModel.findOne({
-                    organizationId: safeOrganisationId,
-                    userId: leadId,
-                  }).lean()
-                )?.personalDetails,
+            (
+              await prisma.userProfile.findFirst({
+                where: {
+                  organizationId: organisationId,
+                  userId: leadId,
+                },
+                select: {
+                  personalDetails: true,
+                },
+              })
+            )?.personalDetails,
           getOrganisationPersonalDetails: async (organisationId) =>
-            isReadFromPostgres()
-              ? (
-                  await prisma.userProfile.findFirst({
-                    where: {
-                      organizationId: organisationId,
-                    },
-                    select: {
-                      personalDetails: true,
-                    },
-                  })
-                )?.personalDetails
-              : (
-                  await UserProfileModel.findOne({
-                    organizationId: safeOrganisationId,
-                  }).lean()
-                )?.personalDetails,
+            (
+              await prisma.userProfile.findFirst({
+                where: {
+                  organizationId: organisationId,
+                },
+                select: {
+                  personalDetails: true,
+                },
+              })
+            )?.personalDetails,
         });
 
         const slotCache = new Map<
@@ -810,100 +620,17 @@ export const ServiceService = {
     query?: string,
     radius = 5000,
   ) {
-    if (isReadFromPostgres()) {
-      const safeName = serviceName.trim();
-      if (!safeName) return [];
+    const safeName = serviceName.trim();
+    if (!safeName) return [];
 
-      const matchedServices = await prisma.service.findMany({
-        where: { name: { contains: safeName, mode: "insensitive" } },
-        select: { organisationId: true },
-      });
-      if (!matchedServices.length) return [];
-
-      const orgIds = [...new Set(matchedServices.map((s) => s.organisationId))];
-
-      if (!lat && !lng) {
-        const result = (await helpers.getGeoLocation(query!)) as {
-          lat: number;
-          lng: number;
-        };
-        lat = result.lat;
-        lng = result.lng;
-      }
-
-      const { latDelta, lngDelta } = getBoundingDeltas(lat, radius);
-
-      const organisations = await prisma.organization.findMany({
-        where: {
-          id: { in: orgIds },
-          address: {
-            is: {
-              latitude: { gte: lat - latDelta, lte: lat + latDelta },
-              longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
-            },
-          },
-        },
-        include: { address: true },
-      });
-
-      const nearbyOrgs = filterWithinRadius(organisations, lat, lng, radius);
-
-      const allSpecialities = await prisma.speciality.findMany({
-        where: { organisationId: { in: orgIds } },
-        select: { id: true, name: true, organisationId: true },
-      });
-
-      const allServicesForOrgs = await prisma.service.findMany({
-        where: { organisationId: { in: orgIds } },
-        select: {
-          id: true,
-          name: true,
-          cost: true,
-          specialityId: true,
-          organisationId: true,
-        },
-      });
-
-      return nearbyOrgs.map((org) => {
-        const orgSpecialities = allSpecialities.filter(
-          (s) => s.organisationId === org.id,
-        );
-
-        const orgServices = allServicesForOrgs.filter(
-          (s) => s.organisationId === org.id,
-        );
-
-        const specialitiesWithServices = orgSpecialities.map((spec) => {
-          const specServices = orgServices.filter(
-            (srv) => srv.specialityId === spec.id,
-          );
-
-          return {
-            ...spec,
-            services: specServices,
-          };
-        });
-
-        return {
-          ...mapOrganisationWithAddress(org),
-          specialities: specialitiesWithServices,
-        };
-      });
-    }
-
-    const safe = escapeStringRegexp(serviceName.trim());
-    const searchRegex = new RegExp(safe, "i");
-
-    // 1. Find services matching the name
-    const matchedServices = (await ServiceModel.find({
-      name: searchRegex,
-    }).lean()) as Array<{ organisationId: Types.ObjectId }>;
+    const matchedServices = await prisma.service.findMany({
+      where: { name: { contains: safeName, mode: "insensitive" } },
+      select: { organisationId: true },
+    });
     if (!matchedServices.length) return [];
 
-    // 2. Extract unique organization IDs
     const orgIds = [...new Set(matchedServices.map((s) => s.organisationId))];
 
-    // 3. If lat/lng missing, geocode
     if (!lat && !lng) {
       const result = (await helpers.getGeoLocation(query!)) as {
         lat: number;
@@ -913,56 +640,51 @@ export const ServiceService = {
       lng = result.lng;
     }
 
-    // 4. Fetch only nearby organisations
-    const organisations = (await OrganizationModel.find({
-      _id: { $in: orgIds },
-      "address.location": {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [lng, lat],
+    const { latDelta, lngDelta } = getBoundingDeltas(lat, radius);
+
+    const organisations = await prisma.organization.findMany({
+      where: {
+        id: { in: orgIds },
+        address: {
+          is: {
+            latitude: { gte: lat - latDelta, lte: lat + latDelta },
+            longitude: { gte: lng - lngDelta, lte: lng + lngDelta },
           },
-          $maxDistance: radius,
         },
       },
-    }).lean()) as Array<OrganizationMongo & { _id: Types.ObjectId }>;
+      include: { address: true },
+    });
 
-    // 5. Fetch specialities + all services for these organisations
-    const allSpecialities = (await SpecialityModel.find(
-      { organisationId: { $in: orgIds } },
-      { _id: 1, name: 1, organisationId: 1 },
-    ).lean()) as unknown as Array<{
-      _id: Types.ObjectId;
-      name: string;
-      organisationId: string;
-    }>;
+    const nearbyOrgs = filterWithinRadius(organisations, lat, lng, radius);
 
-    const allServicesForOrgs = (await ServiceModel.find(
-      { organisationId: { $in: orgIds } },
-      { _id: 1, name: 1, cost: 1, specialityId: 1, organisationId: 1 },
-    ).lean()) as unknown as Array<{
-      _id: Types.ObjectId;
-      name: string;
-      cost?: number;
-      specialityId?: Types.ObjectId | string | null;
-      organisationId: Types.ObjectId;
-    }>;
+    const allSpecialities = await prisma.speciality.findMany({
+      where: { organisationId: { in: orgIds } },
+      select: { id: true, name: true, organisationId: true },
+    });
 
-    // 6. Group specialities + services for each org
-    return organisations.map((org) => {
+    const allServicesForOrgs = await prisma.service.findMany({
+      where: { organisationId: { in: orgIds } },
+      select: {
+        id: true,
+        name: true,
+        cost: true,
+        specialityId: true,
+        organisationId: true,
+      },
+    });
+
+    return nearbyOrgs.map((org) => {
       const orgSpecialities = allSpecialities.filter(
-        (s) => s.organisationId === org._id.toString(),
+        (s) => s.organisationId === org.id,
       );
 
-      // Service.organisationId is an ObjectId in the schema (Speciality.organisationId
-      // is a String), so it has to be stringified before comparing.
       const orgServices = allServicesForOrgs.filter(
-        (s) => s.organisationId.toString() === org._id.toString(),
+        (s) => s.organisationId === org.id,
       );
 
       const specialitiesWithServices = orgSpecialities.map((spec) => {
         const specServices = orgServices.filter(
-          (srv) => srv.specialityId?.toString() === spec._id.toString(),
+          (srv) => srv.specialityId === spec.id,
         );
 
         return {
@@ -972,16 +694,7 @@ export const ServiceService = {
       });
 
       return {
-        ...mapOrganisationWithAddress({
-          id: org._id.toString(),
-          name: org.name,
-          imageURL: org.imageURL,
-          phoneNo: org.phoneNo,
-          type: org.type,
-          appointmentCheckInBufferMinutes: org.appointmentCheckInBufferMinutes,
-          appointmentCheckInRadiusMeters: org.appointmentCheckInRadiusMeters,
-          address: org.address,
-        }),
+        ...mapOrganisationWithAddress(org),
         specialities: specialitiesWithServices,
       };
     });

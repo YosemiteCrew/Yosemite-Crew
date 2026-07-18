@@ -1,4 +1,5 @@
 import { useImperativeHandle, useState, type Dispatch, type SetStateAction, type Ref } from 'react';
+import { IoArrowForward } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
@@ -94,126 +95,132 @@ function ProfessionalStep({
   };
 
   return (
-    <div className="team-container">
-      <div className="team-title">Professional details</div>
+    <div className="flex w-full flex-col">
+      <div className="mx-auto flex w-full max-w-[820px] flex-col gap-6 rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] px-[30px] py-[28px] shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
+        <div className="text-[17px] font-bold leading-tight tracking-[-0.34px] text-[var(--ink)]">
+          Professional details
+        </div>
 
-      <div className="team-personal-container">
-        <FormInput
-          intype="url"
-          inname="linkedin"
-          value={formData.professionalDetails?.linkedin || ''}
-          inlabel="LinkedIn profile URL (optional)"
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              professionalDetails: {
-                ...formData.professionalDetails,
-                linkedin: e.target.value,
-              },
-            })
-          }
-          error={formDataErrors.linkedin}
-        />
-
-        <div className="team-personal-two">
+        <div className="team-personal-container">
           <FormInput
-            intype="text"
-            inname="Specialisation"
-            value={formData.professionalDetails?.specialization || ''}
-            inlabel="Specialisation"
+            intype="url"
+            inname="linkedin"
+            value={formData.professionalDetails?.linkedin || ''}
+            inlabel="LinkedIn profile URL (optional)"
             onChange={(e) =>
               setFormData({
                 ...formData,
                 professionalDetails: {
                   ...formData.professionalDetails,
-                  specialization: e.target.value,
+                  linkedin: e.target.value,
                 },
               })
             }
-            error={formDataErrors.specialisation}
+            error={formDataErrors.linkedin}
           />
-          <FormInput
+
+          <div className="team-personal-two">
+            <FormInput
+              intype="text"
+              inname="Specialisation"
+              value={formData.professionalDetails?.specialization || ''}
+              inlabel="Specialisation"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  professionalDetails: {
+                    ...formData.professionalDetails,
+                    specialization: e.target.value,
+                  },
+                })
+              }
+              error={formDataErrors.specialisation}
+            />
+            <FormInput
+              intype="text"
+              inname="Qualification"
+              value={formData.professionalDetails?.qualification || ''}
+              inlabel="Qualification (MBBS, MD, etc.)"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  professionalDetails: {
+                    ...formData.professionalDetails,
+                    qualification: e.target.value,
+                  },
+                })
+              }
+              error={formDataErrors.qualification}
+            />
+          </div>
+
+          <div className="team-personal-two">
+            <FormInput
+              intype="text"
+              inname="license number"
+              value={formData.professionalDetails?.medicalLicenseNumber || ''}
+              inlabel="Medical license number (optional)"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  professionalDetails: {
+                    ...formData.professionalDetails,
+                    medicalLicenseNumber: e.target.value,
+                  },
+                })
+              }
+            />
+            <FormInput
+              intype="number"
+              inname="Years of experience"
+              value={
+                formData.professionalDetails?.yearsOfExperience === undefined
+                  ? ''
+                  : String(formData.professionalDetails.yearsOfExperience)
+              }
+              inlabel="Years of experience"
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  professionalDetails: {
+                    ...formData.professionalDetails,
+                    yearsOfExperience: e.target.value === '' ? undefined : Number(e.target.value),
+                  },
+                })
+              }
+              error={formDataErrors.yearsExperience}
+            />
+          </div>
+
+          <FormDesc
             intype="text"
-            inname="Qualification"
-            value={formData.professionalDetails?.qualification || ''}
-            inlabel="Qualification (MBBS, MD, etc.)"
+            inname="Biography"
+            value={formData.professionalDetails?.biography || ''}
+            inlabel="Short bio (optional)"
             onChange={(e) =>
               setFormData({
                 ...formData,
                 professionalDetails: {
                   ...formData.professionalDetails,
-                  qualification: e.target.value,
+                  biography: e.target.value,
                 },
               })
             }
-            error={formDataErrors.qualification}
+            className="min-h-28 resize-none"
           />
         </div>
 
-        <div className="team-personal-two">
-          <FormInput
-            intype="text"
-            inname="license number"
-            value={formData.professionalDetails?.medicalLicenseNumber || ''}
-            inlabel="Medical license number (optional)"
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                professionalDetails: {
-                  ...formData.professionalDetails,
-                  medicalLicenseNumber: e.target.value,
-                },
-              })
-            }
-          />
-          <FormInput
-            intype="number"
-            inname="Years of experience"
-            value={
-              formData.professionalDetails?.yearsOfExperience === undefined
-                ? ''
-                : String(formData.professionalDetails.yearsOfExperience)
-            }
-            inlabel="Years of experience"
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                professionalDetails: {
-                  ...formData.professionalDetails,
-                  yearsOfExperience: e.target.value === '' ? undefined : Number(e.target.value),
-                },
-              })
-            }
-            error={formDataErrors.yearsExperience}
+        <div className="mt-1 flex items-center justify-between gap-3 border-t border-[var(--hairline)] pt-[18px]">
+          <Secondary href="#" text="Back" onClick={prevStep} />
+          <Primary
+            href="#"
+            text={isSaving ? 'Saving...' : 'Next'}
+            icon={<IoArrowForward aria-hidden="true" />}
+            iconPosition="right"
+            onClick={handleNext}
+            isDisabled={isSaving}
           />
         </div>
-
-        <FormDesc
-          intype="text"
-          inname="Biography"
-          value={formData.professionalDetails?.biography || ''}
-          inlabel="Short bio (optional)"
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              professionalDetails: {
-                ...formData.professionalDetails,
-                biography: e.target.value,
-              },
-            })
-          }
-          className="min-h-28 resize-none"
-        />
-      </div>
-
-      <div className="team-buttons">
-        <Secondary href="#" text="Back" onClick={prevStep} />
-        <Primary
-          href="#"
-          text={isSaving ? 'Saving...' : 'Next'}
-          onClick={handleNext}
-          isDisabled={isSaving}
-        />
       </div>
     </div>
   );

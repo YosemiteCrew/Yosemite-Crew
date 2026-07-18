@@ -6,6 +6,32 @@ export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 
 export const GenderOptions: Gender[] = ['MALE', 'FEMALE', 'OTHER'];
 
+/**
+ * The employment types the user-profile API accepts. This is deliberately not
+ * `EmploymentTypesProps`: that list is the organisation-invite enum, whose third
+ * member is `CONTRACTOR`, while a user profile stores `CONTRACT`.
+ */
+export type ProfileEmploymentType = 'FULL_TIME' | 'PART_TIME' | 'CONTRACT';
+
+/**
+ * Select options for the user-profile card. The values must be the exact enum
+ * members the profile API accepts — it rejects anything else with a 400, which
+ * surfaces as "Failed to update user profile". The pet-facing `GenderOptions`
+ * (`OTHERS`) and the invite-facing `EmploymentTypes` (`CONTRACTOR`) lists look
+ * interchangeable but are not, so the profile card keeps its own.
+ */
+export const UserGenderOptions: { label: string; value: Gender }[] = [
+  { label: 'Male', value: 'MALE' },
+  { label: 'Female', value: 'FEMALE' },
+  { label: 'Other', value: 'OTHER' },
+];
+
+export const UserEmploymentTypeOptions: { label: string; value: ProfileEmploymentType }[] = [
+  { label: 'Full time', value: 'FULL_TIME' },
+  { label: 'Part time', value: 'PART_TIME' },
+  { label: 'Contract', value: 'CONTRACT' },
+];
+
 export type DocumentType = 'LICENSE' | 'CERTIFICATE' | 'OTHERS';
 
 export type Address = {

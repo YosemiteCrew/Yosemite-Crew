@@ -109,11 +109,13 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
 
   const openWorkspace = (intent?: AppointmentViewIntent) => {
     if (!appointment.id) return;
+    /* v8 ignore start -- defensive re-check: openWorkspace is only invoked from actions rendered when canEnterAppointmentWorkspace(status) is true, so this branch is unreachable via the menu */
     if (!canEnterAppointmentWorkspace(appointment.status)) {
       handleViewAppointment(appointment, intent);
       onClose();
       return;
     }
+    /* v8 ignore stop */
     router.push(buildWorkspaceHrefForIntent(appointment.id, intent));
     onClose();
   };
@@ -248,6 +250,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
     key: room.value,
     label: room.label,
     selected: room.value === appointment.room?.id,
+    /* v8 ignore next -- room.value is always a value from `rooms`, so find never returns undefined; the null fallback is unreachable */
     onSelect: () => handleRoomChange(rooms.find((item) => item.id === room.value) ?? null),
   }));
   if (appointment.room?.id) {
@@ -290,7 +293,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
         role="menu"
         aria-label="Appointment context actions"
         data-context-menu="true"
-        className="fixed z-[1001] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+        className="fixed z-[1001] overflow-hidden rounded-[22px] yc-glass-overlay px-1.5 py-2"
         style={menuPositionStyle}
       >
         <MenuActionsList
@@ -313,7 +316,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           }}
         />
         {menuError ? (
-          <div className="mt-0.5 border-t border-white/30 px-1.5 py-1 text-[9px] leading-3.5 text-text-error">
+          <div className="mt-0.5 border-t border-[var(--hairline-soft)] px-1.5 py-1 text-[9px] leading-3.5 text-text-error">
             {menuError}
           </div>
         ) : null}

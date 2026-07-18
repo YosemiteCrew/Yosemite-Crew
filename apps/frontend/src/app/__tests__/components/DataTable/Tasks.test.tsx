@@ -29,17 +29,43 @@ jest.mock('@/app/ui/cards/TaskCard', () => ({
   default: ({ item }: any) => <div data-testid="task-card">{item.name}</div>,
 }));
 
-jest.mock('react-icons/io5', () => ({
-  IoEyeOutline: () => <span>eye</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdOutlineAutorenew: () => <span>status</span>,
-}));
-
-jest.mock('react-icons/io', () => ({
-  IoIosCalendar: () => <span>calendar</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 jest.mock('@/app/lib/tasks', () => ({
   canRescheduleTask: jest.fn(() => true),
@@ -89,14 +115,14 @@ describe('Tasks table', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('eye'));
+    fireEvent.click(screen.getByTestId('IoEyeOutline'));
     expect(setActiveTask).toHaveBeenCalledWith(task);
     expect(setViewPopup).toHaveBeenCalledWith(true);
 
-    fireEvent.click(screen.getByText('status'));
+    fireEvent.click(screen.getByTestId('IoSyncOutline'));
     expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
 
-    fireEvent.click(screen.getByText('calendar'));
+    fireEvent.click(screen.getByTestId('IoIosCalendar'));
     expect(setReschedulePopup).toHaveBeenCalledWith(true);
   });
 

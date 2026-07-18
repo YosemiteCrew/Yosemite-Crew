@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import AvailabilityStep from '@/app/features/onboarding/components/Steps/TeamOnboarding/AvailabilityStep';
+import type { StepHandle } from '@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep';
 import { upsertAvailability } from '@/app/features/organization/services/availabilityService';
 import {
   convertAvailability,
@@ -22,12 +23,24 @@ jest.mock('@/app/features/appointments/components/Availability/Availability', ()
   <div data-testid="availability-component">Mock Availability UI</div>
 ));
 
+/**
+ * Captures the props the component hands to <Primary>. The real Primary renders a
+ * `disabled` <button> while saving, so a click cannot reach onClick — the only way to
+ * exercise the handler's `if (isSaving) return` double-submit guard is to invoke the
+ * handler through the button's own wiring.
+ */
+const mockPrimaryProps: { current: any } = { current: null };
+
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ onClick, text, isDisabled }: any) => (
-    <button data-testid="btn-finish" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
+  Primary: (props: any) => {
+    mockPrimaryProps.current = props;
+    const { onClick, text, isDisabled } = props;
+    return (
+      <button data-testid="btn-finish" onClick={onClick} disabled={isDisabled}>
+        {text}
+      </button>
+    );
+  },
   Secondary: ({ onClick, text }: any) => (
     <button data-testid="btn-back" onClick={onClick}>
       {text}
@@ -66,7 +79,7 @@ describe('AvailabilityStep Component', () => {
       />
     );
 
-    expect(screen.getByText('Availability')).toBeInTheDocument();
+    expect(screen.getByText('Weekly availability')).toBeInTheDocument();
     expect(screen.getByTestId('availability-component')).toBeInTheDocument();
     expect(screen.getByTestId('btn-finish')).toBeInTheDocument();
     expect(screen.getByTestId('btn-back')).toBeInTheDocument();
@@ -141,6 +154,30 @@ describe('AvailabilityStep Component', () => {
     });
   });
 
+  it('ignores a submit that arrives while a save is already in flight', async () => {
+    const mockSetIsSaving = jest.fn();
+
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+        isSaving={true}
+        setIsSaving={mockSetIsSaving}
+        setIsRedirecting={jest.fn()}
+      />
+    );
+
+    await act(async () => {
+      await mockPrimaryProps.current.onClick();
+    });
+
+    expect(convertAvailability).not.toHaveBeenCalled();
+    expect(upsertAvailability).not.toHaveBeenCalled();
+    expect(mockSetIsSaving).not.toHaveBeenCalled();
+  });
+
   it('shows Saving... text and disabled button when isSaving is true', () => {
     render(
       <AvailabilityStep
@@ -180,7 +217,75 @@ describe('AvailabilityStep Component', () => {
     });
   });
 
-  // --- Section 4: Error Handling ---
+  // --- Section 4: Imperative ref validation ---
+  it('exposes validate() on the ref which returns false and shows the error when no slot is set', () => {
+    (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
+    const ref = React.createRef<StepHandle>();
+
+    render(
+      <AvailabilityStep
+        ref={ref}
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+        isSaving={false}
+        setIsSaving={jest.fn()}
+        setIsRedirecting={jest.fn()}
+      />
+    );
+
+    let result: boolean | undefined;
+    act(() => {
+      result = ref.current?.validate();
+    });
+
+    expect(result).toBe(false);
+    expect(convertAvailability).toHaveBeenCalledWith(mockAvailabilityState);
+    expect(
+      screen.getByText('Please enable at least one day with a valid time slot')
+    ).toBeInTheDocument();
+  });
+
+  it('exposes validate() on the ref which returns true and clears the error when a slot is set', () => {
+    (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
+    const ref = React.createRef<StepHandle>();
+
+    render(
+      <AvailabilityStep
+        ref={ref}
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+        isSaving={false}
+        setIsSaving={jest.fn()}
+        setIsRedirecting={jest.fn()}
+      />
+    );
+
+    // First fail so the error is on screen, then confirm a passing validate clears it.
+    act(() => {
+      ref.current?.validate();
+    });
+    expect(
+      screen.getByText('Please enable at least one day with a valid time slot')
+    ).toBeInTheDocument();
+
+    (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(true);
+
+    let result: boolean | undefined;
+    act(() => {
+      result = ref.current?.validate();
+    });
+
+    expect(result).toBe(true);
+    expect(
+      screen.queryByText('Please enable at least one day with a valid time slot')
+    ).not.toBeInTheDocument();
+  });
+
+  // --- Section 5: Error Handling ---
   it('catches and logs errors from upsertAvailability', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const error = new Error('Network Error');

@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { FaAngleDown } from 'react-icons/fa';
+import { IoChevronDownOutline } from 'react-icons/io5';
 
 type CardHeaderProps = {
   title: string;
@@ -37,38 +37,36 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
     };
   }, []);
 
+  // The title is the flexible half: it wraps. The filter must not - without
+  // min-w-0 + shrink-0 + a gap, a long title ("Appointment leaders") squeezes
+  // against the filter until the two touch. Measured at 768 (tablet icon rail,
+  // two stat columns): the title collapsed to 188px, wrapped onto a second line
+  // and its right edge landed exactly on the filter's left edge - a 0px gap.
   return (
-    <div className="flex items-center justify-between w-full ">
-      <div className="text-body-1 text-text-primary">{title}</div>
-      <div className="relative" ref={filterRef}>
+    <div className="flex items-center justify-between w-full gap-3">
+      <div className="min-w-0 text-body-1 text-text-primary">{title}</div>
+      <div className="relative shrink-0" ref={filterRef}>
         <button
           type="button"
           onClick={() => setOpen((e) => !e)}
           aria-label={`Filter ${title} by time period: ${selectedValue}`}
           aria-expanded={open}
           aria-haspopup="listbox"
-          className="outline-none w-[140px] flex items-center justify-end gap-2 border-0 bg-white"
+          className="outline-none inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)]"
         >
-          <span className="text-body-4 text-text-primary" aria-hidden="true">
-            {selectedValue}
-          </span>
-          <FaAngleDown
-            color="var(--color-neutral-900)"
-            size={14}
-            className="mt-0.5"
-            aria-hidden="true"
-          />
+          <span aria-hidden="true">{selectedValue}</span>
+          <IoChevronDownOutline color="var(--ink-faint)" size={12} aria-hidden="true" />
         </button>
         {open && (
           <div
             aria-label={`Filter ${title} by time period`}
-            className="bg-white border border-card-border px-2 py-1 w-full absolute top-[120%] left-0 flex flex-col rounded-2xl z-10"
+            className="bg-neutral-0 border border-card-border px-2 py-1 min-w-full whitespace-nowrap absolute top-[120%] right-0 flex flex-col rounded-2xl z-10"
           >
             {options.map((option: string) => (
               <button
                 type="button"
                 aria-pressed={option === selectedValue}
-                className="outline-none border-0 bg-white hover:bg-card-hover! rounded-2xl! transition-all duration-300 p-2"
+                className="outline-none border-0 bg-neutral-0 hover:bg-card-hover! rounded-2xl! transition-all duration-300 p-2"
                 key={option}
                 onClick={() => handleSelect(option)}
               >

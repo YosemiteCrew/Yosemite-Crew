@@ -1,5 +1,5 @@
 import React from 'react';
-import { MdDeleteForever } from 'react-icons/md';
+import { IoTrash } from 'react-icons/io5';
 import { Speciality } from '@yosemite-crew/types';
 
 import './SpecialityCard.css';
@@ -18,7 +18,7 @@ const SpecialityCard = ({ speciality, setSpecialities }: SpecialityCardProps) =>
     <div className="speciality-container">
       <div className="speciality-title-container">
         <div className="speciality-title">{speciality.name}</div>
-        <MdDeleteForever
+        <IoTrash
           size={20}
           color="var(--color-danger-600)"
           className="speciality-delete"

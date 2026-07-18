@@ -2,15 +2,14 @@
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
-  LuGlobe,
-  LuSmartphone,
-  LuBellOff,
-  LuBell,
-  LuMoreVertical,
-  LuAlarmClock,
-  LuArchive,
-  LuArchiveRestore,
-} from 'react-icons/lu';
+  IoArchiveOutline,
+  IoEllipsisVertical,
+  IoGlobeOutline,
+  IoMoonOutline,
+  IoNotificationsOffOutline,
+  IoNotificationsOutline,
+  IoPhonePortraitOutline,
+} from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
@@ -45,19 +44,35 @@ export type ConversationRowProps = Readonly<{
 
 const HOUR_MS = 60 * 60 * 1000;
 
+/** Unread count pill — blue for across-the-network rows, pink brand otherwise. */
+function UnreadBadge({ count, network }: Readonly<{ count: number; network?: boolean }>) {
+  if (network) {
+    return (
+      <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
+        {count}
+      </span>
+    );
+  }
+  return <Badge tone="brand">{count}</Badge>;
+}
+
 function MenuItem({
   icon,
   label,
+  active,
   onClick,
-}: Readonly<{ icon: ReactNode; label: string; onClick: () => void }>) {
+}: Readonly<{ icon: ReactNode; label: string; active?: boolean; onClick: () => void }>) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
+      className={clsx(
+        'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]',
+        active && 'bg-chat-surface-soft'
+      )}
     >
       {icon}
-      <Text as="span" variant="body-4" className="text-neutral-900">
+      <Text as="span" variant="body-4" className="text-[var(--ink)]">
         {label}
       </Text>
     </button>
@@ -89,8 +104,11 @@ export function ConversationRow({
   return (
     <div
       className={clsx(
-        'group relative flex items-center rounded-2xl pr-1',
-        active ? 'bg-chat-panel' : 'hover:bg-chat-surface-soft'
+        'group relative flex items-center pr-1',
+        active
+          ? 'bg-[var(--screen)] border border-[var(--hairline)] shadow-[0_1px_3px_var(--sh05)] rounded-[14px]'
+          : 'rounded-[14px] hover:bg-[var(--screen)]',
+        muted && !active && 'opacity-[0.62]'
       )}
     >
       <button
@@ -105,24 +123,30 @@ export function ConversationRow({
             <Text
               as="span"
               variant="body-4-emphasis"
-              className="min-w-0 flex-1 truncate text-neutral-900"
+              className="min-w-0 flex-1 truncate text-[var(--ink)]"
             >
               {name}
             </Text>
+            {muted && (
+              <IoNotificationsOffOutline
+                aria-label="Muted"
+                className="h-3 w-3 shrink-0 text-[var(--ink-faint)]"
+              />
+            )}
             {viaApp && (
-              <LuSmartphone
+              <IoPhonePortraitOutline
                 aria-label="Messages via pet parent app"
-                className="size-3.5 shrink-0 text-neutral-400"
+                className="size-3.5 shrink-0 text-[var(--ink-faint)]"
               />
             )}
             {network && (
-              <LuGlobe
+              <IoGlobeOutline
                 aria-label="Across the network"
-                className="size-3.5 shrink-0 text-neutral-500"
+                className="size-3.5 shrink-0 text-[var(--ink-faint)]"
               />
             )}
             {time && (
-              <Text as="span" variant="caption-2" className="shrink-0 text-neutral-500">
+              <Text as="span" variant="caption-2" className="shrink-0 text-[var(--ink-faint)]">
                 {time}
               </Text>
             )}
@@ -133,15 +157,12 @@ export function ConversationRow({
               variant="caption-1"
               className={clsx(
                 'min-w-0 flex-1 truncate',
-                unread ? 'font-semibold text-neutral-700' : 'text-neutral-500'
+                unread ? 'font-semibold text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
               )}
             >
               {preview}
             </Text>
-            {muted && (
-              <LuBellOff aria-label="Muted" className="size-3.5 shrink-0 text-neutral-500" />
-            )}
-            {unread ? <Badge tone="brand">{unread}</Badge> : null}
+            {unread ? <UnreadBadge count={unread} network={network} /> : null}
           </span>
         </span>
       </button>
@@ -153,13 +174,13 @@ export function ConversationRow({
             aria-label="Conversation actions"
             onClick={() => setMenuOpen((o) => !o)}
             className={clsx(
-              'inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
+              'inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--screen-2)] hover:text-[var(--ink)]',
               menuOpen
                 ? 'opacity-100'
                 : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100'
             )}
           >
-            <LuMoreVertical className="size-4" />
+            <IoEllipsisVertical className="h-4 w-4" />
           </button>
           {menuOpen && (
             <>
@@ -169,51 +190,10 @@ export function ConversationRow({
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={close}
               />
-              <div className="absolute right-0 top-9 z-20 w-44 rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
-                {muted
-                  ? onUnmute && (
-                      <MenuItem
-                        icon={<LuBell className="size-4 text-neutral-500" />}
-                        label="Unmute"
-                        onClick={() => {
-                          onUnmute();
-                          close();
-                        }}
-                      />
-                    )
-                  : onMute && (
-                      <MenuItem
-                        icon={<LuBellOff className="size-4 text-neutral-500" />}
-                        label="Mute"
-                        onClick={() => {
-                          onMute();
-                          close();
-                        }}
-                      />
-                    )}
-                {onSnooze && (
-                  <MenuItem
-                    icon={<LuAlarmClock className="size-4 text-neutral-500" />}
-                    label="Snooze 1 hour"
-                    onClick={() => {
-                      onSnooze(HOUR_MS);
-                      close();
-                    }}
-                  />
-                )}
-                {onSnooze && (
-                  <MenuItem
-                    icon={<LuAlarmClock className="size-4 text-neutral-500" />}
-                    label="Snooze 1 day"
-                    onClick={() => {
-                      onSnooze(24 * HOUR_MS);
-                      close();
-                    }}
-                  />
-                )}
+              <div className="absolute right-0 top-9 z-20 w-[190px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-1.5 shadow-lg">
                 {onArchive && (
                   <MenuItem
-                    icon={<LuArchive className="size-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
                     label="Archive"
                     onClick={() => {
                       onArchive();
@@ -223,13 +203,61 @@ export function ConversationRow({
                 )}
                 {onUnarchive && (
                   <MenuItem
-                    icon={<LuArchiveRestore className="size-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
                     label="Unarchive"
                     onClick={() => {
                       onUnarchive();
                       close();
                     }}
                   />
+                )}
+                {muted
+                  ? onUnmute && (
+                      <MenuItem
+                        active
+                        icon={
+                          <IoNotificationsOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
+                        }
+                        label="Unmute"
+                        onClick={() => {
+                          onUnmute();
+                          close();
+                        }}
+                      />
+                    )
+                  : onMute && (
+                      <MenuItem
+                        active
+                        icon={
+                          <IoNotificationsOffOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
+                        }
+                        label="Mute"
+                        onClick={() => {
+                          onMute();
+                          close();
+                        }}
+                      />
+                    )}
+                {onSnooze && (
+                  <>
+                    <hr className="my-1 h-px border-0 bg-[var(--hairline)]" />
+                    <MenuItem
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+                      label="Snooze · 1 hour"
+                      onClick={() => {
+                        onSnooze(HOUR_MS);
+                        close();
+                      }}
+                    />
+                    <MenuItem
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+                      label="Snooze · 1 day"
+                      onClick={() => {
+                        onSnooze(24 * HOUR_MS);
+                        close();
+                      }}
+                    />
+                  </>
                 )}
               </div>
             </>

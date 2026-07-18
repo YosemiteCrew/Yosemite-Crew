@@ -76,6 +76,10 @@ const taskBoardSpy = jest.fn();
 const taskInfoSpy = jest.fn();
 const addTaskSpy = jest.fn();
 const filtersSpy = jest.fn();
+const changeStatusSpy = jest.fn();
+const rescheduleSpy = jest.fn();
+
+const lastPropsOf = (spy: jest.Mock) => spy.mock.calls[spy.mock.calls.length - 1][0];
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
@@ -134,6 +138,9 @@ jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
     <button type="button" onClick={() => props.setActiveView('list')}>
       List
     </button>
+    <button type="button" onClick={() => props.setAddPopup(true)}>
+      Title Add
+    </button>
   </div>
 ));
 
@@ -179,13 +186,15 @@ jest.mock('@/app/features/tasks/pages/Tasks/Sections/TaskInfo', () => (props: an
   return <div data-testid="task-info" />;
 });
 
-jest.mock('@/app/features/tasks/pages/Tasks/Sections/ChangeStatus', () => () => (
-  <div data-testid="task-change-status" />
-));
+jest.mock('@/app/features/tasks/pages/Tasks/Sections/ChangeStatus', () => (props: any) => {
+  changeStatusSpy(props);
+  return <div data-testid="task-change-status" />;
+});
 
-jest.mock('@/app/features/tasks/pages/Tasks/Sections/Reschedule', () => () => (
-  <div data-testid="task-reschedule" />
-));
+jest.mock('@/app/features/tasks/pages/Tasks/Sections/Reschedule', () => (props: any) => {
+  rescheduleSpy(props);
+  return <div data-testid="task-reschedule" />;
+});
 
 describe('Tasks page', () => {
   beforeEach(() => {
@@ -449,6 +458,246 @@ describe('Tasks page', () => {
     render(<ProtectedTasks />);
     // Tasks page renders without errors with mocked dynamic components
     expect(screen.getByTestId('task-calendar')).toBeInTheDocument();
+  });
+
+  it('setActiveCalendar accepts a functional updater and resyncs weekStart on the week view', async () => {
+    render(<ProtectedTasks />);
+
+    // Leave the week view first, so the date move below does not sync weekStart.
+    await act(async () => {
+      lastPropsOf(taskCalendarSpy).setActiveCalendar((prev: string) =>
+        prev === 'week' ? 'day' : 'week'
+      );
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(taskCalendarSpy).activeCalendar).toBe('day');
+
+    const movedDate = new Date('2025-09-15');
+    await act(async () => {
+      lastPropsOf(taskCalendarSpy).setCurrentDate(movedDate);
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(taskCalendarSpy).currentDate).toBe(movedDate);
+    // Off the week view, weekStart is left behind.
+    expect(lastPropsOf(taskCalendarSpy).weekStart).not.toBe(movedDate);
+
+    await act(async () => {
+      lastPropsOf(taskCalendarSpy).setActiveCalendar(() => 'week');
+      await Promise.resolve();
+    });
+
+    expect(lastPropsOf(taskCalendarSpy).activeCalendar).toBe('week');
+    // Returning to the week view resyncs weekStart to the current date
+    // (startOfDay is mocked to the identity function).
+    expect(lastPropsOf(taskCalendarSpy).weekStart).toBe(movedDate);
+  });
+
+  it('setCurrentDate accepts a functional updater and syncs weekStart on the week view', async () => {
+    render(<ProtectedTasks />);
+
+    const nextDate = new Date('2025-07-04');
+    await act(async () => {
+      lastPropsOf(taskCalendarSpy).setCurrentDate(() => nextDate);
+      await Promise.resolve();
+    });
+
+    expect(lastPropsOf(taskCalendarSpy).currentDate).toBe(nextDate);
+    expect(lastPropsOf(taskCalendarSpy).weekStart).toBe(nextDate);
+  });
+
+  it('falls back to the first task when the active task disappears from the list', async () => {
+    const { rerender } = render(<ProtectedTasks />);
+
+    expect(lastPropsOf(changeStatusSpy).activeTask).toEqual(expect.objectContaining({ _id: 't1' }));
+
+    useTasksMock.mockReturnValue([
+      { _id: 't9', status: 'pending', audience: 'EMPLOYEE_TASK', name: 'Follow up nine' },
+    ]);
+
+    await act(async () => {
+      rerender(<ProtectedTasks />);
+      await Promise.resolve();
+    });
+
+    expect(lastPropsOf(changeStatusSpy).activeTask).toEqual(expect.objectContaining({ _id: 't9' }));
+  });
+
+  it('adopts the first task once the list arrives after an empty state', async () => {
+    useTasksMock.mockReturnValue([]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    const { rerender } = render(<ProtectedTasks />);
+    expect(screen.queryByTestId('task-change-status')).not.toBeInTheDocument();
+
+    useTasksMock.mockReturnValue([
+      { _id: 'late', status: 'pending', audience: 'EMPLOYEE_TASK', name: 'Late arrival' },
+    ]);
+
+    await act(async () => {
+      rerender(<ProtectedTasks />);
+      await Promise.resolve();
+    });
+
+    expect(lastPropsOf(changeStatusSpy).activeTask).toEqual(
+      expect.objectContaining({ _id: 'late' })
+    );
+  });
+
+  it('deep link: ignores a taskId that matches no task', async () => {
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => (key === 'taskId' ? 'missing-task' : null),
+    });
+
+    await act(async () => {
+      render(<ProtectedTasks />);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('task-info')).not.toBeInTheDocument();
+  });
+
+  it('deep link: does not reopen a task that was already handled', async () => {
+    useTasksMock.mockReturnValue([
+      { _id: 'deep-task', status: 'pending', audience: 'EMPLOYEE_TASK', name: 'Deep Task' },
+    ]);
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => (key === 'taskId' ? 'deep-task' : null),
+    });
+
+    const { rerender } = render(<ProtectedTasks />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId('task-info')).toBeInTheDocument();
+
+    // The user closes the popup.
+    await act(async () => {
+      lastPropsOf(taskInfoSpy).setShowModal(false);
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId('task-info')).not.toBeInTheDocument();
+
+    // A fresh tasks array re-runs the deep-link effect, but the link is spent.
+    useTasksMock.mockReturnValue([
+      { _id: 'deep-task', status: 'pending', audience: 'EMPLOYEE_TASK', name: 'Deep Task' },
+    ]);
+    await act(async () => {
+      rerender(<ProtectedTasks />);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('task-info')).not.toBeInTheDocument();
+  });
+
+  it('filters by status and audience when the filter pills change', async () => {
+    useTasksMock.mockReturnValue([
+      { _id: 't1', status: 'pending', audience: 'employee_task', name: 'Alpha' },
+      { _id: 't2', status: 'completed', audience: 'client_task', name: 'Beta' },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    render(<ProtectedTasks />);
+
+    await act(async () => {
+      lastPropsOf(filtersSpy).setActiveStatus('completed');
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+      expect.objectContaining({ _id: 't2' }),
+    ]);
+
+    await act(async () => {
+      lastPropsOf(filtersSpy).setActiveFilter('employee_task');
+      await Promise.resolve();
+    });
+    // t2 is the only completed task, but its audience is client_task.
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([]);
+
+    await act(async () => {
+      lastPropsOf(filtersSpy).setActiveStatus('pending');
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+      expect.objectContaining({ _id: 't1' }),
+    ]);
+  });
+
+  it('tolerates tasks with no status, audience or name', async () => {
+    useTasksMock.mockReturnValue([
+      { _id: 't1', status: 'pending', audience: 'employee_task', name: 'Alpha' },
+      { _id: 'bare' },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: 'alpha' }));
+
+    render(<ProtectedTasks />);
+
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+      expect.objectContaining({ _id: 't1' }),
+    ]);
+  });
+
+  it('opens the add-task modal from the title bar without a prefill', async () => {
+    render(<ProtectedTasks />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Title Add' }));
+      await Promise.resolve();
+    });
+
+    expect(lastPropsOf(addTaskSpy)).toEqual(
+      expect.objectContaining({ showModal: true, prefill: null })
+    );
+  });
+
+  it('clears the add-task prefill when the add modal is closed', async () => {
+    render(<ProtectedTasks />);
+
+    const dueAt = new Date('2025-01-01');
+    await act(async () => {
+      lastPropsOf(taskCalendarSpy).onCreateFromCalendarSlot({ dueAt, assignedTo: 'u1' });
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(addTaskSpy).prefill).toEqual({ dueAt, assignedTo: 'u1' });
+
+    await act(async () => {
+      lastPropsOf(addTaskSpy).setShowModal(false);
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(addTaskSpy)).toEqual(
+      expect.objectContaining({ showModal: false, prefill: null })
+    );
+
+    // Reopening with `true` leaves the (already cleared) prefill alone.
+    await act(async () => {
+      lastPropsOf(addTaskSpy).setShowModal(true);
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(addTaskSpy)).toEqual(
+      expect.objectContaining({ showModal: true, prefill: null })
+    );
+  });
+
+  it('hides the add button and the edit-only modals without task-edit permission', () => {
+    usePermissionsMock.mockReturnValue({ can: jest.fn(() => false) });
+
+    render(<ProtectedTasks />);
+
+    expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('task-change-status')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('task-reschedule')).not.toBeInTheDocument();
+    expect(lastPropsOf(taskCalendarSpy).canEditTasks).toBe(false);
+  });
+
+  it('renders the reschedule modal for the active task when editing is allowed', () => {
+    render(<ProtectedTasks />);
+
+    expect(screen.getByTestId('task-reschedule')).toBeInTheDocument();
+    expect(lastPropsOf(rescheduleSpy)).toEqual(
+      expect.objectContaining({
+        showModal: false,
+        activeTask: expect.objectContaining({ _id: 't1' }),
+      })
+    );
   });
 
   it('filters tasks by audience when activeFilter is set', async () => {

@@ -1504,10 +1504,16 @@ export const ClinicalArtifactService = {
     );
     assertActorMayMutateArtifact(record.artifact, actor);
 
+    // A final artifact may only leave final via a deliberate lifecycle
+    // transition: $reopen sends IN_PROGRESS and $cancel sends VOID. Nothing
+    // legitimately moves final -> DRAFT, so an incoming DRAFT here is a plain
+    // save racing an already-completed prescription; allowing it would silently
+    // reopen the artifact and wipe/recreate its items.
     if (
       isFinalClinicalArtifactStatus(record.artifact.status) &&
       (input.status === undefined ||
-        isFinalClinicalArtifactStatus(input.status))
+        isFinalClinicalArtifactStatus(input.status) ||
+        input.status === "DRAFT")
     ) {
       throw new ClinicalArtifactServiceError(
         "Artifact is final. Reopen or amend it before editing.",

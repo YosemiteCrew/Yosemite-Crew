@@ -2,23 +2,22 @@
 import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
-import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { IoAdd, IoWarning } from 'react-icons/io5';
+import { IoAdd, IoChevronDown, IoWarning } from 'react-icons/io5';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
 const getFilterClassName = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
   if (filterKey === 'emergencies') return 'text-danger-500!';
-  return 'bg-blue-light text-blue-text!';
+  return 'bg-[var(--inset)] text-[var(--ink)]! font-semibold';
 };
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'var(--color-card-border)';
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
-  return 'var(--color-text-brand)';
+  return 'var(--divider)';
 };
 
 const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
@@ -56,7 +55,7 @@ const Filters = ({
   hasEmergency = false,
   showAddButton = false,
   onAddButtonClick,
-  addButtonText = 'Add Appointment',
+  addButtonText = 'New appointment',
   className,
   compactFilterPills = false,
 }: FiltersProps) => {
@@ -68,6 +67,8 @@ const Filters = ({
 
   const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
   const hasFilterOptions = Boolean(filterOptions?.length);
+  const isAllStatus = (selectedStatus?.key?.toLowerCase() ?? 'all') === 'all';
+  const showStatusTint = !isAllStatus && Boolean(selectedStatus?.bg);
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;
     setActiveFilter(activeFilter === filterKey ? 'all' : filterKey);
@@ -178,31 +179,20 @@ const Filters = ({
               ref={triggerRef}
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors"
               style={
-                selectedStatus?.bg
+                showStatusTint
                   ? {
-                      backgroundColor: selectedStatus.bg,
-                      color: selectedStatus.text ?? 'var(--color-black-pure)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: selectedStatus.border ?? selectedStatus.bg,
+                      backgroundColor: selectedStatus?.bg,
+                      color: selectedStatus?.text ?? 'var(--color-black-pure)',
+                      borderColor: selectedStatus?.border ?? selectedStatus?.bg,
                     }
-                  : {
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: 'var(--color-card-border)',
-                      color: 'var(--color-text-tertiary)',
-                    }
+                  : undefined
               }
             >
-              <span>
-                {selectedStatus?.key?.toLowerCase() === 'all'
-                  ? 'Status'
-                  : (selectedStatus?.name ?? 'Status')}
-              </span>
-              <FaCaretDown
-                size={14}
+              <span>{isAllStatus ? 'All statuses' : (selectedStatus?.name ?? 'All statuses')}</span>
+              <IoChevronDown
+                size={12}
                 className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
               />
             </button>
@@ -212,7 +202,7 @@ const Filters = ({
               createPortal(
                 <div
                   ref={panelRef}
-                  className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+                  className="yc-glass-overlay rounded-2xl overflow-hidden"
                   style={dropdownStyle}
                 >
                   {statusOptions.map((status) => {

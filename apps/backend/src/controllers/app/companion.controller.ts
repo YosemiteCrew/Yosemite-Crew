@@ -6,9 +6,7 @@ import {
 } from "../../services/companion.service";
 import type { CompanionRequestDTO } from "@yosemite-crew/types";
 import { CompanionOrganisationService } from "src/services/companion-organisation.service";
-import OrganizationModel from "src/models/organization";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import {
   resolveUserIdFromRequest,
   resolveVerifiedOrganisationId,
@@ -138,9 +136,9 @@ export const CompanionController = {
           });
         }
 
-        const organisation = isReadFromPostgres()
-          ? await prisma.organization.findFirst({ where: { id: orgId.trim() } })
-          : await OrganizationModel.findById(orgId.trim());
+        const organisation = await prisma.organization.findFirst({
+          where: { id: orgId.trim() },
+        });
         if (!organisation) {
           return res
             .status(404)

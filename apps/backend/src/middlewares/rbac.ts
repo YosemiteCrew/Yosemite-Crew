@@ -1,19 +1,12 @@
 // src/middlewares/rbac.ts
 import { NextFunction, Response, Request } from "express";
-import { Types } from "mongoose";
 import {
   Permission,
   ROLE_PERMISSIONS,
   RoleCode,
 } from "../models/role-permission";
 import { AuthenticatedRequest } from "./auth";
-import UserOrganizationModel from "src/models/user-organization";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import AppointmentModel from "src/models/appointment";
-import InvoiceModel from "src/models/invoice";
-import TaskModel from "src/models/task";
-import { InventoryItemModel } from "src/models/inventory";
 
 export interface OrgRequest extends AuthenticatedRequest {
   userPermissions?: Permission[];
@@ -26,8 +19,8 @@ export interface OrgRequest extends AuthenticatedRequest {
  * Only non-empty string identifiers are accepted. Arrays and objects are
  * rejected so that an untrusted structured value (e.g. a body such as
  * `{"organisationId": {"not": ""}}`) can never reach an ORM filter as a
- * Prisma/Mongo `StringFilter` and authorize the request against an
- * unintended organisation.
+ * Prisma `StringFilter` and authorize the request against an unintended
+ * organisation.
  */
 function extractOrgId(req: Request): string | null {
   return (
@@ -110,25 +103,16 @@ export function withOrgPermissions() {
       // Matching both raw ID and FHIR-style reference.
       // `active` is required: a deactivated membership must not resolve any
       // permissions, otherwise offboarded staff keep org access indefinitely.
-      const mapping = isReadFromPostgres()
-        ? await prisma.userOrganization.findFirst({
-            where: {
-              practitionerReference: userId,
-              active: true,
-              OR: [
-                { organizationReference: orgId },
-                { organizationReference: `Organization/${orgId}` },
-              ],
-            },
-          })
-        : await UserOrganizationModel.findOne({
-            practitionerReference: userId,
-            active: true,
-            $or: [
-              { organizationReference: orgId },
-              { organizationReference: `Organization/${orgId}` },
-            ],
-          });
+      const mapping = await prisma.userOrganization.findFirst({
+        where: {
+          practitionerReference: userId,
+          active: true,
+          OR: [
+            { organizationReference: orgId },
+            { organizationReference: `Organization/${orgId}` },
+          ],
+        },
+      });
 
       if (!mapping) {
         return res.status(403).json({
@@ -137,32 +121,23 @@ export function withOrgPermissions() {
       }
 
       const effectivePermissions = normalizePermissions(
-        (mapping as any).effectivePermissions,
+        mapping.effectivePermissions,
       );
 
       const computed = computeEffectivePermissions(
-        (mapping as any).roleCode as RoleCode,
-        (mapping as any).extraPermissions,
-        (mapping as any).revokedPermissions,
+        mapping.roleCode as RoleCode,
+        mapping.extraPermissions,
+        mapping.revokedPermissions,
       );
 
       if (samePermissions(effectivePermissions, computed)) {
         typedReq.userPermissions = effectivePermissions;
-      } else if (isReadFromPostgres()) {
+      } else {
         await prisma.userOrganization.updateMany({
-          where: { id: (mapping as any).id },
+          where: { id: mapping.id },
           data: { effectivePermissions: computed },
         });
         typedReq.userPermissions = computed;
-      } else {
-        const updated = await UserOrganizationModel.findByIdAndUpdate(
-          (mapping as any)._id,
-          { $set: { effectivePermissions: computed } },
-          { new: true },
-        );
-        typedReq.userPermissions = normalizePermissions(
-          (updated as any)?.effectivePermissions ?? computed,
-        );
       }
 
       typedReq.organisationId = orgId;
@@ -190,9 +165,9 @@ export function withOrgPermissions() {
  * `req.params.organisationId` closes that gap, because the params extractor has
  * the highest precedence in `extractOrgId`.
  *
- * The loader is wrapped so that a malformed identifier (for example a value the
- * Mongo driver cannot cast) is answered with 400 instead of rejecting inside an
- * async handler, which Express 4 does not forward to the error middleware.
+ * The loader is wrapped so that a malformed identifier is answered with 400
+ * instead of rejecting inside an async handler, which Express 4 does not
+ * forward to the error middleware.
  */
 function withResourceOrgPermissions(
   paramName: string,
@@ -223,38 +198,16 @@ function withResourceOrgPermissions(
   };
 }
 
-/**
- * Read an organisation id off a Mongo document without trusting its shape.
- * Only the two representations the driver actually returns are accepted; any
- * other value is rejected rather than coerced, so a structured field cannot
- * become a nonsense identifier that is then used as an organisation.
- */
-function orgIdFromLean(doc: unknown): string | null {
-  if (typeof doc !== "object" || doc === null) return null;
-  const value = (doc as { organisationId?: unknown }).organisationId;
-  if (typeof value === "string") return value.trim() || null;
-  if (value instanceof Types.ObjectId) return value.toHexString();
-  return null;
-}
-
 export function withAppointmentOrgPermissions() {
   return withResourceOrgPermissions(
     "appointmentId",
     "Appointment not found",
     async (appointmentId) => {
-      if (isReadFromPostgres()) {
-        const appointment = await prisma.appointment.findUnique({
-          where: { id: appointmentId },
-          select: { organisationId: true },
-        });
-        return appointment?.organisationId ?? null;
-      }
-      if (!Types.ObjectId.isValid(appointmentId)) return null;
-      return orgIdFromLean(
-        await AppointmentModel.findById(appointmentId, {
-          organisationId: 1,
-        }).lean(),
-      );
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { organisationId: true },
+      });
+      return appointment?.organisationId ?? null;
     },
   );
 }
@@ -264,17 +217,11 @@ export function withInvoiceOrgPermissions() {
     "invoiceId",
     "Invoice not found",
     async (invoiceId) => {
-      if (isReadFromPostgres()) {
-        const invoice = await prisma.invoice.findUnique({
-          where: { id: invoiceId },
-          select: { organisationId: true },
-        });
-        return invoice?.organisationId ?? null;
-      }
-      if (!Types.ObjectId.isValid(invoiceId)) return null;
-      return orgIdFromLean(
-        await InvoiceModel.findById(invoiceId, { organisationId: 1 }).lean(),
-      );
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        select: { organisationId: true },
+      });
+      return invoice?.organisationId ?? null;
     },
   );
 }
@@ -312,17 +259,11 @@ export function withTaskOrgPermissions() {
     "taskId",
     "Task not found",
     async (taskId) => {
-      if (isReadFromPostgres()) {
-        const task = await prisma.task.findUnique({
-          where: { id: taskId },
-          select: { organisationId: true },
-        });
-        return task?.organisationId ?? null;
-      }
-      if (!Types.ObjectId.isValid(taskId)) return null;
-      return orgIdFromLean(
-        await TaskModel.findById(taskId, { organisationId: 1 }).lean(),
-      );
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { organisationId: true },
+      });
+      return task?.organisationId ?? null;
     },
   );
 }
@@ -332,19 +273,11 @@ export function withInventoryItemOrgPermissions() {
     "itemId",
     "Inventory item not found",
     async (itemId) => {
-      if (isReadFromPostgres()) {
-        const item = await prisma.inventoryItem.findUnique({
-          where: { id: itemId },
-          select: { organisationId: true },
-        });
-        return item?.organisationId ?? null;
-      }
-      if (!Types.ObjectId.isValid(itemId)) return null;
-      return orgIdFromLean(
-        await InventoryItemModel.findById(itemId, {
-          organisationId: 1,
-        }).lean(),
-      );
+      const item = await prisma.inventoryItem.findUnique({
+        where: { id: itemId },
+        select: { organisationId: true },
+      });
+      return item?.organisationId ?? null;
     },
   );
 }

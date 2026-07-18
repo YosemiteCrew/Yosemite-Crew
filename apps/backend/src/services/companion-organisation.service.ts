@@ -11,7 +11,6 @@ import { assertSafeString } from "src/utils/sanitize";
 import { AuditTrailService } from "./audit-trail.service";
 import { toFHIRFromPrisma as toFHIRCompanionFromPrisma } from "./companion.service";
 import { toFHIRFromPrisma as toFHIRParentFromPrisma } from "./parent.service";
-import { Types } from "mongoose";
 
 type BusinessType = "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
 
@@ -57,8 +56,8 @@ export class CompanionOrganisationServiceError extends Error {
   }
 }
 
-const requireId = (value: string | Types.ObjectId, field: string) => {
-  const trimmed = assertSafeString(String(value), field);
+const requireId = (value: string, field: string) => {
+  const trimmed = assertSafeString(value, field);
 
   if (!trimmed || trimmed.includes("$") || trimmed.includes(".")) {
     throw new CompanionOrganisationServiceError(`Invalid ${field}`, 400);
@@ -216,9 +215,9 @@ export const CompanionOrganisationService = {
     organisationId,
     organisationType,
   }: {
-    parentId: string | Types.ObjectId;
-    patientId: string | Types.ObjectId;
-    organisationId: string | Types.ObjectId;
+    parentId: string;
+    patientId: string;
+    organisationId: string;
     organisationType: BusinessType;
   }): Promise<PatientOrganisationRecord> {
     const parent = requireId(parentId, "parentId");
@@ -271,8 +270,8 @@ export const CompanionOrganisationService = {
    * that a companion id exists.
    */
   async assertOrganisationMayLinkCompanion(
-    patientId: string | Types.ObjectId,
-    organisationId: string | Types.ObjectId,
+    patientId: string,
+    organisationId: string,
   ): Promise<void> {
     const companion = requireId(patientId, "patientId");
     const org = requireId(organisationId, "organisationId");
@@ -321,8 +320,8 @@ export const CompanionOrganisationService = {
     organisationType,
   }: {
     pmsUserId: string;
-    patientId: string | Types.ObjectId;
-    organisationId: string | Types.ObjectId;
+    patientId: string;
+    organisationId: string;
     organisationType: BusinessType;
   }): Promise<PatientOrganisationRecord> {
     const companion = requireId(patientId, "patientId");
@@ -369,8 +368,8 @@ export const CompanionOrganisationService = {
     name,
     placesId,
   }: {
-    parentId: string | Types.ObjectId;
-    patientId: string | Types.ObjectId;
+    parentId: string;
+    patientId: string;
     organisationType: BusinessType;
     email?: string | null;
     name?: string | null;
@@ -427,7 +426,7 @@ export const CompanionOrganisationService = {
     organisationId,
   }: {
     token: string;
-    organisationId: string | Types.ObjectId;
+    organisationId: string;
   }): Promise<PatientOrganisationRecord> {
     const org = requireId(organisationId, "organisationId");
     const inviteToken = assertSafeString(token, "token");
@@ -471,7 +470,7 @@ export const CompanionOrganisationService = {
     organisationId,
   }: {
     token: string;
-    organisationId: string | Types.ObjectId;
+    organisationId: string;
   }): Promise<void> {
     const org = requireId(organisationId, "organisationId");
     const inviteToken = assertSafeString(token, "token");
@@ -514,8 +513,8 @@ export const CompanionOrganisationService = {
     pmsUserId,
     organisationType,
   }: {
-    patientId: string | Types.ObjectId;
-    organisationId: string | Types.ObjectId;
+    patientId: string;
+    organisationId: string;
     pmsUserId: string;
     organisationType: BusinessType;
   }) {
@@ -532,8 +531,8 @@ export const CompanionOrganisationService = {
     organisationId,
     organisationType,
   }: {
-    patientId: string | Types.ObjectId;
-    organisationId: string | Types.ObjectId;
+    patientId: string;
+    organisationId: string;
     organisationType: BusinessType;
   }) {
     const companion = requireId(patientId, "patientId");
@@ -570,10 +569,7 @@ export const CompanionOrganisationService = {
     return toRecord(link);
   },
 
-  async revokeLink(
-    linkId: string | Types.ObjectId,
-    actingParentId?: string | Types.ObjectId,
-  ) {
+  async revokeLink(linkId: string, actingParentId?: string) {
     const id = requireId(linkId, "linkId");
 
     const link = await prisma.patientOrganisation.findUnique({
@@ -609,7 +605,7 @@ export const CompanionOrganisationService = {
     return toRecord(link);
   },
 
-  async parentApproveLink(parentId: string | Types.ObjectId, linkId: string) {
+  async parentApproveLink(parentId: string, linkId: string) {
     const parent = requireId(parentId, "parentId");
     const id = requireId(linkId, "linkId");
 
@@ -653,7 +649,7 @@ export const CompanionOrganisationService = {
     return toRecord(updated);
   },
 
-  async parentRejectLink(parentId: string | Types.ObjectId, linkId: string) {
+  async parentRejectLink(parentId: string, linkId: string) {
     const parent = requireId(parentId, "parentId");
     const id = requireId(linkId, "linkId");
 
@@ -696,7 +692,7 @@ export const CompanionOrganisationService = {
     return toRecord(updated);
   },
 
-  async getLinksForCompanion(patientId: string | Types.ObjectId) {
+  async getLinksForCompanion(patientId: string) {
     const id = requireId(patientId, "patientId");
     const links = await prisma.patientOrganisation.findMany({
       where: { patientId: id },
@@ -705,9 +701,9 @@ export const CompanionOrganisationService = {
   },
 
   async getLinksForCompanionByOrganisationTye(
-    patientId: string | Types.ObjectId,
+    patientId: string,
     type: BusinessType,
-    actingParentId?: string | Types.ObjectId,
+    actingParentId?: string,
   ): Promise<CompanionOrganisationLinksResponse> {
     const id = requireId(patientId, "patientId");
 
@@ -769,7 +765,7 @@ export const CompanionOrganisationService = {
     };
   },
 
-  async getLinksForOrganisation(organisationId: string | Types.ObjectId) {
+  async getLinksForOrganisation(organisationId: string) {
     const id = requireId(organisationId, "organisationId");
 
     const links = await prisma.patientOrganisation.findMany({

@@ -1,8 +1,10 @@
 'use client';
 import React, { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Appointments from '@/app/ui/tables/Appointments';
 import Tasks from '@/app/ui/tables/Tasks';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
@@ -22,12 +24,9 @@ import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
 import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 import Filters from '@/app/ui/filters/Filters';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import ViewAppointmentOverviewModal from '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal';
-
-const revampEnabled = isAppointmentRevampEnabled();
 
 const resetActiveTableState = (
   activeTable: string,
@@ -84,7 +83,7 @@ const AppointmentTask = () => {
   const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
   const tasks = useTasksForPrimaryOrg();
   const router = useRouter();
-  const [activeTable, setActiveTable] = useState('Appointments');
+  const [activeTable, setActiveTable] = useState<'Appointments' | 'Tasks'>('Appointments');
   const [viewPopup, setViewPopup] = useState(false);
   const [detailPopup, setDetailPopup] = useState(false);
   const [viewTaskPopup, setViewTaskPopup] = useState(false);
@@ -154,29 +153,22 @@ const AppointmentTask = () => {
   return (
     <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_ANY]}>
       <div className="summary-container pt-1">
-        <h2 className="text-text-primary text-heading-1">
+        <h2 className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
           Schedule{' '}
-          <span className="text-text-tertiary">
+          <span className="font-medium text-[var(--ink-faint)]">
             ({activeTable === 'Appointments' ? appointments.length : tasks.length})
           </span>
         </h2>
         <div className="summary-labels flex-wrap gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              className={`min-w-20 text-body-4 px-3 py-1.5 text-text-tertiary rounded-2xl! border! transition-all duration-300${activeTable === 'Appointments' ? ' bg-blue-light text-blue-text! border-text-brand!' : ' border-card-border! hover:bg-card-hover!'}`}
-              onClick={() => setActiveTable('Appointments')}
-            >
-              Appointments
-            </button>
-            <button
-              type="button"
-              className={`min-w-20 text-body-4 px-3 py-1.5 text-text-tertiary rounded-2xl! border! transition-all duration-300${activeTable === 'Tasks' ? ' bg-blue-light text-blue-text! border-text-brand!' : ' border-card-border! hover:bg-card-hover!'}`}
-              onClick={() => setActiveTable('Tasks')}
-            >
-              Tasks
-            </button>
-          </div>
+          <SegmentedPill
+            ariaLabel="Schedule view"
+            value={activeTable}
+            onChange={setActiveTable}
+            options={[
+              { value: 'Appointments', label: 'Appointments' },
+              { value: 'Tasks', label: 'Tasks' },
+            ]}
+          />
           <Filters
             statusOptions={activeLabels}
             activeStatus={activeSubLabel}
@@ -206,7 +198,16 @@ const AppointmentTask = () => {
           />
         )}
 
-        {activeAppointment && revampEnabled && (
+        <div className="flex w-full justify-end">
+          <Link
+            href={activeTable === 'Appointments' ? '/appointments' : '/tasks'}
+            className="text-[12.5px] font-semibold text-[var(--blue-text)]"
+          >
+            {activeTable === 'Appointments' ? 'Open appointments' : 'Open tasks'} &rarr;
+          </Link>
+        </div>
+
+        {activeAppointment && (
           <ViewAppointmentOverviewModal
             showModal={viewPopup}
             setShowModal={setViewPopup}
@@ -226,8 +227,8 @@ const AppointmentTask = () => {
 
         {activeAppointment && (
           <AppoitmentInfo
-            showModal={revampEnabled ? detailPopup : viewPopup}
-            setShowModal={revampEnabled ? setDetailPopup : setViewPopup}
+            showModal={detailPopup}
+            setShowModal={setDetailPopup}
             activeAppointment={activeAppointment}
             initialViewIntent={viewIntent}
           />

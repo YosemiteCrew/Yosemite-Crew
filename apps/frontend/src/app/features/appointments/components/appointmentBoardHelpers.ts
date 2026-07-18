@@ -19,14 +19,25 @@ export const normalizeStatus = (status?: string): BoardStatus | null => {
   return normalizeAppointmentStatus(status);
 };
 
+const MUTED_BOARD_STATUSES: ReadonlySet<BoardStatus> = new Set<BoardStatus>([
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+]);
+
+/** Closed-out columns recede on the board so live work stays dominant. */
+export const isMutedBoardStatus = (status: BoardStatus | null): boolean =>
+  !!status && MUTED_BOARD_STATUSES.has(status);
+
+// Slim danger-outlined emergency pill matching the rebuilt calendar toolbar recipe
+// (rounded-full, --danger-border hairline, --danger-text ink; filled with --danger-bg when active).
 export const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
-  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
+  backgroundColor: isActive ? 'var(--danger-bg)' : 'transparent',
+  borderColor: 'var(--danger-border)',
   borderWidth: '1px',
   borderStyle: 'solid',
-  borderRadius: '16px',
-  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
-  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
+  borderRadius: '9999px',
+  color: 'var(--danger-text)',
 });
 
 export const getBoardOrgType = (

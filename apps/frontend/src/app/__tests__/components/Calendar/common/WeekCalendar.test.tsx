@@ -178,6 +178,58 @@ describe('WeekCalendar (Appointments)', () => {
     jest.useRealTimers();
   });
 
+  it('drives day columns and gutters from the responsive custom properties', () => {
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+      />
+    );
+
+    // The root owns the custom properties the media query overrides, and carries
+    // the zoom mode that selects the minimum day-column width.
+    const root = container.querySelector('.yc-week-grid');
+    expect(root).toHaveAttribute('data-zoom-mode', 'in');
+
+    // Every horizontal band uses the shared shell, so the gutter is defined once.
+    expect(container.querySelectorAll('.yc-week-grid__shell').length).toBeGreaterThan(0);
+    expect(container.querySelector('.grid-cols-\\[64px_minmax\\(0\\,1fr\\)_64px\\]')).toBeNull();
+
+    // Day columns must stay var-driven; a hardcoded px minimum would re-introduce
+    // the sideways scroll the tablet band exists to remove.
+    const dayTrack = container.querySelector<HTMLElement>('[style*="--yc-week-day-min"]');
+    expect(dayTrack).not.toBeNull();
+    expect(dayTrack!.style.gridTemplateColumns).toBe(
+      `repeat(${days.length}, minmax(var(--yc-week-day-min), 1fr))`
+    );
+    expect(dayTrack!.style.width).toBe(`max(100%, calc(${days.length} * var(--yc-week-day-min)))`);
+
+    // The hour gutter shrinks with the grid, so the label must be targetable.
+    expect(container.querySelector('.yc-week-grid__hour-label')).not.toBeNull();
+  });
+
+  it('marks the zoom mode on the root so the out mode narrows day columns', () => {
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        zoomMode="out"
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+      />
+    );
+
+    expect(container.querySelector('.yc-week-grid')).toHaveAttribute('data-zoom-mode', 'out');
+  });
+
   it('precomputes slot events once per visible day and hour', () => {
     render(
       <WeekCalendar

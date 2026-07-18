@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
 
 import './DynamicSelect.css';
@@ -68,7 +68,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
         ) : (
           <span>{selectedLabel}</span>
         )}
-        <FaCaretDown
+        <IoCaretDown
           className={`dropdown-caret ${open ? 'rotate' : ''}`}
           onClick={(e) => {
             e.stopPropagation();

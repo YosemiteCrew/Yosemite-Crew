@@ -1,5 +1,5 @@
 import React from 'react';
-import { AiOutlineInfoCircle } from 'react-icons/ai';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import type { InvoiceLineItem } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
@@ -107,7 +107,7 @@ const PackageBreakdownTooltip = ({ item, currency }: PackageBreakdownTooltipProp
         aria-label={`View ${item.name} package breakdown`}
         className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
-        <AiOutlineInfoCircle aria-hidden="true" size={14} />
+        <IoInformationCircleOutline aria-hidden="true" size={14} />
       </button>
     </GlassTooltip>
   );

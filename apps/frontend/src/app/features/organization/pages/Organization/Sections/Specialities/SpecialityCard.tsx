@@ -78,7 +78,6 @@ const SpecialityCard = ({ setFormData, speciality, index }: SpecialityCardProps)
               onChange={(event) =>
                 updateServiceField(serviceIndex, 'description', event.target.value)
               }
-              className="min-h-12!"
             />
             <FormInput
               intype="number"
@@ -88,7 +87,6 @@ const SpecialityCard = ({ setFormData, speciality, index }: SpecialityCardProps)
               onChange={(event) =>
                 updateServiceField(serviceIndex, 'durationMinutes', event.target.value)
               }
-              className="min-h-12!"
             />
             <div className="grid grid-cols-2 gap-3">
               <FormInput
@@ -97,7 +95,6 @@ const SpecialityCard = ({ setFormData, speciality, index }: SpecialityCardProps)
                 value={String(service.cost)}
                 inlabel={`Service charge (${currency})`}
                 onChange={(event) => updateServiceField(serviceIndex, 'cost', event.target.value)}
-                className="min-h-12!"
               />
               <FormInput
                 intype="number"
@@ -107,7 +104,6 @@ const SpecialityCard = ({ setFormData, speciality, index }: SpecialityCardProps)
                 onChange={(event) =>
                   updateServiceField(serviceIndex, 'maxDiscount', event.target.value)
                 }
-                className="min-h-12!"
               />
             </div>
           </div>

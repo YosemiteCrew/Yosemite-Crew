@@ -1,9 +1,7 @@
-import { Types } from "mongoose";
-
 export type InventoryType = {
   businessId?: string;
   barCode: string;
-  category: string | Types.ObjectId;
+  category: string;
   itemName: string;
   genericName?: string;
   department: string;

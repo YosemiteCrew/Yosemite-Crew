@@ -474,7 +474,7 @@ const useAddInventoryContent = ({
       <div className="flex flex-col h-full gap-6">
         <div className="flex items-center justify-between border-b border-card-border pb-4">
           <div className="flex min-w-0 flex-col gap-1">
-            <div className="text-body-1 text-text-primary">Add item</div>
+            <div className="text-body-1 text-text-primary">Add product</div>
           </div>
           <Close onClick={() => setShowModal(false)} />
         </div>
@@ -521,7 +521,7 @@ const useAddInventoryContent = ({
                   >
                     <span
                       aria-hidden="true"
-                      className={`block size-6 rounded-full bg-white shadow-sm transition-transform ${
+                      className={`block size-6 rounded-full bg-neutral-0 shadow-sm transition-transform ${
                         formData.basicInfo.visibleInInventory === false
                           ? 'translate-x-0'
                           : 'translate-x-6'

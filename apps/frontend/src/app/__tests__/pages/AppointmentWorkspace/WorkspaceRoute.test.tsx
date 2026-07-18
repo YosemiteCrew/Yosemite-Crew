@@ -4,7 +4,6 @@ import '@testing-library/jest-dom';
 import type { Appointment } from '@yosemite-crew/types';
 import WorkspaceRoute from '@/app/features/appointments/pages/AppointmentWorkspace/WorkspaceRoute';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
 import {
   useAppointmentsForPrimaryOrg,
@@ -13,18 +12,10 @@ import {
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
-const mockRedirect = jest.fn((href: string): never => {
-  throw new Error(`NEXT_REDIRECT:${href}`);
-});
 const mockStartRouteLoader = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  redirect: (href: string) => mockRedirect(href),
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
-}));
-
-jest.mock('@/app/lib/featureFlags', () => ({
-  isAppointmentRevampEnabled: jest.fn(),
 }));
 
 jest.mock('@/app/hooks/useAppointments', () => ({
@@ -100,19 +91,8 @@ describe('WorkspaceRoute', () => {
       error: null,
       lastFetchedAt: null,
     });
-    (isAppointmentRevampEnabled as jest.Mock).mockReturnValue(true);
     (useLoadAppointmentsForPrimaryOrg as jest.Mock).mockReturnValue(undefined);
     mockAppointments([]);
-  });
-
-  it('redirects back to appointments when the revamp flag is disabled', () => {
-    (isAppointmentRevampEnabled as jest.Mock).mockReturnValue(false);
-
-    expect(() => render(<WorkspaceRoute appointmentId="appt-1" />)).toThrow(
-      'NEXT_REDIRECT:/appointments'
-    );
-
-    expect(mockRedirect).toHaveBeenCalledWith('/appointments');
   });
 
   it('renders the workspace for the matching appointment', () => {

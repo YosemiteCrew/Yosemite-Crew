@@ -71,6 +71,7 @@ export type LabOrder = {
   companionId: string;
   parentId?: string | null;
   appointmentId?: string | null;
+  patientName?: string | null;
   status: string;
   modality: string;
   idexxOrderId: string;

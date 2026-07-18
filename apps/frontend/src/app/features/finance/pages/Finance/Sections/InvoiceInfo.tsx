@@ -1,7 +1,5 @@
 'use client';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
-import { Secondary } from '@/app/ui/primitives/Buttons';
-import Close from '@/app/ui/primitives/Icons/Close';
 import Modal from '@/app/ui/overlays/Modal';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
@@ -21,6 +19,12 @@ import Image from 'next/image';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import { useParentStore } from '@/app/stores/parentStore';
+import InvoiceDetailHeader from '@/app/features/finance/pages/Finance/Sections/InvoiceDetailHeader';
+import InvoiceBilledItems from '@/app/features/finance/pages/Finance/Sections/InvoiceBilledItems';
+import InvoiceSummaryPanel from '@/app/features/finance/pages/Finance/Sections/InvoiceSummaryPanel';
+import InvoiceBilledTo from '@/app/features/finance/pages/Finance/Sections/InvoiceBilledTo';
+import InvoicePaymentLedger from '@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger';
 
 type ActiveTab = 'details' | 'payment';
 
@@ -30,7 +34,7 @@ const tabs: { key: ActiveTab; label: string }[] = [
 ];
 
 const InvoiceFields = [
-  { label: 'Sub-total', key: 'subTotal', type: 'text' },
+  { label: 'Subtotal', key: 'subTotal', type: 'text' },
   { label: 'Discount', key: 'discount', type: 'text' },
   { label: 'Tax', key: 'tax', type: 'text' },
   { label: 'Total', key: 'total', type: 'text' },
@@ -69,11 +73,30 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     [appointments, activeInvoice]
   );
 
+  const parentId = useMemo(() => {
+    if (activeInvoice?.parentId) return activeInvoice.parentId;
+    if (appointment) return getAppointmentCompanion(appointment).parent.id;
+    return undefined;
+  }, [activeInvoice, appointment]);
+
+  const storedParent = useParentStore((state) => (parentId ? state.getParentById(parentId) : null));
+
+  const payerName = useMemo(() => {
+    if (storedParent) {
+      const composed = [storedParent.firstName, storedParent.lastName]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(' ');
+      if (composed) return composed;
+    }
+    if (appointment) return getOwnerFirstName(getAppointmentCompanion(appointment).parent);
+    return '';
+  }, [storedParent, appointment]);
+
+  const payerEmail = storedParent?.email ?? '';
+
   const invoiceStatusLabel = toTitle(activeInvoice?.status ?? '');
-  const invoiceStatusStyle = (() => {
-    const s = getInvoiceStatusStyle(activeInvoice?.status ?? '');
-    return { ...s, borderColor: s.color };
-  })();
+  const invoiceStatusStyle = getInvoiceStatusStyle(activeInvoice?.status ?? '');
 
   const appointmentInfoData = useMemo(() => {
     if (appointment) {
@@ -113,56 +136,63 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-4">
+    <Modal
+      showModal={showModal}
+      setShowModal={setShowModal}
+      variant="centered"
+      size="lg"
+      aria-labelledby={titleId}
+    >
+      <div className="flex flex-col flex-auto min-h-0 gap-4">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div className="opacity-0 pointer-events-none">
-            <Close onClick={() => {}} />
-          </div>
-          <h2 id={titleId} className="text-body-1 text-text-primary">
-            View invoice
-          </h2>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        {activeInvoice && (
+          <InvoiceDetailHeader
+            titleId={titleId}
+            invoice={activeInvoice}
+            appointment={appointment}
+            statusLabel={invoiceStatusLabel}
+            statusStyle={invoiceStatusStyle}
+            onClose={() => setShowModal(false)}
+            onOpenAppointment={goToAppointmentFinance}
+          />
+        )}
 
-        {/* Tab pills */}
-        <div
-          className="flex items-center justify-center gap-2 border-b border-card-border pb-3"
-          role="tablist"
-          aria-label="Invoice detail sections"
-          aria-labelledby={titleId}
-        >
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              id={tab.key === 'details' ? detailsTabId : paymentTabId}
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              aria-controls={tab.key === 'details' ? detailsPanelId : paymentPanelId}
-              tabIndex={activeTab === tab.key ? 0 : -1}
-              className={clsx(
-                'h-9 px-4 rounded-2xl! text-body-4 transition-all duration-200',
-                activeTab === tab.key
-                  ? 'bg-blue-light text-blue-text!'
-                  : 'text-text-tertiary hover:bg-card-hover!'
-              )}
-              style={{
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor:
-                  activeTab === tab.key ? 'var(--color-text-brand)' : 'var(--color-card-border)',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Segmented tab control */}
+        <div className="flex justify-center">
+          <div
+            className="inline-flex items-center gap-1 rounded-full! p-[3px] bg-[var(--inset)]"
+            role="tablist"
+            aria-label="Invoice detail sections"
+            aria-labelledby={titleId}
+          >
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  id={tab.key === 'details' ? detailsTabId : paymentTabId}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={tab.key === 'details' ? detailsPanelId : paymentPanelId}
+                  tabIndex={isActive ? 0 : -1}
+                  className={clsx(
+                    'h-8 px-5 rounded-full! text-body-4 transition-all duration-200',
+                    isActive
+                      ? 'bg-[var(--screen)] text-text-primary shadow-[0_1px_2px_var(--sh06),0_2px_6px_var(--sh10)]'
+                      : 'text-text-tertiary hover:text-text-primary'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Content */}
-        <div className="flex overflow-y-auto flex-1 flex-col gap-6 scrollbar-hidden">
+        <div className="flex overflow-y-auto flex-auto min-h-0 flex-col gap-6 scrollbar-hidden">
           {activeTab === 'details' && (
             <div
               id={detailsPanelId}
@@ -170,6 +200,23 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               aria-labelledby={detailsTabId}
               className="flex flex-col gap-6"
             >
+              {activeInvoice && (
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.7fr_1fr] lg:items-start">
+                  <div className="flex flex-col gap-5">
+                    <InvoiceBilledItems items={activeInvoice.items ?? []} currency={currency} />
+                    <InvoicePaymentLedger
+                      invoice={activeInvoice}
+                      currency={currency}
+                      payerName={payerName}
+                      payerEmail={payerEmail}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-5">
+                    <InvoiceSummaryPanel invoice={activeInvoice} currency={currency} />
+                    <InvoiceBilledTo parentId={parentId} appointment={appointment} />
+                  </div>
+                </div>
+              )}
               <EditableAccordion
                 key="Appointments-key"
                 title="Appointment details"
@@ -196,16 +243,6 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                 defaultOpen={true}
                 showEditIcon={false}
               />
-              {appointment && (
-                <div className="flex justify-center">
-                  <Secondary
-                    text="Open in appointments"
-                    href="#"
-                    onClick={goToAppointmentFinance}
-                    className="w-fit"
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -214,84 +251,86 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               id={paymentPanelId}
               role="tabpanel"
               aria-labelledby={paymentTabId}
-              className="flex flex-col gap-6 w-full flex-1 justify-between"
+              className="flex w-full flex-1 flex-col gap-5"
             >
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col px-3! py-3! rounded-2xl border border-card-border">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-body-2 text-text-primary">Pay</div>
-                    <Image
-                      alt="Powered by stripe"
-                      src={MEDIA_SOURCES.appointments.stripe}
-                      height={30}
-                      width={120}
-                    />
-                  </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-                    <div className="text-body-4-emphasis text-text-tertiary">Subtotal: </div>
-                    <div className="text-body-4 text-text-primary text-right">
+              <section
+                className="flex flex-col gap-4 rounded-[14px] border border-card-border px-4.5 py-4"
+                aria-label="Collect payment"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-body-4-emphasis text-text-primary">Pay</span>
+                  <Image
+                    alt="Powered by stripe"
+                    src={MEDIA_SOURCES.appointments.stripe}
+                    height={28}
+                    width={112}
+                  />
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between text-body-4 text-text-tertiary">
+                    <span>Subtotal</span>
+                    <span className="tabular-nums text-body-4-emphasis text-text-secondary">
                       {paymentInfoData.subTotal}
-                    </div>
+                    </span>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-                    <div className="text-body-4-emphasis text-text-tertiary">Discount: </div>
-                    <div className="text-body-4 text-text-primary text-right">
+                  <div className="flex items-center justify-between text-body-4 text-text-tertiary">
+                    <span>Discount</span>
+                    <span className="tabular-nums text-body-4-emphasis text-text-secondary">
                       {paymentInfoData.discount}
-                    </div>
+                    </span>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-                    <div className="text-body-4-emphasis text-text-tertiary">Tax: </div>
-                    <div className="text-body-4 text-text-primary text-right">
+                  <div className="flex items-center justify-between text-body-4 text-text-tertiary">
+                    <span>Tax</span>
+                    <span className="tabular-nums text-body-4-emphasis text-text-secondary">
                       {paymentInfoData.tax}
-                    </div>
+                    </span>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-                    <div className="text-body-4-emphasis text-text-tertiary">Estimated total: </div>
-                    <div className="text-body-4 text-text-primary text-right">
+                  <span className="h-px bg-card-border" aria-hidden="true" />
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-body-3-emphasis text-text-primary">Estimated total</span>
+                    <span className="text-heading-2 tabular-nums text-text-primary">
                       {paymentInfoData.total}
-                    </div>
+                    </span>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-                    <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
-                    <div className="text-body-4 text-text-primary text-right">
+                  <div className="flex items-center justify-between text-body-4 text-text-tertiary">
+                    <span>Payment method</span>
+                    <span className="tabular-nums text-body-4-emphasis text-text-secondary text-right">
                       {paymentInfoData.paymentMethod}
-                    </div>
+                    </span>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
-                    <div className="text-body-4-emphasis text-text-tertiary">Status: </div>
+                  <div className="flex items-center justify-between text-body-4 text-text-tertiary">
+                    <span>Status</span>
                     <span
-                      className="rounded-2xl px-3 py-0.5 text-caption-1 border"
+                      className="shrink-0 rounded-2xl border px-2.5 py-0.5 text-caption-2"
                       style={invoiceStatusStyle}
                     >
                       {invoiceStatusLabel || '-'}
                     </span>
                   </div>
-                  <div className="flex flex-col gap-3 mt-3">
-                    <InvoicePaymentActions
-                      invoiceId={activeInvoice?.id}
-                      invoiceStatus={activeInvoice?.status}
-                      paymentCollectionMethod={(activeInvoice as any)?.paymentCollectionMethod}
-                      stripeReceiptUrl={activeInvoice?.stripeReceiptUrl}
-                      activeAppointment={appointment}
-                    />
-                  </div>
-                  <div className="text-caption-1 text-text-secondary py-2">
-                    <span className="text-blue-text">Note : </span>Yosemite Crew uses Stripe for
-                    secure payments. Your payment details are encrypted and never stored on our
-                    servers.
-                  </div>
                 </div>
-                {appointment && (
-                  <div className="flex justify-center">
-                    <Secondary
-                      text="Open in appointments"
-                      href="#"
-                      onClick={goToAppointmentFinance}
-                      className="w-fit"
-                    />
-                  </div>
-                )}
-              </div>
+                <div className="flex flex-col gap-3">
+                  <InvoicePaymentActions
+                    invoiceId={activeInvoice?.id}
+                    invoiceStatus={activeInvoice?.status}
+                    paymentCollectionMethod={(activeInvoice as any)?.paymentCollectionMethod}
+                    stripeReceiptUrl={activeInvoice?.stripeReceiptUrl}
+                    activeAppointment={appointment}
+                  />
+                </div>
+                <div className="text-caption-1 text-text-secondary">
+                  <span className="text-blue-text">Note : </span>Yosemite Crew uses Stripe for
+                  secure payments. Your payment details are encrypted and never stored on our
+                  servers.
+                </div>
+              </section>
+              {activeInvoice && (
+                <InvoicePaymentLedger
+                  invoice={activeInvoice}
+                  currency={currency}
+                  payerName={payerName}
+                  payerEmail={payerEmail}
+                />
+              )}
             </div>
           )}
         </div>

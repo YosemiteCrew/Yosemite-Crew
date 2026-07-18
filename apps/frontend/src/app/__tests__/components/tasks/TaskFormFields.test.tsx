@@ -104,7 +104,7 @@ describe('TaskFormFields', () => {
     expect(screen.getByText('Reminder (optional)')).toBeInTheDocument();
     expect(screen.getByText('Repeat')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'Updated task' } });
+    fireEvent.change(screen.getByLabelText('Task'), { target: { value: 'Updated task' } });
     fireEvent.change(screen.getByLabelText('description'), { target: { value: 'Updated desc' } });
     fireEvent.click(screen.getByRole('button', { name: 'set-due' }));
     fireEvent.click(screen.getByRole('button', { name: 'set-time' }));
@@ -155,6 +155,37 @@ describe('TaskFormFields', () => {
   it('updates the category from the canonical list', () => {
     renderFields();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Category:Billing' }));
+    expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ category: 'BILLING' }));
+  });
+
+  it('renders the centered-dialog two-column layout with grouped grid rows', () => {
+    const { container } = render(
+      <TaskFormFields
+        formData={{ ...baseFormData }}
+        setFormData={setFormData}
+        formDataErrors={{} as any}
+        templateOptions={[{ value: 'tpl-1', label: 'Template 1' } as any]}
+        due={null}
+        setDue={setDue}
+        dueTimeValue=""
+        setDueTimeValue={setDueTimeValue}
+        onSelectTemplate={onSelectTemplate}
+        showAudienceSelect={true}
+        audienceOptions={[{ value: 'EMPLOYEE_TASK', label: 'Employee task' } as any]}
+        onAudienceSelect={jest.fn()}
+        showAssigneeSelect={true}
+        assigneeOptions={[{ value: 'user-1', label: 'User 1' } as any]}
+        onAssigneeSelect={jest.fn()}
+        twoColumn
+      />
+    );
+
+    // Category + assignee share one grid row; Due date + Time + Repeat share another.
+    expect(container.querySelectorAll('div.grid')).toHaveLength(2);
+    // Fields stay wired up in the gridded layout.
+    expect(screen.getByText('Category')).toBeInTheDocument();
+    expect(screen.getByText('Repeat')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Category:Billing' }));
     expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ category: 'BILLING' }));
   });

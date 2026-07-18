@@ -701,8 +701,8 @@ export const getEncounterWorkspaceBootstrap = async (
 export const listAppointmentWorkspaceDocuments = async (
   organisationId: string,
   appointmentId: string
-) => {
-  const res = await getData<WorkspaceDocumentDTO[]>(
+): Promise<WorkspaceDocumentRow[]> => {
+  const res = await getData<WorkspaceDocumentRow[]>(
     `/v1/workspace/organisations/${organisationId}/appointments/${appointmentId}/documents`
   );
   return res.data ?? [];

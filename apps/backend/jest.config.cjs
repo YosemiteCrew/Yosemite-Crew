@@ -22,7 +22,6 @@ module.exports = {
     "!<rootDir>/src/services/integration.service.ts",
     "!<rootDir>/src/services/lab-census.service.ts",
     "!<rootDir>/src/services/lab-order.service.ts",
-    "!<rootDir>/src/utils/dual-write.ts",
     "!<rootDir>/src/utils/location.ts",
     "!<rootDir>/src/utils/org-usage-notifications.ts",
   ],

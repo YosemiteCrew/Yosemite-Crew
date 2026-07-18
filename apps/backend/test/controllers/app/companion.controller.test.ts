@@ -1,6 +1,5 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
-import { Types } from "mongoose";
 
 // ----------------------------------------------------------------------
 // 1. FIXED IMPORTS: Adjusted to go up 3 levels (test/controllers/app -> root)
@@ -8,7 +7,7 @@ import { Types } from "mongoose";
 import { CompanionController } from "../../../src/controllers/app/companion.controller";
 import { CompanionService } from "../../../src/services/companion.service";
 import { CompanionOrganisationService } from "../../../src/services/companion-organisation.service";
-import OrganizationModel from "../../../src/models/organization";
+import { prisma } from "src/config/prisma";
 import * as UploadMiddleware from "../../../src/middlewares/upload";
 import logger from "../../../src/utils/logger";
 
@@ -36,7 +35,14 @@ jest.mock("../../../src/services/companion.service", () => {
 });
 
 jest.mock("../../../src/services/companion-organisation.service");
-jest.mock("../../../src/models/organization");
+jest.mock("src/config/prisma", () => ({
+  __esModule: true,
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
 jest.mock("../../../src/utils/logger");
 jest.mock("../../../src/middlewares/upload");
 
@@ -51,9 +57,9 @@ const { CompanionServiceError } = jest.requireActual(
 // ----------------------------------------------------------------------
 const mockedCompanionService = jest.mocked(CompanionService);
 const mockedCompOrgService = jest.mocked(CompanionOrganisationService);
-const mockedOrgModel = jest.mocked(OrganizationModel);
+const mockedOrgFindFirst = prisma.organization
+  .findFirst as unknown as jest.MockedFunction<() => Promise<unknown>>;
 const mockedUpload = jest.mocked(UploadMiddleware);
-const mockedLogger = jest.mocked(logger);
 
 describe("CompanionController", () => {
   let req: Partial<Request>;
@@ -254,8 +260,7 @@ describe("CompanionController", () => {
     });
 
     it("should create successfully without org linking", async () => {
-      const pid = new Types.ObjectId();
-      req.body = { ...validFhirPayload, parentId: pid.toHexString() };
+      req.body = { ...validFhirPayload, parentId: "parent-1" };
       mockedCompanionService.create.mockResolvedValue({
         response: { id: "c1" },
       } as any);
@@ -269,34 +274,9 @@ describe("CompanionController", () => {
     });
 
     // --- Org Linking Path ---
-    it("should 400 if orgId provided but invalid", async () => {
-      const pid = new Types.ObjectId();
-      req.body = { ...validFhirPayload, parentId: pid.toHexString() };
-      req.params = { orgId: "invalid" };
-      (req as any).userId = "user-1";
-
-      // Mock create success first
-      mockedCompanionService.create.mockResolvedValue({
-        response: { id: "c1" },
-      } as any);
-
-      await CompanionController.createCompanionPMS(
-        req as Request,
-        res as Response,
-      );
-      expect(statusMock).toHaveBeenCalledWith(404);
-      expect(jsonMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining("Organisation not found"),
-        }),
-      );
-    });
-
     it("should 401 if org linking requested but no auth user", async () => {
-      const pid = new Types.ObjectId();
-      const oid = new Types.ObjectId();
-      req.body = { ...validFhirPayload, parentId: pid.toHexString() };
-      req.params = { orgId: oid.toHexString() };
+      req.body = { ...validFhirPayload, parentId: "parent-1" };
+      req.params = { orgId: "org-1" };
       (req as any).userId = undefined;
 
       mockedCompanionService.create.mockResolvedValue({
@@ -311,35 +291,36 @@ describe("CompanionController", () => {
     });
 
     it("should 404 if organisation not found", async () => {
-      const pid = new Types.ObjectId();
-      const oid = new Types.ObjectId();
-      req.body = { ...validFhirPayload, parentId: pid.toHexString() };
-      req.params = { orgId: oid.toHexString() };
+      req.body = { ...validFhirPayload, parentId: "parent-1" };
+      req.params = { orgId: "org-1" };
       (req as any).userId = "pmsUser";
 
       mockedCompanionService.create.mockResolvedValue({
         response: { id: "c1" },
       } as any);
-      mockedOrgModel.findById.mockResolvedValue(null);
+      mockedOrgFindFirst.mockResolvedValue(null);
 
       await CompanionController.createCompanionPMS(
         req as Request,
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining("Organisation not found"),
+        }),
+      );
     });
 
     it("should success (201) with Org Linking", async () => {
-      const pid = new Types.ObjectId();
-      const oid = new Types.ObjectId();
-      req.body = { ...validFhirPayload, parentId: pid.toHexString() };
-      req.params = { orgId: oid.toHexString() };
+      req.body = { ...validFhirPayload, parentId: "parent-1" };
+      req.params = { orgId: "org-1" };
       (req as any).userId = "pmsUser";
 
       mockedCompanionService.create.mockResolvedValue({
         response: { id: "c1" },
       } as any);
-      mockedOrgModel.findById.mockResolvedValue({ type: "HOSPITAL" } as any);
+      mockedOrgFindFirst.mockResolvedValue({ type: "HOSPITAL" });
       mockedCompOrgService.linkByPmsUser.mockResolvedValue({} as any);
 
       await CompanionController.createCompanionPMS(
@@ -349,7 +330,7 @@ describe("CompanionController", () => {
 
       expect(mockedCompOrgService.linkByPmsUser).toHaveBeenCalledWith({
         pmsUserId: "pmsUser",
-        organisationId: oid.toHexString(),
+        organisationId: "org-1",
         organisationType: "HOSPITAL",
         patientId: "c1",
       });
@@ -357,8 +338,7 @@ describe("CompanionController", () => {
     });
 
     it("should handle service error", async () => {
-      const pid = new Types.ObjectId();
-      req.body = { ...validFhirPayload, parentId: pid.toHexString() };
+      req.body = { ...validFhirPayload, parentId: "parent-1" };
       mockServiceError("create", 400);
 
       await CompanionController.createCompanionPMS(
@@ -369,8 +349,7 @@ describe("CompanionController", () => {
     });
 
     it("should handle generic error", async () => {
-      const pid = new Types.ObjectId();
-      req.body = { ...validFhirPayload, parentId: pid.toHexString() };
+      req.body = { ...validFhirPayload, parentId: "parent-1" };
       mockGenericError("create");
 
       await CompanionController.createCompanionPMS(

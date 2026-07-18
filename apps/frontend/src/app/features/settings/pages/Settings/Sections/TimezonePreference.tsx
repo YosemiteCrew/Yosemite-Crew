@@ -88,11 +88,11 @@ const TimezonePreference = () => {
   };
 
   return (
-    <div className="border border-card-border rounded-2xl">
-      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">Timezone</div>
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
+        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">Timezone</div>
       </div>
-      <div className="flex flex-col gap-3 px-6! py-6!">
+      <div className="flex flex-col gap-3 px-5! py-5!">
         <LabelDropdown
           placeholder="Timezone mode"
           options={modeOptions}

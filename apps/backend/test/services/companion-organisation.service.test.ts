@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import {
   CompanionOrganisationService,
   CompanionOrganisationServiceError,
@@ -69,10 +68,10 @@ jest.mock("src/config/prisma", () => ({
 }));
 
 describe("CompanionOrganisationService", () => {
-  const patientId = new Types.ObjectId().toHexString();
-  const organisationId = new Types.ObjectId().toHexString();
-  const parentId = new Types.ObjectId().toHexString();
-  const linkId = new Types.ObjectId().toHexString();
+  const patientId = "patient-1";
+  const organisationId = "org-1";
+  const parentId = "parent-1";
+  const linkId = "link-1";
 
   beforeEach(() => {
     jest.clearAllMocks();

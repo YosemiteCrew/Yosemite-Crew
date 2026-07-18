@@ -1219,6 +1219,195 @@ describe("ClinicalArtifactService", () => {
     ).not.toHaveProperty("medications");
   });
 
+  it("rejects reopening a final prescription to draft and leaves its items intact", async () => {
+    const signedMedications = [
+      { inventoryItemId: "item-1", quantity: 2, sourceLineKey: "line-1" },
+    ];
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce({
+      id: "prescription-3",
+      artifactId,
+      medications: signedMedications,
+      instructions: { text: "Take daily" },
+      notes: null,
+      metadata: { source: "original" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: "appt-1",
+        caseId: null,
+        encounterId: "enc-1",
+        kind: "PRESCRIPTION",
+        status: "COMPLETED",
+        templateId: "tmpl-2",
+        templateVersion: 4,
+        templateVersionId: "tmpl-ver-2",
+        authorId: "author-1",
+        signedBy: null,
+        signedAt: null,
+        summary: "Rx summary",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+
+    // Mock the write path as if it would succeed, so this test fails loudly on
+    // the silent reopen + item wipe rather than on an incidental mock crash.
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      id: artifactId,
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Rx summary",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.prescription.update.mockResolvedValueOnce({
+      id: "prescription-3",
+      artifactId,
+      medications: [],
+      instructions: { text: "Take daily" },
+      notes: null,
+      metadata: { source: "original" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    // The web client hardcodes status 'draft' on every plain save, which maps to
+    // DRAFT. Against a COMPLETED prescription that must not silently reopen the
+    // artifact and wipe its dispensed items.
+    await expect(
+      ClinicalArtifactService.updatePrescription(
+        "prescription-3",
+        {
+          status: "DRAFT",
+          medications: [
+            {
+              inventoryItemId: "item-9",
+              quantity: 99,
+              sourceLineKey: "line-9",
+            },
+          ],
+        },
+        organisationId,
+        { actorId: "actor-1", canEditAny: true },
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.prescription.update).not.toHaveBeenCalled();
+    expect(
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("updates a draft prescription normally", async () => {
+    mockedPrisma.clinicalArtifact.update.mockReset();
+    mockedPrisma.prescription.update.mockReset();
+    const revisedMedications = [
+      { inventoryItemId: "item-1", quantity: 5, sourceLineKey: "line-1" },
+    ];
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce({
+      id: "prescription-4",
+      artifactId,
+      medications: [
+        { inventoryItemId: "item-1", quantity: 2, sourceLineKey: "line-1" },
+      ],
+      instructions: { text: "Take daily" },
+      notes: null,
+      metadata: { source: "original" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        appointmentId: "appt-1",
+        caseId: null,
+        encounterId: "enc-1",
+        kind: "PRESCRIPTION",
+        status: "DRAFT",
+        templateId: "tmpl-2",
+        templateVersion: 4,
+        templateVersionId: "tmpl-ver-2",
+        authorId: "author-1",
+        signedBy: null,
+        signedAt: null,
+        summary: "Rx summary",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      id: artifactId,
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Rx summary",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.prescription.update.mockResolvedValueOnce({
+      id: "prescription-4",
+      artifactId,
+      medications: revisedMedications,
+      instructions: { text: "Take daily" },
+      notes: null,
+      metadata: { source: "revision" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    await ClinicalArtifactService.updatePrescription(
+      "prescription-4",
+      { status: "DRAFT", medications: revisedMedications },
+      organisationId,
+      { actorId: "actor-1", canEditAny: true },
+    );
+
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "DRAFT" }),
+      }),
+    );
+    expect(
+      (
+        mockedPrisma.prescription.update.mock.calls[0][0] as {
+          data: Record<string, unknown>;
+        }
+      ).data,
+    ).toMatchObject({
+      items: {
+        deleteMany: {},
+        create: [
+          expect.objectContaining({
+            inventoryItemId: "item-1",
+            sourceLineKey: "line-1",
+            quantity: "5",
+          }),
+        ],
+      },
+    });
+  });
+
   it("creates a discharge summary artifact and document draft", async () => {
     mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce({
       id: artifactId,

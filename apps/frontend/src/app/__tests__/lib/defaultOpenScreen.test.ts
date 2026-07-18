@@ -69,11 +69,12 @@ describe('setSavedDefaultOpenScreenRoute', () => {
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
-  it('dispatches a custom event when saving', () => {
-    const dispatchSpy = jest.spyOn(window, 'dispatchEvent');
+  it('persists a route that survives a read-back through the public getter', () => {
     setSavedDefaultOpenScreenRoute('/dashboard');
-    expect(dispatchSpy).toHaveBeenCalled();
-    dispatchSpy.mockRestore();
+    // The write is the whole contract: the saved value must be what a later
+    // read resolves to. Nothing observes a change event.
+    expect(getSavedDefaultOpenScreenRoute()).toBe('/dashboard');
+    expect(resolveDefaultOpenScreenRoute('OWNER')).toBe('/dashboard');
   });
 
   it('returns false for an invalid route value', () => {

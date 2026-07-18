@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import { CompanionHistoryService } from "../../src/services/companion-history.service";
 import { AppointmentService } from "../../src/services/appointment.service";
 import { TaskService } from "../../src/services/task.service";
@@ -27,7 +26,7 @@ jest.mock("../../src/config/prisma", () => ({
 }));
 
 describe("CompanionHistoryService", () => {
-  const organisationId = new Types.ObjectId().toHexString();
+  const organisationId = "org-1";
   const companionId = "507f191e810c19729de860ea";
 
   beforeEach(() => {
@@ -87,7 +86,7 @@ describe("CompanionHistoryService", () => {
       },
     ]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -141,7 +140,7 @@ describe("CompanionHistoryService", () => {
       },
     ]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -231,7 +230,7 @@ describe("CompanionHistoryService", () => {
       AppointmentService.getAppointmentsForCompanionByOrganisation as jest.Mock
     ).mockResolvedValue([]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,

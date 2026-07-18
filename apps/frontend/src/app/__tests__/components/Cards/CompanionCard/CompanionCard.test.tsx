@@ -15,7 +15,7 @@ jest.mock('@/app/ui/tables/CompanionsTable', () => ({
 }));
 
 jest.mock('@/app/lib/date', () => ({
-  getAgeInYears: jest.fn(() => '2y'),
+  formatCompanionAge: jest.fn(() => '2 Yrs'),
 }));
 
 jest.mock('@/app/lib/urls', () => ({
@@ -86,7 +86,7 @@ describe('CompanionCard', () => {
     expect(screen.getByText('Parent / Co-parent:')).toBeInTheDocument();
     expect(screen.getByText('Sam')).toBeInTheDocument();
     expect(screen.getByText('Gender / Age:')).toBeInTheDocument();
-    expect(screen.getByText('Male - 2y')).toBeInTheDocument();
+    expect(screen.getByText('Male - 2 Yrs')).toBeInTheDocument();
     expect(screen.getByText('Allergies:')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
     expect(screen.getByText('ACTIVE')).toBeInTheDocument();
