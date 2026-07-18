@@ -205,30 +205,6 @@ describe("IntegrationService", () => {
       expect(JSON.stringify(result)).not.toContain(SECRET_PASSWORD);
     });
 
-    it("reads credentials from the mongo path without password", async () => {
-      readSwitch.mockReturnValue(false);
-      mockedModel.findOne.mockReturnValue(
-        makeLeanQuery({
-          credentials: {
-            username: "mongouser",
-            password: SECRET_PASSWORD,
-            labAccountId: "PRACTICE-456",
-          },
-        }),
-      );
-
-      const result = await IntegrationService.getCredentialMeta(
-        "org_1",
-        "IDEXX",
-      );
-
-      expect(result).toEqual({
-        username: "mongouser",
-        practiceId: "PRACTICE-456",
-      });
-      expect(JSON.stringify(result)).not.toContain(SECRET_PASSWORD);
-    });
-
     it("returns nulls when the account has no credentials", async () => {
       (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
         credentials: null,

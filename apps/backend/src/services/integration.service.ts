@@ -373,18 +373,9 @@ export const IntegrationService = {
     const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
-    const account = isReadFromPostgres()
-      ? await prisma.integrationAccount.findFirst({
-          where: { organisationId: safeOrganisationId, provider: normalized },
-        })
-      : await IntegrationAccountModel.findOne({
-          // Explicit $eq so a filter value can never be interpreted as a Mongo
-          // operator, on top of the validated inputs and sanitizeFilter below.
-          organisationId: { $eq: safeOrganisationId },
-          provider: { $eq: normalized },
-        })
-          .setOptions({ sanitizeFilter: true })
-          .lean();
+    const account = await prisma.integrationAccount.findFirst({
+      where: { organisationId: safeOrganisationId, provider: normalized },
+    });
 
     const credentials = account?.credentials as
       { username?: unknown; labAccountId?: unknown } | null | undefined;
