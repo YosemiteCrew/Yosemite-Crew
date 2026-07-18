@@ -639,7 +639,7 @@ describe('appointmentWorkspaceStore', () => {
 
   it('adds and removes invoice line items', () => {
     seed();
-    getStore().addInvoiceLineItem(APPT, {
+    const returnedId = getStore().addInvoiceLineItem(APPT, {
       name: 'Bandage change',
       unitPriceCents: 6500,
       qty: 1,
@@ -649,6 +649,8 @@ describe('appointmentWorkspaceStore', () => {
     });
     const added = getStore().getEncounter(APPT)!.invoiceLineItems.at(-1)!;
     expect(added.name).toBe('Bandage change');
+    // The action returns the id it assigned so callers can link the line later.
+    expect(returnedId).toBe(added.id);
     getStore().removeInvoiceLineItem(APPT, added.id);
     expect(
       getStore()

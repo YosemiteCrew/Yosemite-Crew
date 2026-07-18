@@ -255,7 +255,7 @@ type AppointmentWorkspaceState = {
   addDocument: (appointmentId: string, document: Omit<WorkspaceDocument, 'id'>) => void;
   setWithdrawDeposit: (appointmentId: string, value: boolean) => void;
   setOverallDiscountPercent: (appointmentId: string, percent: number) => void;
-  addInvoiceLineItem: (appointmentId: string, item: Omit<InvoiceLineItem, 'id'>) => void;
+  addInvoiceLineItem: (appointmentId: string, item: Omit<InvoiceLineItem, 'id'>) => string;
   updateInvoiceLineItem: (
     appointmentId: string,
     id: string,
@@ -831,11 +831,14 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       overallDiscountPercent: Math.min(100, Math.max(0, percent)),
     })),
 
-  addInvoiceLineItem: (appointmentId, item) =>
+  addInvoiceLineItem: (appointmentId, item) => {
+    const id = nextId('inv');
     patchEnc(set, appointmentId, (enc) => ({
       ...enc,
-      invoiceLineItems: [...enc.invoiceLineItems, { ...item, id: nextId('inv') }],
-    })),
+      invoiceLineItems: [...enc.invoiceLineItems, { ...item, id }],
+    }));
+    return id;
+  },
 
   updateInvoiceLineItem: (appointmentId, id, patch) =>
     patchEnc(set, appointmentId, (enc) => ({

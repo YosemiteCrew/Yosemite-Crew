@@ -315,6 +315,10 @@ describe('<InvoiceStep /> component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // The real store returns the id it assigns a new bill line; the interlink
+    // save path relies on it to link the line to its prescription.
+    workspaceStoreMock.addInvoiceLineItem.mockReturnValue('inv-added');
+
     (useAppointmentWorkspaceStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(workspaceStoreMock)
     );
@@ -658,6 +662,30 @@ describe('<InvoiceStep /> component', () => {
           expect.objectContaining({ medicineName: 'Manual add' }),
           'rx-server-1'
         )
+      );
+      // The bill line is linked to the saved prescription so removing it deletes
+      // the persisted draft instead of orphaning it.
+      await waitFor(() =>
+        expect(workspaceStoreMock.updateInvoiceLineItem).toHaveBeenCalledWith(
+          'appt-1',
+          'inv-added',
+          { sourcePrescriptionId: 'rx-server-1' }
+        )
+      );
+    });
+
+    it('does not link the bill line when the prescription save fails', async () => {
+      seedDispensableDrug();
+      clinicalServiceMock.savePrescriptionArtifact.mockRejectedValue(new Error('boom'));
+
+      renderInvoiceStep();
+      await clickAddManualItem();
+
+      await waitFor(() => expect(mockNotify).toHaveBeenCalledWith('error', expect.anything()));
+      expect(workspaceStoreMock.updateInvoiceLineItem).not.toHaveBeenCalledWith(
+        'appt-1',
+        'inv-added',
+        expect.objectContaining({ sourcePrescriptionId: expect.anything() })
       );
     });
 

@@ -1290,7 +1290,9 @@ const useInvoiceStepContent = ({
   };
 
   const handleAddItem = async (item: Omit<InvoiceLineItem, 'id'>) => {
-    addInvoiceLineItem(appointmentId, item);
+    // The store returns the id it assigned this line so a later save can link it
+    // back to its prescription (see below).
+    const addedLineId = addInvoiceLineItem(appointmentId, item);
 
     // Interlink: when a billed item is a dispensable drug and no prescription row
     // exists for it yet, create a linked one so it shows in the Treatment step.
@@ -1317,7 +1319,17 @@ const useInvoiceStepContent = ({
         { organisationId, appointmentId, encounterId, authorId },
         prescription
       );
-      addPrescription(appointmentId, prescription, (saved as { id?: string } | undefined)?.id);
+      const savedPrescriptionId = (saved as { id?: string } | undefined)?.id;
+      addPrescription(appointmentId, prescription, savedPrescriptionId);
+      // Link the bill line to the saved prescription so removing the line also
+      // deletes the persisted draft — handleRemoveBillLine keys off
+      // sourcePrescriptionId, so without this the draft orphans and re-seeds on
+      // the next refresh.
+      if (savedPrescriptionId && addedLineId) {
+        updateInvoiceLineItem(appointmentId, addedLineId, {
+          sourcePrescriptionId: savedPrescriptionId,
+        });
+      }
     } catch (error) {
       console.error('Failed to save prescription from invoice:', error);
       addPrescription(appointmentId, prescription);
