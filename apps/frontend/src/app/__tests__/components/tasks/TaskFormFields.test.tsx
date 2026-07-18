@@ -159,6 +159,14 @@ describe('TaskFormFields', () => {
     expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ category: 'BILLING' }));
   });
 
+  it('renders the priority picker and updates the priority from the canonical list', () => {
+    renderFields();
+
+    expect(screen.getByText('Priority')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Priority:Urgent' }));
+    expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ priority: 'URGENT' }));
+  });
+
   it('renders the centered-dialog two-column layout with grouped grid rows', () => {
     const { container } = render(
       <TaskFormFields

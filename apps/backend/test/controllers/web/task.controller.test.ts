@@ -235,6 +235,26 @@ describe("TaskController", () => {
         }),
       );
     });
+
+    it("passes a valid priority filter through and drops an invalid one", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.query = { priority: "URGENT" } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ priority: "URGENT" }),
+      );
+
+      mockedTaskService.listForEmployee.mockClear();
+      req.query = { priority: "SOMETHING" } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ priority: undefined }),
+      );
+    });
   });
 
   describe("updateTaskPMS", () => {

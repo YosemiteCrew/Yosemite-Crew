@@ -34,6 +34,11 @@ import {
   getPreferredNextTaskStatus,
   getTaskQuickDetails,
 } from '@/app/lib/tasks';
+import {
+  getTaskPriorityLabel,
+  getTaskPriorityPillStyle,
+  getTaskPriorityRank,
+} from '@/app/features/tasks/constants/taskTaxonomy';
 
 type BoardStatus = TaskStatus;
 
@@ -157,14 +162,24 @@ const TaskCard = ({
             {task.name || '-'}
           </div>
         </div>
-        <div
-          className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em]"
-          style={{
-            ...getColumnBadgeStyle(task.status),
-            borderColor: columnStyle.color,
-          }}
-        >
-          {columnLabel}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {task.priority && (
+            <span
+              className="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase leading-none tracking-[0.06em]"
+              style={getTaskPriorityPillStyle(task.priority)}
+            >
+              {getTaskPriorityLabel(task.priority)}
+            </span>
+          )}
+          <div
+            className="rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em]"
+            style={{
+              ...getColumnBadgeStyle(task.status),
+              borderColor: columnStyle.color,
+            }}
+          >
+            {columnLabel}
+          </div>
         </div>
       </div>
 
@@ -601,7 +616,12 @@ const TaskBoard = ({
             isOnPreferredTimeZoneCalendarDay(new Date(task.dueAt), currentDate) &&
             (!showMineOnly || normalizeId(task.assignedTo) === currentUserAssigneeId)
         )
-        .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()),
+        // Most urgent first, then earliest due within the same priority.
+        .sort((a, b) => {
+          const priorityDelta = getTaskPriorityRank(b.priority) - getTaskPriorityRank(a.priority);
+          if (priorityDelta !== 0) return priorityDelta;
+          return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+        }),
     [tasks, currentDate, showMineOnly, currentUserAssigneeId]
   );
 

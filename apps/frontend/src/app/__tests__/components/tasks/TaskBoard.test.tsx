@@ -380,6 +380,78 @@ describe('TaskBoard', () => {
     );
   });
 
+  it('renders a priority pill for tasks with a priority and omits it when unset', () => {
+    renderBoard({
+      tasks: [
+        {
+          _id: 'hp',
+          name: 'High Prio',
+          status: 'PENDING',
+          priority: 'URGENT',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'np',
+          name: 'No Prio',
+          status: 'PENDING',
+          dueAt: new Date('2026-03-31T11:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+      ] as any,
+    });
+
+    const urgentCard = screen
+      .getByRole('button', { name: 'Open task High Prio' })
+      .closest('article');
+    expect(within(urgentCard!).getByText('Urgent')).toBeInTheDocument();
+
+    const noPrioCard = screen.getByRole('button', { name: 'Open task No Prio' }).closest('article');
+    expect(within(noPrioCard!).queryByText('Urgent')).not.toBeInTheDocument();
+  });
+
+  it('orders cards within a column by priority (most urgent first) then due time', () => {
+    renderBoard({
+      tasks: [
+        {
+          _id: 'low',
+          name: 'Low One',
+          status: 'PENDING',
+          priority: 'LOW',
+          dueAt: new Date('2026-03-31T08:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'urg',
+          name: 'Urgent One',
+          status: 'PENDING',
+          priority: 'URGENT',
+          dueAt: new Date('2026-03-31T12:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'med',
+          name: 'Medium One',
+          status: 'PENDING',
+          priority: 'MEDIUM',
+          dueAt: new Date('2026-03-31T09:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+      ] as any,
+    });
+
+    // URGENT (due 12:00) sorts above MEDIUM (09:00) and LOW (08:00) despite later due time.
+    const order = screen
+      .getAllByRole('button', { name: /^Open task / })
+      .map((button) => button.getAttribute('aria-label'));
+    expect(order).toEqual(['Open task Urgent One', 'Open task Medium One', 'Open task Low One']);
+  });
+
   it('shows warning and blocks drop for invalid status transition', async () => {
     renderBoard();
 

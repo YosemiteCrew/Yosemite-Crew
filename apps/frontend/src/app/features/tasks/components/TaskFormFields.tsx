@@ -5,7 +5,7 @@ import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Option } from '@/app/features/companions/types/companion';
-import { Task, TaskKindOptions } from '@/app/features/tasks/types/task';
+import { Task, TaskKindOptions, TaskPriorityOptions } from '@/app/features/tasks/types/task';
 import { TaskFormErrors } from '@/app/lib/taskForm';
 import {
   offsetToReminderValue,
@@ -124,6 +124,21 @@ const TaskFormFields = ({
     />
   );
 
+  const priorityField = (
+    <LabelDropdown
+      placeholder="Priority"
+      onSelect={(option) =>
+        setFormData({
+          ...formData,
+          priority: option.value as Task['priority'],
+        })
+      }
+      defaultOption={formData.priority}
+      options={TaskPriorityOptions}
+      searchable={false}
+    />
+  );
+
   const taskField = (
     <FormInput
       intype="text"
@@ -233,6 +248,7 @@ const TaskFormFields = ({
           {categoryField}
           {assigneeField}
         </div>
+        {priorityField}
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           {dueField}
           {timeField}
@@ -251,6 +267,7 @@ const TaskFormFields = ({
       {assigneeField}
       {templateField}
       {categoryField}
+      {priorityField}
       {taskField}
       {instructionsField}
       {dueField}
