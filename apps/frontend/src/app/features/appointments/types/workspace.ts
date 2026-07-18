@@ -444,6 +444,14 @@ export type AppointmentEncounter = {
   schedule: ScheduleTask[];
   roomId?: string;
   unitId?: string;
+  /**
+   * Real actual-start of the visit (`encounter.periodStart`), stamped by the
+   * backend when the encounter transitions to In Progress. Drives the "In room"
+   * visit timer for both outpatient and inpatient. Distinct from `admittedAt`
+   * (inpatient admission only); preferred over it so the timer starts as soon as
+   * the visit does, not only after an inpatient admission.
+   */
+  startedAt?: string;
   admittedAt?: string;
   dischargedAt?: string;
   invoiceLineItems: InvoiceLineItem[];

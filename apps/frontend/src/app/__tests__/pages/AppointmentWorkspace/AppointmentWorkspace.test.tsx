@@ -2505,6 +2505,32 @@ describe('AppointmentWorkspace container', () => {
     expect(screen.queryByRole('button', { name: 'Admit' })).not.toBeInTheDocument();
   });
 
+  it('runs the visit timer from the real start when the booked slot is still ahead (bug #1903)', async () => {
+    // Outpatient encounter, no admission. Before the fix the timer bound to the
+    // future booked slot (admittedAt ?? appointment.startTime) and showed
+    // "Not started" even though the visit was In Progress. Now it binds to the
+    // real start (startedAt = encounter.periodStart) and counts up.
+    seedEncounter({
+      mode: 'OUTPATIENT',
+      startedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(Date.now() + 60 * 60 * 1000)),
+            appointmentKind: 'OUTPATIENT',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    const timer = screen.getByTestId('visit-timer');
+    expect(timer).toHaveAttribute('data-state', 'running');
+    expect(timer).not.toHaveTextContent('Not started');
+  });
+
   it('blocks admitting an appointment with an unrecognised status', async () => {
     render(
       <AppointmentWorkspace

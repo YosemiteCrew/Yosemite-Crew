@@ -1024,6 +1024,15 @@ describe('appointmentWorkspaceStore', () => {
     expect(enc.consultationType).toBe('Outpatient');
   });
 
+  it('merges startedAt and preserves it when a later patch omits it', () => {
+    seed();
+    getStore().mergeEncounterData(APPT, { startedAt: '2026-07-02T14:05:00.000Z' });
+    expect(getStore().getEncounter(APPT)!.startedAt).toBe('2026-07-02T14:05:00.000Z');
+    // A partial refresh without startedAt must not wipe the recorded start.
+    getStore().mergeEncounterData(APPT, { soapTemplates: [] });
+    expect(getStore().getEncounter(APPT)!.startedAt).toBe('2026-07-02T14:05:00.000Z');
+  });
+
   it('applies capabilities alone without touching section locks', () => {
     seed();
     getStore().applyWorkspaceLocks(APPT, { soap: { locked: true } }, undefined);

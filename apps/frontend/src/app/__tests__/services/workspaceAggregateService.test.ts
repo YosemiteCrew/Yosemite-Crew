@@ -236,6 +236,7 @@ describe('workspaceAggregateService', () => {
         encounterClass: 'IMP',
         status: 'onleave',
         updatedAt: '2026-06-18T10:00:00.000Z',
+        periodStart: '2026-06-18T08:30:00.000Z',
         readyForDischargeByName: 'Dr Discharge',
         readyForDischargeAt: '2026-06-18T10:05:00.000Z',
         admission: {
@@ -286,6 +287,7 @@ describe('workspaceAggregateService', () => {
     expect(patch.roomId).toBe('room-1');
     expect(patch.unitId).toBe('unit-1');
     expect(patch.admittedAt).toBe('2026-06-18T08:30:00.000Z');
+    expect(patch.startedAt).toBe('2026-06-18T08:30:00.000Z');
     expect(patch.readyForDischarge?.value).toBe(true);
     expect(patch.readyForDischarge?.byName).toBe('Dr Discharge');
     expect(patch.readyForDischarge?.at).toBe('2026-06-18T10:05:00.000Z');
@@ -333,6 +335,22 @@ describe('workspaceAggregateService', () => {
     expect(patch.readyForBilling?.at).toBe('2026-06-18T11:05:00.000Z');
     // Discharge is not implied by billing.
     expect(patch.readyForDischarge).toBeUndefined();
+  });
+
+  it('reads startedAt from encounter.periodStart for an outpatient encounter with no admission', () => {
+    // Bug #1903: the visit timer must start for outpatient encounters, which have
+    // no admission block. `startedAt` comes from `encounter.periodStart` (stamped
+    // to the status-change time when the encounter goes In Progress).
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: {
+        id: 'enc-1',
+        appointmentKind: 'OUTPATIENT',
+        status: 'in-progress',
+        periodStart: '2026-07-02T14:05:00.000Z',
+      },
+    });
+    expect(patch.startedAt).toBe('2026-07-02T14:05:00.000Z');
+    expect(patch.admittedAt).toBeUndefined();
   });
 
   it('keeps ready-for-billing ticked once the invoice is SETTLED after payment', () => {

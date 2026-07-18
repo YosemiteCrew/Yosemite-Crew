@@ -155,6 +155,7 @@ type AppointmentWorkspaceState = {
         | 'readyForDischarge'
         | 'roomId'
         | 'unitId'
+        | 'startedAt'
         | 'admittedAt'
         | 'dischargedAt'
         | 'mode'
@@ -358,6 +359,7 @@ const mergeEncounterDataPatch = (
       | 'readyForDischarge'
       | 'roomId'
       | 'unitId'
+      | 'startedAt'
       | 'admittedAt'
       | 'dischargedAt'
       | 'mode'
@@ -400,6 +402,7 @@ const mergeEncounterDataPatch = (
   readyForDischarge: mergeReadyState(patch.readyForDischarge, enc.readyForDischarge),
   roomId: patch.roomId ?? enc.roomId,
   unitId: patch.unitId ?? enc.unitId,
+  startedAt: patch.startedAt ?? enc.startedAt,
   admittedAt: patch.admittedAt ?? enc.admittedAt,
   dischargedAt: patch.dischargedAt ?? enc.dischargedAt,
   mode: patch.mode ?? enc.mode,

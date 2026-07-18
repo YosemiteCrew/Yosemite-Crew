@@ -1829,11 +1829,21 @@ export const CaseEncounterService = {
 
       assertEncounterIsOpen(encounter, "start");
 
+      // `periodStart` is seeded at check-in with the booked slot start (often in
+      // the future), so it is not a real start until the encounter actually moves
+      // into "in-progress". Stamp the real actual-start on that first transition;
+      // once genuinely started, preserve the recorded start so re-entry (e.g. an
+      // undo of ready-for-discharge) never resets the visit timer.
+      const alreadyStarted =
+        encounter.status === "in-progress" || encounter.status === "onleave";
+
       return (await tx.encounter.update({
         where: { id },
         data: {
           status: "in-progress",
-          periodStart: encounter.periodStart ?? startedAt,
+          periodStart: alreadyStarted
+            ? (encounter.periodStart ?? startedAt)
+            : startedAt,
         },
       })) as EncounterRow;
     });
