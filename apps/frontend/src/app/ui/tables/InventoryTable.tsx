@@ -46,7 +46,7 @@ const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Unit cost', align: 'right' },
   { label: 'Selling', align: 'right' },
   { label: 'Margin', align: 'right' },
-  { label: 'Location' },
+  { label: 'Location', className: 'pl-3' },
   { label: '' },
 ];
 
@@ -182,7 +182,7 @@ const InventoryRow = ({
       >
         {formatPercentValue(margin)}
       </div>
-      <div className="truncate text-[12.5px] text-blue-text">
+      <div className="truncate pl-3 text-[12.5px] text-blue-text">
         {displayValue(item.stock.stockLocation)}
       </div>
       <div className="flex items-center justify-center gap-1.5">

@@ -673,16 +673,16 @@ export const InventoryTableContent = ({
   if (activeView === 'analytics') {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pt-3 pr-1">
+        <InventoryTurnoverFilters
+          filters={turnoverFilters}
+          setFilters={setTurnoverFilters}
+          categories={turnoverCategoryOptions}
+        />
         <TurnoverAnalytics
           turnover={turnover}
           inventory={inventory}
           setActiveView={setActiveView}
           onReorder={onRestock}
-        />
-        <InventoryTurnoverFilters
-          filters={turnoverFilters}
-          setFilters={setTurnoverFilters}
-          categories={turnoverCategoryOptions}
         />
         <InventoryTurnoverTable filteredList={filteredTurnoverList} />
       </div>

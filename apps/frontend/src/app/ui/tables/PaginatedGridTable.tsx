@@ -5,7 +5,7 @@ import Next from '@/app/ui/primitives/Icons/Next';
 
 import './DataTable.css';
 
-export type GridHeaderCell = { label: string; align?: 'right' };
+export type GridHeaderCell = { label: string; align?: 'right'; className?: string };
 
 type PaginatedGridTableProps<T> = {
   /** Full (already filtered) row set — the shell owns the paging window. */
@@ -84,7 +84,7 @@ const PaginatedGridTable = <T,>({
                 {headerCells.map((cell, index) => (
                   <span
                     key={cell.label || `col-${index}`}
-                    className={cell.align === 'right' ? 'text-right' : ''}
+                    className={`${cell.align === 'right' ? 'text-right' : ''} ${cell.className ?? ''}`.trim()}
                   >
                     {cell.label}
                   </span>

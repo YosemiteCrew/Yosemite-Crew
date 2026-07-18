@@ -22,7 +22,7 @@ const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Status' },
   { label: 'Items' },
   { label: 'Requested' },
-  { label: 'Amount', align: 'right' },
+  { label: 'Amount', align: 'right', className: 'pr-4' },
   { label: 'Lead' },
   { label: 'Location' },
   { label: 'Dispensed' },
@@ -67,10 +67,9 @@ const formatDateTime = (iso?: string) => {
       month: 'short',
       day: '2-digit',
       year: 'numeric',
-      timeZone: 'UTC',
     }) +
     '\n' +
-    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   );
 };
 
@@ -129,7 +128,7 @@ const DispensaryRow = ({
       <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--color-success-600)]">
         {formatDateTime(record.prescriptionCreated)}
       </div>
-      <div className="text-right font-semibold tabular-nums">
+      <div className="text-right font-semibold tabular-nums pr-4">
         {formatAmount(record.amountCents, record.currency)}
       </div>
       <div className="truncate text-[12.5px] text-text-secondary">{record.lead || '—'}</div>
