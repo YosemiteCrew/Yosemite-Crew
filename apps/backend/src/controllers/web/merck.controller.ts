@@ -59,9 +59,7 @@ export const MerckController = {
           select: { personalDetails: true },
         });
         const personalDetails = profile?.personalDetails as
-          | { timezone?: string }
-          | null
-          | undefined;
+          { timezone?: string } | null | undefined;
         resolvedTimezone = personalDetails?.timezone;
       }
 

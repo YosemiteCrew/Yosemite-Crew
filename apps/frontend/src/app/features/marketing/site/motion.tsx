@@ -280,7 +280,7 @@ export function HeroVideo({ src, poster, position = 'center 42%' }: Readonly<Her
       >
         <source src={src} type="video/mp4" />
       </video>
-      <div style={HERO_SCRIM_STYLE} />
+      <div data-hero-scrim="" style={HERO_SCRIM_STYLE} />
     </div>
   );
 }
@@ -613,30 +613,53 @@ interface InkOptions {
   reduced: boolean;
 }
 
-/** Create the ink svg+path sized to the host box, append it, and return the path. */
-function buildInkSvg(host: HTMLElement, w: number, h: number, opts: InkOptions): SVGPathElement {
-  const { type, color } = opts;
+/** Fit the ink svg's viewBox/size and the path `d` to the host box. Shared by the first
+ *  draw and every resize, so the mark always traces the word's current metrics. */
+function setInkGeometry(
+  svg: SVGSVGElement,
+  path: SVGPathElement,
+  w: number,
+  h: number,
+  type: 'circle' | 'underline'
+): void {
   const padX = Math.max(14, w * 0.09);
   const padY = Math.max(11, h * 0.26);
-  const svg = globalThis.document.createElementNS(INK_NS, 'svg');
-  svg.dataset.ink = '';
-  svg.setAttribute('viewBox', `0 0 ${w + padX * 2} ${h + padY * 2}`);
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.style.cssText = `position:absolute;left:${-padX}px;top:${-padY}px;width:${w + padX * 2}px;height:${h + padY * 2}px;overflow:visible;pointer-events:none;z-index:-1;`;
-  const path = globalThis.document.createElementNS(INK_NS, 'path');
+  const fullW = w + padX * 2;
+  const fullH = h + padY * 2;
+  svg.setAttribute('viewBox', `0 0 ${fullW} ${fullH}`);
+  svg.style.left = `${-padX}px`;
+  svg.style.top = `${-padY}px`;
+  svg.style.width = `${fullW}px`;
+  svg.style.height = `${fullH}px`;
   path.setAttribute(
     'd',
     type === 'circle' ? circlePath(padX, padY, w, h) : underlinePath(padX, padY, w, h)
   );
+}
+
+/** Create the ink svg+path fitted to the host box, append it, and return both. */
+function buildInkSvg(
+  host: HTMLElement,
+  w: number,
+  h: number,
+  opts: InkOptions
+): { svg: SVGSVGElement; path: SVGPathElement } {
+  const { type, color } = opts;
+  const svg = globalThis.document.createElementNS(INK_NS, 'svg');
+  svg.dataset.ink = '';
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.style.cssText = 'position:absolute;overflow:visible;pointer-events:none;z-index:-1;';
+  const path = globalThis.document.createElementNS(INK_NS, 'path');
   path.setAttribute('stroke', color);
   path.setAttribute('stroke-width', String(type === 'circle' ? 2.4 : 3.4));
   path.setAttribute('stroke-linecap', 'round');
   path.setAttribute('stroke-linejoin', 'round');
   path.setAttribute('opacity', '0.9');
+  setInkGeometry(svg, path, w, h, type);
   svg.appendChild(path);
   host.appendChild(svg);
-  return path;
+  return { svg, path };
 }
 
 /** Wire draw-on-view / rewind-on-exit replay for a prepared ink path; returns its observer. */
@@ -658,7 +681,9 @@ function observeInkReplay(
   };
   const rewind = () => {
     path.style.transition = 'none';
-    path.style.strokeDashoffset = String(len);
+    // Re-read the length: a mark refitted to a new size (refitInk) has a new dash array,
+    // so hiding with the original `len` would leave part of a grown mark visible.
+    path.style.strokeDashoffset = String(path.getTotalLength());
     path.getBoundingClientRect();
   };
   path.style.strokeDasharray = String(len);
@@ -680,10 +705,63 @@ function observeInkReplay(
   return io;
 }
 
-/** Draw the ink mark (once fonts settle) and wire its replay; returns a cleanup fn. */
+/** Re-fit an already-drawn ink mark to a new box size, preserving whether it is currently
+ *  shown or hidden (so a resize re-shapes the mark without replaying its draw animation). */
+function refitInk(
+  svg: SVGSVGElement,
+  path: SVGPathElement,
+  w: number,
+  h: number,
+  opts: InkOptions
+): void {
+  const shown = path.style.strokeDashoffset === '0';
+  setInkGeometry(svg, path, w, h, opts.type);
+  if (opts.reduced) return;
+  const len = path.getTotalLength();
+  path.style.transition = 'none';
+  path.style.strokeDasharray = String(len);
+  path.style.strokeDashoffset = shown ? '0' : String(len);
+}
+
+/** Draw the ink mark (once fonts settle), wire its replay, and keep it fitted to the word
+ *  as the viewport resizes (headlines reflow/rescale, so the mark must re-trace). */
 function runInkAnnotation(host: HTMLElement, opts: InkOptions): () => void {
   let io: IntersectionObserver | null = null;
+  let ro: ResizeObserver | null = null;
   let raf = 0;
+  let resizeRaf = 0;
+  let svg: SVGSVGElement | null = null;
+  let path: SVGPathElement | null = null;
+  let lastW = 0;
+  let lastH = 0;
+
+  const relayout = () => {
+    resizeRaf = 0;
+    const w = host.offsetWidth;
+    const h = host.offsetHeight;
+    // Only re-trace when the traced word box actually changed size.
+    if (!svg || !path || (w === lastW && h === lastH)) return;
+    lastW = w;
+    lastH = h;
+    refitInk(svg, path, w, h, opts);
+  };
+
+  // Coalesce a burst of resize notifications into a single re-fit on the next frame.
+  const scheduleRelayout = () => {
+    if (resizeRaf) return;
+    resizeRaf = requestAnimationFrame(relayout);
+  };
+
+  const observeResize = () => {
+    // The host is an inline <span>, and ResizeObserver does not fire for inline-level boxes,
+    // so the window 'resize' event is the reliable trigger when a headline reflows/rescales.
+    // The observer is kept for the box changes it does cover (e.g. a late web-font swap).
+    globalThis.window.addEventListener('resize', scheduleRelayout);
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(scheduleRelayout);
+      ro.observe(host);
+    }
+  };
 
   const draw = () => {
     const w = host.offsetWidth;
@@ -692,9 +770,13 @@ function runInkAnnotation(host: HTMLElement, opts: InkOptions): () => void {
       raf = requestAnimationFrame(draw);
       return;
     }
-    const path = buildInkSvg(host, w, h, opts);
-    if (opts.reduced) return;
-    io = observeInkReplay(host, path, opts);
+    const built = buildInkSvg(host, w, h, opts);
+    svg = built.svg;
+    path = built.path;
+    lastW = w;
+    lastH = h;
+    if (!opts.reduced) io = observeInkReplay(host, path, opts);
+    observeResize();
   };
 
   const fonts = globalThis.document.fonts;
@@ -709,6 +791,9 @@ function runInkAnnotation(host: HTMLElement, opts: InkOptions): () => void {
 
   return () => {
     cancelAnimationFrame(raf);
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    globalThis.window.removeEventListener('resize', scheduleRelayout);
+    ro?.disconnect();
     io?.disconnect();
     host.querySelectorAll('[data-ink]').forEach((node) => node.remove());
   };

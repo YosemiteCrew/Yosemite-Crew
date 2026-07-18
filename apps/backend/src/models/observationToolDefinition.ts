@@ -1,10 +1,5 @@
 export type OTFieldType =
-  | "TEXT"
-  | "NUMBER"
-  | "CHOICE"
-  | "BOOLEAN"
-  | "PHOTO"
-  | "VIDEO";
+  "TEXT" | "NUMBER" | "CHOICE" | "BOOLEAN" | "PHOTO" | "VIDEO";
 
 export interface OTField {
   key: string;

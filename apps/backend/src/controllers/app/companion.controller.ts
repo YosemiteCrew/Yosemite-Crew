@@ -14,9 +14,7 @@ import {
 import { getProfileUploadUrl } from "./profile-upload.handler";
 
 type CompanionRequestBody =
-  | CompanionRequestDTO
-  | { payload?: unknown }
-  | undefined;
+  CompanionRequestDTO | { payload?: unknown } | undefined;
 
 // Validate FHIR
 const isCompanionPayload = (

@@ -148,7 +148,7 @@ const HERO_PARAGRAPH_STYLE: CSSProperties = {
   lineHeight: 1.6,
   letterSpacing: '-0.025em',
   color: 'var(--ink-soft)',
-  textShadow: '0 1px 16px rgba(239,232,220,0.94), 0 1px 3px rgba(239,232,220,0.85)',
+  textShadow: '0 1px 16px var(--hero-halo1), 0 1px 3px var(--hero-halo2)',
   opacity: 0,
   animation: `ycHeroUp 1s ${EASE} 0.5s both`,
   textWrap: 'pretty',

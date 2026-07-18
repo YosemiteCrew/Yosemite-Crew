@@ -515,8 +515,7 @@ export const ObservationToolSubmissionService = {
     });
 
     const submissionAnswers = submission?.answers as
-      | ObservationToolAnswers
-      | undefined;
+      ObservationToolAnswers | undefined;
 
     const toolFields =
       tool.fields as unknown as ObservationToolDefinitionDocument["fields"];
