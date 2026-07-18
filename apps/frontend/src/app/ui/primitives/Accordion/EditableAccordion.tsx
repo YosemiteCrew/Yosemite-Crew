@@ -105,7 +105,7 @@ const TextInputField = ({
       inlabel={field.label}
       error={error}
       onChange={handleChange}
-      className={isCurrency ? 'min-h-12! pl-10!' : 'min-h-12!'}
+      className={isCurrency ? 'pl-10!' : ''}
     />
   );
 
@@ -218,7 +218,6 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       inlabel={field.label}
       error={error}
       onChange={() => {}}
-      className="min-h-12!"
     />
   ),
   timeInput: ({ field, value, onChange, error }) => (
@@ -228,7 +227,6 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       name={field.key}
       error={error}
       onChange={onChange}
-      className="min-h-12!"
     />
   ),
   googleAddress: ({ field, value, onChange, onMultiChange, error }) => (

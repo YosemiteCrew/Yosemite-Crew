@@ -1,17 +1,17 @@
-import Delete from "@/app/ui/primitives/Buttons/Delete";
-import DeleteConfirmationModal from "@/app/ui/overlays/Modal/DeleteConfirmationModal";
-import { PermissionGate } from "@/app/ui/layout/guards/PermissionGate";
-import { deleteOrg } from "@/app/features/organization/services/orgService";
-import { PERMISSIONS } from "@/app/lib/permissions";
-import React, { useState } from "react";
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import DeleteConfirmationModal from '@/app/ui/overlays/Modal/DeleteConfirmationModal';
+import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import { deleteOrg } from '@/app/features/organization/services/orgService';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import React, { useState } from 'react';
 
 const ORG_ITEMS_TO_REMOVE = [
-  "All organization settings",
-  "Rooms, teams, users & roles",
-  "Appointments, tasks & history",
-  "Inventory, finance & documents",
-  "Companions/pet records",
-  "Subscription & billing data",
+  'All organization settings',
+  'Rooms, teams, users & roles',
+  'Appointments, tasks & history',
+  'Inventory, finance & documents',
+  'Companions/pet records',
+  'Subscription & billing data',
 ];
 
 const DeleteOrg = () => {
@@ -19,11 +19,21 @@ const DeleteOrg = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.ORG_DELETE]}>
-      <div className="flex justify-center">
-        <Delete
+      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--color-danger-200)] px-5 py-4">
+        <div className="flex-1">
+          <div className="text-[13px] font-bold text-[var(--color-danger-600)]">
+            Delete organization
+          </div>
+          <div className="text-[11.5px] text-[var(--ink-faint)]">
+            Removes the clinic and revokes all team access
+          </div>
+        </div>
+        <Secondary
+          danger
           href="#"
+          text="Delete…"
           onClick={() => setDeletePopup(true)}
-          text="Delete organization"
+          className="min-h-0! h-[34px]! px-[15px]! text-[12px]! font-bold!"
         />
       </div>
       <DeleteConfirmationModal

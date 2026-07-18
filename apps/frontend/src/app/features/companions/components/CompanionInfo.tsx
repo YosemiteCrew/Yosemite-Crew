@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Modal from '@/app/ui/overlays/Modal';
 import { Companion, Parent, Core, History } from '@/app/features/companions/components/Sections';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
@@ -98,15 +97,14 @@ const CompanionInfo = ({
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <div className="flex justify-center items-center gap-2">
-              <Image
+              <CompanionAvatar
                 alt={terminologyText('pet image')}
-                src={getSafeImageUrl(
-                  activeCompanion?.companion.photoUrl,
-                  activeCompanion?.companion.type.toLowerCase() as ImageType
-                )}
-                className="rounded-full size-10 object-cover"
-                height={40}
-                width={40}
+                photoUrl={activeCompanion?.companion.photoUrl}
+                name={activeCompanion?.companion.name}
+                speciesType={activeCompanion?.companion.type}
+                seed={activeCompanion?.companion.id}
+                size={40}
+                textClassName="text-body-2"
               />
               <button
                 type="button"

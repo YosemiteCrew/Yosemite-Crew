@@ -13,8 +13,6 @@ import {
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { Speciality } from '@yosemite-crew/types';
 import React, { useMemo, useState } from 'react';
-import { MdDeleteForever } from 'react-icons/md';
-import { RiSettings3Line, RiTeamLine } from 'react-icons/ri';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useRouter } from 'next/navigation';
@@ -22,6 +20,7 @@ import ServicesTab from '@/app/features/organization/pages/Specialities/Services
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import { IoPeopleOutline, IoSettingsOutline, IoTrash } from 'react-icons/io5';
 
 type SpecialityInfoProps = {
   showModal: boolean;
@@ -109,11 +108,9 @@ const SpecialityInfo = ({
         <div className="flex flex-col h-full gap-6">
           {/* Header */}
           <div className="flex justify-between items-center">
-            <div className="opacity-0 pointer-events-none">
-              <Close onClick={() => {}} />
-            </div>
+            <div className="size-8" aria-hidden="true" />
             <div className="flex items-center gap-2 text-body-1 text-text-primary">
-              <RiTeamLine size={20} color="var(--color-neutral-700)" aria-hidden="true" />
+              <IoPeopleOutline size={20} color="var(--color-neutral-700)" aria-hidden="true" />
               Manage team
             </div>
             <Close onClick={() => setShowModal(false)} />
@@ -137,7 +134,7 @@ const SpecialityInfo = ({
                 onClick={() => setShowDeleteModal(true)}
                 className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-danger-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600"
               >
-                <MdDeleteForever size={22} color="var(--color-danger-600)" aria-hidden="true" />
+                <IoTrash size={22} color="var(--color-danger-600)" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -192,7 +189,7 @@ const SpecialityInfo = ({
           <Primary
             href="#"
             text="Manage Services & Packages"
-            icon={<RiSettings3Line size={18} aria-hidden="true" />}
+            icon={<IoSettingsOutline size={18} aria-hidden="true" />}
             size="large"
             onClick={(e) => {
               e.preventDefault();

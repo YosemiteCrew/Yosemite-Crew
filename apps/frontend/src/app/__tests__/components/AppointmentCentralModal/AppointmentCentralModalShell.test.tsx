@@ -2,12 +2,14 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+const capturedModalBaseProps: { ignoreOutsideClick?: (target: HTMLElement | null) => boolean } = {};
+
 jest.mock('@/app/ui/overlays/Modal/ModalBase', () => ({
   __esModule: true,
   default: ({
     showModal,
     children,
-    ignoreOutsideClick: _ign,
+    ignoreOutsideClick,
     overlayClassName: _oc,
     overlayStyle: _os,
     containerClassName: _cc,
@@ -15,12 +17,14 @@ jest.mock('@/app/ui/overlays/Modal/ModalBase', () => ({
     canClose: _cc2,
     onClose: _oc2,
     ...rest
-  }: any) =>
-    showModal ? (
+  }: any) => {
+    capturedModalBaseProps.ignoreOutsideClick = ignoreOutsideClick;
+    return showModal ? (
       <div data-testid="modal-base" {...rest}>
         {children}
       </div>
-    ) : null,
+    ) : null;
+  },
 }));
 
 jest.mock('@/app/ui/overlays/Loader', () => ({
@@ -125,5 +129,56 @@ describe('AppointmentCentralModalShell', () => {
   it('renders title with provided text', () => {
     render(<AppointmentCentralModalShell {...defaultProps} title="Edit Appointment" />);
     expect(screen.getByText('Edit Appointment')).toBeInTheDocument();
+  });
+
+  describe('ignoreOutsideClick (datepicker/dropdown targets)', () => {
+    const renderAndGetGuard = () => {
+      render(<AppointmentCentralModalShell {...defaultProps} />);
+      const guard = capturedModalBaseProps.ignoreOutsideClick;
+      expect(guard).toBeInstanceOf(Function);
+      return guard as (target: HTMLElement | null) => boolean;
+    };
+
+    it.each([
+      ['react-datepicker'],
+      ['react-datepicker-popper'],
+      ['yc-datepicker-calendar'],
+      ['yc-datepicker-popper'],
+    ])('ignores clicks originating inside .%s', (className) => {
+      const guard = renderAndGetGuard();
+      const popper = document.createElement('div');
+      popper.className = className;
+      const inner = document.createElement('span');
+      popper.append(inner);
+      document.body.append(popper);
+
+      expect(guard(inner)).toBe(true);
+
+      popper.remove();
+    });
+
+    it('ignores clicks originating inside a portalled dropdown', () => {
+      const guard = renderAndGetGuard();
+      const panel = document.createElement('div');
+      panel.setAttribute('data-portal-dropdown', '');
+      const option = document.createElement('button');
+      panel.append(option);
+      document.body.append(panel);
+
+      expect(guard(option)).toBe(true);
+
+      panel.remove();
+    });
+
+    it('does not ignore clicks on unrelated elements or a null target', () => {
+      const guard = renderAndGetGuard();
+      const unrelated = document.createElement('div');
+      document.body.append(unrelated);
+
+      expect(guard(unrelated)).toBe(false);
+      expect(guard(null)).toBe(false);
+
+      unrelated.remove();
+    });
   });
 });

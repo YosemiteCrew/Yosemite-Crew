@@ -38,32 +38,21 @@ jest.mock("src/services/authUserMobile.service", () => ({
   AuthUserMobileService: { getByProviderUserId: jest.fn() },
 }));
 
-jest.mock("src/config/read-switch", () => ({ isReadFromPostgres: jest.fn() }));
-
 jest.mock("src/config/prisma", () => ({
   prisma: { chatSession: { findMany: jest.fn() } },
-}));
-
-jest.mock("src/models/chatSession", () => ({
-  __esModule: true,
-  default: { find: jest.fn() },
 }));
 
 import { ChatController } from "src/controllers/app/chat.controller";
 import { ChatService, ChatServiceError } from "src/services/chat.service";
 import { NetworkChatService } from "src/services/networkChat.service";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { prisma } from "src/config/prisma";
-import ChatSessionModel from "src/models/chatSession";
 
 const svc = ChatService as unknown as Record<string, jest.Mock>;
 const networkSvc = NetworkChatService as unknown as Record<string, jest.Mock>;
 const getByProviderUserId =
   AuthUserMobileService.getByProviderUserId as jest.Mock;
-const readPg = isReadFromPostgres as jest.Mock;
 const findMany = prisma.chatSession.findMany as jest.Mock;
-const mongoFind = ChatSessionModel.find as unknown as jest.Mock;
 
 const makeRes = () =>
   ({
@@ -473,8 +462,7 @@ describe("ChatController.listMySessions", () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it("reads from postgres when the read switch is on", async () => {
-    readPg.mockReturnValue(true);
+  it("returns the mapped sessions from postgres", async () => {
     findMany.mockResolvedValue([{ id: "s1" }]);
     const res = makeRes();
     await ChatController.listMySessions(
@@ -483,11 +471,23 @@ describe("ChatController.listMySessions", () => {
     );
     expect(findMany).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith([{ id: "s1" }]);
+    expect(res.json).toHaveBeenCalledWith([
+      expect.objectContaining({ _id: "s1", id: "s1" }),
+    ]);
+  });
+
+  it("excludes closed sessions by default", async () => {
+    findMany.mockResolvedValue([{ id: "s1" }]);
+    const res = makeRes();
+    await ChatController.listMySessions(
+      makeReq({ params: { organisationId: "o1" } }),
+      res,
+    );
+    expect(findMany.mock.calls[0][0].where).toHaveProperty("status");
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("includes closed sessions when includeClosed=true", async () => {
-    readPg.mockReturnValue(true);
     findMany.mockResolvedValue([{ id: "s1" }]);
     const res = makeRes();
     await ChatController.listMySessions(
@@ -501,23 +501,7 @@ describe("ChatController.listMySessions", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("reads from mongo when the read switch is off", async () => {
-    readPg.mockReturnValue(false);
-    mongoFind.mockReturnValue({
-      sort: () => ({ lean: () => Promise.resolve([{ id: "s2" }]) }),
-    });
-    const res = makeRes();
-    await ChatController.listMySessions(
-      makeReq({ params: { organisationId: "o1" } }),
-      res,
-    );
-    expect(mongoFind).toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith([{ id: "s2" }]);
-  });
-
   it("returns 500 on an unexpected error", async () => {
-    readPg.mockReturnValue(true);
     findMany.mockRejectedValue(new Error("boom"));
     const res = makeRes();
     await ChatController.listMySessions(

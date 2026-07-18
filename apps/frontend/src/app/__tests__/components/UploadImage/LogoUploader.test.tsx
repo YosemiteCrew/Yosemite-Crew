@@ -14,13 +14,24 @@ jest.mock('@/app/services/axios', () => ({
 jest.mock('axios');
 
 // 2. Mock Icons
-jest.mock('react-icons/io5', () => ({
-  IoCamera: () => <span data-testid="icon-camera" />,
-}));
-
-jest.mock('react-icons/fi', () => ({
-  FiMinusCircle: () => <span data-testid="icon-remove" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 // 3. Mock URL Object (createObjectURL / revokeObjectURL)
 const mockCreateObjectURL = jest.fn();
@@ -52,7 +63,7 @@ describe('LogoUploader Component', () => {
     render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
     expect(screen.getByText(mockTitle)).toBeInTheDocument();
-    expect(screen.getByTestId('icon-camera')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
 
     const input = document.querySelector('input[type="file"]');
     expect(input).toBeInTheDocument();
@@ -153,13 +164,13 @@ describe('LogoUploader Component', () => {
 
     await waitFor(() => expect(screen.getByAltText('Logo Preview')).toBeInTheDocument());
 
-    // Click remove (FiMinusCircle wrapper)
+    // Click remove (IoRemoveCircleOutline wrapper)
     const removeBtn = screen.getByRole('button', { name: 'Remove uploaded logo' });
     fireEvent.click(removeBtn);
 
     expect(mockRevokeObjectURL).toHaveBeenCalled();
     expect(screen.queryByAltText('Logo Preview')).not.toBeInTheDocument();
-    expect(screen.getByTestId('icon-camera')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
   });
 
   it('does nothing if no file is selected (cancel dialog)', () => {

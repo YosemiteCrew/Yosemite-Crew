@@ -11,6 +11,7 @@ import {
   FormsUsage,
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
+  getFormCategoryOptionsForOrgType,
 } from '@/app/features/forms/types/forms';
 import {
   getCategoryTemplate,
@@ -28,6 +29,8 @@ type DetailsProps = {
   onNext: () => void;
   serviceOptions: { label: string; value: string; badge?: string; isInpatient?: boolean }[];
   ref?: React.Ref<AddFormStepHandle>;
+  /** Single-screen builder hides the step "Next" button; saving happens from the modal footer. */
+  hideNext?: boolean;
 };
 
 export type AddFormStepHandle = { validate: () => boolean };
@@ -209,7 +212,14 @@ const FormUsageFields = ({
   </div>
 );
 
-const Details = ({ formData, setFormData, onNext, serviceOptions, ref }: DetailsProps) => {
+const Details = ({
+  formData,
+  setFormData,
+  onNext,
+  serviceOptions,
+  ref,
+  hideNext = false,
+}: DetailsProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     category?: string;
@@ -233,30 +243,7 @@ const Details = ({ formData, setFormData, onNext, serviceOptions, ref }: Details
     if (isYcDefault) {
       return FormsCategoryOptions.filter((c) => YC_DEFAULT_CATEGORIES.has(c));
     }
-    const base = new Set([
-      'Consent form',
-      'Prescription',
-      'SOAP',
-      'Discharge Form',
-      'Vitals',
-      'Prescription Template',
-      'Inpatient Schedule',
-      'Task Template',
-      'Custom',
-    ]);
-    if (effectiveOrgType === 'HOSPITAL') {
-      return FormsCategoryOptions.filter((c) => base.has(c));
-    }
-    if (effectiveOrgType === 'BOARDER') {
-      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Boarder'));
-    }
-    if (effectiveOrgType === 'BREEDER') {
-      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Breeder'));
-    }
-    if (effectiveOrgType === 'GROOMER') {
-      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Groomer'));
-    }
-    return FormsCategoryOptions;
+    return getFormCategoryOptionsForOrgType(effectiveOrgType);
   }, [effectiveOrgType, isYcDefault]);
 
   // Task / Inpatient-Schedule templates only apply to in-patient services & packages, so the
@@ -426,9 +413,11 @@ const Details = ({ formData, setFormData, onNext, serviceOptions, ref }: Details
           />
         </Accordion>
       </div>
-      <div className="px-3 pb-3 flex justify-center">
-        <Primary href="#" text="Next" onClick={handleNext} className="w-fit" />
-      </div>
+      {!hideNext && (
+        <div className="px-3 pb-3 flex justify-center">
+          <Primary href="#" text="Next" onClick={handleNext} className="w-fit" />
+        </div>
+      )}
     </div>
   );
 };

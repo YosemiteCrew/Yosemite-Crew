@@ -46,6 +46,7 @@ const mockSearchParamsGet = jest.fn(() => null);
 
 jest.mock('@/app/hooks/useBilling', () => ({
   useSubscriptionForPrimaryOrg: () => useSubscriptionMock(),
+  useCurrencyForPrimaryOrg: () => 'USD',
 }));
 
 jest.mock('@/app/hooks/usePlannerLayout', () => ({
@@ -246,5 +247,26 @@ describe('Finance page', () => {
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
     render(<ProtectedFinance />);
     expect(screen.getByText('(2)')).toBeInTheDocument();
+  });
+
+  it('renders the collected-this-week and outstanding metrics subtitle', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    useInvoicesMock.mockReturnValue([
+      {
+        id: 'inv-1',
+        status: 'PAID',
+        appointmentId: 'a1',
+        totalAmount: 4820,
+        paidAt: new Date(),
+        items: [],
+      },
+      { id: 'inv-2', status: 'PENDING', appointmentId: 'a2', totalAmount: 214, items: [] },
+    ]);
+
+    render(<ProtectedFinance />);
+
+    expect(screen.getByText(/collected this week/)).toHaveTextContent(
+      '$4,820 collected this week · $214 outstanding'
+    );
   });
 });

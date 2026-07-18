@@ -28,7 +28,7 @@ describe('IndividualProductTurnoverStat', () => {
 
     render(<IndividualProductTurnoverStat />);
 
-    expect(screen.getByTestId('card-header')).toHaveTextContent('Individual product turnover');
+    expect(screen.getByTestId('card-header')).toHaveTextContent('Product turnover');
     expect(screen.getByText('No data available')).toBeInTheDocument();
   });
 
@@ -56,5 +56,29 @@ describe('IndividualProductTurnoverStat', () => {
     const bars = container.querySelectorAll('.h-full.bg-text-primary.rounded-full');
     expect((bars[0] as HTMLElement).style.width).toBe('100%');
     expect((bars[1] as HTMLElement).style.width).toBe('50%');
+  });
+
+  it('renders zero-width bars when every product has no turnover', () => {
+    // Products that exist but were never dispensed clamp to turnover 0, so
+    // maxValue is 0 while emptyState stays false (it only tracks list length).
+    (useDashboardAnalytics as jest.Mock).mockReturnValue({
+      durationOptions: { individualProductTurnover: ['Last 1 year'] },
+      emptyState: { individualProductTurnover: false },
+      productTurnover: [
+        { itemId: '1', name: 'A', turnover: 0 },
+        { itemId: '2', name: 'B', turnover: 0 },
+      ],
+    });
+
+    const { container } = render(<IndividualProductTurnoverStat />);
+
+    expect(screen.queryByText('No data available')).not.toBeInTheDocument();
+    expect(screen.getByText('A')).toBeInTheDocument();
+    expect(screen.getByText('B')).toBeInTheDocument();
+
+    const bars = container.querySelectorAll('.h-full.bg-text-primary.rounded-full');
+    expect(bars).toHaveLength(2);
+    expect((bars[0] as HTMLElement).style.width).toBe('0%');
+    expect((bars[1] as HTMLElement).style.width).toBe('0%');
   });
 });

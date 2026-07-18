@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { GrNext, GrPrevious } from 'react-icons/gr';
+import { IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
 import { Slot } from '@/app/features/appointments/types/appointments';
@@ -41,9 +41,9 @@ function getDaysInMonth(year: number, month: number): Date[] {
 
 function getDayButtonClass(isCurrent: boolean, isPast: boolean, isTodayDay: boolean): string {
   if (isCurrent) return 'text-blue-text bg-blue-light border-blue-text!';
-  if (isPast) return 'border-grey-text! bg-white opacity-40 cursor-not-allowed';
+  if (isPast) return 'border-grey-text! bg-neutral-0 opacity-40 cursor-not-allowed';
   if (isTodayDay) return 'border-blue-text! bg-brand-100';
-  return 'border-grey-text! bg-white';
+  return 'border-grey-text! bg-neutral-0';
 }
 
 const Slotpicker = ({
@@ -94,7 +94,11 @@ const Slotpicker = ({
 
   useLayoutEffect(() => {
     const strip = dateStripRef.current;
-    if (!strip) return;
+    if (!strip) {
+      /* v8 ignore start -- unreachable: dateStripRef is attached to a div that is rendered unconditionally, so the ref is always set by the time this layout effect runs */
+      return;
+      /* v8 ignore stop */
+    }
 
     const syncScrollArrows = () => {
       setCanScrollDatesLeft(strip.scrollLeft > 4);
@@ -112,7 +116,11 @@ const Slotpicker = ({
   }, [days.length, viewMonth, viewYear]);
 
   const handlePrevMonth = () => {
-    if (isAtTodayMonth) return;
+    if (isAtTodayMonth) {
+      /* v8 ignore start -- unreachable: the "Previous month" button carries `disabled={isAtTodayMonth}`, so this handler can never run while the guard is true */
+      return;
+      /* v8 ignore stop */
+    }
     if (viewMonth === 0) {
       setViewYear((y) => y - 1);
       setViewMonth(11);
@@ -147,7 +155,11 @@ const Slotpicker = ({
 
   const scrollDateStrip = (direction: 'left' | 'right') => {
     const strip = dateStripRef.current;
-    if (!strip) return;
+    if (!strip) {
+      /* v8 ignore start -- unreachable: the scroll arrows and the dateStripRef div are siblings in the same unconditional subtree, so the ref is always set whenever an arrow can be clicked */
+      return;
+      /* v8 ignore stop */
+    }
     strip.scrollBy({
       left: direction === 'left' ? -DATE_STRIP_SCROLL_PX : DATE_STRIP_SCROLL_PX,
       behavior: 'smooth',
@@ -165,7 +177,7 @@ const Slotpicker = ({
           disabled={isAtTodayMonth}
           className={isAtTodayMonth ? 'cursor-not-allowed text-neutral-200' : 'cursor-pointer'}
         >
-          <GrPrevious size={16} />
+          <IoChevronBackOutline size={16} />
         </button>
         <div className="text-body-3 text-text-primary">
           {monthNames[viewMonth]} {viewYear}
@@ -176,7 +188,7 @@ const Slotpicker = ({
           onClick={handleNextMonth}
           className="cursor-pointer text-text-primary"
         >
-          <GrNext size={16} />
+          <IoChevronForwardOutline size={16} />
         </button>
       </div>
 
@@ -193,7 +205,7 @@ const Slotpicker = ({
               : 'cursor-not-allowed text-neutral-200'
           }
         >
-          <GrPrevious size={16} />
+          <IoChevronBackOutline size={16} />
         </button>
         <div
           ref={dateStripRef}
@@ -237,7 +249,7 @@ const Slotpicker = ({
               : 'cursor-not-allowed text-neutral-200'
           }
         >
-          <GrNext size={16} />
+          <IoChevronForwardOutline size={16} />
         </button>
       </div>
 
@@ -254,7 +266,7 @@ const Slotpicker = ({
                 type="button"
                 key={slot.startTime + i}
                 onClick={() => setSelectedSlot(slot)}
-                className={`${selected ? 'text-blue-text bg-blue-light border-blue-text!' : 'border-grey-text! bg-white'} px-3.5 py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
+                className={`${selected ? 'text-blue-text bg-blue-light border-blue-text!' : 'border-grey-text! bg-neutral-0'} px-3.5 py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
               >
                 {formatUtcTimeToLocalLabel(slot.startTime)}
               </button>

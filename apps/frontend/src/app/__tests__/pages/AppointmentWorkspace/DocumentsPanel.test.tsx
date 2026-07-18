@@ -56,10 +56,40 @@ jest.mock('@/app/ui/overlays/SigningOverlay', () => ({
 
 jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
   __esModule: true,
-  default: ({ open, pdfUrl }: { open: boolean; pdfUrl?: string | null }) => (
-    <div data-testid="pdf-preview" data-open={String(open)} data-url={pdfUrl ?? ''} />
+  default: ({
+    open,
+    pdfUrl,
+    onClose,
+    onDownload,
+  }: {
+    open: boolean;
+    pdfUrl?: string | null;
+    onClose?: () => void;
+    onDownload?: () => void;
+  }) => (
+    <div data-testid="pdf-preview" data-open={String(open)} data-url={pdfUrl ?? ''}>
+      <button type="button" data-testid="pdf-preview-close" onClick={onClose}>
+        close preview
+      </button>
+      {onDownload ? (
+        <button type="button" data-testid="pdf-preview-download" onClick={onDownload}>
+          download preview
+        </button>
+      ) : null}
+    </div>
   ),
 }));
+
+const makeAuthRedirectError = () =>
+  Object.assign(new Error('Authentication required. Redirecting to sign in.'), {
+    __ycAuthRedirect: true,
+  });
+
+const settle = async () => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+};
 
 const template = (overrides: Record<string, unknown> = {}) => ({
   id: 'tpl-consent',
@@ -92,7 +122,22 @@ beforeEach(() => {
   URL.createObjectURL = jest.fn(() => 'blob:form-pdf');
   URL.revokeObjectURL = jest.fn();
   (fetchAppointmentForms as jest.Mock).mockResolvedValue({ appointmentId: 'appt-1', forms: [] });
+  // clearMocks resets calls but not implementations, so re-establish the
+  // aggregate-service defaults each test to stop persistent overrides leaking.
   (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
+  (createEncounterDocumentPacket as jest.Mock).mockResolvedValue({
+    packetId: 'packet-1',
+    status: 'DRAFT',
+    signing: null,
+  });
+  (signWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({
+    packetId: 'packet-1',
+    status: 'DRAFT',
+    signing: { status: 'IN_PROGRESS', signingUrl: 'https://sign.test/abc' },
+  });
+  (getEncounterDocumentPacketPdfUrl as jest.Mock).mockResolvedValue('blob:packet-pdf');
+  (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
+  (linkAppointmentForms as jest.Mock).mockResolvedValue(undefined);
   (loadTemplateForms as jest.Mock).mockResolvedValue([
     template(),
     // Clinical + plan-definition kinds must be filtered out of the search.
@@ -549,5 +594,421 @@ describe('DocumentsPanel form rows', () => {
       'Unable to download this form. Please try again.'
     );
     errorSpy.mockRestore();
+  });
+
+  it('formats string, missing, and invalid timestamps and falls back through the id chain', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValueOnce({
+      appointmentId: 'appt-1',
+      forms: [
+        {
+          // No `updatedAt` → falls back to the string `createdAt`; no `_id` on
+          // form or submission → id falls back to the form name.
+          form: { name: 'String dates form', createdAt: '2026-03-04T09:30:00Z', status: 'pending' },
+          submission: null,
+          status: 'pending',
+        },
+        {
+          form: { _id: 'form-invalid', name: 'Invalid date form', updatedAt: 'not-a-date' },
+          submission: null,
+          status: 'pending',
+        },
+        {
+          // No dates at all → formatDate/formatTime hit their empty guards; no
+          // visibilityType or category → audience falls back to STAFF.
+          form: { name: 'No dates form' },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+
+    renderPanel();
+
+    expect(await screen.findByText('String dates form')).toBeInTheDocument();
+    expect(screen.getByText('Invalid date form')).toBeInTheDocument();
+    expect(screen.getByText('No dates form')).toBeInTheDocument();
+    // Two rows with neither visibilityType nor category resolve to Staff form.
+    expect(screen.getAllByText('Staff form').length).toBeGreaterThanOrEqual(2);
+    await settle();
+  });
+});
+
+describe('DocumentsPanel clinical packet extra paths', () => {
+  const renderSignedPanel = () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      { documentId: 'doc-1', title: 'Clinical packet', signingStatus: 'SIGNED' },
+    ]);
+    return renderPanel();
+  };
+
+  it('rethrows an auth-redirect error from the document rows without falling back', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockRejectedValue(makeAuthRedirectError());
+
+    renderPanel();
+
+    await waitForDefaultFormsEmptyState();
+    // The auth-redirect error is rethrown before the packet fallback runs.
+    expect(createEncounterDocumentPacket).not.toHaveBeenCalled();
+    await settle();
+  });
+
+  it('logs a non-auth failure when the packet endpoint itself rejects', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (createEncounterDocumentPacket as jest.Mock).mockRejectedValue(new Error('packet failed'));
+
+    renderPanel();
+
+    await waitForDefaultFormsEmptyState();
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith('Unable to load clinical packet:', expect.any(Error))
+    );
+    await settle();
+    errorSpy.mockRestore();
+  });
+
+  it('swallows an auth-redirect error from the packet endpoint', async () => {
+    (createEncounterDocumentPacket as jest.Mock).mockRejectedValue(makeAuthRedirectError());
+
+    renderPanel();
+
+    await waitForDefaultFormsEmptyState();
+    await settle();
+  });
+
+  it('renders plain-label status and signing badges from the packet state', async () => {
+    (createEncounterDocumentPacket as jest.Mock).mockResolvedValue({
+      packetId: 'packet-1',
+      status: 'FINAL',
+      signing: { status: 'IN_PROGRESS' },
+    });
+
+    renderPanel();
+
+    expect(await screen.findByText('Final')).toBeInTheDocument();
+    // The label appears both as a badge and on the disabled Sign button.
+    expect(screen.getAllByText('Signing in progress').length).toBeGreaterThanOrEqual(1);
+    await settle();
+  });
+
+  it('drops unknown status/signing enums instead of surfacing raw values', async () => {
+    (createEncounterDocumentPacket as jest.Mock).mockResolvedValue({
+      packetId: 'packet-1',
+      status: 'WEIRD',
+      signing: { status: 'ODD' },
+    });
+
+    renderPanel();
+
+    await waitForDefaultFormsEmptyState();
+    expect(screen.queryByText('WEIRD')).not.toBeInTheDocument();
+    expect(screen.queryByText('ODD')).not.toBeInTheDocument();
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument();
+    await settle();
+  });
+
+  it('renders no status badge when the packet has no status yet', async () => {
+    (createEncounterDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
+
+    renderPanel();
+
+    await waitForDefaultFormsEmptyState();
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument();
+    expect(screen.queryByText('Final')).not.toBeInTheDocument();
+    await settle();
+  });
+
+  it('promotes the packet to signed when reconciliation reports a signature', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ documentId: 'doc-1', signingStatus: 'SIGNED' }]);
+    (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValueOnce({
+      packetId: 'packet-1',
+      status: 'FINAL',
+      signing: { status: 'signed' },
+    });
+
+    renderPanel();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await waitForDefaultFormsEmptyState();
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    expect(await screen.findByRole('button', { name: /download signed/i })).toBeInTheDocument();
+    await settle();
+  });
+
+  it('logs a non-auth reconciliation failure and still refreshes', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (reconcileWorkspaceDocumentPacket as jest.Mock).mockRejectedValueOnce(
+      new Error('reconcile failed')
+    );
+
+    renderPanel();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await waitForDefaultFormsEmptyState();
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Unable to reconcile packet signing:',
+        expect.any(Error)
+      )
+    );
+    errorSpy.mockRestore();
+    await settle();
+  });
+
+  it('swallows an auth-redirect reconciliation failure', async () => {
+    (reconcileWorkspaceDocumentPacket as jest.Mock).mockRejectedValueOnce(makeAuthRedirectError());
+
+    renderPanel();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await waitForDefaultFormsEmptyState();
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() => expect(reconcileWorkspaceDocumentPacket).toHaveBeenCalled());
+    await settle();
+  });
+
+  it('logs a print failure without crashing the panel', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (getEncounterDocumentPacketPdfUrl as jest.Mock).mockRejectedValueOnce(
+      new Error('print failed')
+    );
+
+    renderPanel();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await waitForDefaultFormsEmptyState();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Print All' }));
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Unable to open the clinical packet:',
+        expect.any(Error)
+      )
+    );
+    await settle();
+    errorSpy.mockRestore();
+  });
+
+  it('downloads the signed packet and revokes the object url', async () => {
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    renderSignedPanel();
+
+    fireEvent.click(await screen.findByRole('button', { name: /download signed/i }));
+
+    await waitFor(() =>
+      expect(getEncounterDocumentPacketPdfUrl).toHaveBeenCalledWith('org-1', 'enc-1')
+    );
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:packet-pdf');
+    clickSpy.mockRestore();
+    await settle();
+  });
+
+  it('shows the default download message when the failure is not an Error', async () => {
+    (getEncounterDocumentPacketPdfUrl as jest.Mock).mockRejectedValueOnce('boom');
+
+    renderSignedPanel();
+
+    fireEvent.click(await screen.findByRole('button', { name: /download signed/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Unable to download the signed document.'
+    );
+    await settle();
+  });
+
+  it('opens, downloads from, and closes the packet preview overlay', async () => {
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+    (getEncounterDocumentPacketPdfUrl as jest.Mock).mockResolvedValueOnce('blob:printed-packet');
+
+    renderPanel();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await waitForDefaultFormsEmptyState();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Print All' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('pdf-preview')).toHaveAttribute('data-open', 'true')
+    );
+
+    // Download from the preview reuses the shared anchor-download helper.
+    fireEvent.click(screen.getByTestId('pdf-preview-download'));
+    expect(clickSpy).toHaveBeenCalled();
+
+    // Closing revokes the preview blob; a second close is a no-op on the null url.
+    fireEvent.click(screen.getByTestId('pdf-preview-close'));
+    await waitFor(() =>
+      expect(screen.getByTestId('pdf-preview')).toHaveAttribute('data-open', 'false')
+    );
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:printed-packet');
+    fireEvent.click(screen.getByTestId('pdf-preview-close'));
+    clickSpy.mockRestore();
+    await settle();
+  });
+
+  it('applies packet/signing fallbacks when the sign response omits them', async () => {
+    (signWorkspaceDocumentPacket as jest.Mock).mockResolvedValueOnce({
+      packetId: 'packet-1',
+      signing: { signingUrl: 'https://sign.test/fallback' },
+    });
+
+    renderPanel();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await waitForDefaultFormsEmptyState();
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/fallback')
+    );
+    // status falls back to the created packet's DRAFT and signing to IN_PROGRESS.
+    expect(await screen.findByText('Draft')).toBeInTheDocument();
+    // The label appears both as a badge and on the disabled Sign button.
+    expect(screen.getAllByText('Signing in progress').length).toBeGreaterThanOrEqual(1);
+    await settle();
+  });
+
+  it('shows the default sign message when the failure is not an Error', async () => {
+    renderPanel();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await waitForDefaultFormsEmptyState();
+    (createEncounterDocumentPacket as jest.Mock).mockRejectedValueOnce('sign boom');
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to start signing.');
+    await settle();
+  });
+});
+
+describe('DocumentsPanel template loading', () => {
+  it('does not load templates when no organisation id is provided', async () => {
+    render(
+      <DocumentsPanel
+        appointmentId="appt-1"
+        companionId="comp-1"
+        encounterId="enc-1"
+        appointmentStatus="IN_PROGRESS"
+      />
+    );
+
+    await waitForDefaultFormsEmptyState();
+    expect(loadTemplateForms).not.toHaveBeenCalled();
+    await settle();
+  });
+
+  it('logs a non-auth template load failure', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (loadTemplateForms as jest.Mock).mockRejectedValueOnce(new Error('templates failed'));
+
+    renderPanel();
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Unable to load assignable form templates:',
+        expect.any(Error)
+      )
+    );
+    errorSpy.mockRestore();
+    await settle();
+  });
+
+  it('swallows an auth-redirect template load failure', async () => {
+    (loadTemplateForms as jest.Mock).mockRejectedValueOnce(makeAuthRedirectError());
+
+    renderPanel();
+
+    await waitForDefaultFormsEmptyState();
+    await settle();
+  });
+
+  it('ignores a template load that resolves after unmount', async () => {
+    let resolveTemplates: (value: unknown[]) => void = () => undefined;
+    (loadTemplateForms as jest.Mock).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveTemplates = resolve;
+      })
+    );
+
+    const { unmount } = renderPanel();
+    await waitForDefaultFormsEmptyState();
+    await waitFor(() => expect(createEncounterDocumentPacket).toHaveBeenCalled());
+    await settle();
+
+    unmount();
+
+    await act(async () => {
+      resolveTemplates([template()]);
+      await Promise.resolve();
+    });
+  });
+
+  it('ignores a second assignment while one is already in flight', async () => {
+    let resolveLink: (value?: unknown) => void = () => undefined;
+    (linkAppointmentForms as jest.Mock).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLink = resolve;
+      })
+    );
+
+    renderPanel();
+    await waitFor(() => expect(fetchAppointmentForms).toHaveBeenCalled());
+
+    fireEvent.focus(screen.getByLabelText('Search forms to add'));
+    fireEvent.click(await screen.findByText('Surgery Consent'));
+    // Second click while the first assignment is pending is ignored by the guard.
+    fireEvent.click(screen.getByText('Custom intake form'));
+
+    expect(linkAppointmentForms).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveLink(undefined);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(fetchAppointmentForms).toHaveBeenCalledTimes(2));
+    await settle();
+  });
+
+  it('closes the search dropdown on an outside press', async () => {
+    renderPanel();
+    await waitForDefaultFormsEmptyState();
+
+    fireEvent.focus(screen.getByLabelText('Search forms to add'));
+    expect(await screen.findByText('Surgery Consent')).toBeInTheDocument();
+
+    fireEvent.mouseDown(globalThis.document.body);
+
+    await waitFor(() => expect(screen.queryByText('Surgery Consent')).not.toBeInTheDocument());
+    await settle();
   });
 });

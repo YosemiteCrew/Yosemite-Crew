@@ -7,12 +7,42 @@ import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 // --- Mocks ---
 
 // Mock Icons
-jest.mock('react-icons/fa', () => ({
-  FaSortDown: () => <span data-testid="icon-sort-down">SortDown</span>,
-}));
-jest.mock('react-icons/io5', () => ({
-  IoSearch: () => <span data-testid="icon-search">Search</span>,
-}));
+jest.mock(
+  'react-icons/fa',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: () => <span data-testid="icon-error">ErrorIcon</span>,
 }));
@@ -42,7 +72,7 @@ describe('Dropdown Component', () => {
     render(<Dropdown placeholder="Select Item" value="" onChange={mockOnChange} />);
 
     expect(screen.getByText('Select Item')).toBeInTheDocument();
-    expect(screen.queryByText('SortDown')).toBeInTheDocument();
+    expect(screen.queryByTestId('IoCaretDown')).toBeInTheDocument();
   });
 
   it('renders with a selected value (String option)', () => {
@@ -86,7 +116,7 @@ describe('Dropdown Component', () => {
     fireEvent.click(button);
     // Should not open (query for dropdown content should fail)
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument(); // assuming standard role or just absence of options
-    expect(screen.queryByText('SortDown')).toBeInTheDocument(); // Icon stays
+    expect(screen.queryByTestId('IoCaretDown')).toBeInTheDocument(); // Icon stays
   });
 
   // --- 2. Interaction: Opening & Closing ---
@@ -174,6 +204,25 @@ describe('Dropdown Component', () => {
     expect(mockOnChange).toHaveBeenCalledWith('Option B');
   });
 
+  it('supports Home, End and Space keys', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A', 'Option B', 'Option C']}
+      />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // opens
+    fireEvent.keyDown(trigger, { key: 'End' });
+    fireEvent.keyDown(trigger, { key: 'Home' });
+    fireEvent.keyDown(trigger, { key: ' ' }); // confirm first option
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option A');
+  });
+
   it('supports home and end keys when the list is open', () => {
     render(
       <Dropdown
@@ -195,6 +244,34 @@ describe('Dropdown Component', () => {
     triggerKey('Enter');
 
     expect(mockOnChange).toHaveBeenCalledWith('Option A');
+  });
+
+  it('closes on Escape key', () => {
+    render(
+      <Dropdown placeholder="Select" value="" onChange={mockOnChange} options={['Option A']} />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.click(trigger);
+    expect(screen.getByText('Option A')).toBeInTheDocument();
+
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByText('Option A')).not.toBeInTheDocument();
+  });
+
+  it('ignores keyboard input while disabled', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A']}
+        disabled
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
+    expect(screen.queryByText('Option A')).not.toBeInTheDocument();
   });
 
   it('opens on space and does not select when there are no options', () => {
@@ -308,7 +385,7 @@ describe('Dropdown Component', () => {
     // Find Search Input
     const searchInput = screen.getByPlaceholderText('Search Select');
     expect(searchInput).toBeInTheDocument();
-    expect(screen.getByTestId('icon-search')).toBeInTheDocument();
+    expect(screen.getByTestId('IoSearch')).toBeInTheDocument();
 
     // Type "Ban"
     fireEvent.change(searchInput, { target: { value: 'Ban' } });

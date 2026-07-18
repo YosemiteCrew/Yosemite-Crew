@@ -1,11 +1,13 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
 expect.extend(toHaveNoViolations);
 
-import ProtectedMerckManuals from '@/app/features/integrations/pages/MerckManuals';
+import ProtectedMerckManuals, {
+  EmbeddedMerckManuals,
+} from '@/app/features/integrations/pages/MerckManuals';
 
 const useSearchParamsMock = jest.fn();
 const useResolvedMerckIntegrationForPrimaryOrgMock = jest.fn();
@@ -282,10 +284,81 @@ describe('MerckManuals page', () => {
 
   it('audience toggle exposes aria-pressed for each mode', () => {
     render(<ProtectedMerckManuals />);
-    const profButton = screen.getByRole('button', { name: 'Professional' });
-    const consButton = screen.getByRole('button', { name: 'Consumer' });
+    const profButton = screen.getByRole('button', { name: 'Veterinary professional' });
+    const consButton = screen.getByRole('button', { name: 'Pet parent version' });
     expect(profButton).toHaveAttribute('aria-pressed', 'true');
     expect(consButton).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('shows the connected header with a Manage Integrations link when enabled', async () => {
+    render(<ProtectedMerckManuals />);
+    await screen.findByRole('heading', { name: 'MSD Veterinary Manual' });
+    expect(screen.getByRole('link', { name: 'Manage Integrations' })).toHaveAttribute(
+      'href',
+      '/integrations'
+    );
+  });
+
+  it('renders the design no-results state and results count for the query', async () => {
+    searchMock.mockResolvedValueOnce({ entries: [] });
+    render(<ProtectedMerckManuals />);
+
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'otittis' } });
+    fireEvent.click(screen.getByText('Search'));
+
+    expect(await screen.findByText('No results for “otittis”')).toBeInTheDocument();
+    expect(screen.getByText(/Check the spelling or try a broader term/)).toBeInTheDocument();
+
+    // Now a query with results shows the count line
+    searchMock.mockResolvedValueOnce({ entries: [baseEntry] });
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+
+    expect(await screen.findByText('1 results for “fever”')).toBeInTheDocument();
+  });
+
+  it('renders the reader chrome with the audience badge and copies from the reader', async () => {
+    render(<ProtectedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+
+    await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Open'));
+
+    await waitFor(() => expect(screen.getByTitle('Canine Fever')).toBeInTheDocument());
+    const overlay = document.body.querySelector(
+      '[data-merck-reader-overlay="true"]'
+    ) as HTMLElement;
+    expect(within(overlay).getByText('PROFESSIONAL')).toBeInTheDocument();
+    expect(
+      within(overlay).getByText(
+        "Content © MSD Veterinary Manual · displayed under your clinic's integration"
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(overlay).getByRole('button', { name: 'Copy manual URL' }));
+    await waitFor(() => expect(screen.getByText('Copied URL to clipboard.')).toBeInTheDocument());
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(baseEntry.primaryUrl);
+  });
+
+  it('re-runs the search when the audience changes after a query', async () => {
+    render(<ProtectedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    await waitFor(() => expect(searchMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pet parent version' }));
+
+    await waitFor(() => expect(searchMock).toHaveBeenCalledTimes(2));
+    expect(searchMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ audience: 'PAT', query: 'fever' })
+    );
+  });
+
+  it('does not search when the audience changes without a query', () => {
+    render(<ProtectedMerckManuals />);
+    fireEvent.click(screen.getByRole('button', { name: 'Pet parent version' }));
+    expect(searchMock).not.toHaveBeenCalled();
   });
 
   it('language filter pills expose aria-pressed state', async () => {
@@ -294,5 +367,178 @@ describe('MerckManuals page', () => {
     await screen.findByRole('button', { name: 'EN' });
     expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'ES' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('surfaces object, message and fallback error shapes when a search fails', async () => {
+    searchMock.mockRejectedValueOnce({
+      response: { data: { message: 'Server is down for maintenance.' } },
+    });
+    render(<ProtectedMerckManuals />);
+
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    expect(await screen.findByText('Server is down for maintenance.')).toBeInTheDocument();
+
+    searchMock.mockRejectedValueOnce(new Error('Network unreachable'));
+    fireEvent.click(screen.getByText('Search'));
+    expect(await screen.findByText('Network unreachable')).toBeInTheDocument();
+
+    searchMock.mockRejectedValueOnce({});
+    fireEvent.click(screen.getByText('Search'));
+    expect(await screen.findByText('Unable to search manuals right now.')).toBeInTheDocument();
+  });
+
+  it('clears the reader loader once the iframe finishes loading', async () => {
+    render(<ProtectedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Open'));
+    const iframe = await screen.findByTitle('Canine Fever');
+    expect(screen.getByText(/Fetching/)).toBeInTheDocument();
+
+    fireEvent.load(iframe);
+    await waitFor(() => expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument());
+  });
+
+  it('opens the reader from the title button, sub-topic pill and supports open-in-new-tab', async () => {
+    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
+    render(<ProtectedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTitle('Open in new tab'));
+    expect(openSpy).toHaveBeenCalledWith(baseEntry.primaryUrl, '_blank', 'noopener,noreferrer');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Close Merck reader'));
+    await waitFor(() => expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Canine Fever' }));
+    expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
+
+    openSpy.mockRestore();
+  });
+
+  it('renders a fallback summary when an entry has no summary text', async () => {
+    searchMock.mockResolvedValueOnce({ entries: [{ ...baseEntry, summaryText: '' }] });
+    render(<ProtectedMerckManuals />);
+
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+
+    expect(await screen.findByText('No summary available.')).toBeInTheDocument();
+  });
+
+  it('shows the em-dash placeholder when the query is cleared after a no-results search', async () => {
+    searchMock.mockResolvedValueOnce({ entries: [] });
+    render(<ProtectedMerckManuals />);
+
+    const input = screen.getByLabelText('Search manuals');
+    fireEvent.change(input, { target: { value: 'zzz' } });
+    fireEvent.click(screen.getByText('Search'));
+    expect(await screen.findByText('No results for “zzz”')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '' } });
+    expect(await screen.findByText('No results for “—”')).toBeInTheDocument();
+  });
+
+  it('serves cached entries when returning to a previously searched audience', async () => {
+    render(<ProtectedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    await waitFor(() => expect(searchMock).toHaveBeenCalledTimes(1));
+    await screen.findByText('Canine Fever');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pet parent version' }));
+    await waitFor(() => expect(searchMock).toHaveBeenCalledTimes(2));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Veterinary professional' }));
+    await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+    expect(searchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-runs a search from a frequent-search chip', async () => {
+    window.localStorage.clear();
+    render(<ProtectedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    await waitFor(() => expect(searchMock).toHaveBeenCalledTimes(1));
+    await screen.findByText('Canine Fever');
+
+    const chip = await screen.findByRole('button', { name: 'fever' });
+    fireEvent.click(chip);
+    await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+  });
+
+  it('ignores a stale search response when a newer request supersedes it', async () => {
+    let resolveStale: (value: unknown) => void = () => undefined;
+    const stalePromise = new Promise((resolve) => {
+      resolveStale = resolve;
+    });
+    searchMock.mockReturnValueOnce(stalePromise).mockResolvedValueOnce({
+      entries: [{ ...baseEntry, id: 'fresh', title: 'Fresh Result' }],
+    });
+
+    render(<ProtectedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pet parent version' }));
+    expect(await screen.findByText('Fresh Result')).toBeInTheDocument();
+
+    resolveStale({ entries: [{ ...baseEntry, id: 'stale', title: 'Stale Result' }] });
+    await waitFor(() => expect(screen.queryByText('Stale Result')).not.toBeInTheDocument());
+    expect(screen.getByText('Fresh Result')).toBeInTheDocument();
+  });
+
+  it('renders the embedded variant and runs a search', async () => {
+    render(<EmbeddedMerckManuals />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    expect(await screen.findByText('Canine Fever')).toBeInTheDocument();
+  });
+
+  it('hides the Manage Integrations action in the embedded disabled state', () => {
+    useResolvedMerckIntegrationForPrimaryOrgMock.mockReturnValue({
+      integration: { source: 'backend' },
+      isEnabled: false,
+    });
+    render(<EmbeddedMerckManuals />);
+
+    expect(
+      screen.getByText('MSD Veterinary Manual is disabled for this organization.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Manage Integrations')).not.toBeInTheDocument();
+  });
+
+  it('does not search when there is no primary org', async () => {
+    useOrgStoreMock.mockImplementation((selector: any) => selector({ primaryOrgId: null }));
+    render(<ProtectedMerckManuals />);
+
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByText('Search'));
+    await Promise.resolve();
+
+    expect(searchMock).not.toHaveBeenCalled();
+  });
+
+  it('switches language pills and closes the refine panel from its own close button', async () => {
+    render(<ProtectedMerckManuals />);
+    fireEvent.click(screen.getByLabelText('Show filters'));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'ES' }));
+    expect(screen.getByRole('button', { name: 'ES' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'EN' }));
+    expect(screen.getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByLabelText('Close refine results'));
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'EN' })).not.toBeInTheDocument()
+    );
   });
 });

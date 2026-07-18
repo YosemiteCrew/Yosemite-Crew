@@ -174,9 +174,16 @@ describe('ServicesTab', () => {
       expect(screen.getByText("You haven't added any services yet.")).toBeInTheDocument();
     });
 
-    it('renders "Click to add service" button', () => {
+    it('renders the add-service button', () => {
       render(<ServicesTab {...defaultProps} />);
-      expect(screen.getByRole('button', { name: /click to add service/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Add service' })).toBeInTheDocument();
+    });
+
+    it('names the speciality on the add-service button when specialityName is provided', () => {
+      render(<ServicesTab {...defaultProps} specialityName="Small animals" />);
+      expect(
+        screen.getByRole('button', { name: 'Add service to Small animals' })
+      ).toBeInTheDocument();
     });
   });
 
@@ -193,16 +200,25 @@ describe('ServicesTab', () => {
       expect(screen.getAllByText('CS-001').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('renders bookable badge when isBookable is true', () => {
+    it('renders the "In app" channel indicator when isBookable is true', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      expect(screen.getByTestId('badge')).toBeInTheDocument();
+      expect(screen.getAllByText('In app').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
     });
 
-    it('does not render bookable badge when isBookable is false', () => {
+    it('renders the "Desk only" channel indicator when isBookable is false', () => {
       setupStoreMock([{ ...mockService, isBookable: false }]);
       render(<ServicesTab {...defaultProps} />);
+      expect(screen.getAllByText('Desk only').length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
+    });
+
+    it('renders the in-patient badge when isInpatientPreferred is true', () => {
+      setupStoreMock([{ ...mockService, isInpatientPreferred: true }]);
+      render(<ServicesTab {...defaultProps} />);
+      expect(screen.getByTestId('badge')).toBeInTheDocument();
+      expect(screen.getAllByText('In-patient').length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders edit button for service', () => {
@@ -250,26 +266,24 @@ describe('ServicesTab', () => {
   });
 
   describe('add service flow', () => {
-    it('opens add service form when "Click to add service" is clicked', () => {
+    it('opens add service form when the add-service button is clicked', () => {
       render(<ServicesTab {...defaultProps} />);
-      fireEvent.click(screen.getByRole('button', { name: /click to add service/i }));
+      fireEvent.click(screen.getByRole('button', { name: /add service/i }));
       expect(screen.getByTestId('add-service-form')).toBeInTheDocument();
     });
 
-    it('hides "Click to add service" button when form is open', () => {
+    it('hides the add-service button when form is open', () => {
       render(<ServicesTab {...defaultProps} />);
-      fireEvent.click(screen.getByRole('button', { name: /click to add service/i }));
-      expect(
-        screen.queryByRole('button', { name: /click to add service/i })
-      ).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /add service/i }));
+      expect(screen.queryByRole('button', { name: /add service/i })).not.toBeInTheDocument();
     });
 
     it('closes add form when Close Form is clicked', () => {
       render(<ServicesTab {...defaultProps} />);
-      fireEvent.click(screen.getByRole('button', { name: /click to add service/i }));
+      fireEvent.click(screen.getByRole('button', { name: /add service/i }));
       fireEvent.click(screen.getByRole('button', { name: 'Close Form' }));
       expect(screen.queryByTestId('add-service-form')).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /click to add service/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add service/i })).toBeInTheDocument();
     });
   });
 

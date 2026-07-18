@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import AddCompanion from '@/app/features/companions/components/AddCompanion';
 
 const companionSectionSpy = jest.fn();
+let mockParentValidate: () => boolean | undefined = () => true;
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
@@ -33,16 +34,29 @@ jest.mock('@/app/ui/widgets/Labels/Labels', () => ({
   ),
 }));
 
-jest.mock('@/app/features/companions/components/AddCompanion/Sections/Parent', () => ({
-  __esModule: true,
-  default: () => <div>parent-section</div>,
-}));
+jest.mock('@/app/features/companions/components/AddCompanion/Sections/Parent', () => {
+  const ReactActual = jest.requireActual('react');
+  return {
+    __esModule: true,
+    default: ReactActual.forwardRef((_props: any, ref: any) => {
+      ReactActual.useImperativeHandle(ref, () => ({ validateStep: () => mockParentValidate() }));
+      return ReactActual.createElement('div', null, 'parent-section');
+    }),
+  };
+});
 
 jest.mock('@/app/features/companions/components/AddCompanion/Sections/Companion', () => ({
   __esModule: true,
   default: (props: any) => {
     companionSectionSpy(props);
-    return <div>companion-section</div>;
+    return (
+      <div>
+        companion-section
+        <button type="button" onClick={() => props.onCompanionCreated?.({ id: 'c1' })}>
+          emit-created
+        </button>
+      </div>
+    );
   },
 }));
 
@@ -53,6 +67,7 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
 describe('AddCompanion', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockParentValidate = () => true;
   });
 
   it('renders modal and switches sections', () => {
@@ -69,7 +84,7 @@ describe('AddCompanion', () => {
     const setShowModal = jest.fn();
     render(<AddCompanion showModal setShowModal={setShowModal} />);
 
-    fireEvent.click(screen.getAllByText('close')[1]);
+    fireEvent.click(screen.getByText('close'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
@@ -79,5 +94,28 @@ describe('AddCompanion', () => {
     expect(companionSectionSpy).toHaveBeenCalledWith(
       expect.objectContaining({ mode: 'fasttrack' })
     );
+  });
+
+  it('blocks the companion step while the parent step is invalid', () => {
+    mockParentValidate = () => false;
+    render(<AddCompanion showModal setShowModal={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Companion information' }));
+
+    // Navigation is blocked → still on the parent step, companion section not shown.
+    expect(screen.getByText('parent-section')).toBeInTheDocument();
+    expect(screen.queryByText('companion-section')).not.toBeInTheDocument();
+  });
+
+  it('forwards the created companion id from the companion step', () => {
+    const onCompanionCreated = jest.fn();
+    render(
+      <AddCompanion showModal setShowModal={jest.fn()} onCompanionCreated={onCompanionCreated} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Companion information' }));
+    fireEvent.click(screen.getByText('emit-created'));
+
+    expect(onCompanionCreated).toHaveBeenCalledWith('c1');
   });
 });

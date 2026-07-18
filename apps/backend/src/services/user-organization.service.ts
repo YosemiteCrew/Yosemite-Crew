@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import type { UserOrganizationMongo } from "../models/user-organization";
 import type { OrganizationMongo } from "../models/organization";
 import {
@@ -263,10 +262,7 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
     return undefined;
   }
 
-  if (
-    !Types.ObjectId.isValid(identifier) &&
-    !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
-  ) {
+  if (!/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
     throw new UserOrganizationServiceError("Invalid identifier format.", 400);
   }
 
@@ -603,17 +599,11 @@ const normalizeLookupIdentifier = (
   return identifier;
 };
 
-const resolveIdQuery = (
-  id: unknown,
-): { _id?: string; fhirId?: string } | null => {
+const resolveIdQuery = (id: unknown): string | null => {
   const identifier = normalizeLookupIdentifier(id, "Identifier");
 
-  if (Types.ObjectId.isValid(identifier)) {
-    return { _id: identifier };
-  }
-
   if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
-    return { fhirId: identifier };
+    return identifier;
   }
 
   return null;
@@ -821,10 +811,10 @@ export const UserOrganizationService = {
   ): Promise<
     UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null
   > {
-    const idQuery = resolveIdQuery(id);
-    if (idQuery) {
+    const identifier = resolveIdQuery(id);
+    if (identifier) {
       const mapping = await prisma.userOrganization.findFirst({
-        where: idQuery._id ? { id: idQuery._id } : { fhirId: idQuery.fhirId },
+        where: { OR: [{ id: identifier }, { fhirId: identifier }] },
       });
 
       if (mapping) {

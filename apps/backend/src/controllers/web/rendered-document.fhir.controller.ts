@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import UserModel from "src/models/user";
 import {
   getPersistedRenderedDocument,
   getPersistedRenderedDocumentPdf,
@@ -27,33 +25,11 @@ const handleError = createFhirErrorHandler({
 });
 
 const resolveSignerProfile = async (userId: string) => {
-  if (isReadFromPostgres()) {
-    const user = (await prisma.user.findUnique({
-      where: { userId },
-      select: { email: true, firstName: true, lastName: true },
-    })) as {
-      email: string;
-      firstName?: string | null;
-      lastName?: string | null;
-    } | null;
-
-    if (!user) {
-      return null;
-    }
-
-    return {
-      email: user.email,
-      name:
-        [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email,
-    };
-  }
-
-  const user = (await UserModel.findOne(
-    { userId },
-    { email: 1, firstName: 1, lastName: 1 },
-    { sanitizeFilter: true },
-  ).lean()) as {
-    email?: string;
+  const user = (await prisma.user.findUnique({
+    where: { userId },
+    select: { email: true, firstName: true, lastName: true },
+  })) as {
+    email: string | null;
     firstName?: string | null;
     lastName?: string | null;
   } | null;

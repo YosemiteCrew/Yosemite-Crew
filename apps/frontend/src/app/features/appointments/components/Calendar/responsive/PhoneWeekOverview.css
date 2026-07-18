@@ -1,0 +1,266 @@
+/* Phone week overview — the week as a load list, not a grid.
+   Every colour is a token, so light and dark both come for free. Metrics match
+   the "Phone week overview" frame of the PIMS responsive calendar design. */
+
+.yc-pwo {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 11px;
+  padding: 14px 18px;
+  background: var(--screen);
+}
+
+/* ------------------------------------------------------------------ header */
+
+.yc-pwo-weeknav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.yc-pwo-weeknav-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: var(--field-bg);
+}
+
+.yc-pwo-weeknav-btn {
+  display: flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.yc-pwo-weeknav-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.yc-pwo-weeknav-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.yc-pwo-weeknav-label {
+  padding: 0 3px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.yc-pwo-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.yc-pwo-head-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.yc-pwo-title {
+  margin: 0;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.yc-pwo-subtitle {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* ------------------------------------------------- Day | Week | Month */
+
+.yc-pwo-views {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: var(--band);
+}
+
+.yc-pwo-view {
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.yc-pwo-view[aria-checked='true'] {
+  background: var(--screen);
+  box-shadow: 0 1px 3px var(--sh08);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------------- day rows */
+
+.yc-pwo-days {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yc-pwo-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--screen);
+  text-align: left;
+}
+
+button.yc-pwo-row {
+  cursor: pointer;
+}
+
+/* A day already behind us recedes; a closed day recedes further. */
+.yc-pwo-row--done {
+  opacity: 0.75;
+}
+
+.yc-pwo-row--closed {
+  opacity: 0.5;
+}
+
+.yc-pwo-row--selected {
+  border: 1.5px solid var(--blue);
+  box-shadow: 0 0 0 3px var(--glow-b10);
+}
+
+.yc-pwo-date {
+  flex: none;
+  width: 44px;
+}
+
+.yc-pwo-weekday {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+.yc-pwo-row--selected .yc-pwo-weekday {
+  color: var(--nav-active);
+}
+
+.yc-pwo-dayofmonth {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.yc-pwo-row--done .yc-pwo-dayofmonth,
+.yc-pwo-row--closed .yc-pwo-dayofmonth {
+  color: var(--ink-muted);
+}
+
+.yc-pwo-load {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The track: everything unfilled reads as free time. */
+.yc-pwo-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--inset);
+  overflow: hidden;
+}
+
+.yc-pwo-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+.yc-pwo-row--done .yc-pwo-summary,
+.yc-pwo-row--closed .yc-pwo-summary {
+  color: var(--ink-faint);
+}
+
+.yc-pwo-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1.5px 7px;
+  border: 1px solid var(--danger-border, var(--danger-text));
+  border-radius: 9999px;
+  background: var(--danger-bg);
+  font-size: 8.5px;
+  font-weight: 700;
+  color: var(--danger-text);
+}
+
+.yc-pwo-chevron {
+  flex: none;
+  font-size: 14px;
+  color: var(--ink-faint);
+}
+
+.yc-pwo-closed-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+
+/* -------------------------------------------------------------- legend */
+
+.yc-pwo-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  padding-bottom: 2px;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+.yc-pwo-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.yc-pwo-legend-swatch {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+
+.yc-pwo-legend-swatch--free {
+  background: var(--inset);
+  border: 1px solid var(--hairline);
+}

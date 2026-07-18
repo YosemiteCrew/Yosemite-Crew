@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { IoArrowForward } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
@@ -66,123 +67,131 @@ const AddressStep = ({
   };
 
   return (
-    <div className="step-container">
-      <div className="step-title">Address</div>
+    <div className="onb-step">
+      <div className="onb-card">
+        <div className="onb-card-title">Address</div>
 
-      <div className="step-inputs">
-        <GoogleSearchDropDown
-          intype="text"
-          inname="addressLine"
-          value={formData.address?.addressLine || ''}
-          inlabel="Address line"
-          onChange={(e) => {
-            setFormData({
-              ...formData,
-              address: { ...formData.address, addressLine: e.target.value },
-            });
-            setFormDataErrors((prev) => ({ ...prev, address: undefined }));
-          }}
-          error={formDataErrors.address}
-          onlyAddress={true}
-          onAddressSelect={(address) =>
-            setFormData((prev) => ({
-              ...prev,
-              address: {
-                ...prev.address,
-                addressLine: address.addressLine,
-                city: address.city,
-                state: address.state,
-                postalCode: address.postalCode,
-                ...(address.country ? { country: address.country } : {}),
-              },
-            }))
-          }
-        />
-        <div className="step-two-input">
+        <div className="step-inputs">
+          <GoogleSearchDropDown
+            intype="text"
+            inname="addressLine"
+            value={formData.address?.addressLine || ''}
+            inlabel="Address line"
+            onChange={(e) => {
+              setFormData({
+                ...formData,
+                address: { ...formData.address, addressLine: e.target.value },
+              });
+              setFormDataErrors((prev) => ({ ...prev, address: undefined }));
+            }}
+            error={formDataErrors.address}
+            onlyAddress={true}
+            onAddressSelect={(address) =>
+              setFormData((prev) => ({
+                ...prev,
+                address: {
+                  ...prev.address,
+                  addressLine: address.addressLine,
+                  city: address.city,
+                  state: address.state,
+                  postalCode: address.postalCode,
+                  ...(address.country ? { country: address.country } : {}),
+                },
+              }))
+            }
+          />
+          <div className="step-two-input">
+            <FormInput
+              intype="text"
+              inname="city"
+              value={formData.address?.city || ''}
+              inlabel="City"
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  address: { ...formData.address, city: e.target.value },
+                });
+                setFormDataErrors((prev) => ({ ...prev, city: undefined }));
+              }}
+              error={formDataErrors.city}
+            />
+            <FormInput
+              intype="text"
+              inname="state"
+              value={formData.address?.state || ''}
+              inlabel="State/Province"
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  address: { ...formData.address, state: e.target.value },
+                });
+                setFormDataErrors((prev) => ({ ...prev, state: undefined }));
+              }}
+              error={formDataErrors.state}
+            />
+          </div>
           <FormInput
             intype="text"
-            inname="city"
-            value={formData.address?.city || ''}
-            inlabel="City"
+            inname="postal code"
+            value={formData.address?.postalCode || ''}
+            inlabel="Postal code"
             onChange={(e) => {
               setFormData({
                 ...formData,
-                address: { ...formData.address, city: e.target.value },
+                address: { ...formData.address, postalCode: e.target.value },
               });
-              setFormDataErrors((prev) => ({ ...prev, city: undefined }));
+              setFormDataErrors((prev) => ({ ...prev, postalCode: undefined }));
             }}
-            error={formDataErrors.city}
+            error={formDataErrors.postalCode}
           />
-          <FormInput
-            intype="text"
-            inname="state"
-            value={formData.address?.state || ''}
-            inlabel="State/Province"
-            onChange={(e) => {
-              setFormData({
-                ...formData,
-                address: { ...formData.address, state: e.target.value },
-              });
-              setFormDataErrors((prev) => ({ ...prev, state: undefined }));
-            }}
-            error={formDataErrors.state}
-          />
+          <div className="step-two-input">
+            <FormInput
+              intype="number"
+              inname="appointment-checkin-buffer-minutes"
+              value={String(formData.appointmentCheckInBufferMinutes ?? 5)}
+              inlabel="Check-in opens (minutes before appointment)"
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  appointmentCheckInBufferMinutes: Number(e.target.value || 0),
+                });
+                setFormDataErrors((prev) => ({
+                  ...prev,
+                  appointmentCheckInBufferMinutes: undefined,
+                }));
+              }}
+              error={formDataErrors.appointmentCheckInBufferMinutes}
+            />
+            <FormInput
+              intype="number"
+              inname="appointment-checkin-radius-meters"
+              value={String(formData.appointmentCheckInRadiusMeters ?? 200)}
+              inlabel="Check-in radius (meters)"
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  appointmentCheckInRadiusMeters: Number(e.target.value || 0),
+                });
+                setFormDataErrors((prev) => ({
+                  ...prev,
+                  appointmentCheckInRadiusMeters: undefined,
+                }));
+              }}
+              error={formDataErrors.appointmentCheckInRadiusMeters}
+            />
+          </div>
         </div>
-        <FormInput
-          intype="text"
-          inname="postal code"
-          value={formData.address?.postalCode || ''}
-          inlabel="Postal code"
-          onChange={(e) => {
-            setFormData({
-              ...formData,
-              address: { ...formData.address, postalCode: e.target.value },
-            });
-            setFormDataErrors((prev) => ({ ...prev, postalCode: undefined }));
-          }}
-          error={formDataErrors.postalCode}
-        />
-        <div className="step-two-input">
-          <FormInput
-            intype="number"
-            inname="appointment-checkin-buffer-minutes"
-            value={String(formData.appointmentCheckInBufferMinutes ?? 5)}
-            inlabel="Check-in opens (minutes before appointment)"
-            onChange={(e) => {
-              setFormData({
-                ...formData,
-                appointmentCheckInBufferMinutes: Number(e.target.value || 0),
-              });
-              setFormDataErrors((prev) => ({
-                ...prev,
-                appointmentCheckInBufferMinutes: undefined,
-              }));
-            }}
-            error={formDataErrors.appointmentCheckInBufferMinutes}
-          />
-          <FormInput
-            intype="number"
-            inname="appointment-checkin-radius-meters"
-            value={String(formData.appointmentCheckInRadiusMeters ?? 200)}
-            inlabel="Check-in radius (meters)"
-            onChange={(e) => {
-              setFormData({
-                ...formData,
-                appointmentCheckInRadiusMeters: Number(e.target.value || 0),
-              });
-              setFormDataErrors((prev) => ({
-                ...prev,
-                appointmentCheckInRadiusMeters: undefined,
-              }));
-            }}
-            error={formDataErrors.appointmentCheckInRadiusMeters}
-          />
-        </div>
-      </div>
 
-      <div className="step-buttons">
-        <Secondary href="#" text="Back" style={{ width: '160px' }} onClick={prevStep} />
-        <Primary href="#" text={submitText} style={{ width: '160px' }} onClick={handleNext} />
+        <div className="onb-footer">
+          <Secondary href="#" text="Back" onClick={prevStep} />
+          <Primary
+            href="#"
+            text={submitText}
+            icon={<IoArrowForward aria-hidden="true" />}
+            iconPosition="right"
+            onClick={handleNext}
+          />
+        </div>
       </div>
     </div>
   );

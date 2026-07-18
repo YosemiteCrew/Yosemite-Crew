@@ -32,23 +32,6 @@ jest.mock("../../src/utils/logger", () => ({
   },
 }));
 
-jest.mock("src/utils/dual-write", () => ({
-  shouldDualWrite: false,
-  isDualWriteStrict: false,
-  handleDualWriteError: jest.fn(),
-}));
-
-// Default Exports
-jest.mock("../../src/models/invoice", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-    findOne: jest.fn(),
-    updateOne: jest.fn(),
-    create: jest.fn(),
-  },
-}));
-
 jest.mock("../../src/services/invoice.service", () => ({
   InvoiceService: { attachStripeDetails: jest.fn(), markRefunded: jest.fn() },
 }));

@@ -82,6 +82,20 @@ jest.mock('@/app/features/organization/services/orgService', () => ({
   updateOrg: (...args: unknown[]) => mockUpdateOrg(...args),
 }));
 
+// Validation is exercised in dedicated unit tests; here it is mocked so each
+// branch of CreateOrg's step/validation flow can be driven deterministically.
+const mockValidateOrgBasics = jest.fn();
+const mockValidateOrgAddress = jest.fn();
+jest.mock('@/app/lib/organizationOnboardingValidation', () => ({
+  validateOrgBasics: (...args: unknown[]) => mockValidateOrgBasics(...args),
+  validateOrgAddress: (...args: unknown[]) => mockValidateOrgAddress(...args),
+}));
+
+const mockFindPhoneData = jest.fn();
+jest.mock('@/app/features/companions/components/AddCompanion/type', () => ({
+  findPhoneData: (...args: unknown[]) => mockFindPhoneData(...args),
+}));
+
 const mockUseOrgOnboardingResult = {
   org: null,
   step: 0,
@@ -95,13 +109,29 @@ jest.mock('@/app/hooks/useOrgOnboarding', () => ({
 
 const mockRouter = { replace: jest.fn() };
 const mockSearchParams = { get: () => null };
+const mockRedirect = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
   useSearchParams: () => mockSearchParams,
+  redirect: (...args: unknown[]) => mockRedirect(...args),
 }));
 
 import ProtectedCreateOrg from '@/app/features/onboarding/pages/CreateOrg/CreateOrg';
+
+const VALID_ORG = {
+  _id: '',
+  name: 'Valley Vet',
+  taxId: 'TAX-99',
+  phoneNo: '+15551234567',
+  address: {
+    addressLine: '1 Main St',
+    city: 'Yosemite Valley',
+    state: 'CA',
+    postalCode: '95389',
+    country: 'United States',
+  },
+};
 
 describe('CreateOrg page', () => {
   beforeEach(() => {
@@ -114,6 +144,19 @@ describe('CreateOrg page', () => {
     latestAddressStepProps = undefined;
     mockCreateOrg.mockReset();
     mockUpdateOrg.mockReset();
+    mockRouter.replace.mockReset();
+    mockRedirect.mockReset();
+    mockFindPhoneData.mockReset().mockReturnValue({
+      localNumber: '5551234567',
+      selectedCode: { dialCode: '+1', countryName: 'United States' },
+    });
+    // Default: every validation passes and echoes normalized data back.
+    mockValidateOrgBasics
+      .mockReset()
+      .mockReturnValue({ errors: {}, normalizedData: { ...VALID_ORG } });
+    mockValidateOrgAddress
+      .mockReset()
+      .mockReturnValue({ errors: {}, normalizedData: { ...VALID_ORG } });
   });
 
   test('renders initial step with progress component', () => {
@@ -129,6 +172,22 @@ describe('CreateOrg page', () => {
     expect(latestProgressProps?.canSelectStep(0)).toBe(true);
     expect(latestProgressProps?.canSelectStep(1)).toBe(false);
     expect(screen.getByTestId('org-step')).toBeInTheDocument();
+  });
+
+  test('renders nothing and skips form setup while onboarding data is not ready', () => {
+    mockUseOrgOnboardingResult.isReady = false;
+    const { container } = render(<ProtectedCreateOrg />);
+
+    expect(container.querySelector('.create-org-wrapper')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Create organization' })).not.toBeInTheDocument();
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  test('redirects to the dashboard when onboarding is already complete', () => {
+    mockUseOrgOnboardingResult.step = 2;
+    render(<ProtectedCreateOrg />);
+
+    expect(mockRedirect).toHaveBeenCalledWith('/dashboard');
   });
 
   test('advances through steps when nextStep is invoked', async () => {
@@ -168,7 +227,22 @@ describe('CreateOrg page', () => {
     });
   });
 
-  test('clicking a future progress step validates and keeps the user on the failing step', async () => {
+  test('is a no-op when selecting the already-active step', () => {
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestProgressProps.onStepSelect(0);
+    });
+
+    expect(screen.getByTestId('org-step')).toBeInTheDocument();
+    expect(mockValidateOrgBasics).not.toHaveBeenCalled();
+  });
+
+  test('clicking a future progress step keeps the user on the failing org step', async () => {
+    mockValidateOrgBasics.mockReturnValue({
+      errors: { name: 'Organisation name is required' },
+      normalizedData: { ...VALID_ORG },
+    });
     render(<ProtectedCreateOrg />);
 
     act(() => {
@@ -178,6 +252,53 @@ describe('CreateOrg page', () => {
     await waitFor(() => {
       expect(screen.getByTestId('org-step')).toBeInTheDocument();
     });
+    expect(latestOrgStepProps.errors).toEqual({ name: 'Organisation name is required' });
+  });
+
+  test('clicking a future progress step advances when the org step is valid', async () => {
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestProgressProps.onStepSelect(1);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('address-step')).toBeInTheDocument();
+    });
+    expect(mockValidateOrgBasics).toHaveBeenCalled();
+  });
+
+  test('selecting the address-complete step keeps the user on address when validation fails', async () => {
+    mockValidateOrgAddress.mockReturnValue({
+      errors: { postalCode: 'Postal code is required' },
+      normalizedData: { ...VALID_ORG },
+    });
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestProgressProps.onStepSelect(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('address-step')).toBeInTheDocument();
+    });
+    expect(mockValidateOrgAddress).toHaveBeenCalled();
+    expect(latestAddressStepProps.errors).toEqual({ postalCode: 'Postal code is required' });
+  });
+
+  test('selecting the address-complete step advances past both steps when valid', async () => {
+    render(<ProtectedCreateOrg />);
+
+    act(() => {
+      latestProgressProps.onStepSelect(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('org-step')).not.toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('address-step')).not.toBeInTheDocument();
+    expect(screen.getByTestId('create-org-progress')).toBeInTheDocument();
+    expect(mockValidateOrgAddress).toHaveBeenCalled();
   });
 
   test('clicking a completed progress step navigates back to it', async () => {
@@ -219,22 +340,8 @@ describe('CreateOrg page', () => {
       expect(latestAddressStepProps.submitText).toBe('Create');
     });
 
-    act(() => {
-      latestAddressStepProps.setFormData({
-        ...latestAddressStepProps.formData,
-        address: {
-          ...latestAddressStepProps.formData.address,
-          addressLine: '1 Main St',
-          city: 'Yosemite Valley',
-          state: 'CA',
-          postalCode: '95389',
-          country: 'United States',
-        },
-      });
-    });
-
-    act(() => {
-      latestAddressStepProps.onSubmit();
+    await act(async () => {
+      await latestAddressStepProps.onSubmit();
     });
 
     await waitFor(() => {
@@ -244,20 +351,8 @@ describe('CreateOrg page', () => {
     });
   });
 
-  test('updates an existing organization with create button and redirects to dashboard', async () => {
-    mockUseOrgOnboardingResult.org = {
-      _id: 'org-1',
-      name: 'Existing Org',
-      taxId: 'TAX-1',
-      phoneNo: '1234567890',
-      address: {
-        addressLine: '123 Old Rd',
-        city: 'Old City',
-        state: 'CA',
-        postalCode: '90210',
-        country: 'United States',
-      },
-    } as any;
+  test('updates an existing organization with save button and redirects to dashboard', async () => {
+    mockUseOrgOnboardingResult.org = { ...VALID_ORG, _id: 'org-1', name: 'Existing Org' } as any;
     mockUseOrgOnboardingResult.step = 1;
     mockUpdateOrg.mockResolvedValue(undefined);
     render(<ProtectedCreateOrg />);
@@ -267,8 +362,8 @@ describe('CreateOrg page', () => {
       expect(latestAddressStepProps.submitText).toBe('Save');
     });
 
-    act(() => {
-      latestAddressStepProps.onSubmit();
+    await act(async () => {
+      await latestAddressStepProps.onSubmit();
     });
 
     await waitFor(() => {
@@ -276,5 +371,46 @@ describe('CreateOrg page', () => {
       expect(mockCreateOrg).not.toHaveBeenCalled();
       expect(mockRouter.replace).toHaveBeenCalledWith('/dashboard');
     });
+  });
+
+  test('does not submit when the address step is invalid', async () => {
+    mockUseOrgOnboardingResult.step = 1;
+    mockValidateOrgAddress.mockReturnValue({
+      errors: { city: 'City is required' },
+      normalizedData: { ...VALID_ORG },
+    });
+    render(<ProtectedCreateOrg />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('address-step')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      await latestAddressStepProps.onSubmit();
+    });
+
+    expect(mockCreateOrg).not.toHaveBeenCalled();
+    expect(mockUpdateOrg).not.toHaveBeenCalled();
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  test('re-enables the form when the create request rejects', async () => {
+    mockUseOrgOnboardingResult.step = 1;
+    mockCreateOrg.mockRejectedValue(new Error('network error'));
+    const { container } = render(<ProtectedCreateOrg />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('address-step')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      await latestAddressStepProps.onSubmit();
+    });
+
+    await waitFor(() => {
+      expect(mockCreateOrg).toHaveBeenCalledTimes(1);
+    });
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+    expect(container.querySelector('.create-org-wrapper')).not.toHaveClass('invisible');
   });
 });

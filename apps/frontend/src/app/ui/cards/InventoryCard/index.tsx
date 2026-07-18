@@ -20,14 +20,16 @@ const formatCurrency = (value: string | number | undefined) => {
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
   const totalValue = () => {
-    const price = Number(item.pricing?.selling ?? 0);
-    const onHand = Number(item.stock?.current ?? 0);
+    // `item.pricing` / `item.stock` are dereferenced unguarded further up this same
+    // render (unit cost, stock), so they are always present by the time this runs.
+    const price = Number(item.pricing.selling ?? 0);
+    const onHand = Number(item.stock.current ?? 0);
     if (!Number.isFinite(price) || !Number.isFinite(onHand)) return '—';
     return `$ ${Math.round(price * onHand)}`;
   };
 
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-body-3-emphasis text-text-primary">{item.basicInfo.name}</div>
       </div>

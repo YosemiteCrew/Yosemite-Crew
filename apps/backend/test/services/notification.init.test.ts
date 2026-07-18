@@ -11,13 +11,7 @@ jest.mock("src/utils/notificationTemplates", () => ({}));
 jest.mock("../../src/services/deviceToken.service", () => ({
   DeviceTokenService: {},
 }));
-jest.mock("src/models/notification", () => ({ NotificationModel: {} }));
 jest.mock("src/config/prisma", () => ({ prisma: {} }));
-jest.mock("src/utils/dual-write", () => ({
-  handleDualWriteError: jest.fn(),
-  shouldDualWrite: jest.fn(),
-}));
-jest.mock("src/config/read-switch", () => ({ isReadFromPostgres: jest.fn() }));
 
 const importFreshWithAdmin = (
   apps: unknown[],

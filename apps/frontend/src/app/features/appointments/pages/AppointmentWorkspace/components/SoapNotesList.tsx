@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
-import { LuClipboardList } from 'react-icons/lu';
+import { IoClipboardOutline, IoEyeOffOutline, IoEyeOutline } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { sanitizeRichText } from '@/app/lib/richText';
@@ -50,7 +49,7 @@ const SoapNoteRow = ({ item }: { item: SoapNoteListItem }) => {
     <li className="border-b border-card-border last:border-0">
       <div className="flex items-center gap-4 py-3">
         <span className="flex size-9 shrink-0 items-center justify-center text-text-brand">
-          <LuClipboardList size={20} aria-hidden="true" />
+          <IoClipboardOutline size={20} aria-hidden="true" />
         </span>
         <span className="w-28 shrink-0 text-body-4 font-medium text-text-primary">SOAP Note</span>
         <span className="hidden flex-1 text-body-4 text-text-secondary sm:block">

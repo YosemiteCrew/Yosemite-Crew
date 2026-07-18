@@ -1,11 +1,9 @@
 import { Documenso } from "@documenso/sdk-typescript";
 import * as errors from "@documenso/sdk-typescript/models/errors/index.js";
+import type { DocumentGetStatus } from "@documenso/sdk-typescript/models/operations/index.js";
 import axios from "axios";
 import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
-import { Types } from "mongoose";
-import OrganizationModel from "src/models/organization";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import logger from "src/utils/logger";
 
 // Replace with your self-hosted instance's URL, e.g., https://your-documenso-domain.com
@@ -84,24 +82,6 @@ const getDocumensoClient = (apiKeyOverride?: string) => {
   documensoClients.set(apiKey, client);
 
   return client;
-};
-
-const buildOrganizationLookupQuery = (reference: string) => {
-  const queries: Array<Record<string, string>> = [];
-
-  if (Types.ObjectId.isValid(reference)) {
-    queries.push({ _id: reference });
-  }
-
-  if (/^[A-Za-z0-9\-.]{1,64}$/.test(reference)) {
-    queries.push({ fhirId: reference });
-  }
-
-  if (!queries.length) {
-    return null;
-  }
-
-  return queries.length === 1 ? queries[0] : { $or: queries };
 };
 
 async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
@@ -211,6 +191,38 @@ export class DocumensoService {
     }
   }
 
+  /**
+   * Read a document's authoritative signing state from Documenso.
+   *
+   * Unlike the other read paths in this service, a failure here is rethrown
+   * rather than swallowed: the returned status gates whether a packet may be
+   * recorded as legally signed, so "Documenso could not be asked" must never be
+   * collapsible into an answer. Callers decide what a non-COMPLETED status
+   * means; they may not mistake an outage for one.
+   */
+  static async getDocumentStatus({
+    documentId,
+    apiKey,
+  }: {
+    documentId: number;
+    apiKey?: string;
+  }): Promise<DocumentGetStatus> {
+    try {
+      const documenso = getDocumensoClient(apiKey);
+      const document = await documenso.documents.get({ documentId });
+      return document.status;
+    } catch (error) {
+      if (error instanceof errors.DocumensoError) {
+        logger.error("API error:", error.message);
+        logger.error("Status code:", error.statusCode);
+        logger.error("Body:", error.body);
+      } else {
+        logger.error("An unexpected error occurred:", error);
+      }
+      throw error;
+    }
+  }
+
   static async downloadSignedDocument({
     documentId,
     apiKey,
@@ -246,26 +258,12 @@ export class DocumensoService {
   }
 
   static async resolveOrganisationApiKey(organisationId: string) {
-    if (isReadFromPostgres()) {
-      const organisation = await prisma.organization.findFirst({
-        where: {
-          OR: [{ id: organisationId }, { fhirId: organisationId }],
-        },
-        select: { documensoApiKey: true },
-      });
-
-      return organisation?.documensoApiKey ?? null;
-    }
-
-    const query = buildOrganizationLookupQuery(organisationId);
-
-    if (!query) {
-      throw new Error("Invalid organisation id");
-    }
-
-    const organisation = await OrganizationModel.findOne(query, {
-      documensoApiKey: 1,
-    }).lean();
+    const organisation = await prisma.organization.findFirst({
+      where: {
+        OR: [{ id: organisationId }, { fhirId: organisationId }],
+      },
+      select: { documensoApiKey: true },
+    });
 
     return organisation?.documensoApiKey ?? null;
   }

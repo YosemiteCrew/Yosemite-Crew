@@ -46,12 +46,6 @@ jest.mock("src/utils/logger", () => ({
   error: jest.fn(),
 }));
 
-jest.mock("src/utils/dual-write", () => ({
-  shouldDualWrite: false,
-  isDualWriteStrict: false,
-  handleDualWriteError: jest.fn(),
-}));
-
 jest.mock("src/config/prisma", () => ({
   prisma: {
     organization: {

@@ -4,12 +4,60 @@ import '@testing-library/jest-dom';
 import PackageBreakdownTable from '@/app/features/organization/pages/Specialities/PackageBreakdownTable';
 import { PackageBreakdownItem } from '@/app/features/organization/types/revamp';
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: () => <span data-testid="icon-delete" />,
-}));
-jest.mock('react-icons/ai', () => ({
-  AiOutlineInfoCircle: () => <span data-testid="icon-info" />,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+jest.mock(
+  'react-icons/ai',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
   __esModule: true,
   default: ({ children, content }: { children: React.ReactNode; content: React.ReactNode }) => (
@@ -267,7 +315,7 @@ describe('PackageBreakdownTable', () => {
         ],
       };
       render(<PackageBreakdownTable items={[packageItem]} additionalDiscount={0} />);
-      expect(screen.getByTestId('icon-info')).toBeInTheDocument();
+      expect(screen.getByTestId('IoInformationCircleOutline')).toBeInTheDocument();
     });
 
     it('does not show tooltip for PACKAGE type with empty nested breakdown', () => {
@@ -281,7 +329,7 @@ describe('PackageBreakdownTable', () => {
         nestedBreakdown: [],
       };
       render(<PackageBreakdownTable items={[packageItem]} additionalDiscount={0} />);
-      expect(screen.queryByTestId('icon-info')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('IoInformationCircleOutline')).not.toBeInTheDocument();
     });
 
     it('renders Package type label for PACKAGE items', () => {

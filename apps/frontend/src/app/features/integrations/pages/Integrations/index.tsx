@@ -34,7 +34,13 @@ import { IvlsDevice } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { IoInformationCircleOutline, IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
+import {
+  IoExtensionPuzzleOutline,
+  IoInformationCircleOutline,
+  IoRefreshOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
+import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type StatusTokens = { bg: string; text: string; border: string };
@@ -83,27 +89,9 @@ const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const integrationFilters = [
-  {
-    key: 'all',
-    label: 'All',
-    bg: 'var(--color-badge-blue-bg)',
-    text: 'var(--color-badge-blue-text)',
-    border: 'var(--color-primary-500)',
-  },
-  {
-    key: 'connected',
-    label: 'Connected',
-    bg: 'var(--color-pill-success-bg)',
-    text: 'var(--color-pill-success-text)',
-    border: 'var(--color-pill-success-border)',
-  },
-  {
-    key: 'available',
-    label: 'Available',
-    bg: 'var(--color-pill-info-bg)',
-    text: 'var(--color-pill-info-text)',
-    border: 'var(--color-pill-info-border)',
-  },
+  { key: 'all', label: 'All' },
+  { key: 'connected', label: 'Connected' },
+  { key: 'available', label: 'Available' },
 ] as const;
 
 type ValidateState = 'idle' | 'valid' | 'invalid';
@@ -218,13 +206,14 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   );
 };
 
-const StatusPill = ({ status }: { status?: string }) => {
+const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
   const key = (status ?? 'disabled').toLowerCase();
-  const normalizedLabel = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  const normalizedLabel = label ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
   const tokens = statusTokens[key];
+  const isLive = key === 'enabled';
   return (
     <span
-      className="shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!"
+      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-label-xsmall px-2.5 py-1 rounded-full! border!"
       style={
         tokens
           ? {
@@ -241,6 +230,13 @@ const StatusPill = ({ status }: { status?: string }) => {
             }
       }
     >
+      {isLive ? (
+        <span
+          aria-hidden="true"
+          className="size-1.5 rounded-full"
+          style={{ backgroundColor: 'var(--success)' }}
+        />
+      ) : null}
       {normalizedLabel}
     </span>
   );
@@ -796,18 +792,12 @@ const IntegrationFilterTabs = ({
           type="button"
           onClick={() => setActiveFilter(tab.key)}
           aria-pressed={isActive}
-          className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
-          style={
+          className={clsx(
+            'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
             isActive
-              ? {
-                  backgroundColor: tab.bg,
-                  color: tab.text,
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: tab.border,
-                }
-              : undefined
-          }
+              ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
+              : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
+          )}
         >
           {tab.label}
         </button>
@@ -817,7 +807,7 @@ const IntegrationFilterTabs = ({
 );
 
 const INTEGRATION_CARD_CLASS =
-  'rounded-2xl border border-card-border p-4 w-full flex items-stretch gap-4 min-h-[245px]';
+  'rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-5 w-full flex items-stretch gap-4 min-h-[245px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
 const INTEGRATION_CARD_HEADER_CLASS = 'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2';
 const INTEGRATION_CARD_TITLE_CLASS = 'min-w-0 truncate text-heading-3 text-text-primary pt-1';
 const COMING_SOON_PILL_CLASS =
@@ -835,7 +825,7 @@ const IdexxIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center">
           <Image
             src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
             alt="IDEXX"
@@ -861,30 +851,37 @@ const IdexxIntegrationCard = ({
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX</div>
-            <StatusPill status={s.idexxIntegration?.status} />
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX VetConnect PLUS</div>
+            <StatusPill
+              status={s.idexxIntegration?.status}
+              label={s.idexxEnabled ? 'Connected' : undefined}
+            />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
-            Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care
-            diagnostics for a seamless workflow.
+            Order in-house and reference lab work from the appointment workspace; results file to
+            the patient automatically.
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 w-full items-center">
+        <div className="flex flex-wrap items-center gap-2">
           <Secondary
             href="#"
-            text="Settings"
+            text="Manage credentials"
             onClick={() => s.setShowSettings(true)}
-            className="w-full px-4"
+            className="px-4 whitespace-nowrap"
           />
           {s.idexxEnabled ? (
-            <Primary href="/appointments/idexx-workspace" text="View" className="w-full px-4" />
+            <Secondary
+              href="/appointments/idexx-workspace"
+              text="Open workspace"
+              className="px-4 whitespace-nowrap"
+            />
           ) : (
             <Primary
               href="#"
               text={buttonLabel}
               onClick={s.handleEnableDisable}
               isDisabled={s.saving}
-              className="w-full px-4"
+              className="px-4 whitespace-nowrap"
             />
           )}
         </div>
@@ -905,7 +902,7 @@ const MerckIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center">
           <Image
             src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
             alt="MSD Veterinary Manual"
@@ -935,8 +932,8 @@ const MerckIntegrationCard = ({
             <StatusPill status={s.merckIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
-            Veterinary manuals search and reader experience with professional and consumer content
-            modes.
+            Search the veterinary manual from the workspace side rail without leaving the visit.
+            Free for every clinic.
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -944,7 +941,7 @@ const MerckIntegrationCard = ({
             {s.merckEnabled ? (
               <Primary
                 href="/integrations/merck-manuals"
-                text="View"
+                text="Open manuals"
                 className="w-full max-w-[160px] px-4"
               />
             ) : (
@@ -973,7 +970,7 @@ const RadIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
           <Image
             src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
             alt="RadAnalyzer"
@@ -1024,7 +1021,7 @@ const VetnioIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
           <Image
             src={MEDIA_SOURCES.futureAssets.vetnioLogoUrl}
             alt="Vetnio"
@@ -1076,7 +1073,7 @@ const QuickBooksIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-1 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-1 flex items-center justify-center overflow-hidden">
           <span className="font-satoshi text-[28px] font-bold leading-none tracking-[-0.56px] text-[#2ca01c]">
             qb
           </span>
@@ -1124,7 +1121,7 @@ const LaikaIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
           <Image
             src={MEDIA_SOURCES.futureAssets.laikaLogoUrl}
             alt="Laika"
@@ -1203,10 +1200,10 @@ const IntegrationsPage = () => {
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
 
   return (
-    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="yc-page-content">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-text-primary text-page-title flex items-center gap-2">
             <span>Integrations</span>
             <GlassTooltip
               content={`Connect and manage external tools for ${
@@ -1223,9 +1220,12 @@ const IntegrationsPage = () => {
               </button>
             </GlassTooltip>
           </h1>
+          <p className="text-body-4 text-text-secondary">
+            Connect labs, references and devices to the workspace
+          </p>
         </div>
         <div className="ml-auto flex items-start justify-end gap-3 flex-wrap">
-          <div className="text-body-4 text-text-secondary rounded-2xl border border-card-border px-4 py-2">
+          <div className="text-body-4 text-text-secondary rounded-full border border-[var(--hairline)] px-4 py-2">
             Active integrations: <span className="text-text-primary">{s.linkedCount}</span>
           </div>
           <IntegrationFilterTabs
@@ -1241,21 +1241,34 @@ const IntegrationsPage = () => {
         </div>
       ) : null}
 
-      <IntegrationCards
-        s={s}
-        idexxCardButtonLabel={idexxCardButtonLabel}
-        merckCardButtonLabel={merckCardButtonLabel}
-      />
+      <div className="flex flex-col gap-4">
+        <IntegrationCards
+          s={s}
+          idexxCardButtonLabel={idexxCardButtonLabel}
+          merckCardButtonLabel={merckCardButtonLabel}
+        />
 
-      {showNoConnected ? (
-        <output className="text-body-4 text-text-secondary">No connected integrations yet.</output>
-      ) : null}
+        <div className="flex items-center gap-2.5 rounded-[14px] bg-[var(--inset)] px-4 py-3 text-[12.5px] text-[var(--ink-muted)]">
+          <IoExtensionPuzzleOutline
+            size={15}
+            aria-hidden="true"
+            className="shrink-0 text-[var(--blue-text)]"
+          />
+          More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
+        </div>
 
-      {showNoAvailable ? (
-        <output className="text-body-4 text-text-secondary">
-          No available integrations right now.
-        </output>
-      ) : null}
+        {showNoConnected ? (
+          <output className="text-body-4 text-text-secondary">
+            No connected integrations yet.
+          </output>
+        ) : null}
+
+        {showNoAvailable ? (
+          <output className="text-body-4 text-text-secondary">
+            No available integrations right now.
+          </output>
+        ) : null}
+      </div>
 
       <IdexxSettingsModal
         showSettings={s.showSettings}

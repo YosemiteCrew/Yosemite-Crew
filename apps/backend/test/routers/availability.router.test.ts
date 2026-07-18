@@ -81,8 +81,7 @@ describe("availability.router", () => {
     expect(route?.stack[2]?.handle).toEqual(expect.any(Function));
 
     const handler = route?.stack[2]?.handle as
-      | ((req: unknown, res: unknown) => unknown)
-      | undefined;
+      ((req: unknown, res: unknown) => unknown) | undefined;
     handler?.({} as any, {} as any);
     expect(
       AvailabilityController.getOrganisationBaseAvailability,

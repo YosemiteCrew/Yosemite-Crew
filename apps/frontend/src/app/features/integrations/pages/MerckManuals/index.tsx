@@ -2,7 +2,6 @@
 
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -16,7 +15,6 @@ import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import {
   getMerckGateway,
@@ -35,11 +33,14 @@ import {
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { getJsonStorageItem, setJsonStorageItem } from '@/app/lib/browserStorage';
 import {
+  IoBookOutline,
   IoCloseOutline,
   IoCopyOutline,
   IoInformationCircleOutline,
+  IoLinkOutline,
   IoOpenOutline,
   IoOptionsOutline,
+  IoSearchOutline,
 } from 'react-icons/io5';
 
 type MerckManualsPageProps = {
@@ -58,6 +59,7 @@ const getRecentSearches = (orgId: string, audience: MerckAudience): string[] => 
 
 const saveRecentSearch = (orgId: string, audience: MerckAudience, value: string) => {
   const query = value.trim();
+  /* v8 ignore next -- unreachable: saveRecentSearch only runs with the already-trimmed, non-empty resolvedQuery */
   if (!query) return;
   const prev = getRecentSearches(orgId, audience).filter(
     (item) => item.toLowerCase() !== query.toLowerCase()
@@ -70,10 +72,23 @@ const safeDate = (value?: string | null) => {
   return formatDateTimeLocal(value, 'N/A');
 };
 
+const MerckNoResultsState = ({ query }: { query: string }) => (
+  <div className="flex flex-col items-center gap-3 px-8 py-10 text-center">
+    <span className="flex size-14 items-center justify-center rounded-full bg-[var(--inset)] text-[var(--ink-faint)]">
+      <IoSearchOutline size={24} aria-hidden="true" />
+    </span>
+    <span className="text-[15px] font-bold text-[var(--ink)]">No results for “{query}”</span>
+    <span className="max-w-[380px] text-[12.5px] leading-relaxed text-[var(--ink-muted)]">
+      Check the spelling or try a broader term. The manual searches titles and full text.
+    </span>
+  </div>
+);
+
 const getResultsContent = (
   entries: MerckEntry[],
   loading: boolean,
   hasSearched: boolean,
+  query: string,
   onOpenInFrame: (entry: MerckEntry, url: string) => void,
   onCopyUrl: (url: string) => void
 ) => {
@@ -82,14 +97,7 @@ const getResultsContent = (
       return <div className="text-body-4 text-text-secondary">Searching manuals…</div>;
     }
     if (hasSearched) {
-      return (
-        <div className="flex flex-col items-center gap-2 py-8 text-center">
-          <div className="text-body-3 text-text-secondary">No results found</div>
-          <div className="text-body-4 text-text-tertiary">
-            Try different keywords or switch between Professional and Consumer.
-          </div>
-        </div>
-      );
+      return <MerckNoResultsState query={query.trim() || '—'} />;
     }
     return null;
   }
@@ -136,14 +144,15 @@ const getMerckErrorMessage = (error: unknown) => {
 };
 
 const getMerckContainerClassName = (embedded: boolean) =>
-  embedded
-    ? 'w-full p-4 md:p-6 bg-white min-h-screen'
-    : 'flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!';
+  embedded ? 'w-full p-4 md:p-6 bg-neutral-0 min-h-screen' : 'yc-page-content';
 
 const getMerckResultsContainerClassName = (embedded: boolean) =>
   embedded
     ? 'min-h-0 flex-1 overflow-y-auto pr-1'
     : 'min-h-0 flex-1 overflow-y-auto pr-1 max-h-[calc(100vh-320px)] lg:max-h-[calc(100vh-280px)]';
+
+const AUDIENCE_SEGMENT_BASE =
+  'rounded-full! px-3.5 py-1.5 text-[12px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
 const AudienceToggle = ({
   value,
@@ -155,44 +164,42 @@ const AudienceToggle = ({
   onChange: (next: MerckAudience) => void;
 }) => {
   const isProfessional = value === 'PROV';
-  const sliderClass = isProfessional
-    ? 'translate-x-0 bg-blue-text border-blue-text'
-    : 'translate-x-full bg-blue-text border-blue-text';
-  const professionalTextClass = isProfessional ? 'text-neutral-0' : 'text-text-secondary';
-  const consumerTextClass = isProfessional ? 'text-text-secondary' : 'text-neutral-0';
+
+  const segmentClass = (active: boolean) =>
+    `${AUDIENCE_SEGMENT_BASE} ${
+      active
+        ? 'bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
+        : 'font-semibold text-[var(--ink-muted)]'
+    } ${
+      /* v8 ignore next -- unreachable: AudienceToggle renders only inside the enabled panel, so disabled is always false */
+      disabled ? 'cursor-not-allowed' : 'cursor-pointer'
+    }`;
 
   return (
     <fieldset
-      className={`relative inline-flex items-center h-11 w-full max-w-[320px] rounded-[999px]! border border-card-border bg-white overflow-hidden ${
+      className={`inline-flex items-center gap-1 self-start rounded-full! border border-[var(--divider)] bg-[var(--inset)] p-1 ${
+        /* v8 ignore next -- unreachable: AudienceToggle renders only inside the enabled panel, so disabled is always false */
         disabled ? 'opacity-70' : ''
       }`}
     >
-      <legend className="sr-only">Audience</legend>
-      <div
-        aria-hidden
-        className={`absolute top-0 bottom-0 left-0 w-1/2 rounded-[999px]! border-0 transition-all duration-300 ease-in-out ${sliderClass}`}
-      />
+      <legend className="sr-only">Refine results, audience</legend>
       <button
         type="button"
         onClick={() => onChange('PROV')}
         disabled={disabled}
         aria-pressed={isProfessional}
-        className={`relative z-10 w-1/2 h-full text-body-3 transition-colors duration-200 ${
-          disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-        } ${professionalTextClass}`}
+        className={segmentClass(isProfessional)}
       >
-        Professional
+        Veterinary professional
       </button>
       <button
         type="button"
         onClick={() => onChange('PAT')}
         disabled={disabled}
         aria-pressed={!isProfessional}
-        className={`relative z-10 w-1/2 h-full text-body-3 transition-colors duration-200 ${
-          disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-        } ${consumerTextClass}`}
+        className={segmentClass(!isProfessional)}
       >
-        Consumer
+        Pet parent version
       </button>
     </fieldset>
   );
@@ -232,63 +239,68 @@ const EntryCard = ({
 }) => {
   const summary = stripMerckHtml(entry.summaryText || '').slice(0, 280);
   return (
-    <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
-      <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 lg:justify-between">
-        <div className="w-full min-w-0 lg:w-[48%] xl:w-[52%] flex flex-col gap-2">
-          <div className="text-body-2 text-text-primary">{stripMerckHtml(entry.title)}</div>
-          <div className="text-body-4 text-text-secondary line-clamp-3">
-            {summary || 'No summary available.'}
-          </div>
-        </div>
-        {entry.subLinks.length > 0 ? (
-          <div className="lg:w-[46%] xl:w-[42%] min-w-0 flex flex-wrap gap-2 content-start lg:pt-8">
-            {entry.subLinks.map((subLink) => (
-              <button
-                key={`${entry.id}-${subLink.label}`}
-                type="button"
-                className="px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer"
-                style={getMerckSubtopicPillStyle(subLink.label)}
-                onClick={() => onOpenInFrame(entry, subLink.url)}
-              >
-                {subLink.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
+    <div className="flex flex-col gap-2 rounded-[14px] border border-hairline bg-[var(--screen)] p-3.5 shadow-[0_1px_2px_var(--sh03)] transition-colors hover:border-[var(--hairline-hover)]">
+      <button
+        type="button"
+        onClick={() => onOpenInFrame(entry, entry.primaryUrl)}
+        disabled={!isAllowedMerckUrl(entry.primaryUrl)}
+        className="group flex w-fit max-w-full items-center text-left"
+      >
+        <span className="text-[13.5px] font-bold leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--blue-text)] group-hover:underline disabled:no-underline">
+          {stripMerckHtml(entry.title)}
+        </span>
+      </button>
+      <div className="line-clamp-2 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
+        {summary || 'No summary available.'}
       </div>
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-2 flex-wrap items-center">
-          <Primary
-            href="#"
-            text="Open"
-            onClick={() => onOpenInFrame(entry, entry.primaryUrl)}
-            isDisabled={!isAllowedMerckUrl(entry.primaryUrl)}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              if (globalThis.window === undefined) return;
-              globalThis.window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer');
-            }}
-            aria-label="Open in new tab"
-            title="Open in new tab"
-            className="size-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
-          >
-            <IoOpenOutline size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => onCopy(entry.primaryUrl)}
-            aria-label="Copy manual URL"
-            title="Copy URL"
-            className="size-12 rounded-2xl! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover transition-colors cursor-pointer"
-          >
-            <IoCopyOutline size={18} />
-          </button>
+      <div className="text-[10.5px] text-[var(--ink-faint)]">
+        Updated {safeDate(entry.updatedAt)}
+      </div>
+
+      {entry.subLinks.length > 0 ? (
+        <div className="flex min-w-0 flex-wrap gap-1.5">
+          {entry.subLinks.map((subLink) => (
+            <button
+              key={`${entry.id}-${subLink.label}`}
+              type="button"
+              className="max-w-full rounded-full! border border-hairline px-2.5 py-1 text-[11px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-[var(--card-hover)]"
+              style={getMerckSubtopicPillStyle(subLink.label)}
+              onClick={() => onOpenInFrame(entry, subLink.url)}
+            >
+              {subLink.label}
+            </button>
+          ))}
         </div>
-        <div className="text-caption-1 text-text-secondary text-right whitespace-nowrap self-center">
-          Updated: {safeDate(entry.updatedAt)}
-        </div>
+      ) : null}
+
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Primary
+          href="#"
+          text="Open"
+          onClick={() => onOpenInFrame(entry, entry.primaryUrl)}
+          isDisabled={!isAllowedMerckUrl(entry.primaryUrl)}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            if (globalThis.window === undefined) return;
+            globalThis.window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer');
+          }}
+          aria-label="Open in new tab"
+          title="Open in new tab"
+          className="flex size-10 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+        >
+          <IoOpenOutline size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onCopy(entry.primaryUrl)}
+          aria-label="Copy manual URL"
+          title="Copy URL"
+          className="flex size-10 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+        >
+          <IoCopyOutline size={16} />
+        </button>
       </div>
     </div>
   );
@@ -324,6 +336,7 @@ const executeMerckSearch = async ({
   setHasSearched,
 }: ExecuteMerckSearchParams) => {
   const resolvedQuery = query.trim();
+  /* v8 ignore next -- unreachable: every caller (search button, recent chip, audience change, route effect) guards a non-empty query first */
   if (!resolvedQuery) return;
 
   const cacheKey = `${resolvedQuery}::${audience}::${language}`;
@@ -382,6 +395,12 @@ const MerckDisabledState = ({ embedded }: { embedded: boolean }) => (
   </div>
 );
 
+const MicroCaption = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+    {children}
+  </span>
+);
+
 const MerckSearchPanel = ({
   query,
   setQuery,
@@ -392,6 +411,9 @@ const MerckSearchPanel = ({
   language,
   setLanguage,
   recentSearches,
+  audience,
+  onAudienceChange,
+  disabled,
 }: {
   query: string;
   setQuery: React.Dispatch<React.SetStateAction<string>>;
@@ -402,8 +424,11 @@ const MerckSearchPanel = ({
   language: MerckLanguage;
   setLanguage: React.Dispatch<React.SetStateAction<MerckLanguage>>;
   recentSearches: string[];
+  audience: MerckAudience;
+  onAudienceChange: (next: MerckAudience) => void;
+  disabled?: boolean;
 }) => (
-  <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
+  <div className="flex flex-col gap-3.5">
     <div className="flex items-center gap-2 flex-nowrap">
       <div className="flex-1 min-w-0">
         <FormInput
@@ -412,7 +437,7 @@ const MerckSearchPanel = ({
           inlabel="Search manuals"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="min-h-12! h-12! px-4"
+          className="h-12! px-4"
         />
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -427,10 +452,10 @@ const MerckSearchPanel = ({
           onClick={() => setAdvancedOpen((prev) => !prev)}
           aria-label={advancedOpen ? 'Hide filters' : 'Show filters'}
           title={advancedOpen ? 'Hide filters' : 'Show filters'}
-          className={`size-12 rounded-2xl! border border-card-border flex items-center justify-center transition-colors cursor-pointer ${
+          className={`flex size-12 items-center justify-center rounded-full! border border-hairline transition-colors cursor-pointer ${
             advancedOpen
-              ? 'bg-card-hover text-text-primary'
-              : 'text-text-secondary hover:bg-card-hover'
+              ? 'bg-[var(--card-hover)] text-[var(--ink)]'
+              : 'text-[var(--ink-muted)] hover:bg-[var(--card-hover)]'
           }`}
         >
           <IoOptionsOutline size={18} />
@@ -438,49 +463,15 @@ const MerckSearchPanel = ({
       </div>
     </div>
 
-    {advancedOpen ? (
-      <div className="rounded-2xl border border-card-border bg-white p-3 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="text-body-4 text-text-secondary">Refine Results</div>
-          <button
-            type="button"
-            onClick={() => setAdvancedOpen(false)}
-            className="size-7 rounded-xl! border border-card-border flex items-center justify-center text-text-secondary hover:bg-card-hover transition-colors cursor-pointer"
-            aria-label="Close refine results"
-            title="Close refine results"
-          >
-            <IoCloseOutline size={14} />
-          </button>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="text-caption-1 text-text-secondary" id="merck-language-label">
-            Language
-          </div>
-          <fieldset className="flex gap-1.5 flex-wrap" aria-labelledby="merck-language-label">
-            <CompactFilterPill
-              active={language === 'en'}
-              label="EN"
-              onClick={() => setLanguage('en')}
-            />
-            <CompactFilterPill
-              active={language === 'es'}
-              label="ES"
-              onClick={() => setLanguage('es')}
-            />
-          </fieldset>
-        </div>
-      </div>
-    ) : null}
-
     {recentSearches.length > 0 ? (
       <div className="flex flex-col gap-2">
-        <div className="text-body-4 text-text-secondary">Frequent searches</div>
-        <div className="flex gap-2 flex-wrap">
+        <MicroCaption>Frequent searches</MicroCaption>
+        <div className="flex gap-1.5 flex-wrap">
           {recentSearches.map((searchTerm) => (
             <button
               key={searchTerm}
               type="button"
-              className="px-3 py-1 rounded-2xl! border border-card-border text-body-4 text-text-secondary hover:bg-card-hover cursor-pointer"
+              className="rounded-full! border border-hairline px-2.5 py-1 text-[11.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-[var(--card-hover)]"
               onClick={() => {
                 setQuery(searchTerm);
                 void performSearch(searchTerm);
@@ -492,14 +483,65 @@ const MerckSearchPanel = ({
         </div>
       </div>
     ) : null}
+
+    <div className="flex flex-col gap-2">
+      <MicroCaption>Refine results · audience</MicroCaption>
+      <AudienceToggle value={audience} disabled={disabled} onChange={onAudienceChange} />
+    </div>
+
+    {advancedOpen ? (
+      <div className="flex flex-col gap-2 rounded-2xl border border-hairline bg-[var(--screen)] p-3">
+        <div className="flex items-center justify-between">
+          <MicroCaption>Refine results · language</MicroCaption>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen(false)}
+            className="flex size-7 items-center justify-center rounded-full! border border-hairline text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)]"
+            aria-label="Close refine results"
+            title="Close refine results"
+          >
+            <IoCloseOutline size={14} />
+          </button>
+        </div>
+        <fieldset className="flex gap-1.5 flex-wrap" aria-label="Language">
+          <CompactFilterPill
+            active={language === 'en'}
+            label="EN"
+            onClick={() => setLanguage('en')}
+          />
+          <CompactFilterPill
+            active={language === 'es'}
+            label="ES"
+            onClick={() => setLanguage('es')}
+          />
+        </fieldset>
+      </div>
+    ) : null}
   </div>
 );
+
+const READER_AUDIENCE_META: Record<MerckAudience, { label: string; className: string }> = {
+  PROV: {
+    label: 'PROFESSIONAL',
+    className:
+      'bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]',
+  },
+  PAT: {
+    label: 'PET PARENT',
+    className: 'bg-blue-soft text-blue-text border-[var(--status-upcoming-border)]',
+  },
+};
+
+const READER_FOOTER_NOTICE =
+  "Content © MSD Veterinary Manual · displayed under your clinic's integration";
 
 const MerckReaderPortal = ({
   readerOpen,
   readerUrl,
   readerTitle,
   readerLoading,
+  audience,
+  onCopyUrl,
   setReaderOpen,
   setReaderLoading,
 }: {
@@ -507,34 +549,73 @@ const MerckReaderPortal = ({
   readerUrl: string | null;
   readerTitle: string;
   readerLoading: boolean;
+  audience: MerckAudience;
+  onCopyUrl: (url: string) => void;
   setReaderOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   if (!readerOpen || !readerUrl || typeof document === 'undefined') return null;
 
+  const audienceMeta = READER_AUDIENCE_META[audience];
+
   return createPortal(
     <div
-      className="fixed inset-0 z-10000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
       data-merck-reader-overlay="true"
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
-          <div id="merck-reader-title" className="text-body-2 text-text-primary truncate pr-2">
-            {readerTitle}
+      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl border border-hairline bg-[var(--screen)] shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-blue-soft text-blue-text">
+              <IoBookOutline size={15} aria-hidden="true" />
+            </span>
+            <div
+              id="merck-reader-title"
+              className="truncate text-[13.5px] font-bold text-[var(--ink)]"
+            >
+              {readerTitle}
+            </div>
+            <span
+              className={`inline-flex flex-none items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold tracking-[0.06em] ${audienceMeta.className}`}
+            >
+              {audienceMeta.label}
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setReaderOpen(false)}
-            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
-            aria-label="Close Merck reader"
-          >
-            <Close iconOnly />
-          </button>
+          <div className="flex flex-none items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onCopyUrl(readerUrl)}
+              className="flex items-center gap-1.5 rounded-full! border border-hairline px-3 py-[7px] text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+            >
+              <IoLinkOutline size={13} aria-hidden="true" />
+              Copy manual URL
+            </button>
+            <Link
+              href={readerUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-full! border border-hairline px-3 py-[7px] text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+            >
+              <IoOpenOutline size={13} aria-hidden="true" />
+              Open in new tab
+            </Link>
+            <button
+              type="button"
+              onClick={() => setReaderOpen(false)}
+              className="flex size-[34px] items-center justify-center rounded-full! border border-hairline text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)]"
+              aria-label="Close Merck reader"
+            >
+              <Close iconOnly />
+            </button>
+          </div>
         </div>
         <div className="relative flex-1">
           {readerLoading ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
               <YosemiteLoader label="Loading Manual" size={120} testId="merck-reader-loader" />
+              <span className="max-w-[320px] text-center text-[12px] text-[var(--ink-faint)]">
+                Fetching “{readerTitle}” from MSD…
+              </span>
             </div>
           ) : null}
           <iframe
@@ -547,15 +628,8 @@ const MerckReaderPortal = ({
             onLoad={() => setReaderLoading(false)}
           />
         </div>
-        <div className="p-3 border-t border-black/10 flex justify-end">
-          <Link
-            href={readerUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-body-4 text-text-brand underline underline-offset-2"
-          >
-            Open in new tab
-          </Link>
+        <div className="border-t border-hairline px-6 py-3">
+          <span className="text-[11.5px] text-[var(--ink-faint)]">{READER_FOOTER_NOTICE}</span>
         </div>
       </div>
     </div>,
@@ -652,63 +726,68 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     setReaderOpen(true);
   };
 
+  const onAudienceChange = (next: MerckAudience) => {
+    setAudience(next);
+    if (primaryOrgId && query.trim()) {
+      void executeMerckSearch({
+        organisationId: primaryOrgId,
+        query: query.trim(),
+        audience: next,
+        language,
+        requestIdRef,
+        resultCacheRef,
+        // fresh: false (default) — serve from cache if available
+        setLoading,
+        setError,
+        setEntries,
+        onSearchSaved: () => setRecentSearchesKey((k) => k + 1),
+        setHasSearched,
+      });
+    }
+  };
+
   const containerClassName = getMerckContainerClassName(embedded);
   const resultsContainerClassName = getMerckResultsContainerClassName(embedded);
 
   const disabled = getDisabledState(isEnabled);
-  const resultsContent = getResultsContent(entries, loading, hasSearched, onOpenInFrame, onCopyUrl);
+  const resultsContent = getResultsContent(
+    entries,
+    loading,
+    hasSearched,
+    query,
+    onOpenInFrame,
+    onCopyUrl
+  );
+  const resultsCountLabel =
+    entries.length > 0 ? `${entries.length} results for “${query.trim()}”` : null;
 
   return (
     <div className={containerClassName}>
-      <div className="flex w-full items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="h-22 w-auto relative">
-            <h1 className="sr-only">MSD Veterinary Manual</h1>
-            <Image
-              src={MEDIA_SOURCES.futureAssets.merckLogoUrl}
-              alt="MSD Veterinary Manual"
-              width={352}
-              height={88}
-              className="object-contain h-22 w-auto"
-            />
-          </div>
-          <GlassTooltip
-            content="Search veterinary reference content and open results inside Yosemite Crew using secure reader links."
-            side="bottom"
-          >
-            <button
-              type="button"
-              aria-label="MSD Veterinary Manual info"
-              className="relative pt-3 inline-flex size-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+      <div className="flex w-full items-start justify-between gap-4 flex-wrap">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <h1 className="text-page-title text-[var(--ink)]">MSD Veterinary Manual</h1>
+            <GlassTooltip
+              content="Search veterinary reference content and open results inside Yosemite Crew using secure reader links."
+              side="bottom"
             >
-              <IoInformationCircleOutline size={20} />
-            </button>
-          </GlassTooltip>
-        </div>
-        <div className="w-[320px] max-w-full shrink-0">
-          <AudienceToggle
-            value={audience}
-            disabled={disabled}
-            onChange={(next) => {
-              setAudience(next);
-              if (primaryOrgId && query.trim()) {
-                void executeMerckSearch({
-                  organisationId: primaryOrgId,
-                  query: query.trim(),
-                  audience: next,
-                  language,
-                  requestIdRef,
-                  resultCacheRef,
-                  // fresh: false (default) — serve from cache if available
-                  setLoading,
-                  setError,
-                  setEntries,
-                  onSearchSaved: () => setRecentSearchesKey((k) => k + 1),
-                  setHasSearched,
-                });
-              }
-            }}
-          />
+              <button
+                type="button"
+                aria-label="MSD Veterinary Manual info"
+                className="inline-flex size-5 shrink-0 items-center justify-center leading-none text-[var(--ink-faint)] transition-colors hover:text-[var(--ink)]"
+              >
+                <IoInformationCircleOutline size={18} />
+              </button>
+            </GlassTooltip>
+          </div>
+          {disabled ? null : (
+            <span className="text-[12.5px] text-[var(--ink-muted)]">
+              Connected ·{' '}
+              <Link href="/integrations" className="font-semibold text-blue-text">
+                Manage Integrations
+              </Link>
+            </span>
+          )}
         </div>
       </div>
 
@@ -726,6 +805,9 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
             language={language}
             setLanguage={setLanguage}
             recentSearches={recentSearches}
+            audience={audience}
+            onAudienceChange={onAudienceChange}
+            disabled={disabled}
           />
 
           <div className="min-h-0 flex flex-col gap-3">
@@ -738,8 +820,12 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
               <output className="text-body-4 text-green-700">Copied URL to clipboard.</output>
             ) : null}
 
+            {resultsCountLabel ? (
+              <div className="text-[11.5px] text-[var(--ink-faint)]">{resultsCountLabel}</div>
+            ) : null}
+
             <div className={resultsContainerClassName}>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 {resultsContent}
                 {entries.length > 0 ? (
                   <div className="pt-2 pb-1.5">
@@ -759,6 +845,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         readerUrl={readerUrl}
         readerTitle={readerTitle}
         readerLoading={readerLoading}
+        audience={audience}
+        onCopyUrl={onCopyUrl}
         setReaderOpen={setReaderOpen}
         setReaderLoading={setReaderLoading}
       />

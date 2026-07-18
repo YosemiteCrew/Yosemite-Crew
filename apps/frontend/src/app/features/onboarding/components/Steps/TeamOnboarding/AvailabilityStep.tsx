@@ -1,4 +1,5 @@
 import { useImperativeHandle, useState, type Dispatch, type SetStateAction, type Ref } from 'react';
+import { IoArrowForward } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Availability from '@/app/features/appointments/components/Availability/Availability';
 import {
@@ -67,21 +68,31 @@ function AvailabilityStep({
   };
 
   return (
-    <div className="team-container">
-      <div className="team-title">Availability</div>
+    <div className="flex w-full flex-col">
+      <div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] px-[30px] py-[28px] shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[17px] font-bold leading-tight tracking-[-0.34px] text-[var(--ink)]">
+            Weekly availability
+          </span>
+        </div>
 
-      <Availability availability={availability} setAvailability={setAvailability} />
+        <Availability availability={availability} setAvailability={setAvailability} />
 
-      {availabilityError && <div className="step-inline-error">{availabilityError}</div>}
+        {availabilityError && (
+          <div className="text-caption-2 text-text-error">{availabilityError}</div>
+        )}
 
-      <div className="team-buttons">
-        <Secondary href="#" text="Back" onClick={prevStep} />
-        <Primary
-          href="#"
-          text={isSaving ? 'Saving...' : 'Finish'}
-          onClick={handleSaveAvailability}
-          isDisabled={isSaving}
-        />
+        <div className="mt-1 flex items-center justify-between gap-3 border-t border-[var(--hairline)] pt-[18px]">
+          <Secondary href="#" text="Back" onClick={prevStep} />
+          <Primary
+            href="#"
+            text={isSaving ? 'Saving...' : 'Finish · open dashboard'}
+            icon={<IoArrowForward aria-hidden="true" />}
+            iconPosition="right"
+            onClick={handleSaveAvailability}
+            isDisabled={isSaving}
+          />
+        </div>
       </div>
     </div>
   );

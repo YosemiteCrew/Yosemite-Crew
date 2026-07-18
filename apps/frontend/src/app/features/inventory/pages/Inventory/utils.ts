@@ -762,3 +762,13 @@ export const getDerivedStockHealth = (
 
   return { key: 'IN_STOCK', label: 'In stock' };
 };
+
+// The stock-health key used for header counts AND the status filter, so the two
+// always agree: the explicit stockHealth when the item carries one, otherwise the
+// derived state (batch expiry / reorder levels) the table already labels rows with.
+export const effectiveStockHealthKey = (item: InventoryItem): string => {
+  const explicit = (item.stockHealth || '').toString().toUpperCase().replaceAll(' ', '_');
+  if (explicit) return explicit;
+  if (item.stock || item.batch) return getDerivedStockHealth(item).key;
+  return '';
+};

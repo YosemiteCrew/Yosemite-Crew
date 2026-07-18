@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Editor } from '@tiptap/react';
-import { FaBold, FaItalic, FaUnderline, FaListUl, FaIndent } from 'react-icons/fa6';
+import { IoListOutline } from 'react-icons/io5';
+import { FaBold, FaItalic, FaUnderline, FaIndent } from 'react-icons/fa6';
 
 type FloatingToolbarProps = {
   editor: Editor;
@@ -45,7 +46,7 @@ const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
     {
       key: 'bulletList',
       label: 'Bulleted list',
-      icon: <FaListUl aria-hidden="true" size={14} />,
+      icon: <IoListOutline aria-hidden="true" size={14} />,
       isActive: () => editor.isActive('bulletList'),
       run: () => editor.chain().focus().toggleList('bulletList', 'listItem').run(),
     },

@@ -1,0 +1,321 @@
+/* ==========================================================================
+   ⌘K universal search palette — desktop 640px card + phone full-screen.
+   Warm-bone tokens throughout; light + dark resolve via the shared token layer.
+   ========================================================================== */
+
+.yc-usp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px;
+  background: radial-gradient(circle at top, var(--sh10), var(--sh55));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 640px) {
+  .yc-usp-overlay {
+    padding: 56px 24px 24px;
+  }
+}
+
+.yc-usp-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.yc-usp-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  max-width: 640px;
+  max-height: min(78vh, 620px);
+  flex-direction: column;
+  /* Reset native <dialog> UA styles (margin/padding/color) so the palette is
+     top-aligned and unpadded; the phone modifier layers on top of this base. */
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: var(--screen);
+  box-shadow:
+    0 24px 60px var(--sh12),
+    0 8px 20px var(--sh10),
+    inset 0 1px 0 var(--glass-inset-hi);
+}
+
+/* -------------------------------------------------------------- input row */
+.yc-usp-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 16px;
+}
+
+.yc-usp-search-icon {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+
+.yc-usp-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--blue);
+  font-family: var(--font-satoshi);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  outline: none;
+}
+
+.yc-usp-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.yc-usp-esc {
+  flex: 0 0 auto;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--pill-raised);
+  color: var(--ink-muted);
+  font-family: var(--font-satoshi);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.yc-usp-cancel {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--blue-text);
+  font-family: var(--font-satoshi);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* -------------------------------------------------------------- results */
+.yc-usp-results {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.yc-usp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+}
+
+.yc-usp-eyebrow {
+  padding: 8px 8px 4px;
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.yc-usp-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.yc-usp-row:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.yc-usp-row--active {
+  background: var(--surface-soft);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.yc-usp-icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+}
+
+.yc-usp-icon--tile {
+  border-radius: 9px;
+}
+
+.yc-usp-icon--avatar {
+  border-radius: 999px;
+}
+
+.yc-usp-icon--blue {
+  background: var(--blue-soft);
+  color: var(--blue-text);
+}
+
+.yc-usp-icon--neutral {
+  border: 1px solid var(--divider);
+  background: var(--inset);
+  color: var(--ink-muted);
+}
+
+.yc-usp-row-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yc-usp-row-title {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-satoshi);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yc-usp-row-sub {
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yc-usp-keycap {
+  display: inline-flex;
+  min-width: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--pill-raised);
+  color: var(--ink-muted);
+  font-family: var(--font-satoshi);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+}
+
+/* -------------------------------------------------------------- footer */
+.yc-usp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--hairline);
+  padding: 10px 16px;
+}
+
+.yc-usp-foot-hints {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.yc-usp-keyhint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-family: var(--font-satoshi);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.yc-usp-foot-scope {
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: right;
+}
+
+/* ==========================================================================
+   Phone full-screen variant.
+   ========================================================================== */
+.yc-usp-overlay--phone {
+  padding: 0;
+  background: var(--sh55);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.yc-usp-panel--phone {
+  max-width: none;
+  max-height: none;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.yc-usp-statusbar {
+  height: env(safe-area-inset-top, 20px);
+  min-height: 20px;
+  flex: 0 0 auto;
+}
+
+.yc-usp-panel--phone .yc-usp-input {
+  font-size: 16px;
+}
+
+.yc-usp-panel--phone .yc-usp-icon {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+}
+
+.yc-usp-foot--phone {
+  align-items: center;
+}
+
+.yc-usp-home-indicator {
+  width: 134px;
+  height: 5px;
+  margin: 8px auto calc(8px + env(safe-area-inset-bottom, 0px));
+  border-radius: 999px;
+  background: var(--ink);
+  opacity: 0.28;
+  flex: 0 0 auto;
+}
