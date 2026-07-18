@@ -106,6 +106,38 @@ describe('useGithubStats hooks', () => {
     expect(result.current.selfHosters).toBe('67,134');
   });
 
+  it('in live mode shows placeholders for failed fetchers, never cached or fabricated values', async () => {
+    sessionStorage.setItem(
+      'yc_marketing_stats_v1',
+      JSON.stringify({
+        stars: '9k',
+        starsFull: '9,000',
+        selfHosters: '70,000',
+        contributors: '60',
+        discord: '4,000',
+      })
+    );
+    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/invites/'))
+        return Promise.resolve(makeRes({ approximate_member_count: 3210 }));
+      // Every other endpoint fails: stars, the self-hoster report, and contributors.
+      return Promise.resolve(notOk());
+    }) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useGithubStats({ live: true }));
+
+    // Only Discord resolved; it shows its live value.
+    await waitFor(() => expect(result.current.discord).toBe('3,210'));
+    // Every failed fetcher shows the placeholder, never the seeded cache value and
+    // never a hard-coded self-hoster constant.
+    expect(result.current.stars).toBeNull();
+    expect(result.current.starsFull).toBeNull();
+    expect(result.current.contributors).toBeNull();
+    expect(result.current.selfHosters).toBeNull();
+  });
+
   it('fires exactly one round of requests when several instances mount at once', async () => {
     const fetchMock = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -160,10 +192,12 @@ describe('useGithubStats hooks', () => {
     await waitFor(() => expect(result.current.selfHosters).toBe('67'));
   });
 
-  it('falls back to the default self-hoster count when the report is unavailable', async () => {
+  it('shows no self-hoster count (placeholder) when the report is unavailable', async () => {
     globalThis.fetch = jest.fn(() => Promise.resolve(notOk())) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
-    await waitFor(() => expect(result.current.selfHosters).toBe('67,100'));
+    // No hard-coded fallback: a failed report leaves the placeholder, never a fake number.
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.selfHosters).toBeNull();
   });
 
   it('resolves the latest platform release and strips the tag prefix', async () => {
@@ -207,23 +241,25 @@ describe('useGithubStats hooks', () => {
     expect(result.current.tag).toBe('v1.2');
   });
 
-  it('falls back to the default count when every request rejects', async () => {
+  it('yields no stats (all placeholders) when every request rejects', async () => {
     // Every fetch throwing exercises the fetchJson and fetchContributors catch paths.
     globalThis.fetch = jest.fn(() => Promise.reject(new Error('network'))) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
-    await waitFor(() => expect(result.current.selfHosters).toBe('67,100'));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.selfHosters).toBeNull();
     expect(result.current.contributors).toBeNull();
     expect(result.current.stars).toBeNull();
   });
 
-  it('falls back when the summary has neither a clones total nor a chart dataset', async () => {
+  it('shows no self-hoster count when the summary lacks a clones total or chart dataset', async () => {
     globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('summary.json')) return Promise.resolve(makeRes({}));
       return Promise.resolve(notOk());
     }) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
-    await waitFor(() => expect(result.current.selfHosters).toBe('67,100'));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.selfHosters).toBeNull();
   });
 
   it('seeds the platform release from the session cache before the network answers', async () => {

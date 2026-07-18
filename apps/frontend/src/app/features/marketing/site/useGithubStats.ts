@@ -23,7 +23,6 @@ export interface GithubStats {
 const STATS_CACHE_KEY = 'yc_marketing_stats_v1';
 const STATS_TS_KEY = 'yc_marketing_stats_ts_v1';
 const STATS_TTL_MS = 5 * 60 * 1000;
-const SELF_HOSTERS_FALLBACK = 67100;
 
 const EMPTY_STATS: GithubStats = {
   stars: null,
@@ -78,7 +77,11 @@ const fetchStars = async (): Promise<Partial<GithubStats>> => {
 
 const fetchSelfHosters = async (): Promise<Partial<GithubStats>> => {
   const summary = await fetchJson(REPO_STATS_SUMMARY);
-  const total = readSelfHostersTotal(summary) ?? SELF_HOSTERS_FALLBACK;
+  const total = readSelfHostersTotal(summary);
+  // Contribute nothing on failure (like the other fetchers), so a transient outage
+  // keeps the cached value for cached consumers and shows the loading placeholder on
+  // the live Insights surface -- never a hard-coded number presented as live/uncached.
+  if (total === null) return {};
   return { selfHosters: total.toLocaleString('en-US') };
 };
 
@@ -108,25 +111,31 @@ const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
  * (nav, footer, auth shell, stats sections), so without this every mount would
  * fire its own copy of all four requests and burn the unauthenticated GitHub quota.
  * Every instance that mounts while a fetch is running awaits this same promise.
+ *
+ * The loader returns ONLY the fields fetched in this pass (a fetcher that fails or
+ * gets a non-OK response contributes nothing). That lets a live consumer publish
+ * exactly this-pass data (a failed field stays as its loading placeholder, never a
+ * stale cached value) while a cached consumer merges it over its last-known snapshot.
+ * The session cache is refreshed by merging the fresh fields OVER the previous cache,
+ * so a transient failure never wipes a good cached value.
  */
-let inFlight: Promise<GithubStats> | null = null;
+let inFlight: Promise<Partial<GithubStats>> | null = null;
 
-const runGithubStatsFetch = async (): Promise<GithubStats> => {
+const runGithubStatsFetch = async (): Promise<Partial<GithubStats>> => {
   const parts = await Promise.all([
     fetchStars(),
     fetchSelfHosters(),
     fetchContributors(),
     fetchDiscord(),
   ]);
-  const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
-  const base: GithubStats = { ...EMPTY_STATS, ...cached };
-  const merged = parts.reduce<GithubStats>((acc, part) => ({ ...acc, ...part }), base);
-  setJsonStorageItem('session', STATS_CACHE_KEY, merged);
+  const fresh = parts.reduce<Partial<GithubStats>>((acc, part) => ({ ...acc, ...part }), {});
+  const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY) ?? {};
+  setJsonStorageItem('session', STATS_CACHE_KEY, { ...EMPTY_STATS, ...cached, ...fresh });
   setStorageItem('session', STATS_TS_KEY, String(Date.now()));
-  return merged;
+  return fresh;
 };
 
-const loadGithubStats = (): Promise<GithubStats> => {
+const loadGithubStats = (): Promise<Partial<GithubStats>> => {
   inFlight ??= runGithubStatsFetch().finally(() => {
     inFlight = null;
   });
@@ -175,8 +184,12 @@ export function useGithubStats(options?: LiveFetchOptions): GithubStats {
     }
     if (live || !isStatsCacheFresh()) {
       void (async () => {
-        const merged = await loadGithubStats();
-        if (active) setStats(merged);
+        const fresh = await loadGithubStats();
+        if (!active) return;
+        // Live: publish ONLY this-pass fields, so a failed fetcher stays as the
+        // loading placeholder rather than a stale cached value under the "no cache"
+        // copy. Cached: keep last-known values for any field this pass did not return.
+        setStats((prev) => (live ? { ...EMPTY_STATS, ...fresh } : { ...prev, ...fresh }));
       })();
     }
     return () => {

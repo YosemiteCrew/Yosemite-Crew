@@ -47,16 +47,16 @@ describe('ReleasePill', () => {
     expect(link).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew/releases');
   });
 
-  it('renders the platform variant with its hard-coded version and live date', () => {
+  it('renders the platform variant with only its hard-coded copy, no desktop metadata', () => {
     render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.0 beta" />);
     expect(screen.getByText('Platform PIMS')).toBeInTheDocument();
-    // The platform pill keeps its hard-coded version: the repo-wide "latest release"
-    // is a desktop build, so the live tag must not leak into this pill.
+    // The repo-wide "latest release" is a desktop build, so the platform pill must not
+    // borrow its tag, date, or URL: it shows only hard-coded copy + the releases index.
     expect(screen.getByText('v2.0 beta')).toBeInTheDocument();
     expect(screen.queryByText('v2.0.0-beta')).not.toBeInTheDocument();
     const link = screen.getByRole('link');
-    expect(link).toHaveTextContent('Jul 2, 2026');
-    expect(link).toHaveAttribute('href', latest.url);
+    expect(link).not.toHaveTextContent('Jul 2, 2026');
+    expect(link).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew/releases');
   });
 
   it('renders the mobile variant with the live tag and link', () => {
@@ -86,9 +86,11 @@ describe('ReleasePill', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/developers/signup');
   });
 
-  it('omits the live date on platform when none resolved', () => {
-    latestValue = { ...latest, date: null };
+  it('never borrows a fully-resolved desktop release on the platform pill', () => {
+    latestValue = latest; // desktop release fully resolved (tag + date + url)
     render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.0 beta" />);
-    expect(screen.getByRole('link')).not.toHaveTextContent('Jul 2, 2026');
+    const link = screen.getByRole('link');
+    expect(link).not.toHaveTextContent('Jul 2, 2026');
+    expect(link).not.toHaveAttribute('href', latest.url);
   });
 });
