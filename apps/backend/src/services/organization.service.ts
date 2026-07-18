@@ -1,4 +1,3 @@
-import { isValidObjectId } from "mongoose";
 import type { OrganizationMongo } from "../models/organization";
 import {
   fromOrganizationRequestDTO,
@@ -334,10 +333,7 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
     return undefined;
   }
 
-  if (
-    !isValidObjectId(identifier) &&
-    !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
-  ) {
+  if (!/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
     throw new OrganizationServiceError("Invalid identifier format.", 400);
   }
 

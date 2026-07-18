@@ -1242,32 +1242,32 @@ const IntegrationsPage = () => {
       ) : null}
 
       <div className="flex flex-col gap-4">
-          <IntegrationCards
-            s={s}
-            idexxCardButtonLabel={idexxCardButtonLabel}
-            merckCardButtonLabel={merckCardButtonLabel}
+        <IntegrationCards
+          s={s}
+          idexxCardButtonLabel={idexxCardButtonLabel}
+          merckCardButtonLabel={merckCardButtonLabel}
+        />
+
+        <div className="flex items-center gap-2.5 rounded-[14px] bg-[var(--inset)] px-4 py-3 text-[12.5px] text-[var(--ink-muted)]">
+          <IoExtensionPuzzleOutline
+            size={15}
+            aria-hidden="true"
+            className="shrink-0 text-[var(--blue-text)]"
           />
+          More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
+        </div>
 
-          <div className="flex items-center gap-2.5 rounded-[14px] bg-[var(--inset)] px-4 py-3 text-[12.5px] text-[var(--ink-muted)]">
-            <IoExtensionPuzzleOutline
-              size={15}
-              aria-hidden="true"
-              className="shrink-0 text-[var(--blue-text)]"
-            />
-            More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
-          </div>
+        {showNoConnected ? (
+          <output className="text-body-4 text-text-secondary">
+            No connected integrations yet.
+          </output>
+        ) : null}
 
-          {showNoConnected ? (
-            <output className="text-body-4 text-text-secondary">
-              No connected integrations yet.
-            </output>
-          ) : null}
-
-          {showNoAvailable ? (
-            <output className="text-body-4 text-text-secondary">
-              No available integrations right now.
-            </output>
-          ) : null}
+        {showNoAvailable ? (
+          <output className="text-body-4 text-text-secondary">
+            No available integrations right now.
+          </output>
+        ) : null}
       </div>
 
       <IdexxSettingsModal

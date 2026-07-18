@@ -9,11 +9,6 @@ import {
   InventoryServiceError,
 } from "../../src/services/inventory.service";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-
-jest.mock("src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(),
-}));
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -79,7 +74,6 @@ jest.mock("../../src/services/inventory.catalog", () => ({
 describe("Inventory service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (isReadFromPostgres as jest.Mock).mockReturnValue(true);
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
       currency: "usd",
     });
