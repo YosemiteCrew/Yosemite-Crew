@@ -7,8 +7,8 @@ import type { Task, TaskStatus } from '@/app/features/tasks/types/task';
 
 jest.mock('react-icons/io5', () => ({
   IoCheckmark: () => <span data-testid="icon-check" />,
-  IoChevronBack: () => <span data-testid="icon-back" />,
-  IoChevronForward: () => <span data-testid="icon-forward" />,
+  IoChevronBackOutline: () => <span data-testid="icon-back" />,
+  IoChevronForwardOutline: () => <span data-testid="icon-forward" />,
 }));
 
 const NOW = new Date('2026-07-16T12:00:00.000Z');

@@ -129,9 +129,9 @@ const BoardCardHeader = ({
           getAppointmentCompanionPhotoUrl(companion),
           companion.species.toLowerCase() as ImageType
         )}
-        height={28}
-        width={28}
-        className="size-7 shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
+        height={30}
+        width={30}
+        className="size-[30px] shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
         alt=""
       />
       <div className="min-w-0">
@@ -147,17 +147,17 @@ const BoardCardHeader = ({
         >
           {companionDisplayName}
         </button>
-        <div className="truncate text-[11px] leading-4 text-text-tertiary">
+        <div className="truncate text-[10.5px] leading-4 text-text-tertiary">
           {buildCompanionSubtitle(companion)}
         </div>
       </div>
     </div>
     {isEmergency && (
       <span
-        className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-2 py-[3px] text-[9px] font-bold uppercase leading-none tracking-[0.08em] text-[var(--danger-text)]"
+        className="shrink-0 inline-flex items-center gap-[3px] rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-[7px] py-[2px] text-[8.5px] font-bold uppercase leading-none text-[var(--danger-text)]"
         aria-label="Emergency appointment"
       >
-        <IoWarning size={9} aria-hidden="true" />
+        <IoWarning size={8} aria-hidden="true" />
         Emergency
       </span>
     )}
@@ -389,7 +389,7 @@ const AppointmentBoardCard = ({
           : `Appointment ${companionDisplayName}`
       }
       className={clsx(
-        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
+        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[13px] py-[11px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
         isEmergency
           ? 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]'
           : 'border-card-border',
@@ -421,7 +421,7 @@ const AppointmentBoardCard = ({
         onOpenHistory={() => openAppointmentHistory(appointment)}
       />
 
-      <div className="relative z-10 line-clamp-2 text-[12px] leading-4 text-text-secondary">
+      <div className="relative z-10 line-clamp-2 text-[11.5px] leading-4 text-text-secondary">
         {buildServiceLine(appointment)}
       </div>
 
