@@ -660,6 +660,7 @@ function HeroCtaButtons({
 }
 
 function HeroSocialProof() {
+  const stats = useGithubStats();
   return (
     <div
       style={{
@@ -707,7 +708,8 @@ function HeroSocialProof() {
             color: 'var(--ink-body)',
           }}
         >
-          Trusted by <CountUp value="67,134" style={{ color: 'var(--ink)' }} /> self-hosters
+          Trusted by <CountUp value={stats.selfHosters ?? '·'} style={{ color: 'var(--ink)' }} />{' '}
+          self-hosters
         </div>
         <div style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-6b)' }}>
           Clinics and developers running it in the open, no platform fees.

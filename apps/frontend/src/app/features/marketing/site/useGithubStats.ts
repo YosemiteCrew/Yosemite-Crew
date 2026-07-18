@@ -247,7 +247,7 @@ export function useMobileRelease(): ReleaseInfo {
         `${x.tag_name ?? ''} ${x.name ?? ''}`.toLowerCase();
       const isMobile = (x: { tag_name?: string; name?: string }) =>
         /mobile|ios|android|app-v|-app|expo/.test(tagOf(x));
-      const mobile = list.find((x) => isMobile(x) && /1\.2/.test(tagOf(x))) ?? list.find(isMobile);
+      const mobile = list.find(isMobile);
       if (!mobile?.html_url) return;
       const next: ReleaseInfo = {
         tag: (mobile.name ?? mobile.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,

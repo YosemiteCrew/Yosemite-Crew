@@ -110,7 +110,7 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
         style={{ width: 1, height: 12, background: 'var(--divider)', margin: '0 3px' }}
         aria-hidden="true"
       />
-      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{version}</span>
+      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{release.tag ?? version}</span>
       {!isStatic && release.date ? (
         <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>{` · ${release.date}`}</span>
       ) : null}

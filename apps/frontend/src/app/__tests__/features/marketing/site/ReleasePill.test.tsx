@@ -47,19 +47,28 @@ describe('ReleasePill', () => {
     expect(link).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew/releases');
   });
 
-  it('renders the platform variant with label, version and live date', () => {
+  it('renders the platform variant with label, the live tag and live date', () => {
     render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.0 beta" />);
     expect(screen.getByText('Platform PIMS')).toBeInTheDocument();
-    expect(screen.getByText('v2.0 beta')).toBeInTheDocument();
+    // The live release tag wins over the hard-coded version copy.
+    expect(screen.getByText('v2.0.0-beta')).toBeInTheDocument();
+    expect(screen.queryByText('v2.0 beta')).not.toBeInTheDocument();
     const link = screen.getByRole('link');
     expect(link).toHaveTextContent('Jul 2, 2026');
     expect(link).toHaveAttribute('href', latest.url);
   });
 
-  it('renders the mobile variant from the mobile release', () => {
+  it('renders the mobile variant with the live tag and link', () => {
     render(<ReleasePill variant="mobile" label="Mobile app" version="v1.2 beta" />);
     expect(screen.getByText('Mobile app')).toBeInTheDocument();
+    expect(screen.getByText('v1.2')).toBeInTheDocument();
     expect(screen.getByRole('link')).toHaveAttribute('href', mobile.url);
+  });
+
+  it('falls back to the hard-coded version when no mobile tag resolved', () => {
+    mobileValue = empty;
+    render(<ReleasePill variant="mobile" label="Mobile app" version="v1.2 beta" />);
+    expect(screen.getByText('v1.2 beta')).toBeInTheDocument();
   });
 
   it('renders the static variant without a live date and uses the provided href', () => {
