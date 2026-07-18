@@ -23,7 +23,6 @@ export interface GithubStats {
 const STATS_CACHE_KEY = 'yc_marketing_stats_v1';
 const STATS_TS_KEY = 'yc_marketing_stats_ts_v1';
 const STATS_TTL_MS = 5 * 60 * 1000;
-const SELF_HOSTERS_FALLBACK = 67100;
 
 const EMPTY_STATS: GithubStats = {
   stars: null,
@@ -78,7 +77,11 @@ const fetchStars = async (): Promise<Partial<GithubStats>> => {
 
 const fetchSelfHosters = async (): Promise<Partial<GithubStats>> => {
   const summary = await fetchJson(REPO_STATS_SUMMARY);
-  const total = readSelfHostersTotal(summary) ?? SELF_HOSTERS_FALLBACK;
+  const total = readSelfHostersTotal(summary);
+  // Contribute nothing on failure (like the other fetchers), so a transient outage
+  // keeps the cached value for cached consumers and shows the loading placeholder on
+  // the live Insights surface -- never a hard-coded number presented as live/uncached.
+  if (total === null) return {};
   return { selfHosters: total.toLocaleString('en-US') };
 };
 
@@ -108,25 +111,31 @@ const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
  * (nav, footer, auth shell, stats sections), so without this every mount would
  * fire its own copy of all four requests and burn the unauthenticated GitHub quota.
  * Every instance that mounts while a fetch is running awaits this same promise.
+ *
+ * The loader returns ONLY the fields fetched in this pass (a fetcher that fails or
+ * gets a non-OK response contributes nothing). That lets a live consumer publish
+ * exactly this-pass data (a failed field stays as its loading placeholder, never a
+ * stale cached value) while a cached consumer merges it over its last-known snapshot.
+ * The session cache is refreshed by merging the fresh fields OVER the previous cache,
+ * so a transient failure never wipes a good cached value.
  */
-let inFlight: Promise<GithubStats> | null = null;
+let inFlight: Promise<Partial<GithubStats>> | null = null;
 
-const runGithubStatsFetch = async (): Promise<GithubStats> => {
+const runGithubStatsFetch = async (): Promise<Partial<GithubStats>> => {
   const parts = await Promise.all([
     fetchStars(),
     fetchSelfHosters(),
     fetchContributors(),
     fetchDiscord(),
   ]);
-  const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
-  const base: GithubStats = { ...EMPTY_STATS, ...cached };
-  const merged = parts.reduce<GithubStats>((acc, part) => ({ ...acc, ...part }), base);
-  setJsonStorageItem('session', STATS_CACHE_KEY, merged);
+  const fresh = parts.reduce<Partial<GithubStats>>((acc, part) => ({ ...acc, ...part }), {});
+  const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY) ?? {};
+  setJsonStorageItem('session', STATS_CACHE_KEY, { ...EMPTY_STATS, ...cached, ...fresh });
   setStorageItem('session', STATS_TS_KEY, String(Date.now()));
-  return merged;
+  return fresh;
 };
 
-const loadGithubStats = (): Promise<GithubStats> => {
+const loadGithubStats = (): Promise<Partial<GithubStats>> => {
   inFlight ??= runGithubStatsFetch().finally(() => {
     inFlight = null;
   });
@@ -141,29 +150,52 @@ const isStatsCacheFresh = (): boolean => {
   return Number.isFinite(savedAt) && Date.now() - savedAt < STATS_TTL_MS;
 };
 
+export interface LiveFetchOptions {
+  /**
+   * Bypass the session cache/TTL and always refetch on mount, WITHOUT first
+   * painting a cached value. The Insights page passes this so its "no cache,
+   * pulled on every visit, right now" copy stays truthful even for a repeat
+   * visitor inside the normal cache window: the surface shows its loading
+   * placeholder until the live value resolves rather than a stale cached one.
+   */
+  live?: boolean;
+}
+
 /**
  * Live community metrics from GitHub + Discord. Seeds from the session cache, then
  * refreshes through a single shared loader that is deduplicated across concurrent
- * hook instances and skipped entirely while the cached snapshot is still fresh.
+ * hook instances. By default the refresh is skipped while the cached snapshot is
+ * still fresh; pass `{ live: true }` to always refetch AND skip the cached seed
+ * (used by the Insights page, whose copy explicitly promises uncached numbers).
  */
-export function useGithubStats(): GithubStats {
-  const [stats, setStats] = useState<GithubStats>(() => {
-    const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
-    return { ...EMPTY_STATS, ...cached };
-  });
+export function useGithubStats(options?: LiveFetchOptions): GithubStats {
+  const live = options?.live ?? false;
+  const [stats, setStats] = useState<GithubStats>(EMPTY_STATS);
 
   useEffect(() => {
     let active = true;
-    if (!isStatsCacheFresh()) {
+    // Seed from the session cache after mount, not in the useState initializer:
+    // reading storage during render makes the client's first paint diverge from the
+    // server HTML (which has no storage) and triggers a hydration mismatch. Live
+    // mode skips the seed so a stale value is never painted under the "no cache" copy.
+    if (!live) {
+      const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
+      if (cached) setStats({ ...EMPTY_STATS, ...cached });
+    }
+    if (live || !isStatsCacheFresh()) {
       void (async () => {
-        const merged = await loadGithubStats();
-        if (active) setStats(merged);
+        const fresh = await loadGithubStats();
+        if (!active) return;
+        // Live: publish ONLY this-pass fields, so a failed fetcher stays as the
+        // loading placeholder rather than a stale cached value under the "no cache"
+        // copy. Cached: keep last-known values for any field this pass did not return.
+        setStats((prev) => (live ? { ...EMPTY_STATS, ...fresh } : { ...prev, ...fresh }));
       })();
     }
     return () => {
       active = false;
     };
-  }, []);
+  }, [live]);
 
   return stats;
 }
@@ -191,24 +223,34 @@ const formatReleaseDate = (iso?: string): string | null => {
   }
 };
 
-/** Latest GitHub release (platform). Used by the Home chip and Pet Businesses hero pill. */
-export function useLatestRelease(): ReleaseInfo {
+/**
+ * Latest GitHub release (platform). Used by the Home chip and Pet Businesses hero
+ * pill (cached) and the Insights latest-release card. Pass `{ live: true }` on the
+ * Insights page so the "nothing is cached" copy is honest: live mode always
+ * refetches and skips the cached seed, showing a loading placeholder (never a stale
+ * cached release) until the fresh value resolves.
+ */
+export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
+  const live = options?.live ?? false;
   const cacheKey = 'yc_rel_platform_v1';
-  const [release, setRelease] = useState<ReleaseInfo>(
-    () => getJsonStorageItem<ReleaseInfo>('session', cacheKey) ?? EMPTY_RELEASE
-  );
+  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
 
   useEffect(() => {
     let active = true;
+    if (!live) {
+      const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
+      if (cached) setRelease(cached);
+    }
     void (async () => {
       const json = (await fetchJson(
         `${GITHUB_API_REPO}/releases/latest`,
         'application/vnd.github+json'
-      )) as { tag_name?: string; name?: string; published_at?: string; html_url?: string } | null;
+      )) as { tag_name?: string; published_at?: string; html_url?: string } | null;
       if (!active || !json?.tag_name) return;
-      const rawTag = json.name ?? json.tag_name;
       const next: ReleaseInfo = {
-        tag: rawTag.replace(/^[a-z]+-(?=v?\d)/i, ''),
+        // Derive the version from tag_name (the git tag), never the release `name`:
+        // GitHub release names are free-form titles and would land in the version slot.
+        tag: json.tag_name.replace(/^[a-z]+-(?=v?\d)/i, ''),
         date: formatReleaseDate(json.published_at),
         url: json.html_url ?? null,
       };
@@ -218,7 +260,7 @@ export function useLatestRelease(): ReleaseInfo {
     return () => {
       active = false;
     };
-  }, []);
+  }, [live]);
 
   return release;
 }
@@ -226,31 +268,32 @@ export function useLatestRelease(): ReleaseInfo {
 /** Newest mobile-tagged GitHub release. Used by the Pet Parents hero pill. */
 export function useMobileRelease(): ReleaseInfo {
   const cacheKey = 'yc_rel_mobile_v1';
-  const [release, setRelease] = useState<ReleaseInfo>(
-    () => getJsonStorageItem<ReleaseInfo>('session', cacheKey) ?? EMPTY_RELEASE
-  );
+  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
 
   useEffect(() => {
     let active = true;
+    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
+    if (cached) setRelease(cached);
     void (async () => {
       const list = (await fetchJson(
         `${GITHUB_API_REPO}/releases?per_page=30`,
         'application/vnd.github+json'
       )) as Array<{
         tag_name?: string;
-        name?: string;
         published_at?: string;
         html_url?: string;
       }> | null;
       if (!active || !Array.isArray(list)) return;
-      const tagOf = (x: { tag_name?: string; name?: string }) =>
-        `${x.tag_name ?? ''} ${x.name ?? ''}`.toLowerCase();
-      const isMobile = (x: { tag_name?: string; name?: string }) =>
-        /mobile|ios|android|app-v|-app|expo/.test(tagOf(x));
-      const mobile = list.find((x) => isMobile(x) && /1\.2/.test(tagOf(x))) ?? list.find(isMobile);
+      // Match on the release TAG only (not the free-text title), so a platform or
+      // backend release whose notes merely mention "mobile" is not mistaken for the
+      // mobile app release.
+      const isMobileTag = (x: { tag_name?: string }) =>
+        /mobile|ios|android|app-v|expo/.test((x.tag_name ?? '').toLowerCase());
+      const mobile = list.find(isMobileTag);
       if (!mobile?.html_url) return;
       const next: ReleaseInfo = {
-        tag: (mobile.name ?? mobile.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
+        // tag_name only: the release `name` is a free-form title, not a version.
+        tag: (mobile.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
         date: formatReleaseDate(mobile.published_at),
         url: mobile.html_url,
       };
