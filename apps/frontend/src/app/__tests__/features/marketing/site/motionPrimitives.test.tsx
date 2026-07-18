@@ -66,8 +66,7 @@ describe('InkAnnotate', () => {
   let widthSpy: jest.SpyInstance;
   let heightSpy: jest.SpyInstance;
   let ioCallback:
-    | ((entries: Array<{ intersectionRatio: number; isIntersecting: boolean }>) => void)
-    | null;
+    ((entries: Array<{ intersectionRatio: number; isIntersecting: boolean }>) => void) | null;
 
   beforeEach(() => {
     setReducedMotion(false);

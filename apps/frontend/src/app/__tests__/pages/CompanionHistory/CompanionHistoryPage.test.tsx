@@ -187,6 +187,10 @@ jest.mock('@/app/features/companions/components/CompanionInfo', () => ({
     ) : null,
 }));
 
+jest.mock('@/app/lib/featureFlags', () => ({
+  isCompanionRevampEnabled: jest.fn(() => false),
+}));
+
 jest.mock('@/app/ui/layout/PageSkeleton', () => ({
   __esModule: true,
   default: () => <div className="animate-pulse" data-testid="page-skeleton" />,

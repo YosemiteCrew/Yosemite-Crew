@@ -215,7 +215,9 @@ export function ConversationRow({
                   ? onUnmute && (
                       <MenuItem
                         active
-                        icon={<IoNotificationsOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+                        icon={
+                          <IoNotificationsOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
+                        }
                         label="Unmute"
                         onClick={() => {
                           onUnmute();

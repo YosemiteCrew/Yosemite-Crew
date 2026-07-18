@@ -1,10 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import type { NextFunction, Request, Response } from "express";
 
-jest.mock("../../src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(),
-}));
-
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
     userOrganization: {
@@ -16,7 +12,6 @@ jest.mock("../../src/config/prisma", () => ({
     },
     invoice: {
       findUnique: jest.fn(),
-      findFirst: jest.fn(),
     },
     paymentAttempt: {
       findFirst: jest.fn(),
@@ -30,50 +25,7 @@ jest.mock("../../src/config/prisma", () => ({
   },
 }));
 
-jest.mock("../../src/models/user-organization", () => ({
-  __esModule: true,
-  default: {
-    findOne: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/appointment", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/invoice", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-    findOne: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/task", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/inventory", () => ({
-  __esModule: true,
-  InventoryItemModel: {
-    findById: jest.fn(),
-  },
-}));
-
 import { prisma } from "../../src/config/prisma";
-import { isReadFromPostgres } from "../../src/config/read-switch";
-import UserOrganizationModel from "../../src/models/user-organization";
-import AppointmentModel from "../../src/models/appointment";
-import InvoiceModel from "../../src/models/invoice";
-import TaskModel from "../../src/models/task";
-import { InventoryItemModel } from "../../src/models/inventory";
 import {
   requirePermission,
   type OrgRequest,
@@ -93,14 +45,9 @@ const mockRes = (): Response =>
 
 const next = () => jest.fn() as unknown as NextFunction;
 
-const leanResult = (value: unknown) => ({
-  lean: jest.fn().mockResolvedValue(value as never),
-});
-
 describe("rbac middleware", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (isReadFromPostgres as jest.Mock).mockReturnValue(true);
   });
 
   it("returns 400 when org context cannot be extracted", async () => {
@@ -222,40 +169,6 @@ describe("rbac middleware", () => {
     });
   });
 
-  it("uses mongo mapping when postgres reads are disabled", async () => {
-    (isReadFromPostgres as jest.Mock).mockReturnValue(false);
-    (UserOrganizationModel.findOne as jest.Mock).mockResolvedValue({
-      _id: "mongo_1",
-      roleCode: "TECHNICIAN",
-      extraPermissions: ["tasks:view:any"],
-      revokedPermissions: [],
-      effectivePermissions: [],
-    } as never);
-    (UserOrganizationModel.findByIdAndUpdate as jest.Mock).mockResolvedValue({
-      effectivePermissions: ["tasks:view:any"],
-    } as never);
-
-    const req = {
-      userId: "user_1",
-      params: { orgId: "org_1" },
-      headers: {},
-      body: {},
-    } as unknown as OrgRequest as Request;
-    const middlewareNext = next();
-
-    await withOrgPermissions()(req, mockRes(), middlewareNext);
-
-    expect(UserOrganizationModel.findOne).toHaveBeenCalledWith({
-      practitionerReference: "user_1",
-      $or: [
-        { organizationReference: "org_1" },
-        { organizationReference: "Organization/org_1" },
-      ],
-    });
-    expect(UserOrganizationModel.findByIdAndUpdate).toHaveBeenCalled();
-    expect(middlewareNext).toHaveBeenCalled();
-  });
-
   it("returns 403 when the user is not associated with the organisation", async () => {
     (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
       null as never,
@@ -364,7 +277,7 @@ describe("rbac middleware", () => {
     } as unknown as OrgRequest as Request;
     const taskReq = {
       userId: "user_1",
-      params: { taskId: "507f1f77bcf86cd799439012" },
+      params: { taskId: "task_1" },
       headers: {},
     } as unknown as OrgRequest as Request;
     const itemReq = {
@@ -384,84 +297,6 @@ describe("rbac middleware", () => {
     expect(paymentReq.params.organisationId).toBe("org_pi");
     expect(taskReq.params.organisationId).toBe("org_task");
     expect(itemReq.params.organisationId).toBe("org_item");
-  });
-
-  it("uses mongo lookups in resource wrappers when postgres reads are disabled", async () => {
-    (isReadFromPostgres as jest.Mock).mockReturnValue(false);
-    const mongoAppointmentId = "507f1f77bcf86cd799439011";
-    (AppointmentModel.findById as jest.Mock).mockReturnValue(
-      leanResult({ organisationId: "org_apt" }),
-    );
-    (InvoiceModel.findById as jest.Mock).mockReturnValue(
-      leanResult({ organisationId: "org_inv" }),
-    );
-    (InvoiceModel.findOne as jest.Mock).mockReturnValue(
-      leanResult({ organisationId: "org_pi" }),
-    );
-    (TaskModel.findById as jest.Mock).mockReturnValue(
-      leanResult({ organisationId: "org_task" }),
-    );
-    (InventoryItemModel.findById as jest.Mock).mockReturnValue(
-      leanResult({ organisationId: "org_item" }),
-    );
-    (UserOrganizationModel.findOne as jest.Mock).mockResolvedValue({
-      _id: "map_1",
-      roleCode: undefined,
-      extraPermissions: ["tasks:view:any"],
-      revokedPermissions: [],
-      effectivePermissions: ["tasks:view:any"],
-    } as never);
-
-    await withAppointmentOrgPermissions()(
-      {
-        userId: "user_1",
-        params: { appointmentId: mongoAppointmentId },
-        headers: {},
-      } as never,
-      mockRes(),
-      next(),
-    );
-
-    await withTaskOrgPermissions()(
-      {
-        userId: "user_1",
-        params: { taskId: "507f1f77bcf86cd799439012" },
-        headers: {},
-      } as never,
-      mockRes(),
-      next(),
-    );
-
-    expect(AppointmentModel.findById).toHaveBeenCalledWith(mongoAppointmentId, {
-      organisationId: 1,
-    });
-    expect(TaskModel.findById).toHaveBeenCalledWith(
-      "507f1f77bcf86cd799439012",
-      {
-        organisationId: 1,
-      },
-    );
-  });
-
-  it("returns 404 instead of hanging for UUID appointment ids in mongo mode", async () => {
-    (isReadFromPostgres as jest.Mock).mockReturnValue(false);
-    const res = mockRes();
-
-    await withAppointmentOrgPermissions()(
-      {
-        userId: "user_1",
-        params: { appointmentId: "bb264871-8d18-420e-bbc0-fd926db9e7ad" },
-        headers: {},
-      } as never,
-      res,
-      next(),
-    );
-
-    expect(AppointmentModel.findById).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "Appointment not found",
-    });
   });
 });
 

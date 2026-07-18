@@ -161,8 +161,8 @@ describe('companionsDirectory helpers', () => {
 
   it('recognises today vs other/invalid dates', () => {
     const now = new Date('2026-07-14T12:00:00.000Z');
-    expect(isToday(new Date('2026-07-14T20:00:00.000Z'), now)).toBe(true);
-    expect(isToday(new Date('2026-07-13T20:00:00.000Z'), now)).toBe(false);
+    expect(isToday(new Date(2026, 6, 14, 20, 0, 0), now)).toBe(true);
+    expect(isToday(new Date(2026, 6, 13, 20, 0, 0), now)).toBe(false);
     expect(isToday(undefined, now)).toBe(false);
     expect(isToday('not-a-date', now)).toBe(false);
   });

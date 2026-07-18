@@ -115,9 +115,7 @@ function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen:
   if (sending)
     return <IoTimeOutline aria-label="Sending" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
   if (seen)
-    return (
-      <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue-text)]" />
-    );
+    return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue-text)]" />;
   return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
 }
 

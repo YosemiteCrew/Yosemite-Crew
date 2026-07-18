@@ -1,24 +1,11 @@
-import { FormModel, FormSubmissionModel } from "src/models/form";
-import { type FormSubmissionDocument } from "src/models/form";
 import { DocumensoService } from "./documenso.service";
-import { ParentModel } from "src/models/parent";
-import UserModel from "src/models/user";
 import logger from "src/utils/logger";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma } from "@prisma/client";
-import { type HydratedDocument, Types } from "mongoose";
-import { isReadFromPostgres } from "src/config/read-switch";
 import {
   createRenderedDocumentRecord,
   signPersistedRenderedDocument,
 } from "src/services/rendered-document.service";
-
-type FormSubmissionDoc = HydratedDocument<FormSubmissionDocument> & {
-  _id: Types.ObjectId;
-  createdAt?: Date;
-  updatedAt?: Date;
-};
 
 type PrismaFormSubmissionRecord = {
   id: string;
@@ -86,16 +73,6 @@ export class FormSigningService {
     return typeof documentId === "string" ? documentId : undefined;
   }
 
-  private static async loadSubmissionOrThrow(
-    submissionId: string,
-  ): Promise<FormSubmissionDoc> {
-    const submission = await FormSubmissionModel.findById(submissionId);
-    if (!submission) {
-      throw new Error("Form submission not found");
-    }
-    return submission;
-  }
-
   private static async loadSubmissionOrThrowPrisma(
     submissionId: string,
   ): Promise<PrismaFormSubmissionRecord> {
@@ -106,14 +83,6 @@ export class FormSigningService {
       throw new Error("Form submission not found");
     }
     return submission;
-  }
-
-  private static async loadFormOrThrow(formId: string) {
-    const form = await FormModel.findById(formId).lean();
-    if (!form) {
-      throw new Error("Form not found");
-    }
-    return form;
   }
 
   private static async loadFormOrThrowPrisma(formId: string) {
@@ -161,9 +130,9 @@ export class FormSigningService {
   }) {
     if (isParent) {
       logger.info("Signing initiated by parent: ", initiatedBy);
-      const parent = isReadFromPostgres()
-        ? await prisma.parent.findUnique({ where: { id: initiatedBy } })
-        : await ParentModel.findById(initiatedBy).lean();
+      const parent = await prisma.parent.findUnique({
+        where: { id: initiatedBy },
+      });
       if (!parent) {
         throw new Error("Unbale to find parent");
       }
@@ -178,9 +147,9 @@ export class FormSigningService {
       throw new Error("Unable to find submitting user");
     }
 
-    const user = isReadFromPostgres()
-      ? await prisma.user.findUnique({ where: { userId: submittedBy } })
-      : await UserModel.findOne({ userId: submittedBy }).lean();
+    const user = await prisma.user.findUnique({
+      where: { userId: submittedBy },
+    });
     if (!user) {
       throw new Error("Unable to find submitting user");
     }
@@ -285,109 +254,7 @@ export class FormSigningService {
     initiatedBy?: string;
     organisationId?: string;
   }) {
-    if (isReadFromPostgres()) {
-      const submission =
-        await FormSigningService.loadSubmissionOrThrowPrisma(submissionId);
-
-      if (isParent) {
-        FormSigningService.ensureParentOwnsSubmission(
-          submission.parentId,
-          initiatedBy,
-        );
-      }
-
-      FormSigningService.ensureSigningCanStart(
-        FormSigningService.extractSigningStatus(submission.signing),
-      );
-
-      const formId = submission.formId;
-      const form = await FormSigningService.loadFormOrThrowPrisma(formId);
-
-      if (!isParent) {
-        FormSigningService.ensurePmsUserCanSign({
-          formOrgId: form.orgId,
-          organisationId,
-          submittedBy: submission.submittedBy ?? undefined,
-          initiatedBy,
-        });
-      }
-
-      FormSigningService.ensureRequiredSignerMatches(
-        form.requiredSigner ?? undefined,
-        isParent,
-      );
-
-      const { signerEmail, signerName, signerRole } =
-        await FormSigningService.resolveSignerInfo({
-          isParent,
-          initiatedBy,
-          submittedBy: submission.submittedBy ?? undefined,
-        });
-
-      const sourceId =
-        FormSigningService.normalizeId(submission.id) ??
-        FormSigningService.normalizeId((submission as { _id?: unknown })._id);
-      if (!sourceId) {
-        throw new Error("Unable to determine submission id");
-      }
-
-      if (!signerEmail) {
-        logger.error("Signer email is missing");
-        throw new Error("Signer email is required for signing");
-      }
-
-      const { renderedDocument, signedRenderedDocument } =
-        await FormSigningService.createAndStartRenderedDocumentSigning({
-          formId,
-          formName: form.name,
-          formOrgId: form.orgId,
-          formVersion: submission.formVersion,
-          sourceId,
-          signerEmail,
-          signerName,
-          signerId: isParent
-            ? (initiatedBy ?? "")
-            : (submission.submittedBy ?? ""),
-          signerType: isParent ? "PARENT" : "PMS_USER",
-        });
-
-      await prisma.formSubmission.update({
-        where: { id: submission.id },
-        data: {
-          signing: {
-            required: true,
-            status: "IN_PROGRESS",
-            provider: "DOCUMENSO",
-            documentId:
-              (
-                signedRenderedDocument.signing as
-                  { documentId?: string } | null | undefined
-              )?.documentId ?? renderedDocument.id,
-            signer: {
-              email: signerEmail,
-              role: signerRole,
-            },
-          } as unknown as Prisma.InputJsonValue,
-        },
-      });
-
-      return {
-        documentId:
-          (
-            signedRenderedDocument.signing as
-              { documentId?: string } | null | undefined
-          )?.documentId ?? renderedDocument.id,
-        signingUrl:
-          (
-            signedRenderedDocument.signing as
-              { signingUrl?: string } | null | undefined
-          )?.signingUrl ?? null,
-      };
-    }
-
-    // 1️⃣ Load submission
-    const submission =
-      await FormSigningService.loadSubmissionOrThrow(submissionId);
+    const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
 
     if (isParent) {
       FormSigningService.ensureParentOwnsSubmission(
@@ -396,32 +263,24 @@ export class FormSigningService {
       );
     }
 
-    // 2️⃣ Validate state
-    FormSigningService.ensureSigningCanStart(submission.signing?.status);
+    FormSigningService.ensureSigningCanStart(
+      FormSigningService.extractSigningStatus(submission.signing),
+    );
 
-    // 3️⃣ Load immutable form version
-    const formId = (() => {
-      if (typeof submission.formId === "string") return submission.formId;
-      if (hasToHexString(submission.formId)) {
-        const id = submission.formId.toHexString();
-        if (id.length > 0) return id;
-      }
-      throw new Error("Invalid formId");
-    })();
-
-    const form = await FormSigningService.loadFormOrThrow(formId);
+    const formId = submission.formId;
+    const form = await FormSigningService.loadFormOrThrowPrisma(formId);
 
     if (!isParent) {
       FormSigningService.ensurePmsUserCanSign({
         formOrgId: form.orgId,
         organisationId,
-        submittedBy: submission.submittedBy,
+        submittedBy: submission.submittedBy ?? undefined,
         initiatedBy,
       });
     }
 
     FormSigningService.ensureRequiredSignerMatches(
-      form.requiredSigner,
+      form.requiredSigner ?? undefined,
       isParent,
     );
 
@@ -429,12 +288,10 @@ export class FormSigningService {
       await FormSigningService.resolveSignerInfo({
         isParent,
         initiatedBy,
-        submittedBy: submission.submittedBy,
+        submittedBy: submission.submittedBy ?? undefined,
       });
 
-    const sourceId =
-      FormSigningService.normalizeId(submission.id) ??
-      FormSigningService.normalizeId((submission as { _id?: unknown })._id);
+    const sourceId = FormSigningService.normalizeId(submission.id);
     if (!sourceId) {
       throw new Error("Unable to determine submission id");
     }
@@ -459,37 +316,26 @@ export class FormSigningService {
         signerType: isParent ? "PARENT" : "PMS_USER",
       });
 
-    // 7️⃣ Persist signing state
-    submission.signing = {
-      required: true,
-      status: "IN_PROGRESS",
-      provider: "DOCUMENSO",
-      documentId:
-        (
-          signedRenderedDocument.signing as
-            { documentId?: string } | null | undefined
-        )?.documentId ?? renderedDocument.id,
-      signer: {
-        email: signerEmail,
-        role: signerRole,
-      },
-    };
-
-    await submission.save();
-
-    if (shouldDualWrite) {
-      try {
-        await prisma.formSubmission.updateMany({
-          where: { id: submission._id.toString() },
-          data: {
-            signing: submission.signing as unknown as Prisma.InputJsonValue,
-            updatedAt: submission.updatedAt ?? undefined,
+    await prisma.formSubmission.update({
+      where: { id: submission.id },
+      data: {
+        signing: {
+          required: true,
+          status: "IN_PROGRESS",
+          provider: "DOCUMENSO",
+          documentId:
+            (
+              signedRenderedDocument.signing as
+                { documentId?: string } | null | undefined
+            )?.documentId ?? renderedDocument.id,
+          signer: {
+            email: signerEmail,
+            role: signerRole,
           },
-        });
-      } catch (err) {
-        handleDualWriteError("FormSubmission signing", err);
-      }
-    }
+        } as unknown as Prisma.InputJsonValue,
+      },
+    });
+
     return {
       documentId:
         (
@@ -506,51 +352,27 @@ export class FormSigningService {
 
   static async getSignedDocument({ submissionId }: { submissionId: string }) {
     // 1️⃣ Load submission
-    const submission = isReadFromPostgres()
-      ? await FormSigningService.loadSubmissionOrThrowPrisma(submissionId)
-      : await FormSubmissionModel.findById(submissionId);
-    if (!submission) {
-      throw new Error("Form submission not found");
-    }
+    const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
 
     // 2️⃣ Validate signing state
-    const signing = submission.signing as
-      { status?: string; documentId?: string } | null | undefined;
-    const signingStatus = isReadFromPostgres()
-      ? FormSigningService.extractSigningStatus(
-          submission.signing as Prisma.JsonValue | null | undefined,
-        )
-      : signing?.status;
+    const signingStatus = FormSigningService.extractSigningStatus(
+      submission.signing as Prisma.JsonValue | null | undefined,
+    );
     if (signingStatus !== "SIGNED") {
       throw new Error("Submission is not signed yet");
     }
 
-    const documentId = isReadFromPostgres()
-      ? FormSigningService.extractDocumentId(
-          submission.signing as Prisma.JsonValue | null | undefined,
-        )
-      : signing?.documentId;
+    const documentId = FormSigningService.extractDocumentId(
+      submission.signing as Prisma.JsonValue | null | undefined,
+    );
 
     if (!documentId) {
       throw new Error("No document associated with this submission");
     }
 
     // 3️⃣ Fetch signed document from Documenso
-    const formId =
-      typeof submission.formId === "string"
-        ? submission.formId
-        : hasToHexString(submission.formId)
-          ? submission.formId.toHexString()
-          : (() => {
-              throw new Error("Invalid formId on submission");
-            })();
-    const form = isReadFromPostgres()
-      ? await FormSigningService.loadFormOrThrowPrisma(formId)
-      : await FormModel.findById(submission.formId).lean();
-
-    if (!form) {
-      throw new Error("Form not found");
-    }
+    const formId = submission.formId;
+    const form = await FormSigningService.loadFormOrThrowPrisma(formId);
 
     const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
       form.orgId,

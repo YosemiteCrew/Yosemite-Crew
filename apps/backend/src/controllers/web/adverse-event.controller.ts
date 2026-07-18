@@ -9,10 +9,7 @@ import {
   AdverseEventServiceError,
 } from "../../services/adverse-event.service";
 import logger from "src/utils/logger";
-import { RegulatoryAuthorityModel } from "src/models/regulatory-authority";
-import escapeStringRegexp from "escape-string-regexp";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export const AdverseEventController = {
   createFromMobile: async (
@@ -103,40 +100,34 @@ export const AdverseEventController = {
 
       if (iso2) filters.push({ iso2: iso2.toUpperCase() });
       if (country) {
-        const safe = escapeStringRegexp(country.trim());
-        const countryRegex = new RegExp(safe, "i");
         countryQuery = country.trim();
-        filters.push({ country: countryRegex });
+        filters.push({ country: countryQuery });
       }
 
       if (filters.length === 0) {
         return res.status(400).json({ message: "country or iso2 is required" });
       }
 
-      const record = isReadFromPostgres()
-        ? await prisma.regulatoryAuthority.findFirst({
-            where: {
-              OR: filters.map((filter) => {
-                if ("iso2" in filter) {
-                  return { iso2: filter.iso2 as string };
-                }
-                if ("country" in filter) {
-                  return countryQuery
-                    ? {
-                        country: {
-                          contains: countryQuery,
-                          mode: "insensitive",
-                        },
-                      }
-                    : {};
-                }
-                return {};
-              }),
-            },
-          })
-        : await RegulatoryAuthorityModel.findOne({
-            $or: filters,
-          });
+      const record = await prisma.regulatoryAuthority.findFirst({
+        where: {
+          OR: filters.map((filter) => {
+            if ("iso2" in filter) {
+              return { iso2: filter.iso2 as string };
+            }
+            if ("country" in filter) {
+              return countryQuery
+                ? {
+                    country: {
+                      contains: countryQuery,
+                      mode: "insensitive",
+                    },
+                  }
+                : {};
+            }
+            return {};
+          }),
+        },
+      });
 
       if (!record) {
         return res

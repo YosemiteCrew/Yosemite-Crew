@@ -21,20 +21,14 @@ pnpm run dev --filter backend
 
 ## Database
 
-### PostgreSQL via Prisma (source of truth)
+### PostgreSQL (Prisma)
 
 The backend persists to PostgreSQL through Prisma. The schema and migrations live in `packages/database` (`prisma/schema.prisma`) — Prisma Migrate is the schema source of truth. Generate the client and apply migrations with:
 
 ```bash
 pnpm --filter backend run prisma:generate
-pnpm --filter backend run prisma:migrate
+pnpm --filter backend run prisma:deploy
 ```
-
-### Legacy datastore (still required at startup, being removed)
-
-`main.ts` calls `connectDB()` (`apps/backend/src/config/db.ts`) on boot, which skips the legacy MongoDB connection only when `READ_FROM_POSTGRES=true`; otherwise it resolves a connection from `USE_INMEMORY_DB=true` (in-memory instance), `LOCAL_DEVELOPMENT=true` (local instance), or `MONGODB_URI`. With none set, startup fails on an empty connection string.
-
-Prefer `READ_FROM_POSTGRES=true`. The legacy scaffold is being removed (#1819) and this section goes with it; all new persistence goes through Prisma.
 
 ### Redis + BullMQ Workers
 

@@ -6,9 +6,7 @@ import {
   handleMerckError,
   sendMerckSuccess,
 } from "src/controllers/merck/merck-response";
-import UserProfileModel from "src/models/user-profile";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export const MerckController = {
   async searchManuals(req: Request, res: Response) {
@@ -56,18 +54,10 @@ export const MerckController = {
           : null;
       let resolvedTimezone = timezone;
       if (!resolvedTimezone && userId) {
-        const profile = isReadFromPostgres()
-          ? await prisma.userProfile.findFirst({
-              where: { userId, organizationId: safeOrganisationId },
-              select: { personalDetails: true },
-            })
-          : await UserProfileModel.findOne({
-              userId,
-              organizationId: safeOrganisationId,
-            })
-              .setOptions({ sanitizeFilter: true })
-              .select({ "personalDetails.timezone": 1 })
-              .lean();
+        const profile = await prisma.userProfile.findFirst({
+          where: { userId, organizationId: safeOrganisationId },
+          select: { personalDetails: true },
+        });
         const personalDetails = profile?.personalDetails as
           | { timezone?: string }
           | null

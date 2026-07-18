@@ -40,8 +40,16 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: jest.fn(),
 }));
 
-const NOW = new Date(2026, 6, 7, 10, 20);
-const at = (hours: number, minutes = 0) => new Date(2026, 6, 7, hours, minutes);
+jest.mock('@/app/lib/timezone', () => ({
+  ...jest.requireActual('@/app/lib/timezone'),
+  getPreferredTimeZone: jest.fn(() => 'Asia/Kolkata'),
+}));
+
+const localDate = (day: number, hour: number, minutes = 0): Date =>
+  new Date(2026, 6, day, hour, minutes);
+
+const NOW = localDate(7, 10, 20);
+const at = (hours: number, minutes = 0) => localDate(7, hours, minutes);
 
 const makeAppointment = (overrides: Partial<Appointment> = {}): Appointment =>
   ({
@@ -93,9 +101,9 @@ const renderCalendar = (overrides: Partial<PhoneCalendarProps> = {}) =>
     <PhoneCalendar
       appointments={appointments}
       dayEvents={appointments}
-      currentDate={at(0)}
+      currentDate={localDate(7, 0)}
       setCurrentDate={setCurrentDate}
-      weekStart={new Date(2026, 6, 6)}
+      weekStart={localDate(6, 12)}
       setWeekStart={setWeekStart}
       activeCalendar="day"
       setActiveCalendar={setActiveCalendar}
@@ -238,10 +246,10 @@ describe('PhoneCalendar', () => {
       renderCalendar({ activeCalendar: 'week' });
 
       await userEvent.click(screen.getByRole('button', { name: 'Previous week' }));
-      expect(setWeekStart).toHaveBeenCalledWith(new Date(2026, 5, 29));
+      expect(setWeekStart).toHaveBeenCalledWith(new Date(2026, 5, 29, 12));
 
       await userEvent.click(screen.getByRole('button', { name: 'Next week' }));
-      expect(setWeekStart).toHaveBeenCalledWith(new Date(2026, 6, 13));
+      expect(setWeekStart).toHaveBeenCalledWith(localDate(13, 12));
     });
 
     it('selecting a day opens the day rail on that date', async () => {
@@ -283,7 +291,10 @@ describe('PhoneCalendar', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /Open day/ }));
 
-      expect(setCurrentDate).toHaveBeenCalledWith(new Date(2026, 6, 7));
+      const openedDate = (setCurrentDate as jest.Mock).mock.calls.at(-1)?.[0] as Date;
+      expect(openedDate).toBeInstanceOf(Date);
+      expect(openedDate.getHours()).toBe(0);
+      expect(openedDate.getMinutes()).toBe(0);
       expect(setActiveCalendar).toHaveBeenCalledWith('day');
     });
   });

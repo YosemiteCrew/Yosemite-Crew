@@ -13,7 +13,7 @@ jest.mock('react-icons/io5', () => ({
 }));
 
 /** Monday 6 July 2026 — the week the design renders. */
-const WEEK_START = new Date(2026, 6, 6);
+const WEEK_START = new Date(Date.UTC(2026, 6, 6, 12));
 
 let idCounter = 0;
 
