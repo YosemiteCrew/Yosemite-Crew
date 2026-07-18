@@ -125,9 +125,12 @@ describe('motion primitives', () => {
     raf.mockRestore();
   });
 
-  it('HeroVideo renders a decorative video layer', () => {
+  it('HeroVideo renders a decorative video layer with a theme-aware scrim', () => {
     const { container } = render(<HeroVideo src="https://x/v.mp4" position="center 50%" />);
     expect(container.querySelector('video')).toBeInTheDocument();
+    // The scrim carries data-hero-scrim so it flips to the dark gradient in dark mode
+    // instead of washing the hero to a muddy mid-tone.
+    expect(container.querySelector('[data-hero-scrim]')).toBeInTheDocument();
   });
 
   it('HeroVideo renders nothing under reduced motion', () => {

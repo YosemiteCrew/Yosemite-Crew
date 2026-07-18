@@ -66,8 +66,7 @@ describe('InkAnnotate', () => {
   let widthSpy: jest.SpyInstance;
   let heightSpy: jest.SpyInstance;
   let ioCallback:
-    | ((entries: Array<{ intersectionRatio: number; isIntersecting: boolean }>) => void)
-    | null;
+    ((entries: Array<{ intersectionRatio: number; isIntersecting: boolean }>) => void) | null;
 
   beforeEach(() => {
     setReducedMotion(false);
@@ -84,6 +83,10 @@ describe('InkAnnotate', () => {
       ) {
         ioCallback = cb;
       }
+      observe() {}
+      disconnect() {}
+    };
+    (globalThis as { ResizeObserver: unknown }).ResizeObserver = class {
       observe() {}
       disconnect() {}
     };
@@ -128,6 +131,77 @@ describe('InkAnnotate', () => {
     setReducedMotion(true);
     render(<InkAnnotate type="circle">whole</InkAnnotate>);
     expect(document.querySelector('[data-ink]')).not.toBeNull();
+  });
+
+  // The host is an inline <span>; ResizeObserver does not fire for it, so a viewport
+  // 'resize' is the real trigger when the headline reflows/rescales.
+  const resizeViewport = () =>
+    act(() => {
+      globalThis.window.dispatchEvent(new Event('resize'));
+    });
+
+  it('re-traces the mark when the viewport resizes and the headline reflows', () => {
+    render(<InkAnnotate type="circle">whole</InkAnnotate>);
+    const svg = document.querySelector('[data-ink]');
+    const before = svg?.getAttribute('viewBox');
+    widthSpy.mockReturnValue(200);
+    resizeViewport();
+    const after = svg?.getAttribute('viewBox');
+    expect(after).not.toEqual(before);
+    expect(after).toContain('236'); // 200 + 2 * max(14, 200 * 0.09)
+  });
+
+  it('keeps an already-drawn mark visible through a resize', () => {
+    render(<InkAnnotate type="underline">grow</InkAnnotate>);
+    act(() => ioCallback?.([{ intersectionRatio: 0.6, isIntersecting: true }]));
+    const path = document.querySelector('[data-ink] path') as SVGPathElement;
+    expect(path.style.strokeDashoffset).toBe('0');
+    widthSpy.mockReturnValue(160);
+    resizeViewport();
+    expect(path.style.strokeDashoffset).toBe('0');
+  });
+
+  it('ignores a resize that does not change the box', () => {
+    render(<InkAnnotate type="circle">whole</InkAnnotate>);
+    const svg = document.querySelector('[data-ink]');
+    const before = svg?.getAttribute('viewBox');
+    resizeViewport(); // still 80 x 24 → no re-trace
+    expect(svg?.getAttribute('viewBox')).toEqual(before);
+  });
+
+  it('re-fits the static mark on resize under reduced motion', () => {
+    setReducedMotion(true);
+    render(<InkAnnotate type="circle">whole</InkAnnotate>);
+    const svg = document.querySelector('[data-ink]');
+    const path = document.querySelector('[data-ink] path') as SVGPathElement;
+    const before = svg?.getAttribute('viewBox');
+    widthSpy.mockReturnValue(200);
+    resizeViewport();
+    expect(svg?.getAttribute('viewBox')).not.toEqual(before);
+    expect(path.style.strokeDasharray).toBe(''); // no dash animation under reduced motion
+  });
+
+  it('still re-traces on resize when ResizeObserver is unavailable', () => {
+    const realRo = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = undefined;
+    render(<InkAnnotate type="circle">whole</InkAnnotate>);
+    const svg = document.querySelector('[data-ink]');
+    const before = svg?.getAttribute('viewBox');
+    widthSpy.mockReturnValue(200);
+    resizeViewport(); // the window listener drives the re-fit with no ResizeObserver
+    expect(svg?.getAttribute('viewBox')).not.toEqual(before);
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = realRo;
+  });
+
+  it('cancels a pending resize frame on unmount', () => {
+    const { unmount } = render(<InkAnnotate type="circle">whole</InkAnnotate>);
+    // Defer the next frame (return a handle without running it) so one stays pending.
+    (globalThis.requestAnimationFrame as jest.Mock).mockImplementation(() => 42);
+    widthSpy.mockReturnValue(200);
+    resizeViewport();
+    const cancelSpy = jest.spyOn(globalThis, 'cancelAnimationFrame');
+    unmount();
+    expect(cancelSpy).toHaveBeenCalledWith(42);
   });
 });
 
