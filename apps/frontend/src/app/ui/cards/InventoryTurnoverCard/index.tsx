@@ -6,7 +6,7 @@ const InventoryTurnoverCard = ({ item }: any) => {
   const totalPurchased = item.totalPurchases ?? item.totalPurchased ?? 0;
 
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-[23px] font-satoshi font-bold text-black-text">{item.name}</div>
       </div>

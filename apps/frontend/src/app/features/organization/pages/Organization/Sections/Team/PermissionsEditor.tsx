@@ -308,7 +308,7 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
           </div>
         )}
         <div className="flex flex-col overflow-hidden">
-          <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
+          <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-neutral-0">
             <div className="text-body-4 text-grey-text">Permission</div>
             <div className="flex gap-10 items-center">
               <div className="text-body-4 text-grey-text w-18 text-center">View</div>
@@ -323,7 +323,7 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
             return (
               <div
                 key={row.key}
-                className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white last:border-b-0"
+                className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-neutral-0 last:border-b-0"
               >
                 <div className="flex flex-col">
                   <div className="text-body-3 text-text-primary">{row.label}</div>
@@ -331,6 +331,7 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
                 <div className="flex gap-10 items-center">
                   <div className="w-18 flex justify-center">
                     {viewDisabled ? (
+                      /* v8 ignore next -- every PERMISSION_ROWS entry defines a non-empty `view`, so viewDisabled is never true */
                       <span className="text-muted-400">{'—'}</span>
                     ) : (
                       <input

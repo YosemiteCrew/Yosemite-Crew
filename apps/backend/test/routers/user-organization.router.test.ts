@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 
 const UserOrganizationController = {
   upsertMapping: jest.fn(),
@@ -13,7 +13,7 @@ const UserOrganizationController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/controllers/web/user-organization.controller", () => ({
@@ -41,35 +41,32 @@ const findRoute = (path: string, method: "get" | "post" | "put" | "delete") =>
 describe("user-organization.router", () => {
   it("requires auth for all exposed routes", () => {
     expect(findRoute("/", "post")?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       UserOrganizationController.upsertMapping,
     ]);
     expect(
       findRoute("/user/mapping", "get")?.stack.map((layer) => layer.handle),
-    ).toEqual([
-      authorizeCognito,
-      UserOrganizationController.listMappingsForUser,
-    ]);
+    ).toEqual([requireWebAuth, UserOrganizationController.listMappingsForUser]);
     expect(
       findRoute("/org/mapping/:organisationId", "get")?.stack.map(
         (layer) => layer.handle,
       ),
     ).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       UserOrganizationController.listByOrganisationId,
     ]);
     expect(
       findRoute("/:id", "get")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognito, UserOrganizationController.getMappingById]);
+    ).toEqual([requireWebAuth, UserOrganizationController.getMappingById]);
     expect(findRoute("/", "get")?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       UserOrganizationController.listMappings,
     ]);
     expect(
       findRoute("/:id", "delete")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognito, UserOrganizationController.deleteMappingById]);
+    ).toEqual([requireWebAuth, UserOrganizationController.deleteMappingById]);
     expect(
       findRoute("/:id", "put")?.stack.map((layer) => layer.handle),
-    ).toEqual([authorizeCognito, UserOrganizationController.updateMappingById]);
+    ).toEqual([requireWebAuth, UserOrganizationController.updateMappingById]);
   });
 });

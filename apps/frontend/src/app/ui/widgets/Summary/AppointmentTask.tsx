@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Appointments from '@/app/ui/tables/Appointments';
 import Tasks from '@/app/ui/tables/Tasks';
@@ -22,12 +22,9 @@ import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
 import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 import Filters from '@/app/ui/filters/Filters';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import ViewAppointmentOverviewModal from '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal';
-
-const revampEnabled = isAppointmentRevampEnabled();
 
 const resetActiveTableState = (
   activeTable: string,
@@ -100,9 +97,12 @@ const AppointmentTask = () => {
     activeTable === 'Appointments' ? AppointmentStatusFiltersUI : TaskStatusFilters;
   const [activeSubLabel, setActiveSubLabel] = useState('all');
 
-  useEffect(() => {
-    if (!viewPopup && !detailPopup) setViewIntent(null);
-  }, [viewPopup, detailPopup]);
+  const popupsOpen = viewPopup || detailPopup;
+  const prevPopupsOpenRef = useRef(popupsOpen);
+  if (prevPopupsOpenRef.current !== popupsOpen) {
+    prevPopupsOpenRef.current = popupsOpen;
+    if (!popupsOpen) setViewIntent(null);
+  }
 
   const prevActiveTableRef = useRef(activeTable);
   if (prevActiveTableRef.current !== activeTable) {
@@ -119,13 +119,17 @@ const AppointmentTask = () => {
     });
   }
 
-  useEffect(() => {
+  const prevAppointmentsRef = useRef(appointments);
+  if (prevAppointmentsRef.current !== appointments) {
+    prevAppointmentsRef.current = appointments;
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
-  }, [appointments]);
+  }
 
-  useEffect(() => {
+  const prevTasksRef = useRef(tasks);
+  if (prevTasksRef.current !== tasks) {
+    prevTasksRef.current = tasks;
     setActiveTask((prev) => getNextSelectedTask(prev, tasks));
-  }, [tasks]);
+  }
 
   const filteredList = useMemo(() => {
     if (activeTable !== 'Appointments') return [];
@@ -199,7 +203,7 @@ const AppointmentTask = () => {
           />
         )}
 
-        {activeAppointment && revampEnabled && (
+        {activeAppointment && (
           <ViewAppointmentOverviewModal
             showModal={viewPopup}
             setShowModal={setViewPopup}
@@ -219,8 +223,8 @@ const AppointmentTask = () => {
 
         {activeAppointment && (
           <AppoitmentInfo
-            showModal={revampEnabled ? detailPopup : viewPopup}
-            setShowModal={revampEnabled ? setDetailPopup : setViewPopup}
+            showModal={detailPopup}
+            setShowModal={setDetailPopup}
             activeAppointment={activeAppointment}
             initialViewIntent={viewIntent}
           />

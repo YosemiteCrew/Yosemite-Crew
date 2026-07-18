@@ -67,7 +67,6 @@ describe('RichTextEditor', () => {
     const onChange = jest.fn();
     render(<RichTextEditor value="<p>abc</p>" onChange={onChange} ariaLabel="Subjective" />);
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Bulleted list' }));
     fireEvent.click(screen.getByRole('button', { name: 'Indent' }));
     fireEvent.click(screen.getByRole('button', { name: 'Italic' }));
     fireEvent.click(screen.getByRole('button', { name: 'Underline' }));

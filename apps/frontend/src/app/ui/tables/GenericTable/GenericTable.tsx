@@ -3,6 +3,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 
 import Next from '@/app/ui/primitives/Icons/Next';
 import Back from '@/app/ui/primitives/Icons/Back';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 import './Generictable.css';
 
@@ -55,6 +56,7 @@ const GenericTable = <T extends object>({
     const updatePageSize = () => {
       const headerRow = scrollNode.querySelector('thead tr') as HTMLTableRowElement | null;
       const bodyRow = scrollNode.querySelector('tbody tr') as HTMLTableRowElement | null;
+      /* v8 ignore next 4 -- the table always renders a thead tr and a tbody tr (data or no-data row), so these are never null while pagination is active */
       if (!headerRow || !bodyRow) {
         setAutoPageSize(pageSize);
         return;
@@ -153,9 +155,7 @@ const GenericTable = <T extends object>({
               ) : (
                 <tr>
                   <td colSpan={columns.length}>
-                    <div className="w-full py-2.5 flex items-center justify-center text-body-4 text-text-primary">
-                      Looks like a quiet day… for now.
-                    </div>
+                    <NoDataMessage title="Looks like a quiet day… for now." />
                   </td>
                 </tr>
               )}
@@ -168,7 +168,7 @@ const GenericTable = <T extends object>({
           <Back
             onClick={handlePrev}
             disabled={currentPage === 1}
-            className={currentPage === 1 ? 'hover:bg-white! cursor-not-allowed' : ''}
+            className={currentPage === 1 ? 'hover:bg-neutral-0! cursor-not-allowed' : ''}
           />
           <div className="text-body-4 text-text-primary" aria-live="polite">
             Showing{' '}
@@ -179,7 +179,7 @@ const GenericTable = <T extends object>({
           <Next
             onClick={handleNext}
             disabled={currentPage === totalPages}
-            className={currentPage === totalPages ? 'hover:bg-white! cursor-not-allowed' : ''}
+            className={currentPage === totalPages ? 'hover:bg-neutral-0! cursor-not-allowed' : ''}
           />
         </div>
       )}

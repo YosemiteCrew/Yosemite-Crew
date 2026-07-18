@@ -183,6 +183,29 @@ describe('ChatCommandPalette', () => {
     await waitFor(() => expect(screen.getByText('No conversations found')).toBeInTheDocument());
   });
 
+  it('clears the search query when reopened after typing', async () => {
+    const client = makeClient();
+    render(<ChatCommandPalette client={client} filters={filters} onJump={jest.fn()} />);
+
+    await openPalette();
+    await waitFor(() => expect(screen.getByText('Bella')).toBeInTheDocument());
+
+    const input = screen.getByLabelText('Search conversations');
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'tim' } });
+    });
+    expect(input).toHaveValue('tim');
+
+    // Close via Escape, then reopen — the stale query should not persist.
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+    await openPalette();
+    await waitFor(() => expect(screen.getByText('Bella')).toBeInTheDocument());
+
+    expect(screen.getByLabelText('Search conversations')).toHaveValue('');
+  });
+
   it('toggles closed again on a second Cmd+K', async () => {
     const client = makeClient();
     render(<ChatCommandPalette client={client} filters={filters} onJump={jest.fn()} />);

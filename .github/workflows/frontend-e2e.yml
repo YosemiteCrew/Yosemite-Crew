@@ -15,8 +15,6 @@ permissions:
 
 env:
   NEXT_PUBLIC_BASE_URL: https://devapi.yosemitecrew.com/
-  NEXT_PUBLIC_COGNITO_USERPOOLID: eu-central-1_hxzTCq5oY
-  NEXT_PUBLIC_COGNITO_CLIENTID: 2aaosvrhi2ukh6unle6gcn46en
   NEXT_PUBLIC_DISABLE_AUTH_GUARD: 'false'
 
 concurrency:
@@ -25,7 +23,15 @@ concurrency:
 
 jobs:
   # `secrets` is not available in a job-level `if:` — gate on a preflight output instead.
+  #
+  # This job resolves YC_E2E_* into a runner, so it must never run on a
+  # pull_request: that event runs PR-controlled code (this very workflow file
+  # is editable on the PR branch), which is precisely the surface that could
+  # exfiltrate the credentials. The `environment: e2e` gate on playwright-auth
+  # does NOT cover preflight, so this event gate is the real protection. Trusted
+  # events only (workflow_dispatch, or a future push to a protected branch).
   preflight:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       has-auth-creds: ${{ steps.check.outputs.has-auth-creds }}
@@ -166,7 +172,11 @@ jobs:
   playwright-auth:
     name: Playwright authenticated flow
     needs: [preflight, build]
-    if: needs.preflight.outputs.has-auth-creds == 'true'
+    # preflight is skipped on pull_request (above), which alone skips this job -
+    # but state the PR exclusion explicitly so the intent survives edits to
+    # preflight. On a PR this job shows a neutral skip, not the red failure it
+    # produced when it reached the e2e environment's dev/main-only branch gate.
+    if: needs.preflight.outputs.has-auth-creds == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # This job runs PR-controlled code (the local setup action, dependency
     # lifecycle scripts, and Playwright specs) with the YC_E2E_* credentials in
@@ -180,6 +190,12 @@ jobs:
       contents: read
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      # Playwright writes an AI error-context snapshot on failure that captures
+      # the DOM verbatim - including the filled password field. That write is
+      # gated ONLY by this var (playwright/lib/index.js _takePageSnapshot), not
+      # by trace/screenshot/video, so set it here to stop the password reaching
+      # error-context.md on the runner.
+      PLAYWRIGHT_NO_COPY_PROMPT: '1'
       YC_E2E_EMAIL: ${{ secrets.YC_E2E_EMAIL }}
       YC_E2E_PASSWORD: ${{ secrets.YC_E2E_PASSWORD }}
 
@@ -214,18 +230,25 @@ jobs:
           E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
         run: pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
 
-      - name: Upload Playwright HTML report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-playwright-auth-report
-          path: apps/frontend/playwright-report
-          if-no-files-found: ignore
-
-      - name: Upload Playwright test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-playwright-auth-test-results
-          path: apps/frontend/test-results
-          if-no-files-found: ignore
+      # This job's artifacts are deliberately NOT uploaded.
+      #
+      # auth-flow.spec.ts types YC_E2E_PASSWORD into a real password field, and
+      # Playwright records input values verbatim: every failure snapshot wrote
+      # the secret in plaintext into error-context.md and into trace.zip, which
+      # any account with repo read access could download. That silently defeated
+      # the protected-environment gate above, whose whole purpose is to keep
+      # these credentials away from untrusted code.
+      #
+      # Redacting was rejected: the secret lands inside a zipped trace and in
+      # the HTML report's embedded copy of it, so a scrub step would have to
+      # rewrite archives and would fail open the first time Playwright changed
+      # its format - the failure mode being a leak nobody notices.
+      #
+      # The job log still carries the assertion, the stack and the step output,
+      # which is what a CI failure is normally triaged from. Reproduce locally
+      # with `pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts`
+      # to get a trace, using your own credentials.
+      #
+      # Only restore uploads here if the spec stops handling a real secret (for
+      # example a provider-mocked sign-in). The public smoke job keeps its
+      # artifacts: it handles no credentials.

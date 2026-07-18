@@ -27,12 +27,13 @@ on:
       - 'desktop-v*'
   workflow_dispatch: {}
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
     # Gates the Azure signing secrets behind the protected `release` environment.
     # Configure required reviewers and a deployment tag rule (desktop-v*) on this
     # environment in repo settings so pushing a `desktop-v*` tag cannot reach
@@ -73,6 +74,8 @@ jobs:
 
   macos:
     runs-on: macos-14
+    permissions:
+      contents: write
     # Same protected `release` environment gate for the Apple signing/notarization secrets.
     environment: release
     steps:
@@ -117,6 +120,8 @@ jobs:
       - windows
       - macos
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     environment: release
     steps:
       - uses: actions/checkout@v4
@@ -135,7 +140,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create draft GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           draft: true
           tag_name: desktop-manual-v${{ steps.version.outputs.version }}-${{ github.run_id }}

@@ -1424,8 +1424,7 @@ export const ClinicalArtifactService = {
         prescriptionId: artifact.prescription.id,
         medications: artifact.prescription.medications,
         metadata: artifact.prescription.metadata as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         requestedBy: artifact.artifact.authorId,
         context: {
           appointmentId: artifact.artifact.appointmentId,
@@ -1450,10 +1449,16 @@ export const ClinicalArtifactService = {
       organisationId,
     );
 
+    // A final artifact may only leave final via a deliberate lifecycle
+    // transition: $reopen sends IN_PROGRESS and $cancel sends VOID. Nothing
+    // legitimately moves final -> DRAFT, so an incoming DRAFT here is a plain
+    // save racing an already-completed prescription; allowing it would silently
+    // reopen the artifact and wipe/recreate its items.
     if (
       isFinalClinicalArtifactStatus(record.artifact.status) &&
       (input.status === undefined ||
-        isFinalClinicalArtifactStatus(input.status))
+        isFinalClinicalArtifactStatus(input.status) ||
+        input.status === "DRAFT")
     ) {
       throw new ClinicalArtifactServiceError(
         "Artifact is final. Reopen or amend it before editing.",
@@ -1523,8 +1528,7 @@ export const ClinicalArtifactService = {
         prescriptionId: updated.prescription.id,
         medications: updated.prescription.medications,
         metadata: updated.prescription.metadata as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         requestedBy: updated.artifact.authorId,
         context: {
           appointmentId: updated.artifact.appointmentId,
@@ -1537,8 +1541,7 @@ export const ClinicalArtifactService = {
           organisationId: updated.artifact.organisationId,
           prescriptionId: updated.prescription.id,
           metadata: updated.prescription.metadata as
-            | Prisma.InputJsonValue
-            | undefined,
+            Prisma.InputJsonValue | undefined,
         },
       );
     }

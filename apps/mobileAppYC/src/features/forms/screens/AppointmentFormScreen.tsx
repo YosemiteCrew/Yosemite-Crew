@@ -368,13 +368,15 @@ export const AppointmentFormScreen: React.FC = () => {
   ) => {
     const disableSelection = lockNonCheckboxInputs && !multiple;
     const selected = values[field.id];
+    const selectedSet =
+      multiple && Array.isArray(selected) ? new Set(selected) : null;
     return (
       <View style={styles.optionList}>
         {(field.options ?? []).map(option => {
           const value =
             option.value ?? option.code ?? option.label ?? option.display;
           const isSelected = multiple
-            ? Array.isArray(selected) && selected.includes(value)
+            ? selectedSet?.has(value) === true
             : selected === value;
 
           if (multiple) {

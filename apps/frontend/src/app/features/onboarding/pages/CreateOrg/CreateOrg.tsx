@@ -1,13 +1,12 @@
 'use client';
 import React, { Suspense, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { HiShoppingBag } from 'react-icons/hi2';
-import { IoLocationSharp } from 'react-icons/io5';
+import { IoBag, IoLocationSharp } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Organisation } from '@yosemite-crew/types';
 import { useOrgOnboarding } from '@/app/hooks/useOrgOnboarding';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import { findPhoneData } from '@/app/features/companions/components/AddCompanion/type';
 import { validateOrgAddress, validateOrgBasics } from '@/app/lib/organizationOnboardingValidation';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
@@ -18,11 +17,11 @@ import './CreateOrg.css';
 const OrgSteps = [
   {
     title: 'Organization',
-    logo: <HiShoppingBag color="var(--color-neutral-0)" size={20} />,
+    logo: <IoBag size={18} />,
   },
   {
     title: 'Address',
-    logo: <IoLocationSharp color="var(--color-neutral-0)" size={20} />,
+    logo: <IoLocationSharp size={18} />,
   },
 ];
 
@@ -106,20 +105,19 @@ const CreateOrg = () => {
     if (!isReady) {
       return;
     }
-    if (computedStep === 2) {
-      setIsTransitioning(true);
-      router.replace('/dashboard');
-      return;
-    }
     if (computedStep >= 0 && computedStep <= 1) {
       setActiveStep(computedStep);
     }
     if (org) {
       setFormData(org);
     }
-  }, [org, computedStep, isReady, router]);
+  }, [org, computedStep, isReady]);
 
-  if (!isReady || isCompletedRedirect) {
+  if (isCompletedRedirect) {
+    redirect('/dashboard');
+  }
+
+  if (!isReady) {
     return null;
   }
 
@@ -205,7 +203,7 @@ const CreateOrg = () => {
         onStepSelect={handleStepSelect}
         steps={OrgSteps}
       />
-      <div className="flex flex-col gap-6">
+      <div className="flex w-full flex-col items-center gap-7">
         <h1 className="create-org-title">Create organization</h1>
         {activeStep === 0 && (
           <OrgStep

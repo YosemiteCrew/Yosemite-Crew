@@ -4,8 +4,7 @@ import { getFormattedDate } from '@/app/features/appointments/components/Calenda
 import { Task } from '@/app/features/tasks/types/task';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoEyeOutline } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
 import {
   canRescheduleTask,
@@ -34,7 +33,7 @@ const TaskCard = ({
   canEditTasks = false,
 }: TaskCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex items-start justify-between gap-2">
         <div className="text-body-3-emphasis text-text-primary">{item.name}</div>
         <div className="appointment-status shrink-0" style={getTaskStatusStyle(item.status)}>
@@ -70,6 +69,7 @@ const TaskCard = ({
           <button
             type="button"
             onClick={() => handleViewTask(item)}
+            aria-label={`View task ${item.name}`}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             title="View task"
           >
@@ -81,10 +81,11 @@ const TaskCard = ({
             <button
               type="button"
               onClick={() => handleChangeStatusTask?.(item)}
+              aria-label={`Change status for ${item.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="Change status"
             >
-              <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+              <IoSyncOutline size={18} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -93,6 +94,7 @@ const TaskCard = ({
             <button
               type="button"
               onClick={() => handleRescheduleTask?.(item)}
+              aria-label={`Reschedule ${item.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="Reschedule"
             >

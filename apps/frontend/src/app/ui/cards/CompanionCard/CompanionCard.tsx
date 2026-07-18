@@ -1,11 +1,9 @@
 import Image from 'next/image';
 import React from 'react';
-import { FaCalendar, FaTasks } from 'react-icons/fa';
-import { IoEye } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoCalendarOutline, IoEye, IoListOutline, IoSyncOutline } from 'react-icons/io5';
 import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
-import { getAgeInYears } from '@/app/lib/date';
+import { formatCompanionAge } from '@/app/lib/date';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
@@ -48,7 +46,7 @@ const CompanionCard = ({
 }: CompanionCardProps) => {
   const terminologyText = useCompanionTerminologyText();
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="yc-card-elevated sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <Image
           alt={''}
@@ -83,7 +81,7 @@ const CompanionCard = ({
           {(GENDER_LABEL[companion.companion.gender?.toLowerCase()] ??
             toTitleCase(companion.companion.gender)) +
             ' - ' +
-            getAgeInYears(companion.companion.dateOfBirth)}
+            (formatCompanionAge(companion.companion.dateOfBirth) || '-')}
         </div>
       </div>
       <div className="flex gap-1">
@@ -105,6 +103,7 @@ const CompanionCard = ({
           <button
             type="button"
             onClick={() => handleViewCompanion(companion)}
+            aria-label={`${terminologyText('View companion')} ${companion.companion.name}`}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
             <IoEye size={20} color="var(--color-neutral-900)" />
@@ -115,9 +114,10 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleChangeStatus(companion)}
+              aria-label={`Change status for ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+              <IoSyncOutline size={18} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -126,9 +126,10 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleBookAppointment(companion)}
+              aria-label={`Schedule ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <FaCalendar size={14} color="var(--color-neutral-900)" />
+              <IoCalendarOutline size={14} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -137,9 +138,10 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleAddTask(companion)}
+              aria-label={`Create task for ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <FaTasks size={14} color="var(--color-neutral-900)" />
+              <IoListOutline size={14} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}

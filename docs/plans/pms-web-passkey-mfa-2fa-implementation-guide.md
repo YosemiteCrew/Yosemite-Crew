@@ -2,15 +2,17 @@
 
 ## 1) Purpose
 
-This guide defines an implementation-ready plan to add:
+This guide is for engineers hardening sign-in for the Yosemite Crew (YC) PMS (veterinary Practice Management System) web app. It defines an implementation-ready plan to add:
 
 1. Passkey sign-in (including Apple iCloud Keychain passkeys via WebAuthn standard support in Safari/iOS/macOS).
-2. Strong MFA/2FA for password-based sign-ins.
+2. Strong MFA/2FA (multi-factor / two-factor authentication) for password-based sign-ins.
 3. Production-grade auth hardening and observability.
 
 Scope is the PMS web app (`apps/frontend`) and backend (`apps/backend`) with **Postgres-first design** for all new auth-security metadata.
 
 This is a plan only. No runtime behavior changes are included in this document.
+
+Status note: this plan is written against the current AWS Cognito setup that the web app uses today. A separate, mobile-focused plan proposes moving auth off Cognito to SuperTokens ([`supertokens-migration.md`](supertokens-migration.md)); that migration is not yet implemented for the web app, so verify which identity provider is live before building against this guide.
 
 ---
 
@@ -36,7 +38,7 @@ This is a plan only. No runtime behavior changes are included in this document.
 
 1. No passkey registration flow in app UX.
 2. No `USER_AUTH` challenge orchestration (password vs `WEB_AUTHN` selection, challenge response).
-3. No explicit MFA onboarding UX/API for TOTP at PMS web level.
+3. No explicit MFA onboarding UX/API for TOTP (time-based one-time password, the authenticator-app code) at PMS web level.
 4. No centralized auth event model in Postgres for audit/risk/incident response.
 
 ---
@@ -65,7 +67,7 @@ Recommended for PMS: **Model A** (security + UX balance), with additional step-u
 
 ## Decision
 
-Move PMS web auth orchestration to a backend BFF layer while keeping Cognito as IdP.
+Move PMS web auth orchestration to a backend BFF (backend-for-frontend) layer while keeping Cognito as the IdP (identity provider).
 
 Why:
 
@@ -177,7 +179,7 @@ Register router in `apps/backend/src/routers/index.ts` under `/v1/auth/web`.
 
 ## 6.3 Postgres schema additions (Prisma)
 
-Add new Postgres models in `apps/backend/prisma/schema.prisma` for security observability and policy enforcement.
+Add new Postgres models in `packages/database/prisma/schema.prisma` (the shared Prisma schema, consumed by the backend through the `@yosemite-crew/database` package) for security observability and policy enforcement.
 
 Suggested models:
 

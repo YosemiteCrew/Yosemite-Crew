@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SignIn from '@/app/features/auth/pages/SignIn/SignIn';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
@@ -13,6 +13,7 @@ import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 // Mock Next.js Navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  useSearchParams: jest.fn(),
 }));
 
 // Mock Auth Store
@@ -27,6 +28,11 @@ jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
 
 jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
+  sanitizeNextPath: jest.fn((value: string | null) => {
+    if (!value) return undefined;
+    if (!value.startsWith('/')) return undefined;
+    return value;
+  }),
 }));
 
 // Mock Components
@@ -108,6 +114,8 @@ describe('SignIn Page', () => {
       push: mockRouterPush,
       replace: mockRouterReplace,
     });
+
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams());
 
     (useErrorTost as jest.Mock).mockReturnValue({
       showErrorTost: mockShowErrorTost,
@@ -394,6 +402,81 @@ describe('SignIn Page', () => {
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Error resending code.' })
+    );
+  });
+
+  it('prefills the email field from the email query param', () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ email: 'new-user@example.com' })
+    );
+
+    render(<SignIn />);
+
+    expect(screen.getByTestId('email-input')).toHaveValue('new-user@example.com');
+  });
+
+  it('honors a safe next query param as the post-auth redirect', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ next: '/create-org' }));
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn />);
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: '/create-org' })
+    );
+  });
+
+  it('ignores unsafe or external next values', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ next: 'https://evil.example.com/phish' })
+    );
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn />);
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: undefined })
+    );
+  });
+
+  it('ignores next when allowNext is false', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ next: '/create-org' }));
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn allowNext={false} redirectPath="/developers/home" isDeveloper />);
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: '/developers/home' })
     );
   });
 

@@ -10,13 +10,12 @@
 import clsx from 'clsx';
 import type { IconType } from 'react-icons';
 import {
-  LuStethoscope,
-  LuCalendar,
-  LuReceipt,
-  LuClipboardList,
-  LuPill,
-  LuFileText,
-} from 'react-icons/lu';
+  IoCalendarOutline,
+  IoClipboardOutline,
+  IoDocumentTextOutline,
+  IoMedkitOutline,
+  IoReceiptOutline,
+} from 'react-icons/io5';
 import Text from '@/app/ui/Text';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
@@ -28,12 +27,12 @@ export type SharedEntityData = {
 };
 
 const ICONS: Record<string, IconType> = {
-  COMPANION: LuStethoscope,
-  APPOINTMENT: LuCalendar,
-  INVOICE: LuReceipt,
-  FORM: LuClipboardList,
-  PRESCRIPTION: LuPill,
-  DOCUMENT: LuFileText,
+  COMPANION: IoMedkitOutline,
+  APPOINTMENT: IoCalendarOutline,
+  INVOICE: IoReceiptOutline,
+  FORM: IoClipboardOutline,
+  PRESCRIPTION: IoMedkitOutline,
+  DOCUMENT: IoDocumentTextOutline,
 };
 
 const LABELS: Record<string, string> = {
@@ -50,7 +49,7 @@ export function SharedEntityCard({
   mine,
 }: Readonly<{ entity: SharedEntityData; mine?: boolean }>) {
   const rewrite = useCompanionTerminologyText();
-  const Icon = ICONS[entity.entityType] ?? LuFileText;
+  const Icon = ICONS[entity.entityType] ?? IoDocumentTextOutline;
   const baseLabel = LABELS[entity.entityType] ?? 'Shared item';
   const label = entity.entityType === 'COMPANION' ? rewrite(baseLabel) : baseLabel;
   const subtitle =
@@ -63,8 +62,8 @@ export function SharedEntityCard({
         mine ? 'border-primary-300 bg-neutral-0' : 'border-chat-divider bg-neutral-0'
       )}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-chat-panel text-primary-600">
-        <Icon className="h-5 w-5" />
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-chat-panel text-primary-600">
+        <Icon className="size-5" />
       </span>
       <div className="flex min-w-0 flex-col">
         <Text as="span" variant="caption-2" className="uppercase tracking-wide text-neutral-400">

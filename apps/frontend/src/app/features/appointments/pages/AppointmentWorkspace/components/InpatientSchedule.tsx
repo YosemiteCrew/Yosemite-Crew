@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
-  LuChevronDown,
-  LuChevronLeft,
-  LuChevronRight,
-  LuEye,
-  LuPlus,
-  LuSearch,
-} from 'react-icons/lu';
+  IoAddOutline,
+  IoChevronBackOutline,
+  IoChevronDownOutline,
+  IoChevronForwardOutline,
+  IoEyeOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -45,6 +45,11 @@ const STATUS_OPTIONS: { label: string; value: ScheduleTaskStatus }[] = [
 const EMPTY_TEMPLATES: TemplateLike[] = [];
 const ASSIGNEE_COLUMN_MIN_CH = 14;
 const ASSIGNEE_COLUMN_MAX_CH = 20;
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
 
 const formatStatusLabel = (status: ScheduleTaskStatus): string =>
   STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
@@ -85,8 +90,8 @@ const StatusPillSelect = ({
   if (locked) {
     return (
       <span
-        className="flex h-8 w-full items-center justify-center rounded-2xl border px-3 text-caption-1"
-        style={statusPillStyle(status)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
+        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
       >
         {formatStatusLabel(status)}
       </span>
@@ -102,12 +107,12 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setOpen(false)}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-2xl border px-3 text-caption-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={statusPillStyle(status)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
       >
         {formatStatusLabel(status)}
-        <LuChevronDown
-          size={12}
+        <IoChevronDownOutline
+          size={10}
           aria-hidden="true"
           className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />
@@ -199,11 +204,6 @@ const InpatientSchedule = ({
     return now;
   });
 
-  const isSameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-
   const shiftSelectedDate = (deltaDays: number) => {
     setSelectedDate((current) => {
       const next = new Date(current);
@@ -223,6 +223,7 @@ const InpatientSchedule = ({
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Kolkata',
     });
     return isSameDay(selectedDate, todayAtMidnight) ? `Today ${formatted}` : formatted;
   }, [selectedDate, todayAtMidnight]);
@@ -287,20 +288,20 @@ const InpatientSchedule = ({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
           <CircleIconButton
-            icon={<LuChevronLeft aria-hidden="true" />}
+            icon={<IoChevronBackOutline aria-hidden="true" />}
             label="Previous day"
             onClick={() => shiftSelectedDate(-1)}
           />
           <span className="text-text-brand">{dateLabel}</span>
           <CircleIconButton
-            icon={<LuChevronRight aria-hidden="true" />}
+            icon={<IoChevronForwardOutline aria-hidden="true" />}
             label="Next day"
             onClick={() => shiftSelectedDate(1)}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <CircleIconButton
-            icon={<LuPlus aria-hidden="true" />}
+            icon={<IoAddOutline aria-hidden="true" />}
             label="Add schedule task"
             variant="dark"
             disabled={readOnly}
@@ -309,7 +310,11 @@ const InpatientSchedule = ({
           {/* Search finds tasks AND published task templates (append on select). */}
           <div className="relative w-full sm:w-80">
             <div className="flex items-center gap-2 rounded-2xl border border-input-border-default px-3 py-2.5">
-              <LuSearch size={16} aria-hidden="true" className="shrink-0 text-text-secondary" />
+              <IoSearchOutline
+                size={16}
+                aria-hidden="true"
+                className="shrink-0 text-text-secondary"
+              />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -332,7 +337,11 @@ const InpatientSchedule = ({
                     }}
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-4 text-text-primary hover:bg-neutral-100 disabled:opacity-50"
                   >
-                    <LuPlus size={14} aria-hidden="true" className="shrink-0 text-text-brand" />
+                    <IoAddOutline
+                      size={14}
+                      aria-hidden="true"
+                      className="shrink-0 text-text-brand"
+                    />
                     {template.name}
                   </button>
                 ))}
@@ -435,7 +444,7 @@ const InpatientSchedule = ({
                 </div>
                 <div className="flex min-h-[48px] items-center justify-end">
                   <CircleIconButton
-                    icon={<LuEye aria-hidden="true" />}
+                    icon={<IoEyeOutline aria-hidden="true" />}
                     label={`View ${task.description}`}
                     variant="dark"
                     onClick={() => onViewTask(task.id)}

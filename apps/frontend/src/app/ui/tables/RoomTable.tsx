@@ -8,7 +8,7 @@ import { toTitle } from '@/app/lib/validators';
 import { NoDataMessage } from '@/app/ui/tables/common';
 
 import { joinNames } from '@/app/ui/tables/tableUtils';
-import { IoCreateOutline, IoEyeOutline } from 'react-icons/io5';
+import { IoEyeOutline } from 'react-icons/io5';
 
 import './DataTable.css';
 
@@ -32,7 +32,6 @@ type RoomTableProps = {
   filteredList: RoomManagementRoom[];
   setActive?: (room: RoomManagementRoom) => void;
   setView?: (open: boolean) => void;
-  onEdit?: (room: RoomManagementRoom) => void;
   onToggleAvailability?: (room: RoomManagementRoom, isAvailable: boolean) => void;
   canEditRoom?: boolean;
 };
@@ -73,7 +72,7 @@ const IconButton = ({
     className={`hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 shrink-0 rounded-full! border flex items-center justify-center cursor-pointer transition-colors ${
       isPrimary
         ? 'border-text-primary bg-text-primary text-white'
-        : 'border-text-primary bg-white text-text-primary hover:border-text-brand hover:text-text-brand'
+        : 'border-text-primary bg-neutral-0 text-text-primary hover:border-text-brand hover:text-text-brand'
     }`}
   >
     {children}
@@ -105,7 +104,7 @@ const AvailabilitySwitch = ({
   >
     <span
       aria-hidden="true"
-      className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+      className={`block h-4 w-4 rounded-full bg-neutral-0 shadow-sm transition-transform ${
         checked ? 'translate-x-6' : 'translate-x-0'
       }`}
     />
@@ -124,7 +123,6 @@ const RoomTable = ({
   filteredList,
   setActive,
   setView,
-  onEdit,
   onToggleAvailability,
   canEditRoom = false,
 }: RoomTableProps) => {
@@ -249,11 +247,6 @@ const RoomTable = ({
                         >
                           <IoEyeOutline size={16} aria-hidden="true" />
                         </IconButton>
-                        {canEditRoom && (
-                          <IconButton label={`Edit ${room.name}`} onClick={() => onEdit?.(room)}>
-                            <IoCreateOutline size={16} aria-hidden="true" />
-                          </IconButton>
-                        )}
                       </div>
                     </td>
                   </tr>

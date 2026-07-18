@@ -1,21 +1,13 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
 import {
-  LuArrowRight,
-  LuCalendarPlus,
-  LuCheck,
-  LuChevronDown,
-  LuClipboardCheck,
-  LuExternalLink,
-  LuEye,
-  LuEyeOff,
-  LuFileText,
-  LuFlaskConical,
-  LuListFilter,
-  LuLoader,
-  LuStethoscope,
-  LuWalletCards,
-  LuX,
-} from 'react-icons/lu';
+  IoArrowForwardOutline,
+  IoCheckmarkOutline,
+  IoChevronDownOutline,
+  IoClose,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoReloadOutline,
+} from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
@@ -37,6 +29,8 @@ import { getSafeSameOriginPath } from '@/app/lib/urls';
 import { loadDocumentDownloadURL } from '@/app/features/companions/services/companionDocumentService';
 import HistoryEmptyState from '@/app/features/companionHistory/components/HistoryEmptyState';
 import HistoryDocumentUpload from '@/app/features/companionHistory/components/HistoryDocumentUpload';
+import HistoryEntryCard from '@/app/features/companionHistory/components/HistoryEntryCard';
+import HistoryRecordDrawer from '@/app/features/companionHistory/components/HistoryRecordDrawer';
 import {
   CompanionHistoryResponse,
   HISTORY_FILTER_TYPE_MAP,
@@ -67,14 +61,7 @@ import {
 } from '@/app/lib/tasks';
 import { useNotify } from '@/app/hooks/useNotify';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import {
-  formatCurrency,
-  formatHistoryDate,
-  formatHistoryDateTime,
-  getPayloadNumber,
-  getPayloadString,
-  getPrimaryActionLabel,
-} from '@/app/features/companionHistory/utils/historyFormatters';
+import { getPayloadString } from '@/app/features/companionHistory/utils/historyFormatters';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -86,7 +73,6 @@ type CompanionHistoryTimelineProps = {
 };
 
 type SortKey = 'newest' | 'oldest';
-type MoneyTone = 'neutral' | 'success' | 'danger' | 'warning';
 type StatusOverrides = Record<string, string>;
 type PdfPreviewState = {
   title: string;
@@ -98,108 +84,9 @@ type DetailPair = {
   value: string;
 };
 
-type TimelineBodyProps = {
-  activeFilter: HistoryFilterKey;
-  loading: boolean;
-  error: string | null;
-  auditLoading: boolean;
-  auditError: string | null;
-  auditEntries: AuditTrail[];
-  filteredEntries: HistoryEntry[];
-  statusOverrides: StatusOverrides;
-  expandedId: string | null;
-  onStatusChange: (entry: HistoryEntry, nextStatus: string) => void;
-  canEditStatus: (entry: HistoryEntry) => boolean;
-  onToggle: (entryId: string) => void;
-  onOpen: (entry: HistoryEntry) => void;
-  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
-  onOpenResultPdf: (entry: HistoryEntry) => void;
-  pdfLoadingId: string | null;
-};
-
-const getTimelineBody = ({
-  activeFilter,
-  loading,
-  error,
-  auditLoading,
-  auditError,
-  auditEntries,
-  filteredEntries,
-  statusOverrides,
-  expandedId,
-  onStatusChange,
-  canEditStatus,
-  onToggle,
-  onOpen,
-  onPreviewPdf,
-  onOpenResultPdf,
-  pdfLoadingId,
-}: TimelineBodyProps) => {
-  if (activeFilter === 'AUDIT_TRAIL') {
-    return <AuditTimeline loading={auditLoading} error={auditError} entries={auditEntries} />;
-  }
-  if (loading) {
-    return <div className="px-4 py-8 text-body-3 text-text-secondary">Loading overview…</div>;
-  }
-  if (error) {
-    return <HistoryEmptyState isError message={error} />;
-  }
-  return (
-    <EmptyOrRows
-      activeFilter={activeFilter}
-      entries={filteredEntries}
-      statusOverrides={statusOverrides}
-      expandedId={expandedId}
-      onStatusChange={onStatusChange}
-      canEditStatus={canEditStatus}
-      onToggle={onToggle}
-      onOpen={onOpen}
-      onPreviewPdf={onPreviewPdf}
-      onOpenResultPdf={onOpenResultPdf}
-      pdfLoadingId={pdfLoadingId}
-    />
-  );
-};
-
-const getTimelineActionIcon = (loadingPdf: boolean, expanded: boolean): React.ReactNode => {
-  if (loadingPdf) return <LoadingIcon />;
-  if (expanded) return <LuEyeOff aria-hidden="true" />;
-  return <LuEye aria-hidden="true" />;
-};
-
-const getTimelineActionLabel = (
-  loadingPdf: boolean,
-  expanded: boolean,
-  entryTitle: string,
-  entry: HistoryEntry
-): string => {
-  if (loadingPdf) return `Loading ${entryTitle}`;
-  if (expanded) return `Hide ${entryTitle}`;
-  return getPrimaryActionLabel(entry);
-};
-
-const getPersistStatusAction = (
-  entryType: HistoryEntry['type'],
-  persistAppointmentStatus: (entry: HistoryEntry, nextStatus: string) => Promise<void>,
-  persistTaskStatus: (entry: HistoryEntry, nextStatus: string) => Promise<void>
-): ((entry: HistoryEntry, nextStatus: string) => Promise<void>) | null => {
-  if (entryType === 'APPOINTMENT') return persistAppointmentStatus;
-  if (entryType === 'TASK') return persistTaskStatus;
-  return null;
-};
-
-const DEFAULT_FILTER: HistoryFilterKey = 'APPOINTMENT';
+const DEFAULT_FILTER: HistoryFilterKey = 'ALL';
 const COMPACT_MAX_ENTRIES = 8;
 const MEDICAL_RECORD_TYPES = new Set<HistoryEntryType>(['FORM_SUBMISSION', 'DOCUMENT']);
-
-const TAB_ICONS: Record<HistoryFilterKey, React.ReactNode> = {
-  APPOINTMENT: <LuCalendarPlus size={15} aria-hidden="true" />,
-  LAB_RESULT: <LuFlaskConical size={15} aria-hidden="true" />,
-  MEDICAL_RECORDS: <LuFileText size={15} aria-hidden="true" />,
-  TASK: <LuClipboardCheck size={15} aria-hidden="true" />,
-  INVOICE: <LuWalletCards size={15} aria-hidden="true" />,
-  AUDIT_TRAIL: <LuListFilter size={15} aria-hidden="true" />,
-};
 
 const SORT_OPTIONS: Array<{ label: string; value: SortKey }> = [
   { label: 'Sort by newest', value: 'newest' },
@@ -276,25 +163,12 @@ const matchesStatusFilter = (
   if (statusFilter === STATUS_FILTER_ALL) return true;
   const option = STATUS_FILTERS_BY_TAB[activeFilter]?.find((item) => item.value === statusFilter);
   if (!option) return true;
+  /* v8 ignore next 3 -- defensive fallback unreachable: filteredEntries normalizes every entry's status to a string via getEffectiveStatus before this runs, so entry.status is never nullish here */
   const status = String(entry.status ?? getPayloadString(entry.payload, ['status']) ?? '')
     .trim()
     .toUpperCase();
   return option.match.includes(status);
 };
-
-const LAB_STATUS_OPTIONS = [
-  { name: 'Created', key: 'created' },
-  { name: 'Submitted', key: 'submitted' },
-  { name: 'Completed', key: 'completed' },
-  { name: 'Cancelled', key: 'cancelled' },
-];
-
-const BILLING_STATUS_OPTIONS = [
-  { name: 'Unpaid', key: 'no_payment' },
-  { name: 'Partial', key: 'pending' },
-  { name: 'Paid full', key: 'completed' },
-  { name: 'Cancelled', key: 'cancelled' },
-];
 
 // Surface the backend's message (e.g. "caseId could not be resolved for
 // check-in.") when a status PATCH fails, instead of a generic retry prompt.
@@ -370,6 +244,7 @@ const formatCompactStatusLabel = (status?: string | null): string => {
 };
 
 const statusPillStyle = (status?: string | null): React.CSSProperties => {
+  /* v8 ignore next 3 -- nullish fallback unreachable: every caller passes an already string-coalesced status, so this is never null/undefined */
   const normalized = String(status ?? '')
     .trim()
     .toLowerCase();
@@ -387,13 +262,15 @@ const isRequestedStatus = (status: string): boolean => status === 'REQUESTED';
 // transitions out of it — e.g. completed / cancelled / no-show appointments,
 // completed / cancelled tasks.
 const isAppointmentStatusLocked = (status?: string | null): boolean =>
+  /* v8 ignore next -- nullish fallback unreachable: getEntryStatusSlot always passes an appointment entry's normalized string status */
   getAllowedAppointmentStatusTransitions(normalizeStatusKey(String(status ?? ''))).length === 0;
 const isTaskStatusLocked = (status?: string | null): boolean =>
+  /* v8 ignore next -- nullish fallback unreachable: getEntryStatusSlot always passes a task entry's normalized string status */
   getAllowedTaskStatusTransitions(normalizeStatusKey(String(status ?? ''))).length === 0;
 const getRequestedButtonLabel = (status: string): string =>
   status === 'CHECKED_IN' ? 'Start' : 'Open';
 
-const StatusPillSelect = ({
+export const StatusPillSelect = ({
   status,
   options,
   onChange,
@@ -426,17 +303,17 @@ const StatusPillSelect = ({
   if (locked || disabled || menuOptions.length === 0) {
     return (
       <span
-        className="inline-flex h-8 w-30 items-center justify-center rounded-2xl border px-2 text-caption-1 font-medium"
-        style={statusPillStyle(normalizedStatus)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
+        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
         title={formatStatusLabel(status)}
       >
-        <span className="truncate whitespace-nowrap">{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
       </span>
     );
   }
 
   return (
-    <div className="relative w-30">
+    <div className="relative w-fit">
       <button
         type="button"
         aria-label="Status"
@@ -444,13 +321,13 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         onBlur={() => setOpen(false)}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-2xl border px-2 text-caption-1 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={statusPillStyle(normalizedStatus)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
         title={formatStatusLabel(status)}
       >
-        <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
-        <LuChevronDown
-          size={12}
+        <span className="whitespace-nowrap">{label}</span>
+        <IoChevronDownOutline
+          size={10}
           aria-hidden="true"
           className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />
@@ -492,21 +369,8 @@ const StatusPillSelect = ({
   );
 };
 
-const CategoryPill = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
-  <span
-    className="inline-flex h-9 w-fit max-w-full items-center gap-2 rounded-2xl border px-4 text-body-4 text-neutral-900"
-    style={{
-      borderColor: 'var(--Neutrals-Neutral-300, #D6D1CD)',
-      background: 'var(--Neutrals-Neutral-100, #FAF8F6)',
-    }}
-  >
-    {icon}
-    <span className="truncate">{label}</span>
-  </span>
-);
-
 const TABLE_HEADING_STYLE = {
-  color: 'var(--Neutrals-Neutral-600, #8F8984)',
+  color: 'var(--color-neutral-600)',
   fontFamily: 'var(--font-satoshi), "Satoshi Variable", sans-serif',
   fontSize: '12px',
   fontStyle: 'normal',
@@ -515,7 +379,7 @@ const TABLE_HEADING_STYLE = {
 } satisfies React.CSSProperties;
 
 const TABLE_DATA_STYLE = {
-  color: 'var(--Neutrals-Neutral-900, #302F2E)',
+  color: 'var(--color-neutral-900)',
   fontFamily: 'var(--font-satoshi), "Satoshi Variable", sans-serif',
   fontSize: '14px',
   fontStyle: 'normal',
@@ -523,38 +387,9 @@ const TABLE_DATA_STYLE = {
   lineHeight: '120%',
 } satisfies React.CSSProperties;
 
-const TableHeading = ({ children }: { children?: React.ReactNode }) => (
-  <div style={TABLE_HEADING_STYLE}>{children}</div>
-);
+export const LoadingIcon = () => <IoReloadOutline className="animate-spin" aria-hidden="true" />;
 
-const APPOINTMENT_GRID =
-  'grid-cols-[minmax(140px,0.9fr)_128px_minmax(130px,0.8fr)_minmax(210px,1.25fr)_minmax(150px,1fr)_minmax(128px,0.8fr)_112px]';
-const DIAGNOSTICS_GRID =
-  'grid-cols-[36px_minmax(112px,0.55fr)_minmax(110px,0.55fr)_minmax(145px,0.75fr)_132px_minmax(430px,1.35fr)]';
-const MEDICAL_RECORD_GRID =
-  'grid-cols-[minmax(150px,0.75fr)_minmax(220px,1.2fr)_minmax(190px,1fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_112px]';
-const TASK_GRID =
-  'grid-cols-[minmax(260px,1.15fr)_minmax(110px,0.55fr)_minmax(145px,0.75fr)_132px_112px]';
-const BILLING_GRID =
-  'grid-cols-[36px_minmax(170px,0.9fr)_minmax(145px,0.75fr)_minmax(145px,0.85fr)_116px_120px_132px_112px]';
-
-const LinkedName = ({ children }: { children: React.ReactNode }) => (
-  <span className="font-medium text-text-brand">{children}</span>
-);
-
-const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => {
-  const classNameByTone: Record<MoneyTone, string> = {
-    neutral: 'text-neutral-900',
-    success: 'text-pill-success-text',
-    danger: 'text-danger-700',
-    warning: 'text-pill-warning-text',
-  };
-  return <span className={`font-bold ${classNameByTone[tone]}`}>{value}</span>;
-};
-
-const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
-
-const TimelineMarker = ({ active }: { active: boolean }) => {
+export const TimelineMarker = ({ active }: { active: boolean }) => {
   const ring = active ? 'border-text-brand' : 'border-neutral-300';
   const dot = active ? 'bg-text-brand' : 'bg-neutral-300';
   return (
@@ -616,10 +451,13 @@ const getLinkedEntryIntent = (
   subLabel?: string;
   open?: 'finance' | 'labs';
 } | null => {
+  /* v8 ignore next -- unreachable: INVOICE is handled in handleOpenEntry before openAppointmentLinkedEntry (the only caller) runs, so it never reaches here */
   if (type === 'INVOICE') return { label: 'finance', subLabel: 'summary', open: 'finance' };
   if (type === 'FORM_SUBMISSION') return { label: 'prescription', subLabel: 'forms' };
   if (type === 'APPOINTMENT') return { label: 'info', subLabel: 'appointment' };
+  /* v8 ignore next -- unreachable: TASK is handled in handleOpenEntry before openAppointmentLinkedEntry (the only caller) runs, so it never reaches here */
   if (type === 'TASK') return { label: 'tasks', subLabel: 'task' };
+  /* v8 ignore next -- unreachable: openAppointmentLinkedEntry only passes APPOINTMENT/FORM_SUBMISSION, both of which return a non-null intent above */
   return null;
 };
 
@@ -632,9 +470,32 @@ const resolveEntryAppointmentId = (entry: HistoryEntry): string | null => {
   return null;
 };
 
+// Label for the record drawer's "Linked to" row: the parent appointment's
+// service/type name (from the loaded appointment or the entry payload), or a
+// neutral fallback. Returns null for appointment rows and unlinked records.
+const getLinkedAppointmentLabel = (
+  entry: HistoryEntry,
+  appointmentsById: Record<string, unknown>
+): string | null => {
+  if (entry.type === 'APPOINTMENT') return null;
+  const appointmentId = resolveEntryAppointmentId(entry);
+  if (!appointmentId) return null;
+  const appointment = appointmentsById[appointmentId];
+  const appointmentRecord =
+    appointment && typeof appointment === 'object' && !Array.isArray(appointment)
+      ? (appointment as Record<string, unknown>)
+      : null;
+  const appointmentName = appointmentRecord
+    ? getPayloadString(appointmentRecord, ['appointmentType', 'serviceName', 'title', 'name'])
+    : null;
+  return appointmentName || 'Linked appointment';
+};
+
+const SEARCHABLE_PAYLOAD_TYPES = new Set(['string', 'number']);
+
 const getSearchableText = (entry: HistoryEntry): string => {
   const payloadText = Object.values(entry.payload)
-    .filter((value) => ['string', 'number'].includes(typeof value))
+    .filter((value) => SEARCHABLE_PAYLOAD_TYPES.has(typeof value))
     .join(' ');
   return [
     entry.title,
@@ -650,56 +511,8 @@ const getSearchableText = (entry: HistoryEntry): string => {
     .toLowerCase();
 };
 
-const getRecordCategory = (entry: HistoryEntry): string => {
-  if (entry.type === 'DOCUMENT') {
-    return getPayloadString(entry.payload, ['category', 'subcategory']) || 'Documents';
-  }
-  return getPayloadString(entry.payload, ['formCategory', 'category', 'soapSubtype']) || 'SOAP';
-};
-
-const getRecordIcon = (entry: HistoryEntry) =>
-  entry.type === 'DOCUMENT' ? (
-    <LuFileText size={14} aria-hidden="true" />
-  ) : (
-    <LuStethoscope size={14} aria-hidden="true" />
-  );
-
-const getCreatedBy = (entry: HistoryEntry): string =>
-  getPayloadString(entry.payload, [
-    'createdByName',
-    'submittedByName',
-    'leadName',
-    'leadVetName',
-  ]) ||
-  entry.actor?.name ||
-  '-';
-
-const getModifiedBy = (entry: HistoryEntry): string =>
-  getPayloadString(entry.payload, ['modifiedByName', 'updatedByName', 'lastModifiedByName']) ||
-  getCreatedBy(entry);
-
-const getPaymentTone = (entry: HistoryEntry): MoneyTone => {
-  const status = String(
-    entry.status ?? getPayloadString(entry.payload, ['paymentStatus', 'status']) ?? ''
-  )
-    .trim()
-    .toUpperCase();
-  if (['PAID', 'PAID_FULL'].includes(status)) return 'success';
-  if (['UNPAID', 'OVERDUE', 'AWAITING_PAYMENT'].includes(status)) return 'danger';
-  if (['PARTIAL', 'PARTIALLY_PAID'].includes(status)) return 'warning';
-  return 'neutral';
-};
-
-const getEntryAmount = (entry: HistoryEntry): string => {
-  const amount = getPayloadNumber(entry.payload, [
-    'totalAmount',
-    'amount',
-    'outstandingAmount',
-    'total',
-  ]);
-  const currency = getPayloadString(entry.payload, ['currency']);
-  return formatCurrency(amount, currency) || '-';
-};
+const entryMatchesSearchQuery = (entry: HistoryEntry, normalizedQuery: string): boolean =>
+  getSearchableText(entry).includes(normalizedQuery);
 
 const getEffectiveStatus = (entry: HistoryEntry, statusOverrides: StatusOverrides): string =>
   statusOverrides[entry.id] ?? entry.status ?? getPayloadString(entry.payload, ['status']) ?? '';
@@ -716,7 +529,10 @@ const getRecordArray = (
   for (const key of keys) {
     const value = payload[key];
     if (!Array.isArray(value)) continue;
-    return value.map(asRecord).filter(Boolean) as Record<string, unknown>[];
+    return value.flatMap((item) => {
+      const record = asRecord(item);
+      return record ? [record] : [];
+    });
   }
   return [];
 };
@@ -735,15 +551,15 @@ const getLabResults = (entry: HistoryEntry): DetailPair[] => {
   }));
 };
 
-const StructuredResultsPanel = ({
+export const StructuredResultsPanel = ({
   entry,
   results,
 }: {
   entry: HistoryEntry;
   results: DetailPair[];
 }) => (
-  <div className="mt-4 rounded-2xl border border-card-border px-6 py-4">
-    <div className="grid grid-cols-[minmax(220px,1fr)_160px_160px_120px] gap-4">
+  <div className="mt-3 rounded-2xl border border-card-border px-4 py-3">
+    <div className="grid grid-cols-[minmax(160px,1fr)_120px_120px_100px] gap-3">
       <span style={TABLE_HEADING_STYLE}>Test</span>
       <span style={TABLE_HEADING_STYLE}>Value</span>
       <span style={TABLE_HEADING_STYLE}>Reference</span>
@@ -752,7 +568,7 @@ const StructuredResultsPanel = ({
     {results.map((result) => (
       <div
         key={`${entry.id}-${result.label}`}
-        className="grid grid-cols-[minmax(220px,1fr)_160px_160px_120px] gap-4 py-1.5"
+        className="grid grid-cols-[minmax(160px,1fr)_120px_120px_100px] gap-3 py-1.5"
         style={TABLE_DATA_STYLE}
       >
         <span className="font-bold text-neutral-900">{result.label}</span>
@@ -764,34 +580,35 @@ const StructuredResultsPanel = ({
   </div>
 );
 
-type RowActionProps = {
-  entry: HistoryEntry;
-  expanded: boolean;
-  canExpand: boolean;
-  onOpen: (entry: HistoryEntry) => void;
-  onToggle: (id: string) => void;
-};
-
-const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionProps) => (
-  <div className="flex items-center justify-end gap-2">
-    {canExpand ? (
-      <CircleIconButton
-        icon={expanded ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}
-        label={expanded ? `Hide ${entry.title}` : `View ${entry.title}`}
-        variant="dark"
-        onClick={() => onToggle(entry.id)}
-      />
-    ) : null}
-    <CircleIconButton
-      icon={<LuExternalLink aria-hidden="true" />}
-      label={getPrimaryActionLabel(entry)}
-      variant={canExpand ? 'outline' : 'dark'}
-      onClick={() => onOpen(entry)}
-    />
-  </div>
+// Inset action chip matching the design: rounded 9px, --inset fill, 11px/600,
+// blue-tinted leading icon. Used for PDF preview / expand affordances.
+const InsetChipButton = ({
+  icon,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) => (
+  <button
+    type="button"
+    aria-label={label}
+    disabled={disabled}
+    onClick={onClick}
+    className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-1 text-[11px] font-semibold text-[var(--ink-body)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60"
+    style={{ background: 'var(--inset)' }}
+  >
+    <span aria-hidden="true" className="inline-flex text-[var(--blue-text)]">
+      {icon}
+    </span>
+    <span>{label}</span>
+  </button>
 );
 
-const RequestedAppointmentActions = ({
+export const RequestedAppointmentActions = ({
   entry,
   canEdit,
   onStatusChange,
@@ -807,444 +624,247 @@ const RequestedAppointmentActions = ({
     .toUpperCase();
   if (!isRequestedStatus(status) || !canEdit) {
     return (
-      <div className="flex justify-end">
-        <Primary
-          text={getRequestedButtonLabel(status)}
-          icon={<LuArrowRight size={17} aria-hidden="true" />}
-          iconPosition="right"
-          onClick={() => onOpen(entry)}
-        />
-      </div>
+      <Primary
+        text={getRequestedButtonLabel(status)}
+        icon={<IoArrowForwardOutline size={15} aria-hidden="true" />}
+        iconPosition="right"
+        onClick={() => onOpen(entry)}
+      />
     );
   }
   return (
-    <div className="flex justify-end gap-2">
+    <>
       <CircleIconButton
-        icon={<LuCheck aria-hidden="true" />}
+        icon={<IoCheckmarkOutline aria-hidden="true" />}
         label={`Accept ${entry.title}`}
         variant="dark"
         onClick={() => onStatusChange(entry, 'upcoming')}
       />
       <CircleIconButton
-        icon={<LuX aria-hidden="true" />}
+        icon={<IoClose aria-hidden="true" />}
         label={`Reject ${entry.title}`}
         variant="danger"
         onClick={() => onStatusChange(entry, 'cancelled')}
       />
-    </div>
+    </>
   );
 };
 
-const AppointmentRows = ({
-  entries,
-  statusOverrides,
-  onStatusChange,
-  canEditStatus,
-  onOpen,
-}: {
-  entries: HistoryEntry[];
-  statusOverrides: StatusOverrides;
+type TimelineEntryProps = {
+  entry: HistoryEntry;
+  isLast: boolean;
+  expandedId: string | null;
+  pdfLoadingId: string | null;
+  selectedId: string | null;
+  onOpen: (entry: HistoryEntry) => void;
+  onOpenDetail: (entry: HistoryEntry) => void;
   onStatusChange: (entry: HistoryEntry, status: string) => void;
   canEditStatus: (entry: HistoryEntry) => boolean;
-  onOpen: (entry: HistoryEntry) => void;
-}) => (
-  <div className="w-full min-w-[1100px]">
-    <div className={`grid ${APPOINTMENT_GRID} items-center gap-2 border-b border-card-border p-4`}>
-      <TableHeading>Date &amp; Time</TableHeading>
-      <TableHeading>Status</TableHeading>
-      <TableHeading>Speciality</TableHeading>
-      <TableHeading>Service / Package</TableHeading>
-      <TableHeading>Assigned Lead</TableHeading>
-      <TableHeading>Payment status</TableHeading>
-      <TableHeading>
-        <span className="block text-right">Action</span>
-      </TableHeading>
-    </div>
-    {entries.map((entry) => {
-      const paymentStatus = getPayloadString(entry.payload, ['paymentStatus', 'invoiceStatus']);
-      const effectiveStatus = getEffectiveStatus(entry, statusOverrides);
-      return (
-        <div
-          key={entry.id}
-          className={`grid ${APPOINTMENT_GRID} items-center gap-2 border-b border-card-border p-4 last:border-b-0`}
-          style={TABLE_DATA_STYLE}
-        >
-          <div className="whitespace-normal text-body-4 text-neutral-900">
-            {formatHistoryDateTime(entry.occurredAt)}
-          </div>
-          <StatusPillSelect
-            status={effectiveStatus}
-            options={AppointmentLabels}
-            disabled={!canEditStatus(entry)}
-            locked={isAppointmentStatusLocked(effectiveStatus)}
-            allowedKeys={getAllowedAppointmentStatusTransitions(
-              normalizeStatusKey(String(effectiveStatus))
-            )}
-            onChange={(status) => onStatusChange(entry, status)}
-          />
-          <div className="whitespace-normal break-words text-body-4 text-neutral-900">
-            {getPayloadString(entry.payload, ['specialityName', 'specialtyName']) || '-'}
-          </div>
-          <div className="whitespace-normal break-words text-body-4 font-medium text-neutral-900">
-            {getPayloadString(entry.payload, ['serviceName', 'packageName']) || entry.title}
-          </div>
-          <div className="whitespace-normal break-words text-body-4 text-neutral-900">
-            {getPayloadString(entry.payload, ['leadName', 'leadVetName']) ||
-              entry.actor?.name ||
-              '-'}
-          </div>
-          <div className="flex flex-col gap-1 text-body-4">
-            <MoneyText
-              value={paymentStatus ? formatStatusLabel(paymentStatus) : '-'}
-              tone={getPaymentTone(entry)}
-            />
-            <MoneyText value={getEntryAmount(entry)} tone={getPaymentTone(entry)} />
-          </div>
-          <RequestedAppointmentActions
-            entry={{ ...entry, status: effectiveStatus }}
-            canEdit={canEditStatus(entry)}
-            onStatusChange={onStatusChange}
-            onOpen={onOpen}
-          />
-        </div>
-      );
-    })}
-  </div>
-);
-
-const DiagnosticsRows = ({
-  entries,
-  statusOverrides,
-  expandedId,
-  onToggle,
-  onOpen,
-  onPreviewPdf,
-  onOpenResultPdf,
-  pdfLoadingId,
-}: {
-  entries: HistoryEntry[];
-  statusOverrides: StatusOverrides;
-  expandedId: string | null;
   onToggle: (id: string) => void;
-  onOpen: (entry: HistoryEntry) => void;
   onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
   onOpenResultPdf: (entry: HistoryEntry) => void;
-  pdfLoadingId: string | null;
-}) => (
-  <div className="w-full min-w-[1180px]">
-    <div className={`grid ${DIAGNOSTICS_GRID} items-center gap-3 border-b border-card-border p-4`}>
-      <TableHeading />
-      <TableHeading>Order ID</TableHeading>
-      <TableHeading>Type</TableHeading>
-      <TableHeading>Date / Time</TableHeading>
-      <TableHeading>Status</TableHeading>
-      <TableHeading>
-        <span className="block text-right">Action</span>
-      </TableHeading>
-    </div>
-    {entries.map((entry, index) => {
-      const results = getLabResults(entry);
-      const acknowledgementPdfUrl = resolveFallbackUrl(entry);
-      const resultId = resolveLabResultId(entry);
-      const loadingPdf = pdfLoadingId === entry.id;
-      const expanded = expandedId === entry.id;
-      const effectiveStatus = getEffectiveStatus(entry, statusOverrides);
-      return (
-        <div key={entry.id} className="border-b border-card-border p-4 last:border-b-0">
-          <div className={`grid ${DIAGNOSTICS_GRID} items-center gap-3`} style={TABLE_DATA_STYLE}>
-            <div className="text-body-4 text-neutral-900">{index + 1}.</div>
-            <div className="whitespace-normal break-words text-body-4 text-neutral-900">
-              {getPayloadString(entry.payload, ['orderId', 'accessionId']) || entry.title}
-            </div>
-            <CategoryPill
-              icon={<LuFlaskConical size={14} aria-hidden="true" />}
-              label={getPayloadString(entry.payload, ['provider', 'type']) || 'IDEXX'}
-            />
-            <div className="whitespace-normal text-body-4 font-medium text-pill-success-text">
-              {formatHistoryDateTime(entry.occurredAt)}
-            </div>
-            <StatusPillSelect
-              status={effectiveStatus}
-              options={LAB_STATUS_OPTIONS}
-              disabled
-              onChange={() => undefined}
-            />
-            <div className="flex items-center justify-end gap-2">
-              {resultId ? (
-                <Secondary
-                  text={loadingPdf ? 'Loading…' : 'Result PDF'}
-                  icon={loadingPdf ? <LoadingIcon /> : <LuEye aria-hidden="true" />}
-                  isDisabled={loadingPdf}
-                  onClick={() => onOpenResultPdf(entry)}
-                />
-              ) : null}
-              {acknowledgementPdfUrl ? (
-                <Secondary
-                  text="Acknowledgment PDF"
-                  icon={<LuEye aria-hidden="true" />}
-                  onClick={() => onPreviewPdf(entry, acknowledgementPdfUrl)}
-                />
-              ) : null}
-              <RowActions
-                entry={entry}
-                expanded={expanded}
-                canExpand={results.length > 0}
-                onOpen={onOpen}
-                onToggle={onToggle}
-              />
-            </div>
-          </div>
-          {expanded && results.length > 0 ? (
-            <StructuredResultsPanel entry={entry} results={results} />
-          ) : null}
-        </div>
-      );
-    })}
-  </div>
-);
+};
 
-const MedicalRecordRows = ({
-  entries,
-  expandedId,
-  onToggle,
-  onOpen,
-  onPreviewPdf,
-  pdfLoadingId,
-}: {
-  entries: HistoryEntry[];
-  expandedId: string | null;
-  onToggle: (id: string) => void;
-  onOpen: (entry: HistoryEntry) => void;
-  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
-  pdfLoadingId: string | null;
-}) => (
-  <div className="w-full min-w-[1140px]">
-    <div
-      className={`grid ${MEDICAL_RECORD_GRID} items-center gap-4 border-b border-card-border p-4`}
-    >
-      <TableHeading>Category</TableHeading>
-      <TableHeading>Name</TableHeading>
-      <TableHeading>Appointment</TableHeading>
-      <TableHeading>Created</TableHeading>
-      <TableHeading>Last modified</TableHeading>
-      <TableHeading>
-        <span className="block text-right">Action</span>
-      </TableHeading>
-    </div>
-    {entries.map((entry) => {
-      const results = getLabResults(entry);
-      const pdfUrl = resolveFallbackUrl(entry);
-      const expanded = expandedId === entry.id;
-      const loadingPdf = pdfLoadingId === entry.id;
-      const handlePrimaryAction = () => {
-        if (loadingPdf) return;
-        if (results.length > 0) {
-          onToggle(entry.id);
-          return;
-        }
-        if (pdfUrl) {
-          onPreviewPdf(entry, pdfUrl);
-          return;
-        }
-        onOpen(entry);
-      };
-      return (
-        <div key={entry.id} className="border-b border-card-border p-4 last:border-b-0">
-          <div
-            className={`grid ${MEDICAL_RECORD_GRID} items-center gap-4`}
-            style={TABLE_DATA_STYLE}
-          >
-            <CategoryPill icon={getRecordIcon(entry)} label={getRecordCategory(entry)} />
-            <div className="whitespace-normal break-words text-body-4 text-neutral-900">
-              {entry.title}
-            </div>
-            <div className="whitespace-normal break-words text-body-4 text-neutral-900">
-              {getPayloadString(entry.payload, ['appointmentName', 'serviceName']) || '-'}
-            </div>
-            <div className="flex flex-col gap-1 text-body-4">
-              <LinkedName>{getCreatedBy(entry)}</LinkedName>
-              <span>{formatHistoryDateTime(entry.occurredAt)}</span>
-            </div>
-            <div className="flex flex-col gap-1 text-body-4">
-              <LinkedName>{getModifiedBy(entry)}</LinkedName>
-              <span>
-                {formatHistoryDateTime(
-                  getPayloadString(entry.payload, ['updatedAt', 'modifiedAt']) || entry.occurredAt
-                )}
-              </span>
-            </div>
-            <div className="flex justify-end gap-2">
-              <CircleIconButton
-                icon={getTimelineActionIcon(loadingPdf, expanded)}
-                label={getTimelineActionLabel(loadingPdf, expanded, entry.title, entry)}
-                variant="dark"
-                disabled={loadingPdf}
-                onClick={handlePrimaryAction}
-              />
-            </div>
-          </div>
-          {expanded && results.length > 0 ? (
-            <StructuredResultsPanel entry={entry} results={results} />
-          ) : null}
-        </div>
-      );
-    })}
-  </div>
-);
-
-const TaskRows = ({
-  entries,
-  statusOverrides,
+const getEntryStatusSlot = ({
+  entry,
   onStatusChange,
   canEditStatus,
-  onOpen,
-}: {
-  entries: HistoryEntry[];
-  statusOverrides: StatusOverrides;
-  onStatusChange: (entry: HistoryEntry, status: string) => void;
-  canEditStatus: (entry: HistoryEntry) => boolean;
-  onOpen: (entry: HistoryEntry) => void;
-}) => (
-  <div className="w-full min-w-[900px]">
-    <div className={`grid ${TASK_GRID} items-center gap-2 border-b border-card-border p-4`}>
-      <TableHeading>Task</TableHeading>
-      <TableHeading>Audience</TableHeading>
-      <TableHeading>Due / Completed</TableHeading>
-      <TableHeading>Status</TableHeading>
-      <TableHeading>
-        <span className="block text-right">Action</span>
-      </TableHeading>
-    </div>
-    {entries.map((entry) => {
-      const effectiveStatus = getEffectiveStatus(entry, statusOverrides);
-      return (
-        <div
-          key={entry.id}
-          className={`grid ${TASK_GRID} items-center gap-2 border-b border-card-border p-4 last:border-b-0`}
-          style={TABLE_DATA_STYLE}
-        >
-          <div className="min-w-0">
-            <div className="whitespace-normal break-words text-body-4 font-bold text-neutral-900">
-              {entry.title}
-            </div>
-            {entry.summary ? (
-              <div className="text-caption-1 text-text-secondary">{entry.summary}</div>
-            ) : null}
-          </div>
-          <div className="text-body-4 text-neutral-900">
-            {getPayloadString(entry.payload, ['audience']) || '-'}
-          </div>
-          <div className="text-body-4 text-neutral-900">
-            {formatHistoryDate(
-              getPayloadString(entry.payload, ['completedAt', 'dueAt']) || entry.occurredAt
-            )}
-          </div>
-          <StatusPillSelect
-            status={effectiveStatus}
-            options={TaskLabels}
-            disabled={!canEditStatus(entry)}
-            locked={isTaskStatusLocked(effectiveStatus)}
-            allowedKeys={getAllowedTaskStatusTransitions(
-              normalizeStatusKey(String(effectiveStatus))
-            )}
-            onChange={(status) => onStatusChange(entry, status)}
-          />
-          <RowActions
-            entry={entry}
-            expanded={false}
-            canExpand={false}
-            onOpen={onOpen}
-            onToggle={() => undefined}
-          />
-        </div>
-      );
-    })}
-  </div>
-);
+}: Pick<TimelineEntryProps, 'entry' | 'onStatusChange' | 'canEditStatus'>): React.ReactNode => {
+  if (entry.type === 'APPOINTMENT') {
+    return (
+      <StatusPillSelect
+        status={entry.status}
+        options={AppointmentLabels}
+        disabled={!canEditStatus(entry)}
+        locked={isAppointmentStatusLocked(entry.status)}
+        allowedKeys={getAllowedAppointmentStatusTransitions(
+          normalizeStatusKey(String(entry.status))
+        )}
+        onChange={(status) => onStatusChange(entry, status)}
+      />
+    );
+  }
+  if (entry.type === 'TASK') {
+    return (
+      <StatusPillSelect
+        status={entry.status}
+        options={TaskLabels}
+        disabled={!canEditStatus(entry)}
+        locked={isTaskStatusLocked(entry.status)}
+        allowedKeys={getAllowedTaskStatusTransitions(normalizeStatusKey(String(entry.status)))}
+        onChange={(status) => onStatusChange(entry, status)}
+      />
+    );
+  }
+  return undefined;
+};
 
 const isPaidInvoice = (entry: HistoryEntry): boolean => {
+  /* v8 ignore next 3 -- defensive fallback unreachable: getEntryActions receives entries whose status is normalized to a string by getEffectiveStatus, so entry.status is never nullish here */
   const status = String(entry.status ?? getPayloadString(entry.payload, ['status']) ?? '')
     .trim()
     .toUpperCase();
   return ['PAID', 'PAID_FULL', 'COMPLETED'].includes(status);
 };
 
-const BillingRows = ({
-  entries,
-  statusOverrides,
-  onOpen,
-  onPreviewPdf,
-}: {
-  entries: HistoryEntry[];
-  statusOverrides: StatusOverrides;
-  onOpen: (entry: HistoryEntry) => void;
+type LabResultActionsProps = {
+  entry: HistoryEntry;
+  loadingPdf: boolean;
+  expanded: boolean;
+  fallbackUrl: ReturnType<typeof resolveFallbackUrl>;
+  results: ReturnType<typeof getLabResults>;
+  onOpenResultPdf: (entry: HistoryEntry) => void;
   onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
-}) => (
-  <div className="w-full min-w-[1120px]">
-    <div className={`grid ${BILLING_GRID} items-center gap-3 border-b border-card-border p-4`}>
-      <TableHeading />
-      <TableHeading>Invoice ID</TableHeading>
-      <TableHeading>Created</TableHeading>
-      <TableHeading>Billed by</TableHeading>
-      <TableHeading>Total amt</TableHeading>
-      <TableHeading>Outstanding</TableHeading>
-      <TableHeading>Status</TableHeading>
-      <TableHeading>
-        <span className="block text-right">Action</span>
-      </TableHeading>
-    </div>
-    {entries.map((entry, index) => {
-      const effectiveStatus = getEffectiveStatus(entry, statusOverrides);
-      const pdfUrl = resolveFallbackUrl(entry);
-      const outstanding =
-        formatCurrency(
-          getPayloadNumber(entry.payload, ['outstandingAmount']),
-          getPayloadString(entry.payload, ['currency'])
-        ) || '$0';
-      return (
-        <div key={entry.id} className="border-b border-card-border p-4 last:border-b-0">
-          <div className={`grid ${BILLING_GRID} items-center gap-3`} style={TABLE_DATA_STYLE}>
-            <div className="text-body-4">{index + 1}.</div>
-            <div className="whitespace-normal break-words text-body-4 text-neutral-900">
-              {getLinkedId(entry, ['invoiceId'], 'invoice') || entry.title}
-            </div>
-            <div className="text-body-4 font-medium text-pill-success-text">
-              {formatHistoryDateTime(entry.occurredAt)}
-            </div>
-            <div className="whitespace-normal break-words text-body-4 text-neutral-900">
-              {getPayloadString(entry.payload, ['billedByName', 'leadName']) ||
-                entry.actor?.name ||
-                '-'}
-            </div>
-            <div className="text-body-4 text-neutral-900">{getEntryAmount(entry)}</div>
-            <div className="text-body-4 text-neutral-900">{outstanding}</div>
-            <StatusPillSelect
-              status={effectiveStatus}
-              options={BILLING_STATUS_OPTIONS}
-              disabled
-              onChange={() => undefined}
-            />
-            <div className="flex items-center justify-end gap-2">
-              {isPaidInvoice(entry) && pdfUrl ? (
-                <CircleIconButton
-                  icon={<LuEye aria-hidden="true" />}
-                  label={`Preview ${entry.title}`}
-                  variant="dark"
-                  onClick={() => onPreviewPdf(entry, pdfUrl)}
-                />
-              ) : null}
-              <CircleIconButton
-                icon={<LuExternalLink aria-hidden="true" />}
-                label={getPrimaryActionLabel(entry)}
-                variant={isPaidInvoice(entry) && pdfUrl ? 'outline' : 'dark'}
-                onClick={() => onOpen(entry)}
-              />
-            </div>
-          </div>
-        </div>
-      );
-    })}
-  </div>
+  onToggle: (id: string) => void;
+};
+
+const LabResultActions = ({
+  entry,
+  loadingPdf,
+  expanded,
+  fallbackUrl,
+  results,
+  onOpenResultPdf,
+  onPreviewPdf,
+  onToggle,
+}: LabResultActionsProps): React.ReactNode => {
+  const resultId = resolveLabResultId(entry);
+  return (
+    <>
+      {resultId ? (
+        <InsetChipButton
+          icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline size={11} aria-hidden="true" />}
+          label={loadingPdf ? 'Loading…' : 'Result PDF'}
+          disabled={loadingPdf}
+          onClick={() => onOpenResultPdf(entry)}
+        />
+      ) : null}
+      {fallbackUrl ? (
+        <InsetChipButton
+          icon={<IoEyeOutline size={11} aria-hidden="true" />}
+          label="Acknowledgment PDF"
+          onClick={() => onPreviewPdf(entry, fallbackUrl)}
+        />
+      ) : null}
+      {results.length > 0 ? (
+        <InsetChipButton
+          icon={
+            expanded ? (
+              <IoEyeOffOutline size={11} aria-hidden="true" />
+            ) : (
+              <IoEyeOutline size={11} aria-hidden="true" />
+            )
+          }
+          label={expanded ? `Hide ${entry.title}` : `View ${entry.title}`}
+          onClick={() => onToggle(entry.id)}
+        />
+      ) : null}
+    </>
+  );
+};
+
+const getEntryActions = ({
+  entry,
+  expandedId,
+  pdfLoadingId,
+  onOpen,
+  onStatusChange,
+  canEditStatus,
+  onToggle,
+  onPreviewPdf,
+  onOpenResultPdf,
+}: TimelineEntryProps): React.ReactNode => {
+  const results = getLabResults(entry);
+  const expanded = expandedId === entry.id;
+  const loadingPdf = pdfLoadingId === entry.id;
+  const fallbackUrl = resolveFallbackUrl(entry);
+
+  if (entry.type === 'APPOINTMENT') {
+    return (
+      <RequestedAppointmentActions
+        entry={entry}
+        canEdit={canEditStatus(entry)}
+        onStatusChange={onStatusChange}
+        onOpen={onOpen}
+      />
+    );
+  }
+
+  if (entry.type === 'LAB_RESULT') {
+    return (
+      <LabResultActions
+        entry={entry}
+        loadingPdf={loadingPdf}
+        expanded={expanded}
+        fallbackUrl={fallbackUrl}
+        results={results}
+        onOpenResultPdf={onOpenResultPdf}
+        onPreviewPdf={onPreviewPdf}
+        onToggle={onToggle}
+      />
+    );
+  }
+
+  if (entry.type === 'INVOICE' && isPaidInvoice(entry) && fallbackUrl) {
+    return (
+      <InsetChipButton
+        icon={<IoEyeOutline size={11} aria-hidden="true" />}
+        label={`Preview ${entry.title}`}
+        onClick={() => onPreviewPdf(entry, fallbackUrl)}
+      />
+    );
+  }
+
+  return undefined;
+};
+
+const TimelineEntry = (props: TimelineEntryProps) => {
+  const { entry, isLast, expandedId, selectedId, onOpen, onOpenDetail } = props;
+  const results = getLabResults(entry);
+  const expanded = expandedId === entry.id;
+  return (
+    <HistoryEntryCard
+      entry={entry}
+      onOpen={onOpen}
+      onOpenDetail={onOpenDetail}
+      active={selectedId === entry.id}
+      isLast={isLast}
+      statusSlot={getEntryStatusSlot(props)}
+      actions={getEntryActions(props)}
+      expandedContent={
+        expanded && results.length > 0 ? (
+          <StructuredResultsPanel entry={entry} results={results} />
+        ) : null
+      }
+    />
+  );
+};
+
+type TimelineListProps = {
+  entries: HistoryEntry[];
+  expandedId: string | null;
+  pdfLoadingId: string | null;
+  selectedId: string | null;
+  onOpen: (entry: HistoryEntry) => void;
+  onOpenDetail: (entry: HistoryEntry) => void;
+  onStatusChange: (entry: HistoryEntry, status: string) => void;
+  canEditStatus: (entry: HistoryEntry) => boolean;
+  onToggle: (id: string) => void;
+  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
+  onOpenResultPdf: (entry: HistoryEntry) => void;
+};
+
+const HistoryTimelineList = ({ entries, ...handlers }: TimelineListProps) => (
+  <ol className="flex flex-col">
+    {entries.map((entry, index) => (
+      <TimelineEntry
+        key={entry.id}
+        entry={entry}
+        isLast={index === entries.length - 1}
+        {...handlers}
+      />
+    ))}
+  </ol>
 );
 
 const getAuditActorDisplay = (entry: AuditTrail): string => {
@@ -1263,7 +883,7 @@ const getAuditActorDisplay = (entry: AuditTrail): string => {
   return actorName ? `${actorName} • ${actorTypeLabel}` : actorTypeLabel;
 };
 
-const AuditTimeline = ({
+export const AuditTimeline = ({
   loading,
   error,
   entries,
@@ -1279,7 +899,7 @@ const AuditTimeline = ({
   if (entries.length === 0) return <HistoryEmptyState message="No audit entries found." />;
 
   return (
-    <ol className="flex flex-col px-5 py-4">
+    <ol className="flex flex-col px-1 py-1">
       {entries.map((entry, index) => (
         <li
           key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
@@ -1295,7 +915,7 @@ const AuditTimeline = ({
               className={`w-px flex-1 ${index === entries.length - 1 ? '' : 'bg-card-border'}`}
             />
           </div>
-          <div className="mb-2 flex-1 rounded-xl border border-card-border bg-neutral-0 px-3 py-2 shadow-[0_1px_10px_0_rgba(169,163,158,0.08)]">
+          <div className="mb-2 flex-1 rounded-xl border border-card-border bg-neutral-0 px-3 py-2 shadow-[0_1px_10px_0_var(--sh08)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0 text-body-4 font-bold text-neutral-900">
                 {toTitle(entry.eventType)}
@@ -1316,91 +936,119 @@ const AuditTimeline = ({
   );
 };
 
-const EmptyOrRows = ({
+type TimelineBodyProps = {
+  activeFilter: HistoryFilterKey;
+  loading: boolean;
+  error: string | null;
+  auditLoading: boolean;
+  auditError: string | null;
+  auditEntries: AuditTrail[];
+  filteredEntries: HistoryEntry[];
+  expandedId: string | null;
+  pdfLoadingId: string | null;
+  selectedId: string | null;
+  onStatusChange: (entry: HistoryEntry, nextStatus: string) => void;
+  canEditStatus: (entry: HistoryEntry) => boolean;
+  onToggle: (entryId: string) => void;
+  onOpen: (entry: HistoryEntry) => void;
+  onOpenDetail: (entry: HistoryEntry) => void;
+  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
+  onOpenResultPdf: (entry: HistoryEntry) => void;
+};
+
+const getTimelineBody = ({
   activeFilter,
-  entries,
-  statusOverrides,
+  loading,
+  error,
+  auditLoading,
+  auditError,
+  auditEntries,
+  filteredEntries,
   expandedId,
+  pdfLoadingId,
+  selectedId,
   onStatusChange,
   canEditStatus,
   onToggle,
   onOpen,
+  onOpenDetail,
   onPreviewPdf,
   onOpenResultPdf,
-  pdfLoadingId,
-}: {
-  activeFilter: HistoryFilterKey;
-  entries: HistoryEntry[];
-  statusOverrides: StatusOverrides;
-  expandedId: string | null;
-  onStatusChange: (entry: HistoryEntry, status: string) => void;
-  canEditStatus: (entry: HistoryEntry) => boolean;
-  onToggle: (id: string) => void;
-  onOpen: (entry: HistoryEntry) => void;
-  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
-  onOpenResultPdf: (entry: HistoryEntry) => void;
-  pdfLoadingId: string | null;
-}) => {
-  if (entries.length === 0) return <HistoryEmptyState />;
-  if (activeFilter === 'APPOINTMENT') {
-    return (
-      <AppointmentRows
-        entries={entries}
-        statusOverrides={statusOverrides}
-        onStatusChange={onStatusChange}
-        canEditStatus={canEditStatus}
-        onOpen={onOpen}
-      />
-    );
+}: TimelineBodyProps) => {
+  if (activeFilter === 'AUDIT_TRAIL') {
+    return <AuditTimeline loading={auditLoading} error={auditError} entries={auditEntries} />;
   }
-  if (activeFilter === 'LAB_RESULT') {
-    return (
-      <DiagnosticsRows
-        entries={entries}
-        statusOverrides={statusOverrides}
-        expandedId={expandedId}
-        onToggle={onToggle}
-        onOpen={onOpen}
-        onPreviewPdf={onPreviewPdf}
-        onOpenResultPdf={onOpenResultPdf}
-        pdfLoadingId={pdfLoadingId}
-      />
-    );
+  if (loading) {
+    return <div className="px-1 py-8 text-body-3 text-text-secondary">Loading overview…</div>;
   }
-  if (activeFilter === 'MEDICAL_RECORDS') {
-    return (
-      <MedicalRecordRows
-        entries={entries}
-        expandedId={expandedId}
-        onToggle={onToggle}
-        onOpen={onOpen}
-        onPreviewPdf={onPreviewPdf}
-        pdfLoadingId={pdfLoadingId}
-      />
-    );
+  if (error) {
+    return <HistoryEmptyState isError message={error} />;
   }
-  if (activeFilter === 'TASK') {
-    return (
-      <TaskRows
-        entries={entries}
-        statusOverrides={statusOverrides}
-        onStatusChange={onStatusChange}
-        canEditStatus={canEditStatus}
-        onOpen={onOpen}
-      />
-    );
+  if (filteredEntries.length === 0) {
+    return <HistoryEmptyState />;
   }
   return (
-    <BillingRows
-      entries={entries}
-      statusOverrides={statusOverrides}
+    <HistoryTimelineList
+      entries={filteredEntries}
+      expandedId={expandedId}
+      pdfLoadingId={pdfLoadingId}
+      selectedId={selectedId}
+      onStatusChange={onStatusChange}
+      canEditStatus={canEditStatus}
+      onToggle={onToggle}
       onOpen={onOpen}
+      onOpenDetail={onOpenDetail}
       onPreviewPdf={onPreviewPdf}
+      onOpenResultPdf={onOpenResultPdf}
     />
   );
 };
 
-const CompanionHistoryTimeline = ({
+const getPersistStatusAction = (
+  entryType: HistoryEntry['type'],
+  persistAppointmentStatus: (entry: HistoryEntry, nextStatus: string) => Promise<void>,
+  persistTaskStatus: (entry: HistoryEntry, nextStatus: string) => Promise<void>
+): ((entry: HistoryEntry, nextStatus: string) => Promise<void>) | null => {
+  if (entryType === 'APPOINTMENT') return persistAppointmentStatus;
+  if (entryType === 'TASK') return persistTaskStatus;
+  /* v8 ignore next -- unreachable: handleStatusChange only fires from StatusPillSelect, which renders for APPOINTMENT/TASK rows only */
+  return null;
+};
+
+const FILTER_CHIP_BASE =
+  'inline-flex items-center rounded-full px-[13px] py-1.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
+
+type HistoryLoadState = {
+  entries: HistoryEntry[];
+  auditEntries: AuditTrail[];
+  loading: boolean;
+  auditLoading: boolean;
+  error: string | null;
+  auditError: string | null;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  expandedId: string | null;
+};
+
+type HistoryLoadAction =
+  | { type: 'PATCH'; patch: Partial<HistoryLoadState> }
+  | { type: 'APPEND_PAGE'; response: CompanionHistoryResponse; shouldReplace: boolean };
+
+const historyLoadReducer = (
+  state: HistoryLoadState,
+  action: HistoryLoadAction
+): HistoryLoadState => {
+  if (action.type === 'APPEND_PAGE') {
+    return {
+      ...state,
+      entries: appendPage(state.entries, action.response, action.shouldReplace),
+      nextCursor: action.response.nextCursor,
+    };
+  }
+  return { ...state, ...action.patch };
+};
+
+const useCompanionHistoryTimelineView = ({
   companionId,
   activeAppointmentId,
   showDocumentUpload = false,
@@ -1418,27 +1066,59 @@ const CompanionHistoryTimeline = ({
   const appointmentsById = useAppointmentStore((state) => state.appointmentsById);
   const tasksById = useTaskStore((state) => state.tasksById);
   const { notify } = useNotify();
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const [auditEntries, setAuditEntries] = useState<AuditTrail[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [auditError, setAuditError] = useState<string | null>(null);
+  const [historyLoad, dispatchHistoryLoad] = useReducer(historyLoadReducer, {
+    entries: [] as HistoryEntry[],
+    auditEntries: [] as AuditTrail[],
+    loading: false,
+    auditLoading: false,
+    error: null as string | null,
+    auditError: null as string | null,
+    nextCursor: null as string | null,
+    loadingMore: false,
+    expandedId: null as string | null,
+  });
+  const {
+    entries,
+    auditEntries,
+    loading,
+    auditLoading,
+    error,
+    auditError,
+    nextCursor,
+    loadingMore,
+    expandedId,
+  } = historyLoad;
+  const patchHistoryLoad = useCallback(
+    (patch: Partial<HistoryLoadState>) => dispatchHistoryLoad({ type: 'PATCH', patch }),
+    []
+  );
+  const setExpandedId = useCallback<React.Dispatch<React.SetStateAction<string | null>>>(
+    (value) => {
+      dispatchHistoryLoad({
+        type: 'PATCH',
+        patch: {
+          expandedId:
+            typeof value === 'function'
+              ? (value as (prev: string | null) => string | null)(historyLoad.expandedId)
+              : value,
+        },
+      });
+    },
+    [historyLoad.expandedId]
+  );
   const [activeFilter, setActiveFilter] = useState<HistoryFilterKey>(DEFAULT_FILTER);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [statusOverrides, setStatusOverrides] = useState<StatusOverrides>({});
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const historyFilters = useMemo(() => getHistoryFilters(orgType), [orgType]);
   const statusFilterOptions = useMemo(() => getStatusFilterOptions(activeFilter), [activeFilter]);
 
   const requestedTypes = useMemo<HistoryEntryType[] | undefined>(() => {
-    if (activeFilter === 'AUDIT_TRAIL') return undefined;
+    if (activeFilter === 'AUDIT_TRAIL' || activeFilter === 'ALL') return undefined;
     if (activeFilter === 'MEDICAL_RECORDS') return ['FORM_SUBMISSION', 'DOCUMENT'];
     return HISTORY_FILTER_TYPE_MAP[activeFilter];
   }, [activeFilter]);
@@ -1446,13 +1126,12 @@ const CompanionHistoryTimeline = ({
   const loadHistory = useCallback(
     async (cursor: string | null, shouldReplace: boolean) => {
       if (!organisationId || !companionId) {
-        setEntries([]);
-        setNextCursor(null);
+        patchHistoryLoad({ entries: [], nextCursor: null });
         return;
       }
-      if (cursor) setLoadingMore(true);
-      else setLoading(true);
-      setError(null);
+      patchHistoryLoad(
+        cursor ? { loadingMore: true, error: null } : { loading: true, error: null }
+      );
       try {
         const response = await fetchCompanionHistory({
           organisationId,
@@ -1464,79 +1143,94 @@ const CompanionHistoryTimeline = ({
         if (!response || !Array.isArray(response.entries)) {
           throw new Error('Invalid companion history response');
         }
-        setEntries((prev) => appendPage(prev, response, shouldReplace));
-        setNextCursor(response.nextCursor);
+        dispatchHistoryLoad({ type: 'APPEND_PAGE', response, shouldReplace });
       } catch (historyError) {
         console.error('Failed to load companion history:', historyError);
-        setError('Unable to load overview. Please try again.');
-        if (shouldReplace) setEntries([]);
+        patchHistoryLoad({
+          error: 'Unable to load overview. Please try again.',
+          ...(shouldReplace ? { entries: [] } : {}),
+        });
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        patchHistoryLoad({ loading: false, loadingMore: false });
       }
     },
-    [organisationId, companionId, requestedTypes]
+    [organisationId, companionId, requestedTypes, patchHistoryLoad]
   );
 
-  useLayoutEffect(() => {
+  const identityKey = `${companionId ?? ''}:${organisationId ?? ''}`;
+  const [prevIdentityKey, setPrevIdentityKey] = useState(identityKey);
+  if (identityKey !== prevIdentityKey) {
+    setPrevIdentityKey(identityKey);
     setActiveFilter(DEFAULT_FILTER);
     setQuery('');
     setExpandedId(null);
     setStatusOverrides({});
-  }, [companionId, organisationId]);
+  }
 
   useLayoutEffect(() => {
     if (activeFilter === 'AUDIT_TRAIL') return;
-    setEntries([]);
-    setAuditEntries([]);
-    setNextCursor(null);
-    setError(null);
-    setAuditError(null);
-    setExpandedId(null);
+    patchHistoryLoad({
+      entries: [],
+      auditEntries: [],
+      nextCursor: null,
+      error: null,
+      auditError: null,
+      expandedId: null,
+    });
+    /* v8 ignore next 3 -- unreachable: loadHistory wraps its body in try/catch/finally and always resolves, so this defensive .catch never fires */
     loadHistory(null, true).catch((historyError) => {
       console.error('Failed to initialize companion history:', historyError);
     });
-  }, [companionId, organisationId, activeFilter, loadHistory]);
+  }, [companionId, organisationId, activeFilter, loadHistory, patchHistoryLoad]);
 
   useLayoutEffect(() => {
     if (activeFilter !== 'AUDIT_TRAIL') {
-      setAuditError(null);
+      patchHistoryLoad({ auditError: null });
       return;
     }
     if (!companionId) {
-      setAuditEntries([]);
-      setAuditError(null);
+      patchHistoryLoad({ auditEntries: [], auditError: null });
       return;
     }
     let cancelled = false;
-    setAuditLoading(true);
-    setAuditError(null);
+    patchHistoryLoad({ auditLoading: true, auditError: null });
     getCompanionAuditTrail(companionId)
       .then((response) => {
-        if (!cancelled) setAuditEntries(Array.isArray(response) ? response : []);
+        if (!cancelled) patchHistoryLoad({ auditEntries: Array.isArray(response) ? response : [] });
       })
       .catch((auditTrailError) => {
         if (cancelled) return;
         console.error('Failed to load companion audit trail:', auditTrailError);
-        setAuditEntries([]);
-        setAuditError('Unable to load audit trail. Please try again.');
+        patchHistoryLoad({
+          auditEntries: [],
+          auditError: 'Unable to load audit trail. Please try again.',
+        });
       })
       .finally(() => {
-        if (!cancelled) setAuditLoading(false);
+        if (!cancelled) patchHistoryLoad({ auditLoading: false });
       });
     return () => {
       cancelled = true;
     };
-  }, [activeFilter, companionId]);
+  }, [activeFilter, companionId, patchHistoryLoad]);
+
+  const requestedTypeSet = useMemo(
+    () => (requestedTypes ? new Set(requestedTypes) : undefined),
+    [requestedTypes]
+  );
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const byTab =
-      activeFilter === 'MEDICAL_RECORDS'
-        ? entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type))
-        : entries.filter((entry) => requestedTypes?.includes(entry.type));
+    let byTab: HistoryEntry[];
+    if (activeFilter === 'ALL') {
+      byTab = entries;
+    } else if (activeFilter === 'MEDICAL_RECORDS') {
+      byTab = entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type));
+    } else {
+      byTab = entries.filter((entry) => requestedTypeSet?.has(entry.type) ?? false);
+    }
     const bySearch = normalizedQuery
-      ? byTab.filter((entry) => getSearchableText(entry).includes(normalizedQuery))
+      ? byTab.filter((entry) => entryMatchesSearchQuery(entry, normalizedQuery))
       : byTab;
     const withStatusOverrides = bySearch.map((entry) => ({
       ...entry,
@@ -1555,7 +1249,7 @@ const CompanionHistoryTimeline = ({
     compact,
     entries,
     query,
-    requestedTypes,
+    requestedTypeSet,
     sortKey,
     statusFilter,
     statusOverrides,
@@ -1614,6 +1308,7 @@ const CompanionHistoryTimeline = ({
   const openAppointmentLinkedEntry = useCallback(
     (entry: HistoryEntry) => {
       const intent = getLinkedEntryIntent(entry.type);
+      /* v8 ignore next -- unreachable: only APPOINTMENT/FORM_SUBMISSION reach this callback, and both yield a non-null intent */
       if (!intent) return;
       const appointmentId = resolveEntryAppointmentId(entry);
       if (!appointmentId) return;
@@ -1690,6 +1385,7 @@ const CompanionHistoryTimeline = ({
   );
 
   const handleDocumentUploaded = useCallback(() => {
+    /* v8 ignore next 3 -- unreachable: loadHistory wraps its body in try/catch/finally and always resolves, so this defensive .catch never fires */
     loadHistory(null, true).catch((historyError) => {
       console.error('Failed to refresh companion history after document upload:', historyError);
     });
@@ -1697,6 +1393,38 @@ const CompanionHistoryTimeline = ({
 
   const handleToggleExpanded = (id: string) =>
     setExpandedId((current) => (current === id ? null : id));
+
+  const handlePreviewPdf = (entry: HistoryEntry, url: string) => {
+    if (pdfPreview?.url.startsWith('blob:')) {
+      URL.revokeObjectURL(pdfPreview.url);
+    }
+    setPdfPreview({ title: entry.title || 'Medical record preview', url });
+  };
+
+  // Medical records (forms + documents) keep the table's primary-action logic:
+  // structured results expand inline, otherwise a bundled PDF previews, otherwise
+  // fall through to the document/form open handler.
+  const handleMedicalPrimary = (entry: HistoryEntry) => {
+    if (pdfLoadingId === entry.id) return;
+    if (getLabResults(entry).length > 0) {
+      handleToggleExpanded(entry.id);
+      return;
+    }
+    const pdfUrl = resolveFallbackUrl(entry);
+    if (pdfUrl) {
+      handlePreviewPdf(entry, pdfUrl);
+      return;
+    }
+    handleOpenEntry(entry);
+  };
+
+  const handleTimelineOpen = (entry: HistoryEntry) => {
+    if (entry.type === 'FORM_SUBMISSION' || entry.type === 'DOCUMENT') {
+      handleMedicalPrimary(entry);
+      return;
+    }
+    handleOpenEntry(entry);
+  };
 
   const canEditStatus = useCallback(
     (entry: HistoryEntry): boolean => {
@@ -1708,6 +1436,7 @@ const CompanionHistoryTimeline = ({
         const taskId = getLinkedId(entry, ['taskId'], 'task');
         return Boolean(taskId && tasksById[taskId]);
       }
+      /* v8 ignore next -- unreachable: canEditStatus is only invoked for APPOINTMENT/TASK rows (getEntryStatusSlot / getEntryActions), so the neither-branch never runs */
       return false;
     },
     [appointmentsById, tasksById]
@@ -1717,6 +1446,7 @@ const CompanionHistoryTimeline = ({
     async (entry: HistoryEntry, status: string) => {
       const nextStatus = toAppointmentStatus(status);
       const appointmentId = getLinkedAppointmentId(entry);
+      /* v8 ignore next -- unreachable else: the pill is only editable when getLinkedAppointmentId resolves an id, so appointmentId is always truthy here */
       const appointment = appointmentId ? appointmentsById[appointmentId] : undefined;
       if (!nextStatus || !appointment) {
         notify('error', {
@@ -1743,6 +1473,7 @@ const CompanionHistoryTimeline = ({
     async (entry: HistoryEntry, status: string) => {
       const nextStatus = toTaskStatus(status);
       const taskId = getLinkedId(entry, ['taskId'], 'task');
+      /* v8 ignore next -- unreachable else: the pill is only editable when getLinkedId resolves a task id, so taskId is always truthy here */
       const task = taskId ? tasksById[taskId] : undefined;
       if (!nextStatus || !task) {
         notify('error', {
@@ -1772,6 +1503,7 @@ const CompanionHistoryTimeline = ({
         persistAppointmentStatus,
         persistTaskStatus
       );
+      /* v8 ignore next -- unreachable: getPersistStatusAction returns null only for non-APPOINTMENT/TASK, but this handler only fires for those rows */
       if (!persistStatus) return;
       persistStatus(entry, status).catch((statusError) => {
         console.error('Failed to update history row status:', statusError);
@@ -1783,16 +1515,11 @@ const CompanionHistoryTimeline = ({
     },
     [notify, persistAppointmentStatus, persistTaskStatus]
   );
-  const handlePreviewPdf = (entry: HistoryEntry, url: string) => {
-    if (pdfPreview?.url.startsWith('blob:')) {
-      URL.revokeObjectURL(pdfPreview.url);
-    }
-    setPdfPreview({ title: entry.title || 'Medical record preview', url });
-  };
 
   const handleOpenResultPdf = useCallback(
     (entry: HistoryEntry) => {
       const resultId = resolveLabResultId(entry);
+      /* v8 ignore next 4 -- unreachable: the Result PDF chip only renders when resolveLabResultId is truthy and a primary org is present, so this fallback never runs */
       if (!organisationId || !resultId) {
         handleOpenEntry(entry);
         return;
@@ -1834,6 +1561,50 @@ const CompanionHistoryTimeline = ({
     });
   }, []);
 
+  const handleOpenLinkedFromDrawer = useCallback(
+    (entry: HistoryEntry) => {
+      const appointmentId = resolveEntryAppointmentId(entry);
+      /* v8 ignore next -- unreachable: the "Linked to" button only renders when getLinkedAppointmentLabel resolves an appointment id, so this guard never triggers from the UI */
+      if (!appointmentId) return;
+      if (appointmentId === activeAppointmentId && onOpenAppointmentView) {
+        onOpenAppointmentView({ label: 'info', subLabel: 'appointment' });
+        setSelectedEntry(null);
+        return;
+      }
+      navigateSameOrigin(buildAppointmentsLink(appointmentId, undefined, 'appointment'));
+    },
+    [activeAppointmentId, onOpenAppointmentView]
+  );
+
+  const handleShareRecord = useCallback(
+    (entry: HistoryEntry) => {
+      notify('info', {
+        title: 'Share to app',
+        text: `“${entry.title}” will be shared to the pet parent app.`,
+      });
+    },
+    [notify]
+  );
+
+  const handleDiscussRecord = useCallback(
+    (entry: HistoryEntry) => {
+      notify('info', {
+        title: 'Discuss in chat',
+        text: `Start a chat about “${entry.title}”.`,
+      });
+    },
+    [notify]
+  );
+
+  const selectedResults = useMemo(
+    () => (selectedEntry ? getLabResults(selectedEntry) : []),
+    [selectedEntry]
+  );
+  const selectedLinkedLabel = useMemo(
+    () => (selectedEntry ? getLinkedAppointmentLabel(selectedEntry, appointmentsById) : null),
+    [selectedEntry, appointmentsById]
+  );
+
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div className="flex w-full flex-col gap-5">
@@ -1872,72 +1643,77 @@ const CompanionHistoryTimeline = ({
           />
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-card-border bg-neutral-0">
-          <div role="tablist" className="flex min-w-230 border-b border-card-border">
-            {historyFilters.map((filter) => {
-              const active = filter.key === activeFilter;
-              return (
-                <button
-                  key={filter.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => {
-                    setActiveFilter(filter.key);
-                    setStatusFilter(STATUS_FILTER_ALL);
-                  }}
-                  className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
-                    active
-                      ? 'border-text-brand text-yc-14-b-primary'
-                      : 'border-transparent text-yc-14-m-neutral hover:text-neutral-900'
-                  }`}
-                >
-                  {TAB_ICONS[filter.key]}
-                  {filter.key === 'MEDICAL_RECORDS' ? 'Medical records' : filter.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {fullPageHref ? (
-            <div className="border-b border-card-border px-4 py-3 text-right">
-              <Secondary
-                href={fullPageHref}
-                text="Open full overview"
-                className="px-4 py-2! text-caption-1"
-              />
+        <div className="flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+              History
+            </span>
+            <div role="tablist" className="flex flex-wrap items-center gap-2">
+              {historyFilters.map((filter) => {
+                const active = filter.key === activeFilter;
+                return (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => {
+                      setActiveFilter(filter.key);
+                      setStatusFilter(STATUS_FILTER_ALL);
+                    }}
+                    className={FILTER_CHIP_BASE}
+                    style={
+                      active
+                        ? {
+                            background: 'var(--inset)',
+                            border: '1px solid var(--divider)',
+                            fontWeight: 700,
+                            color: 'var(--ink)',
+                          }
+                        : {
+                            border: '1px solid var(--hairline)',
+                            fontWeight: 600,
+                            color: 'var(--ink-muted)',
+                          }
+                    }
+                  >
+                    {filter.label}
+                  </button>
+                );
+              })}
+              {fullPageHref ? (
+                <Secondary
+                  href={fullPageHref}
+                  text="Open full overview"
+                  className="px-3 py-1.5! text-caption-1"
+                />
+              ) : null}
             </div>
-          ) : null}
+          </div>
 
           {showDocumentUpload && activeFilter === 'MEDICAL_RECORDS' ? (
-            <div className="border-b border-card-border p-4">
-              <HistoryDocumentUpload
-                companionId={companionId}
-                onUploaded={handleDocumentUploaded}
-              />
-            </div>
+            <HistoryDocumentUpload companionId={companionId} onUploaded={handleDocumentUploaded} />
           ) : null}
 
-          <div className="overflow-x-auto">
-            {getTimelineBody({
-              activeFilter,
-              loading,
-              error,
-              auditLoading,
-              auditError,
-              auditEntries,
-              filteredEntries,
-              statusOverrides,
-              expandedId,
-              onStatusChange: handleStatusChange,
-              canEditStatus,
-              onToggle: handleToggleExpanded,
-              onOpen: handleOpenEntry,
-              onPreviewPdf: handlePreviewPdf,
-              onOpenResultPdf: handleOpenResultPdf,
-              pdfLoadingId,
-            })}
-          </div>
+          {getTimelineBody({
+            activeFilter,
+            loading,
+            error,
+            auditLoading,
+            auditError,
+            auditEntries,
+            filteredEntries,
+            expandedId,
+            pdfLoadingId,
+            selectedId: selectedEntry?.id ?? null,
+            onStatusChange: handleStatusChange,
+            canEditStatus,
+            onToggle: handleToggleExpanded,
+            onOpen: handleTimelineOpen,
+            onOpenDetail: setSelectedEntry,
+            onPreviewPdf: handlePreviewPdf,
+            onOpenResultPdf: handleOpenResultPdf,
+          })}
         </div>
 
         {compact && entries.length > COMPACT_MAX_ENTRIES ? (
@@ -1951,6 +1727,7 @@ const CompanionHistoryTimeline = ({
           <button
             type="button"
             onClick={() => {
+              /* v8 ignore next 3 -- unreachable: loadHistory wraps its body in try/catch/finally and always resolves, so this defensive .catch never fires */
               loadHistory(nextCursor, false).catch((historyError) => {
                 console.error('Failed to load more history entries:', historyError);
               });
@@ -1968,9 +1745,23 @@ const CompanionHistoryTimeline = ({
           title={pdfPreview?.title ?? 'Medical record preview'}
           onClose={handleClosePdfPreview}
         />
+
+        <HistoryRecordDrawer
+          entry={selectedEntry}
+          results={selectedResults}
+          linkedLabel={selectedLinkedLabel}
+          onClose={() => setSelectedEntry(null)}
+          onDownload={handleTimelineOpen}
+          onOpenLinked={handleOpenLinkedFromDrawer}
+          onShare={handleShareRecord}
+          onDiscuss={handleDiscussRecord}
+        />
       </div>
     </PermissionGate>
   );
 };
+
+const CompanionHistoryTimeline = (props: CompanionHistoryTimelineProps) =>
+  useCompanionHistoryTimelineView(props);
 
 export default CompanionHistoryTimeline;

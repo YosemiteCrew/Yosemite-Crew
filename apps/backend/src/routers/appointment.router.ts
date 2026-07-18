@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { AppointmentController } from "../controllers/web/appointment.prisma.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
   requirePermission,
   withAppointmentOrgPermissions,
@@ -15,49 +15,49 @@ const router = Router();
 
 router.post(
   "/mobile",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.createRequestedFromMobile,
 );
 
 router.get(
   "/mobile/parent",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.listByParent,
 );
 
 router.post(
   "/mobile/documentUpload",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.getDocumentUplaodURL,
 );
 
 router.get(
   "/mobile/companion/:patientId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.listByCompanion,
 );
 
 router.patch(
   "/mobile/:appointmentId/reschedule",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.rescheduleFromMobile,
 );
 
 router.patch(
   "/mobile/:appointmentId/cancel",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.cancelFromMobile,
 );
 
 router.patch(
   "/mobile/:appointmentId/checkin",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.checkInAppointment,
 );
 
 router.get(
   "/mobile/:appointmentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   AppointmentController.getByIdMobile,
 );
 
@@ -68,7 +68,7 @@ router.get(
 // Create appointment (PMS)
 router.post(
   "/pms",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.createFromPms,
@@ -77,7 +77,7 @@ router.post(
 // List appointments for organisation
 router.get(
   "/pms/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   AppointmentController.listByOrganisation,
@@ -86,7 +86,7 @@ router.get(
 // List appointments for a companion within an organisation
 router.get(
   "/pms/organisation/:organisationId/companion/:patientId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   AppointmentController.listByCompanionForOrganisation,
@@ -95,7 +95,7 @@ router.get(
 // Accept requested appointment
 router.patch(
   "/pms/:organisationId/:appointmentId/accept",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.acceptRequested,
@@ -104,7 +104,7 @@ router.patch(
 // Reject requested appointment
 router.patch(
   "/pms/:organisationId/:appointmentId/reject",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.rejectRequested,
@@ -113,7 +113,7 @@ router.patch(
 // Cancel appointment (hard cancel)
 router.patch(
   "/pms/:organisationId/:appointmentId/cancel",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.cancelFromPMS,
@@ -122,7 +122,7 @@ router.patch(
 // Check-in appointment
 router.patch(
   "/pms/:organisationId/:appointmentId/checkin",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.checkInAppointmentForPMS,
@@ -130,7 +130,7 @@ router.patch(
 
 router.post(
   "/pms/:organisationId/:appointmentId/admit",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.admitFromPMS,
@@ -139,7 +139,7 @@ router.post(
 // Mark appointment ready for billing
 router.patch(
   "/pms/:organisationId/:appointmentId/ready-for-billing",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.markReadyForBillingForPMS,
@@ -147,7 +147,7 @@ router.patch(
 
 router.delete(
   "/pms/:organisationId/:appointmentId/ready-for-billing",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.reverseReadyForBillingForPMS,
@@ -155,7 +155,7 @@ router.delete(
 
 router.post(
   "/pms/:organisationId/:appointmentId/forms",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.attachFormsToAppointment,
@@ -164,7 +164,7 @@ router.post(
 // Update appointment
 router.patch(
   "/pms/:organisationId/:appointmentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.updateFromPms,
@@ -175,7 +175,7 @@ router.patch(
 // Get appointment detail
 router.get(
   "/pms/:organisationId/:appointmentId",
-  authorizeCognito,
+  requireWebAuth,
   withAppointmentOrgPermissions(),
   requirePermission([
     "appointments:view:any",

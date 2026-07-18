@@ -2,40 +2,26 @@ import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import Close from '@/app/ui/primitives/Icons/Close';
 import Modal from '@/app/ui/overlays/Modal';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { usePermissions } from '@/app/hooks/usePermissions';
-import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { changeTaskStatus, updateTask } from '@/app/features/tasks/services/taskService';
-import { Task, TaskKindOptions, TaskStatusOptions } from '@/app/features/tasks/types/task';
+import { Task } from '@/app/features/tasks/types/task';
 import {
   isSeriesTask,
-  offsetToReminderValue,
-  recurrenceToRepeatValue,
   reminderValueToOffset,
   repeatValueToRecurrence,
   type RecurrenceScope,
-  TASK_REMINDER_OPTIONS,
-  TASK_REPEAT_OPTIONS,
 } from '@/app/features/tasks/constants/taskTaxonomy';
 import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
-import { PERMISSIONS } from '@/app/lib/permissions';
-import React, { useCallback, useMemo, useState } from 'react';
-import { useMemberMap } from '@/app/hooks/useMemberMap';
-import { useAuthStore } from '@/app/stores/authStore';
-import {
-  buildDateInPreferredTimeZone,
-  getDatePartsInPreferredTimeZone,
-  getPreferredTimeZone,
-} from '@/app/lib/timezone';
+import React, { useCallback, useRef, useState } from 'react';
+import { buildDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
 import {
   canRescheduleTask,
   canShowTaskStatusChangeAction,
   canTransitionTaskStatus,
-  getAllowedTaskStatusTransitions,
   getInvalidTaskStatusTransitionMessage,
-  normalizeTaskStatus,
 } from '@/app/lib/tasks';
 import { useNotify } from '@/app/hooks/useNotify';
+import { useTaskEditMode } from './useTaskEditMode';
+import { useTaskInfoFields } from './useTaskInfoFields';
 
 type TaskInfoProps = {
   showModal: boolean;
@@ -46,297 +32,27 @@ type TaskInfoProps = {
 
 const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfoProps) => {
   const { notify } = useNotify();
-  const teams = useTeamForPrimaryOrg();
-  const companions = useCompanionsForPrimaryOrg();
-  const { resolveMemberName } = useMemberMap();
-  const { can } = usePermissions();
-  const hasTaskEditPermission = can(PERMISSIONS.TASKS_EDIT_ANY) || can(PERMISSIONS.TASKS_EDIT_OWN);
-  const authAttributes = useAuthStore((s) => s.attributes);
-  const normalizeId = useCallback(
-    (value?: string) =>
-      (
-        String(value || '')
-          .trim()
-          .split('/')
-          .pop() ?? ''
-      ).toLowerCase(),
-    []
-  );
-  const currentUserAliases = useMemo(() => {
-    const aliases = new Set<string>();
-    const addAlias = (value?: string) => {
-      const normalized = normalizeId(value);
-      if (normalized) aliases.add(normalized);
-    };
-
-    addAlias(authAttributes?.sub);
-    addAlias(authAttributes?.email);
-    addAlias(authAttributes?.['cognito:username']);
-
-    const matchedTeamMember = teams.find((team) => {
-      const candidateIds = [
-        team.practionerId,
-        team._id,
-        (team as any).userId,
-        (team as any).id,
-        (team as any).userOrganisation?.userId,
-        (team as any).email,
-      ];
-      return candidateIds.some((candidate) => {
-        const normalizedCandidate = normalizeId(candidate);
-        return normalizedCandidate && aliases.has(normalizedCandidate);
-      });
-    });
-
-    if (matchedTeamMember) {
-      [
-        matchedTeamMember.practionerId,
-        matchedTeamMember._id,
-        (matchedTeamMember as any).userId,
-        (matchedTeamMember as any).id,
-        (matchedTeamMember as any).userOrganisation?.userId,
-        (matchedTeamMember as any).email,
-      ].forEach(addAlias);
-    }
-
-    return aliases;
-  }, [authAttributes, normalizeId, teams]);
-
-  const isAssignedByCurrentUser = useMemo(
-    () => currentUserAliases.has(normalizeId(activeTask.assignedBy)),
-    [activeTask.assignedBy, currentUserAliases, normalizeId]
-  );
-  const isAssignedToCurrentUser = useMemo(
-    () => currentUserAliases.has(normalizeId(activeTask.assignedTo)),
-    [activeTask.assignedTo, currentUserAliases, normalizeId]
-  );
-  const editMode = useMemo(() => {
-    if (!hasTaskEditPermission) return 'NONE' as const;
-    if (isAssignedByCurrentUser && isAssignedToCurrentUser) return 'FULL' as const;
-    if (isAssignedByCurrentUser) return 'DETAILS_ONLY' as const;
-    if (isAssignedToCurrentUser) return 'STATUS_ONLY' as const;
-    return 'NONE' as const;
-  }, [hasTaskEditPermission, isAssignedByCurrentUser, isAssignedToCurrentUser]);
+  const { editMode } = useTaskEditMode(activeTask);
   const canEditOnlyStatus = editMode === 'STATUS_ONLY';
   const canEditExceptStatus = editMode === 'DETAILS_ONLY';
   const canEditAllFields = editMode === 'FULL';
   const canEditDetails = canEditExceptStatus || canEditAllFields;
   const canEditStatus = canEditOnlyStatus || canEditAllFields;
   const [isReusing, setIsReusing] = useState(false);
-  // Recurring-series edit: hold the built payload while the user picks a scope.
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
-  const [pendingEditPayload, setPendingEditPayload] = useState<Task | null>(null);
+  const pendingEditPayloadRef = useRef<Task | null>(null);
   const [scopeBusy, setScopeBusy] = useState(false);
   const isCompletedTask = activeTask.status === 'COMPLETED';
   const effectiveEditMode = isCompletedTask ? ('NONE' as const) : editMode;
-  const resolveMemberDisplay = useCallback(
-    (id?: string) => {
-      if (!id) return '-';
-      const resolved = resolveMemberName(id);
-      return resolved === '-' ? id : resolved;
-    },
-    [resolveMemberName]
-  );
-
-  const teamOptions = useMemo(() => {
-    const options = teams.map((team) => ({
-      label: team.name || team.practionerId || team._id,
-      value: team.practionerId || team._id,
-    }));
-    if (
-      activeTask.assignedTo &&
-      !options.some((option) => option.value === activeTask.assignedTo)
-    ) {
-      options.push({
-        label: resolveMemberDisplay(activeTask.assignedTo),
-        value: activeTask.assignedTo,
-      });
-    }
-    return options;
-  }, [activeTask.assignedTo, resolveMemberDisplay, teams]);
-
-  const parentTaskOptions = useMemo(() => {
-    const options = companions.reduce<Array<{ label: string; value: string }>>(
-      (items, companion) => {
-        const parentId = companion.parentId;
-        if (!parentId) return items;
-        items.push({
-          label: resolveMemberDisplay(parentId) || parentId || companion.id,
-          value: parentId,
-        });
-        return items;
-      },
-      []
-    );
-    if (
-      activeTask.assignedTo &&
-      !options.some((option) => option.value === activeTask.assignedTo)
-    ) {
-      options.push({
-        label: resolveMemberDisplay(activeTask.assignedTo),
-        value: activeTask.assignedTo,
-      });
-    }
-    return options;
-  }, [activeTask.assignedTo, companions, resolveMemberDisplay]);
-
-  const assigneeOptions = activeTask.audience === 'PARENT_TASK' ? parentTaskOptions : teamOptions;
-
-  const categoryOptions = useMemo(() => {
-    if (!activeTask.category) return TaskKindOptions;
-    const alreadyPresent = TaskKindOptions.some((option) => option.value === activeTask.category);
-    if (alreadyPresent) return TaskKindOptions;
-    return [...TaskKindOptions, { label: activeTask.category, value: activeTask.category }];
-  }, [activeTask.category]);
-
-  const syncOptions = useMemo(
-    () => [
-      { label: 'Yes', value: 'true' },
-      { label: 'No', value: 'false' },
-    ],
-    []
-  );
-
-  const allowedStatusOptions = useMemo(() => {
-    const currentStatus = normalizeTaskStatus(activeTask.status);
-    if (!currentStatus) return [];
-    const allowed = new Set([currentStatus, ...getAllowedTaskStatusTransitions(currentStatus)]);
-    return TaskStatusOptions.filter((option) => allowed.has(option.value as any));
-  }, [activeTask.status]);
-  const canChangeTaskStatus = canShowTaskStatusChangeAction(activeTask.status);
-  const canRescheduleCurrentTask = canRescheduleTask(activeTask.status);
-  const isRecurringTask = (activeTask.recurrence?.type ?? 'ONCE') !== 'ONCE';
-
-  const taskFields = useMemo(
-    () => [
-      {
-        label: 'Task',
-        key: 'name',
-        type: 'text',
-        required: true,
-        editable: canEditDetails,
-      },
-      {
-        label: 'Category',
-        key: 'category',
-        type: 'select',
-        options: categoryOptions,
-        required: true,
-        editable: canEditDetails,
-      },
-      {
-        label: 'Instructions (optional)',
-        key: 'description',
-        type: 'text',
-        editable: canEditDetails,
-      },
-      { label: 'From', key: 'assignedBy', type: 'text', editable: false },
-      {
-        label: 'To',
-        key: 'assignedToId',
-        type: 'dropdown',
-        options: assigneeOptions,
-        editable: canEditDetails,
-      },
-      {
-        label: 'Due date',
-        key: 'dueAt',
-        type: 'date',
-        editable: canEditDetails && canRescheduleCurrentTask,
-      },
-      {
-        label: 'Due time',
-        key: 'dueTime',
-        type: 'timeInput',
-        editable: canEditDetails && canRescheduleCurrentTask,
-      },
-      {
-        label: 'Reminder',
-        key: 'reminder',
-        type: 'select',
-        options: TASK_REMINDER_OPTIONS,
-        editable: canEditDetails,
-      },
-      {
-        label: 'Repeat',
-        key: 'repeat',
-        type: 'select',
-        options: TASK_REPEAT_OPTIONS,
-        editable: canEditDetails,
-      },
-      // End date only applies to a repeating task (one-off tasks have just a due date).
-      ...(isRecurringTask
-        ? [
-            {
-              label: 'End date',
-              key: 'endDate',
-              type: 'date',
-              editable: canEditDetails,
-            },
-          ]
-        : []),
-      {
-        label: 'Sync with calendar',
-        key: 'syncWithCalendar',
-        type: 'select',
-        options: syncOptions,
-        editable: canEditDetails,
-      },
-    ],
-    [
-      assigneeOptions,
-      canEditDetails,
-      canRescheduleCurrentTask,
-      categoryOptions,
-      isRecurringTask,
-      syncOptions,
-    ]
-  );
-
-  const statusFields = useMemo(
-    () => [
-      {
-        label: 'Status',
-        key: 'status',
-        type: 'select',
-        options: allowedStatusOptions,
-        editable: canEditStatus && canChangeTaskStatus,
-      },
-    ],
-    [allowedStatusOptions, canChangeTaskStatus, canEditStatus]
-  );
-
-  const hasEditableFields = useMemo(
-    () => taskFields.some((field) => field.editable !== false),
-    [taskFields]
-  );
-
-  const taskData = useMemo(() => {
-    const dueParts = getDatePartsInPreferredTimeZone(new Date(activeTask.dueAt));
-    return {
-      ...activeTask,
-      assignedBy: resolveMemberDisplay(activeTask.assignedBy),
-      assignedTo: resolveMemberDisplay(activeTask.assignedTo),
-      assignedToId: activeTask.assignedTo,
-      dueTime: `${String(dueParts.hour).padStart(2, '0')}:${String(dueParts.minute).padStart(
-        2,
-        '0'
-      )}`,
-      reminder: offsetToReminderValue(activeTask.reminder?.offsetMinutes),
-      repeat: recurrenceToRepeatValue(activeTask.recurrence),
-      endDate: activeTask.recurrence?.endDate
-        ? new Date(activeTask.recurrence.endDate).toISOString().slice(0, 10)
-        : '',
-      syncWithCalendar: activeTask.syncWithCalendar ? 'true' : 'false',
-    };
-  }, [activeTask, resolveMemberDisplay]);
-
-  const statusData = useMemo(
-    () => ({
-      status: activeTask.status,
-    }),
-    [activeTask.status]
-  );
+  const {
+    assigneeOptions,
+    canChangeTaskStatus,
+    hasEditableFields,
+    statusData,
+    statusFields,
+    taskData,
+    taskFields,
+  } = useTaskInfoFields({ activeTask, canEditDetails, canEditStatus });
 
   const handleStatusUpdate = async (values: any) => {
     try {
@@ -447,7 +163,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
       };
       // A task in a recurring series asks which occurrences the edit applies to.
       if (isSeriesTask(activeTask.recurrence)) {
-        setPendingEditPayload(payload);
+        pendingEditPayloadRef.current = payload;
         setScopeModalOpen(true);
         return;
       }
@@ -460,12 +176,12 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
 
   // Commit the held edit against the chosen series scope.
   const handleScopeConfirm = async (scope: RecurrenceScope) => {
-    if (!pendingEditPayload) return;
+    if (!pendingEditPayloadRef.current) return;
     setScopeBusy(true);
     try {
-      await updateTask(pendingEditPayload, scope);
+      await updateTask(pendingEditPayloadRef.current, scope);
       setScopeModalOpen(false);
-      setPendingEditPayload(null);
+      pendingEditPayloadRef.current = null;
       setShowModal(false);
     } catch (error) {
       console.log(error);
@@ -509,9 +225,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
       <Modal showModal={showModal} setShowModal={setShowModal}>
         <div className="flex flex-col h-full gap-6">
           <div className="flex justify-between items-center">
-            <div className="opacity-0">
-              <Close onClick={() => {}} />
-            </div>
+            <div className="size-8" aria-hidden="true" />
             <div className="flex justify-center items-center gap-2">
               <div className="text-body-1 text-text-primary">View task</div>
             </div>

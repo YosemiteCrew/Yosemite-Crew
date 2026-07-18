@@ -48,6 +48,25 @@ describe('AnnualInventoryTurnoverStat', () => {
     expect(filled).toHaveLength(5);
   });
 
+  it('renders the empty state placeholder when there is no turnover data', () => {
+    (useDashboardAnalytics as jest.Mock).mockReturnValue({
+      durationOptions: { annualInventoryTurnover: ['Last 1 year'] },
+      emptyState: { annualInventoryTurnover: true },
+      inventoryTurnover: {
+        turnsPerYear: 0,
+        targetTurnsPerYear: 0,
+        restockCycleDays: 0,
+        trend: [],
+      },
+    });
+
+    render(<AnnualInventoryTurnoverStat />);
+
+    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.queryByText(/turns \/ year/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Restock every/)).not.toBeInTheDocument();
+  });
+
   it('clamps negative values and handles empty trend', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { annualInventoryTurnover: ['Last 1 year'] },

@@ -12,12 +12,14 @@ concurrency:
   group: sonar-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: read-all
+permissions: {}
 
 jobs:
   changes:
     name: Detect workspace changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.repository_owner == 'YosemiteCrew' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -135,6 +137,10 @@ jobs:
     name: SonarQube Analysis - ${{ matrix.app }}
     runs-on: ubuntu-latest
     needs: changes
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
 
     strategy:
       fail-fast: false

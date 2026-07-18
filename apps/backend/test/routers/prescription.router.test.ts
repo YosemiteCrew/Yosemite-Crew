@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -18,7 +18,7 @@ const PrescriptionController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -147,7 +147,7 @@ describe("prescription.router", () => {
       "post",
     );
 
-    expect(route?.stack[0]?.handle).toBe(authorizeCognito);
+    expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(3);
     expect(requirePermission).toHaveBeenCalledWith(["prescription:edit:any"]);
   });

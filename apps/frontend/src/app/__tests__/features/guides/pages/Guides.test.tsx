@@ -17,29 +17,6 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
   default: ({ children }: any) => <>{children}</>,
 }));
 
-jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
-  __esModule: true,
-  default: ({ showModal, children }: any) =>
-    showModal ? <div data-testid="center-modal">{children}</div> : null,
-}));
-
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: ({ onClick }: any) => (
-    <button type="button" aria-label="Close" onClick={onClick}>
-      close
-    </button>
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
 jest.mock('@/app/ui/inputs/Search', () => ({
   __esModule: true,
   default: ({ value, setSearch, placeholder }: any) => (
@@ -51,42 +28,89 @@ jest.mock('@/app/ui/inputs/Search', () => ({
   ),
 }));
 
-describe('Guides page', () => {
-  it('renders guide list and featured section', () => {
-    render(<ProtectedGuides />);
+jest.mock('@/app/ui/overlays/Modal/GuidePlayerModal', () => ({
+  __esModule: true,
+  default: ({ showModal, guide, nextGuide, onNext, setShowModal }: any) =>
+    showModal ? (
+      <div data-testid="guide-player">
+        <span data-testid="player-title">{guide?.title}</span>
+        <span data-testid="player-next">{nextGuide?.title}</span>
+        <button type="button" onClick={onNext}>
+          player-next
+        </button>
+        <button type="button" onClick={() => setShowModal(false)}>
+          player-close
+        </button>
+      </div>
+    ) : null,
+}));
 
-    expect(screen.getByText(/Guides & Tutorials/i)).toBeInTheDocument();
-    expect(screen.getByText('(3)')).toBeInTheDocument();
-    expect(screen.getAllByText('Invite your team').length).toBeGreaterThan(0);
-    expect(screen.getByText('Add companions')).toBeInTheDocument();
+const cardButton = (title: string) => screen.getByRole('button', { name: `Play guide: ${title}` });
+
+describe('Guides page', () => {
+  it('renders the warm-bone header and all seed guides', () => {
+    render(<ProtectedGuides />);
+    expect(screen.getByRole('heading', { name: /Learn the crew's way/ })).toBeInTheDocument();
+    expect(
+      screen.getByText('Short, practical walkthroughs · 2-6 minutes each')
+    ).toBeInTheDocument();
+    expect(screen.getByText('12 guides · updated with each release')).toBeInTheDocument();
+    expect(screen.getByText('6 results')).toBeInTheDocument();
+    expect(cardButton('Your first day in the PIMS')).toBeInTheDocument();
+    expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
   });
 
-  it('filters by category and search text', () => {
+  it('renders each card status variant', () => {
     render(<ProtectedGuides />);
+    expect(screen.getByText('Watched')).toBeInTheDocument();
+    expect(screen.getByText('60%')).toBeInTheDocument();
+    expect(screen.getByText('New')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Companions' }));
+  it('filters the grid by category chip', () => {
+    render(<ProtectedGuides />);
+    fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
     expect(screen.getByText('1 results')).toBeInTheDocument();
-    expect(screen.getByText('Add companions')).toBeInTheDocument();
+    expect(cardButton('Run a visit end to end')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Play guide: Your first day in the PIMS' })
+    ).not.toBeInTheDocument();
+  });
 
-    fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'forms' } });
+  it('filters the grid by search text', () => {
+    render(<ProtectedGuides />);
+    fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'idexx' } });
+    expect(screen.getByText('1 results')).toBeInTheDocument();
+    expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'nonsense' } });
     expect(screen.getByText('0 results')).toBeInTheDocument();
   });
 
-  it('has no axe violations on initial render', async () => {
-    const { container } = render(<ProtectedGuides />);
-    await screen.findByRole('heading', { level: 1, name: /Guides/ });
-    const results = await axe(container);
-    expect(results).toHaveNoViolations();
+  it('opens the player and advances to the next guide', () => {
+    render(<ProtectedGuides />);
+    fireEvent.click(cardButton('Your first day in the PIMS'));
+
+    expect(screen.getByTestId('guide-player')).toBeInTheDocument();
+    expect(screen.getByTestId('player-title')).toHaveTextContent('Your first day in the PIMS');
+    expect(screen.getByTestId('player-next')).toHaveTextContent('Run a visit end to end');
+
+    fireEvent.click(screen.getByRole('button', { name: 'player-next' }));
+    expect(screen.getByTestId('player-title')).toHaveTextContent('Run a visit end to end');
+    expect(screen.getByTestId('player-next')).toHaveTextContent('Invoices, deposits and payouts');
   });
 
-  it('opens modal from watch now and closes it', () => {
+  it('closes the player', () => {
     render(<ProtectedGuides />);
+    fireEvent.click(cardButton('Stock that counts itself'));
+    expect(screen.getByTestId('guide-player')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'player-close' }));
+    expect(screen.queryByTestId('guide-player')).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByText('Watch now'));
-    expect(screen.getByTestId('center-modal')).toBeInTheDocument();
-    expect(screen.getAllByText('Invite your team').length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByLabelText('Close'));
-    expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+  it('has no axe violations', async () => {
+    const { container } = render(<ProtectedGuides />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

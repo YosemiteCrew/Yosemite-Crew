@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { InvoiceController } from "../controllers/app/invoice.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
   requirePermission,
   withOrgPermissions,
@@ -35,21 +35,21 @@ const invoiceActionLimiter = rateLimit({
 
 router.post(
   "/mobile/appointment/:appointmentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   invoiceActionLimiter,
   InvoiceController.listInvoicesForAppointment,
 );
 
 router.get(
   "/mobile/payment-intent/:paymentIntentId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   invoiceActionLimiter,
   InvoiceController.getInvoiceByPaymentIntentId,
 );
 
 router.get(
   "/mobile/:invoiceId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   invoiceActionLimiter,
   InvoiceController.getInvoiceById,
 );
@@ -57,7 +57,7 @@ router.get(
 
 router.post(
   "/appointment/:appointmentId/charges",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withAppointmentOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -67,7 +67,7 @@ router.post(
 // List invoices for an appointment
 router.post(
   "/appointment/:appointmentId",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withAppointmentOrgPermissions(),
   requirePermission("billing:view:any"),
@@ -76,7 +76,7 @@ router.post(
 
 router.post(
   "/pms/appointment/:appointmentId/bootstrap",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withAppointmentOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -86,7 +86,7 @@ router.post(
 // Get invoice by Payment Intent ID
 router.get(
   "/payment-intent/:paymentIntentId",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withPaymentIntentOrgPermissions(),
   requirePermission("billing:view:any"),
@@ -95,7 +95,7 @@ router.get(
 
 router.get(
   "/organisation/:organisationId/list",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
@@ -105,7 +105,7 @@ router.get(
 // Create checkout session for invoice and email parent
 router.post(
   "/:invoiceId/checkout-session",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -115,7 +115,7 @@ router.post(
 // Mark invoice paid manually (in-clinic)
 router.post(
   "/:invoiceId/mark-paid",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -125,7 +125,7 @@ router.post(
 // Update payment collection method
 router.patch(
   "/:invoiceId/payment-collection-method",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -135,7 +135,7 @@ router.patch(
 // Issue credit note for invoice corrections
 router.post(
   "/:invoiceId/credit-notes",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -144,7 +144,7 @@ router.post(
 
 router.post(
   "/:invoiceId/credit-notes/:creditNoteId/void",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   withInvoiceOrgPermissions(),
   requirePermission("billing:edit:any"),
@@ -154,7 +154,7 @@ router.post(
 // Get invoice by ID
 router.get(
   "/:invoiceId",
-  authorizeCognito,
+  requireWebAuth,
   invoiceActionLimiter,
   InvoiceController.getInvoiceById,
 );

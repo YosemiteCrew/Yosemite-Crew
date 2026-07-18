@@ -22,16 +22,12 @@ const GlassTooltip = ({
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = typeof document !== 'undefined';
   const [position, setPosition] = useState({
     top: 0,
     left: 0,
     transform: 'translate(-50%, -100%)',
   });
-
-  useEffect(() => {
-    setMounted(typeof document !== 'undefined');
-  }, []);
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;

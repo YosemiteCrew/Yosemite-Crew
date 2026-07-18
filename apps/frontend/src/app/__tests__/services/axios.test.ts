@@ -6,6 +6,7 @@ import {
   patchData,
   isAuthRedirectError,
 } from '@/app/services/axios';
+import Session from 'supertokens-web-js/recipe/session';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { logger } from '@/app/lib/logger';
@@ -32,6 +33,13 @@ jest.mock('@/app/lib/logger', () => ({
     error: jest.fn(),
     info: jest.fn(),
     debug: jest.fn(),
+  },
+}));
+
+jest.mock('supertokens-web-js/recipe/session', () => ({
+  __esModule: true,
+  default: {
+    doesSessionExist: jest.fn(),
   },
 }));
 
@@ -70,6 +78,7 @@ jest.mock('axios', () => {
 describe('Axios Service', () => {
   const mockGetState = useAuthStore.getState as jest.Mock;
   const mockOrgGetState = useOrgStore.getState as jest.Mock;
+  const mockDoesSessionExist = Session.doesSessionExist as jest.Mock;
 
   // Access the mocked instance exposed in the factory above
   const mockAxiosInstance = (axios as any)._mockInstance;
@@ -101,19 +110,24 @@ describe('Axios Service', () => {
     jest.clearAllMocks();
     globalThis.window.history.replaceState({}, '', '/');
     mockOrgGetState.mockReturnValue({ primaryOrgId: 'org-1', clearOrgs: jest.fn() });
+    mockDoesSessionExist.mockResolvedValue(true);
   });
 
   // --- Helper Functions Tests ---
 
   // The instance is created once at module import, before beforeEach clears
   // mocks — capture the create config in beforeAll so the assertion survives.
-  let createConfig: { timeout?: number } | undefined;
+  let createConfig: { timeout?: number; withCredentials?: boolean } | undefined;
   beforeAll(() => {
     createConfig = (axios.create as jest.Mock).mock.calls[0]?.[0];
   });
 
   it('creates the api instance with a generous timeout for slow backends', () => {
     expect(createConfig).toEqual(expect.objectContaining({ timeout: 60_000 }));
+  });
+
+  it('creates the api instance with credentials so session cookies are sent', () => {
+    expect(createConfig).toEqual(expect.objectContaining({ withCredentials: true }));
   });
 
   describe('Wrapper Methods', () => {
@@ -241,6 +255,16 @@ describe('Axios Service', () => {
       expect(logger.error).not.toHaveBeenCalled();
     });
 
+    it('getData suppresses 401 errors when the user is already unauthenticated', async () => {
+      mockGetState.mockReturnValue({ status: 'unauthenticated' });
+      const error = { response: { status: 401 } };
+      mockAxiosInstance.get.mockRejectedValue(error);
+
+      await expect(getData('/protected')).rejects.toEqual(error);
+
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
     it('postData calls api.post', async () => {
       mockAxiosInstance.post.mockResolvedValue({ data: 'ok' });
       await postData('/test', { foo: 'bar' });
@@ -293,115 +317,48 @@ describe('Axios Service', () => {
   // --- Request Interceptor Tests ---
 
   describe('Request Interceptor', () => {
-    it('adds Authorization header if session exists', async () => {
-      const mockToken = 'mock-jwt';
-      const mockSession = {
-        getIdToken: () => ({ getJwtToken: () => mockToken }),
-      };
-
-      mockGetState.mockReturnValue({
-        getValidSession: jest.fn().mockResolvedValue(mockSession),
-      });
-
-      const config = { headers: {} };
-      const result = await requestSuccessHandler(config);
-
-      expect(result.headers.Authorization).toBe(`Bearer ${mockToken}`);
-    });
-
-    it('adds the active organisation header when available', async () => {
-      const mockSession = {
-        getIdToken: () => ({ getJwtToken: () => 'mock-jwt' }),
-      };
-
-      mockGetState.mockReturnValue({
-        getValidSession: jest.fn().mockResolvedValue(mockSession),
-      });
-
-      const config = { headers: {} };
-      const result = await requestSuccessHandler(config);
+    it('adds the active organisation header when available', () => {
+      const config = { headers: {} as Record<string, string> };
+      const result = requestSuccessHandler(config);
 
       expect(result.headers['x-org-id']).toBe('org-1');
     });
 
-    it('removes auth and organisation headers when session and organisation are unavailable', async () => {
-      mockGetState.mockReturnValue({
-        getValidSession: jest.fn().mockResolvedValue(null),
-      });
+    it('never sets an Authorization header (sessions are cookie-based)', () => {
+      const config = { headers: {} as Record<string, string> };
+      const result = requestSuccessHandler(config);
+
+      expect(result.headers.Authorization).toBeUndefined();
+    });
+
+    it('removes the organisation header when no organisation is active', () => {
       mockOrgGetState.mockReturnValue({ primaryOrgId: undefined, clearOrgs: jest.fn() });
 
       const config = {
         headers: {
-          Authorization: 'Bearer old-token',
           'x-org-id': 'old-org',
-        },
+        } as Record<string, string>,
       };
-      const result = await requestSuccessHandler(config);
+      const result = requestSuccessHandler(config);
 
-      expect(result.headers.Authorization).toBeUndefined();
       expect(result.headers['x-org-id']).toBeUndefined();
     });
 
-    it('does not require headers on the request config', async () => {
-      mockGetState.mockReturnValue({
-        getValidSession: jest.fn().mockResolvedValue(null),
-      });
-
+    it('does not require headers on the request config', () => {
       const config = {};
-      await expect(requestSuccessHandler(config)).resolves.toBe(config);
+      expect(requestSuccessHandler(config)).toBe(config);
     });
 
-    it('does not add Authorization header if no session', async () => {
-      mockGetState.mockReturnValue({
-        getValidSession: jest.fn().mockResolvedValue(null),
-      });
-
-      const config = { headers: {} };
-      const result = await requestSuccessHandler(config);
-
-      expect(result.headers.Authorization).toBeUndefined();
-    });
-
-    it('rejects protected API requests before hitting the backend when auth is gone', async () => {
-      const mockSignout = jest.fn().mockResolvedValue(undefined);
-      globalThis.window.history.replaceState({}, '', '/appointments');
-      mockGetState.mockReturnValue({
-        status: 'unauthenticated',
-        getValidSession: jest.fn().mockResolvedValue(null),
-        signout: mockSignout,
-      });
-
-      try {
-        await requestSuccessHandler({ url: '/fhir/v1/appointments', headers: {} });
-        throw new Error('Expected request interceptor to reject');
-      } catch (error) {
-        expect(isAuthRedirectError(error)).toBe(true);
-      }
-
-      expect(mockSignout).toHaveBeenCalledTimes(1);
-    });
-
-    it('allows public API requests without a session', async () => {
-      mockGetState.mockReturnValue({
-        status: 'unauthenticated',
-        getValidSession: jest.fn().mockResolvedValue(null),
-      });
-
-      const config = { url: '/v1/contact-us/contact-web', headers: {} };
-      await expect(requestSuccessHandler(config)).resolves.toBe(config);
-    });
-
-    it('logs warning if accessing store fails', async () => {
-      // Simulate error accessing state
-      mockGetState.mockImplementationOnce(() => {
+    it('logs a warning if accessing the org store fails', () => {
+      mockOrgGetState.mockImplementationOnce(() => {
         throw new Error('Store Error');
       });
 
       const config = { headers: {} };
-      await requestSuccessHandler(config);
+      expect(requestSuccessHandler(config)).toBe(config);
 
       expect(logger.warn).toHaveBeenCalledWith(
-        'No valid Cognito session available from AuthStore',
+        'Failed to attach the organisation header',
         expect.any(Error)
       );
     });
@@ -456,6 +413,19 @@ describe('Axios Service', () => {
       expect(result).toEqual({ data: 'recovered' });
     });
 
+    it('retries timed-out idempotent reads', async () => {
+      const error = {
+        code: 'ECONNABORTED',
+        message: 'timeout of 60000ms exceeded',
+        config: { method: 'get' },
+      };
+      mockAxiosInstance.mockResolvedValueOnce({ data: 'recovered' });
+
+      const result = await responseErrorHandler(error);
+
+      expect(result).toEqual({ data: 'recovered' });
+    });
+
     it('gives up after the maximum transient retries', async () => {
       const error = {
         response: { status: 503, headers: { 'retry-after': '0' } },
@@ -465,86 +435,77 @@ describe('Axios Service', () => {
       expect(mockAxiosInstance).not.toHaveBeenCalled();
     });
 
-    it('logs out and throws if request has already been retried', async () => {
+    it('rejects 401s without triggering a sign-out when the session still exists', async () => {
+      const mockSignout = jest.fn();
+      mockGetState.mockReturnValue({ signout: mockSignout });
+      mockDoesSessionExist.mockResolvedValue(true);
+
+      const error = { response: { status: 401 }, config: { method: 'get' } };
+
+      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockSignout).not.toHaveBeenCalled();
+    });
+
+    it('signs the user out and redirects when a 401 arrives with no session left', async () => {
+      const mockSignout = jest.fn().mockResolvedValue(undefined);
+      mockGetState.mockReturnValue({ signout: mockSignout });
+      mockDoesSessionExist.mockResolvedValue(false);
+      globalThis.window.history.replaceState({}, '', '/appointments');
+
+      const error = { response: { status: 401 }, config: { method: 'get' } };
+
+      try {
+        await responseErrorHandler(error);
+        throw new Error('Expected response interceptor to reject');
+      } catch (caughtError) {
+        expect(isAuthRedirectError(caughtError)).toBe(true);
+      }
+      expect(mockSignout).toHaveBeenCalled();
+    });
+
+    it('treats a failing session check as a lost session', async () => {
+      const mockSignout = jest.fn().mockResolvedValue(undefined);
+      mockGetState.mockReturnValue({ signout: mockSignout });
+      mockDoesSessionExist.mockRejectedValue(new Error('sdk not ready'));
+
+      const error = { response: { status: 401 }, config: { method: 'get' } };
+
+      try {
+        await responseErrorHandler(error);
+        throw new Error('Expected response interceptor to reject');
+      } catch (caughtError) {
+        expect(isAuthRedirectError(caughtError)).toBe(true);
+      }
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to check the session after a 401 response',
+        expect.any(Error)
+      );
+      expect(mockSignout).toHaveBeenCalled();
+    });
+
+    it('skips the sign-out redirect when the request opts out', async () => {
+      const mockSignout = jest.fn();
+      mockGetState.mockReturnValue({ signout: mockSignout });
+      mockDoesSessionExist.mockResolvedValue(false);
+
+      const error = {
+        response: { status: 401 },
+        config: { method: 'post', skipAuthRedirect: true },
+      };
+
+      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockSignout).not.toHaveBeenCalled();
+      expect(mockDoesSessionExist).not.toHaveBeenCalled();
+    });
+
+    it('rejects 401s without a request config', async () => {
       const mockSignout = jest.fn();
       mockGetState.mockReturnValue({ signout: mockSignout });
 
-      const error = {
-        response: { status: 401 },
-        config: { _retry: true },
-      };
+      const error = { response: { status: 401 } };
 
-      try {
-        await responseErrorHandler(error);
-        throw new Error('Expected response interceptor to reject');
-      } catch (caughtError) {
-        expect(isAuthRedirectError(caughtError)).toBe(true);
-      }
-      expect(mockSignout).toHaveBeenCalled();
-    });
-
-    it('refreshes session and retries request on 401', async () => {
-      const mockSignout = jest.fn();
-      const mockToken = 'new-jwt';
-      const mockSession = {
-        getIdToken: () => ({ getJwtToken: () => mockToken }),
-      };
-      const mockGetValidSession = jest.fn().mockResolvedValue(mockSession);
-
-      mockGetState.mockReturnValue({
-        getValidSession: mockGetValidSession,
-        signout: mockSignout,
-      });
-
-      const originalRequest = { headers: {}, _retry: false };
-      const error = {
-        response: { status: 401 },
-        config: originalRequest,
-      };
-
-      // responseErrorHandler calls api(originalRequest) which is our mockAxiosInstance
-      await responseErrorHandler(error);
-
-      expect(originalRequest._retry).toBe(true);
-      expect(mockGetValidSession).toHaveBeenCalledWith({ forceRefresh: true });
-      expect(originalRequest.headers).toHaveProperty('Authorization', `Bearer ${mockToken}`);
-      expect(mockAxiosInstance).toHaveBeenCalledWith(originalRequest);
-    });
-
-    it('logs out and throws if refresh session fails to return a session', async () => {
-      const mockSignout = jest.fn();
-
-      mockGetState.mockReturnValue({
-        getValidSession: jest.fn().mockResolvedValue(null), // No session after refresh
-        signout: mockSignout,
-      });
-
-      const error = { response: { status: 401 }, config: {} };
-      try {
-        await responseErrorHandler(error);
-        throw new Error('Expected response interceptor to reject');
-      } catch (caughtError) {
-        expect(isAuthRedirectError(caughtError)).toBe(true);
-      }
-      expect(mockSignout).toHaveBeenCalled();
-    });
-
-    it('logs out and throws if getValidSession throws error', async () => {
-      const mockSignout = jest.fn();
-
-      mockGetState.mockReturnValue({
-        getValidSession: jest.fn().mockRejectedValue(new Error('Refresh Fail')),
-        signout: mockSignout,
-      });
-
-      const error = { response: { status: 401 }, config: {} };
-      try {
-        await responseErrorHandler(error);
-        throw new Error('Expected response interceptor to reject');
-      } catch (caughtError) {
-        expect(isAuthRedirectError(caughtError)).toBe(true);
-      }
-      expect(mockSignout).toHaveBeenCalled();
+      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockSignout).not.toHaveBeenCalled();
     });
   });
 });

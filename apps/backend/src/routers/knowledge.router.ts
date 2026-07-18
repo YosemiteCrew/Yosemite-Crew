@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { MerckController } from "src/controllers/web/merck.controller";
 import { MerckMobileController } from "src/controllers/app/merck.controller";
@@ -24,7 +24,7 @@ const merckSearchLimiter = rateLimit({
 
 router.get(
   "/pms/organisation/:organisationId/merck/manuals/search",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:view:any"),
   merckSearchLimiter,
@@ -33,7 +33,7 @@ router.get(
 
 router.get(
   "/mobile/merck/manuals/search",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   merckSearchLimiter,
   (req, res) => MerckMobileController.searchManuals(req, res),
 );

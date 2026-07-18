@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { redirect, usePathname } from 'next/navigation';
 
 import { removeStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
@@ -25,7 +25,6 @@ const isLocalGuardBypassEnabled = () => {
 
 const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
   const status = useAuthStore((s) => s.status);
-  const router = useRouter();
   const pathname = usePathname() || '/';
 
   const isChecking = status === 'idle' || status === 'checking';
@@ -42,21 +41,22 @@ const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
       writeAuthPassed();
     } else {
       clearAuthPassed();
-      router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
     }
-  }, [isAuthGuardDisabled, isChecking, isAuthed, router, pathname]);
+  }, [isAuthGuardDisabled, isChecking, isAuthed]);
 
   if (isAuthGuardDisabled) {
     return <>{children}</>;
   }
 
-  // Do not mount protected children until Cognito confirms the session. Cached
-  // proof only avoids skeleton flicker; it must not allow stale org loaders to
-  // fire while a token is being refreshed.
+  // Do not mount protected children until the auth provider confirms the
+  // session. Cached proof only avoids skeleton flicker; it must not allow
+  // stale org loaders to fire while the session is being refreshed.
   if (isChecking) {
     return <>{skeleton}</>;
   }
-  if (!isAuthed) return null;
+  if (!isAuthed) {
+    redirect(`/signin?next=${encodeURIComponent(pathname)}`);
+  }
 
   return <>{children}</>;
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Editor } from '@tiptap/react';
-import { FaBold, FaItalic, FaUnderline, FaListUl, FaIndent } from 'react-icons/fa6';
+import { IoListOutline } from 'react-icons/io5';
+import { FaBold, FaItalic, FaUnderline, FaIndent } from 'react-icons/fa6';
 
 type FloatingToolbarProps = {
   editor: Editor;
@@ -26,28 +27,28 @@ const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
       label: 'Bold',
       icon: <FaBold aria-hidden="true" size={14} />,
       isActive: () => editor.isActive('bold'),
-      run: () => editor.chain().focus().toggleBold().run(),
+      run: () => editor.chain().focus().toggleMark('bold').run(),
     },
     {
       key: 'italic',
       label: 'Italic',
       icon: <FaItalic aria-hidden="true" size={14} />,
       isActive: () => editor.isActive('italic'),
-      run: () => editor.chain().focus().toggleItalic().run(),
+      run: () => editor.chain().focus().toggleMark('italic').run(),
     },
     {
       key: 'underline',
       label: 'Underline',
       icon: <FaUnderline aria-hidden="true" size={14} />,
       isActive: () => editor.isActive('underline'),
-      run: () => editor.chain().focus().toggleUnderline().run(),
+      run: () => editor.chain().focus().toggleMark('underline').run(),
     },
     {
       key: 'bulletList',
       label: 'Bulleted list',
-      icon: <FaListUl aria-hidden="true" size={14} />,
+      icon: <IoListOutline aria-hidden="true" size={14} />,
       isActive: () => editor.isActive('bulletList'),
-      run: () => editor.chain().focus().toggleBulletList().run(),
+      run: () => editor.chain().focus().toggleList('bulletList', 'listItem').run(),
     },
     {
       key: 'indent',

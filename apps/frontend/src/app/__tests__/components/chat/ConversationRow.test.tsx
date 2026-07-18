@@ -47,6 +47,24 @@ describe('ConversationRow', () => {
     expect(screen.getByLabelText('Muted')).toBeInTheDocument();
   });
 
+  it('dims the row when muted (and not active)', () => {
+    render(<ConversationRow {...base} muted onUnmute={jest.fn()} />);
+    const row = screen.getByRole('button', { name: /Bella Rose/ }).parentElement;
+    expect(row).toHaveClass('opacity-[0.62]');
+  });
+
+  it('does not dim a muted row that is also active', () => {
+    render(<ConversationRow {...base} muted active onUnmute={jest.fn()} />);
+    const row = screen.getByRole('button', { name: /Bella Rose/ }).parentElement;
+    expect(row).not.toHaveClass('opacity-[0.62]');
+  });
+
+  it('renders a blue network unread badge instead of the pink one', () => {
+    render(<ConversationRow {...base} network unread={4} />);
+    const badge = screen.getByText('4');
+    expect(badge).toHaveClass('bg-[var(--blue)]');
+  });
+
   it('applies the active styling and aria-current when active', () => {
     render(<ConversationRow {...base} active />);
     const rowButton = screen.getByRole('button', { name: /Bella Rose/ });
@@ -79,9 +97,20 @@ describe('ConversationRow', () => {
       expect(screen.queryByText('Mute')).not.toBeInTheDocument();
       fireEvent.click(kebab);
       expect(screen.getByText('Mute')).toBeInTheDocument();
-      expect(screen.getByText('Snooze 1 hour')).toBeInTheDocument();
-      expect(screen.getByText('Snooze 1 day')).toBeInTheDocument();
+      expect(screen.getByText('Snooze · 1 hour')).toBeInTheDocument();
+      expect(screen.getByText('Snooze · 1 day')).toBeInTheDocument();
       expect(screen.getByText('Archive')).toBeInTheDocument();
+    });
+
+    it('orders the menu Archive, Mute, then the two Snooze items', () => {
+      render(<ConversationRow {...base} {...handlers()} />);
+      fireEvent.click(screen.getByLabelText('Conversation actions'));
+      const wanted = ['Archive', 'Mute', 'Snooze · 1 hour', 'Snooze · 1 day'];
+      const order = screen
+        .getAllByRole('button')
+        .map((b) => b.textContent?.trim())
+        .filter((t): t is string => Boolean(t) && wanted.includes(t as string));
+      expect(order).toEqual(wanted);
     });
 
     it('clicking Mute calls onMute and closes the menu', () => {
@@ -94,19 +123,19 @@ describe('ConversationRow', () => {
       expect(screen.queryByText('Mute')).not.toBeInTheDocument();
     });
 
-    it('clicking Snooze 1 hour calls onSnooze with one hour in ms', () => {
+    it('clicking Snooze · 1 hour calls onSnooze with one hour in ms', () => {
       const h = handlers();
       render(<ConversationRow {...base} {...h} />);
       fireEvent.click(screen.getByLabelText('Conversation actions'));
-      fireEvent.click(screen.getByText('Snooze 1 hour'));
+      fireEvent.click(screen.getByText('Snooze · 1 hour'));
       expect(h.onSnooze).toHaveBeenCalledWith(60 * 60 * 1000);
     });
 
-    it('clicking Snooze 1 day calls onSnooze with one day in ms', () => {
+    it('clicking Snooze · 1 day calls onSnooze with one day in ms', () => {
       const h = handlers();
       render(<ConversationRow {...base} {...h} />);
       fireEvent.click(screen.getByLabelText('Conversation actions'));
-      fireEvent.click(screen.getByText('Snooze 1 day'));
+      fireEvent.click(screen.getByText('Snooze · 1 day'));
       expect(h.onSnooze).toHaveBeenCalledWith(24 * 60 * 60 * 1000);
     });
 

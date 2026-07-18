@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { ClinicalArtifactFhirController } from "src/controllers/web/clinical-artifact.fhir.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
@@ -23,7 +23,7 @@ const dischargeSummaryLimiter = rateLimit({
 
 router.post(
   "/organisation/:organisationId/appointment/:appointmentId/soap-notes",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -33,7 +33,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/encounter/:encounterId/soap-notes",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -43,7 +43,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/soap-note",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -52,7 +52,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/soap-note/:soapNoteId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -61,7 +61,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/soap-note/:soapNoteId/\$finalize`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -70,7 +70,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/soap-note/:soapNoteId/\$reopen`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -79,7 +79,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/soap-note/:soapNoteId/\$amend`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -88,7 +88,7 @@ router.post(
 
 router.patch(
   "/organisation/:organisationId/soap-note/:soapNoteId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -97,7 +97,7 @@ router.patch(
 
 router.post(
   "/organisation/:organisationId/appointment/:appointmentId/prescriptions",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:view:any"]),
@@ -107,7 +107,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/encounter/:encounterId/prescriptions",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:view:any"]),
@@ -117,7 +117,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/prescription",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
@@ -126,7 +126,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/prescription/:prescriptionId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:view:any"]),
@@ -135,7 +135,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/prescription/:prescriptionId/\$finalize`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
@@ -144,7 +144,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/prescription/:prescriptionId/\$cancel`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
@@ -153,7 +153,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/prescription/:prescriptionId/\$reopen`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
@@ -162,7 +162,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/prescription/:prescriptionId/\$amend`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
@@ -171,7 +171,7 @@ router.post(
 
 router.patch(
   "/organisation/:organisationId/prescription/:prescriptionId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
@@ -180,7 +180,7 @@ router.patch(
 
 router.delete(
   "/organisation/:organisationId/prescription/:prescriptionId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
@@ -189,7 +189,7 @@ router.delete(
 
 router.post(
   "/organisation/:organisationId/appointment/:appointmentId/discharge-summaries",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -202,7 +202,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/encounter/:encounterId/discharge-summaries",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -212,7 +212,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/discharge-summary",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -221,7 +221,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/discharge-summary/:dischargeSummaryId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -230,7 +230,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/discharge-summary/:dischargeSummaryId/\$finalize`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -240,7 +240,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/discharge-summary/:dischargeSummaryId/\$reopen`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -249,7 +249,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/discharge-summary/:dischargeSummaryId/\$amend`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -258,7 +258,7 @@ router.post(
 
 router.patch(
   "/organisation/:organisationId/discharge-summary/:dischargeSummaryId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -267,7 +267,7 @@ router.patch(
 
 router.post(
   "/organisation/:organisationId/appointment/:appointmentId/vital-records",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -277,7 +277,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/encounter/:encounterId/vital-records",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -287,7 +287,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/vital-record",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -296,7 +296,7 @@ router.post(
 
 router.post(
   "/organisation/:organisationId/vital-record/:vitalRecordId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
@@ -305,7 +305,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/vital-record/:vitalRecordId/\$finalize`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -314,7 +314,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/vital-record/:vitalRecordId/\$reopen`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -323,7 +323,7 @@ router.post(
 
 router.post(
   String.raw`/organisation/:organisationId/vital-record/:vitalRecordId/\$amend`,
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
@@ -332,7 +332,7 @@ router.post(
 
 router.patch(
   "/organisation/:organisationId/vital-record/:vitalRecordId",
-  authorizeCognito,
+  requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),

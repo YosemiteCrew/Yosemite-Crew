@@ -13,9 +13,24 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   ),
 }));
 
-jest.mock('react-icons/fa6', () => ({
-  FaCircleCheck: () => <span data-testid="success-icon" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 describe('Success', () => {
   it('renders title and text and invokes closeToast', () => {
@@ -32,7 +47,7 @@ describe('Success', () => {
 
     expect(screen.getByText('Success title')).toBeInTheDocument();
     expect(screen.getByText('All done')).toBeInTheDocument();
-    expect(screen.getByTestId('success-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCheckmarkCircle')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Close'));
     expect(closeToast).toHaveBeenCalledTimes(1);

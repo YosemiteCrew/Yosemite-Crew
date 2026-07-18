@@ -132,7 +132,7 @@ jest.mock('@/features/auth/context/AuthContext', () => ({
     isLoggedIn: true,
     user: {id: 'user-1'},
     isLoading: false,
-    provider: 'amplify',
+    provider: 'supertokens',
     login: jest.fn(),
     logout: jest.fn(),
     updateUser: jest.fn(),

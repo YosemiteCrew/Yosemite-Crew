@@ -98,28 +98,100 @@ jest.mock('@/app/features/organization/services/catalogCalculations', () => ({
   computePackageTotals: jest.fn(() => ({ totalCost: 100, grossTotal: 120 })),
 }));
 
-jest.mock('react-icons/ri', () => ({
-  RiEdit2Line: () => <span data-testid="edit-icon" />,
-}));
+jest.mock(
+  'react-icons/ri',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: () => <span data-testid="delete-icon" />,
-  MdOutlineArchive: () => <span data-testid="archive-icon" />,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/lu', () => ({
-  LuBedSingle: () => <span data-testid="bed-icon" />,
-  LuCheck: () => <span data-testid="check-icon" />,
-}));
+jest.mock(
+  'react-icons/lu',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io5', () => ({
-  IoChevronDown: () => <span data-testid="chevron-icon" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/ai', () => ({
-  AiOutlineInfoCircle: () => <span data-testid="info-icon" />,
-  AiOutlinePlus: () => <span data-testid="plus-icon" />,
-}));
+jest.mock(
+  'react-icons/ai',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 // --- Test Data ---
 

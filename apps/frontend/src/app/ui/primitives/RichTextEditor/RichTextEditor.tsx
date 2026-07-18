@@ -1,10 +1,10 @@
 'use client';
-import React, { useEffect, useId, useState } from 'react';
+import React, { useId } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import FloatingToolbar from '@/app/ui/primitives/RichTextEditor/FloatingToolbar';
-import { sanitizeRichText } from '@/app/lib/richText';
+import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
 
 type RichTextEditorProps = {
   value: string;
@@ -39,50 +39,38 @@ const RichTextEditor = ({
   toolbarPlacement = 'title',
 }: RichTextEditorProps) => {
   const labelId = useId();
-  const [editorIsEmpty, setEditorIsEmpty] = useState(() => !value);
 
   const isInset = toolbarPlacement === 'inset';
   // Inset toolbar sits inside the top-right corner — reserve right room on the
   // first line(s) so the text never runs under it.
   const contentPadding = isInset ? 'pr-52' : 'pr-0';
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    editable: !readOnly,
-    extensions: [StarterKit.configure({ underline: false }), Underline],
-    content: value || '',
-    editorProps: {
-      attributes: {
-        role: 'textbox',
-        'aria-multiline': 'true',
-        'aria-label': ariaLabel,
-        'aria-readonly': String(readOnly),
-        class: `yc-rte-content min-h-[88px] ${contentPadding} outline-none text-body-4 text-text-primary leading-[150%] [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:my-1 [&_p]:min-h-5`,
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      editable: !readOnly,
+      // Tiptap packages are resolved from two adjacent 3.x minors in this repo.
+      // Cast the extension list locally so the editor config stays type-safe
+      // enough for the app while avoiding cross-minor type incompatibility.
+      extensions: [StarterKit.configure({ underline: false }), Underline] as never,
+      content: value || '',
+      editorProps: {
+        attributes: {
+          role: 'textbox',
+          'aria-multiline': 'true',
+          'aria-label': ariaLabel,
+          'aria-readonly': String(readOnly),
+          class: `yc-rte-content min-h-[88px] ${contentPadding} outline-none text-body-4 text-text-primary leading-[150%] [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:my-1 [&_p]:min-h-5`,
+        },
+      },
+      onUpdate: ({ editor: instance }) => {
+        onChange(sanitizeRichText(instance.getHTML()));
       },
     },
-    onUpdate: ({ editor: instance }) => {
-      setEditorIsEmpty(instance.isEmpty);
-      onChange(sanitizeRichText(instance.getHTML()));
-    },
-  });
+    [ariaLabel, contentPadding, onChange, readOnly, value]
+  );
 
-  // Keep editability in sync when the readOnly prop flips (e.g. view-only lock).
-  useEffect(() => {
-    if (editor) editor.setEditable(!readOnly);
-  }, [editor, readOnly]);
-
-  // Sync external value into the editor only when it actually diverges
-  // (canonical Tiptap controlled pattern — avoids a render loop).
-  useEffect(() => {
-    if (!editor) return;
-    const incoming = value || '';
-    if (incoming !== editor.getHTML()) {
-      editor.commands.setContent(incoming, { emitUpdate: false });
-    }
-    setEditorIsEmpty(editor.isEmpty);
-  }, [editor, value]);
-
-  const showPlaceholder = !readOnly && placeholder && editorIsEmpty;
+  const showPlaceholder = !readOnly && placeholder && isRichTextEmpty(value);
   // `title` overlaps the section title row (no reserved space); `inline` keeps
   // the toolbar inside the editor and reserves room above the first text line;
   // `inset` pins the pill toolbar to the top-right of the editor's content area

@@ -8,6 +8,17 @@ type BoardScopeToggleProps = {
   mineLabel: string;
 };
 
+// Neutral raised-pill segmented control per the design recipe:
+// track = --band + hairline, active segment = --screen raised (shadow), ink text.
+const segmentClass = (active: boolean, disabled?: boolean) =>
+  `relative z-10 h-full w-1/2 rounded-[999px]! text-[12.5px] transition-colors ${
+    disabled ? 'cursor-not-allowed' : 'cursor-pointer'
+  } ${
+    active
+      ? 'bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
+      : 'font-semibold text-text-secondary hover:text-text-primary'
+  }`;
+
 const BoardScopeToggle = ({
   showMineOnly,
   disabled,
@@ -16,29 +27,19 @@ const BoardScopeToggle = ({
   mineLabel,
 }: BoardScopeToggleProps) => {
   const isAll = !showMineOnly;
-  const sliderClass = isAll
-    ? 'translate-x-0 bg-blue-text border-blue-text'
-    : 'translate-x-full bg-success-700 border-success-700';
-  const allTextClass = isAll ? 'text-neutral-0' : 'text-text-secondary';
-  const mineTextClass = isAll ? 'text-text-secondary' : 'text-neutral-0';
 
   return (
     <div
-      className={`relative inline-flex items-center h-10 w-[320px] max-w-full rounded-[999px]! border border-card-border bg-white overflow-hidden ${
+      className={`inline-flex items-center h-10 w-[320px] max-w-full rounded-[999px]! border border-[var(--hairline)] bg-[var(--band)] p-[3px] ${
         disabled ? 'opacity-70' : ''
       }`}
     >
-      <div
-        aria-hidden
-        className={`absolute top-0 bottom-0 left-0 w-1/2 rounded-[999px]! border-0 transition-all duration-300 ease-in-out ${sliderClass}`}
-      />
       <button
         type="button"
         onClick={() => onChange(false)}
         disabled={disabled}
-        className={`relative z-10 w-1/2 h-full text-body-4 transition-colors duration-200 ${
-          disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-        } ${allTextClass}`}
+        aria-pressed={isAll}
+        className={segmentClass(isAll, disabled)}
       >
         {allLabel}
       </button>
@@ -46,9 +47,8 @@ const BoardScopeToggle = ({
         type="button"
         onClick={() => onChange(true)}
         disabled={disabled}
-        className={`relative z-10 w-1/2 h-full text-body-4 transition-colors duration-200 ${
-          disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-        } ${mineTextClass}`}
+        aria-pressed={!isAll}
+        className={segmentClass(!isAll, disabled)}
       >
         {mineLabel}
       </button>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
-import { IoEyeOutline } from 'react-icons/io5';
+import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { Task } from '@/app/features/tasks/types/task';
 import {
   autoScrollCalendarHorizontally,
@@ -11,7 +11,6 @@ import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { createPortal } from 'react-dom';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { MdOutlineAutorenew } from 'react-icons/md';
 import { IoIosCalendar } from 'react-icons/io';
 import {
   canRescheduleTask,
@@ -23,42 +22,441 @@ import { DropAvailabilityInterval } from '@/app/features/appointments/components
 
 const DEFAULT_DROP_AVAILABILITY_INTERVALS: DropAvailabilityInterval[] = [];
 const DEFAULT_SLOT_OFFSET_MINUTES: number[] = [];
+const TASK_BLOCK_DURATION_MINUTES = 30;
 
-const TASK_MARKER_STYLES: Record<
-  string,
-  { backgroundColor: string; borderColor: string; color: string }
-> = {
+type MarkerStyle = { backgroundColor: string; borderColor: string; color: string };
+
+// Warm-bone status tokens — the week calendar markers read as soft status pills,
+// matching the board and the design handoff (no saturated solid blocks).
+const TASK_STATUS_MARKER_STYLES: Record<string, MarkerStyle> = {
   PENDING: {
-    backgroundColor: 'rgba(37, 99, 235, 0.92)',
-    borderColor: 'rgba(29, 78, 216, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-requested-bg)',
+    borderColor: 'var(--status-requested-border)',
+    color: 'var(--status-requested-text)',
   },
   IN_PROGRESS: {
-    backgroundColor: 'rgba(14, 116, 144, 0.94)',
-    borderColor: 'rgba(8, 145, 178, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-in-progress-bg)',
+    borderColor: 'var(--status-in-progress-border)',
+    color: 'var(--status-in-progress-text)',
   },
   COMPLETED: {
-    backgroundColor: 'rgba(22, 163, 74, 0.92)',
-    borderColor: 'rgba(21, 128, 61, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-completed-bg)',
+    borderColor: 'var(--status-completed-border)',
+    color: 'var(--status-completed-text)',
   },
   CANCELLED: {
-    backgroundColor: 'rgba(185, 28, 28, 0.92)',
-    borderColor: 'rgba(153, 27, 27, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-cancelled-bg)',
+    borderColor: 'var(--status-cancelled-border)',
+    color: 'var(--status-cancelled-text)',
   },
 };
 
-const getTaskMarkerStyle = (status: string) =>
-  TASK_MARKER_STYLES[status.toUpperCase()] ?? TASK_MARKER_STYLES.PENDING;
+// Pink is reserved on this screen for pet-parent tasks only.
+const PARENT_MARKER_STYLE: MarkerStyle = {
+  backgroundColor: 'var(--screen)',
+  borderColor: 'var(--pink)',
+  color: 'var(--ink)',
+};
+
+const getTaskStatusColors = (status: string): MarkerStyle =>
+  TASK_STATUS_MARKER_STYLES[status.toUpperCase()] ?? TASK_STATUS_MARKER_STYLES.PENDING;
+
+const getTaskMarkerStyle = (task: Pick<Task, 'status' | 'audience'>): MarkerStyle =>
+  task.audience === 'PARENT_TASK' ? PARENT_MARKER_STYLE : getTaskStatusColors(task.status);
+
+const buildTaskSlotLabels = (dropDate: Date, hour: number) => {
+  const dayLabel = formatDateInPreferredTimeZone(dropDate, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const timeLabel = formatDateInPreferredTimeZone(
+    new Date(dropDate.getTime() + hour * 60 * 60 * 1000),
+    { hour: 'numeric', minute: '2-digit' }
+  );
+  return {
+    createTaskLabel: `Create task on ${dayLabel} at ${timeLabel}`,
+    taskSlotLabel: `Tasks slot for ${dayLabel} at ${timeLabel}`,
+  };
+};
+
+/** Hour rules behind the markers: the hour boundary, each slot step, and the closing rule. */
+const TaskSlotGridLines = ({
+  hour,
+  slotOffsetMinutes,
+  isLastVisibleHour,
+}: {
+  hour: number;
+  slotOffsetMinutes: number[];
+  isLastVisibleHour: boolean;
+}) => (
+  <div className="pointer-events-none absolute inset-0 z-[5]">
+    <div className="absolute inset-x-0 top-0 border-t border-[var(--color-calendar-line-strong)]" />
+    {slotOffsetMinutes.map((minute) => (
+      <div
+        key={`task-slot-grid-${hour}-${minute}`}
+        className="absolute inset-x-0 border-t border-[var(--color-calendar-line-soft)]"
+        style={{ top: `${(minute / 60) * 100}%` }}
+      />
+    ))}
+    {isLastVisibleHour && (
+      <div className="absolute inset-x-0 top-full border-t border-[var(--color-calendar-line-strong)]" />
+    )}
+  </div>
+);
+
+/** Drag affordances: the droppable bands, plus the dashed preview at the landing minute. */
+const TaskDropOverlays = ({
+  availabilitySegments,
+  dropPreviewMinute,
+  draggedTaskLabel,
+  draggedTaskDurationMinutes,
+  hourStartMinute,
+  height,
+}: {
+  availabilitySegments: Array<{ top: number; height: number }>;
+  dropPreviewMinute: number | null;
+  draggedTaskLabel?: string | null;
+  draggedTaskDurationMinutes: number;
+  hourStartMinute: number;
+  height: number;
+}) => (
+  <>
+    {availabilitySegments.map((segment, index) => (
+      <div
+        key={`task-drop-availability-${index}-${segment.top}`}
+        className="pointer-events-none absolute left-1 right-1 z-10 rounded-xl border border-card-border bg-[var(--color-calendar-availability-overlay)]"
+        style={{
+          top: segment.top,
+          height: segment.height,
+        }}
+      />
+    ))}
+    {dropPreviewMinute != null && (
+      <div
+        className="pointer-events-none absolute left-1 right-1 z-[15]"
+        style={{
+          top: ((dropPreviewMinute - hourStartMinute) / 60) * height,
+        }}
+      >
+        <div
+          className="rounded-xl border-2 border-dashed border-card-border bg-[var(--color-calendar-preview-overlay)]"
+          style={{
+            height: Math.max(12, (Math.max(5, draggedTaskDurationMinutes) / 60) * height),
+          }}
+        >
+          <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
+            {draggedTaskLabel || 'Task'}
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+);
+
+type TaskMarkerLayout = { top: number; laneIndex: number; laneCount: number };
+
+/** One task block in the hour column, with its hover-revealed view shortcut. */
+const TaskMarker = ({
+  task,
+  layout,
+  height,
+  isZoomOutMode,
+  isActive,
+  popoverId,
+  canDrag,
+  onView,
+  onOpenPopover,
+  onFocusPopover,
+  onClosePopover,
+  onDragStart,
+  onDragEnd,
+}: {
+  task: Task;
+  layout: TaskMarkerLayout;
+  height: number;
+  isZoomOutMode: boolean;
+  isActive: boolean;
+  popoverId: string;
+  canDrag: boolean;
+  onView: () => void;
+  onOpenPopover: (target: HTMLButtonElement, clientX: number, clientY: number) => void;
+  onFocusPopover: (target: HTMLButtonElement) => void;
+  onClosePopover: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+}) => {
+  const { top, laneIndex, laneCount } = layout;
+  const widthPercent = 100 / laneCount;
+  const leftPercent = laneIndex * widthPercent;
+  const markerHeight = isZoomOutMode
+    ? Math.max(8, Math.min(12, (TASK_BLOCK_DURATION_MINUTES / 60) * height))
+    : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
+  const isCompact = !isZoomOutMode && laneCount > 1;
+  const compactPaddingClass = isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5';
+  const markerClassName = isZoomOutMode
+    ? 'size-full text-left rounded-full! overflow-hidden p-0 border border-transparent'
+    : `size-full text-left rounded-2xl! overflow-hidden ${compactPaddingClass} flex flex-col justify-between`;
+  const dueTimeLabel = formatDateInPreferredTimeZone(new Date(task.dueAt), {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  const markerTitle = `${task.name || 'Task'} • Due ${dueTimeLabel}`;
+  const markerStyle = getTaskMarkerStyle(task);
+  const isParentTask = task.audience === 'PARENT_TASK';
+  const isCompletedTask = task.status.toUpperCase() === 'COMPLETED';
+
+  return (
+    <div
+      className="group absolute px-1.5 z-20"
+      style={{
+        top,
+        left: `${leftPercent}%`,
+        width: `${widthPercent}%`,
+        height: markerHeight,
+      }}
+    >
+      <button
+        type="button"
+        className={markerClassName}
+        aria-haspopup="dialog"
+        aria-expanded={isActive}
+        aria-controls={popoverId}
+        style={{
+          backgroundColor: markerStyle.backgroundColor,
+          border: `1px solid ${markerStyle.borderColor}`,
+          color: markerStyle.color,
+          borderRadius: isZoomOutMode ? 9999 : 16,
+          boxShadow: isParentTask ? '0 4px 12px var(--glow-p12)' : '0 1px 2px var(--sh05)',
+        }}
+        title={markerTitle}
+        onClick={onView}
+        draggable={canDrag}
+        onMouseEnter={(event) => onOpenPopover(event.currentTarget, event.clientX, event.clientY)}
+        onMouseMove={(event) => onOpenPopover(event.currentTarget, event.clientX, event.clientY)}
+        onMouseLeave={onClosePopover}
+        onFocus={(event) => onFocusPopover(event.currentTarget)}
+        onBlur={onClosePopover}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+      >
+        {isZoomOutMode ? null : (
+          <>
+            <div
+              className={`text-caption-1 truncate ${isCompact ? 'text-center' : ''} ${
+                isCompletedTask ? 'line-through' : ''
+              }`}
+              style={{ color: markerStyle.color }}
+            >
+              {isParentTask && (
+                <span
+                  aria-hidden="true"
+                  className="mr-1 inline-block size-1.5 rounded-full align-middle"
+                  style={{ backgroundColor: 'var(--pink)' }}
+                />
+              )}
+              {task.name || '-'}
+            </div>
+            <div
+              className={`text-[10px] truncate ${isCompact ? 'text-center' : ''}`}
+              style={{ color: markerStyle.color, opacity: 0.8 }}
+            >
+              Due: {dueTimeLabel}
+            </div>
+          </>
+        )}
+      </button>
+
+      <div
+        className={`absolute flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${
+          isZoomOutMode ? '-top-1 right-0' : 'top-1 right-1'
+        }`}
+      >
+        <button
+          type="button"
+          title="View task"
+          aria-label="View task"
+          className="size-6 rounded-full bg-neutral-0/95 border border-card-border flex items-center justify-center cursor-pointer shadow-sm"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onView();
+          }}
+        >
+          <IoEyeOutline size={12} color="var(--color-neutral-900)" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/** Tooltip + round button — the shape every popover footer action shares. */
+const TaskPopoverActionButton = ({
+  tooltip,
+  label,
+  onPress,
+  children,
+}: {
+  tooltip: string;
+  label: string;
+  onPress: () => void;
+  children: React.ReactNode;
+}) => (
+  <GlassTooltip content={tooltip} side="top">
+    <button
+      type="button"
+      title={tooltip}
+      aria-label={label}
+      className="size-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
+      onClick={onPress}
+    >
+      {children}
+    </button>
+  </GlassTooltip>
+);
+
+/** Hover/focus detail card for one task: header, from/to/category grid, and actions. */
+const TaskDetailsPopover = ({
+  task,
+  popoverId,
+  titleId,
+  dialogRef,
+  style,
+  canEditTasks,
+  getDisplayName,
+  onView,
+  onChangeStatus,
+  onReschedule,
+  onDismiss,
+  clearCloseTimer,
+  schedulePopoverClose,
+}: {
+  task: Task;
+  popoverId: string;
+  titleId: string;
+  dialogRef: React.RefObject<HTMLDialogElement | null>;
+  style: React.CSSProperties;
+  canEditTasks: boolean;
+  getDisplayName: (memberId?: string) => string;
+  onView: () => void;
+  onChangeStatus: () => void;
+  onReschedule: () => void;
+  onDismiss: () => void;
+  clearCloseTimer: () => void;
+  schedulePopoverClose: () => void;
+}) => (
+  <dialog
+    id={popoverId}
+    ref={dialogRef}
+    open
+    className="fixed z-[1000] m-0 box-border w-[304px] max-w-[calc(100vw-16px)] rounded-2xl border border-card-border bg-neutral-0 p-3 shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] outline-none"
+    style={style}
+    aria-labelledby={titleId}
+    aria-modal="false"
+    data-popover-panel="true"
+    tabIndex={-1}
+    onMouseEnter={clearCloseTimer}
+    onMouseLeave={schedulePopoverClose}
+    onFocus={clearCloseTimer}
+    onBlur={schedulePopoverClose}
+    onCancel={(event) => {
+      event.preventDefault();
+      onDismiss();
+    }}
+  >
+    <div className="flex min-w-0 w-full flex-col gap-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div id={titleId} className="truncate text-body-4-emphasis text-text-primary">
+            {task.name || '-'}
+          </div>
+          <div className="mt-0.5 text-[11px] leading-4 text-text-secondary">
+            Due{' '}
+            {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+              month: 'short',
+              day: '2-digit',
+            })}
+            {' • '}
+            {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
+          </div>
+        </div>
+        <span
+          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] leading-4 font-semibold whitespace-nowrap"
+          style={{
+            backgroundColor: getTaskStatusColors(task.status).backgroundColor,
+            border: `1px solid ${getTaskStatusColors(task.status).borderColor}`,
+            color: getTaskStatusColors(task.status).color,
+          }}
+        >
+          {getTaskStatusLabel(task.status)}
+        </span>
+      </div>
+      <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] gap-x-2 gap-y-1 rounded-xl border border-card-border bg-card-hover px-2.5 py-2">
+        <div className="text-[11px] leading-4 text-text-secondary">From</div>
+        <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
+          {getDisplayName(task.assignedBy)}
+        </div>
+        <div className="text-[11px] leading-4 text-text-secondary">To</div>
+        <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
+          {getDisplayName(task.assignedTo)}
+        </div>
+        <div className="text-[11px] leading-4 text-text-secondary">Category</div>
+        <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
+          {task.category || '-'}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        {getTaskQuickDetails(task)
+          .slice(0, 2)
+          .map((detail) => (
+            <div key={detail.label} className="flex min-w-0 items-start gap-2">
+              <div className="w-16 shrink-0 text-[11px] leading-4 text-text-secondary">
+                {detail.label}
+              </div>
+              <div className="min-w-0 flex-1 text-[11px] leading-4 text-text-primary line-clamp-2">
+                {detail.value}
+              </div>
+            </div>
+          ))}
+      </div>
+      <div className="mt-1 flex min-w-0 flex-wrap items-center justify-end gap-1.5 border-t border-card-border pt-2">
+        <TaskPopoverActionButton tooltip="View task" label="View task" onPress={onView}>
+          <IoEyeOutline size={16} aria-hidden="true" />
+        </TaskPopoverActionButton>
+        {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
+          <TaskPopoverActionButton
+            tooltip="Change status"
+            label="Change task status"
+            onPress={onChangeStatus}
+          >
+            <IoSyncOutline size={16} aria-hidden="true" />
+          </TaskPopoverActionButton>
+        )}
+        {canEditTasks && canRescheduleTask(task.status) && (
+          <TaskPopoverActionButton
+            tooltip="Reschedule"
+            label="Reschedule task"
+            onPress={onReschedule}
+          >
+            <IoIosCalendar size={16} aria-hidden="true" />
+          </TaskPopoverActionButton>
+        )}
+      </div>
+    </div>
+  </dialog>
+);
 
 type TaskSlotProps = {
   slotEvents: Task[];
   handleViewTask: (task: Task) => void;
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
-  canEditTasks?: boolean;
+  permissions?: {
+    canEditTasks?: boolean;
+  };
   index?: number;
   dayIndex?: number;
   length?: number;
@@ -77,9 +475,11 @@ type TaskSlotProps = {
   dropAvailabilityIntervals?: DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
   zoomMode?: CalendarZoomMode;
-  showGridLines?: boolean;
-  slotOffsetMinutes?: number[];
-  isLastVisibleHour?: boolean;
+  layout?: {
+    showGridLines?: boolean;
+    slotOffsetMinutes?: number[];
+    isLastVisibleHour?: boolean;
+  };
   resolveDisplayName?: (memberId?: string) => string;
 };
 
@@ -88,7 +488,7 @@ const TaskSlot = ({
   handleViewTask,
   handleChangeStatusTask,
   handleRescheduleTask,
-  canEditTasks = false,
+  permissions,
   index,
   dayIndex = 0,
   length = 0,
@@ -107,11 +507,13 @@ const TaskSlot = ({
   dropAvailabilityIntervals = DEFAULT_DROP_AVAILABILITY_INTERVALS,
   draggedTaskDurationMinutes = 30,
   zoomMode = 'in',
-  showGridLines = false,
-  slotOffsetMinutes = DEFAULT_SLOT_OFFSET_MINUTES,
-  isLastVisibleHour = false,
+  layout,
   resolveDisplayName,
 }: TaskSlotProps) => {
+  const canEditTasks = permissions?.canEditTasks ?? false;
+  const showGridLines = layout?.showGridLines ?? false;
+  const slotOffsetMinutes = layout?.slotOffsetMinutes ?? DEFAULT_SLOT_OFFSET_MINUTES;
+  const isLastVisibleHour = layout?.isLastVisibleHour ?? false;
   const isZoomOutMode = zoomMode === 'out';
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const {
@@ -128,7 +530,6 @@ const TaskSlot = ({
   const taskPopoverId = useId();
   const hourStartMinute = hour * 60;
   const hourEndMinute = hourStartMinute + 60;
-  const TASK_BLOCK_DURATION_MINUTES = 30;
 
   const getDisplayName = useCallback(
     (memberId?: string) => {
@@ -140,22 +541,7 @@ const TaskSlot = ({
     [resolveDisplayName]
   );
 
-  const createTaskLabel = `Create task on ${formatDateInPreferredTimeZone(dropDate, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })} at ${formatDateInPreferredTimeZone(new Date(dropDate.getTime() + hour * 60 * 60 * 1000), {
-    hour: 'numeric',
-    minute: '2-digit',
-  })}`;
-  const taskSlotLabel = `Tasks slot for ${formatDateInPreferredTimeZone(dropDate, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })} at ${formatDateInPreferredTimeZone(new Date(dropDate.getTime() + hour * 60 * 60 * 1000), {
-    hour: 'numeric',
-    minute: '2-digit',
-  })}`;
+  const { createTaskLabel, taskSlotLabel } = buildTaskSlotLabels(dropDate, hour);
 
   useEffect(() => {
     if (!draggedTaskId) return;
@@ -244,7 +630,7 @@ const TaskSlot = ({
     <>
       <section
         aria-label={taskSlotLabel}
-        className={`relative bg-white border-l border-grey-light ${
+        className={`relative bg-neutral-0 border-l border-card-border ${
           resolvedDayIndex === length ? 'border-r' : ''
         }`}
         style={{ height: `${height}px` }}
@@ -294,290 +680,79 @@ const TaskSlot = ({
           />
         ) : null}
         {showGridLines && (
-          <div className="pointer-events-none absolute inset-0 z-[5]">
-            <div className="absolute inset-x-0 top-0 border-t border-[var(--color-calendar-line-strong)]" />
-            {slotOffsetMinutes.map((minute) => (
-              <div
-                key={`task-slot-grid-${hour}-${minute}`}
-                className="absolute inset-x-0 border-t border-[var(--color-calendar-line-soft)]"
-                style={{ top: `${(minute / 60) * 100}%` }}
-              />
-            ))}
-            {isLastVisibleHour && (
-              <div className="absolute inset-x-0 top-full border-t border-[var(--color-calendar-line-strong)]" />
-            )}
-          </div>
+          <TaskSlotGridLines
+            hour={hour}
+            slotOffsetMinutes={slotOffsetMinutes}
+            isLastVisibleHour={isLastVisibleHour}
+          />
         )}
-        {draggedTaskId &&
-          availabilitySegments.map((segment, index) => (
-            <div
-              key={`task-drop-availability-${index}-${segment.top}`}
-              className="pointer-events-none absolute left-1 right-1 z-10 rounded-xl border border-grey-light bg-[var(--color-calendar-availability-overlay)]"
-              style={{
-                top: segment.top,
-                height: segment.height,
-              }}
-            />
-          ))}
-        {draggedTaskId && dropPreviewMinute != null && (
-          <div
-            className="pointer-events-none absolute left-1 right-1 z-[15]"
-            style={{
-              top: ((dropPreviewMinute - hourStartMinute) / 60) * height,
-            }}
-          >
-            <div
-              className="rounded-xl border-2 border-dashed border-grey-light bg-[var(--color-calendar-preview-overlay)]"
-              style={{
-                height: Math.max(12, (Math.max(5, draggedTaskDurationMinutes) / 60) * height),
-              }}
-            >
-              <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
-                {draggedTaskLabel || 'Task'}
-              </div>
-            </div>
-          </div>
+        {draggedTaskId && (
+          <TaskDropOverlays
+            availabilitySegments={availabilitySegments}
+            dropPreviewMinute={dropPreviewMinute}
+            draggedTaskLabel={draggedTaskLabel}
+            draggedTaskDurationMinutes={draggedTaskDurationMinutes}
+            hourStartMinute={hourStartMinute}
+            height={height}
+          />
         )}
 
         {laidOutEvents.map(({ task, top, laneIndex, laneCount }, eventIndex) => {
-          const widthPercent = 100 / laneCount;
-          const leftPercent = laneIndex * widthPercent;
-          const markerHeight = isZoomOutMode
-            ? Math.max(8, Math.min(12, (TASK_BLOCK_DURATION_MINUTES / 60) * height))
-            : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
-          const isCompact = !isZoomOutMode && laneCount > 1;
-          const compactPaddingClass = isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5';
-          const markerClassName = isZoomOutMode
-            ? 'size-full text-left rounded-full! overflow-hidden p-0 border border-transparent'
-            : `size-full text-left rounded-2xl! overflow-hidden ${compactPaddingClass} flex flex-col justify-between`;
           const taskKey = task._id || `${task.name}-${String(task.dueAt)}-${eventIndex}`;
-          const dueTimeLabel = formatDateInPreferredTimeZone(new Date(task.dueAt), {
-            hour: 'numeric',
-            minute: '2-digit',
-          });
-          const markerTitle = `${task.name || 'Task'} • Due ${dueTimeLabel}`;
-
           return (
-            <div
+            <TaskMarker
               key={taskKey}
-              className="group absolute px-1.5 z-20"
-              style={{
-                top,
-                left: `${leftPercent}%`,
-                width: `${widthPercent}%`,
-                height: markerHeight,
+              task={task}
+              layout={{ top, laneIndex, laneCount }}
+              height={height}
+              isZoomOutMode={isZoomOutMode}
+              isActive={activePopoverKey === taskKey}
+              popoverId={taskPopoverId}
+              canDrag={!!canDragTask?.(task)}
+              onView={() => handleViewTask(task)}
+              onOpenPopover={(target, clientX, clientY) =>
+                handleOpenPopover(taskKey, target, clientX, clientY)
+              }
+              onFocusPopover={(target) =>
+                openPopover(taskKey, target, draggedTaskId, undefined, undefined, 'focus')
+              }
+              onClosePopover={schedulePopoverClose}
+              onDragStart={() => onTaskDragStart?.(task)}
+              onDragEnd={() => {
+                setDropPreviewMinute(null);
+                onTaskDragEnd?.();
               }}
-            >
-              <button
-                type="button"
-                className={markerClassName}
-                aria-haspopup="dialog"
-                aria-expanded={activePopoverKey === taskKey}
-                aria-controls={taskPopoverId}
-                style={{
-                  ...getTaskMarkerStyle(task.status),
-                  borderRadius: isZoomOutMode ? 9999 : 16,
-                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.16)',
-                }}
-                title={markerTitle}
-                onClick={() => handleViewTask(task)}
-                draggable={!!canDragTask?.(task)}
-                onMouseEnter={(event) =>
-                  handleOpenPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
-                }
-                onMouseMove={(event) =>
-                  handleOpenPopover(taskKey, event.currentTarget, event.clientX, event.clientY)
-                }
-                onMouseLeave={schedulePopoverClose}
-                onFocus={(event) =>
-                  openPopover(
-                    taskKey,
-                    event.currentTarget,
-                    draggedTaskId,
-                    undefined,
-                    undefined,
-                    'focus'
-                  )
-                }
-                onBlur={schedulePopoverClose}
-                onDragStart={() => onTaskDragStart?.(task)}
-                onDragEnd={() => {
-                  setDropPreviewMinute(null);
-                  onTaskDragEnd?.();
-                }}
-              >
-                {isZoomOutMode ? null : (
-                  <>
-                    <div
-                      className={`text-caption-1 truncate ${isCompact ? 'text-center' : ''}`}
-                      style={{ color: '#ffffff' }}
-                    >
-                      {task.name || '-'}
-                    </div>
-                    <div
-                      className={`text-[10px] truncate ${isCompact ? 'text-center' : ''}`}
-                      style={{ color: 'rgba(255,255,255,0.92)' }}
-                    >
-                      Due: {dueTimeLabel}
-                    </div>
-                  </>
-                )}
-              </button>
-
-              <div
-                className={`absolute flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${
-                  isZoomOutMode ? '-top-1 right-0' : 'top-1 right-1'
-                }`}
-              >
-                <button
-                  type="button"
-                  title="View task"
-                  className="size-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer shadow-sm"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleViewTask(task);
-                  }}
-                >
-                  <IoEyeOutline size={12} color="var(--color-neutral-900)" />
-                </button>
-              </div>
-            </div>
+            />
           );
         })}
       </section>
 
       {activeTask && activePopoverKey && typeof document !== 'undefined'
         ? createPortal(
-            <dialog
-              id={taskPopoverId}
-              ref={popoverDialogRef}
-              open
-              className="fixed z-[1000] m-0 box-border w-[304px] max-w-[calc(100vw-16px)] rounded-2xl border border-card-border bg-white p-3 shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] outline-none"
+            <TaskDetailsPopover
+              task={activeTask}
+              popoverId={taskPopoverId}
+              titleId={taskPopoverTitleId}
+              dialogRef={popoverDialogRef}
               style={popoverStyle}
-              aria-labelledby={taskPopoverTitleId}
-              aria-modal="false"
-              data-popover-panel="true"
-              tabIndex={-1}
-              onMouseEnter={clearCloseTimer}
-              onMouseLeave={schedulePopoverClose}
-              onFocus={clearCloseTimer}
-              onBlur={schedulePopoverClose}
-              onCancel={(event) => {
-                event.preventDefault();
+              canEditTasks={canEditTasks}
+              getDisplayName={getDisplayName}
+              onView={() => {
+                handleViewTask(activeTask);
                 setActivePopoverKey(null);
               }}
-            >
-              <div className="flex min-w-0 w-full flex-col gap-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div
-                      id={taskPopoverTitleId}
-                      className="truncate text-body-4-emphasis text-text-primary"
-                    >
-                      {activeTask.name || '-'}
-                    </div>
-                    <div className="mt-0.5 text-[11px] leading-4 text-text-secondary">
-                      Due{' '}
-                      {formatDateInPreferredTimeZone(new Date(activeTask.dueAt), {
-                        month: 'short',
-                        day: '2-digit',
-                      })}
-                      {' • '}
-                      {formatDateInPreferredTimeZone(new Date(activeTask.dueAt), {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                  </div>
-                  <span
-                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px] leading-4 font-medium text-white whitespace-nowrap"
-                    style={{
-                      backgroundColor: getTaskMarkerStyle(activeTask.status).backgroundColor,
-                      border: `1px solid ${getTaskMarkerStyle(activeTask.status).borderColor}`,
-                    }}
-                  >
-                    {getTaskStatusLabel(activeTask.status)}
-                  </span>
-                </div>
-                <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] gap-x-2 gap-y-1 rounded-xl border border-card-border bg-card-hover px-2.5 py-2">
-                  <div className="text-[11px] leading-4 text-text-secondary">From</div>
-                  <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
-                    {getDisplayName(activeTask.assignedBy)}
-                  </div>
-                  <div className="text-[11px] leading-4 text-text-secondary">To</div>
-                  <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
-                    {getDisplayName(activeTask.assignedTo)}
-                  </div>
-                  <div className="text-[11px] leading-4 text-text-secondary">Category</div>
-                  <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
-                    {activeTask.category || '-'}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  {getTaskQuickDetails(activeTask)
-                    .slice(0, 2)
-                    .map((detail) => (
-                      <div key={detail.label} className="flex min-w-0 items-start gap-2">
-                        <div className="w-16 shrink-0 text-[11px] leading-4 text-text-secondary">
-                          {detail.label}
-                        </div>
-                        <div className="min-w-0 flex-1 text-[11px] leading-4 text-text-primary line-clamp-2">
-                          {detail.value}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-                <div className="mt-1 flex min-w-0 flex-wrap items-center justify-end gap-1.5 border-t border-card-border pt-2">
-                  <GlassTooltip content="View task" side="top">
-                    <button
-                      type="button"
-                      title="View task"
-                      aria-label="View task"
-                      className="size-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                      onClick={() => {
-                        handleViewTask(activeTask);
-                        setActivePopoverKey(null);
-                      }}
-                    >
-                      <IoEyeOutline size={16} aria-hidden="true" />
-                    </button>
-                  </GlassTooltip>
-                  {canEditTasks && canShowTaskStatusChangeAction(activeTask.status) && (
-                    <GlassTooltip content="Change status" side="top">
-                      <button
-                        type="button"
-                        title="Change status"
-                        aria-label="Change task status"
-                        className="size-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          handleChangeStatusTask?.(activeTask);
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <MdOutlineAutorenew size={16} aria-hidden="true" />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                  {canEditTasks && canRescheduleTask(activeTask.status) && (
-                    <GlassTooltip content="Reschedule" side="top">
-                      <button
-                        type="button"
-                        title="Reschedule"
-                        aria-label="Reschedule task"
-                        className="size-8 rounded-full! flex items-center justify-center text-black-text hover:bg-card-bg border border-card-border"
-                        onClick={() => {
-                          handleRescheduleTask?.(activeTask);
-                          setActivePopoverKey(null);
-                        }}
-                      >
-                        <IoIosCalendar size={16} aria-hidden="true" />
-                      </button>
-                    </GlassTooltip>
-                  )}
-                </div>
-              </div>
-            </dialog>,
+              onChangeStatus={() => {
+                handleChangeStatusTask?.(activeTask);
+                setActivePopoverKey(null);
+              }}
+              onReschedule={() => {
+                handleRescheduleTask?.(activeTask);
+                setActivePopoverKey(null);
+              }}
+              onDismiss={() => setActivePopoverKey(null)}
+              clearCloseTimer={clearCloseTimer}
+              schedulePopoverClose={schedulePopoverClose}
+            />,
             document.body
           )
         : null}

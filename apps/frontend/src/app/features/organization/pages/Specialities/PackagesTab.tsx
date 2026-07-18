@@ -1,9 +1,4 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import { RiEdit2Line } from 'react-icons/ri';
-import { MdOutlineArchive } from 'react-icons/md';
-import { IoChevronDown } from 'react-icons/io5';
-import { LuBedSingle, LuCheck } from 'react-icons/lu';
-import { AiOutlineInfoCircle, AiOutlinePlus } from 'react-icons/ai';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { PackageRevamp } from '@/app/features/organization/types/revamp';
@@ -22,6 +17,15 @@ import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import YosemiteLoader from '@/app/ui/overlays/Loader/YosemiteLoader';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import {
+  IoAddOutline,
+  IoArchiveOutline,
+  IoBedOutline,
+  IoCheckmarkOutline,
+  IoChevronDown,
+  IoCreateOutline,
+  IoInformationCircleOutline,
+} from 'react-icons/io5';
 
 export type PackagesTabHandle = { openAdd: () => void };
 
@@ -70,13 +74,13 @@ const PackageCard = ({
           <div className="flex items-center gap-2">
             {pkg.isBookable && (
               <Badge tone="brand">
-                <LuCheck size={14} aria-hidden="true" />
+                <IoCheckmarkOutline size={14} aria-hidden="true" />
                 Bookable
               </Badge>
             )}
             {pkg.isInpatientPreferred && (
               <Badge tone="brand">
-                <LuBedSingle size={14} aria-hidden="true" />
+                <IoBedOutline size={14} aria-hidden="true" />
                 In-patient
               </Badge>
             )}
@@ -108,14 +112,14 @@ const PackageCard = ({
               label={`Edit ${pkg.name}`}
               tooltip="Edit"
               onClick={onEdit}
-              icon={<RiEdit2Line size={20} aria-hidden="true" />}
+              icon={<IoCreateOutline size={20} aria-hidden="true" />}
             />
             <CircleIconButton
               label={`Archive ${pkg.name}`}
               tooltip="Archive"
               onClick={onArchive}
               variant="danger"
-              icon={<MdOutlineArchive size={20} aria-hidden="true" />}
+              icon={<IoArchiveOutline size={20} aria-hidden="true" />}
             />
           </div>
 
@@ -223,14 +227,14 @@ const PackageCard = ({
                 label={`Edit ${pkg.name}`}
                 tooltip="Edit"
                 onClick={onEdit}
-                icon={<RiEdit2Line size={20} aria-hidden="true" />}
+                icon={<IoCreateOutline size={20} aria-hidden="true" />}
               />
               <CircleIconButton
                 label={`Archive ${pkg.name}`}
                 tooltip="Archive"
                 onClick={onArchive}
                 variant="danger"
-                icon={<MdOutlineArchive size={20} aria-hidden="true" />}
+                icon={<IoArchiveOutline size={20} aria-hidden="true" />}
               />
             </div>
           </div>
@@ -342,7 +346,7 @@ function PackagesTab({ specialityId, organisationId, ref }: PackagesTabProps) {
 
       {!loading && packages.length === 0 && !draftOpen && (
         <div className="flex items-center justify-center gap-2 py-8 text-body-4 text-text-secondary">
-          <AiOutlineInfoCircle size={16} aria-hidden="true" />
+          <IoInformationCircleOutline size={16} aria-hidden="true" />
           You haven&apos;t added any packages yet.
         </div>
       )}
@@ -389,9 +393,9 @@ function PackagesTab({ specialityId, organisationId, ref }: PackagesTabProps) {
             setDraftAtTop(false);
             setDraftOpen(true);
           }}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-blue-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-primary-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
-          <AiOutlinePlus size={16} aria-hidden="true" />
+          <IoAddOutline size={16} aria-hidden="true" />
           Click to add package
         </button>
       )}

@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
+import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
@@ -34,6 +35,8 @@ jest.mock('next/dynamic', () => ({
     };
 
     LoadableComponent.displayName = 'MockDynamicComponent';
+    // Expose a preload so the page's `preloadDynamic` optional-chain call executes.
+    (LoadableComponent as unknown as { preload: () => void }).preload = () => {};
     return LoadableComponent;
   },
 }));
@@ -47,6 +50,7 @@ const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
 const routerPushMock = jest.fn();
+const redirectMock = jest.fn();
 const usePrimaryOrgProfileMock = jest.fn();
 const useAppointmentStoreMock = jest.fn();
 const useTeamForPrimaryOrgMock = jest.fn();
@@ -57,6 +61,7 @@ const tableSpy = jest.fn();
 const boardSpy = jest.fn();
 const addAppointmentSpy = jest.fn();
 const appointmentInfoSpy = jest.fn();
+const overviewModalSpy = jest.fn();
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
@@ -89,6 +94,7 @@ jest.mock('@/app/stores/searchStore', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
+  redirect: (href: string) => redirectMock(href),
   useRouter: () => ({
     push: routerPushMock,
   }),
@@ -111,9 +117,9 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: (selector: any) => useAuthStoreMock(selector),
 }));
 
+const useOrgStoreMock = jest.fn();
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) =>
-    selector({ primaryOrgId: 'org-1', orgsById: { 'org-1': { type: 'VET' } } }),
+  useOrgStore: (selector: any) => useOrgStoreMock(selector),
 }));
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
@@ -140,7 +146,7 @@ jest.mock('@/app/ui/filters/Filters', () => (props: any) => (
   <div data-testid="filters">
     {props.showAddButton ? (
       <button type="button" onClick={props.onAddButtonClick}>
-        Add Appointment
+        New appointment
       </button>
     ) : null}
   </div>
@@ -165,14 +171,6 @@ jest.mock('@/app/ui/tables/Appointments', () => (props: any) => {
 });
 
 jest.mock(
-  '@/app/features/appointments/pages/Appointments/Sections/AddAppointment',
-  () => (props: any) => {
-    addAppointmentSpy(props);
-    return props.showModal ? <div data-testid="add-appointment" /> : null;
-  }
-);
-
-jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo',
   () => (props: any) => {
     appointmentInfoSpy(props);
@@ -194,17 +192,19 @@ jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom', 
 
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal',
-  () => () => <div data-testid="add-appointment-central-modal" />
+  () => (props: any) => {
+    addAppointmentSpy(props);
+    return props.showModal ? <div data-testid="add-appointment-central-modal" /> : null;
+  }
 );
 
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal',
-  () => () => <div data-testid="view-appointment-overview-modal" />
+  () => (props: any) => {
+    overviewModalSpy(props);
+    return <div data-testid="view-appointment-overview-modal" />;
+  }
 );
-
-jest.mock('@/app/lib/featureFlags', () => ({
-  isAppointmentRevampEnabled: () => false,
-}));
 
 describe('Appointments page', () => {
   const renderAppointments = async () => {
@@ -248,6 +248,9 @@ describe('Appointments page', () => {
       get: () => null,
     });
     usePrimaryOrgProfileMock.mockReturnValue(null);
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1', orgsById: { 'org-1': { type: 'VET' } } })
+    );
   });
 
   it('renders calendar view by default and toggles to list/board', async () => {
@@ -288,8 +291,37 @@ describe('Appointments page', () => {
     await renderAppointments();
 
     fireEvent.click(screen.getByText('List'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
     expect(addAppointmentSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
+  });
+
+  it('opens the add appointment modal when the phone shell FAB fires its primary action', async () => {
+    await renderAppointments();
+    expect(screen.queryByTestId('add-appointment-central-modal')).not.toBeInTheDocument();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'appointment', href: '/appointments' },
+        })
+      );
+    });
+
+    expect(screen.getByTestId('add-appointment-central-modal')).toBeInTheDocument();
+  });
+
+  it('ignores a phone primary action aimed at another page', async () => {
+    await renderAppointments();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'companion', href: '/companions' },
+        })
+      );
+    });
+
+    expect(screen.queryByTestId('add-appointment-central-modal')).not.toBeInTheDocument();
   });
 
   it('opens appointment modal directly on finance section for finance deep links', async () => {
@@ -314,10 +346,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'finance', subLabel: 'summary' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('opens appointment modal directly on info overview sub-section for info deep links', async () => {
@@ -342,10 +374,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'info', subLabel: 'history' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('normalizes overview sub-label for details deep links', async () => {
@@ -370,10 +402,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'info', subLabel: 'history' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: opens appointment modal for tasks open param', async () => {
@@ -393,10 +425,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'tasks', subLabel: 'parent-chat' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: opens appointment modal for prescription open param', async () => {
@@ -416,10 +448,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'prescription', subLabel: 'subjective' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: opens appointment modal for labs open param', async () => {
@@ -439,10 +471,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'labs', subLabel: 'idexx-labs' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: resolves subLabel-based intent for forms subLabel', async () => {
@@ -462,10 +494,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'prescription', subLabel: 'forms' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: does not open when appointmentId is empty', async () => {
@@ -584,7 +616,7 @@ describe('Appointments page', () => {
     );
   });
 
-  it('openAddAppointment: clicking Add Appointment from calendar opens modal', async () => {
+  it('openAddAppointment: clicking New appointment from calendar opens modal', async () => {
     await renderAppointments();
 
     const calendarProps = calendarSpy.mock.calls[0][0];
@@ -626,6 +658,19 @@ describe('Appointments page', () => {
     });
 
     expect(calendarSpy).toHaveBeenCalledWith(expect.objectContaining({ currentDate: newDate }));
+  });
+
+  it('setActiveCalendar updates the active calendar mode passed to calendar', async () => {
+    await renderAppointments();
+
+    const calendarProps = calendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      calendarProps.setActiveCalendar('week');
+      await Promise.resolve();
+    });
+
+    expect(calendarSpy).toHaveBeenCalledWith(expect.objectContaining({ activeCalendar: 'week' }));
   });
 
   it('onReschedule from AppointmentInfo closes view and opens reschedule popup', async () => {
@@ -691,7 +736,7 @@ describe('Appointments page', () => {
     expect(appointmentInfoSpy).toHaveBeenCalled();
   });
 
-  it('deep link: opens info modal when appointmentId matches with care open param', async () => {
+  it('deep link: opens the overview modal for a care open param', async () => {
     useAppointmentsMock.mockReturnValue([
       { id: 'a3', status: 'upcoming', isEmergency: false, companion: { id: 'c3', name: 'Max' } },
     ]);
@@ -707,7 +752,7 @@ describe('Appointments page', () => {
 
     await renderAppointments();
 
-    expect(appointmentInfoSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('activeAppointment updates reactively when appointments list changes', async () => {
@@ -736,5 +781,395 @@ describe('Appointments page', () => {
         activeAppointment: expect.objectContaining({ id: 'a1' }),
       })
     );
+  });
+
+  it('deep link: labs open param with empty subLabel falls back to idexx-labs', async () => {
+    useAppointmentsMock.mockReturnValue([
+      { id: 'a3', status: 'upcoming', isEmergency: false, companion: { id: 'c3', name: 'Max' } },
+    ]);
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => {
+        if (key === 'appointmentId') return 'a3';
+        if (key === 'open') return 'labs';
+        return null;
+      },
+    });
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        initialViewIntent: { label: 'labs', subLabel: 'idexx-labs' },
+      })
+    );
+  });
+
+  it('deep link: finance open param with empty subLabel falls back to summary', async () => {
+    useAppointmentsMock.mockReturnValue([
+      { id: 'a3', status: 'upcoming', isEmergency: false, companion: { id: 'c3', name: 'Max' } },
+    ]);
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => {
+        if (key === 'appointmentId') return 'a3';
+        if (key === 'open') return 'finance';
+        return null;
+      },
+    });
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        initialViewIntent: { label: 'finance', subLabel: 'summary' },
+      })
+    );
+  });
+
+  it('deep link: unrecognized open param resolves a null intent but still opens', async () => {
+    useAppointmentsMock.mockReturnValue([
+      { id: 'a3', status: 'upcoming', isEmergency: false, companion: { id: 'c3', name: 'Max' } },
+    ]);
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => {
+        if (key === 'appointmentId') return 'a3';
+        if (key === 'open') return 'mystery';
+        if (key === 'subLabel') return 'nope';
+        return null;
+      },
+    });
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ initialViewIntent: null })
+    );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
+  });
+
+  it('deep link: does not open when the appointmentId matches no appointment', async () => {
+    useAppointmentsMock.mockReturnValue([
+      { id: 'a1', status: 'upcoming', isEmergency: false, companion: { id: 'c1', name: 'Buddy' } },
+    ]);
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => {
+        if (key === 'appointmentId') return 'missing-id';
+        return null;
+      },
+    });
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    expect(appointmentInfoSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: false }));
+  });
+
+  it('selects the first appointment when the list changes from empty to populated', async () => {
+    useAppointmentsMock.mockReturnValue([]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    const { rerender } = render(<ProtectedAppointments />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    useAppointmentsMock.mockReturnValue([
+      { id: 'a9', status: 'upcoming', isEmergency: false, companion: { id: 'c9', name: 'Nova' } },
+    ]);
+
+    await act(async () => {
+      rerender(<ProtectedAppointments />);
+      await Promise.resolve();
+    });
+
+    expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ activeAppointment: expect.objectContaining({ id: 'a9' }) })
+    );
+  });
+
+  it('enriches an appointment whose companion has no parent and defaults missing metadata', async () => {
+    useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+      {
+        companion: { id: 'c1' },
+        parent: { id: 'p1' },
+      },
+    ]);
+    useAppointmentsMock.mockReturnValue([
+      {
+        id: 'a1',
+        status: 'requested',
+        isEmergency: false,
+        companion: { id: 'c1', name: 'Buddy' },
+      },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    expect(calendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allAppointments: [
+          expect.objectContaining({
+            id: 'a1',
+            companion: expect.objectContaining({
+              photoUrl: '',
+              parent: expect.objectContaining({ id: 'p1' }),
+            }),
+          }),
+        ],
+      })
+    );
+  });
+
+  it('leaves an appointment untouched when companion metadata already matches', async () => {
+    useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+      {
+        companion: {
+          id: 'c1',
+          photoUrl: 'same.jpg',
+          gender: 'M',
+          dateOfBirth: '2020-01-01',
+          isneutered: true,
+        },
+        parent: { id: 'p1', firstName: 'John', lastName: 'Doe' },
+      },
+    ]);
+    useAppointmentsMock.mockReturnValue([
+      {
+        id: 'a1',
+        status: 'requested',
+        isEmergency: false,
+        companion: {
+          id: 'c1',
+          name: 'Buddy',
+          photoUrl: 'same.jpg',
+          parent: { id: 'p1', firstName: 'John', lastName: 'Doe', name: 'John Doe' },
+        },
+      },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    expect(calendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allAppointments: [
+          expect.objectContaining({
+            companion: expect.objectContaining({ photoUrl: 'same.jpg' }),
+          }),
+        ],
+      })
+    );
+  });
+
+  it('handles an appointment that has a patient but no companion', async () => {
+    useAppointmentsMock.mockReturnValue([
+      { id: 'a1', status: 'upcoming', isEmergency: false, patient: { name: 'Ghost' } },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    expect(calendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ allAppointments: [expect.objectContaining({ id: 'a1' })] })
+    );
+  });
+
+  it('resolves current user lead id from the email attribute when sub is absent', async () => {
+    useAuthStoreMock.mockImplementation((selector: any) =>
+      selector({ attributes: { email: 'vet@x.com' } })
+    );
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+    expect(appointmentInfoSpy).toHaveBeenCalled();
+  });
+
+  it('resolves current user lead id from cognito:username when sub and email are absent', async () => {
+    useAuthStoreMock.mockImplementation((selector: any) =>
+      selector({ attributes: { 'cognito:username': 'cognito-user' } })
+    );
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+    expect(appointmentInfoSpy).toHaveBeenCalled();
+  });
+
+  it('resolves an empty current user lead id when there are no auth attributes', async () => {
+    useAuthStoreMock.mockImplementation((selector: any) => selector({ attributes: {} }));
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+    expect(appointmentInfoSpy).toHaveBeenCalled();
+  });
+
+  it('matches the current user by team member _id when practionerId differs', async () => {
+    usePermissionsMock.mockReturnValue({
+      can: jest.fn((perm: string) => String(perm).includes('OWN') && !String(perm).includes('ANY')),
+    });
+    useTeamForPrimaryOrgMock.mockReturnValue([{ _id: 'user-1', practionerId: 'other' }]);
+    useAuthStoreMock.mockImplementation((selector: any) =>
+      selector({ attributes: { sub: 'user-1' } })
+    );
+    useAppointmentsMock.mockReturnValue([
+      {
+        id: 'a1',
+        status: 'upcoming',
+        isEmergency: false,
+        companion: { id: 'c1', name: 'Buddy' },
+        lead: { id: 'other' },
+      },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+    expect(appointmentInfoSpy).toHaveBeenCalled();
+  });
+
+  it('canEditActiveAppointment is false for canEditOwn user when there is no active appointment', async () => {
+    usePermissionsMock.mockReturnValue({
+      can: jest.fn((perm: string) => String(perm).includes('OWN') && !String(perm).includes('ANY')),
+    });
+    useAppointmentsMock.mockReturnValue([]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+    expect(appointmentInfoSpy).not.toHaveBeenCalled();
+  });
+
+  it('derives an undefined primary org type when there is no primary org', async () => {
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({ primaryOrgId: undefined, orgsById: {} })
+    );
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+    expect(screen.getByTestId('appointment-calendar')).toBeInTheDocument();
+  });
+
+  it('recomputes the week start when the week calendar advances to a new day', async () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    await renderAppointments();
+
+    const calendarProps = calendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      calendarProps.setActiveCalendar('week');
+      await Promise.resolve();
+    });
+
+    const nextDay = new Date();
+    nextDay.setDate(nextDay.getDate() + 3);
+
+    await act(async () => {
+      calendarProps.setCurrentDate(nextDay);
+      await Promise.resolve();
+    });
+
+    expect(calendarSpy).toHaveBeenCalledWith(expect.objectContaining({ activeCalendar: 'week' }));
+  });
+
+  it('filters the list by active status and emergency filter', async () => {
+    useAppointmentsMock.mockReturnValue([
+      {
+        id: 'a1',
+        status: 'UPCOMING',
+        isEmergency: true,
+        companion: { id: 'c1', name: 'Buddy' },
+      },
+      {
+        id: 'a2',
+        status: 'COMPLETED',
+        isEmergency: false,
+        companion: { id: 'c2', name: 'Rex' },
+      },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    const calendarProps = calendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      calendarProps.setActiveStatus('completed');
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      calendarProps.setActiveFilter('emergencies');
+      await Promise.resolve();
+    });
+
+    // The active filter/status pair is threaded back into the calendar props.
+    expect(calendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ activeStatus: 'completed', activeFilter: 'emergencies' })
+    );
+  });
+
+  it('openWorkspace: returns early when the appointment has no id', async () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    await renderAppointments();
+
+    const calendarProps = calendarSpy.mock.calls[0][0];
+    await act(async () => {
+      calendarProps.onOpenWorkspace({ status: 'UPCOMING' });
+      await Promise.resolve();
+    });
+
+    expect(routerPushMock).not.toHaveBeenCalled();
+  });
+
+  it('openWorkspace: opens the overview popup when the status cannot enter the workspace', async () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    await renderAppointments();
+
+    const calendarProps = calendarSpy.mock.calls[0][0];
+    await act(async () => {
+      calendarProps.onOpenWorkspace({ id: 'a1', status: 'requested' });
+      await Promise.resolve();
+    });
+
+    expect(routerPushMock).not.toHaveBeenCalled();
+    expect(appointmentInfoSpy).toHaveBeenCalled();
+  });
+
+  it('openWorkspace: routes to the workspace when the status can enter it', async () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    await renderAppointments();
+
+    const calendarProps = calendarSpy.mock.calls[0][0];
+    await act(async () => {
+      calendarProps.onOpenWorkspace({ id: 'a1', status: 'UPCOMING' });
+      await Promise.resolve();
+    });
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      expect.stringContaining('/appointments/a1/workspace')
+    );
+  });
+
+  it('onReschedule opens the reschedule popup for a reschedulable status', async () => {
+    useAppointmentsMock.mockReturnValue([
+      { id: 'a1', status: 'UPCOMING', isEmergency: false, companion: { id: 'c1', name: 'Buddy' } },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    await renderAppointments();
+
+    const infoProps = appointmentInfoSpy.mock.calls[appointmentInfoSpy.mock.calls.length - 1][0];
+
+    await act(async () => {
+      infoProps.onReschedule({
+        id: 'a1',
+        status: 'UPCOMING',
+        isEmergency: false,
+        companion: { id: 'c1', name: 'Buddy' },
+      });
+      await Promise.resolve();
+    });
+
+    expect(appointmentInfoSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: false }));
   });
 });

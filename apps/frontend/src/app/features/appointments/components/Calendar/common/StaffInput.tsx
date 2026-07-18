@@ -9,7 +9,7 @@ type StaffInputProps = {
 
 const StaffInput = ({ label, value }: StaffInputProps) => (
   <div className="relative min-w-0">
-    <span className="text-yc-12-m-neutral pointer-events-none absolute left-5 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-white px-1">
+    <span className="text-yc-12-m-neutral pointer-events-none absolute left-5 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-neutral-0 px-1">
       <IoPerson size={12} className="text-neutral-900" aria-hidden="true" />
       {label}
     </span>

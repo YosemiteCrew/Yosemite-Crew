@@ -1,6 +1,6 @@
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
 import RoomTable from '@/app/ui/tables/RoomTable';
 import React, { useEffect, useState } from 'react';
+import { IoAddOutline } from 'react-icons/io5';
 import AddRoom from '@/app/features/organization/pages/Organization/Sections/Rooms/AddRoom';
 import RoomInfo from '@/app/features/organization/pages/Organization/Sections/Rooms/RoomInfo';
 import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
@@ -37,11 +37,6 @@ const Rooms = () => {
     });
   }, [rooms]);
 
-  const handleEditRoom = (room: ManagedRoom) => {
-    setActiveRoom(room);
-    setViewPopup(true);
-  };
-
   const handleToggleAvailability = async (room: ManagedRoom, isAvailable: boolean) => {
     if (!canEditRoom) return;
     try {
@@ -61,21 +56,32 @@ const Rooms = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.ROOM_VIEW_ANY]}>
-      <AccordionButton
-        title="Rooms"
-        buttonTitle="Add Room"
-        buttonClick={setAddPopup}
-        showButton={canEditRoom}
-      >
-        <RoomTable
-          filteredList={rooms}
-          setActive={setActiveRoom}
-          setView={setViewPopup}
-          onEdit={handleEditRoom}
-          onToggleAvailability={handleToggleAvailability}
-          canEditRoom={canEditRoom}
-        />
-      </AccordionButton>
+      <section className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-5! pt-4! pb-3!">
+          <h2 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+            Rooms <span className="font-medium text-[var(--ink-faint)]">({rooms.length})</span>
+          </h2>
+          {canEditRoom && (
+            <button
+              type="button"
+              onClick={() => setAddPopup(true)}
+              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors cursor-pointer"
+            >
+              <IoAddOutline size={15} aria-hidden="true" />
+              Add room
+            </button>
+          )}
+        </div>
+        <div className="border-t border-[var(--hairline)]">
+          <RoomTable
+            filteredList={rooms}
+            setActive={setActiveRoom}
+            setView={setViewPopup}
+            onToggleAvailability={handleToggleAvailability}
+            canEditRoom={canEditRoom}
+          />
+        </div>
+      </section>
       <AddRoom showModal={addPopup} setShowModal={setAddPopup} />
       {activeRoom && (
         <RoomInfo

@@ -14,6 +14,7 @@ name: 'CodeQL Advanced'
 on:
   push:
     branches: [main, dev]
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   schedule:
@@ -73,16 +74,8 @@ jobs:
       # - name: Setup runtime (example)
       #   uses: actions/setup-example@v1
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # No dependency install needed: both languages use build-mode "none",
+      # which extracts the CodeQL database directly from source.
       # - name: Install CocoaPods 1.14.3
       #   shell: bash
       #   run: |

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CrossClinicMessagingPreference from '@/app/features/settings/pages/Settings/Sections/CrossClinicMessagingPreference';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { updateOrg } from '@/app/features/organization/services/orgService';
@@ -73,5 +73,39 @@ describe('CrossClinicMessagingPreference', () => {
     setOrg(undefined);
     render(<CrossClinicMessagingPreference />);
     expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  // A primary org object that has no _id -> `primaryOrg?._id` resolves to undefined (no nullish
+  // short-circuit) so the switch is still disabled.
+  it('is disabled when the primary org has no id', () => {
+    setOrg({ crossOrgMessagingEnabled: true });
+    render(<CrossClinicMessagingPreference />);
+    const sw = screen.getByRole('switch');
+    // enabled reflects crossOrgMessagingEnabled, but the control is disabled without an id
+    expect(sw).toHaveAttribute('aria-checked', 'true');
+    expect(sw).toBeDisabled();
+  });
+
+  // While the update is in flight, `saving` is true so the switch disables itself
+  // (saving || !primaryOrg?._id) and re-enables in the finally block once it settles.
+  it('disables the switch while a toggle is in flight then re-enables it', async () => {
+    let resolveUpdate!: () => void;
+    mockUpdateOrg.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveUpdate = () => res();
+      })
+    );
+    setOrg({ _id: 'o1', crossOrgMessagingEnabled: false });
+    render(<CrossClinicMessagingPreference />);
+    const sw = screen.getByRole('switch');
+
+    fireEvent.click(sw);
+    await waitFor(() => expect(sw).toBeDisabled());
+
+    await act(async () => {
+      resolveUpdate();
+    });
+    await waitFor(() => expect(sw).not.toBeDisabled());
+    expect(mockNotify).toHaveBeenCalledWith('success', expect.anything());
   });
 });

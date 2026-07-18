@@ -32,10 +32,6 @@ const FormInput = ({
 }: Readonly<FormInputProps>) => {
   const uid = useId();
   const errorId = error ? `${uid}-error` : undefined;
-  const hasValue = String(value ?? '').length > 0;
-  const valueFloatingClass = hasValue
-    ? 'px-1.5 max-w-none -top-[11px] translate-y-0 text-xs! bg-(--whitebg)'
-    : '';
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     onClick?.(e);
@@ -46,65 +42,44 @@ const FormInput = ({
 
   return (
     <div className="w-full">
-      <div className="relative">
-        <input
-          type={intype}
-          name={inname}
-          id={uid}
-          value={value ?? ''}
-          onChange={onChange}
-          autoComplete="off"
-          readOnly={readonly}
-          required
-          placeholder=" "
-          tabIndex={tabIndex}
-          aria-invalid={Boolean(error)}
-          aria-describedby={errorId}
-          aria-label={inlabel}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          onClick={handleInputClick}
-          className={`
-            peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
-            text-body-4 text-text-primary
-            outline-none border
-            ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
-            focus:border-input-border-active!
-            ${className ?? ''}
-          `}
-        />
-        <label
-          htmlFor={uid}
-          className={`
-            pointer-events-none absolute left-4
-            top-1/2 -translate-y-1/2
-            max-w-[calc(100%-2rem)] truncate
-            text-body-4 text-input-text-placeholder
-            transition-all duration-200
-            peer-focus:-top-[11px] peer-focus:translate-y-0
-            peer-focus:text-xs!
-            peer-focus:text-input-text-placeholder-active
-            peer-focus:bg-(--whitebg)
-            peer-focus:px-1.5 peer-focus:max-w-none
-            peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:max-w-none
-            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-xs!
-            peer-not-placeholder-shown:bg-(--whitebg)
-            ${valueFloatingClass}
-          `}
-        >
-          {inlabel}
-        </label>
-      </div>
+      <label
+        htmlFor={uid}
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800"
+      >
+        {inlabel}
+      </label>
+      <input
+        type={intype}
+        name={inname}
+        id={uid}
+        value={value ?? ''}
+        onChange={onChange}
+        autoComplete="off"
+        readOnly={readonly}
+        required
+        tabIndex={tabIndex}
+        aria-invalid={Boolean(error)}
+        aria-describedby={errorId}
+        aria-label={inlabel}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onClick={handleInputClick}
+        className={`
+          h-[42px] w-full rounded-xl border-[1.5px] bg-[var(--field-bg)]
+          px-3.5 text-[14px] text-text-primary outline-none transition-colors
+          placeholder:text-input-text-placeholder
+          disabled:cursor-not-allowed disabled:opacity-60
+          ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
+          focus:border-input-border-active! focus:shadow-[0_0_0_3px_var(--glow-b10)]
+          ${className ?? ''}
+        `}
+      />
 
       {error && (
         <div
           id={errorId}
           role="alert"
-          className={`
-            mt-1.5 flex items-center gap-1 px-4
-            text-caption-2 text-text-error
-          `}
+          className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error"
         >
           <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
           <span>{error}</span>
