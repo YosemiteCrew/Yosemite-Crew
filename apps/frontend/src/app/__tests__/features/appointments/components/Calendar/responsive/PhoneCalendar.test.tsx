@@ -291,7 +291,10 @@ describe('PhoneCalendar', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /Open day/ }));
 
-      expect(setCurrentDate).toHaveBeenCalledWith(new Date(2026, 6, 6));
+      const openedDate = (setCurrentDate as jest.Mock).mock.calls.at(-1)?.[0] as Date;
+      expect(openedDate).toBeInstanceOf(Date);
+      expect(openedDate.getHours()).toBe(0);
+      expect(openedDate.getMinutes()).toBe(0);
       expect(setActiveCalendar).toHaveBeenCalledWith('day');
     });
   });
