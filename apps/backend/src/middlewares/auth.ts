@@ -55,3 +55,12 @@ export const requireMobileAuth = asHandler(
 
 // Routes shared by both products (e.g. /v1/auth/me, logout).
 export const requireAnyAuth = asHandler(createSessionMiddleware());
+
+// Public routes that stay reachable without a session but enrich their
+// response for signed-in callers (e.g. clinic/slot discovery, which the
+// pet-parent mobile app browses signed-out yet the staff web app calls
+// authenticated). Attaches the session when a valid one is present; never
+// rejects when it is absent.
+export const attachSessionIfPresent = asHandler(
+  createSessionMiddleware({ optional: true }),
+);

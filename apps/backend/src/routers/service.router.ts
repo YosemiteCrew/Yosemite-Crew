@@ -1,9 +1,22 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { ServiceController } from "../controllers/web/service.controller";
-import { requireAnyAuth, requireWebAuth } from "src/middlewares/auth";
+import { attachSessionIfPresent, requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
+
+// Clinic and slot discovery is a signed-out surface: the pet-parent mobile app
+// browses organisations and bookable windows before the user authenticates, so
+// these read routes stay reachable without a session. The per-IP limiter is the
+// only budget standing between an anonymous caller and unbounded scraping of the
+// directory or repeated slot computation, so cap it here.
+const publicServiceReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 router.post(
   "/",
@@ -19,31 +32,33 @@ router.post(
   requirePermission("specialities:edit:any"),
   ServiceController.createMany,
 );
-// Read paths are consumed by both the staff web app and the pet-parent mobile
-// app, so they take `requireAnyAuth` rather than a product-specific guard.
-// They are not part of a signed-out surface: without authentication these
-// expose organisation and practitioner data to anonymous callers.
 router.get(
   "/organisation/search",
-  requireAnyAuth,
+  publicServiceReadLimiter,
   ServiceController.listOrganisationByServiceName,
 );
 router.get(
   "/organisation/:organisationId",
-  requireAnyAuth,
+  publicServiceReadLimiter,
   ServiceController.listByOrganisation,
 );
+// Slot routes expose staff identifiers (`vetIds`) only to authenticated callers.
+// `attachSessionIfPresent` binds the session when one is sent (staff web app,
+// signed-in mobile booking) so those responses keep the assignment hint, while
+// anonymous discovery gets the redacted response the controller returns.
 router.post(
   "/bookable-slots",
-  requireAnyAuth,
+  publicServiceReadLimiter,
+  attachSessionIfPresent,
   ServiceController.getBookableSlotsForService,
 );
 router.post(
   "/bookable-slots/calendar-prefill",
-  requireAnyAuth,
+  publicServiceReadLimiter,
+  attachSessionIfPresent,
   ServiceController.getCalendarPrefill,
 );
-router.get("/:id", requireAnyAuth, ServiceController.getServiceById);
+router.get("/:id", publicServiceReadLimiter, ServiceController.getServiceById);
 router.patch(
   "/:id",
   requireWebAuth,
