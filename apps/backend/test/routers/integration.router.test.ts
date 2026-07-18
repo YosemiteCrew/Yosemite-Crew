@@ -7,7 +7,6 @@ const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const IntegrationController = {
   listForOrganisation: jest.fn(),
   getForOrganisation: jest.fn(),
-  credentialMeta: jest.fn(),
   updateCredentials: jest.fn(),
   enable: jest.fn(),
   disable: jest.fn(),
@@ -54,40 +53,6 @@ const indexOfPath = (path: string) =>
   stack().findIndex((entry) => entry.route?.path === path);
 
 describe("integration.router", () => {
-  it("registers the non-secret credential-meta read before the generic provider route and guards it with the view permission", () => {
-    const credentialMetaRoute = findRoute(
-      "/pms/organisation/:organisationId/:provider/credential-meta",
-      "get",
-    );
-    const genericProviderRoute = findRoute(
-      "/pms/organisation/:organisationId/:provider",
-      "get",
-    );
-
-    expect(credentialMetaRoute).toBeDefined();
-    expect(genericProviderRoute).toBeDefined();
-
-    // Must be registered BEFORE the generic /:provider route so ":provider"
-    // does not swallow "credential-meta".
-    expect(
-      indexOfPath(
-        "/pms/organisation/:organisationId/:provider/credential-meta",
-      ),
-    ).toBeLessThan(indexOfPath("/pms/organisation/:organisationId/:provider"));
-
-    // Auth + org scoping + view permission, with the controller as the last layer.
-    const handles = credentialMetaRoute?.stack.map((layer) => layer.handle);
-    expect(handles).toContain(requireWebAuth);
-    const orgScoping = withOrgPermissions.mock.results.map((r) => r.value);
-    const perms = requirePermission.mock.results.map((r) => r.value);
-    expect(orgScoping.some((mw) => handles?.includes(mw))).toBe(true);
-    expect(perms.some((mw) => handles?.includes(mw))).toBe(true);
-    expect(handles?.[handles.length - 1]).toBe(
-      IntegrationController.credentialMeta,
-    );
-    expect(requirePermission).toHaveBeenCalledWith("integrations:view:any");
-  });
-
   it("guards the credential write routes with the edit permission", () => {
     const credentialsRoute = findRoute(
       "/pms/organisation/:organisationId/:provider/credentials",

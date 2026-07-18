@@ -20,7 +20,6 @@ const integrationErrorMock = jest.fn();
 const integrationLastFetchedAtMock = jest.fn();
 const getIntegrationByProviderStateMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
-const getCredentialMetaMock = jest.fn();
 const listIdexxOrdersMock = jest.fn();
 const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
@@ -152,7 +151,6 @@ jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
 jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
-  getCredentialMeta: (...args: any[]) => getCredentialMetaMock(...args),
   listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
   storeIntegrationCredentials: (...args: any[]) => storeIntegrationCredentialsMock(...args),
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
@@ -249,10 +247,6 @@ beforeEach(() => {
   integrationLastFetchedAtMock.mockReturnValue(null);
   getIntegrationByProviderStateMock.mockReturnValue(null);
   listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
-  getCredentialMetaMock.mockResolvedValue({
-    username: 'alpenblick-lab',
-    practiceId: 'DE-40218-AB',
-  });
   listIdexxOrdersMock.mockResolvedValue([
     {
       _id: 'o1',

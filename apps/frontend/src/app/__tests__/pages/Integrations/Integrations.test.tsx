@@ -12,7 +12,6 @@ const loadIntegrationsForPrimaryOrgMock = jest.fn();
 const getOrgIntegrationsMock = jest.fn();
 const getIntegrationByProviderMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
-const getCredentialMetaMock = jest.fn();
 const listIdexxOrdersMock = jest.fn();
 const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
@@ -130,7 +129,6 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getOrgIntegrations: (...args: any[]) => getOrgIntegrationsMock(...args),
   getIntegrationByProvider: (...args: any[]) => getIntegrationByProviderMock(...args),
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
-  getCredentialMeta: (...args: any[]) => getCredentialMetaMock(...args),
   listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
   storeIntegrationCredentials: (...args: any[]) => storeIntegrationCredentialsMock(...args),
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
@@ -165,10 +163,6 @@ describe('Integrations settings', () => {
     useIntegrationsForPrimaryOrgMock.mockReturnValue([enabledIntegration]);
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledIntegration);
     listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
-    getCredentialMetaMock.mockResolvedValue({
-      username: 'alpenblick-lab',
-      practiceId: 'DE-40218-AB',
-    });
     listIdexxOrdersMock.mockResolvedValue([
       {
         _id: 'o1',

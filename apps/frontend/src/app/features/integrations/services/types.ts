@@ -31,15 +31,6 @@ export type ValidateCredentialsResponse = {
   ok: boolean;
 };
 
-/**
- * Non-secret credential metadata surfaced for the inline credentials panel.
- * The backend never returns the password — only the username and practice id.
- */
-export type CredentialMeta = {
-  username: string | null;
-  practiceId: string | null;
-};
-
 export type IdexxTest = {
   _id: string;
   code: string;
