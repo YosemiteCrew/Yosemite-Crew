@@ -8,13 +8,15 @@ import React, {
 } from 'react';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getMonthYear } from '@/app/features/appointments/components/Calendar/helpers';
+import { getEmergencyPillStyle } from '@/app/features/appointments/components/appointmentBoardHelpers';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import Datepicker from '@/app/ui/inputs/Datepicker';
-import { IoAdd, IoAddOutline, IoCaretDown, IoRemoveOutline, IoWarning } from 'react-icons/io5';
+import { IoAdd, IoAddOutline, IoChevronDown, IoRemoveOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import { useHasMounted } from '@/app/hooks/useHasMounted';
 
 type FilterOption = { key: string; name: string };
@@ -42,20 +44,10 @@ const getFilterBorderColor = (filterKey: string, activeFilter: string): string =
   return 'var(--color-text-brand)';
 };
 
-const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
-  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  borderRadius: '16px',
-  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
-  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
-});
-
-const CALENDAR_OPTIONS = [
-  { key: 'day', label: 'Day' },
-  { key: 'week', label: 'Week' },
-  { key: 'team', label: 'Team' },
+const CALENDAR_VIEW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'team', label: 'Team' },
 ];
 
 /**
@@ -120,6 +112,7 @@ const StatusFilterDropdown = ({
 }) => {
   const dropdown = useAnchoredDropdown(180);
   const selectedStatus = statusOptions.find((s) => s.key === activeStatus) ?? statusOptions[0];
+  const isDefault = !selectedStatus || selectedStatus.key === 'all';
 
   return (
     <>
@@ -127,12 +120,12 @@ const StatusFilterDropdown = ({
         ref={dropdown.triggerRef}
         type="button"
         onClick={() => dropdown.setOpen((v) => !v)}
-        className="flex h-12 shrink-0 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between whitespace-nowrap"
+        className="flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-full! transition-colors text-[12px] font-semibold whitespace-nowrap"
         style={
-          selectedStatus?.bg
+          !isDefault && selectedStatus?.bg
             ? {
                 backgroundColor: selectedStatus.bg,
-                color: selectedStatus.text ?? 'var(--color-black-pure)',
+                color: selectedStatus.text ?? 'var(--ink)',
                 borderWidth: '1px',
                 borderStyle: 'solid',
                 borderColor: selectedStatus.border ?? selectedStatus.bg,
@@ -140,14 +133,14 @@ const StatusFilterDropdown = ({
             : {
                 borderWidth: '1px',
                 borderStyle: 'solid',
-                borderColor: 'var(--color-card-border)',
-                color: 'var(--color-text-tertiary)',
+                borderColor: 'var(--hairline)',
+                color: 'var(--ink-muted)',
               }
         }
       >
-        <span>{selectedStatus?.key === 'all' ? 'Status' : (selectedStatus?.name ?? 'Status')}</span>
-        <IoCaretDown
-          size={14}
+        <span>{isDefault ? 'All statuses' : selectedStatus.name}</span>
+        <IoChevronDown
+          size={12}
           className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
         />
       </button>
@@ -205,73 +198,6 @@ const StatusFilterDropdown = ({
   );
 };
 
-const CalendarViewDropdown = ({
-  activeCalendar,
-  setActiveCalendar,
-  isMounted,
-}: {
-  activeCalendar: string;
-  setActiveCalendar: React.Dispatch<React.SetStateAction<string>>;
-  isMounted: boolean;
-}) => {
-  const dropdown = useAnchoredDropdown();
-
-  const handleSelect = (optionKey: string) => {
-    dropdown.setOpen(false);
-    if (optionKey === activeCalendar) return;
-    startTransition(() => {
-      setActiveCalendar(optionKey);
-    });
-  };
-
-  return (
-    <>
-      <button
-        ref={dropdown.triggerRef}
-        type="button"
-        onClick={() => dropdown.setOpen((v) => !v)}
-        className="flex h-12 shrink-0 items-center gap-2 px-3 rounded-2xl! border border-card-border transition-all duration-300 text-body-4 whitespace-nowrap text-text-secondary"
-      >
-        <span>{CALENDAR_OPTIONS.find((o) => o.key === activeCalendar)?.label ?? 'View'}</span>
-        <IoCaretDown
-          size={14}
-          className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
-        />
-      </button>
-      {isMounted &&
-        dropdown.open &&
-        createPortal(
-          <div
-            ref={dropdown.panelRef}
-            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
-            style={dropdown.style}
-          >
-            {CALENDAR_OPTIONS.map((option) => {
-              const isActive = option.key === activeCalendar;
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => handleSelect(option.key)}
-                  className={clsx(
-                    'w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors',
-                    isActive
-                      ? 'font-medium text-text-primary'
-                      : 'text-text-secondary hover:bg-card-hover'
-                  )}
-                >
-                  {option.label}
-                  {isActive && <span className="ml-auto font-semibold">✓</span>}
-                </button>
-              );
-            })}
-          </div>,
-          document.body
-        )}
-    </>
-  );
-};
-
 const FilterPills = ({
   filterOptions,
   activeFilter,
@@ -283,24 +209,17 @@ const FilterPills = ({
   hasEmergency: boolean;
   onToggle: (filterKey: string) => void;
 }) => {
-  const isEmergencyFilterActive = activeFilter === 'emergencies';
   return (
     <>
       {filterOptions.map((filter) => {
         const isEmergencyFilter = filter.key === 'emergencies';
         const isActiveFilter = filter.key === activeFilter;
-        const emergencyTextColor = isEmergencyFilterActive
-          ? 'var(--color-semantic-error-700)'
-          : 'var(--color-neutral-700)';
-        const emergencyIconColor = emergencyTextColor;
-        const emergencyPillStyle = isEmergencyFilter
+        const pillStyle = isEmergencyFilter
           ? getEmergencyPillStyle(isActiveFilter)
           : {
-              borderWidth: isActiveFilter && isEmergencyFilter ? '2px' : '1px',
+              borderWidth: '1px',
               borderStyle: 'solid',
               borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-              backgroundColor:
-                isActiveFilter && isEmergencyFilter ? 'var(--color-danger-soft)' : undefined,
             };
 
         return (
@@ -309,17 +228,16 @@ const FilterPills = ({
             type="button"
             onClick={() => onToggle(filter.key)}
             className={clsx(
-              'relative flex h-12 shrink-0 min-w-32 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
+              'relative flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-3 py-2 rounded-full! text-[12px] font-semibold transition-colors',
               getFilterClassName(filter.key, activeFilter ?? '')
             )}
-            style={emergencyPillStyle}
+            style={pillStyle}
           >
             {isEmergencyFilter && (
-              <IoWarning
-                size={18}
+              <span
                 aria-hidden="true"
-                className="shrink-0"
-                color={emergencyIconColor}
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: 'var(--danger)' }}
               />
             )}
             <span>{filter.name}</span>
@@ -328,8 +246,8 @@ const FilterPills = ({
                 aria-hidden="true"
                 className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
                 style={{
-                  backgroundColor: 'var(--color-semantic-error-700)',
-                  outline: '2px solid white',
+                  backgroundColor: 'var(--danger)',
+                  outline: '2px solid var(--screen)',
                 }}
               />
             )}
@@ -371,7 +289,7 @@ const ZoomToggle = ({
         className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
           isZoomIn
             ? 'text-text-secondary hover:bg-card-hover border border-transparent'
-            : 'bg-white text-text-primary border border-card-border'
+            : 'bg-neutral-0 text-text-primary border border-card-border'
         }`}
       >
         <IoRemoveOutline size={18} />
@@ -415,7 +333,6 @@ const Header = ({
   filterOptions,
   statusOptions,
 }: Headerprops) => {
-  const showCalendarTypeSelector = !!activeCalendar && !!setActiveCalendar;
   const onWheelHorizontal = useWheelToHorizontalScroll();
   const isMounted = useHasMounted();
 
@@ -447,6 +364,18 @@ const Header = ({
         onWheel={onWheelHorizontal}
       >
         <div className="flex w-max items-center gap-3 ml-auto">
+          {activeCalendar && setActiveCalendar && (
+            <SegmentedPill
+              options={CALENDAR_VIEW_OPTIONS}
+              value={activeCalendar}
+              onChange={(next) => {
+                if (next === activeCalendar) return;
+                startTransition(() => setActiveCalendar(next));
+              }}
+              ariaLabel="Calendar view"
+            />
+          )}
+
           {statusOptions && statusOptions.length > 0 && (
             <StatusFilterDropdown
               statusOptions={statusOptions}
@@ -475,14 +404,6 @@ const Header = ({
                 className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
               />
             </>
-          )}
-
-          {showCalendarTypeSelector && (
-            <CalendarViewDropdown
-              activeCalendar={activeCalendar}
-              setActiveCalendar={setActiveCalendar}
-              isMounted={isMounted}
-            />
           )}
 
           {zoomMode && setZoomMode && <ZoomToggle zoomMode={zoomMode} setZoomMode={setZoomMode} />}

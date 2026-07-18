@@ -34,7 +34,8 @@ import AppointmentAvatar from '@/app/features/appointments/components/Appointmen
 import AppointmentEstimatePanel from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentEstimatePanel';
 import { hasUnsavedCentralChanges } from '@/app/features/appointments/components/AppointmentCentralModal/appointmentCentralModalUtils';
 import { IoIosWarning } from 'react-icons/io';
-import { IoAdd, IoChevronDown, IoPaw, IoPerson } from 'react-icons/io5';
+import { IoAdd, IoArrowForward, IoChevronDown, IoPaw, IoPerson } from 'react-icons/io5';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import clsx from 'clsx';
 import type { AppointmentKind } from '@yosemite-crew/types';
 
@@ -699,6 +700,7 @@ type AppointmentFormContentProps = {
   ServiceInfoData: any;
   showError: (field: string) => string | undefined;
   handleSubmit: () => void;
+  onCancel: () => void;
 };
 
 export const AppointmentFormContent = ({
@@ -744,6 +746,7 @@ export const AppointmentFormContent = ({
   ServiceInfoData,
   showError,
   handleSubmit,
+  onCancel,
 }: AppointmentFormContentProps) => (
   <div className="relative">
     <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
@@ -882,18 +885,37 @@ export const AppointmentFormContent = ({
           maxDiscount={ServiceInfoData?.maxDiscount}
         />
 
-        <label className="mt-auto ml-auto flex cursor-pointer select-none items-center justify-end gap-2">
-          <input
-            type="checkbox"
-            aria-label="Mark appointment as emergency"
-            checked={formData.isEmergency ?? false}
-            onChange={(e) =>
-              setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
-            }
-            className="size-4 shrink-0 cursor-pointer"
-          />
-          <span style={text14M}>Is this an Emergency?</span>
-        </label>
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+          <label className="flex cursor-pointer select-none items-center gap-2.5">
+            <input
+              type="checkbox"
+              aria-label="Mark appointment as emergency"
+              checked={formData.isEmergency ?? false}
+              onChange={(e) =>
+                setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
+              }
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className="relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-text-brand"
+              style={{
+                backgroundColor: (formData.isEmergency ?? false) ? 'var(--cta)' : 'var(--divider)',
+              }}
+            >
+              <span
+                className="absolute top-[3px] size-[18px] rounded-full bg-[var(--screen)] transition-all duration-150"
+                style={{ left: (formData.isEmergency ?? false) ? '19px' : '3px' }}
+              />
+            </span>
+            <span className="text-[13px] font-semibold text-[var(--ink-body)]">
+              Mark as emergency
+            </span>
+          </label>
+          <span className="text-[12.5px] text-[var(--ink-faint)]">
+            {selectedClientName?.split(' ')[0] ?? 'The client'} will be notified by push + email
+          </span>
+        </div>
       </div>
     </div>
 
@@ -907,24 +929,14 @@ export const AppointmentFormContent = ({
     )}
 
     <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
-      <button
-        type="button"
+      <Secondary text="Cancel" onClick={onCancel} isDisabled={formState.loading} />
+      <Primary
+        text="Book appointment"
         onClick={handleSubmit}
-        disabled={formState.loading}
-        className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-[11px] whitespace-nowrap font-satoshi text-base font-medium leading-[1.5rem] text-white! disabled:cursor-not-allowed disabled:opacity-60"
-        onPointerDown={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-          e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-        }}
-        onPointerMove={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-          e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-        }}
-      >
-        + Add Appointment
-      </button>
+        isDisabled={formState.loading}
+        icon={<IoArrowForward aria-hidden="true" />}
+        iconPosition="right"
+      />
     </div>
   </div>
 );
@@ -1237,6 +1249,13 @@ const useAddAppointmentCentralModalView = ({
     closeModal();
   }, [closeModal]);
 
+  // Cancel mirrors the header X: honour the unsaved-changes guard (which opens the
+  // discard confirmation) before closing.
+  const handleCancel = useCallback(() => {
+    if (!canCloseModal()) return;
+    closeModal();
+  }, [canCloseModal, closeModal]);
+
   const handleSubmit = async () => {
     dispatchUi({ type: 'setSubmitAttempted', value: true });
     const errors = validateForm(true);
@@ -1400,6 +1419,7 @@ const useAddAppointmentCentralModalView = ({
           ServiceInfoData={ServiceInfoData}
           showError={(field) => showError(field as keyof typeof formDataErrors)}
           handleSubmit={handleSubmit}
+          onCancel={handleCancel}
         />
       </AppointmentCentralModalShell>
 

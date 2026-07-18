@@ -1,5 +1,7 @@
 'use client';
 import React, { useMemo } from 'react';
+import clsx from 'clsx';
+import { IoCheckmarkCircle } from 'react-icons/io5';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { useServicesForPrimaryOrgSpecialities } from '@/app/hooks/useSpecialities';
@@ -107,18 +109,33 @@ const DashboardSteps = () => {
           {steps.map((step: Step) => (
             <div
               key={step.title}
-              className={`flex flex-col items-center justify-between gap-3 p-3 rounded-2xl border border-card-border bg-neutral-0 ${step.isCompleted && 'opacity-50'}`}
+              className={clsx(
+                'flex flex-col items-start justify-between gap-3 p-3 rounded-2xl border border-card-border bg-neutral-0',
+                step.isCompleted && 'opacity-50'
+              )}
             >
-              <div className="flex flex-col items-center">
-                <div className="text-body-4 text-text-primary">{step.title}</div>
-                <div className="text-caption-1 text-text-tertiary text-center">
-                  {step.description}
+              <div className="flex w-full flex-col items-start gap-2">
+                <div className="flex w-full items-center justify-between gap-2">
+                  <div className="text-body-4 text-text-primary">{step.title}</div>
+                  {step.isCompleted ? (
+                    <IoCheckmarkCircle
+                      title="Step complete"
+                      className="size-[19px] shrink-0 text-[var(--success)]"
+                    />
+                  ) : (
+                    <span
+                      title="Step incomplete"
+                      className="size-[18px] shrink-0 rounded-full border-[1.5px] border-[var(--divider)]"
+                    />
+                  )}
                 </div>
+                <div className="text-caption-1 text-text-tertiary">{step.description}</div>
               </div>
               <Secondary
                 href={step.buttonSrc}
                 text={step.buttonText}
                 isDisabled={step.isCompleted}
+                className="w-full"
               />
             </div>
           ))}

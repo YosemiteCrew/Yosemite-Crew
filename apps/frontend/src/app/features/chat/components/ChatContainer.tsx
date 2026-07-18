@@ -38,6 +38,7 @@ import {
   IoSearchOutline,
 } from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
 import ConversationRow from './ConversationRow';
@@ -129,67 +130,31 @@ interface ChatContainerProps {
   onScopeChange?: (scope: ChatScope) => void;
 }
 
-// Active-pill colour per position mirrors the Calendar / Board / Table view
-// switcher (TitleCalendar): primary, success, then the dark text colour.
-const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string; slider: string }> = [
-  // Design labels this audience tab "Clients"; the per-chat "Pet parent" badge is
-  // kept as the fixed owner term on the individual client conversation header.
-  { key: 'clients', label: 'Clients', slider: 'bg-(--color-primary-700)' },
-  { key: 'colleagues', label: 'Colleagues', slider: 'bg-success-700' },
-  { key: 'groups', label: 'Groups', slider: 'bg-text-primary' },
+// Design labels this audience tab "Clients"; the per-chat "Pet parent" badge is
+// kept as the fixed owner term on the individual client conversation header.
+const SCOPE_OPTIONS: ReadonlyArray<{ value: ChatScope; label: string }> = [
+  { value: 'clients', label: 'Clients' },
+  { value: 'colleagues', label: 'Colleagues' },
+  { value: 'groups', label: 'Groups' },
 ];
 
 /**
- * Self-contained audience switcher. The active pill is driven by LOCAL state so
- * it paints and starts sliding immediately on click; the heavier scope change is
- * deferred to the parent on the next macrotask so re-filtering the channel list
- * never blocks the animation. (startTransition is intentionally avoided: it can
- * commit the final state without an intermediate paint, cancelling the CSS
- * transition.) Motion mirrors the Calendar/Board/Table view switcher.
+ * Audience switcher. Uses the shared neutral raised-white-pill SegmentedPill
+ * (track var(--band)+hairline, active segment raised var(--screen) with weight
+ * 700 ink text) per the warm-bone design, replacing the earlier colored
+ * sliding-pill control.
  */
 function ChatScopeSwitcher({
   scope,
   onScopeChange,
 }: Readonly<{ scope?: ChatScope; onScopeChange?: (next: ChatScope) => void }>) {
-  const activeIndex = Math.max(
-    0,
-    SCOPE_TABS.findIndex((t) => t.key === scope)
-  );
-
   return (
-    <fieldset
-      aria-label="Chat audience"
-      className="relative m-0 flex h-10 w-full items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-neutral-0 p-0"
-    >
-      <legend className="sr-only">Chat audience</legend>
-      <div
-        aria-hidden
-        className={clsx(
-          'absolute top-0 bottom-0 w-1/3 rounded-[999px]! transition-all duration-300 ease-in-out',
-          SCOPE_TABS[activeIndex].slider
-        )}
-        style={{ transform: `translateX(${activeIndex * 100}%)` }}
-      />
-      {SCOPE_TABS.map((t, i) => {
-        const isActive = activeIndex === i;
-        return (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => onScopeChange?.(t.key)}
-            aria-pressed={isActive}
-            className={clsx(
-              'relative z-10 flex w-1/3 items-center justify-center gap-1.5 text-body-4 transition-colors',
-              isActive
-                ? 'text-neutral-0 duration-150 delay-150'
-                : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
-            )}
-          >
-            {t.label}
-          </button>
-        );
-      })}
-    </fieldset>
+    <SegmentedPill
+      ariaLabel="Chat audience"
+      value={scope ?? 'clients'}
+      onChange={(next) => onScopeChange?.(next)}
+      options={SCOPE_OPTIONS}
+    />
   );
 }
 
@@ -941,9 +906,9 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
   return (
     <>
       <div className="flex items-center justify-between px-3 pt-3">
-        <Text as="h2" variant="heading-3" className="text-neutral-900">
-          Messages
-        </Text>
+        <h2 className="m-0 font-newsreader text-[22px] font-normal tracking-[-0.015em] text-[var(--ink)]">
+          Chat
+        </h2>
         <button
           type="button"
           onClick={onToggleArchived}
@@ -963,7 +928,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
         <ChatScopeSwitcher scope={scope} onScopeChange={onScopeChange} />
       </div>
       <div className="border-b border-chat-divider p-3">
-        <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
+        <div className="flex min-h-[38px] items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] px-4 py-2 transition-colors focus-within:border-input-border-active">
           <IoSearchOutline className="size-4 shrink-0 text-input-text-placeholder" />
           <input
             value={searchTerm}

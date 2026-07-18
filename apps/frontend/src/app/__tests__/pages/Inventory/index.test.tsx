@@ -10,6 +10,7 @@ import ProtectedInventory, {
   filterDispensaryRecords,
   getDispenseRequestType,
   getInventoryPageTitle,
+  getInventorySubtitle,
   getSupplierName,
   getVisibilityLabel,
   mapDispenseRequestToRecord,
@@ -593,6 +594,26 @@ describe('Inventory Page', () => {
       expect(getSupplierName(inventory[1])).toBe('Other Supplier');
     });
 
+    it('matches derived low-stock rows (no explicit stockHealth) against the low-stock filter', () => {
+      const derivedLow = [
+        {
+          id: 'derived-low',
+          status: 'ACTIVE',
+          stock: { current: 2, reorderLevel: 5 },
+          basicInfo: { name: 'Gauze', category: 'Consumable' },
+        },
+      ] as any[];
+
+      expect(
+        filterAndSortInventory(
+          derivedLow,
+          { ...defaultFilters, visibility: 'ALL', status: 'LOW_STOCK' },
+          '',
+          'name'
+        ).map((item) => item.id)
+      ).toEqual(['derived-low']);
+    });
+
     it('covers inventory helper fallback branches for sparse records and filters', () => {
       const sparseInventory = [
         {
@@ -831,6 +852,17 @@ describe('Inventory Page', () => {
       expect(getInventoryPageTitle('turnover')).toBe('Dispensary');
       expect(getInventoryPageTitle('analytics')).toBe('Turnover');
 
+      expect(getInventorySubtitle('inventory', 3, 1)).toBe(
+        '3 items below reorder point · 1 expired batch'
+      );
+      expect(getInventorySubtitle('inventory', 1, 2)).toBe(
+        '1 item below reorder point · 2 expired batches'
+      );
+      expect(getInventorySubtitle('turnover', 0, 0)).toBe(
+        'Prescriptions waiting to be pulled from stock'
+      );
+      expect(getInventorySubtitle('analytics', 0, 0)).toBeNull();
+
       const added = toggleSetItem(new Set(['open']), 'closed');
       expect(Array.from(added).sort()).toEqual(['closed', 'open']);
       const removed = toggleSetItem(added, 'open');
@@ -864,7 +896,7 @@ describe('Inventory Page', () => {
     expect(screen.getByRole('button', { name: 'Inventory info' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Dispensary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sort by' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sort: Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add product' })).toBeInTheDocument();
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
     expect(screen.queryByTestId('dispensary-table')).not.toBeInTheDocument();
@@ -873,6 +905,71 @@ describe('Inventory Page', () => {
 
     expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
     expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
+  });
+
+  it('counts derived stock-health states (no explicit stockHealth) in the header subtitle', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      // No stockHealth field: the count must derive EXPIRED from the past batch
+      // expiry, exactly like the table's displayStatusLabel does for each row.
+      inventory: [
+        {
+          id: 'exp',
+          status: 'ACTIVE',
+          basicInfo: { name: 'Derived Expired', category: 'Medicine' },
+          batch: { expiryDate: '2020-01-01' },
+          stock: { current: 5 },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
+  });
+
+  it('scopes the header totals to the active visibility (hidden items are not counted)', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: 'active-exp',
+          status: 'ACTIVE',
+          basicInfo: { name: 'Active Expired', category: 'Medicine' },
+          batch: { expiryDate: '2020-01-01' },
+          stock: { current: 5 },
+        },
+        {
+          id: 'hidden-low',
+          status: 'HIDDEN',
+          basicInfo: { name: 'Hidden Low', category: 'Medicine' },
+          stock: { current: 1, reorderLevel: 5 },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    // Default catalog visibility is Active: the active expired item counts, the hidden
+    // low-stock item does not (it is not in the visible view).
+    expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Low stock (0)' })).toBeInTheDocument();
   });
 
   it('exercises inventory filter bar search, filter, and sort callbacks directly', () => {
@@ -892,7 +989,7 @@ describe('Inventory Page', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
     expect(setFilterOpen).toHaveBeenCalledWith(true);
 
     fireEvent.change(screen.getByPlaceholderText('Search inventory'), {
@@ -900,9 +997,67 @@ describe('Inventory Page', () => {
     });
     expect(setFilters).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
     expect(setSortMode).toHaveBeenCalledWith('stock');
+  });
+
+  it('exercises the catalog category chips and low-stock chip', () => {
+    const setFilters = jest.fn();
+    const toggleCategoryFilter = jest.fn();
+
+    render(
+      <InventoryFilterBar
+        filters={{ ...defaultFilters, categories: ['Medicine'], status: 'LOW_STOCK', search: '' }}
+        selectedFilterChips={[]}
+        sortMode="name"
+        setFilterOpen={jest.fn()}
+        setFilters={setFilters}
+        setSortMode={jest.fn()}
+        categoryOptions={['Medicine', 'Food']}
+        toggleCategoryFilter={toggleCategoryFilter}
+        lowStockCount={3}
+      />
+    );
+
+    // The selected category chip renders active (bold); an unselected one toggles.
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveClass('font-bold');
+    fireEvent.click(screen.getByRole('button', { name: 'Food' }));
+    expect(toggleCategoryFilter).toHaveBeenCalledWith('Food');
+
+    // "All" clears the category selection.
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(setFilters).toHaveBeenCalledTimes(1);
+
+    // The danger low-stock chip shows the count and toggles the status filter.
+    const lowStock = screen.getByRole('button', { name: 'Low stock (3)' });
+    expect(lowStock).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(lowStock);
+    expect(setFilters).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders the low-stock chip inactive when the status filter is cleared', () => {
+    // No toggleCategoryFilter provided: clicking a chip is a safe no-op.
+    render(
+      <InventoryFilterBar
+        filters={{ ...defaultFilters, categories: [], status: 'ALL', search: '' }}
+        selectedFilterChips={[]}
+        sortMode="name"
+        setFilterOpen={jest.fn()}
+        setFilters={jest.fn()}
+        setSortMode={jest.fn()}
+        categoryOptions={['Medicine']}
+        lowStockCount={0}
+      />
+    );
+
+    // With no categories selected, "All" is the active chip.
+    expect(screen.getByRole('button', { name: 'All' })).toHaveClass('font-bold');
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }));
+    expect(screen.getByRole('button', { name: 'Low stock (0)' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
   });
 
   it('renders the active filter bar variants directly', () => {
@@ -943,10 +1098,17 @@ describe('Inventory Page', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Status' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pending' }));
-
     expect(setDispensaryStatusFilter).toHaveBeenCalledWith('PENDING');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
+    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('DISPENSED');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not dispensed' }));
+    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('NOT_DISPENSED');
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('ALL');
   });
 
   it('keeps the sort menu open when clicking its trigger or panel', () => {
@@ -961,7 +1123,7 @@ describe('Inventory Page', () => {
       />
     );
 
-    const sortTrigger = screen.getByRole('button', { name: 'Sort by' });
+    const sortTrigger = screen.getByRole('button', { name: 'Sort: Name' });
     fireEvent.click(sortTrigger);
     expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
 
@@ -1174,14 +1336,14 @@ describe('Inventory Page', () => {
 
     expect(getItemOrder()).toEqual(['Alpha', 'Beta', 'Gamma']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     fireEvent.click(screen.getByRole('button', { name: 'Expiry date' }));
 
     await waitFor(() => {
       expect(getItemOrder()).toEqual(['Alpha', 'Beta', 'Gamma']);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Expiry date' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
 
     await waitFor(() => {
@@ -1364,12 +1526,12 @@ describe('Inventory Page', () => {
   it('closes the sort menu on outside click and scroll', () => {
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole('button', { name: 'Expiry date' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     expect(screen.getByRole('button', { name: 'Stock level' })).toBeInTheDocument();
     fireEvent.scroll(window);
     expect(screen.queryByRole('button', { name: 'Stock level' })).not.toBeInTheDocument();
@@ -1378,25 +1540,26 @@ describe('Inventory Page', () => {
   it('opens analytics view and returns to inventory', () => {
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Turnover' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    expect(screen.getByRole('heading', { level: 1, name: /Turnover/ })).toBeInTheDocument();
 
     // The analytics view's segmented control (Stock / Orders / Turnover) returns
     // to the inventory list via the "Stock" segment.
     fireEvent.click(screen.getByRole('button', { name: 'Stock' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Inventory/ })).toBeInTheDocument();
   });
 
-  it('returns to the catalog from the analytics header Catalog button', () => {
+  it('returns to the catalog from the segmented control while in analytics', () => {
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Turnover' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    expect(screen.getByRole('heading', { level: 1, name: /Turnover/ })).toBeInTheDocument();
 
-    // The analytics header exposes its own Catalog button, distinct from the
-    // TurnoverAnalytics sub-nav "Stock" segment.
+    // The view SegmentedPill stays visible in analytics; its Catalog segment
+    // returns to the inventory list (distinct from the TurnoverAnalytics
+    // sub-nav "Stock" segment).
     fireEvent.click(screen.getByRole('button', { name: 'Catalog' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Inventory/ })).toBeInTheDocument();
   });
 
   it('switches between Catalog and Dispensary via the segmented control', () => {
@@ -1432,7 +1595,7 @@ describe('Inventory Page', () => {
 
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
 
     expect(screen.getByTestId('turnover-filters')).toBeInTheDocument();
   });
@@ -1455,7 +1618,7 @@ describe('Inventory Page', () => {
     });
 
     render(<ProtectedInventory />);
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
 
     const count = () => screen.getByTestId('turnover-table').getAttribute('data-count');
 
@@ -1496,7 +1659,7 @@ describe('Inventory Page', () => {
     });
 
     render(<ProtectedInventory />);
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
 
     const count = () => screen.getByTestId('turnover-table').getAttribute('data-count');
 
@@ -2010,7 +2173,6 @@ describe('Inventory Page', () => {
       target: { value: '' },
     });
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
 
     await waitFor(() => {
@@ -2031,7 +2193,6 @@ describe('Inventory Page', () => {
 
     await openDispensaryView('dr-2');
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
 
     await waitFor(() => {

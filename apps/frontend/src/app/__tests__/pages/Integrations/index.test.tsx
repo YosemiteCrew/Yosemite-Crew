@@ -20,6 +20,8 @@ const integrationErrorMock = jest.fn();
 const integrationLastFetchedAtMock = jest.fn();
 const getIntegrationByProviderStateMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
+const getCredentialMetaMock = jest.fn();
+const listIdexxOrdersMock = jest.fn();
 const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
 const enableIntegrationMock = jest.fn();
@@ -35,6 +37,7 @@ jest.mock('next/image', () => ({
   __esModule: true,
   // Render as <img> (alt is an attribute, not text content) so card titles that
   // match their logo alt (e.g. "MSD Veterinary Manual") stay uniquely queryable.
+  // eslint-disable-next-line @next/next/no-img-element
   default: ({ alt }: any) => <img alt={alt || ''} data-testid="mock-next-image" />,
 }));
 
@@ -149,6 +152,8 @@ jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
 jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
+  getCredentialMeta: (...args: any[]) => getCredentialMetaMock(...args),
+  listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
   storeIntegrationCredentials: (...args: any[]) => storeIntegrationCredentialsMock(...args),
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
   enableIntegration: (...args: any[]) => enableIntegrationMock(...args),
@@ -244,6 +249,30 @@ beforeEach(() => {
   integrationLastFetchedAtMock.mockReturnValue(null);
   getIntegrationByProviderStateMock.mockReturnValue(null);
   listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
+  getCredentialMetaMock.mockResolvedValue({
+    username: 'alpenblick-lab',
+    practiceId: 'DE-40218-AB',
+  });
+  listIdexxOrdersMock.mockResolvedValue([
+    {
+      _id: 'o1',
+      idexxOrderId: 'IDX-1',
+      companionId: 'c1',
+      patientName: 'Poppy',
+      tests: ['ear cytology'],
+      modality: 'REFERENCE_LAB',
+      status: 'RUNNING',
+    },
+    {
+      _id: 'o2',
+      idexxOrderId: 'IDX-2',
+      companionId: 'c2',
+      patientName: 'Bruno',
+      tests: ['pre-surgical CBC'],
+      modality: 'INHOUSE',
+      status: 'RESULTED',
+    },
+  ]);
   storeIntegrationCredentialsMock.mockResolvedValue({ provider: 'IDEXX', status: 'disabled' });
   validateIntegrationCredentialsMock.mockResolvedValue({ ok: true });
   enableIntegrationMock.mockResolvedValue({ status: 'enabled' });
@@ -280,8 +309,12 @@ describe('IntegrationsPage — default disabled render', () => {
     expect(screen.getAllByText('Coming soon').length).toBeGreaterThanOrEqual(4);
 
     // Disabled → the "Enable" card button (not the trash quick action) is shown.
-    expect(within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' })).toBeInTheDocument();
-    expect(within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' })).toBeInTheDocument();
+    expect(
+      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' })
+    ).toBeInTheDocument();
+    expect(
+      within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' })
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Disable IDEXX quick action' })
     ).not.toBeInTheDocument();
@@ -308,9 +341,7 @@ describe('IntegrationsPage — default disabled render', () => {
     // hasStoredCredentials === false → "Store credentials" + connect hint + Enable IDEXX.
     expect(within(modal).getByRole('button', { name: 'Store credentials' })).toBeInTheDocument();
     expect(within(modal).getByRole('button', { name: 'Enable IDEXX' })).toBeDisabled();
-    expect(
-      within(modal).getByText('Store credentials first to enable IDEXX.')
-    ).toBeInTheDocument();
+    expect(within(modal).getByText('Store credentials first to enable IDEXX.')).toBeInTheDocument();
     // credentialsStatus "missing" → neutral fallback token label + no validate meta yet.
     expect(within(modal).getByText('Missing')).toBeInTheDocument();
     expect(
@@ -318,7 +349,9 @@ describe('IntegrationsPage — default disabled render', () => {
     ).not.toBeInTheDocument();
     // formatOptionalDate fallback branches.
     expect(within(modal).getByText('Not refreshed yet')).toBeInTheDocument();
-    expect(within(modal).getByText('No linked IVLS devices found for this organization.')).toBeInTheDocument();
+    expect(
+      within(modal).getByText('No linked IVLS devices found for this organization.')
+    ).toBeInTheDocument();
   });
 
   it('closes the settings modal via the Close control', async () => {
@@ -326,7 +359,9 @@ describe('IntegrationsPage — default disabled render', () => {
     await waitForPage();
     await openSettings();
 
-    fireEvent.click(within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'close' }));
+    fireEvent.click(
+      within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'close' })
+    );
     await waitFor(() => expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument());
   });
 });
@@ -351,9 +386,7 @@ describe('IntegrationsPage — enabled render', () => {
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1'));
 
     expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 2');
-    expect(
-      screen.getByRole('button', { name: 'Disable IDEXX quick action' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Disable IDEXX quick action' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Disable MSD Veterinary Manual' })
     ).toBeInTheDocument();
@@ -363,7 +396,24 @@ describe('IntegrationsPage — enabled render', () => {
     expect(
       within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Open manuals' })
     ).toBeInTheDocument();
-    expect(screen.getAllByText('Enabled').length).toBeGreaterThanOrEqual(1);
+    // IDEXX reads as CONNECTED per the design; MSD keeps ENABLED.
+    expect(within(getCard('IDEXX VetConnect PLUS')).getByText('Connected')).toBeInTheDocument();
+    expect(within(getCard('MSD Veterinary Manual')).getByText('Enabled')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('reads the IDEXX action as a neutral "Open workspace" pill and shows the plugin hint', async () => {
+    renderPage();
+    await waitForPage();
+    // Open workspace is the neutral outline (Secondary) pill, not the filled Enable CTA.
+    expect(
+      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Open workspace' })
+    ).toBeInTheDocument();
+    expect(
+      within(getCard('IDEXX VetConnect PLUS')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
+    // Developer-portal plugin hint row.
+    expect(screen.getByText(/More integrations ship as plugins/i)).toBeInTheDocument();
     await flush();
   });
 
@@ -433,6 +483,142 @@ describe('IntegrationsPage — enabled render', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Unable to load linked IDEXX devices.');
+    await flush();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Inline IDEXX credentials panel (design 1:1 replacement for the modal-only gap)
+// ---------------------------------------------------------------------------
+describe('IntegrationsPage — inline credentials panel', () => {
+  beforeEach(() => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
+  });
+
+  it('renders username, practice id, masked password and recent-order rows with badges', async () => {
+    renderPage();
+    await waitForPage();
+
+    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+
+    // Non-secret metadata from getCredentialMeta.
+    expect(await within(panel).findByText('alpenblick-lab')).toBeInTheDocument();
+    expect(within(panel).getByText('DE-40218-AB')).toBeInTheDocument();
+    expect(getCredentialMetaMock).toHaveBeenCalledWith('org-1', 'IDEXX');
+    expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1', limit: 3 });
+
+    // Password is display-only — always the mask, never a real secret.
+    expect(within(panel).getByText('••••••••••')).toBeInTheDocument();
+
+    // Re-validate wired to the existing validate handler.
+    fireEvent.click(within(panel).getByRole('button', { name: 'Re-validate credentials' }));
+    await waitFor(() =>
+      expect(validateIntegrationCredentialsMock).toHaveBeenCalledWith('org-1', 'IDEXX')
+    );
+
+    // Recent orders: real rows with status micro-badges.
+    expect(within(panel).getByText(/Poppy/)).toHaveTextContent('Poppy · ear cytology');
+    expect(within(panel).getByText(/Bruno/)).toHaveTextContent('Bruno · pre-surgical CBC');
+    expect(within(panel).getByText('RUNNING')).toBeInTheDocument();
+    expect(within(panel).getByText('RESULTED')).toBeInTheDocument();
+
+    // Valid credentials → success header line.
+    expect(within(panel).getByText('Credentials validated successfully')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('shows a permission notice (not a false "no orders") when lab-order access is denied', async () => {
+    listIdexxOrdersMock.mockRejectedValue({ response: { status: 403 } });
+    renderPage();
+    await waitForPage();
+
+    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    expect(
+      await within(panel).findByText('You do not have permission to view lab orders')
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText('No recent orders yet')).not.toBeInTheDocument();
+    await flush();
+  });
+
+  it('re-fetches credential metadata after the credentials are updated', async () => {
+    renderPage();
+    await waitForPage();
+    await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    const before = getCredentialMetaMock.mock.calls.length;
+
+    await openSettings();
+    fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'new-user' } });
+    fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'new-pass' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update credentials' }));
+
+    await waitFor(() => expect(getCredentialMetaMock.mock.calls.length).toBeGreaterThan(before));
+    await flush();
+  });
+
+  it('never renders the real password — only the mask, and getCredentialMeta carries no password', async () => {
+    getCredentialMetaMock.mockResolvedValue({
+      username: 'alpenblick-lab',
+      practiceId: 'DE-40218-AB',
+    });
+    renderPage();
+    await waitForPage();
+
+    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    await within(panel).findByText('alpenblick-lab');
+
+    // The credential-meta contract has no password key at all.
+    const metaResult = await getCredentialMetaMock.mock.results[0].value;
+    expect(metaResult).not.toHaveProperty('password');
+    // Only the mask is shown; no plausible secret leaks into the DOM.
+    expect(within(panel).getByText('••••••••••')).toBeInTheDocument();
+    expect(screen.queryByText('hunter2-secret')).not.toBeInTheDocument();
+    await flush();
+  });
+
+  it('shows an honest empty line when there are no recent orders', async () => {
+    listIdexxOrdersMock.mockResolvedValue([]);
+    renderPage();
+    await waitForPage();
+
+    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    expect(await within(panel).findByText('No recent orders yet')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('falls back to "Not available" when credential-meta cannot be fetched', async () => {
+    getCredentialMetaMock.mockRejectedValue(new Error('offline'));
+    renderPage();
+    await waitForPage();
+
+    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    await waitFor(() =>
+      expect(within(panel).getAllByText('Not available').length).toBeGreaterThanOrEqual(1)
+    );
+    await flush();
+  });
+
+  it('shows the invalid header state when credentials are invalid', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(
+      makeEnabledIdexx({ credentialsStatus: 'invalid' })
+    );
+    renderPage();
+    await waitForPage();
+
+    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    expect(within(panel).getByText('Credentials invalid')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('does not render the panel while IDEXX is disconnected', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeDisabledIdexx());
+    renderPage();
+    await waitForPage();
+
+    expect(
+      screen.queryByRole('complementary', { name: 'IDEXX credentials' })
+    ).not.toBeInTheDocument();
+    expect(getCredentialMetaMock).not.toHaveBeenCalled();
+    expect(listIdexxOrdersMock).not.toHaveBeenCalled();
     await flush();
   });
 });
@@ -583,7 +769,9 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Enable IDEXX' }));
 
-    await waitFor(() => expect(validateIntegrationCredentialsMock).toHaveBeenCalledWith('org-1', 'IDEXX'));
+    await waitFor(() =>
+      expect(validateIntegrationCredentialsMock).toHaveBeenCalledWith('org-1', 'IDEXX')
+    );
     await waitFor(() => expect(enableIntegrationMock).toHaveBeenCalledWith('org-1', 'IDEXX'));
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1'));
     await screen.findByRole('button', { name: 'Enable IDEXX' });
@@ -618,9 +806,13 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     await waitForPage();
 
     // Enable directly from the card (isDisabled=saving only).
-    fireEvent.click(within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' }));
+    fireEvent.click(
+      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' })
+    );
 
-    await waitFor(() => expect(validateIntegrationCredentialsMock).toHaveBeenCalledWith('org-1', 'IDEXX'));
+    await waitFor(() =>
+      expect(validateIntegrationCredentialsMock).toHaveBeenCalledWith('org-1', 'IDEXX')
+    );
     expect(enableIntegrationMock).not.toHaveBeenCalled();
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(
@@ -659,7 +851,9 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     renderPage();
     await waitForPage();
 
-    fireEvent.click(within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' }));
+    fireEvent.click(
+      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' })
+    );
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Store IDEXX credentials in settings before enabling.');
@@ -696,7 +890,9 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalled());
     await openSettings();
 
-    fireEvent.click(within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'Disable IDEXX' }));
+    fireEvent.click(
+      within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'Disable IDEXX' })
+    );
 
     await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
     expect(disableIntegrationMock).not.toHaveBeenCalled();
@@ -732,7 +928,9 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalled());
     await openSettings();
 
-    fireEvent.click(within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'Disable IDEXX' }));
+    fireEvent.click(
+      within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'Disable IDEXX' })
+    );
 
     // getEnableDisableLabel(saving=true) → "Updating..." (both the enable/disable and the
     // "Update credentials" buttons read "Updating...") and getIdexxCardButtonLabel(true,true) → "Disabling..."
@@ -817,7 +1015,9 @@ describe('IntegrationsPage — Merck toggle', () => {
     renderPage();
     await waitForPage();
 
-    fireEvent.click(within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' }));
+    fireEvent.click(
+      within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' })
+    );
 
     await waitFor(() => expect(enableMerckMock).toHaveBeenCalledWith('org-1'));
     await waitFor(() =>
@@ -843,7 +1043,9 @@ describe('IntegrationsPage — Merck toggle', () => {
     renderPage();
     await waitForPage();
 
-    fireEvent.click(within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' }));
+    fireEvent.click(
+      within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' })
+    );
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Unable to update MSD Veterinary Manual status.');
@@ -1014,8 +1216,12 @@ describe('IntegrationsPage — misc branches', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh integrations' }));
     // Card enable buttons are gated on saving only, so they reach the org guard.
-    fireEvent.click(within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' }));
-    fireEvent.click(within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' }));
+    fireEvent.click(
+      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' })
+    );
+    fireEvent.click(
+      within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' })
+    );
 
     await flush();
 

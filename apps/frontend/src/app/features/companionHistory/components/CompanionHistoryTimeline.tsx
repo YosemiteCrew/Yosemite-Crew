@@ -1,4 +1,12 @@
-import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import {
   IoArrowForwardOutline,
   IoCheckmarkOutline,
@@ -44,7 +52,6 @@ import { AuditTrail } from '@/app/features/audit/types/audit';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Search from '@/app/ui/inputs/Search';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import { AppointmentLabels, TaskLabels, getStatusStyle } from '@/app/config/statusConfig';
 import {
@@ -1018,6 +1025,79 @@ const getPersistStatusAction = (
 const FILTER_CHIP_BASE =
   'inline-flex items-center rounded-full px-[13px] py-1.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
+// Slim rounded-full pill dropdown for the Status / Sort header selectors, so
+// they read as filter pills consistent with the adjacent history-tab chips
+// (1px --hairline border, --ink-muted text, IoChevronDown) instead of the
+// boxed floating-label LabelDropdown.
+export const PillDropdown = ({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: Array<{ label: string; value: string }>;
+  value: string;
+  onSelect: (value: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? label;
+
+  useEffect(() => {
+    if (!open) return;
+    const node = containerRef.current;
+    /* v8 ignore next -- node is always mounted while the menu is open, so this guard never returns early */
+    if (!node) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!node.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [open]);
+
+  return (
+    <div className="relative w-fit" ref={containerRef}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${label}: ${selectedLabel}`}
+        onClick={() => setOpen((current) => !current)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:border-[var(--divider)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      >
+        <span className="whitespace-nowrap">{selectedLabel}</span>
+        <IoChevronDownOutline
+          size={12}
+          aria-hidden="true"
+          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] py-1 shadow-[0_1px_3px_1px_rgba(0,0,0,0.15)]">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onSelect(option.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center px-3 py-2 text-left text-[12.5px] transition-colors hover:bg-[var(--inset)] ${
+                option.value === value
+                  ? 'font-bold text-[var(--ink)]'
+                  : 'font-medium text-[var(--ink-muted)]'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 type HistoryLoadState = {
   entries: HistoryEntry[];
   auditEntries: AuditTrail[];
@@ -1611,28 +1691,25 @@ const useCompanionHistoryTimelineView = ({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex shrink-0 flex-wrap items-center gap-3">
             {statusFilterOptions.length > 0 ? (
-              <div className="w-44">
-                <LabelDropdown
-                  placeholder="Status"
-                  options={statusFilterOptions.map((option) => ({
-                    label: option.label,
-                    value: option.value,
-                  }))}
-                  defaultOption={statusFilter}
-                  searchable={false}
-                  onSelect={(option) => setStatusFilter(option.value)}
-                />
-              </div>
-            ) : null}
-            <div className="w-42">
-              <LabelDropdown
-                placeholder="Sort by"
-                options={SORT_OPTIONS}
-                defaultOption={sortKey}
-                searchable={false}
-                onSelect={(option) => setSortKey(option.value as SortKey)}
+              <PillDropdown
+                label="Status"
+                options={statusFilterOptions.map((option) => ({
+                  label: option.label,
+                  value: option.value,
+                }))}
+                value={statusFilter}
+                onSelect={setStatusFilter}
               />
-            </div>
+            ) : null}
+            <PillDropdown
+              label="Sort by"
+              options={SORT_OPTIONS.map((option) => ({
+                label: option.label,
+                value: option.value,
+              }))}
+              value={sortKey}
+              onSelect={(value) => setSortKey(value as SortKey)}
+            />
           </div>
           <Search
             value={query}

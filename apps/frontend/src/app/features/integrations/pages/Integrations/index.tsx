@@ -22,19 +22,31 @@ import {
 import { useIntegrationStore } from '@/app/stores/integrationStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { formatDateTimeLocal } from '@/app/lib/date';
+import { logger } from '@/app/lib/logger';
 import {
   disableIntegration,
   enableIntegration,
   getApiErrorMessage,
+  getCredentialMeta,
   listIdexxIvlsDevices,
+  listIdexxOrders,
   storeIntegrationCredentials,
   validateIntegrationCredentials,
 } from '@/app/features/integrations/services/idexxService';
-import { IvlsDevice } from '@/app/features/integrations/services/types';
+import { CredentialMeta, IvlsDevice, LabOrder } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { IoInformationCircleOutline, IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
+import {
+  IoAlertCircleOutline,
+  IoCheckmarkCircle,
+  IoExtensionPuzzleOutline,
+  IoEyeOutline,
+  IoInformationCircleOutline,
+  IoRefreshOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
+import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type StatusTokens = { bg: string; text: string; border: string };
@@ -83,27 +95,9 @@ const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const integrationFilters = [
-  {
-    key: 'all',
-    label: 'All',
-    bg: 'var(--color-badge-blue-bg)',
-    text: 'var(--color-badge-blue-text)',
-    border: 'var(--color-primary-500)',
-  },
-  {
-    key: 'connected',
-    label: 'Connected',
-    bg: 'var(--color-pill-success-bg)',
-    text: 'var(--color-pill-success-text)',
-    border: 'var(--color-pill-success-border)',
-  },
-  {
-    key: 'available',
-    label: 'Available',
-    bg: 'var(--color-pill-info-bg)',
-    text: 'var(--color-pill-info-text)',
-    border: 'var(--color-pill-info-border)',
-  },
+  { key: 'all', label: 'All' },
+  { key: 'connected', label: 'Connected' },
+  { key: 'available', label: 'Available' },
 ] as const;
 
 type ValidateState = 'idle' | 'valid' | 'invalid';
@@ -168,6 +162,81 @@ const getValidateStateMeta = (
   return { text: 'Credentials are invalid or not available.', className: 'text-text-error' };
 };
 
+// Display-only mask for the IDEXX password. The real secret is never fetched
+// or rendered — the backend credential-meta endpoint omits it entirely.
+const MASKED_PASSWORD = '••••••••••';
+
+const formatModalityLabel = (modality?: string | null): string => {
+  const raw = String(modality ?? '').trim();
+  if (!raw) return '';
+  const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const ORDER_STATUS_COMPLETED: StatusTokens = {
+  bg: 'var(--status-completed-bg)',
+  text: 'var(--status-completed-text)',
+  border: 'var(--status-completed-border)',
+};
+const ORDER_STATUS_RUNNING: StatusTokens = {
+  bg: 'var(--status-in-progress-bg)',
+  text: 'var(--status-in-progress-text)',
+  border: 'var(--status-in-progress-border)',
+};
+const ORDER_STATUS_CANCELLED: StatusTokens = {
+  bg: 'var(--status-cancelled-bg)',
+  text: 'var(--status-cancelled-text)',
+  border: 'var(--status-cancelled-border)',
+};
+const ORDER_STATUS_NEUTRAL: StatusTokens = {
+  bg: 'var(--status-requested-bg)',
+  text: 'var(--status-requested-text)',
+  border: 'var(--status-requested-border)',
+};
+
+const resolveOrderStatusBadge = (
+  status?: string | null
+): { label: string; tokens: StatusTokens } => {
+  const key = String(status ?? '')
+    .trim()
+    .toLowerCase();
+  const label = key ? key.replaceAll(/[_-]+/g, ' ').toUpperCase() : 'PENDING';
+  if (/result|complete|final|done/.test(key)) return { label, tokens: ORDER_STATUS_COMPLETED };
+  if (/run|process|progress/.test(key)) return { label, tokens: ORDER_STATUS_RUNNING };
+  if (/error|fail|cancel|reject/.test(key)) return { label, tokens: ORDER_STATUS_CANCELLED };
+  return { label, tokens: ORDER_STATUS_NEUTRAL };
+};
+
+type RecentOrderRow = {
+  key: string;
+  patient: string;
+  description: string;
+  statusLabel: string;
+  tokens: StatusTokens;
+};
+
+// Build honest recent-order rows from real IDEXX order records. Patient falls
+// back to the order reference when the payload carries no denormalized name;
+// description prefers the first ordered test, else the formatted modality.
+const buildRecentOrderRows = (orders: LabOrder[]): RecentOrderRow[] =>
+  orders.slice(0, 3).map((order, index) => {
+    const orderRef = String(order.idexxOrderId ?? '').trim();
+    const patient =
+      String(order.patientName ?? '').trim() ||
+      (orderRef ? `Order ${orderRef}` : '') ||
+      'Lab order';
+    const firstTest = String(order.tests?.[0] ?? '').trim();
+    const description = firstTest || formatModalityLabel(order.modality) || 'Lab work';
+    const { label, tokens } = resolveOrderStatusBadge(order.status);
+    return {
+      key: String(order._id ?? orderRef ?? '') || `order-${index}`,
+      patient,
+      description,
+      statusLabel: label,
+      tokens,
+    };
+  });
+
 const deviceStatusTokens = (key: string): StatusTokens =>
   key === 'active'
     ? {
@@ -218,9 +287,9 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   );
 };
 
-const StatusPill = ({ status }: { status?: string }) => {
+const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
   const key = (status ?? 'disabled').toLowerCase();
-  const normalizedLabel = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  const normalizedLabel = label ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
   const tokens = statusTokens[key];
   const isLive = key === 'enabled';
   return (
@@ -285,6 +354,7 @@ type IdexxActionsState = {
   setSaving: (v: boolean) => void;
   setValidateState: (v: ValidateState) => void;
   setShowSettings: (v: boolean) => void;
+  onCredentialsChanged?: () => void;
 };
 
 const useIdexxActions = (s: IdexxActionsState) => {
@@ -321,6 +391,9 @@ const useIdexxActions = (s: IdexxActionsState) => {
         'IDEXX'
       );
       await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
+      // Credentials (incl. username) just changed: re-pull the panel's metadata so it
+      // does not keep showing the previous username until a reload/reconnect.
+      s.onCredentialsChanged?.();
     } catch (e) {
       s.setError(
         getApiErrorMessage(e, 'Unable to store IDEXX credentials. Please verify and retry.')
@@ -422,6 +495,10 @@ const useIntegrationsPage = () => {
   const integrationError = useIntegrationStore((s) => s.error);
   const integrationsLastFetchedAt = useIntegrationStore((s) => s.lastFetchedAt);
   const [devices, setDevices] = useState<IvlsDevice[]>([]);
+  const [credentialMeta, setCredentialMeta] = useState<CredentialMeta | null>(null);
+  const [recentOrders, setRecentOrders] = useState<LabOrder[]>([]);
+  const [recentOrdersForbidden, setRecentOrdersForbidden] = useState(false);
+  const [credentialMetaRefresh, setCredentialMetaRefresh] = useState(0);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -462,6 +539,42 @@ const useIntegrationsPage = () => {
     setValidateState(resolveValidateState(idexxIntegration?.credentialsStatus));
   }, [idexxIntegration?.credentialsStatus]);
 
+  // Populate the inline credentials panel when IDEXX is connected: non-secret
+  // credential metadata (username/practiceId, never the password) plus the most
+  // recent lab orders. Cleared when disconnected so nothing stale is shown.
+  const idexxConnected = (idexxIntegration?.status ?? '').toLowerCase() === 'enabled';
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!primaryOrgId || !idexxConnected) {
+        setCredentialMeta(null);
+        setRecentOrders([]);
+        setRecentOrdersForbidden(false);
+        return;
+      }
+      const [metaResult, ordersResult] = await Promise.allSettled([
+        getCredentialMeta(primaryOrgId, 'IDEXX'),
+        listIdexxOrders({ organisationId: primaryOrgId, limit: 3 }),
+      ]);
+      if (cancelled) return;
+      setCredentialMeta(metaResult.status === 'fulfilled' ? metaResult.value : null);
+      setRecentOrders(ordersResult.status === 'fulfilled' ? ordersResult.value : []);
+      // A 403 means the signed-in user can open Integrations (integrations:view:any)
+      // but lacks labs:view:any: surface "no access" rather than a false "no orders".
+      setRecentOrdersForbidden(
+        ordersResult.status === 'rejected' &&
+          (ordersResult.reason as { response?: { status?: number } })?.response?.status === 403
+      );
+    };
+    run().catch((error) => {
+      /* v8 ignore next -- defensive: run() resolves its own API failures via allSettled, so this only fires on an unexpected programmer error */
+      logger.error('Failed to load IDEXX credential panel', error);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [primaryOrgId, idexxConnected, credentialMetaRefresh]);
+
   const { handleManualRefresh, handleStoreCredentials, handleValidate, handleEnableDisable } =
     useIdexxActions({
       primaryOrgId,
@@ -476,6 +589,7 @@ const useIntegrationsPage = () => {
       setSaving,
       setValidateState,
       setShowSettings,
+      onCredentialsChanged: () => setCredentialMetaRefresh((n) => n + 1),
     });
 
   const linkedCount = useMemo(() => {
@@ -535,6 +649,9 @@ const useIntegrationsPage = () => {
     idexxStatus,
     idexxEnabled,
     devices,
+    credentialMeta,
+    recentOrders,
+    recentOrdersForbidden,
     saving,
     refreshing,
     showSettings,
@@ -804,18 +921,12 @@ const IntegrationFilterTabs = ({
           type="button"
           onClick={() => setActiveFilter(tab.key)}
           aria-pressed={isActive}
-          className={`min-w-20 text-body-4 px-3 py-1.5 rounded-full! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
-          style={
+          className={clsx(
+            'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
             isActive
-              ? {
-                  backgroundColor: tab.bg,
-                  color: tab.text,
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: tab.border,
-                }
-              : undefined
-          }
+              ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
+              : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
+          )}
         >
           {tab.label}
         </button>
@@ -870,7 +981,10 @@ const IdexxIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX VetConnect PLUS</div>
-            <StatusPill status={s.idexxIntegration?.status} />
+            <StatusPill
+              status={s.idexxIntegration?.status}
+              label={s.idexxEnabled ? 'Connected' : undefined}
+            />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             Order in-house and reference lab work from the appointment workspace; results file to
@@ -885,7 +999,7 @@ const IdexxIntegrationCard = ({
             className="w-full px-4"
           />
           {s.idexxEnabled ? (
-            <Primary
+            <Secondary
               href="/appointments/idexx-workspace"
               text="Open workspace"
               className="w-full px-4"
@@ -1203,6 +1317,130 @@ const IntegrationCards = ({
   );
 };
 
+const PANEL_FIELD_VALUE_CLASS =
+  'flex items-center h-[42px] px-[13px] bg-[var(--field-bg)] border-[1.5px] border-[var(--hairline)] rounded-[12px] text-[13.5px] text-[var(--ink-body)]';
+const PANEL_FIELD_LABEL_CLASS = 'text-[12.5px] font-semibold text-[var(--ink-soft)]';
+
+const metaFieldValue = (value?: string | null): string =>
+  String(value ?? '').trim() || 'Not available';
+
+const CredentialsPanelHeaderStatus = ({ validateState }: { validateState: ValidateState }) => {
+  if (validateState === 'valid') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-[var(--success)]">
+        <IoCheckmarkCircle size={13} aria-hidden="true" />
+        Credentials validated successfully
+      </span>
+    );
+  }
+  if (validateState === 'invalid') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-text-error">
+        <IoAlertCircleOutline size={13} aria-hidden="true" />
+        Credentials invalid
+      </span>
+    );
+  }
+  return (
+    <span className="text-[11.5px] font-semibold text-[var(--ink-faint)]">Awaiting validation</span>
+  );
+};
+
+const RecentOrdersList = ({
+  orders,
+  forbidden,
+}: {
+  orders: LabOrder[];
+  forbidden?: boolean;
+}) => {
+  if (forbidden) {
+    return (
+      <span className="text-[12.5px] text-[var(--ink-muted)]">
+        You do not have permission to view lab orders
+      </span>
+    );
+  }
+  const rows = buildRecentOrderRows(orders);
+  if (rows.length === 0) {
+    return <span className="text-[12.5px] text-[var(--ink-muted)]">No recent orders yet</span>;
+  }
+  return (
+    <>
+      {rows.map((row) => (
+        <span key={row.key} className="flex items-center justify-between gap-2 text-[12.5px]">
+          <span className="min-w-0 truncate font-semibold text-[var(--ink-body)]">
+            {row.patient} &middot; {row.description}
+          </span>
+          <span
+            className="shrink-0 inline-flex items-center rounded-full! border! px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.02em]"
+            style={{
+              backgroundColor: row.tokens.bg,
+              color: row.tokens.text,
+              borderColor: row.tokens.border,
+              borderStyle: 'solid',
+            }}
+          >
+            {row.statusLabel}
+          </span>
+        </span>
+      ))}
+    </>
+  );
+};
+
+const IdexxCredentialsPanel = ({ s }: { s: IntegrationsPageState }) => (
+  <aside
+    aria-label="IDEXX credentials"
+    className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+  >
+    <div className="flex items-center justify-between gap-2 border-b border-[var(--hairline)] px-5 pt-[18px] pb-[14px]">
+      <span className="text-[15px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+        IDEXX credentials
+      </span>
+      <CredentialsPanelHeaderStatus validateState={s.validateState} />
+    </div>
+
+    <div className="flex flex-col gap-[14px] px-5 py-[18px]">
+      <div className="flex flex-col gap-1.5">
+        <span className={PANEL_FIELD_LABEL_CLASS}>VetConnect username</span>
+        <span className={PANEL_FIELD_VALUE_CLASS}>
+          {metaFieldValue(s.credentialMeta?.username)}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className={PANEL_FIELD_LABEL_CLASS}>Password</span>
+        <span className={clsx(PANEL_FIELD_VALUE_CLASS, 'justify-between')}>
+          <span>{MASKED_PASSWORD}</span>
+          <IoEyeOutline size={15} aria-hidden="true" className="text-[var(--ink-faint)]" />
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className={PANEL_FIELD_LABEL_CLASS}>Practice ID</span>
+        <span className={clsx(PANEL_FIELD_VALUE_CLASS, 'tabular-nums')}>
+          {metaFieldValue(s.credentialMeta?.practiceId)}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          s.handleValidate().catch(() => undefined);
+        }}
+        disabled={s.saving}
+        className="flex h-10 items-center justify-center rounded-full! border border-[var(--divider)] text-[13px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--inset)] disabled:opacity-60"
+      >
+        {s.saving ? 'Re-validating…' : 'Re-validate credentials'}
+      </button>
+    </div>
+
+    <div className="mt-auto flex flex-col gap-[9px] border-t border-[var(--hairline)] px-5 py-[14px]">
+      <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+        Recent orders
+      </span>
+      <RecentOrdersList orders={s.recentOrders} forbidden={s.recentOrdersForbidden} />
+    </div>
+  </aside>
+);
+
 const IntegrationsPage = () => {
   const s = useIntegrationsPage();
   const { showNoConnected, showNoAvailable } = getIntegrationEmptyState(
@@ -1213,6 +1451,10 @@ const IntegrationsPage = () => {
   );
   const idexxCardButtonLabel = getIdexxCardButtonLabel(s.saving, s.idexxEnabled);
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
+  // Only mount the right-hand credentials panel when the IDEXX card itself is
+  // visible under the active filter, so filtering to "Available" (which hides a
+  // connected IDEXX card) does not leave the panel orphaned in the grid.
+  const showIdexxPanel = s.showIdexxCard && s.idexxEnabled;
 
   return (
     <div className="yc-page-content">
@@ -1256,21 +1498,43 @@ const IntegrationsPage = () => {
         </div>
       ) : null}
 
-      <IntegrationCards
-        s={s}
-        idexxCardButtonLabel={idexxCardButtonLabel}
-        merckCardButtonLabel={merckCardButtonLabel}
-      />
+      <div
+        className={clsx(
+          'grid items-start gap-4',
+          showIdexxPanel ? 'grid-cols-1 lg:grid-cols-[1.5fr_1fr]' : 'grid-cols-1'
+        )}
+      >
+        <div className="flex min-w-0 flex-col gap-4">
+          <IntegrationCards
+            s={s}
+            idexxCardButtonLabel={idexxCardButtonLabel}
+            merckCardButtonLabel={merckCardButtonLabel}
+          />
 
-      {showNoConnected ? (
-        <output className="text-body-4 text-text-secondary">No connected integrations yet.</output>
-      ) : null}
+          <div className="flex items-center gap-2.5 rounded-[14px] bg-[var(--inset)] px-4 py-3 text-[12.5px] text-[var(--ink-muted)]">
+            <IoExtensionPuzzleOutline
+              size={15}
+              aria-hidden="true"
+              className="shrink-0 text-[var(--blue-text)]"
+            />
+            More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
+          </div>
 
-      {showNoAvailable ? (
-        <output className="text-body-4 text-text-secondary">
-          No available integrations right now.
-        </output>
-      ) : null}
+          {showNoConnected ? (
+            <output className="text-body-4 text-text-secondary">
+              No connected integrations yet.
+            </output>
+          ) : null}
+
+          {showNoAvailable ? (
+            <output className="text-body-4 text-text-secondary">
+              No available integrations right now.
+            </output>
+          ) : null}
+        </div>
+
+        {showIdexxPanel ? <IdexxCredentialsPanel s={s} /> : null}
+      </div>
 
       <IdexxSettingsModal
         showSettings={s.showSettings}

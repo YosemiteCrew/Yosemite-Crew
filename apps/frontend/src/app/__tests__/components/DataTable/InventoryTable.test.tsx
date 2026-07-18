@@ -82,6 +82,7 @@ describe('InventoryTable', () => {
     },
     stock: {
       current: 2,
+      available: 4,
       stockLocation: 'Shelf A',
     },
     pricing: {
@@ -115,7 +116,9 @@ describe('InventoryTable', () => {
     expect(screen.getAllByText('Vaccine').length).toBeGreaterThan(0);
     // The rest of the columns only render in the desktop card-table.
     expect(screen.getByText('Medicine')).toBeInTheDocument();
-    expect(screen.getByText('2 units')).toBeInTheDocument();
+    // On hand + available render with the abbreviated unit ("u").
+    expect(screen.getByText('2 u')).toBeInTheDocument();
+    expect(screen.getByText('4 u')).toBeInTheDocument();
     expect(screen.getByText('$ 5')).toBeInTheDocument();
     expect(screen.getByText('$ 10')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
@@ -291,6 +294,42 @@ describe('InventoryTable', () => {
     // The restock button gains the active-nav highlight for low-stock rows.
     const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
     expect(restockBtn.className).toContain('bg-[var(--nav-active-bg)]');
+  });
+
+  it('abbreviates box units as "bx" when the product name reads as a box', () => {
+    const boxed = makeItem({ basicInfo: { name: 'Vaccine box' } });
+
+    render(
+      <InventoryTable
+        filteredList={[boxed]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('2 bx')).toBeInTheDocument();
+    expect(screen.getByText('4 bx')).toBeInTheDocument();
+  });
+
+  it('keeps an accurate restock action for expired rows (no disposal workflow)', () => {
+    const onRestock = jest.fn();
+    const expiredItem = makeItem({ basicInfo: { status: 'Expired' } });
+
+    render(
+      <InventoryTable
+        filteredList={[expiredItem]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+        onRestock={onRestock}
+      />
+    );
+
+    // The action never disposes stock, so it must not claim to; expired rows keep
+    // the restock label (their danger tint carries the "expired" signal instead).
+    expect(screen.queryByRole('button', { name: 'Dispose Vaccine' })).not.toBeInTheDocument();
+    const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
+    fireEvent.click(restockBtn);
+    expect(onRestock).toHaveBeenCalledWith(expiredItem);
   });
 
   it('renders the margin placeholder when the margin is undefined', () => {

@@ -1,12 +1,12 @@
 import type { TabOption } from '@/app/ui/primitives/TabToggle/TabToggle';
-import { MdOutlineArchive } from 'react-icons/md';
 
 export type ActiveTab = 'services' | 'packages' | 'archive';
 
+// Segmented-pill options for the speciality catalog switcher (per the warm-bone design).
 export const TABS: TabOption[] = [
-  { key: 'services', label: 'All Services' },
-  { key: 'packages', label: 'All Packages' },
-  { key: 'archive', label: 'Archive', icon: <MdOutlineArchive size={14} aria-hidden="true" /> },
+  { key: 'services', label: 'Services' },
+  { key: 'packages', label: 'Packages' },
+  { key: 'archive', label: 'Archive' },
 ];
 
 export const panelId = (key: string) => `panel-${key}`;
