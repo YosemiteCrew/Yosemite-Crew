@@ -600,6 +600,7 @@ textarea:focus-visible {
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
   --success: #008f5d;
+  --warn: #f59e0b;
   /* always-dark spotlight blocks (manifesto / code / phone bezel) */
   --spot: #1d1c1b;
   /* light-surface code card syntax + mockup avatar chips */
@@ -713,6 +714,7 @@ html[data-theme='dark'] {
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --warn: #f5a83c;
   --spot: #17140f;
   --code-str: #8acbb4;
   --avatar-violet-bg: rgba(167, 139, 250, 0.2);
