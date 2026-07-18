@@ -13,7 +13,12 @@ import {
   IoArrowForwardOutline,
 } from 'react-icons/io5';
 
-import { useMagnet, HeroGlow, DISCORD_INVITE_URL } from '@/app/features/marketing/site';
+import {
+  useMagnet,
+  HeroGlow,
+  InkAnnotate,
+  DISCORD_INVITE_URL,
+} from '@/app/features/marketing/site';
 import { postData } from '@/app/services/axios';
 
 const NEWSREADER = 'var(--font-newsreader)';
@@ -684,7 +689,11 @@ function ContactHero() {
         }}
       >
         Talk to a{' '}
-        <em style={{ fontStyle: 'italic', fontWeight: 480, color: 'var(--blue-text)' }}>human.</em>
+        <em style={{ fontStyle: 'italic', fontWeight: 480, color: 'var(--blue-text)' }}>
+          <InkAnnotate type="circle" delay={800}>
+            human.
+          </InkAnnotate>
+        </em>
       </h1>
       <p
         style={{

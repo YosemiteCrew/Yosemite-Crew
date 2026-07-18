@@ -8,6 +8,7 @@ import { postData } from '@/app/services/axios';
 jest.mock('@/app/features/marketing/site', () => ({
   useMagnet: () => ({ current: null }),
   HeroGlow: () => null,
+  InkAnnotate: ({ children }: { children: React.ReactNode }) => children,
   DISCORD_INVITE_URL: 'https://discord.gg/yosemitecrew',
 }));
 

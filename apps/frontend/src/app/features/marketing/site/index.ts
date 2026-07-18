@@ -28,4 +28,12 @@ export {
   type GithubStats,
   type ReleaseInfo,
 } from './useGithubStats';
+export {
+  useRepoInsights,
+  type RepoInsights,
+  type RepoLanguage,
+  type RepoCommit,
+  type RepoContributor,
+  type RepoFacts,
+} from './useRepoInsights';
 export * from './assets';

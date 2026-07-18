@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
       },
       { protocol: 'https', hostname: 'cdn.yc.dev' },
       { protocol: 'https', hostname: 'laika.aitemsolutions.com' },
+      // Live contributor + commit avatars on the public Insights page.
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
     ],
   },
   outputFileTracingExcludes: {

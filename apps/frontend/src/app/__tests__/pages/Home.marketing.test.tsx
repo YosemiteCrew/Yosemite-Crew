@@ -3,6 +3,30 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Home } from '@/app/features/marketing/pages/Home/Home';
 
+type StatsShape = {
+  stars: string | null;
+  starsFull: string | null;
+  selfHosters: string | null;
+  contributors: string | null;
+  discord: string | null;
+};
+const DEFAULT_STATS: StatsShape = {
+  stars: '2.4k',
+  starsFull: '2,400',
+  selfHosters: '67,134',
+  contributors: '128',
+  discord: '3,210',
+};
+const EMPTY_STATS: StatsShape = {
+  stars: null,
+  starsFull: null,
+  selfHosters: null,
+  contributors: null,
+  discord: null,
+};
+// Reassigned per test so the null-stat placeholder path can be exercised.
+let mockStats: StatsShape = DEFAULT_STATS;
+
 jest.mock('next/image', () => ({
   __esModule: true,
   default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
@@ -24,13 +48,7 @@ jest.mock('@/app/features/marketing/site', () => {
     useMagnet: () => React_.createRef(),
     useParallax: () => React_.createRef(),
     InkAnnotate: ({ children }: { children: React.ReactNode }) => children,
-    useGithubStats: () => ({
-      stars: '2.4k',
-      starsFull: '2,400',
-      selfHosters: '67,134',
-      contributors: '128',
-      discord: '3,210',
-    }),
+    useGithubStats: () => mockStats,
     HERO_AVATARS: ['/a.png', '/b.png', '/c.png'],
     COMPANION_PHOTOS: { dog: '/dog.webp', horse: '/horse.webp', cat: '/cat.webp' },
     HERO_VIDEOS: { home: 'https://cdn.example/hero.mp4' },
@@ -41,6 +59,7 @@ jest.mock('@/app/features/marketing/site', () => {
 
 describe('Home marketing page', () => {
   beforeEach(() => {
+    mockStats = DEFAULT_STATS;
     render(<Home />);
   });
 
@@ -91,5 +110,15 @@ describe('Home marketing page', () => {
       'href',
       '/contact-us'
     );
+  });
+});
+
+describe('Home marketing page with no live stats yet', () => {
+  it('falls back to a placeholder for every still-null stat', () => {
+    mockStats = EMPTY_STATS;
+    render(<Home />);
+    // Hero social proof plus the four-metric grid all render the '·' placeholder.
+    expect(screen.getAllByText('·').length).toBeGreaterThanOrEqual(4);
+    expect(screen.getByText(/Trusted by/)).toBeInTheDocument();
   });
 });
