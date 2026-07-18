@@ -32,7 +32,24 @@
   min-width: var(--sidebar-collapsed-width);
   max-width: var(--sidebar-collapsed-width);
   flex: 0 0 var(--sidebar-collapsed-width);
-  padding: 18px 10px 14px;
+  /* Design 76px icon rail: 16px top / 14px bottom, icons centered (0 side). */
+  padding: 16px 10px 14px;
+}
+
+/* Design rail: 18px gap between the 32px logo and the first icon. */
+.sidebar-collapsed .sidebar-routes {
+  margin-top: 18px;
+}
+
+/* Design rail icons are 18px (desktop expanded rows keep 17px). */
+.sidebar-collapsed .route-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-collapsed .route-icon-svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* ---- logo + wordmark ---- */

@@ -113,10 +113,16 @@ function MsgIconButton({
 /** Read-receipt indicator for an outgoing message. */
 function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen: boolean }>) {
   if (sending)
-    return <IoTimeOutline aria-label="Sending" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
+    return (
+      <IoTimeOutline aria-label="Sending" className="h-[11px] w-[11px] text-[var(--ink-faint)]" />
+    );
   if (seen)
-    return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue-text)]" />;
-  return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
+    return (
+      <IoCheckmarkDone aria-label="Seen" className="h-[11px] w-[11px] text-[var(--blue-text)]" />
+    );
+  return (
+    <IoCheckmarkOutline aria-label="Sent" className="h-[11px] w-[11px] text-[var(--ink-faint)]" />
+  );
 }
 
 /** Hover actions: react and reply, plus edit/delete for the user's own messages. */
@@ -295,17 +301,17 @@ function MessageBubble({
       {text.length > 0 && (
         <div
           className={clsx(
-            'px-[15px] py-[11px]',
+            'px-[13px] py-[10px]',
             mine
-              ? 'rounded-[16px_16px_5px_16px] bg-[var(--cta)] text-[var(--cta-text)]'
-              : 'rounded-[16px_16px_16px_5px] border border-[var(--hairline)] bg-[var(--screen-2)] text-[var(--ink-body)]'
+              ? 'rounded-[15px_15px_4px_15px] bg-[var(--cta)] text-[var(--cta-text)]'
+              : 'rounded-[15px_15px_15px_4px] border border-[var(--hairline)] bg-[var(--screen-2)] text-[var(--ink-body)]'
           )}
         >
           <Text
             as="p"
             variant="body-4"
             className={clsx(
-              'text-[13.5px] leading-normal',
+              'text-[13px] leading-normal',
               mine ? 'text-[var(--cta-text)]' : 'text-[var(--ink-body)]'
             )}
           >
@@ -357,8 +363,8 @@ function MessageGutter({
   name,
 }: Readonly<{ mine: boolean; firstOfGroup?: boolean; name: string }>) {
   if (mine) return null;
-  if (firstOfGroup === false) return <span className="w-9 shrink-0" aria-hidden="true" />;
-  return <ChatAvatar name={name} size="sm" />;
+  if (firstOfGroup === false) return <span className="w-[26px] shrink-0" aria-hidden="true" />;
+  return <ChatAvatar name={name} size="xs" />;
 }
 
 export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean }>) {
@@ -450,7 +456,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         </div>
         <span className="flex items-center gap-2 px-1">
           <MessageReactions reactions={reactions} onToggle={handleReaction} />
-          <Text as="span" variant="caption-2" className="text-[var(--ink-faint)] text-[10.5px]">
+          <Text as="span" variant="caption-2" className="text-[var(--ink-faint)] text-[10px]">
             {formatMessageTimeLabel(mine, time, senderName)}
           </Text>
           {mine && <MessageStatusIcon sending={sending} seen={seen} />}

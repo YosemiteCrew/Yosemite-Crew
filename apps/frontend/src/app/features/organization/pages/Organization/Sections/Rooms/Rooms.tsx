@@ -56,7 +56,7 @@ const Rooms = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.ROOM_VIEW_ANY]}>
-      <section className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] overflow-hidden">
+      <section className="bg-[var(--screen)] border border-[var(--hairline)] rounded-2xl shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)] overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-5! pt-4! pb-3!">
           <h2 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
             Rooms <span className="font-medium text-[var(--ink-faint)]">({rooms.length})</span>

@@ -605,7 +605,7 @@ const InsetChipButton = ({
     aria-label={label}
     disabled={disabled}
     onClick={onClick}
-    className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-1 text-[11px] font-semibold text-[var(--ink-body)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60"
+    className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-[5px] text-[10.5px] font-semibold text-[var(--ink-body)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60"
     style={{ background: 'var(--inset)' }}
   >
     <span aria-hidden="true" className="inline-flex text-[var(--blue-text)]">
@@ -740,7 +740,7 @@ const LabResultActions = ({
     <>
       {resultId ? (
         <InsetChipButton
-          icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline size={11} aria-hidden="true" />}
+          icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline size={10} aria-hidden="true" />}
           label={loadingPdf ? 'Loading…' : 'Result PDF'}
           disabled={loadingPdf}
           onClick={() => onOpenResultPdf(entry)}
@@ -748,7 +748,7 @@ const LabResultActions = ({
       ) : null}
       {fallbackUrl ? (
         <InsetChipButton
-          icon={<IoEyeOutline size={11} aria-hidden="true" />}
+          icon={<IoEyeOutline size={10} aria-hidden="true" />}
           label="Acknowledgment PDF"
           onClick={() => onPreviewPdf(entry, fallbackUrl)}
         />
@@ -757,9 +757,9 @@ const LabResultActions = ({
         <InsetChipButton
           icon={
             expanded ? (
-              <IoEyeOffOutline size={11} aria-hidden="true" />
+              <IoEyeOffOutline size={10} aria-hidden="true" />
             ) : (
-              <IoEyeOutline size={11} aria-hidden="true" />
+              <IoEyeOutline size={10} aria-hidden="true" />
             )
           }
           label={expanded ? `Hide ${entry.title}` : `View ${entry.title}`}
@@ -815,7 +815,7 @@ const getEntryActions = ({
   if (entry.type === 'INVOICE' && isPaidInvoice(entry) && fallbackUrl) {
     return (
       <InsetChipButton
-        icon={<IoEyeOutline size={11} aria-hidden="true" />}
+        icon={<IoEyeOutline size={10} aria-hidden="true" />}
         label={`Preview ${entry.title}`}
         onClick={() => onPreviewPdf(entry, fallbackUrl)}
       />
@@ -1023,7 +1023,7 @@ const getPersistStatusAction = (
 };
 
 const FILTER_CHIP_BASE =
-  'inline-flex items-center rounded-full px-[13px] py-1.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
+  'inline-flex items-center rounded-full px-[11px] py-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
 // Slim rounded-full pill dropdown for the Status / Sort header selectors, so
 // they read as filter pills consistent with the adjacent history-tab chips
@@ -1757,10 +1757,10 @@ const useCompanionHistoryTimelineView = ({
 
         <div className="flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+            <span className="text-[14px] font-bold tracking-[-0.02em] text-[var(--ink)]">
               History
             </span>
-            <div role="tablist" className="flex flex-wrap items-center gap-2">
+            <div role="tablist" className="flex flex-wrap items-center gap-1.5">
               {historyFilters.map((filter) => {
                 const active = filter.key === activeFilter;
                 return (

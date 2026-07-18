@@ -35,6 +35,7 @@ import { getMerckGateway } from '@/app/features/integrations/services/merckServi
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
 import {
+  IoChevronForwardOutline,
   IoExtensionPuzzleOutline,
   IoInformationCircleOutline,
   IoRefreshOutline,
@@ -1211,13 +1212,18 @@ const IntegrationsPage = () => {
           merckCardButtonLabel={merckCardButtonLabel}
         />
 
-        <div className="flex items-center gap-2.5 rounded-[14px] bg-[var(--inset)] px-4 py-3 text-[12.5px] text-[var(--ink-muted)]">
-          <IoExtensionPuzzleOutline
-            size={15}
+        <div className="flex items-center gap-2.5 rounded-[16px] border border-[var(--hairline)] px-3.5 py-3 text-[var(--ink-muted)]">
+          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[var(--inset)] text-[var(--cyan-text)]">
+            <IoExtensionPuzzleOutline size={15} aria-hidden="true" />
+          </span>
+          <span className="flex-1 text-[11.5px] leading-[1.45]">
+            More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
+          </span>
+          <IoChevronForwardOutline
+            size={14}
             aria-hidden="true"
-            className="shrink-0 text-[var(--blue-text)]"
+            className="shrink-0 text-[var(--ink-faint)]"
           />
-          More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
         </div>
 
         {showNoConnected ? (

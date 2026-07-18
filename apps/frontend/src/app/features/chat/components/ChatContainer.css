@@ -246,7 +246,7 @@
 }
 
 .str-chat__main-panel .str-chat__list {
-  padding: 16px 16px 8px;
+  padding: 16px 18px 8px;
 }
 
 /* Guard against horizontal overflow anywhere in the conversation pane: long
@@ -413,7 +413,7 @@
 
   /* Tighter message canvas gutters on phones */
   .str-chat__main-panel .str-chat__list {
-    padding: 12px 10px 6px;
+    padding: 14px 16px 6px;
   }
 }
 

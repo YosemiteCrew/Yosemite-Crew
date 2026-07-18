@@ -288,7 +288,7 @@ const LOW_STOCK_STATUS = 'LOW_STOCK';
 
 const chipClass = (active: boolean) =>
   clsx(
-    'inline-flex items-center rounded-full! border px-3 py-1.5 text-[12px] transition-colors',
+    'inline-flex items-center rounded-full! border px-3.5 py-2 text-[12px] transition-colors',
     active
       ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)] font-bold'
       : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
@@ -380,11 +380,11 @@ export const InventoryFilterBar = ({
             }))
           }
           className={clsx(
-            'inline-flex items-center gap-1.5 rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-3 py-1.5 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
+            'inline-flex items-center gap-[5px] rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-3.5 py-2 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
             lowStockActive && 'shadow-[0_1px_3px_var(--sh08)]'
           )}
         >
-          <IoAlertCircleOutline size={13} aria-hidden="true" />
+          <IoAlertCircleOutline size={12} aria-hidden="true" />
           Low stock ({lowStockCount})
         </button>
       </div>

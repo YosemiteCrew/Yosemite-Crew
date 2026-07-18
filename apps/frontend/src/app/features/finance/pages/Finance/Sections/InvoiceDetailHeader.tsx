@@ -71,7 +71,7 @@ const InvoiceDetailHeader = ({
             </h2>
             {statusLabel && (
               <span
-                className="rounded-2xl px-2.5 py-0.5 text-caption-2 border shrink-0"
+                className="rounded-full px-2.5 py-0.5 text-caption-2 border shrink-0"
                 style={statusStyle}
               >
                 {statusLabel}

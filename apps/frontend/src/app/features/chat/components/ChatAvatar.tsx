@@ -9,6 +9,7 @@ import { accentFor, initialsOf } from '@/app/features/chat/components/chatAvatar
  */
 
 const SIZE = {
+  xs: 'size-[26px] text-[9.5px]',
   sm: 'size-9 text-xs',
   md: 'h-11 w-11 text-sm',
   lg: 'size-12 text-base',
@@ -35,7 +36,7 @@ export function ChatAvatar({ name, online, group, size = 'md', className }: Chat
         {group ? <IoPeopleOutline className="h-5 w-5" /> : initialsOf(name)}
       </span>
       {online && (
-        <span className="chat-presence-dot absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--screen-2)] bg-[var(--success)]" />
+        <span className="chat-presence-dot absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--screen-2)] bg-[var(--success)]" />
       )}
     </span>
   );

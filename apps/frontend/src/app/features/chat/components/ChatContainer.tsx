@@ -476,7 +476,7 @@ const ChannelHeaderWithCounterpart: FC<{
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2 border-b border-chat-divider bg-neutral-0 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+      <header className="flex shrink-0 items-center gap-2.5 border-b border-chat-divider bg-neutral-0 px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
         <ChatAvatar
           name={title}
           online={!isGroupChat && !hasSessionClosed && online}
@@ -488,7 +488,7 @@ const ChannelHeaderWithCounterpart: FC<{
             <Text
               as="span"
               variant="body-3-emphasis"
-              className="min-w-0 flex-1 truncate text-[var(--ink)]"
+              className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[var(--ink)]"
             >
               {title}
             </Text>
@@ -500,8 +500,8 @@ const ChannelHeaderWithCounterpart: FC<{
             )}
           </span>
           {online && !isGroupChat && !hasSessionClosed ? (
-            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--success)]">
-              <span className="chat-presence-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]" />
+            <span className="flex min-w-0 items-center gap-1.5 text-[10.5px] text-[var(--success)]">
+              <span className="chat-presence-dot h-[5px] w-[5px] shrink-0 rounded-full bg-[var(--success)]" />
               <span className="truncate">{statusText}</span>
             </span>
           ) : (
@@ -906,7 +906,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
   return (
     <>
       <div className="flex items-center justify-between px-3 pt-3">
-        <h2 className="m-0 font-newsreader text-[22px] font-normal tracking-[-0.015em] text-[var(--ink)]">
+        <h2 className="m-0 font-newsreader text-[20px] font-normal tracking-[-0.015em] text-[var(--ink)]">
           Chat
         </h2>
         <button

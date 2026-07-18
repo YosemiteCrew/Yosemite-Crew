@@ -227,7 +227,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                 rightElement={
                   invoiceStatusLabel ? (
                     <span
-                      className="rounded-2xl px-3 py-0.5 text-caption-1 border"
+                      className="rounded-full px-3 py-0.5 text-caption-1 border"
                       style={invoiceStatusStyle}
                     >
                       {invoiceStatusLabel}
@@ -301,7 +301,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                   <div className="flex items-center justify-between text-body-4 text-text-tertiary">
                     <span>Status</span>
                     <span
-                      className="shrink-0 rounded-2xl border px-2.5 py-0.5 text-caption-2"
+                      className="shrink-0 rounded-full border px-2.5 py-0.5 text-caption-2"
                       style={invoiceStatusStyle}
                     >
                       {invoiceStatusLabel || '-'}

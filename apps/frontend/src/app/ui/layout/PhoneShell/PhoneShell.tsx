@@ -56,6 +56,7 @@ const PhoneShell = () => {
     key: tab.key,
     label: tab.label,
     icon: tab.icon,
+    activeIcon: tab.activeIcon,
     href: tab.href,
     active: tab.isMore ? isActive(tab.activePrefixes) && !moreOpen : isActive(tab.activePrefixes),
     disabled: !isRouteEnabled(tab.routeName),

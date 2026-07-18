@@ -19,12 +19,12 @@ import {
   AttachmentPreviewList,
 } from 'stream-chat-react';
 import {
+  IoArrowUp,
   IoAttachOutline,
   IoDocumentTextOutline,
   IoHappyOutline,
   IoImageOutline,
   IoMicOutline,
-  IoSend,
   IoShareSocialOutline,
 } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -57,7 +57,7 @@ function ComposerIconButton({
       aria-label={label}
       onClick={onClick}
       className={clsx(
-        'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]',
+        'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)] sm:size-9',
         active
           ? 'bg-[var(--screen-2)] text-[var(--blue)]'
           : 'text-[var(--ink-soft)] hover:bg-[var(--screen-2)] hover:text-[var(--ink-body)]'
@@ -110,7 +110,7 @@ export function ChatComposer() {
   };
 
   return (
-    <div className="border-t border-[var(--hairline)] bg-[var(--screen)] px-[22px] py-[14px]">
+    <div className="border-t border-[var(--hairline)] bg-[var(--screen)] px-3.5 pb-2 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3">
       <AttachmentPreviewList />
       {uploadError && (
         <div role="alert" className="mb-2">
@@ -131,7 +131,7 @@ export function ChatComposer() {
           </button>
         ))}
       </div>
-      <div className="flex items-end gap-1.5">
+      <div className="flex items-end gap-2">
         <div className="relative">
           <ComposerIconButton
             label="Add attachment"
@@ -141,7 +141,7 @@ export function ChatComposer() {
               setAttachOpen((o) => !o);
             }}
           >
-            <IoAttachOutline className="h-5 w-5" />
+            <IoAttachOutline className="h-[17px] w-[17px] sm:h-4 sm:w-4" />
           </ComposerIconButton>
           {attachOpen && (
             <>
@@ -190,12 +190,12 @@ export function ChatComposer() {
           )}
         </div>
 
-        <div className="flex min-h-11 flex-1 items-center rounded-full border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-4 transition-colors focus-within:border-[var(--blue)]">
+        <div className="flex min-h-[42px] flex-1 items-center rounded-full border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-[14px] transition-colors focus-within:border-[var(--blue)]">
           <TextareaComposer
             placeholder="Write a message…"
             minRows={1}
             maxRows={6}
-            className="block w-full resize-none self-center bg-transparent font-satoshi text-body-4 leading-6 text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
+            className="block w-full resize-none self-center bg-transparent font-satoshi text-[13px] leading-6 text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
             containerClassName="flex-1"
           />
         </div>
@@ -253,9 +253,9 @@ export function ChatComposer() {
           aria-label="Send message"
           onClick={send}
           disabled={Boolean(cooldownRemaining)}
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--blue)] text-white shadow-[0_8px_20px_var(--glow-b26)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[var(--blue)] text-white shadow-[0_8px_20px_var(--glow-b26)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <IoSend className="h-5 w-5" />
+          <IoArrowUp className="h-[17px] w-[17px]" />
         </button>
       </div>
 

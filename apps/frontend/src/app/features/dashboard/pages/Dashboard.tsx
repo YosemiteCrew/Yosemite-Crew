@@ -68,11 +68,11 @@ const Dashboard = () => {
           <AppointmentStat />
           <RevenueStat />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 mb-2 md:mb-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
           <AppointmentLeadersStat />
           <RevenueLeadersStat />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 mb-2 md:mb-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
           <AnnualInventoryTurnoverStat />
           <IndividualProductTurnoverStat />
         </div>

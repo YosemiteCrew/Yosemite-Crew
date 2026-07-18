@@ -18,7 +18,7 @@ import { Organisation } from '@yosemite-crew/types';
 import React, { useMemo, useState, useRef } from 'react';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import dynamic from 'next/dynamic';
-import { IoCreate } from 'react-icons/io5';
+import { IoCreate, IoCheckmark } from 'react-icons/io5';
 const CalBookingOverlay = dynamic(() => import('@/app/ui/overlays/CalBookingOverlay'), {
   ssr: false,
 });
@@ -390,7 +390,7 @@ const ProfileCard = ({
   };
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-2xl shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]">
       <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between gap-3">
         <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">{title}</div>
         {isActuallyEditable && !isEditing && (
@@ -430,16 +430,17 @@ const ProfileCard = ({
                   onSave={updateOrgLogo}
                   disabled={isDisabled}
                 />
-                <div className="text-[24px] font-newsreader tracking-[-0.015em] text-[var(--ink)]">
+                <div className="text-[15px] font-bold text-[var(--ink)] lg:text-[24px] lg:font-normal lg:font-newsreader lg:tracking-[-0.015em]">
                   {org.name}
                 </div>
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] ${
+                  className={`inline-flex items-center gap-[3px] rounded-full border px-2 py-0.5 text-[8.5px] font-bold uppercase ${
                     org.isVerified
                       ? 'bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]'
                       : 'bg-[var(--status-requested-bg)] text-[var(--status-requested-text)] border-[var(--status-requested-border)]'
                   }`}
                 >
+                  {org.isVerified && <IoCheckmark size={8} aria-hidden="true" />}
                   {org.isVerified ? 'Verified' : 'Pending'}
                 </span>
               </div>

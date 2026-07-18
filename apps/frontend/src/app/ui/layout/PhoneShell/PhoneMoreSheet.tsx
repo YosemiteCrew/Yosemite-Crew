@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { IconType } from 'react-icons';
+import { IoChevronForwardOutline } from 'react-icons/io5';
 
 import BottomSheet from './BottomSheet';
 
@@ -42,56 +43,60 @@ const PhoneMoreSheet = ({ open, onClose, sections, links, onNavigate }: PhoneMor
 
   return (
     <BottomSheet open={open} title="More" onClose={onClose} className="yc-phone-more-sheet">
-      <ul className="yc-phone-more-list">
+      <ul className="yc-phone-more-grid">
         {sections.map((section) => {
           const Icon = section.icon;
           return (
             <li key={section.key}>
               <button
                 type="button"
-                className={`yc-phone-more-row ${section.disabled ? 'yc-phone-more-row-disabled' : ''}`.trim()}
+                className={`yc-phone-more-tile ${section.disabled ? 'yc-phone-more-tile-disabled' : ''}`.trim()}
                 onClick={() => go(section.href)}
                 disabled={section.disabled}
               >
-                <span className="yc-phone-more-icon" aria-hidden>
-                  <Icon size={20} />
+                <span className="yc-phone-more-tile-icon" aria-hidden>
+                  <Icon size={16} />
                 </span>
-                <span className="yc-phone-more-copy">
-                  <span className="yc-phone-more-label">{section.label}</span>
-                  <span className="yc-phone-more-context">{section.context}</span>
+                <span className="yc-phone-more-tile-copy">
+                  <span className="yc-phone-more-tile-label">{section.label}</span>
+                  <span className="yc-phone-more-tile-context">{section.context}</span>
                 </span>
               </button>
             </li>
           );
         })}
       </ul>
-
-      <hr className="yc-phone-more-divider" />
 
       <ul className="yc-phone-more-list">
         {links.map((link) => {
           const Icon = link.icon;
           return (
             <li key={link.key}>
-              <button
-                type="button"
-                className="yc-phone-more-row yc-phone-more-row-compact"
-                onClick={() => go(link.href)}
-              >
-                <span className="yc-phone-more-icon" aria-hidden>
-                  <Icon size={20} />
+              <button type="button" className="yc-phone-more-row" onClick={() => go(link.href)}>
+                <span
+                  className={`yc-phone-more-row-icon yc-phone-more-row-icon-${link.key}`}
+                  aria-hidden
+                >
+                  <Icon size={17} />
                 </span>
-                <span className="yc-phone-more-label">{link.label}</span>
+                <span className="yc-phone-more-row-label">{link.label}</span>
+                <IoChevronForwardOutline
+                  className="yc-phone-more-row-chevron"
+                  size={14}
+                  aria-hidden
+                />
               </button>
             </li>
           );
         })}
+        <li>
+          <div className="yc-phone-more-row yc-phone-more-status-row">
+            <span className="yc-phone-more-status-dot" aria-hidden />
+            <span className="yc-phone-more-row-label">All systems live</span>
+            <span className="yc-phone-more-status-url">status.yosemitecrew.com</span>
+          </div>
+        </li>
       </ul>
-
-      <div className="yc-phone-more-status">
-        <span className="yc-phone-more-status-dot" aria-hidden />
-        {'All systems live'}
-      </div>
     </BottomSheet>
   );
 };
