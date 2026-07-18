@@ -173,7 +173,14 @@ export const evaluateAppUpdatePrompt = (
   }
 
   const storeUrl = resolveStoreUrl(appUpdate, bundleId);
-  const kind: AppUpdatePrompt['kind'] = mustUpdate ? 'required' : 'optional';
+  // A forced update is only emitted as 'required' when there is a store URL to
+  // send the user to. The required sheet is non-dismissible (no close button,
+  // pan, or backdrop dismiss) and its action only opens the store, so a
+  // 'required' prompt without a storeUrl (e.g. an iOS config missing both
+  // storeUrl and appStoreId) would trap the user in the app with no way to
+  // update or leave. Degrade to a dismissible 'optional' prompt in that case.
+  const kind: AppUpdatePrompt['kind'] =
+    mustUpdate && storeUrl ? 'required' : 'optional';
 
   return {
     kind,
