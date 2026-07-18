@@ -421,7 +421,9 @@ export const SpecialityService = {
 
     for (const speciality of specialities) {
       const specialityFHIR = buildFHIRResponseFromPrisma(speciality);
-      const services = await ServiceService.listBySpeciality(speciality.id);
+      const services = await ServiceService.listBySpeciality(
+        speciality.fhirId ?? speciality.id,
+      );
       result.push({
         speciality: specialityFHIR,
         services,
@@ -448,7 +450,7 @@ export const SpecialityService = {
         OR: [{ id: identifier }, { fhirId: identifier }],
         organisationId: orgId,
       },
-      select: { id: true },
+      select: { id: true, fhirId: true },
     });
 
     if (!speciality) {
@@ -458,7 +460,9 @@ export const SpecialityService = {
       );
     }
 
-    await ServiceService.deleteAllBySpecialityId(speciality.id);
+    await ServiceService.deleteAllBySpecialityId(
+      speciality.fhirId ?? speciality.id,
+    );
 
     await prisma.speciality.deleteMany({
       where: { id: speciality.id },

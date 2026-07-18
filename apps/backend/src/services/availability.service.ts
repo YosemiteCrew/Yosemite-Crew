@@ -378,10 +378,15 @@ export const AvailabilityService = {
     });
     if (!override) return null;
     return {
+      _id: override.id,
+      userId: override.userId,
+      organisationId: override.organisationId,
+      weekStartDate: override.weekStartDate,
       overrides: override.overrides as unknown as Array<{
         dayOfWeek: DayOfWeek;
         slots: AvailabilitySlotMongo[];
       }>,
+      createdAt: override.createdAt,
     };
   },
 

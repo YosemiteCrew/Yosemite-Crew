@@ -198,11 +198,18 @@ describe("AvailabilityService", () => {
       expect(call.create.overrides[0].slots[0].startTime).toBe("new");
     });
 
-    it("getWeeklyAvailabilityOverride: should read via prisma", async () => {
+    it("getWeeklyAvailabilityOverride: should read via prisma and map the full override shape", async () => {
+      const weekStartDate = new Date("2026-01-05T00:00:00.000Z");
+      const createdAt = new Date("2026-01-01T00:00:00.000Z");
       (
         prisma.weeklyAvailabilityOverride.findFirst as jest.Mock
       ).mockResolvedValueOnce({
+        id: "wk-1",
+        userId: "u1",
+        organisationId: "org1",
+        weekStartDate,
         overrides: [{ dayOfWeek: "MONDAY", slots: [] }],
+        createdAt,
       });
 
       const res = await AvailabilityService.getWeeklyAvailabilityOverride(
@@ -212,7 +219,14 @@ describe("AvailabilityService", () => {
       );
 
       expect(prisma.weeklyAvailabilityOverride.findFirst).toHaveBeenCalled();
-      expect(res?.overrides).toHaveLength(1);
+      expect(res).toEqual({
+        _id: "wk-1",
+        userId: "u1",
+        organisationId: "org1",
+        weekStartDate,
+        overrides: [{ dayOfWeek: "MONDAY", slots: [] }],
+        createdAt,
+      });
     });
 
     it("deleteWeeklyAvailabilityOverride: should delete via prisma", async () => {

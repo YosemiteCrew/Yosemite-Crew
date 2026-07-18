@@ -254,8 +254,7 @@ export class FormSigningService {
     initiatedBy?: string;
     organisationId?: string;
   }) {
-    const submission =
-      await FormSigningService.loadSubmissionOrThrowPrisma(submissionId);
+    const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
 
     if (isParent) {
       FormSigningService.ensureParentOwnsSubmission(
@@ -353,8 +352,7 @@ export class FormSigningService {
 
   static async getSignedDocument({ submissionId }: { submissionId: string }) {
     // 1️⃣ Load submission
-    const submission =
-      await FormSigningService.loadSubmissionOrThrowPrisma(submissionId);
+    const submission = await this.loadSubmissionOrThrowPrisma(submissionId);
 
     // 2️⃣ Validate signing state
     const signingStatus = FormSigningService.extractSigningStatus(

@@ -187,7 +187,7 @@ export const CodeService = {
     if (safeType) where.type = safeType;
     if (typeof active === "boolean") where.active = active;
 
-    if (typeof query !== "undefined" && typeof query !== "string") {
+    if (query !== undefined && typeof query !== "string") {
       throw new CodeServiceError("Invalid query", 400);
     }
 

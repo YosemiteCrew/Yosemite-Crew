@@ -140,6 +140,7 @@ export const ContactService = {
           phone: input.phone,
         }),
         email: input.email.trim(),
+        organisationId: input.organisationId ?? undefined,
         dsarDetails,
         attachments,
         status: "OPEN",

@@ -40,6 +40,7 @@ jest.mock("../../../src/config/prisma", () => ({
     renderedDocument: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      update: jest.fn(),
     },
     workspaceDocumentPacket: {
       findFirst: jest.fn(),
@@ -269,6 +270,79 @@ describe("Documenso controllers", () => {
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
+
+    it("resets rendered document signing when a rendered document is deleted", async () => {
+      req.body = makeWebhookRequest("DOCUMENT_DELETED");
+      mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+        id: "submission-3",
+        formId: "form-3",
+        signing: { status: "NOT_STARTED", documentId: "123" },
+      });
+      mockedPrisma.formSubmission.update.mockResolvedValue(undefined);
+      mockedPrisma.renderedDocument.findFirst.mockResolvedValue({
+        id: "rendered-del-1",
+      });
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValue({
+        signing: { status: "NOT_STARTED" },
+      });
+      mockedPrisma.renderedDocument.update.mockResolvedValue(undefined);
+
+      await DocumensoWebhookController.handle(req as Request, res as Response);
+
+      expect(mockedPrisma.renderedDocument.findUnique).toHaveBeenCalledWith({
+        where: { id: "rendered-del-1" },
+        select: { signing: true },
+      });
+      expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "rendered-del-1" },
+          data: expect.objectContaining({
+            signing: expect.objectContaining({ status: "NOT_STARTED" }),
+          }),
+        }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("skips rendered document reset when it is already signed", async () => {
+      req.body = makeWebhookRequest("DOCUMENT_DELETED");
+      mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+        id: "submission-4",
+        formId: "form-4",
+        signing: { status: "NOT_STARTED", documentId: "123" },
+      });
+      mockedPrisma.formSubmission.update.mockResolvedValue(undefined);
+      mockedPrisma.renderedDocument.findFirst.mockResolvedValue({
+        id: "rendered-del-2",
+      });
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValue({
+        signing: { status: "SIGNED" },
+      });
+
+      await DocumensoWebhookController.handle(req as Request, res as Response);
+
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("skips rendered document reset when the rendered document is gone", async () => {
+      req.body = makeWebhookRequest("DOCUMENT_DELETED");
+      mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+        id: "submission-5",
+        formId: "form-5",
+        signing: { status: "NOT_STARTED", documentId: "123" },
+      });
+      mockedPrisma.formSubmission.update.mockResolvedValue(undefined);
+      mockedPrisma.renderedDocument.findFirst.mockResolvedValue({
+        id: "rendered-del-3",
+      });
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValue(null);
+
+      await DocumensoWebhookController.handle(req as Request, res as Response);
+
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
   });
 
   describe("DocumensoAuthController", () => {
@@ -389,6 +463,75 @@ describe("Documenso controllers", () => {
         role: "MANAGER" satisfies DocumensoExternalRole,
       });
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("maps unknown or missing roles to MEMBER", async () => {
+      req.params = { orgId: "org-1" };
+      (req as any).userId = "user-1";
+      mockedPrisma.user.findFirst.mockResolvedValue({
+        email: "member@example.com",
+        firstName: "Mem",
+        lastName: "Ber",
+      });
+      mockedOrganizationService.getById.mockResolvedValue({
+        id: "org-1",
+        name: "Member Vet",
+      });
+      mockedPrisma.userOrganization.findFirst.mockResolvedValue(null);
+      mockedDocumensoService.generateExternalRedirectUrl.mockResolvedValue(
+        "https://documenso.example/auth/member",
+      );
+
+      await DocumensoAuthController.createRedirectUrl(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(
+        mockedDocumensoService.generateExternalRedirectUrl,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: "MEMBER" satisfies DocumensoExternalRole,
+        }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({
+        redirectUrl: "https://documenso.example/auth/member",
+      });
+    });
+
+    it("returns 500 when redirect generation throws", async () => {
+      req.params = { orgId: "org-1" };
+      (req as any).userId = "user-1";
+      mockedPrisma.user.findFirst.mockResolvedValue({
+        email: "boom@example.com",
+        firstName: "Boom",
+        lastName: "User",
+      });
+      mockedOrganizationService.getById.mockResolvedValue({
+        id: "org-1",
+        name: "Boom Vet",
+      });
+      mockedPrisma.userOrganization.findFirst.mockResolvedValue({
+        roleCode: "OWNER",
+      });
+      mockedDocumensoService.generateExternalRedirectUrl.mockRejectedValue(
+        new Error("documenso down"),
+      );
+
+      await DocumensoAuthController.createRedirectUrl(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Documenso redirect error:",
+        expect.any(Error),
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to generate Documenso redirect.",
+      });
     });
   });
 
@@ -551,6 +694,65 @@ describe("Documenso controllers", () => {
       expect(statusMock).toHaveBeenCalledWith(404);
       expect(jsonMock).toHaveBeenCalledWith({
         message: "Organisation not found.",
+      });
+    });
+
+    it("masks long organisation ids when storing the key", async () => {
+      const orgId = "organization-1234";
+      req.params = { orgId };
+      req.body = { apiToken: "token-1" };
+      req.headers = {
+        "x-documenso-signature": buildSignature(
+          Buffer.from(JSON.stringify({ apiToken: "token-1" })),
+          "key-secret",
+        ),
+      };
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        id: orgId,
+        documensoApiKey: null,
+      });
+
+      await DocumensoKeyController.storeApiKey(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(mockedPrisma.organization.updateMany).toHaveBeenCalled();
+      expect(mockedLogger.info).toHaveBeenCalledWith(
+        "Documenso API key stored",
+        {
+          orgId: "org***34",
+        },
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ success: true });
+    });
+
+    it("returns 500 when storing the key throws", async () => {
+      req.params = { orgId: "org-1" };
+      req.body = { apiToken: "token-1" };
+      req.headers = {
+        "x-documenso-signature": buildSignature(
+          Buffer.from(JSON.stringify({ apiToken: "token-1" })),
+          "key-secret",
+        ),
+      };
+      mockedPrisma.organization.findFirst.mockRejectedValue(
+        new Error("db down"),
+      );
+
+      await DocumensoKeyController.storeApiKey(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Documenso API key store error:",
+        expect.any(Error),
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to store Documenso API key.",
       });
     });
   });
