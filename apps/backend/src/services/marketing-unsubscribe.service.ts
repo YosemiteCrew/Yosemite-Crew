@@ -129,8 +129,8 @@ const readV2Token = (iv: string, sealed: string): string => {
   let email: string;
   try {
     const sealedBytes = Buffer.from(sealed, "base64url");
-    const tag = sealedBytes.subarray(sealedBytes.length - 16);
-    const ciphertext = sealedBytes.subarray(0, sealedBytes.length - 16);
+    const tag = sealedBytes.subarray(-16);
+    const ciphertext = sealedBytes.subarray(0, -16);
 
     const decipher = createDecipheriv(
       "aes-256-gcm",

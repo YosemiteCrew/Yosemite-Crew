@@ -1875,6 +1875,69 @@ const loadWhenPermitted = async <T>(
   load: () => Promise<T[]>,
 ): Promise<T[]> => (permitted ? load() : []);
 
+// The workspace subject entities (appointment / encounter / companion / client)
+// as they appear in the bootstrap response. Split out of `buildBootstrapAggregate`
+// so that function stays within its cognitive-complexity budget; this is pure
+// shaping of the already-loaded context, no I/O.
+const buildBootstrapEntities = (
+  context: Awaited<ReturnType<typeof buildContext>>,
+  admission: Awaited<ReturnType<typeof loadAdmission>>,
+) => ({
+  appointment: context.appointment
+    ? buildWorkspaceSummaryItem({
+        id: context.appointment.id,
+        name: context.appointment.concern,
+        status: context.appointment.status,
+        kind: context.appointment.appointmentKind,
+        productItemId: context.appointment.productItemId,
+        productKind: context.appointmentProductKind,
+        createdAt: context.appointment.createdAt,
+        updatedAt: context.appointment.updatedAt,
+      })
+    : null,
+  encounter: context.encounter
+    ? {
+        ...context.encounter,
+        // Surface the in-patient admission (with unit) so it round-trips to the
+        // workspace + appointment views; OPD encounters have no admission.
+        admission: admission
+          ? {
+              encounterId: admission.encounterId,
+              organisationId: admission.organisationId,
+              patientId: admission.patientId,
+              unitId: admission.unitId ?? undefined,
+              admittedAt: admission.admittedAt,
+              dischargedAt: admission.dischargedAt ?? undefined,
+            }
+          : undefined,
+      }
+    : null,
+  episodeOfCare: context.episodeOfCare,
+  companion: context.companion
+    ? buildWorkspaceSummaryItem({
+        id: context.companion.id,
+        name: context.companion.name,
+        status: context.companion.status,
+        kind: context.companion.type,
+        createdAt: context.companion.createdAt,
+        updatedAt: context.companion.updatedAt,
+      })
+    : null,
+  client: context.client
+    ? buildWorkspaceSummaryItem({
+        id: context.client.id,
+        name: [context.client.firstName, context.client.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim(),
+        status: null,
+        kind: "CLIENT",
+        createdAt: context.client.createdAt,
+        updatedAt: context.client.updatedAt,
+      })
+    : null,
+});
+
 const buildBootstrapAggregate = async (
   input: WorkspaceBootstrapInput,
   permissions?: string[],
@@ -2041,59 +2104,7 @@ const buildBootstrapAggregate = async (
 
   return {
     organisationId: input.organisationId,
-    appointment: context.appointment
-      ? buildWorkspaceSummaryItem({
-          id: context.appointment.id,
-          name: context.appointment.concern,
-          status: context.appointment.status,
-          kind: context.appointment.appointmentKind,
-          productItemId: context.appointment.productItemId,
-          productKind: context.appointmentProductKind,
-          createdAt: context.appointment.createdAt,
-          updatedAt: context.appointment.updatedAt,
-        })
-      : null,
-    encounter: context.encounter
-      ? {
-          ...context.encounter,
-          // Surface the in-patient admission (with unit) so it round-trips to the
-          // workspace + appointment views; OPD encounters have no admission.
-          admission: admission
-            ? {
-                encounterId: admission.encounterId,
-                organisationId: admission.organisationId,
-                patientId: admission.patientId,
-                unitId: admission.unitId ?? undefined,
-                admittedAt: admission.admittedAt,
-                dischargedAt: admission.dischargedAt ?? undefined,
-              }
-            : undefined,
-        }
-      : null,
-    episodeOfCare: context.episodeOfCare,
-    companion: context.companion
-      ? buildWorkspaceSummaryItem({
-          id: context.companion.id,
-          name: context.companion.name,
-          status: context.companion.status,
-          kind: context.companion.type,
-          createdAt: context.companion.createdAt,
-          updatedAt: context.companion.updatedAt,
-        })
-      : null,
-    client: context.client
-      ? buildWorkspaceSummaryItem({
-          id: context.client.id,
-          name: [context.client.firstName, context.client.lastName]
-            .filter(Boolean)
-            .join(" ")
-            .trim(),
-          status: null,
-          kind: "CLIENT",
-          createdAt: context.client.createdAt,
-          updatedAt: context.client.updatedAt,
-        })
-      : null,
+    ...buildBootstrapEntities(context, admission),
     templateInstances,
     clinicalArtifacts: access.clinical ? clinical.clinicalArtifacts : [],
     vitals: access.clinical ? clinical.vitalRecords : [],

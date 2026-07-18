@@ -421,7 +421,7 @@ export const ParentService = {
         // alerts through the public POST.
         ...(ctx.source === "pms"
           ? {
-              alerts: (parent as Parent & { alerts?: Parent["alerts"] })
+              alerts: (parent as Parent & { alerts: Parent["alerts"] })
                 .alerts as Prisma.InputJsonValue | undefined,
             }
           : {}),
