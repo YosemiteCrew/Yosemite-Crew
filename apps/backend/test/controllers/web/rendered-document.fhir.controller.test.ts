@@ -196,6 +196,26 @@ describe("RenderedDocumentFhirController", () => {
     expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
   });
 
+  it("rejects signing when the user profile is missing an email", async () => {
+    (req as { userId?: string }).userId = "user-1";
+    (mockedUserFindUnique as any).mockResolvedValueOnce({
+      email: null,
+      firstName: "User",
+      lastName: "One",
+    });
+
+    await RenderedDocumentFhirController.signRenderedDocument(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(404);
+    expect(jsonMock).toHaveBeenCalledWith({
+      message: "Signer profile not found.",
+    });
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
   it("maps unexpected errors to a 500 response", async () => {
     mockedGetPersistedRenderedDocument.mockRejectedValueOnce(new Error("boom"));
 

@@ -25,6 +25,7 @@ jest.mock("src/config/prisma", () => ({
       aggregate: jest.fn(),
       findMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
     userOrganization: {
       findMany: jest.fn(),
     },
@@ -46,6 +47,7 @@ describe("DashboardService", () => {
       "Off-Duty",
     );
     (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
   });
 
   // --- 1. getSummary ---
@@ -208,9 +210,13 @@ describe("DashboardService", () => {
 
     it("should aggregate paid invoices", async () => {
       const today = new Date();
-      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
-        { paidAt: today, totalAmount: 100, status: "PAID" },
-        { paidAt: today, totalAmount: 50, status: "PAID" },
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+        {
+          bucket: today,
+          revenue: 150,
+          paidRevenue: 150,
+          cancelledRevenue: 0,
+        },
       ]);
 
       const result = await DashboardService.getRevenueTrend({
@@ -221,12 +227,18 @@ describe("DashboardService", () => {
 
       expect(result[0].revenue).toBe(150);
       expect(result[0].paidRevenue).toBe(150);
+      expect(prisma.$queryRaw).toHaveBeenCalled();
     });
 
     it("should track cancelled revenue separately", async () => {
       const today = new Date();
-      (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([
-        { updatedAt: today, totalAmount: 75, status: "CANCELLED" },
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+        {
+          bucket: today,
+          revenue: 0,
+          paidRevenue: 0,
+          cancelledRevenue: 75,
+        },
       ]);
 
       const result = await DashboardService.getRevenueTrend({
@@ -237,6 +249,7 @@ describe("DashboardService", () => {
 
       expect(result[0].revenue).toBe(0);
       expect(result[0].cancelledRevenue).toBe(75);
+      expect(prisma.$queryRaw).toHaveBeenCalled();
     });
   });
 

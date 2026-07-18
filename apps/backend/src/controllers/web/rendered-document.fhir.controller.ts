@@ -29,12 +29,12 @@ const resolveSignerProfile = async (userId: string) => {
     where: { userId },
     select: { email: true, firstName: true, lastName: true },
   })) as {
-    email: string;
+    email: string | null;
     firstName?: string | null;
     lastName?: string | null;
   } | null;
 
-  if (!user) {
+  if (!user?.email) {
     return null;
   }
 

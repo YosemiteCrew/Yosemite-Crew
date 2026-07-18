@@ -170,6 +170,38 @@ const buildInviteResponseFromPrisma = (
 const generateInviteToken = () =>
   randomBytes(INVITE_TOKEN_BYTES).toString("hex");
 
+const maskIdentifier = (identifier: string) => {
+  if (identifier.length <= 6) {
+    return `${identifier.slice(0, 1)}***`;
+  }
+
+  return `${identifier.slice(0, 3)}***${identifier.slice(-2)}`;
+};
+
+const findOrganisationByIdOrFhirId = async (
+  identifier: string,
+  select:
+    { id?: true; name?: true; type?: true } | { name?: true; type?: true },
+): Promise<OrganisationIdentity | null> => {
+  return (await prisma.organization.findFirst({
+    where: { OR: [{ id: identifier }, { fhirId: identifier }] },
+    select,
+  })) as OrganisationIdentity | null;
+};
+
+const findDepartmentByIdOrFhirId = async (
+  identifier: string,
+  organisationId: string,
+): Promise<DepartmentIdentity | null> => {
+  return (await prisma.speciality.findFirst({
+    where: {
+      organisationId,
+      OR: [{ id: identifier }, { fhirId: identifier }],
+    },
+    select: { id: true },
+  })) as DepartmentIdentity | null;
+};
+
 const createOrReplaceInvitePostgres = async (input: {
   organisationId: string;
   departmentIds: string[];
@@ -228,11 +260,10 @@ const createOrReplaceInvitePostgres = async (input: {
 const findOrganisationOrThrow = async (
   organisationId: string,
 ): Promise<OrganisationIdentity> => {
-  const organisation = await prisma.organization.findFirst({
-    where: {
-      OR: [{ id: organisationId }, { fhirId: organisationId }],
-    },
-    select: { id: true, name: true, type: true },
+  const organisation = await findOrganisationByIdOrFhirId(organisationId, {
+    id: true,
+    name: true,
+    type: true,
   });
 
   if (!organisation) {
@@ -240,7 +271,7 @@ const findOrganisationOrThrow = async (
   }
 
   return {
-    _id: organisation.id,
+    _id: organisation._id,
     name: organisation.name,
     type: organisation.type,
   };
@@ -250,12 +281,10 @@ const ensureDepartmentBelongsToOrganisation = async (
   departmentId: string,
   organisationId: string,
 ): Promise<DepartmentIdentity> => {
-  const department = await prisma.speciality.findFirst({
-    where: {
-      organisationId,
-      OR: [{ id: departmentId }, { fhirId: departmentId }],
-    },
-  });
+  const department = await findDepartmentByIdOrFhirId(
+    departmentId,
+    organisationId,
+  );
 
   if (!department) {
     throw new OrganisationInviteServiceError(
@@ -265,7 +294,7 @@ const ensureDepartmentBelongsToOrganisation = async (
   }
 
   return {
-    _id: department.id,
+    _id: department._id,
   };
 };
 
@@ -301,7 +330,7 @@ const ensureUserOrganizationMembership = async (
         "User already associated with organisation role; skipping duplicate creation.",
         {
           organisationId,
-          practitionerReference,
+          userId: maskIdentifier(practitionerReference),
           role,
         },
       );
@@ -538,17 +567,16 @@ export const OrganisationInviteService = {
 
     if (!invites.length) return [];
 
-    const results = [];
+    const results: Array<{
+      invite: OrganisationInviteResponse;
+      organisationName?: string;
+      organisationType?: string;
+    }> = [];
     for (const invite of invites) {
-      const organisation = await prisma.organization.findFirst({
-        where: {
-          OR: [
-            { id: invite.organisationId },
-            { fhirId: invite.organisationId },
-          ],
-        },
-        select: { name: true, type: true },
-      });
+      const organisation = await findOrganisationByIdOrFhirId(
+        invite.organisationId,
+        { name: true, type: true },
+      );
 
       results.push({
         invite: buildInviteResponseFromPrisma(invite),
@@ -630,7 +658,7 @@ export const OrganisationInviteService = {
     logger.info("Organisation invite accepted.", {
       inviteId: updatedInvite.id,
       organisationId: updatedInvite.organisationId,
-      userId: safeUserId,
+      userId: maskIdentifier(safeUserId),
     });
 
     return buildInviteResponseFromPrisma(updatedInvite);
@@ -670,7 +698,7 @@ export const OrganisationInviteService = {
     logger.info("Organisation invite rejected.", {
       inviteId: updatedInvite.id,
       organisationId: updatedInvite.organisationId,
-      userId: safeUserId,
+      userId: maskIdentifier(safeUserId),
     });
 
     return buildInviteResponseFromPrisma(updatedInvite);

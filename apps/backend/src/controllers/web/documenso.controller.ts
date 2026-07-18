@@ -48,6 +48,20 @@ function parseWebhookEvent(body: DocumensoWebhookBody) {
   return { eventType, documentId: String(documentId) };
 }
 
+function maskIdentifier(identifier: string) {
+  const trimmed = identifier.trim();
+
+  if (!trimmed) {
+    return "[redacted]";
+  }
+
+  if (trimmed.length <= 6) {
+    return `${trimmed.slice(0, 1)}***`;
+  }
+
+  return `${trimmed.slice(0, 3)}***${trimmed.slice(-2)}`;
+}
+
 async function findWebhookSubmission(documentId: string) {
   return prisma.formSubmission.findFirst({
     where: {
@@ -134,6 +148,7 @@ async function persistDocumensoApiKey(
 ): Promise<{ stored: boolean; notFound: boolean }> {
   const organisation = await prisma.organization.findFirst({
     where: { OR: [{ id: orgId }, { fhirId: orgId }] },
+    select: { id: true, documensoApiKey: true },
   });
 
   if (!organisation) {
@@ -199,8 +214,7 @@ export const DocumensoWebhookController = {
       const rawBody = req.body as Buffer;
 
       const signature = req.headers["x-documenso-signature"] as
-        | string
-        | undefined;
+        string | undefined;
       if (!isDocumensoWebhookSignatureValid(rawBody, signature)) {
         return res.status(401).end();
       }
@@ -340,8 +354,7 @@ export const DocumensoKeyController = {
     try {
       logger.info("Getting Webhook request from documenso");
       const signature = req.headers["x-documenso-signature"] as
-        | string
-        | undefined;
+        string | undefined;
       const secret = process.env.DOCUMENSO_PMS_WEBHOOK_SECRET;
 
       if (!secret) {
@@ -379,19 +392,25 @@ export const DocumensoKeyController = {
 
       const { orgId } = req.params;
       if (!isValidOrganizationReference(orgId)) {
-        logger.warn("Documenso key webhook invalid org id", { orgId });
+        logger.warn("Documenso key webhook invalid org id", {
+          orgId: maskIdentifier(orgId),
+        });
         return res.status(400).json({ message: "Invalid organisation id." });
       }
 
       const result = await persistDocumensoApiKey(orgId, body.apiToken);
 
       if (result.notFound) {
-        logger.warn("Documenso key webhook org not found", { orgId });
+        logger.warn("Documenso key webhook org not found", {
+          orgId: maskIdentifier(orgId),
+        });
         return res.status(404).json({ message: "Organisation not found." });
       }
 
       if (result.stored) {
-        logger.info("Documenso API key stored", { orgId });
+        logger.info("Documenso API key stored", {
+          orgId: maskIdentifier(orgId),
+        });
         return res.status(200).json({ success: true });
       }
 

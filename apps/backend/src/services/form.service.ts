@@ -251,55 +251,54 @@ const fetchTemplateForms = async (
   }
 
   const forms = await prisma.form.findMany({ where });
-  return forms.map(
-    (form) =>
-      ({
-        _id: form.id,
-        orgId: form.orgId,
-        businessType: form.businessType ?? undefined,
-        name: form.name,
-        category: form.category,
-        description: form.description ?? undefined,
-        visibilityType: normalizeVisibilityType(form.visibilityType),
-        serviceId: form.serviceId,
-        speciesFilter: form.speciesFilter ?? undefined,
-        requiredSigner: form.requiredSigner ?? undefined,
-        status: form.status,
-        schema: coerceFormFields(form.schema),
-        createdBy: form.createdBy,
-        updatedBy: form.updatedBy,
-        createdAt: form.createdAt,
-        updatedAt: form.updatedAt,
-      }) satisfies LeanForm,
-  );
+  return forms.map(mapPrismaFormToLeanForm);
 };
+
+const mapPrismaFormToLeanForm = (form: {
+  id: string;
+  orgId: string;
+  businessType: PrismaOrganizationType | null;
+  name: string;
+  category: string;
+  description: string | null;
+  visibilityType: PrismaFormVisibilityType | null;
+  serviceId: Form["serviceId"];
+  speciesFilter: string[] | null;
+  requiredSigner: PrismaFormRequiredSigner | null;
+  status: PrismaFormStatus;
+  schema: unknown;
+  createdBy: string;
+  updatedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): LeanForm =>
+  ({
+    _id: form.id,
+    orgId: form.orgId,
+    businessType: form.businessType ?? undefined,
+    name: form.name,
+    category: form.category,
+    description: form.description ?? undefined,
+    visibilityType: normalizeVisibilityType(
+      form.visibilityType ?? PrismaFormVisibilityType.External,
+    ),
+    serviceId: form.serviceId,
+    speciesFilter: form.speciesFilter ?? undefined,
+    requiredSigner: form.requiredSigner ?? undefined,
+    status: form.status,
+    schema: coerceFormFields(form.schema),
+    createdBy: form.createdBy,
+    updatedBy: form.updatedBy,
+    createdAt: form.createdAt,
+    updatedAt: form.updatedAt,
+  }) satisfies LeanForm;
 
 const fetchFormsByIds = async (formIds: Set<string>): Promise<LeanForm[]> => {
   if (!formIds.size) return [];
   const forms = await prisma.form.findMany({
     where: { id: { in: [...formIds] }, status: "published" },
   });
-  return forms.map(
-    (form) =>
-      ({
-        _id: form.id,
-        orgId: form.orgId,
-        businessType: form.businessType ?? undefined,
-        name: form.name,
-        category: form.category,
-        description: form.description ?? undefined,
-        visibilityType: normalizeVisibilityType(form.visibilityType),
-        serviceId: form.serviceId,
-        speciesFilter: form.speciesFilter ?? undefined,
-        requiredSigner: form.requiredSigner ?? undefined,
-        status: form.status,
-        schema: coerceFormFields(form.schema),
-        createdBy: form.createdBy,
-        updatedBy: form.updatedBy,
-        createdAt: form.createdAt,
-        updatedAt: form.updatedAt,
-      }) satisfies LeanForm,
-  );
+  return forms.map(mapPrismaFormToLeanForm);
 };
 
 const mergeFormsById = (formsById: LeanForm[], templateForms: LeanForm[]) => {

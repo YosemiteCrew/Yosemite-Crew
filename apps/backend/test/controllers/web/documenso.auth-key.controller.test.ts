@@ -476,6 +476,10 @@ describe("Documenso controllers", () => {
       expect(jsonMock).toHaveBeenCalledWith({
         message: "Invalid organisation id.",
       });
+      expect(mockedLogger.warn).toHaveBeenCalledWith(
+        "Documenso key webhook invalid org id",
+        { orgId: "[redacted]" },
+      );
     });
 
     it("stores the key when the organisation has none", async () => {

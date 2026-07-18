@@ -1,6 +1,7 @@
 // src/services/dashboard.service.ts
 import dayjs from "dayjs";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { AvailabilityService } from "src/services/availability.service";
 
@@ -18,10 +19,7 @@ export class DashboardServiceError extends Error {
  * Types for responses
  */
 export type DashboardRange =
-  | "last_week"
-  | "last_month"
-  | "last_6_months"
-  | "last_1_year";
+  "last_week" | "last_month" | "last_6_months" | "last_1_year";
 
 export type LegacyRange =
   | "today"
@@ -347,55 +345,57 @@ export const DashboardService = {
 
     const { from, to } = resolveRange(range);
 
-    const rows = await prisma.invoice.findMany({
-      where: {
-        organisationId,
-        OR: [
-          { status: "PAID", paidAt: { gte: from, lte: to } },
-          { status: "CANCELLED", updatedAt: { gte: from, lte: to } },
-        ],
-      },
-      select: {
-        paidAt: true,
-        updatedAt: true,
-        totalAmount: true,
-        status: true,
-      },
-    });
-
-    const bucketMap = new Map<
-      string,
-      {
-        year: number;
-        month: number;
-        day: number | null;
+    const rows = await prisma.$queryRaw<
+      Array<{
+        bucket: Date;
         revenue: number;
         paidRevenue: number;
         cancelledRevenue: number;
-      }
+      }>
+    >(Prisma.sql`
+      SELECT
+        date_trunc(
+          ${bucket === "day" ? "day" : "month"},
+          CASE
+            WHEN status = 'PAID' THEN "paidAt"
+            ELSE "updatedAt"
+          END
+        ) AS "bucket",
+        COALESCE(
+          SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
+          0
+        ) AS "revenue",
+        COALESCE(
+          SUM(CASE WHEN status = 'PAID' THEN "totalAmount" ELSE 0 END),
+          0
+        ) AS "paidRevenue",
+        COALESCE(
+          SUM(CASE WHEN status = 'CANCELLED' THEN "totalAmount" ELSE 0 END),
+          0
+        ) AS "cancelledRevenue"
+      FROM "Invoice"
+      WHERE
+        "organisationId" = ${organisationId}
+        AND (
+          (status = 'PAID' AND "paidAt" >= ${from} AND "paidAt" <= ${to})
+          OR (status = 'CANCELLED' AND "updatedAt" >= ${from} AND "updatedAt" <= ${to})
+        )
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `);
+
+    const bucketMap = new Map<
+      string,
+      { revenue: number; paidRevenue: number; cancelledRevenue: number }
     >();
     for (const row of rows) {
-      const relevantDate = row.status === "PAID" ? row.paidAt : row.updatedAt;
-      if (!relevantDate) continue;
-      const d = dayjs(relevantDate);
-      const { year, month, day } = mapBucketToDateParts(d, bucket);
+      const d = dayjs(row.bucket);
       const key = getBucketKey(d, bucket);
-      const entry = bucketMap.get(key) ?? {
-        year,
-        month,
-        day: bucket === "day" ? day : null,
-        revenue: 0,
-        paidRevenue: 0,
-        cancelledRevenue: 0,
-      };
-      if (row.status === "PAID") {
-        entry.paidRevenue += row.totalAmount ?? 0;
-        entry.revenue += row.totalAmount ?? 0;
-      }
-      if (row.status === "CANCELLED") {
-        entry.cancelledRevenue += row.totalAmount ?? 0;
-      }
-      bucketMap.set(key, entry);
+      bucketMap.set(key, {
+        revenue: row.revenue ?? 0,
+        paidRevenue: row.paidRevenue ?? 0,
+        cancelledRevenue: row.cancelledRevenue ?? 0,
+      });
     }
 
     return buildBucketSeries(from, to, bucket).map((point) => {
