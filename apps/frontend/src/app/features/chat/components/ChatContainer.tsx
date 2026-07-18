@@ -130,11 +130,13 @@ interface ChatContainerProps {
   onScopeChange?: (scope: ChatScope) => void;
 }
 
-// Design labels this audience tab "Clients"; the per-chat "Pet parent" badge is
-// kept as the fixed owner term on the individual client conversation header.
+// Design labels these audience tabs "Clients / Team / Groups" (the middle tab
+// reads "Team", not "Colleagues"; the scope value stays `colleagues`). The
+// per-chat "Pet parent" badge is kept as the fixed owner term on the individual
+// client conversation header.
 const SCOPE_OPTIONS: ReadonlyArray<{ value: ChatScope; label: string }> = [
   { value: 'clients', label: 'Clients' },
-  { value: 'colleagues', label: 'Colleagues' },
+  { value: 'colleagues', label: 'Team' },
   { value: 'groups', label: 'Groups' },
 ];
 

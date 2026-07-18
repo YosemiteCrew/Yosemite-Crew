@@ -862,10 +862,7 @@ describe('ChatContainer', () => {
     const switcher = screen.getByRole('group', { name: 'Chat audience' });
     expect(switcher).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clients' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Colleagues' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    expect(screen.getByRole('button', { name: 'Team' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('routes Send form to the invoice workspace step', async () => {
