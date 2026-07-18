@@ -102,6 +102,10 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
   }
 
   const isStatic = variant === 'static';
+  // The live release tag is only trusted for the mobile pill (useMobileRelease filters
+  // to mobile tags). The platform pill keeps its hard-coded copy, since the repo-wide
+  // "latest release" is a desktop build, not the platform version.
+  const shownVersion = variant === 'mobile' ? (release.tag ?? version) : version;
   return (
     <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={PILL_STYLE}>
       {dot}
@@ -110,7 +114,7 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
         style={{ width: 1, height: 12, background: 'var(--divider)', margin: '0 3px' }}
         aria-hidden="true"
       />
-      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{release.tag ?? version}</span>
+      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{shownVersion}</span>
       {!isStatic && release.date ? (
         <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>{` · ${release.date}`}</span>
       ) : null}

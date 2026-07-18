@@ -147,13 +147,15 @@ const isStatsCacheFresh = (): boolean => {
  * hook instances and skipped entirely while the cached snapshot is still fresh.
  */
 export function useGithubStats(): GithubStats {
-  const [stats, setStats] = useState<GithubStats>(() => {
-    const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
-    return { ...EMPTY_STATS, ...cached };
-  });
+  const [stats, setStats] = useState<GithubStats>(EMPTY_STATS);
 
   useEffect(() => {
     let active = true;
+    // Seed from the session cache after mount, not in the useState initializer:
+    // reading storage during render makes the client's first paint diverge from the
+    // server HTML (which has no storage) and triggers a hydration mismatch.
+    const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
+    if (cached) setStats({ ...EMPTY_STATS, ...cached });
     if (!isStatsCacheFresh()) {
       void (async () => {
         const merged = await loadGithubStats();
@@ -194,12 +196,12 @@ const formatReleaseDate = (iso?: string): string | null => {
 /** Latest GitHub release (platform). Used by the Home chip and Pet Businesses hero pill. */
 export function useLatestRelease(): ReleaseInfo {
   const cacheKey = 'yc_rel_platform_v1';
-  const [release, setRelease] = useState<ReleaseInfo>(
-    () => getJsonStorageItem<ReleaseInfo>('session', cacheKey) ?? EMPTY_RELEASE
-  );
+  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
 
   useEffect(() => {
     let active = true;
+    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
+    if (cached) setRelease(cached);
     void (async () => {
       const json = (await fetchJson(
         `${GITHUB_API_REPO}/releases/latest`,
@@ -226,12 +228,12 @@ export function useLatestRelease(): ReleaseInfo {
 /** Newest mobile-tagged GitHub release. Used by the Pet Parents hero pill. */
 export function useMobileRelease(): ReleaseInfo {
   const cacheKey = 'yc_rel_mobile_v1';
-  const [release, setRelease] = useState<ReleaseInfo>(
-    () => getJsonStorageItem<ReleaseInfo>('session', cacheKey) ?? EMPTY_RELEASE
-  );
+  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
 
   useEffect(() => {
     let active = true;
+    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
+    if (cached) setRelease(cached);
     void (async () => {
       const list = (await fetchJson(
         `${GITHUB_API_REPO}/releases?per_page=30`,
@@ -243,11 +245,12 @@ export function useMobileRelease(): ReleaseInfo {
         html_url?: string;
       }> | null;
       if (!active || !Array.isArray(list)) return;
-      const tagOf = (x: { tag_name?: string; name?: string }) =>
-        `${x.tag_name ?? ''} ${x.name ?? ''}`.toLowerCase();
-      const isMobile = (x: { tag_name?: string; name?: string }) =>
-        /mobile|ios|android|app-v|-app|expo/.test(tagOf(x));
-      const mobile = list.find(isMobile);
+      // Match on the release TAG only (not the free-text title), so a platform or
+      // backend release whose notes merely mention "mobile" is not mistaken for the
+      // mobile app release.
+      const isMobileTag = (x: { tag_name?: string }) =>
+        /mobile|ios|android|app-v|expo/.test((x.tag_name ?? '').toLowerCase());
+      const mobile = list.find(isMobileTag);
       if (!mobile?.html_url) return;
       const next: ReleaseInfo = {
         tag: (mobile.name ?? mobile.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,

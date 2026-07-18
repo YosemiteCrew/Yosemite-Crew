@@ -47,12 +47,13 @@ describe('ReleasePill', () => {
     expect(link).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew/releases');
   });
 
-  it('renders the platform variant with label, the live tag and live date', () => {
+  it('renders the platform variant with its hard-coded version and live date', () => {
     render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.0 beta" />);
     expect(screen.getByText('Platform PIMS')).toBeInTheDocument();
-    // The live release tag wins over the hard-coded version copy.
-    expect(screen.getByText('v2.0.0-beta')).toBeInTheDocument();
-    expect(screen.queryByText('v2.0 beta')).not.toBeInTheDocument();
+    // The platform pill keeps its hard-coded version: the repo-wide "latest release"
+    // is a desktop build, so the live tag must not leak into this pill.
+    expect(screen.getByText('v2.0 beta')).toBeInTheDocument();
+    expect(screen.queryByText('v2.0.0-beta')).not.toBeInTheDocument();
     const link = screen.getByRole('link');
     expect(link).toHaveTextContent('Jul 2, 2026');
     expect(link).toHaveAttribute('href', latest.url);

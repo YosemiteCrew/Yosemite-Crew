@@ -124,6 +124,35 @@
     transform: translateY(0);
   }
 }
+/* Insights: live status pulse + commit-activity heartbeat. */
+@keyframes ycLive {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(0, 143, 93, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+  }
+}
+@keyframes ycBeat {
+  0%,
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(1.32);
+    opacity: 0.85;
+  }
+}
+/* Insights hero: hide the floating badge on narrow viewports. */
+@media (max-width: 1080px) {
+  [data-hero-float] {
+    display: none !important;
+  }
+}
 @keyframes ycFieldIn {
   from {
     opacity: 0;

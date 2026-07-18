@@ -1998,15 +1998,13 @@ function BuildingInPublic() {
               Our numbers are public. Hiding them only delays fixing them.
             </h2>
           </div>
-          <a
-            href="https://www.yosemitecrew.com/insights"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/insights"
             className="yc-link"
             style={{ ...MARKETING_LINK_STYLE, paddingBottom: 6 }}
           >
             See all insights <IoArrowForwardOutline style={{ fontSize: 16 }} aria-hidden="true" />
-          </a>
+          </Link>
         </Reveal>
 
         <div
