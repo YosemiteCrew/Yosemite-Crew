@@ -53,7 +53,7 @@ export const OrganizationRatingService = {
     const ratingCount = stats._count.rating ?? 0;
 
     await prisma.organization.updateMany({
-      where: { id: safeOrgId },
+      where: { OR: [{ id: safeOrgId }, { fhirId: safeOrgId }] },
       data: {
         averageRating: ratingCount ? Number(averageRating.toFixed(1)) : 0,
         ratingCount,

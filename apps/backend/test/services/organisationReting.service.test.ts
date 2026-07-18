@@ -85,7 +85,7 @@ describe("OrganizationRatingService", () => {
       await OrganizationRatingService.recalculateAverageRating(orgId);
 
       expect(prisma.organization.updateMany).toHaveBeenCalledWith({
-        where: { id: orgId },
+        where: { OR: [{ id: orgId }, { fhirId: orgId }] },
         data: { averageRating: 4.3, ratingCount: 5 },
       });
     });
@@ -99,7 +99,7 @@ describe("OrganizationRatingService", () => {
       await OrganizationRatingService.recalculateAverageRating(otherOrgId);
 
       expect(prisma.organization.updateMany).toHaveBeenCalledWith({
-        where: { id: otherOrgId },
+        where: { OR: [{ id: otherOrgId }, { fhirId: otherOrgId }] },
         data: { averageRating: 0, ratingCount: 0 },
       });
     });

@@ -233,7 +233,7 @@ describe("ClinicalTermsService", () => {
             type: "CLINICAL_TERM",
             active: true,
           },
-          take: 500,
+          take: undefined,
         }),
       );
       expect(result).toEqual([

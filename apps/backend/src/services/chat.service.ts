@@ -72,8 +72,7 @@ const getChatWindowFromAppointment = (appointment: AppointmentDocument) => {
 };
 
 type ChatAvailability =
-  | { allowed: true; reason?: undefined }
-  | { allowed: false; reason: string };
+  { allowed: true; reason?: undefined } | { allowed: false; reason: string };
 
 const canUseChatNowCore = (
   session: {
@@ -243,7 +242,10 @@ export const ChatService = {
       where: { appointmentId },
     });
     if (existing) {
-      return existing as unknown as ChatSessionDocument;
+      return {
+        ...existing,
+        _id: existing.id,
+      } as unknown as ChatSessionDocument;
     }
 
     const companion = appointment.patient as {
@@ -319,7 +321,7 @@ export const ChatService = {
       },
     });
 
-    return session as unknown as ChatSessionDocument;
+    return { ...session, _id: session.id } as unknown as ChatSessionDocument;
   },
 
   /* ---------------------------- ORG DIRECT CHAT --------------------------- */
@@ -345,7 +347,11 @@ export const ChatService = {
       },
     });
 
-    if (existing) return existing as unknown as ChatSessionDocument;
+    if (existing)
+      return {
+        ...existing,
+        _id: existing.id,
+      } as unknown as ChatSessionDocument;
 
     // Upsert users in Stream
     for (const userId of members) {
@@ -386,7 +392,7 @@ export const ChatService = {
         status: "ACTIVE",
       },
     });
-    return session as unknown as ChatSessionDocument;
+    return { ...session, _id: session.id } as unknown as ChatSessionDocument;
   },
 
   /* ----------------------------- ORG GROUP CHAT --------------------------- */
@@ -452,7 +458,7 @@ export const ChatService = {
         status: "ACTIVE",
       },
     });
-    return session as unknown as ChatSessionDocument;
+    return { ...session, _id: session.id } as unknown as ChatSessionDocument;
   },
 
   /* ------------------------------- OPEN CHAT ------------------------------ */
@@ -539,7 +545,7 @@ export const ChatService = {
     const newMembers = memberIds.filter((id) => !session.members.includes(id));
 
     if (newMembers.length === 0)
-      return session as unknown as ChatSessionDocument;
+      return { ...session, _id: session.id } as unknown as ChatSessionDocument;
 
     await assertUsersInOrg(newMembers, session.organisationId);
 
@@ -569,7 +575,7 @@ export const ChatService = {
     const channel = streamServer.channel("team", session.channelId);
     await channel.addMembers(newMembers);
 
-    return updated as unknown as ChatSessionDocument;
+    return { ...updated, _id: updated.id } as unknown as ChatSessionDocument;
   },
 
   async removeMembersFromGroup(
@@ -605,7 +611,7 @@ export const ChatService = {
     const channel = streamServer.channel("team", session.channelId);
     await channel.removeMembers(memberIds);
 
-    return updated as unknown as ChatSessionDocument;
+    return { ...updated, _id: updated.id } as unknown as ChatSessionDocument;
   },
 
   async updateGroup(
@@ -641,7 +647,7 @@ export const ChatService = {
     };
 
     await channel.updatePartial({ set: data });
-    return updated as unknown as ChatSessionDocument;
+    return { ...updated, _id: updated.id } as unknown as ChatSessionDocument;
   },
 
   async deleteGroup(sessionId: string, actorUserId: string) {

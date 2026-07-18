@@ -130,7 +130,7 @@ describe("ChatService.ensureAppointmentChat", () => {
 
     const res = await ChatService.ensureAppointmentChat("a1");
 
-    expect(res).toBe(existing);
+    expect(res).toEqual({ ...existing, _id: existing.id });
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -169,7 +169,7 @@ describe("ChatService.ensureAppointmentChat", () => {
         }),
       }),
     );
-    expect(res).toBe(created);
+    expect(res).toEqual({ ...created, _id: created.id });
   });
 
   it("creates a session with only the parent when no vet (lead) is set", async () => {
@@ -233,7 +233,7 @@ describe("ChatService.createOrgDirectChat", () => {
 
     const res = await ChatService.createOrgDirectChat("org1", "userB", "userA");
 
-    expect(res).toBe(existing);
+    expect(res).toEqual({ ...existing, _id: existing.id });
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -259,7 +259,7 @@ describe("ChatService.createOrgDirectChat", () => {
         }),
       }),
     );
-    expect(res).toBe(created);
+    expect(res).toEqual({ ...created, _id: created.id });
   });
 });
 
@@ -298,7 +298,7 @@ describe("ChatService.createOrgGroupChat", () => {
         data: expect.objectContaining({ type: "ORG_GROUP", title: "Team" }),
       }),
     );
-    expect(res).toBe(created);
+    expect(res).toEqual({ ...created, _id: created.id });
   });
 });
 
@@ -450,7 +450,7 @@ describe("ChatService.addMembersToGroup", () => {
 
     const res = await ChatService.addMembersToGroup("s1", "owner", ["m2"]);
 
-    expect(res).toBe(baseGroup);
+    expect(res).toEqual({ ...baseGroup, _id: baseGroup.id });
     expect(mockAddMembers).not.toHaveBeenCalled();
     expect(mockedPrisma.chatSession.update).not.toHaveBeenCalled();
   });
@@ -467,7 +467,7 @@ describe("ChatService.addMembersToGroup", () => {
       data: { members: ["owner", "m2", "m3"] },
     });
     expect(mockAddMembers).toHaveBeenCalledWith(["m3"]);
-    expect(res).toBe(updated);
+    expect(res).toEqual({ ...updated, _id: updated.id });
   });
 
   it("throws 404 when the session is missing", async () => {
@@ -503,7 +503,7 @@ describe("ChatService.removeMembersFromGroup", () => {
       data: { members: ["owner", "m2"] },
     });
     expect(mockRemoveMembers).toHaveBeenCalledWith(["m3"]);
-    expect(res).toBe(updated);
+    expect(res).toEqual({ ...updated, _id: updated.id });
   });
 
   it("throws 400 when removing the owner", async () => {
@@ -563,7 +563,7 @@ describe("ChatService.updateGroup", () => {
     expect(mockUpdatePartial).toHaveBeenCalledWith({
       set: { name: "New", isPrivate: false },
     });
-    expect(res).toBe(updated);
+    expect(res).toEqual({ ...updated, _id: updated.id });
   });
 
   it("falls back to existing values when updates are omitted", async () => {

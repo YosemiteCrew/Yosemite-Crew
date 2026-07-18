@@ -251,7 +251,6 @@ export const ClinicalTermsService = {
         : 10;
     const query = params.q?.trim();
     const fetchLimit = Math.max(safeLimit * 10, 50);
-    const candidateTake = query ? Math.max(fetchLimit, 500) : fetchLimit;
 
     const rows = await prisma.codeEntry.findMany({
       where: {
@@ -260,7 +259,10 @@ export const ClinicalTermsService = {
         active: true,
       },
       orderBy: { display: "asc" },
-      take: candidateTake,
+      // With a query we must scan every active term so synonym-only matches on
+      // later alphabetic rows are not dropped by a candidate cap; browsing
+      // (no query) stays bounded by fetchLimit.
+      take: query ? undefined : fetchLimit,
     });
 
     const candidates = rows.map((row) => toSuggestion(row));
