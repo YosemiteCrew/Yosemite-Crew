@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { IoLogoGithub, IoMenuOutline, IoCloseOutline } from 'react-icons/io5';
@@ -273,82 +280,89 @@ function MobilePanel({ active, menuOpen, panelRef, onClose }: Readonly<MobilePan
   );
 }
 
+const NAV_INNER_STYLE: CSSProperties = {
+  width: 'min(1240px, calc(100% - 48px))',
+  margin: '0 auto',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 24,
+  height: 72,
+};
+
+const NAV_HEADER_BASE_STYLE: CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 100,
+  transition:
+    'background 300ms ease, box-shadow 300ms ease, border-color 300ms ease, backdrop-filter 300ms ease',
+};
+
+function navHeaderStyle(scrolled: boolean): CSSProperties {
+  const blur = scrolled ? 'blur(40px) saturate(180%)' : 'none';
+  return {
+    ...NAV_HEADER_BASE_STYLE,
+    background: scrolled ? 'var(--nav-glass)' : 'transparent',
+    backdropFilter: blur,
+    WebkitBackdropFilter: blur,
+    borderBottom: `1px solid ${scrolled ? 'var(--nav-border)' : 'transparent'}`,
+    boxShadow: scrolled ? 'var(--nav-shadow)' : 'none',
+  };
+}
+
+function NavLogo() {
+  return (
+    <Link
+      href="/"
+      aria-label="Yosemite Crew home"
+      style={{ display: 'flex', alignItems: 'center' }}
+    >
+      <Image
+        src={MARKETING_LOGO}
+        alt="Yosemite Crew"
+        width={46}
+        height={46}
+        priority
+        style={{ objectFit: 'contain' }}
+      />
+    </Link>
+  );
+}
+
+/** Closes the mobile panel on Escape while it is open. */
+function useEscapeToClose(open: boolean, close: () => void): void {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    globalThis.window.addEventListener('keydown', onKey);
+    return () => globalThis.window.removeEventListener('keydown', onKey);
+  }, [open, close]);
+}
+
 export function SiteNav({ active }: Readonly<SiteNavProps>) {
   const scrolled = useScrolled();
   const [menuOpen, setMenuOpen] = useState(false);
   const { stars } = useGithubStats();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const starsLabel = stars ? `★ ${stars}` : '★';
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
 
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    globalThis.window.addEventListener('keydown', onKey);
-    return () => globalThis.window.removeEventListener('keydown', onKey);
-  }, [menuOpen]);
-
-  const navBackground = scrolled ? 'var(--nav-glass)' : 'transparent';
-  const navShadow = scrolled ? 'var(--nav-shadow)' : 'none';
+  useEscapeToClose(menuOpen, closeMenu);
 
   return (
-    <header
-      data-nav="true"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 100,
-        background: navBackground,
-        backdropFilter: scrolled ? 'blur(40px) saturate(180%)' : 'none',
-        WebkitBackdropFilter: scrolled ? 'blur(40px) saturate(180%)' : 'none',
-        borderBottom: `1px solid ${scrolled ? 'var(--nav-border)' : 'transparent'}`,
-        boxShadow: navShadow,
-        transition:
-          'background 300ms ease, box-shadow 300ms ease, border-color 300ms ease, backdrop-filter 300ms ease',
-      }}
-    >
-      <div
-        style={{
-          width: 'min(1240px, calc(100% - 48px))',
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 24,
-          height: 72,
-        }}
-      >
-        <Link
-          href="/"
-          aria-label="Yosemite Crew home"
-          style={{ display: 'flex', alignItems: 'center' }}
-        >
-          <Image
-            src={MARKETING_LOGO}
-            alt="Yosemite Crew"
-            width={46}
-            height={46}
-            priority
-            style={{ objectFit: 'contain' }}
-          />
-        </Link>
-
+    <header data-nav="true" style={navHeaderStyle(scrolled)}>
+      <div style={NAV_INNER_STYLE}>
+        <NavLogo />
         <NavLinks active={active} />
-
         <DesktopActions starsLabel={starsLabel} />
-
-        <BurgerButton menuOpen={menuOpen} onToggle={() => setMenuOpen((v) => !v)} />
+        <BurgerButton menuOpen={menuOpen} onToggle={toggleMenu} />
       </div>
-
-      <MobilePanel
-        active={active}
-        menuOpen={menuOpen}
-        panelRef={panelRef}
-        onClose={() => setMenuOpen(false)}
-      />
+      <MobilePanel active={active} menuOpen={menuOpen} panelRef={panelRef} onClose={closeMenu} />
     </header>
   );
 }
