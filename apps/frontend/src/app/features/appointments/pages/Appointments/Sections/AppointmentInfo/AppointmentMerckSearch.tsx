@@ -307,7 +307,7 @@ const MerckReaderOverlay = ({
           className="flex-1 size-full border-0"
           loading="lazy"
           referrerPolicy="strict-origin"
-          sandbox="allow-scripts allow-popups allow-forms"
+          sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
           onLoad={onLoad}
         />
       </div>
@@ -463,7 +463,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
           />
         </div>
 
-        <div className="flex items-center gap-2 flex-nowrap">
+        <div className="flex items-end gap-2 flex-nowrap">
           <div className="flex-1 min-w-0">
             <FormInput
               intype="text"

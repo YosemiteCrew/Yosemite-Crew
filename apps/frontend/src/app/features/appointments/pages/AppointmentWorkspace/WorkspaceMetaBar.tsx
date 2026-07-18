@@ -35,6 +35,40 @@ const ReadOnlyMetaField = ({ label, value }: { label: string; value: string }) =
 );
 
 /**
+ * Editable Room/Unit dropdown wrapped in the same floating-label box shell as the
+ * sibling fields (StaffField / ConsultationTypeField / ReadOnlyMetaField). The
+ * shared LabelDropdown renders a block label above a 42px/rounded-xl trigger,
+ * which sat ~21px lower than the peers and read as detached (#1905). We can't
+ * change the shared component here, so the wrapper restyles its trigger
+ * (`[&>div>div>button]`) to the meta box (min-h-12, rounded-2xl, --whitebg, pl-5)
+ * and repositions its own single label span (`[&>div>span]`) to float on the top
+ * border like ReadOnlyMetaField, so the locked and unlocked states share one 48px
+ * baseline with the value sitting inside the box. (Repositioning the existing
+ * label — rather than hiding it and adding a second caption — keeps exactly one
+ * label node.)
+ */
+const EditableMetaDropdown = ({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: DropdownItem[];
+  value?: string;
+  onSelect: (option: DropdownOption) => void;
+}) => (
+  <div className="relative w-full [&>div>div>button]:min-h-12 [&>div>div>button]:rounded-2xl! [&>div>div>button]:bg-(--whitebg)! [&>div>div>button]:pl-5! [&>div>span]:pointer-events-none [&>div>span]:absolute [&>div>span]:-top-2 [&>div>span]:left-5 [&>div>span]:z-10 [&>div>span]:mb-0 [&>div>span]:bg-(--whitebg) [&>div>span]:px-1 [&>div>span]:text-caption-2 [&>div>span]:font-normal [&>div>span]:text-text-secondary">
+    <LabelDropdown
+      placeholder={label}
+      options={options}
+      defaultOption={value}
+      onSelect={onSelect}
+    />
+  </div>
+);
+
+/**
  * Read-only consultation-type field. Mirrors the StaffField floating-label box
  * but shows a mode-specific icon (bed = inpatient, footprints = outpatient)
  * instead of an avatar — the value is changed via the hospitalization flow.
@@ -141,10 +175,10 @@ const WorkspaceMetaBar = ({
               value={getSelectedDropdownLabel(roomOptions, encounter.roomId)}
             />
           ) : (
-            <LabelDropdown
-              placeholder="Room"
+            <EditableMetaDropdown
+              label="Room"
               options={roomOptions}
-              defaultOption={encounter.roomId}
+              value={encounter.roomId}
               onSelect={onSelectRoom}
             />
           )}
@@ -158,10 +192,10 @@ const WorkspaceMetaBar = ({
               value={getSelectedDropdownLabel(unitOptions, encounter.unitId)}
             />
           ) : (
-            <LabelDropdown
-              placeholder="Unit"
+            <EditableMetaDropdown
+              label="Unit"
               options={unitOptions}
-              defaultOption={encounter.unitId}
+              value={encounter.unitId}
               onSelect={onSelectUnit}
             />
           )}

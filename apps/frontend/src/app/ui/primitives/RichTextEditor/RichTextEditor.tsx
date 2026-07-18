@@ -1,5 +1,5 @@
 'use client';
-import React, { useId } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -45,30 +45,52 @@ const RichTextEditor = ({
   // first line(s) so the text never runs under it.
   const contentPadding = isInset ? 'pr-52' : 'pr-0';
 
-  const editor = useEditor(
-    {
-      immediatelyRender: false,
-      editable: !readOnly,
-      // Tiptap packages are resolved from two adjacent 3.x minors in this repo.
-      // Cast the extension list locally so the editor config stays type-safe
-      // enough for the app while avoiding cross-minor type incompatibility.
-      extensions: [StarterKit.configure({ underline: false }), Underline] as never,
-      content: value || '',
-      editorProps: {
-        attributes: {
-          role: 'textbox',
-          'aria-multiline': 'true',
-          'aria-label': ariaLabel,
-          'aria-readonly': String(readOnly),
-          class: `yc-rte-content min-h-[88px] ${contentPadding} outline-none text-body-4 text-text-primary leading-[150%] [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:my-1 [&_p]:min-h-5`,
-        },
-      },
-      onUpdate: ({ editor: instance }) => {
-        onChange(sanitizeRichText(instance.getHTML()));
+  // Always hold the latest onChange so onUpdate stays current WITHOUT listing it
+  // as a useEditor recreation dep — a fresh inline handler (or a new controlled
+  // `value`) must not destroy and rebuild the editor, which reset DOM focus and
+  // the cursor after a single keystroke (the reported bug).
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Create the editor ONCE (no dependency array) so it stays mounted across
+  // keystrokes, preserving focus, cursor, and Enter behaviour.
+  const editor = useEditor({
+    immediatelyRender: false,
+    editable: !readOnly,
+    // Tiptap packages are resolved from two adjacent 3.x minors in this repo.
+    // Cast the extension list locally so the editor config stays type-safe
+    // enough for the app while avoiding cross-minor type incompatibility.
+    extensions: [StarterKit.configure({ underline: false }), Underline] as never,
+    content: value || '',
+    editorProps: {
+      attributes: {
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': ariaLabel,
+        'aria-readonly': String(readOnly),
+        class: `yc-rte-content min-h-[88px] ${contentPadding} outline-none text-body-4 text-text-primary leading-[150%] [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:my-1 [&_p]:min-h-5`,
       },
     },
-    [ariaLabel, contentPadding, onChange, readOnly, value]
-  );
+    onUpdate: ({ editor: instance }) => {
+      onChangeRef.current(sanitizeRichText(instance.getHTML()));
+    },
+  });
+
+  // Reflect external `value` changes (parent resets, template prefills) without
+  // clobbering the user's own typing. Comparing against the sanitized current
+  // HTML means echoing back our own keystroke is a no-op, so the cursor is never
+  // moved by re-setting identical content.
+  useEffect(() => {
+    if (!editor) return;
+    if (value !== sanitizeRichText(editor.getHTML())) {
+      editor.commands.setContent(value || '', { emitUpdate: false });
+    }
+  }, [editor, value]);
+
+  // readOnly is no longer a recreation dep, so toggle editability imperatively.
+  useEffect(() => {
+    editor?.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   const showPlaceholder = !readOnly && placeholder && isRichTextEmpty(value);
   // `title` overlaps the section title row (no reserved space); `inline` keeps

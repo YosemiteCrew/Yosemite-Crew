@@ -28,6 +28,8 @@ export type Task = {
   organisationId?: string;
   appointmentId?: string;
   companionId?: string;
+  /** The companion the task is about; sent to the API so parent tasks link correctly. */
+  patientId?: string;
   createdBy?: string;
   assignedBy?: string;
   assignedTo: string;

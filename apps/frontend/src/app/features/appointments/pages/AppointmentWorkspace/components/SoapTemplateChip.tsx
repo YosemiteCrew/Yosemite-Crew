@@ -87,7 +87,7 @@ const SoapTemplateChip = ({
       {open && (
         <div
           aria-label="SOAP templates"
-          className="absolute right-0 top-full z-30 mt-2 w-[330px] max-w-[80vw] overflow-hidden rounded-2xl border border-card-border bg-neutral-0 shadow-[0_4px_12px_var(--sh08),0_18px_44px_var(--sh10)]"
+          className="absolute left-0 top-full z-30 mt-2 w-[330px] max-w-[80vw] overflow-hidden rounded-2xl border border-card-border bg-neutral-0 shadow-[0_4px_12px_var(--sh08),0_18px_44px_var(--sh10)]"
         >
           <div className="border-b border-card-border p-3 pb-2.5">
             <span className="flex items-center gap-2 rounded-full border border-card-border bg-neutral-100 px-3 py-2 text-caption-1 text-text-tertiary">

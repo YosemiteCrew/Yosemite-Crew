@@ -913,6 +913,15 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByText('45 mins')).toBeInTheDocument();
   });
 
+  // #1898: after picking a specialty/service but before choosing a time slot,
+  // the badge shows the selected service's configured duration instead of staying
+  // empty (previously it only read the slot/durationMinutes, both unset here).
+  it('falls back to the selected service duration when no slot or durationMinutes is set', () => {
+    mockAppointmentForm.ServiceInfoData = { duration: 25 } as never;
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+    expect(screen.getByText('25 mins')).toBeInTheDocument();
+  });
+
   // ── Slot selection dismisses prefill and sets the slot ─────────────────────
   it('selecting a time slot dismisses prefill and sets the selected slot', async () => {
     mockAppointmentForm.timeSlots = [

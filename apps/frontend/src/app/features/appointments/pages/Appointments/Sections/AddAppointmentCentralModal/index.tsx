@@ -1343,8 +1343,13 @@ const useAddAppointmentCentralModalView = ({
       if (mins > 0) return `${mins} mins`;
     }
     if (formData.durationMinutes) return `${formData.durationMinutes} mins`;
+    // Before a time slot is chosen, fall back to the selected service's configured
+    // duration so the badge reflects the picked service instead of staying empty.
+    // Display-only: booking still requires a real slot (durationMinutes validation).
+    const serviceMins = Number(ServiceInfoData?.duration);
+    if (Number.isFinite(serviceMins) && serviceMins > 0) return `${serviceMins} mins`;
     return null;
-  }, [selectedSlot, formData.durationMinutes]);
+  }, [selectedSlot, formData.durationMinutes, ServiceInfoData?.duration]);
 
   const today = useMemo(() => {
     const d = new Date();

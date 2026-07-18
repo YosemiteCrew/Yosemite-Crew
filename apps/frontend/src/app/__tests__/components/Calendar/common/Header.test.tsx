@@ -125,10 +125,15 @@ describe('Header Component', () => {
       />
     );
 
-    // Active emergency filter fills with the danger-bg tint and keeps the danger text class.
+    // Active emergency filter is a solid danger-800 fill with a white label (AA-safe
+    // in both themes) so selected/unselected are unmistakable. The old translucent
+    // danger-bg tint + `text-danger-500!` label failed WCAG AA in dark mode (#1885).
     const activePill = screen.getByRole('button', { name: 'Emergencies' });
-    expect(activePill.getAttribute('style')).toContain('background-color: var(--danger-bg)');
-    expect(activePill).toHaveClass('text-danger-500!');
+    expect(activePill.getAttribute('style')).toContain('background-color: var(--color-danger-800)');
+    expect(activePill.getAttribute('style')).toContain('border-color: var(--color-danger-800)');
+    expect(activePill.getAttribute('style')).toContain('color: var(--color-white)');
+    // The `!important` danger-500 label class must be gone so the inline white wins.
+    expect(activePill).not.toHaveClass('text-danger-500!');
   });
 
   it('keeps the calendar header sticky at the top of the planner', () => {
@@ -207,8 +212,11 @@ describe('Header Component', () => {
     expect(allPillInactive).toHaveClass('text-text-tertiary');
     expect(allPillInactive).toHaveStyle({ borderColor: 'var(--color-card-border)' });
 
-    // Active emergency pill uses the danger text treatment.
-    expect(screen.getByRole('button', { name: 'Emergencies' })).toHaveClass('text-danger-500!');
+    // Active emergency pill draws its label colour from the inline style (white on
+    // danger-800), so it no longer carries the AA-failing `text-danger-500!` class.
+    const activeEmergencyPill = screen.getByRole('button', { name: 'Emergencies' });
+    expect(activeEmergencyPill).not.toHaveClass('text-danger-500!');
+    expect(activeEmergencyPill.getAttribute('style')).toContain('color: var(--color-white)');
   });
 
   it('ignores filter toggles when no setter is provided', () => {
