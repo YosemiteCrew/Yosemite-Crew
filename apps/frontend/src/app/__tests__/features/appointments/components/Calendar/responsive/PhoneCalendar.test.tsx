@@ -40,11 +40,16 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: jest.fn(),
 }));
 
-const berlinDate = (day: number, hour: number, minutes = 0): Date =>
-  new Date(Date.UTC(2026, 6, day, hour - 2, minutes));
+jest.mock('@/app/lib/timezone', () => ({
+  ...jest.requireActual('@/app/lib/timezone'),
+  getPreferredTimeZone: jest.fn(() => 'Asia/Kolkata'),
+}));
 
-const NOW = berlinDate(7, 10, 20);
-const at = (hours: number, minutes = 0) => berlinDate(7, hours, minutes);
+const localDate = (day: number, hour: number, minutes = 0): Date =>
+  new Date(2026, 6, day, hour, minutes);
+
+const NOW = localDate(7, 10, 20);
+const at = (hours: number, minutes = 0) => localDate(7, hours, minutes);
 
 const makeAppointment = (overrides: Partial<Appointment> = {}): Appointment =>
   ({
@@ -96,9 +101,9 @@ const renderCalendar = (overrides: Partial<PhoneCalendarProps> = {}) =>
     <PhoneCalendar
       appointments={appointments}
       dayEvents={appointments}
-      currentDate={berlinDate(7, 0)}
+      currentDate={localDate(7, 0)}
       setCurrentDate={setCurrentDate}
-      weekStart={berlinDate(6, 12)}
+      weekStart={localDate(6, 12)}
       setWeekStart={setWeekStart}
       activeCalendar="day"
       setActiveCalendar={setActiveCalendar}
@@ -241,10 +246,10 @@ describe('PhoneCalendar', () => {
       renderCalendar({ activeCalendar: 'week' });
 
       await userEvent.click(screen.getByRole('button', { name: 'Previous week' }));
-      expect(setWeekStart).toHaveBeenCalledWith(new Date(Date.UTC(2026, 5, 29, 10)));
+      expect(setWeekStart).toHaveBeenCalledWith(new Date(2026, 5, 29, 12));
 
       await userEvent.click(screen.getByRole('button', { name: 'Next week' }));
-      expect(setWeekStart).toHaveBeenCalledWith(berlinDate(13, 12));
+      expect(setWeekStart).toHaveBeenCalledWith(localDate(13, 12));
     });
 
     it('selecting a day opens the day rail on that date', async () => {
@@ -286,7 +291,7 @@ describe('PhoneCalendar', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /Open day/ }));
 
-      expect(setCurrentDate).toHaveBeenCalledWith(new Date(2026, 6, 7));
+      expect(setCurrentDate).toHaveBeenCalledWith(new Date(2026, 6, 6));
       expect(setActiveCalendar).toHaveBeenCalledWith('day');
     });
   });
@@ -326,7 +331,7 @@ describe('PhoneCalendar', () => {
     it('completes a task and resolves its companion name', async () => {
       showMyDay();
 
-      expect(screen.getByText('Task · due 16:30 · linked to Pretzel')).toBeInTheDocument();
+      expect(screen.getByText('Task · due 13:00 · linked to Pretzel')).toBeInTheDocument();
       await userEvent.click(screen.getByRole('button', { name: 'Complete Call Lena' }));
 
       expect(changeTaskStatus).toHaveBeenCalledWith(
