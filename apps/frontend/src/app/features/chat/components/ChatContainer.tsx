@@ -488,7 +488,7 @@ const ChannelHeaderWithCounterpart: FC<{
             <Text
               as="span"
               variant="body-3-emphasis"
-              className="min-w-0 flex-1 truncate text-neutral-900"
+              className="min-w-0 flex-1 truncate text-[var(--ink)]"
             >
               {title}
             </Text>
@@ -505,7 +505,7 @@ const ChannelHeaderWithCounterpart: FC<{
               <span className="truncate">{statusText}</span>
             </span>
           ) : (
-            <Text as="span" variant="caption-2" className="truncate text-neutral-500">
+            <Text as="span" variant="caption-2" className="truncate text-[var(--ink-faint)]">
               {statusText}
             </Text>
           )}
@@ -916,8 +916,8 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
           className={clsx(
             'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
             showArchived
-              ? 'border-primary-500 bg-chat-panel text-primary-700'
-              : 'border-chat-divider text-neutral-500 hover:bg-chat-surface-soft hover:text-neutral-900'
+              ? 'border-[var(--blue)] bg-[var(--blue-soft)] text-[var(--blue-text)]'
+              : 'border-[var(--hairline)] text-[var(--ink-faint)] hover:bg-[var(--screen-2)] hover:text-[var(--ink)]'
           )}
         >
           <IoArchiveOutline className="size-3.5" />
@@ -937,7 +937,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
             aria-label="Search conversations"
             className="w-full bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
           />
-          <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400 sm:flex">
+          <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-[var(--hairline)] px-1.5 py-0.5 text-xs font-semibold text-[var(--ink-faint)] sm:flex">
             <LuCommand className="size-3" />K
           </span>
         </div>
