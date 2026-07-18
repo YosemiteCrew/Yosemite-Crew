@@ -82,15 +82,15 @@ export function ChatHeaderContext({
   return (
     <div className="shrink-0">
       {flags.length > 0 && (
-        <div className="flex items-center gap-2 border-b border-danger-200 bg-danger-soft px-4 py-2">
-          <IoShieldOutline className="h-4 w-4 shrink-0 text-danger-600" />
-          <Text as="span" variant="caption-1" className="font-semibold text-danger-600">
+        <div className="flex items-center gap-2 border-b border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-2">
+          <IoShieldOutline className="h-4 w-4 shrink-0 text-[var(--danger-text)]" />
+          <Text as="span" variant="caption-1" className="font-semibold text-[var(--danger-text)]">
             {flags.join(' · ')}
           </Text>
         </div>
       )}
       {appointment && (
-        <div className="flex flex-col gap-2.5 border-b border-chat-divider bg-chat-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
+        <div className="flex flex-col gap-2.5 border-b border-[var(--hairline)] bg-[var(--screen-2)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
           {/* Compact appointment context chip that sits above the message thread. */}
           <span className="inline-flex min-w-0 items-center gap-2.5 self-start rounded-full border border-[var(--hairline)] bg-[var(--pill-raised)] py-1.5 pl-1.5 pr-3.5 sm:self-auto">
             <ChatAvatar name={apptName || 'Appointment'} size="sm" />
@@ -98,11 +98,11 @@ export function ChatHeaderContext({
               <Text
                 as="span"
                 variant="caption-2"
-                className="font-bold uppercase tracking-[0.08em] text-neutral-500"
+                className="font-bold uppercase tracking-[0.08em] text-[var(--ink-muted)]"
               >
                 Appointment
               </Text>
-              <Text as="span" variant="caption-1" className="truncate text-neutral-900">
+              <Text as="span" variant="caption-1" className="truncate text-[var(--ink-body)]">
                 {[apptLabel, apptName].filter(Boolean).join(' · ') || 'Linked appointment'}
               </Text>
             </span>

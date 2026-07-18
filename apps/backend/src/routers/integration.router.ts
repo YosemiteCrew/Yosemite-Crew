@@ -14,14 +14,6 @@ router.get(
 );
 
 router.get(
-  "/pms/organisation/:organisationId/:provider/credential-meta",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("integrations:view:any"),
-  IntegrationController.credentialMeta,
-);
-
-router.get(
   "/pms/organisation/:organisationId/:provider",
   requireWebAuth,
   withOrgPermissions(),

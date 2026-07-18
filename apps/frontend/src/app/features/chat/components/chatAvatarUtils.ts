@@ -1,10 +1,8 @@
 const AVATAR_ACCENTS = [
-  'bg-primary-100 text-primary-700',
-  'bg-success-100 text-success-700',
-  'bg-warning-100 text-warning-700',
-  'bg-danger-100 text-danger-700',
-  'bg-brand-100 text-brand-950',
-  'bg-neutral-200 text-neutral-700',
+  'bg-[var(--avatar-violet-bg)] text-[var(--avatar-violet-ink)]',
+  'bg-[var(--avatar-green-bg)] text-[var(--avatar-green-ink)]',
+  'bg-[var(--avatar-amber-bg)] text-[var(--avatar-amber-ink)]',
+  'bg-[var(--blue-soft)] text-[var(--blue-text)]',
 ] as const;
 
 /** Deterministic palette index from a stable seed, so a person keeps one color. */

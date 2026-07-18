@@ -29,13 +29,13 @@ export function ChatAvatar({ name, online, group, size = 'md', className }: Chat
         className={clsx(
           'inline-flex items-center justify-center rounded-full font-satoshi font-bold',
           SIZE[size],
-          group ? 'bg-chat-panel text-primary-600' : accentFor(name)
+          group ? 'bg-[var(--band)] text-[var(--ink-muted)]' : accentFor(name)
         )}
       >
         {group ? <IoPeopleOutline className="h-5 w-5" /> : initialsOf(name)}
       </span>
       {online && (
-        <span className="chat-presence-dot absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-neutral-0 bg-success-bright" />
+        <span className="chat-presence-dot absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--screen-2)] bg-[var(--success)]" />
       )}
     </span>
   );
