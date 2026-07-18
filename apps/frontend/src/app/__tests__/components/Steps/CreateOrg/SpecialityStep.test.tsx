@@ -737,9 +737,7 @@ describe('SpecialityStep Component', () => {
     render(
       <SpecialityStep
         {...getProps({
-          specialities: [
-            { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
-          ],
+          specialities: [{ name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb],
         })}
       />
     );
@@ -795,7 +793,12 @@ describe('SpecialityStep Component', () => {
         {...getProps({
           formData: { ...baseFormData, _id: 'org-existing' } as Organisation,
           initialSpecialities: [
-            { _id: 'gone-1', name: 'Gone', organisationId: 'org-existing', services: [] } as SpecialityWeb,
+            {
+              _id: 'gone-1',
+              name: 'Gone',
+              organisationId: 'org-existing',
+              services: [],
+            } as SpecialityWeb,
           ],
           isExistingOrg: true,
           specialities: [{ name: 'Kept', organisationId: '', services: [] } as SpecialityWeb],
@@ -882,9 +885,7 @@ describe('SpecialityStep Component', () => {
     render(
       <SpecialityStep
         {...getProps({
-          specialities: [
-            { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
-          ],
+          specialities: [{ name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb],
           onRedirectingChange,
         })}
       />
@@ -904,9 +905,7 @@ describe('SpecialityStep Component', () => {
     render(
       <SpecialityStep
         {...getProps({
-          specialities: [
-            { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
-          ],
+          specialities: [{ name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb],
         })}
       />
     );

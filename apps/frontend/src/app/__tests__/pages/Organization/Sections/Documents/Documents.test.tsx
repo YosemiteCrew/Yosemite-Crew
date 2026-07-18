@@ -77,7 +77,12 @@ describe('Organization documents section', () => {
   it('renders document rows with type pills for each file kind', () => {
     useDocumentsMock.mockReturnValue([
       doc(),
-      doc({ _id: 'doc-2', title: 'Surgery consent', fileUrl: 'x/consent.docx', description: 'equine' }),
+      doc({
+        _id: 'doc-2',
+        title: 'Surgery consent',
+        fileUrl: 'x/consent.docx',
+        description: 'equine',
+      }),
       doc({ _id: 'doc-3', title: 'Notes', fileUrl: 'x/notes.txt', description: undefined }),
     ]);
 

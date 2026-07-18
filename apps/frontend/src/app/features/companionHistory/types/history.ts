@@ -1,10 +1,5 @@
 export type HistoryEntryType =
-  | 'APPOINTMENT'
-  | 'TASK'
-  | 'FORM_SUBMISSION'
-  | 'DOCUMENT'
-  | 'LAB_RESULT'
-  | 'INVOICE';
+  'APPOINTMENT' | 'TASK' | 'FORM_SUBMISSION' | 'DOCUMENT' | 'LAB_RESULT' | 'INVOICE';
 
 export type HistoryEntry = {
   id: string;
@@ -41,13 +36,7 @@ export type CompanionHistoryResponse = {
 };
 
 export type HistoryFilterKey =
-  | 'ALL'
-  | 'APPOINTMENT'
-  | 'TASK'
-  | 'MEDICAL_RECORDS'
-  | 'LAB_RESULT'
-  | 'INVOICE'
-  | 'AUDIT_TRAIL';
+  'ALL' | 'APPOINTMENT' | 'TASK' | 'MEDICAL_RECORDS' | 'LAB_RESULT' | 'INVOICE' | 'AUDIT_TRAIL';
 
 export type HistoryFilterDefinition = { key: HistoryFilterKey; label: string };
 

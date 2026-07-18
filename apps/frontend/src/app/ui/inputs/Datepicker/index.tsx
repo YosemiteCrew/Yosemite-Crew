@@ -8,8 +8,7 @@ const INPUT_DATE_FORMAT = 'MMM d, yyyy';
 type DatepickerProps = {
   currentDate: Date | null;
   setCurrentDate:
-    | React.Dispatch<React.SetStateAction<Date | null>>
-    | React.Dispatch<React.SetStateAction<Date>>;
+    React.Dispatch<React.SetStateAction<Date | null>> | React.Dispatch<React.SetStateAction<Date>>;
   minYear?: number;
   maxYear?: number;
   /** Earliest selectable date. Overrides minYear when provided. */

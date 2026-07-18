@@ -159,9 +159,7 @@ const GuidePlayerModal = ({
                 {index > 0 ? ' · ' : ''}
                 <span
                   style={
-                    chapter.highlight
-                      ? { color: 'var(--blue-text)', fontWeight: 600 }
-                      : undefined
+                    chapter.highlight ? { color: 'var(--blue-text)', fontWeight: 600 } : undefined
                   }
                 >
                   {chapter.label} {chapter.time}

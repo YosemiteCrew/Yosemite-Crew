@@ -152,10 +152,17 @@ describe('turnover metrics', () => {
   describe('computeAnnualTurnover', () => {
     it('prefers the org figure, falls back to the row average, else null', () => {
       expect(computeAnnualTurnover(6.4, [])).toBe(6.4);
-      expect(computeAnnualTurnover(0, [makeTurnover({ turnsPerYear: 4 }), makeTurnover({ turnsPerYear: 8 })])).toBe(6);
+      expect(
+        computeAnnualTurnover(0, [
+          makeTurnover({ turnsPerYear: 4 }),
+          makeTurnover({ turnsPerYear: 8 }),
+        ])
+      ).toBe(6);
       expect(computeAnnualTurnover(0, [])).toBeNull();
       expect(
-        computeAnnualTurnover(0, [{ ...makeTurnover(), turnsPerYear: undefined as unknown as number }])
+        computeAnnualTurnover(0, [
+          { ...makeTurnover(), turnsPerYear: undefined as unknown as number },
+        ])
       ).toBeNull();
     });
   });
@@ -224,9 +231,27 @@ describe('turnover metrics', () => {
     it('aggregates counts, share and turnover by class', () => {
       const rows = buildAbcRows(
         [
-          makeItem({ id: 'a1', name: 'A one', abcClass: 'Class A', current: '10', purchaseCost: '9' }),
-          makeItem({ id: 'a2', name: 'A two', abcClass: 'Class A', current: '0', purchaseCost: '9' }),
-          makeItem({ id: 'c1', name: 'C one', abcClass: 'Class C', current: '10', purchaseCost: '1' }),
+          makeItem({
+            id: 'a1',
+            name: 'A one',
+            abcClass: 'Class A',
+            current: '10',
+            purchaseCost: '9',
+          }),
+          makeItem({
+            id: 'a2',
+            name: 'A two',
+            abcClass: 'Class A',
+            current: '0',
+            purchaseCost: '9',
+          }),
+          makeItem({
+            id: 'c1',
+            name: 'C one',
+            abcClass: 'Class C',
+            current: '10',
+            purchaseCost: '1',
+          }),
         ],
         [
           makeTurnover({ itemId: 'a1', turnsPerYear: 9.2 }),
@@ -267,7 +292,9 @@ describe('turnover metrics', () => {
       const low = makeItem({ id: 'low', current: '1', reorderLevel: '5' });
       const classA = makeItem({ id: 'a', current: '9', reorderLevel: '5', abcClass: 'Class A' });
       expect(selectDefaultProduct([classA, low])?.id).toBe('low');
-      expect(selectDefaultProduct([makeItem({ id: 'x', current: '9', reorderLevel: '5' }), classA])?.id).toBe('a');
+      expect(
+        selectDefaultProduct([makeItem({ id: 'x', current: '9', reorderLevel: '5' }), classA])?.id
+      ).toBe('a');
       const first = makeItem({ id: 'first', current: '9', reorderLevel: '5' });
       expect(selectDefaultProduct([first])?.id).toBe('first');
     });
@@ -326,7 +353,12 @@ describe('turnover metrics', () => {
       expect(panel.subtitle).toBe('units');
     });
     it('matches turnover by name when there is no id match', () => {
-      const item = makeItem({ id: 'no-id-match', name: 'Named Only', current: '5', reorderLevel: '2' });
+      const item = makeItem({
+        id: 'no-id-match',
+        name: 'Named Only',
+        current: '5',
+        reorderLevel: '2',
+      });
       const panel = buildProductPanel(
         item,
         [makeTurnover({ name: 'Named Only', turnsPerYear: 7, daysOnShelf: 21 })],
@@ -344,7 +376,12 @@ describe('turnover metrics', () => {
     });
 
     it('keeps a units label that already ends in s', () => {
-      const item = makeItem({ id: 'p3', form: 'Wipes', subCategory: undefined, abcClass: undefined });
+      const item = makeItem({
+        id: 'p3',
+        form: 'Wipes',
+        subCategory: undefined,
+        abcClass: undefined,
+      });
       const panel = buildProductPanel(item, [], [item]);
       expect(panel.unit).toBe('wipes');
       expect(panel.subtitle).toBe('wipes');

@@ -94,9 +94,7 @@ describe('PublicBookingSetup', () => {
     expect(screen.getByText('€10.00')).toBeInTheDocument();
     expect(screen.queryByText('Archived one')).not.toBeInTheDocument();
     expect(screen.queryByText('Not bookable')).not.toBeInTheDocument();
-    expect(
-      screen.getByText('FIELDS ASSUMED · confirm with product')
-    ).toBeInTheDocument();
+    expect(screen.getByText('FIELDS ASSUMED · confirm with product')).toBeInTheDocument();
   });
 
   it('seeds every service as selected and toggles selection', () => {
@@ -160,9 +158,7 @@ describe('PublicBookingSetup', () => {
     fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
 
     expect(screen.getByText('Your booking page')).toBeInTheDocument();
-    expect(
-      screen.getByText('book.yosemitecrew.com/alpenblick-animal-clinic')
-    ).toBeInTheDocument();
+    expect(screen.getByText('book.yosemitecrew.com/alpenblick-animal-clinic')).toBeInTheDocument();
 
     const welcome = screen.getByLabelText('Welcome message') as HTMLInputElement;
     fireEvent.change(welcome, { target: { value: 'Welcome to us' } });

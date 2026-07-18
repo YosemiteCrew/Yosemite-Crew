@@ -361,9 +361,7 @@ export class FormSigningService {
             documentId:
               (
                 signedRenderedDocument.signing as
-                  | { documentId?: string }
-                  | null
-                  | undefined
+                  { documentId?: string } | null | undefined
               )?.documentId ?? renderedDocument.id,
             signer: {
               email: signerEmail,
@@ -377,16 +375,12 @@ export class FormSigningService {
         documentId:
           (
             signedRenderedDocument.signing as
-              | { documentId?: string }
-              | null
-              | undefined
+              { documentId?: string } | null | undefined
           )?.documentId ?? renderedDocument.id,
         signingUrl:
           (
             signedRenderedDocument.signing as
-              | { signingUrl?: string }
-              | null
-              | undefined
+              { signingUrl?: string } | null | undefined
           )?.signingUrl ?? null,
       };
     }
@@ -473,9 +467,7 @@ export class FormSigningService {
       documentId:
         (
           signedRenderedDocument.signing as
-            | { documentId?: string }
-            | null
-            | undefined
+            { documentId?: string } | null | undefined
         )?.documentId ?? renderedDocument.id,
       signer: {
         email: signerEmail,
@@ -502,16 +494,12 @@ export class FormSigningService {
       documentId:
         (
           signedRenderedDocument.signing as
-            | { documentId?: string }
-            | null
-            | undefined
+            { documentId?: string } | null | undefined
         )?.documentId ?? renderedDocument.id,
       signingUrl:
         (
           signedRenderedDocument.signing as
-            | { signingUrl?: string }
-            | null
-            | undefined
+            { signingUrl?: string } | null | undefined
         )?.signingUrl ?? null,
     };
   }
@@ -527,9 +515,7 @@ export class FormSigningService {
 
     // 2️⃣ Validate signing state
     const signing = submission.signing as
-      | { status?: string; documentId?: string }
-      | null
-      | undefined;
+      { status?: string; documentId?: string } | null | undefined;
     const signingStatus = isReadFromPostgres()
       ? FormSigningService.extractSigningStatus(
           submission.signing as Prisma.JsonValue | null | undefined,

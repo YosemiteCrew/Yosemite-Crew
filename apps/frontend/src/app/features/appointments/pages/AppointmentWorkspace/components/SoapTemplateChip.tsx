@@ -108,8 +108,7 @@ const SoapTemplateChip = ({
               </li>
             ) : (
               matches.map((template) => {
-                const isActive =
-                  template.name.toLowerCase() === activeName?.trim().toLowerCase();
+                const isActive = template.name.toLowerCase() === activeName?.trim().toLowerCase();
                 return (
                   <li key={template.id}>
                     <button

@@ -18,13 +18,10 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
   ),
 }));
 
-jest.mock(
-  '@/app/features/onboarding/pages/PublicBookingSetup/PublicBookingSetup',
-  () => ({
-    __esModule: true,
-    default: () => <div data-testid="public-booking-setup" />,
-  })
-);
+jest.mock('@/app/features/onboarding/pages/PublicBookingSetup/PublicBookingSetup', () => ({
+  __esModule: true,
+  default: () => <div data-testid="public-booking-setup" />,
+}));
 
 describe('public-booking-setup route', () => {
   it('renders the setup wizard behind the auth and org guards', () => {

@@ -34,7 +34,8 @@ const PermissionDeniedState = ({
 
   const activeOrgId = orgId ?? primaryOrgId;
   const membership = activeOrgId ? membershipsByOrgId[activeOrgId] : undefined;
-  const resolvedRole = role ?? membership?.roleDisplay ?? membership?.roleCode ?? 'your current role';
+  const resolvedRole =
+    role ?? membership?.roleDisplay ?? membership?.roleCode ?? 'your current role';
   const resolvedDetail = detail ?? resource;
 
   const handleRequestAccess = onRequestAccess ?? (() => router.push('/organization'));

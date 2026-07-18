@@ -172,7 +172,9 @@ const handleError = (error: unknown, res: Response) => {
   return res.status(500).json({ message: "Internal Server Error" });
 };
 
-const resolveUserId = (req: Request<unknown, unknown, unknown, unknown>): string => {
+const resolveUserId = (
+  req: Request<unknown, unknown, unknown, unknown>,
+): string => {
   const authReq = req as AuthenticatedRequest;
   return typeof authReq.userId === "string" ? authReq.userId : "";
 };

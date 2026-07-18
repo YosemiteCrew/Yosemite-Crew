@@ -118,9 +118,7 @@ function Harness({
   nextStep?: () => void;
   stepRef?: React.Ref<StepHandle>;
 }) {
-  const [formData, setFormData] = useState<any>(
-    initialFormData ?? { _id: '', organizationId: '' }
-  );
+  const [formData, setFormData] = useState<any>(initialFormData ?? { _id: '', organizationId: '' });
   return (
     <>
       <div data-testid="phone-val">{formData.personalDetails?.phoneNumber || ''}</div>
