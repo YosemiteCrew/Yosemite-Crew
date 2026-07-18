@@ -372,7 +372,8 @@ function ConsoleFloatBadge() {
 }
 
 function LiveConsole() {
-  const stats = useGithubStats();
+  // Live (uncached) read: this console's copy promises no cache / every visit.
+  const stats = useGithubStats({ live: true });
   const repo = useRepoInsights();
   const lastCommit = repo.commits?.[0];
   return (
@@ -585,7 +586,8 @@ function StatCell({ stat }: Readonly<{ stat: BandStat }>) {
 }
 
 function StatBand() {
-  const stats = useGithubStats();
+  // Live (uncached) read: the band eyebrow reads "The numbers, right now".
+  const stats = useGithubStats({ live: true });
   const cells: BandStat[] = [
     {
       key: 'selfHosters',
@@ -814,7 +816,8 @@ const RELEASE_LABEL_STYLE: CSSProperties = {
 };
 
 function LatestReleaseCard() {
-  const release = useLatestRelease();
+  // Live (uncached) read: this card sits under the "nothing is cached" copy.
+  const release = useLatestRelease({ live: true });
   return (
     <Reveal delay={120} style={{ display: 'flex' }}>
       <a

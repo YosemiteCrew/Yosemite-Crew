@@ -201,15 +201,14 @@ const fetchHeartbeat = async (attempt = 0): Promise<number[] | null> => {
   }
 };
 
-const loadRepoInsights = async (): Promise<RepoInsights> => {
-  const [repo, langs, commits, contributors, heartbeat] = await Promise.all([
+const loadRepoCore = async (): Promise<RepoInsights> => {
+  const [repo, langs, commits, contributors] = await Promise.all([
     fetchJson(GITHUB_API_REPO) as Promise<RepoResponse | null>,
     fetchJson(`${GITHUB_API_REPO}/languages`) as Promise<Record<string, number> | null>,
     fetchJson(`${GITHUB_API_REPO}/commits?per_page=6`) as Promise<CommitResponse[] | null>,
     fetchJson(`${GITHUB_API_REPO}/contributors?per_page=10`) as Promise<
       ContributorResponse[] | null
     >,
-    fetchHeartbeat(),
   ]);
   const facts = parseFacts(repo);
   return {
@@ -218,30 +217,44 @@ const loadRepoInsights = async (): Promise<RepoInsights> => {
     languages: parseLanguages(langs),
     commits: parseCommits(commits),
     contributors: parseContributors(contributors),
-    heartbeat,
+    heartbeat: null,
   };
 };
 
-// The Insights page mounts this hook twice (LiveConsole + RepositoryPulse). A
-// single shared in-flight promise collapses a cold load to one set of GitHub
-// requests instead of doubling them (including the slow commit-activity retry).
-// There is deliberately NO persistent cache: the page pulls live on every visit,
-// which is the whole "building in public" point and keeps its copy honest.
-let inFlight: Promise<RepoInsights> | null = null;
+// The Insights page mounts this hook twice (LiveConsole + RepositoryPulse). One
+// shared in-flight promise per stream collapses a cold load to a single set of
+// GitHub requests instead of doubling them. The heartbeat (commit-activity) is a
+// SEPARATE stream on purpose: GitHub serves it with a 202 + a warm-up retry loop
+// that can take several seconds, and awaiting it alongside the core requests would
+// hold every other card (facts, languages, commits, contributors) in its loading
+// state until that one slow stat finished. It is loaded independently and merged
+// in when it resolves. There is deliberately NO persistent cache: the page pulls
+// live on every visit, which is the whole "building in public" point.
+let coreInFlight: Promise<RepoInsights> | null = null;
+let heartbeatInFlight: Promise<number[] | null> | null = null;
 
-const loadShared = (): Promise<RepoInsights> => {
-  inFlight ??= loadRepoInsights().finally(() => {
-    inFlight = null;
+const loadCoreShared = (): Promise<RepoInsights> => {
+  coreInFlight ??= loadRepoCore().finally(() => {
+    coreInFlight = null;
   });
-  return inFlight;
+  return coreInFlight;
+};
+
+const loadHeartbeatShared = (): Promise<number[] | null> => {
+  heartbeatInFlight ??= fetchHeartbeat().finally(() => {
+    heartbeatInFlight = null;
+  });
+  return heartbeatInFlight;
 };
 
 /**
  * Live repository metrics for the Insights page: languages, recent commits,
  * contributors, repo facts and a weekly commit heartbeat. Read straight from the
- * public GitHub API on every visit (no cache), sharing one in-flight fetch across
- * the page's hook instances. The initial value is a deterministic placeholder so
- * the server render and the first client render agree (no hydration mismatch).
+ * public GitHub API on every visit (no cache), sharing one in-flight fetch per
+ * stream across the page's hook instances. The core repository data lands as soon
+ * as it is ready; the slower commit-activity heartbeat is merged in separately so
+ * it never blocks the other cards. The initial value is a deterministic
+ * placeholder so the server render and the first client render agree.
  */
 export function useRepoInsights(): RepoInsights {
   const [data, setData] = useState<RepoInsights>(EMPTY);
@@ -249,8 +262,13 @@ export function useRepoInsights(): RepoInsights {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const next = await loadShared();
-      if (active) setData(next);
+      const core = await loadCoreShared();
+      // Functional update preserves a heartbeat that may have resolved first.
+      if (active) setData((prev) => ({ ...core, heartbeat: prev.heartbeat }));
+    })();
+    void (async () => {
+      const heartbeat = await loadHeartbeatShared();
+      if (active) setData((prev) => ({ ...prev, heartbeat }));
     })();
     return () => {
       active = false;

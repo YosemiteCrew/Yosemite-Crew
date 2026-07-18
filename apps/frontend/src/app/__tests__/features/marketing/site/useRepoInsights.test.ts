@@ -257,6 +257,36 @@ describe('useRepoInsights', () => {
     await waitFor(() => expect(result.current.heartbeat).toEqual([0, 5]));
   });
 
+  it('renders the core repository data without waiting on a slow heartbeat', async () => {
+    // Hold the commit-activity request open so the heartbeat stream is still
+    // pending while the four core requests have already resolved.
+    let releaseActivity: () => void = () => {};
+    const activityGate = new Promise<void>((resolve) => {
+      releaseActivity = resolve;
+    });
+    globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/stats/commit_activity')) {
+        return activityGate.then(() => res([{ total: 1 }, { total: 2 }]));
+      }
+      if (url.includes('/languages')) return Promise.resolve(res({ TypeScript: 100 }));
+      if (url.endsWith('/Yosemite-Crew')) return Promise.resolve(res({ forks_count: 7 }));
+      return Promise.resolve(res(null));
+    }) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useRepoInsights());
+
+    // Core cards resolve while the heartbeat request is still open.
+    await waitFor(() => expect(result.current.facts?.forks).toBe('7'));
+    expect(result.current.languages?.[0].name).toBe('TypeScript');
+    expect(result.current.heartbeat).toBeNull();
+
+    // The heartbeat then merges in without dropping the already-rendered core data.
+    releaseActivity();
+    await waitFor(() => expect(result.current.heartbeat).toEqual([1, 2]));
+    expect(result.current.facts?.forks).toBe('7');
+  });
+
   it('retries the heartbeat after a 202 and then renders the weeks', async () => {
     // Real timers: the source waits ~1.6s between attempts, and the follow-up
     // setData must land inside waitFor's act() wrapper (fake timers fire it outside).

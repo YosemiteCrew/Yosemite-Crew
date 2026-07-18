@@ -141,22 +141,39 @@ const isStatsCacheFresh = (): boolean => {
   return Number.isFinite(savedAt) && Date.now() - savedAt < STATS_TTL_MS;
 };
 
+export interface LiveFetchOptions {
+  /**
+   * Bypass the session cache/TTL and always refetch on mount, WITHOUT first
+   * painting a cached value. The Insights page passes this so its "no cache,
+   * pulled on every visit, right now" copy stays truthful even for a repeat
+   * visitor inside the normal cache window: the surface shows its loading
+   * placeholder until the live value resolves rather than a stale cached one.
+   */
+  live?: boolean;
+}
+
 /**
  * Live community metrics from GitHub + Discord. Seeds from the session cache, then
  * refreshes through a single shared loader that is deduplicated across concurrent
- * hook instances and skipped entirely while the cached snapshot is still fresh.
+ * hook instances. By default the refresh is skipped while the cached snapshot is
+ * still fresh; pass `{ live: true }` to always refetch AND skip the cached seed
+ * (used by the Insights page, whose copy explicitly promises uncached numbers).
  */
-export function useGithubStats(): GithubStats {
+export function useGithubStats(options?: LiveFetchOptions): GithubStats {
+  const live = options?.live ?? false;
   const [stats, setStats] = useState<GithubStats>(EMPTY_STATS);
 
   useEffect(() => {
     let active = true;
     // Seed from the session cache after mount, not in the useState initializer:
     // reading storage during render makes the client's first paint diverge from the
-    // server HTML (which has no storage) and triggers a hydration mismatch.
-    const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
-    if (cached) setStats({ ...EMPTY_STATS, ...cached });
-    if (!isStatsCacheFresh()) {
+    // server HTML (which has no storage) and triggers a hydration mismatch. Live
+    // mode skips the seed so a stale value is never painted under the "no cache" copy.
+    if (!live) {
+      const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
+      if (cached) setStats({ ...EMPTY_STATS, ...cached });
+    }
+    if (live || !isStatsCacheFresh()) {
       void (async () => {
         const merged = await loadGithubStats();
         if (active) setStats(merged);
@@ -165,7 +182,7 @@ export function useGithubStats(): GithubStats {
     return () => {
       active = false;
     };
-  }, []);
+  }, [live]);
 
   return stats;
 }
@@ -193,24 +210,34 @@ const formatReleaseDate = (iso?: string): string | null => {
   }
 };
 
-/** Latest GitHub release (platform). Used by the Home chip and Pet Businesses hero pill. */
-export function useLatestRelease(): ReleaseInfo {
+/**
+ * Latest GitHub release (platform). Used by the Home chip and Pet Businesses hero
+ * pill (cached) and the Insights latest-release card. Pass `{ live: true }` on the
+ * Insights page so the "nothing is cached" copy is honest: live mode always
+ * refetches and skips the cached seed, showing a loading placeholder (never a stale
+ * cached release) until the fresh value resolves.
+ */
+export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
+  const live = options?.live ?? false;
   const cacheKey = 'yc_rel_platform_v1';
   const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
 
   useEffect(() => {
     let active = true;
-    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
-    if (cached) setRelease(cached);
+    if (!live) {
+      const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
+      if (cached) setRelease(cached);
+    }
     void (async () => {
       const json = (await fetchJson(
         `${GITHUB_API_REPO}/releases/latest`,
         'application/vnd.github+json'
-      )) as { tag_name?: string; name?: string; published_at?: string; html_url?: string } | null;
+      )) as { tag_name?: string; published_at?: string; html_url?: string } | null;
       if (!active || !json?.tag_name) return;
-      const rawTag = json.name ?? json.tag_name;
       const next: ReleaseInfo = {
-        tag: rawTag.replace(/^[a-z]+-(?=v?\d)/i, ''),
+        // Derive the version from tag_name (the git tag), never the release `name`:
+        // GitHub release names are free-form titles and would land in the version slot.
+        tag: json.tag_name.replace(/^[a-z]+-(?=v?\d)/i, ''),
         date: formatReleaseDate(json.published_at),
         url: json.html_url ?? null,
       };
@@ -220,7 +247,7 @@ export function useLatestRelease(): ReleaseInfo {
     return () => {
       active = false;
     };
-  }, []);
+  }, [live]);
 
   return release;
 }
@@ -240,7 +267,6 @@ export function useMobileRelease(): ReleaseInfo {
         'application/vnd.github+json'
       )) as Array<{
         tag_name?: string;
-        name?: string;
         published_at?: string;
         html_url?: string;
       }> | null;
@@ -253,7 +279,8 @@ export function useMobileRelease(): ReleaseInfo {
       const mobile = list.find(isMobileTag);
       if (!mobile?.html_url) return;
       const next: ReleaseInfo = {
-        tag: (mobile.name ?? mobile.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
+        // tag_name only: the release `name` is a free-form title, not a version.
+        tag: (mobile.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
         date: formatReleaseDate(mobile.published_at),
         url: mobile.html_url,
       };
