@@ -399,6 +399,56 @@ describe('TaskCard', () => {
       expect(screen.getByText(/11:59 PM/)).toBeTruthy();
     });
 
+    it('drops the nearest dosage context when formatting the selected dosage throws', () => {
+      const splitOnceThenThrow = {
+        split: jest
+          .fn()
+          .mockReturnValueOnce(['23', '59'])
+          .mockImplementationOnce(() => {
+            throw new Error('format failed');
+          }),
+      };
+      renderCard({
+        ...medicationProps,
+        details: {
+          ...(medicationProps.details as object),
+          dosages: [
+            {time: splitOnceThenThrow, dosage: '1'} as unknown as {
+              time: string;
+              dosage: string;
+            },
+          ],
+        },
+      });
+      expect(
+        screen.getByText('General · Give medication · Buddy'),
+      ).toBeTruthy();
+    });
+
+    it('drops the nearest dosage context when display formatting has NaN hours', () => {
+      const splitValidThenNaN = {
+        split: jest
+          .fn()
+          .mockReturnValueOnce(['23', '59'])
+          .mockReturnValueOnce(['bad', '10']),
+      };
+      renderCard({
+        ...medicationProps,
+        details: {
+          ...(medicationProps.details as object),
+          dosages: [
+            {time: splitValidThenNaN, dosage: '1'} as unknown as {
+              time: string;
+              dosage: string;
+            },
+          ],
+        },
+      });
+      expect(
+        screen.getByText('General · Give medication · Buddy'),
+      ).toBeTruthy();
+    });
+
     it('picks the smaller of two future dosages (reduce comparison arm)', () => {
       // Two future dosages, largest first, so the reduce must swap to the
       // smaller upcoming time.

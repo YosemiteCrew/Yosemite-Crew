@@ -1254,6 +1254,21 @@ describe('ViewAppointmentScreen', () => {
       );
     });
 
+    it('formats the too-early message when appointment time is missing', async () => {
+      jest.setSystemTime(new Date('2023-12-25T00:00:00Z'));
+      const state = clone(defaultState);
+      state.appointments.items[0].date = '2023-12-26';
+      state.appointments.items[0].time = undefined;
+
+      renderScreen(state);
+      fireEvent.press(screen.getByTestId('btn-Check in'));
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Too early to check in',
+        expect.any(String),
+      );
+    });
+
     it('uses the singular minute label for one-minute check-in buffers', async () => {
       jest.setSystemTime(new Date('2023-12-25T00:00:00Z'));
       const state = clone(defaultState);

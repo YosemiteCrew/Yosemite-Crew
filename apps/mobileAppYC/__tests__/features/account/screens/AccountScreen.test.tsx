@@ -622,6 +622,9 @@ describe('AccountScreen', () => {
   it('navigates to menu items correctly', () => {
     renderScreen();
 
+    fireEvent.press(screen.getByTestId('menu-item-preferences'));
+    expect(mockNavigate).toHaveBeenCalledWith('Preferences');
+
     fireEvent.press(screen.getByTestId('menu-item-faqs'));
     expect(mockNavigate).toHaveBeenCalledWith('FAQ');
 

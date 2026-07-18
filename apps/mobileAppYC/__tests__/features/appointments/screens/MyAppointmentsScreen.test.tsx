@@ -46,11 +46,13 @@ jest.mock('@/shared/hooks/useAutoSelectCompanion', () => ({
   useAutoSelectCompanion: jest.fn(),
 }));
 
+const mockRequestBusinessPhoto = jest.fn();
+const mockHandleAvatarError = jest.fn();
 jest.mock('@/features/appointments/hooks/useBusinessPhotoFallback', () => ({
   useBusinessPhotoFallback: () => ({
     businessFallbacks: {},
-    requestBusinessPhoto: jest.fn(),
-    handleAvatarError: jest.fn(),
+    requestBusinessPhoto: mockRequestBusinessPhoto,
+    handleAvatarError: mockHandleAvatarError,
   }),
 }));
 
@@ -104,7 +106,7 @@ jest.mock('@/features/appointments/utils/appointmentCardData', () => ({
     // Leave checkInLabel empty so the screen's own resolvedCheckInLabel
     // fallback (isInProgress / isCheckedIn / default) computes the text,
     // exercising that branch instead of always trusting the card data.
-    const checkInLabel = '';
+    const checkInLabel = item.checkInLabelOverride ?? '';
 
     // 'biz-nodir' resolves to neither a place id nor an address so the
     // Get Directions handler falls through to its final no-op branch.
@@ -369,6 +371,8 @@ describe('MyAppointmentsScreen', () => {
 
     // Clear the mock worker
     mockFetchOrgWorker.mockClear();
+    mockRequestBusinessPhoto.mockClear();
+    mockHandleAvatarError.mockClear();
 
     store = mockStore({
       // Provide name to prevent charAt crash
@@ -641,6 +645,41 @@ describe('MyAppointmentsScreen', () => {
       );
     });
 
+    it('keeps a full appointment time unchanged before opening chat', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [
+            {
+              id: 'u-fulltime',
+              businessId: 'biz-1',
+              date: '2999-12-25',
+              time: '10:00:30',
+              start: '2999-12-25T10:00:30Z',
+              status: 'CONFIRMED',
+              companionId: 'c1',
+            },
+          ],
+          pastOverride: [],
+        },
+      });
+      renderScreen();
+      fireEvent.press(screen.getByTestId('btn-chat'));
+      const {onOpenChat} = (handleChatActivation as jest.Mock).mock.calls[0][0];
+
+      act(() => {
+        onOpenChat();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'ChatChannel',
+        expect.objectContaining({appointmentTime: '2999-12-25T10:00:30Z'}),
+      );
+    });
+
     it('blocks chat and shows a toast via onChatBlocked', () => {
       renderScreen();
       fireEvent.press(screen.getAllByTestId('btn-chat-blocked')[0]);
@@ -744,6 +783,7 @@ describe('MyAppointmentsScreen', () => {
       expect(() =>
         avatarErrorBtns.forEach(btn => fireEvent.press(btn)),
       ).not.toThrow();
+      expect(mockHandleAvatarError).toHaveBeenCalledWith('gp-1', 'biz-1');
     });
   });
 
@@ -828,6 +868,33 @@ describe('MyAppointmentsScreen', () => {
       );
       renderScreen();
       expect(screen.getAllByTestId('card-Dr. Test').length).toBe(3);
+    });
+
+    it('sorts when the compared prior appointment has no time', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-no-b-time',
+            businessId: 'biz-1',
+            date: '2999-12-24',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-with-time',
+            businessId: 'biz-1',
+            date: '2999-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getAllByTestId('card-Dr. Test')).toHaveLength(2);
     });
 
     it('splits far-future upcoming appointments into a Later group', () => {
@@ -930,6 +997,74 @@ describe('MyAppointmentsScreen', () => {
       expect(screen.getByTestId('lbl-checkin-status').props.children).toBe(
         'In progress',
       );
+    });
+
+    it('resolves the default check-in label for a confirmed appointment', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-confirmed',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByTestId('lbl-checkin-status').props.children).toBe(
+        'Check in',
+      );
+    });
+
+    it('uses the check-in label supplied by card data when present', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-custom-label',
+            businessId: 'biz-1',
+            date: '2999-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+            checkInLabelOverride: 'Ready now',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByTestId('lbl-checkin-status').props.children).toBe(
+        'Ready now',
+      );
+    });
+
+    it('reports avatar load errors for past cards', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [
+          {
+            id: 'p-avatar',
+            businessId: 'biz-1',
+            date: '2023-01-01',
+            status: 'COMPLETED',
+            companionId: 'c1',
+          },
+        ],
+      );
+      renderScreen();
+      switchToPast();
+
+      fireEvent.press(screen.getByTestId('btn-avatar-error'));
+
+      expect(mockHandleAvatarError).toHaveBeenCalledWith('gp-1', 'biz-1');
     });
 
     it('navigates to ViewAppointment from the past card view-details and press handlers', () => {

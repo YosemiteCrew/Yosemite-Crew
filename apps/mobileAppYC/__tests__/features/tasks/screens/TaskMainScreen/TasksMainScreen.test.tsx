@@ -413,6 +413,54 @@ describe('TasksMainScreen', () => {
     expect(getByText('No tasks yet')).toBeTruthy();
   });
 
+  it('shows the weekday name instead of "Today" when selectedDate is not today', () => {
+    const {
+      useTaskDateSelection,
+    } = require('@/features/tasks/hooks/useTaskDateSelection');
+    useTaskDateSelection.mockReturnValue({
+      selectedDate: new Date('2023-01-17T12:00:00Z'), // system time is Jan 15
+      currentMonth: new Date('2023-01-01T12:00:00Z'),
+      handleDateSelect: mockHandleDateSelect,
+      handleMonthChange: mockHandleMonthChange,
+      setCurrentMonth: mockSetCurrentMonth,
+    });
+
+    // TaskProgressSummary (which renders the weekday/"Today" label) only
+    // renders when there's at least one task, so populate one.
+    const {
+      selectRecentTasksByCategory,
+      selectTaskCountByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const mockTask = {
+      id: 't1',
+      title: 'Walk',
+      category: 'health',
+      status: 'pending',
+      date: '2023-01-17',
+      time: '10:00',
+      companionId: 'c1',
+    };
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+    selectTaskCountByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'health') return (_state: any) => 1;
+        return (_state: any) => 0;
+      },
+    );
+
+    const {getByText, queryByText} = render(<TasksMainScreen />);
+
+    expect(queryByText(/^Today,/)).toBeNull();
+    expect(getByText('Tuesday, 0 of 1 done')).toBeTruthy();
+  });
+
   it('fetches tasks on focus if not hydrated', () => {
     const {selectHasHydratedCompanion} = require('@/features/tasks/selectors');
     selectHasHydratedCompanion.mockReturnValue((_state: any) => false);

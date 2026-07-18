@@ -413,6 +413,36 @@ describe('BusinessSearchScreen', () => {
       });
     });
 
+    it('logs an error when the initial linked-businesses fetch fails', async () => {
+      (
+        LinkedBusinessActions.fetchLinkedBusinesses as unknown as jest.Mock
+      ).mockReturnValueOnce({type: 'throw'});
+
+      renderScreen();
+
+      await waitFor(() => {
+        expect(console.error).toHaveBeenCalledWith(
+          '[BusinessSearch] Failed to load linked businesses:',
+          expect.any(Error),
+        );
+      });
+    });
+
+    it('logs an error when the focus-triggered refresh of linked businesses fails', async () => {
+      (LinkedBusinessActions.fetchLinkedBusinesses as unknown as jest.Mock)
+        .mockReturnValueOnce({type: 'business/fetch', payload: []})
+        .mockReturnValueOnce({type: 'throw'});
+
+      renderScreen();
+
+      await waitFor(() => {
+        expect(console.error).toHaveBeenCalledWith(
+          '[BusinessSearch] Failed to refresh linked businesses:',
+          expect.any(Error),
+        );
+      });
+    });
+
     it('does not fetch on mount when companionId is missing', () => {
       const {getByTestId} = renderScreen({
         route: {params: {...routeParams, companionId: ''}} as any,

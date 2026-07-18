@@ -16,6 +16,23 @@ import {
 } from '@/features/tasks/components/TaskTypeBottomSheet/helpers';
 import {mockTheme} from '../../setup/mockTheme';
 
+jest.mock('@gorhom/bottom-sheet', () => {
+  const ReactActual = require('react');
+  const {View} = require('react-native');
+  const BottomSheetFlatList = ReactActual.forwardRef(
+    ({data = [], renderItem, keyExtractor, ...props}: any, ref: any) => (
+      <View {...props} ref={ref} keyExtractor={keyExtractor}>
+        {data.map((item: any, index: number) => (
+          <View key={keyExtractor ? keyExtractor(item, index) : String(index)}>
+            {renderItem ? renderItem({item, index}) : null}
+          </View>
+        ))}
+      </View>
+    ),
+  );
+  return {BottomSheetFlatList};
+});
+
 const mockCategorySections: CategorySection[] = [
   {
     type: 'single',
@@ -292,6 +309,7 @@ describe('TaskTypeBottomSheet', () => {
       renderComponent();
 
       const list = screen.getByTestId('task-type-list');
+      expect(list.props.keyExtractor(mockCategorySections[0])).toBe('custom');
       expect(StyleSheet.flatten(list.props.style)).toEqual(
         expect.objectContaining({flex: 1}),
       );

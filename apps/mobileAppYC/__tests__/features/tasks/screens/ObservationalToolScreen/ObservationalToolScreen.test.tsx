@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {ObservationalToolScreen} from '../../../../../src/features/tasks/screens/ObservationalToolScreen/ObservationalToolScreen';
+import {observationalToolDefinitions} from '../../../../../src/features/observationalTools/data';
 import {useDispatch, useSelector} from 'react-redux';
 import {Alert} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
@@ -379,6 +380,25 @@ describe('ObservationalToolScreen', () => {
   });
 
   const renderScreen = () => render(<ObservationalToolScreen />);
+
+  const withTemporaryDefinition = async (
+    toolId: string,
+    definition: any,
+    runTest: () => Promise<void> | void,
+  ) => {
+    const definitions = observationalToolDefinitions as Record<string, any>;
+    const previousDefinition = definitions[toolId];
+    definitions[toolId] = definition;
+    try {
+      await runTest();
+    } finally {
+      if (previousDefinition) {
+        definitions[toolId] = previousDefinition;
+      } else {
+        delete definitions[toolId];
+      }
+    }
+  };
 
   describe('Initialization & Loading', () => {
     it('fetches businesses on mount if empty', async () => {
@@ -1007,6 +1027,66 @@ describe('ObservationalToolScreen', () => {
       expect(getByText('W')).toBeTruthy();
     });
 
+    it('falls back to the first provider when the selected provider drops out of the list', async () => {
+      // Selects biz-2, then the provider list changes underneath it (e.g. a
+      // business refetch) so the previously-selected key no longer matches
+      // any entry -> resolvedProvider must fall through to providerEntries[0].
+      (useSelector as unknown as jest.Mock).mockImplementation(
+        makeUseSelector({
+          ...defaultMockState,
+          businesses: {businesses: mockBusinesses, services: mockServices},
+        }),
+      );
+
+      const {getByText, getByTestId, queryByText, rerender} = renderScreen();
+      await waitFor(() => expect(getByText('Vet Clinic B')).toBeTruthy());
+
+      fireEvent(getByText('Vet Clinic B'), 'press');
+
+      (useSelector as unknown as jest.Mock).mockImplementation(
+        makeUseSelector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: [mockServices[0]],
+          },
+        }),
+      );
+      rerender(<ObservationalToolScreen />);
+
+      await waitFor(() => expect(queryByText('Vet Clinic B')).toBeNull());
+      expect(getByText('Vet Clinic A')).toBeTruthy();
+
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      await waitFor(() => expect(getByText('Step 1 of 5')).toBeTruthy());
+      [
+        'Ears facing forward',
+        'Eyes opened',
+        'Relaxed (round shape)',
+        'Loose (relaxed) and curved',
+      ].forEach(option => {
+        fireEvent(getByText(option), 'press');
+        fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      });
+      fireEvent(getByText('Head above the shoulder line'), 'press');
+      fireEvent(
+        getByTestId('btn-Submit and schedule appointment'),
+        'onTouchEnd',
+      );
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          'Appointments',
+          expect.objectContaining({
+            params: expect.objectContaining({
+              businessId: 'biz-1',
+              serviceId: 'svc-1',
+            }),
+          }),
+        );
+      });
+    });
+
     it('builds steps from a remote-only definition and submits mapped answers', async () => {
       const rabbitCompanion = {
         id: 'comp-rabbit',
@@ -1618,6 +1698,393 @@ describe('ObservationalToolScreen', () => {
 
       const {getByText} = renderScreen();
       expect(getByText('What is Feline Grimace Scale?')).toBeTruthy();
+    });
+
+    it('renders static step fallback subtitle and footer copy from display metadata', async () => {
+      const toolId = 'test-static-fallback-tool';
+      await withTemporaryDefinition(
+        toolId,
+        {
+          id: toolId,
+          name: 'Fallback Tool',
+          shortName: 'Fallback Tool',
+          species: 'cat',
+          overviewTitle: 'Fallback Tool Overview',
+          overviewParagraphs: ['Fallback overview copy'],
+          emptyState: {
+            title: 'No fallback providers',
+            message: 'No fallback providers message',
+            image: 1,
+          },
+          steps: [
+            {
+              id: 'first-step',
+              title: 'First Step',
+              footerNote: 'Shared fallback footer',
+              required: false,
+              options: [{id: 'first', title: 'First option'}],
+            },
+            {
+              id: 'second-step',
+              title: 'Second Step',
+              required: false,
+              options: [{id: 'second', title: 'Second option'}],
+            },
+          ],
+        },
+        async () => {
+          (selectTaskById as unknown as jest.Mock).mockReturnValue(() => ({
+            ...mockTask,
+            observationToolId: toolId,
+            details: {toolType: toolId},
+          }));
+          const remoteDef = {
+            id: toolId,
+            name: 'Fallback Tool Remote',
+            description: 'Remote fallback subtitle',
+            fields: [
+              {
+                key: 'first-step',
+                label: 'First Step',
+                required: false,
+                options: [],
+              },
+              {
+                key: 'second-step',
+                label: 'Second Step',
+                required: false,
+                options: [],
+              },
+            ],
+          };
+          (getCachedObservationTool as jest.Mock).mockReturnValue(remoteDef);
+          (observationToolApi.get as jest.Mock).mockResolvedValue(remoteDef);
+          (useSelector as unknown as jest.Mock).mockImplementation(
+            makeUseSelector({
+              companion: {
+                companions: [{id: 'comp-1', name: 'Whiskers', category: 'cat'}],
+              },
+              businesses: {
+                businesses: [
+                  {id: 'biz-1', name: 'Fallback Clinic', address: '1 St'},
+                ],
+                services: [
+                  {
+                    id: 'svc-fallback',
+                    businessId: 'biz-1',
+                    name: 'Fallback Tool Remote Assessment',
+                    specialty: 'Observation',
+                  },
+                ],
+              },
+              auth: {user: mockUser},
+            }),
+          );
+
+          const {getByText, getByTestId} = renderScreen();
+          await waitFor(() =>
+            expect(getByText('Fallback Clinic')).toBeTruthy(),
+          );
+
+          fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+          await waitFor(() => expect(getByText('First Step')).toBeTruthy());
+          expect(getByText('Remote fallback subtitle')).toBeTruthy();
+
+          fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+          await waitFor(() => expect(getByText('Second Step')).toBeTruthy());
+          expect(getByText('Shared fallback footer')).toBeTruthy();
+        },
+      );
+    });
+
+    it('renders static steps with empty fallback subtitle metadata', async () => {
+      const toolId = 'test-empty-static-fallback-tool';
+      await withTemporaryDefinition(
+        toolId,
+        {
+          id: toolId,
+          name: 'Empty Fallback Tool',
+          shortName: 'Empty Fallback Tool',
+          species: 'cat',
+          overviewTitle: 'Empty Fallback Overview',
+          overviewParagraphs: ['Empty fallback overview copy'],
+          emptyState: {
+            title: 'No empty fallback providers',
+            message: 'No empty fallback providers message',
+            image: 1,
+          },
+          steps: [
+            {
+              id: 'empty-step',
+              title: 'Empty Step',
+              required: false,
+              options: [{id: 'empty', title: 'Empty option'}],
+            },
+          ],
+        },
+        async () => {
+          (selectTaskById as unknown as jest.Mock).mockReturnValue(() => ({
+            ...mockTask,
+            observationToolId: toolId,
+            details: {toolType: toolId},
+          }));
+          const remoteDef = {
+            id: toolId,
+            name: 'Empty Fallback Tool',
+            fields: [
+              {
+                key: 'empty-step',
+                label: 'Empty Step',
+                required: false,
+                options: [],
+              },
+            ],
+          };
+          (getCachedObservationTool as jest.Mock).mockReturnValue(remoteDef);
+          (observationToolApi.get as jest.Mock).mockResolvedValue(remoteDef);
+          (useSelector as unknown as jest.Mock).mockImplementation(
+            makeUseSelector({
+              companion: {
+                companions: [{id: 'comp-1', name: 'Whiskers', category: 'cat'}],
+              },
+              businesses: {
+                businesses: [
+                  {id: 'biz-1', name: 'Empty Fallback Clinic', address: '1 St'},
+                ],
+                services: [
+                  {
+                    id: 'svc-empty-fallback',
+                    businessId: 'biz-1',
+                    name: 'Empty Fallback Tool Assessment',
+                    specialty: 'Observation',
+                  },
+                ],
+              },
+              auth: {user: mockUser},
+            }),
+          );
+
+          const {getByText, getByTestId, queryByText} = renderScreen();
+          await waitFor(() =>
+            expect(getByText('Empty Fallback Clinic')).toBeTruthy(),
+          );
+          fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+          await waitFor(() => expect(getByText('Empty Step')).toBeTruthy());
+          expect(queryByText('Remote fallback subtitle')).toBeNull();
+        },
+      );
+    });
+
+    it('covers image and subtitle alternates for standard and image option layouts', async () => {
+      const toolId = 'test-dynamic-image-tool';
+      let dynamicImageReads = 0;
+      const dynamicImageOption = {
+        id: 'dynamic-image',
+        title: 'Dynamic Image Option',
+        subtitle: 'Dynamic image subtitle',
+        get image() {
+          dynamicImageReads += 1;
+          return dynamicImageReads === 1 ? undefined : 1;
+        },
+      };
+
+      await withTemporaryDefinition(
+        toolId,
+        {
+          id: toolId,
+          name: 'Dynamic Image Tool',
+          shortName: 'Dynamic Image Tool',
+          species: 'cat',
+          overviewTitle: 'Dynamic Image Overview',
+          overviewParagraphs: ['Dynamic image overview copy'],
+          emptyState: {
+            title: 'No dynamic image providers',
+            message: 'No dynamic image providers message',
+            image: 1,
+          },
+          steps: [
+            {
+              id: 'dynamic-step',
+              title: 'Dynamic Step',
+              required: false,
+              options: [dynamicImageOption],
+            },
+            {
+              id: 'mixed-step',
+              title: 'Mixed Image Step',
+              required: false,
+              options: [
+                {id: 'image-option', title: 'Image Option', image: 1},
+                {
+                  id: 'plain-subtitle-option',
+                  title: 'Plain Subtitle Option',
+                  subtitle: 'Plain option subtitle',
+                },
+              ],
+            },
+          ],
+        },
+        async () => {
+          (selectTaskById as unknown as jest.Mock).mockReturnValue(() => ({
+            ...mockTask,
+            observationToolId: toolId,
+            details: {toolType: toolId},
+          }));
+          const remoteDef = {
+            id: toolId,
+            name: 'Dynamic Image Tool',
+            fields: [
+              {
+                key: 'dynamic-step',
+                label: 'Dynamic Step',
+                required: false,
+                options: [],
+              },
+              {
+                key: 'mixed-step',
+                label: 'Mixed Image Step',
+                required: false,
+                options: [],
+              },
+            ],
+          };
+          (getCachedObservationTool as jest.Mock).mockReturnValue(remoteDef);
+          (observationToolApi.get as jest.Mock).mockResolvedValue(remoteDef);
+          (useSelector as unknown as jest.Mock).mockImplementation(
+            makeUseSelector({
+              companion: {
+                companions: [{id: 'comp-1', name: 'Whiskers', category: 'cat'}],
+              },
+              businesses: {
+                businesses: [
+                  {id: 'biz-1', name: 'Dynamic Clinic', address: '1 St'},
+                ],
+                services: [
+                  {
+                    id: 'svc-dynamic',
+                    businessId: 'biz-1',
+                    name: 'Dynamic Image Tool Assessment',
+                    specialty: 'Observation',
+                  },
+                ],
+              },
+              auth: {user: mockUser},
+            }),
+          );
+
+          const {getByText, getByTestId} = renderScreen();
+          await waitFor(() => expect(getByText('Dynamic Clinic')).toBeTruthy());
+
+          dynamicImageReads = 0;
+          fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+          await waitFor(() => expect(getByText('Dynamic Step')).toBeTruthy());
+          expect(getByText('Dynamic image subtitle')).toBeTruthy();
+
+          fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+          await waitFor(() =>
+            expect(getByText('Mixed Image Step')).toBeTruthy(),
+          );
+          expect(getByText('Plain option subtitle')).toBeTruthy();
+        },
+      );
+    });
+
+    it('renders provider and empty-state fallback images from falsy local assets', async () => {
+      const toolId = 'test-falsy-image-tool';
+      let specialtyReads = 0;
+      const serviceWithChangingSpecialty = {
+        id: 'svc-falsy-image',
+        businessId: 'biz-falsy-image',
+        name: 'Falsy Image Tool Assessment',
+        get specialty() {
+          specialtyReads += 1;
+          return specialtyReads === 1 ? 'Observation' : undefined;
+        },
+      };
+
+      await withTemporaryDefinition(
+        toolId,
+        {
+          id: toolId,
+          name: 'Falsy Image Tool',
+          shortName: 'Falsy Image Tool',
+          species: 'cat',
+          overviewTitle: 'Falsy Image Overview',
+          overviewParagraphs: ['Falsy image overview copy'],
+          emptyState: {
+            title: 'No falsy image providers',
+            message: 'No falsy image providers message',
+            image: 0,
+          },
+          steps: [
+            {
+              id: 'falsy-image-step',
+              title: 'Falsy Image Step',
+              required: false,
+              options: [{id: 'falsy', title: 'Falsy option'}],
+            },
+          ],
+        },
+        async () => {
+          (selectTaskById as unknown as jest.Mock).mockReturnValue(() => ({
+            ...mockTask,
+            observationToolId: toolId,
+            details: {toolType: toolId},
+          }));
+          const remoteDef = {
+            id: toolId,
+            name: 'Falsy Image Tool',
+            fields: [
+              {
+                key: 'falsy-image-step',
+                label: 'Falsy Image Step',
+                required: false,
+                options: [],
+              },
+            ],
+          };
+          (getCachedObservationTool as jest.Mock).mockReturnValue(remoteDef);
+          (observationToolApi.get as jest.Mock).mockResolvedValue(remoteDef);
+          (useSelector as unknown as jest.Mock).mockImplementation(
+            makeUseSelector({
+              companion: {
+                companions: [{id: 'comp-1', name: 'Whiskers', category: 'cat'}],
+              },
+              businesses: {
+                businesses: [
+                  {
+                    id: 'biz-falsy-image',
+                    name: 'Zero Clinic',
+                    address: '1 St',
+                    photo: 0,
+                  },
+                ],
+                services: [serviceWithChangingSpecialty],
+              },
+              auth: {user: mockUser},
+            }),
+          );
+
+          const {getByText, rerender} = renderScreen();
+          await waitFor(() => expect(getByText('Zero Clinic')).toBeTruthy());
+          expect(getByText('Z')).toBeTruthy();
+
+          (useSelector as unknown as jest.Mock).mockImplementation(
+            makeUseSelector({
+              companion: {
+                companions: [{id: 'comp-1', name: 'Whiskers', category: 'cat'}],
+              },
+              businesses: {businesses: [], services: []},
+              auth: {user: mockUser},
+            }),
+          );
+          rerender(<ObservationalToolScreen />);
+
+          await waitFor(() =>
+            expect(getByText('No falsy image providers')).toBeTruthy(),
+          );
+        },
+      );
     });
   });
 });

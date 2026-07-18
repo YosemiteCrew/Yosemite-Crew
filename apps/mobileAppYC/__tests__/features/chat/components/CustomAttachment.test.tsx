@@ -151,6 +151,13 @@ describe('CustomAttachment', () => {
       fireEvent.press(playButton);
       expect(getByLabelText('Pause video')).toBeTruthy();
     });
+
+    it('uses default title "Video" if title is missing', () => {
+      mockContext([{type: 'video', asset_url: 'http://video.mp4'}]);
+
+      const {getByText} = render(<CustomAttachment />);
+      expect(getByText('Video')).toBeTruthy();
+    });
   });
 
   // 4. File Attachment Tests

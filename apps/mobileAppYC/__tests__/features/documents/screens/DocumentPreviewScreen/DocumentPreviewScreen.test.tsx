@@ -521,6 +521,17 @@ describe('DocumentPreviewScreen', () => {
       expect(getByText(/orphan-sub/)).toBeTruthy();
     });
 
+    it('renders only the category label when no subcategory is set', () => {
+      const doc = {...mockDoc, category: 'others', subcategory: null};
+      const state = {
+        ...initialState,
+        documents: {documents: [doc], viewLoading: {}},
+      };
+      const {getByText, queryByText} = renderWithRedux(state);
+      expect(getByText(/Others/)).toBeTruthy();
+      expect(queryByText(/null/)).toBeNull();
+    });
+
     it('renders file meta with an uppercased extension and MB size', () => {
       const doc = {
         ...mockDoc,
