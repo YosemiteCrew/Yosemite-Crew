@@ -46,15 +46,28 @@ const toActiveCatalogItems = (
   badge: 'Service' | 'Package',
   organisationId: string | null | undefined
 ) =>
-  entries
-    .filter((entry) => entry.status === 'ACTIVE' && entry.organisationId === organisationId)
-    .map((entry) => ({
-      id: entry.id,
-      name: String(entry.name ?? '').trim(),
-      specialityId: entry.specialityId,
-      badge,
-      isInpatient: entry.isInpatientPreferred === true,
-    }));
+  entries.reduce<
+    Array<{
+      id: CatalogSelectableEntry['id'];
+      name: string;
+      specialityId: CatalogSelectableEntry['specialityId'];
+      badge: 'Service' | 'Package';
+      isInpatient: boolean;
+    }>
+  >((items, entry) => {
+    // Single pass: filter to the active, in-context entries and shape them at
+    // once instead of chaining .filter().map() (two iterations).
+    if (entry.status === 'ACTIVE' && entry.organisationId === organisationId) {
+      items.push({
+        id: entry.id,
+        name: String(entry.name ?? '').trim(),
+        specialityId: entry.specialityId,
+        badge,
+        isInpatient: entry.isInpatientPreferred === true,
+      });
+    }
+    return items;
+  }, []);
 
 const Forms = () => {
   const permissions = usePermissions();
