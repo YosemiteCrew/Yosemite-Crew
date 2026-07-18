@@ -38,6 +38,16 @@ type CatalogSelectableEntry = {
 };
 
 /**
+ * Coerce a catalog field (typed `unknown` by the stores) to a string for display
+ * or map-key use without falling back to an object's `[object Object]`
+ * stringification. Primitives round-trip; anything else becomes an empty string.
+ */
+const toPrimitiveString = (value: unknown): string =>
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : '';
+
+/**
  * Catalog stores accumulate entries across organisations, so an entry is only
  * selectable here when it belongs to the organisation currently in context.
  */
@@ -60,7 +70,7 @@ const toActiveCatalogItems = (
     if (entry.status === 'ACTIVE' && entry.organisationId === organisationId) {
       items.push({
         id: entry.id,
-        name: String(entry.name ?? '').trim(),
+        name: toPrimitiveString(entry.name).trim(),
         specialityId: entry.specialityId,
         badge,
         isInpatient: entry.isInpatientPreferred === true,
@@ -159,7 +169,7 @@ const Forms = () => {
       if (!item.id || !item.name) continue;
       const duplicateName = (nameFrequency.get(item.name.toLowerCase()) ?? 0) > 1;
       const specialityLabel =
-        specialityNameById.get(String(item.specialityId ?? '')) ?? 'Unknown Speciality';
+        specialityNameById.get(toPrimitiveString(item.specialityId)) ?? 'Unknown Speciality';
       options.push({
         label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
         value: item.id,
