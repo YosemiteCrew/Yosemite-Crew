@@ -1527,6 +1527,13 @@ html[data-theme='dark'] {
   /* calendar gridlines */
   --color-calendar-line-strong: #4a4136;
   --color-calendar-line-soft: #302820;
+  /* Calendar overlays: the light theme dims unavailable slots with a black wash
+     (rgba(0,0,0,0.045)) that is invisible on the dark surface. Re-declare the
+     three overlays as light/colour washes so unavailable, available, and preview
+     slots stay distinguishable in dark mode. */
+  --color-calendar-dim-overlay: rgba(255, 255, 255, 0.06);
+  --color-calendar-availability-overlay: rgba(74, 205, 155, 0.2);
+  --color-calendar-preview-overlay: rgba(103, 160, 239, 0.26);
   /* active input border */
   --color-input-border-active: #8fb6f5;
   /* DS Badge status set — dark tint-on-dark equivalents */

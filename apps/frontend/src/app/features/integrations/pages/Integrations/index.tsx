@@ -66,6 +66,11 @@ const statusTokens: Record<string, StatusTokens> = {
     text: 'var(--color-pill-info-text)',
     border: 'var(--color-pill-info-border)',
   },
+  neutral: {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
+  },
 };
 
 const credentialsStatusTokens: Record<string, StatusTokens> = {
@@ -213,7 +218,7 @@ const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
   const isLive = key === 'enabled';
   return (
     <span
-      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-label-xsmall px-2.5 py-1 rounded-full! border!"
+      className="shrink-0 max-w-full inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-caption-3 px-2.5 py-1 rounded-full! border!"
       style={
         tokens
           ? {
@@ -810,8 +815,6 @@ const INTEGRATION_CARD_CLASS =
   'rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-5 w-full flex items-stretch gap-4 min-h-[245px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
 const INTEGRATION_CARD_HEADER_CLASS = 'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2';
 const INTEGRATION_CARD_TITLE_CLASS = 'min-w-0 truncate text-heading-3 text-text-primary pt-1';
-const COMING_SOON_PILL_CLASS =
-  'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
 
 const IdexxIntegrationCard = ({
   s,
@@ -985,17 +988,7 @@ const RadIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>RadAnalyzer</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
+            <StatusPill status="neutral" label="Coming soon" />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
@@ -1036,17 +1029,7 @@ const VetnioIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>Vetnio</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
+            <StatusPill status="neutral" label="Coming soon" />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             AI-powered documentation for veterinary practices &mdash; instantly generate clinical
@@ -1084,17 +1067,7 @@ const QuickBooksIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>QuickBooks</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
+            <StatusPill status="neutral" label="Coming soon" />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             Accounting sync for invoices, payments, customers, and financial workflows through
@@ -1137,17 +1110,7 @@ const LaikaIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>Laika</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
+            <StatusPill status="neutral" label="Coming soon" />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
