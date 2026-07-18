@@ -123,9 +123,9 @@ export const AuthForm = ({
   </form>
 );
 
-export const FieldError = ({ message }: Readonly<{ message?: string }>) =>
+export const FieldError = ({ id, message }: Readonly<{ id?: string; message?: string }>) =>
   message ? (
-    <div role="alert" style={errorTextStyle}>
+    <div id={id} role="alert" style={errorTextStyle}>
       <IoAlertCircleOutline style={{ fontSize: 17, flex: 'none' }} aria-hidden="true" />
       {message}
     </div>
@@ -175,24 +175,28 @@ export const AuthTextField = ({
   placeholder,
   error,
   labelAccessory,
-}: Readonly<AuthTextFieldProps>) => (
-  <div style={fieldGroupStyle}>
-    <FieldLabel htmlFor={id} label={label} accessory={labelAccessory} />
-    <input
-      id={id}
-      name={name}
-      className="yc-field"
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-      aria-invalid={Boolean(error)}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-    <FieldError message={error} />
-  </div>
-);
+}: Readonly<AuthTextFieldProps>) => {
+  const errorId = `${id}-error`;
+  return (
+    <div style={fieldGroupStyle}>
+      <FieldLabel htmlFor={id} label={label} accessory={labelAccessory} />
+      <input
+        id={id}
+        name={name}
+        className="yc-field"
+        type={type}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <FieldError id={errorId} message={error} />
+    </div>
+  );
+};
 
 interface AuthPasswordFieldProps {
   id: string;
@@ -222,40 +226,44 @@ export const AuthPasswordField = ({
   placeholder,
   error,
   labelAccessory,
-}: Readonly<AuthPasswordFieldProps>) => (
-  <div style={fieldGroupStyle}>
-    <FieldLabel htmlFor={id} label={label} accessory={labelAccessory} />
-    <div style={{ position: 'relative' }}>
-      <input
-        id={id}
-        name={name}
-        className="yc-field"
-        type={showPassword ? 'text' : 'password'}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        aria-label={ariaLabel}
-        aria-invalid={Boolean(error)}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ paddingRight: 46 }}
-      />
-      <button
-        type="button"
-        onClick={onToggleShowPassword}
-        aria-label={showPassword ? 'Hide password' : 'Show password'}
-        title={showPassword ? 'Hide password' : 'Show password'}
-        style={toggleButtonStyle}
-      >
-        {showPassword ? (
-          <IoEyeOffOutline style={{ fontSize: 19 }} aria-hidden="true" />
-        ) : (
-          <IoEyeOutline style={{ fontSize: 19 }} aria-hidden="true" />
-        )}
-      </button>
+}: Readonly<AuthPasswordFieldProps>) => {
+  const errorId = `${id}-error`;
+  return (
+    <div style={fieldGroupStyle}>
+      <FieldLabel htmlFor={id} label={label} accessory={labelAccessory} />
+      <div style={{ position: 'relative' }}>
+        <input
+          id={id}
+          name={name}
+          className="yc-field"
+          type={showPassword ? 'text' : 'password'}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ paddingRight: 46 }}
+        />
+        <button
+          type="button"
+          onClick={onToggleShowPassword}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          title={showPassword ? 'Hide password' : 'Show password'}
+          style={toggleButtonStyle}
+        >
+          {showPassword ? (
+            <IoEyeOffOutline style={{ fontSize: 19 }} aria-hidden="true" />
+          ) : (
+            <IoEyeOutline style={{ fontSize: 19 }} aria-hidden="true" />
+          )}
+        </button>
+      </div>
+      <FieldError id={errorId} message={error} />
     </div>
-    <FieldError message={error} />
-  </div>
-);
+  );
+};
 
 export const AuthSubmitButton = ({
   idle,
