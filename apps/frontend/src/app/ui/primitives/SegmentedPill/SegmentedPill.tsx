@@ -16,7 +16,7 @@ type SegmentedPillProps<T extends string> = {
 // Neutral raised-pill segmented control per the design recipe:
 // track = --band + hairline, active segment = --screen raised (shadow), ink text.
 const segmentClass = (active: boolean, disabled?: boolean) =>
-  `rounded-full! px-3.5 py-1.5 text-[12px] transition-colors ${
+  `rounded-full! px-[11px] py-1.5 text-[11.5px] transition-colors ${
     disabled ? 'cursor-not-allowed' : 'cursor-pointer'
   } ${
     active
