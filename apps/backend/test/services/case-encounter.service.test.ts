@@ -3,7 +3,10 @@ import {
   CaseEncounterService,
   CaseEncounterServiceError,
 } from "../../src/services/case-encounter.service";
-import { CatalogService } from "../../src/services/catalog.service";
+import {
+  CatalogService,
+  CatalogServiceError,
+} from "../../src/services/catalog.service";
 import { WorkspaceService } from "../../src/services/workspace.prisma.service";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import { prisma } from "../../src/config/prisma";
@@ -1719,6 +1722,1497 @@ describe("CaseEncounterService", () => {
 
       expect(mockedPrisma.case.findMany).toHaveBeenCalledTimes(1);
       expect(mockedPrisma.encounter.findMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("additional coverage", () => {
+    const activeAdmission = {
+      encounterId: "enc_1",
+      organisationId: "org_1",
+      patientId: "comp_1",
+      unitId: null,
+      expectedStayDays: null,
+      admittedAt: new Date("2026-06-11T10:30:00.000Z"),
+      dischargedAt: null,
+      createdAt: new Date("2026-06-11T10:30:00.000Z"),
+      updatedAt: new Date("2026-06-11T10:30:00.000Z"),
+    };
+
+    const activeUnit = {
+      id: "unit_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      unitGroupId: null,
+      code: "KEN-01",
+      displayName: "Kennel 1",
+      size: "M",
+      speciesConstraints: ["dog"],
+      isActive: true,
+      createdAt: new Date("2026-06-11T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-11T10:00:00.000Z"),
+    };
+
+    const baseEncounterInput = {
+      caseId: "case_1",
+      organisationId: "org_1",
+      patientId: "comp_1",
+      parentId: "parent_1",
+      status: "planned" as const,
+      encounterClass: "IMP" as const,
+      appointmentKind: "INPATIENT" as const,
+      title: "Admission encounter",
+      reason: "Observation",
+    };
+
+    const buildPackageSelection = (over: Record<string, unknown> = {}) => ({
+      productItemId: "pkg_1",
+      productKind: "PACKAGE",
+      name: "Bundle",
+      code: "PKG-1",
+      currency: "USD",
+      isBookable: true,
+      appointmentKinds: ["OUTPATIENT"],
+      grossAmount: 100,
+      itemDiscountAmount: 0,
+      additionalDiscountAmount: 0,
+      finalAmount: 100,
+      templateKinds: [],
+      templateBindings: [],
+      billingItems: [],
+      includedItems: [],
+      ...over,
+    });
+
+    // -- createCase optional fallbacks --------------------------------------
+
+    it("creates a case with null fallbacks for absent optional fields", async () => {
+      mockedPrisma.case.create.mockResolvedValue({
+        ...baseCaseRow,
+        parentId: null,
+        title: null,
+        description: null,
+      } as never);
+
+      const result = await CaseEncounterService.createCase(
+        {
+          organisationId: "org_1",
+          patientId: "comp_1",
+          status: "planned",
+          appointmentKind: "INPATIENT",
+        } as never,
+        "org_1",
+      );
+
+      expect(mockedPrisma.case.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          parentId: null,
+          title: null,
+          description: null,
+        }),
+      });
+      expect(result.parentId).toBeUndefined();
+    });
+
+    // -- updateCase ---------------------------------------------------------
+
+    it("updates a case with all mutable fields", async () => {
+      mockedPrisma.case.findFirst.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.case.update.mockResolvedValue({
+        ...baseCaseRow,
+        status: "onhold",
+        parentId: "parent_2",
+        title: "New title",
+        description: "New description",
+      } as never);
+
+      const result = await CaseEncounterService.updateCase("case_1", "org_1", {
+        status: "onhold",
+        appointmentKind: "OUTPATIENT",
+        parentId: "parent_2",
+        title: "New title",
+        description: "New description",
+      });
+
+      expect(mockedPrisma.case.update).toHaveBeenCalledWith({
+        where: { id: "case_1" },
+        data: {
+          status: "onhold",
+          appointmentKind: "OUTPATIENT",
+          parentId: "parent_2",
+          title: "New title",
+          description: "New description",
+        },
+      });
+      expect(result.status).toBe("onhold");
+    });
+
+    it("leaves omitted case fields untouched on update", async () => {
+      mockedPrisma.case.findFirst.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.case.update.mockResolvedValue(baseCaseRow as never);
+
+      await CaseEncounterService.updateCase("case_1", "org_1", {});
+
+      expect(mockedPrisma.case.update).toHaveBeenCalledWith({
+        where: { id: "case_1" },
+        data: {
+          status: undefined,
+          appointmentKind: undefined,
+          parentId: undefined,
+          title: undefined,
+          description: undefined,
+        },
+      });
+    });
+
+    it("normalizes blank case fields to null on update", async () => {
+      mockedPrisma.case.findFirst.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.case.update.mockResolvedValue(baseCaseRow as never);
+
+      await CaseEncounterService.updateCase("case_1", "org_1", {
+        parentId: "   ",
+        title: "",
+        description: "  ",
+      });
+
+      expect(mockedPrisma.case.update).toHaveBeenCalledWith({
+        where: { id: "case_1" },
+        data: {
+          status: undefined,
+          appointmentKind: undefined,
+          parentId: null,
+          title: null,
+          description: null,
+        },
+      });
+    });
+
+    it("rejects updating a case that does not exist", async () => {
+      mockedPrisma.case.findFirst.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.updateCase("case_1", "org_1", {
+          status: "active",
+        }),
+      ).rejects.toMatchObject({
+        message: "Case not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+      expect(mockedPrisma.case.update).not.toHaveBeenCalled();
+    });
+
+    // -- getCaseById success -------------------------------------------------
+
+    it("returns a case scoped to the authorized organisation", async () => {
+      mockedPrisma.case.findFirst.mockResolvedValue(baseCaseRow as never);
+
+      const result = await CaseEncounterService.getCaseById("case_1", "org_1");
+
+      expect(mockedPrisma.case.findFirst).toHaveBeenCalledWith({
+        where: { id: "case_1", organisationId: "org_1" },
+      });
+      expect(result.id).toBe("case_1");
+      expect(result.title).toBe("Case title");
+    });
+
+    // -- createEncounter status / period validation --------------------------
+
+    it("rejects an invalid encounter status", async () => {
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, status: "bogus" as never },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Invalid encounter status.",
+        statusCode: 400,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects an invalid periodStart", async () => {
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, periodStart: new Date("not-a-date") },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Invalid encounter periodStart.",
+        statusCode: 400,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects an invalid periodEnd", async () => {
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, periodEnd: new Date("not-a-date") },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Invalid encounter periodEnd.",
+        statusCode: 400,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects a periodEnd before periodStart", async () => {
+      await expect(
+        CaseEncounterService.createEncounter(
+          {
+            ...baseEncounterInput,
+            periodStart: new Date("2026-06-11T12:00:00.000Z"),
+            periodEnd: new Date("2026-06-11T10:00:00.000Z"),
+          },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "periodEnd must be after periodStart.",
+        statusCode: 400,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    // -- createEncounter transaction guards ----------------------------------
+
+    it("rejects encounter creation when the case is missing", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.createEncounter(baseEncounterInput, "org_1"),
+      ).rejects.toMatchObject({
+        message: "Case not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects encounter creation when the case belongs to another organisation", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        ...baseCaseRow,
+        organisationId: "org_other",
+      } as never);
+
+      await expect(
+        CaseEncounterService.createEncounter(baseEncounterInput, "org_1"),
+      ).rejects.toMatchObject({
+        message: "Encounter organisationId must match case organisationId.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects encounter creation when the case belongs to another companion", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        ...baseCaseRow,
+        patientId: "comp_other",
+      } as never);
+
+      await expect(
+        CaseEncounterService.createEncounter(baseEncounterInput, "org_1"),
+      ).rejects.toMatchObject({
+        message: "Encounter patientId must match case patientId.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects encounter creation when the appointment is missing", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, appointmentId: "appt_1" },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Appointment not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects encounter creation when the appointment organisation differs", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        id: "appt_1",
+        caseId: null,
+        encounterId: null,
+        organisationId: "org_other",
+        patient: { id: "comp_1" },
+      } as never);
+
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, appointmentId: "appt_1" },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Encounter appointment organisation mismatch.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects encounter creation when the appointment is linked to another case", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        id: "appt_1",
+        caseId: "case_other",
+        encounterId: null,
+        organisationId: "org_1",
+        patient: { id: "comp_1" },
+      } as never);
+
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, appointmentId: "appt_1" },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Appointment is already linked to a different case.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    // -- resolveSelectionSafe -----------------------------------------------
+
+    const primeAppointmentPackageCreate = (productItemId = "pkg_1") => {
+      mockedPrisma.case.findUnique.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        id: "appt_pkg",
+        caseId: null,
+        encounterId: null,
+        organisationId: "org_1",
+        productItemId,
+        patient: { id: "comp_1" },
+      } as never);
+      mockedPrisma.encounter.create.mockResolvedValue({
+        ...baseEncounterRow,
+        id: "enc_pkg",
+      } as never);
+      mockedPrisma.appointment.update.mockResolvedValue({
+        id: "appt_pkg",
+      } as never);
+    };
+
+    it("treats a 404 catalog selection as no package to expand", async () => {
+      primeAppointmentPackageCreate();
+      mockedCatalogService.resolveSelection.mockRejectedValue(
+        new CatalogServiceError("Selection not found.", 404) as never,
+      );
+
+      const result = await CaseEncounterService.createEncounter(
+        { ...baseEncounterInput, appointmentId: "appt_pkg" },
+        "org_1",
+      );
+
+      expect(result.appointmentId).toBe("appt_pkg");
+      expect(
+        mockedPrisma.workspaceTreatmentItem.findMany,
+      ).not.toHaveBeenCalled();
+      expect(mockedPrisma.workspaceTreatmentItem.create).not.toHaveBeenCalled();
+    });
+
+    it("does not expand treatment items for a non-package selection", async () => {
+      primeAppointmentPackageCreate("svc_1");
+      mockedCatalogService.resolveSelection.mockResolvedValue(
+        buildPackageSelection({
+          productItemId: "svc_1",
+          productKind: "SERVICE",
+        }) as never,
+      );
+
+      const result = await CaseEncounterService.createEncounter(
+        { ...baseEncounterInput, appointmentId: "appt_pkg" },
+        "org_1",
+      );
+
+      expect(result.appointmentId).toBe("appt_pkg");
+      expect(mockedCatalogService.resolveSelection).toHaveBeenCalledWith(
+        "svc_1",
+        "org_1",
+      );
+      expect(
+        mockedPrisma.workspaceTreatmentItem.findMany,
+      ).not.toHaveBeenCalled();
+      expect(mockedPrisma.workspaceTreatmentItem.create).not.toHaveBeenCalled();
+    });
+
+    it("rethrows a non-404 catalog error while resolving a selection", async () => {
+      primeAppointmentPackageCreate();
+      mockedCatalogService.resolveSelection.mockRejectedValue(
+        new CatalogServiceError("Catalog exploded.", 500) as never,
+      );
+
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, appointmentId: "appt_pkg" },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Catalog exploded.",
+        statusCode: 500,
+      });
+    });
+
+    it("rethrows a generic error while resolving a selection", async () => {
+      primeAppointmentPackageCreate();
+      mockedCatalogService.resolveSelection.mockRejectedValue(
+        new Error("Boom.") as never,
+      );
+
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, appointmentId: "appt_pkg" },
+          "org_1",
+        ),
+      ).rejects.toThrow("Boom.");
+    });
+
+    // -- package expansion edge cases ---------------------------------------
+
+    it("skips template instances that already exist during package expansion", async () => {
+      primeAppointmentPackageCreate();
+      mockedCatalogService.resolveSelection.mockResolvedValue(
+        buildPackageSelection({
+          templateBindings: [
+            {
+              templateKind: "INPATIENT_SCHEDULE",
+              templateId: "tmpl_schedule_1",
+              templateVersion: 3,
+            },
+          ],
+        }) as never,
+      );
+      mockedPrisma.templateInstance.findFirst.mockResolvedValue({
+        id: "existing_template_instance",
+      } as never);
+
+      await CaseEncounterService.createEncounter(
+        { ...baseEncounterInput, appointmentId: "appt_pkg" },
+        "org_1",
+      );
+
+      expect(mockedPrisma.templateInstance.findFirst).toHaveBeenCalled();
+      expect(mockedPrisma.templateInstance.create).not.toHaveBeenCalled();
+    });
+
+    it("clamps non-positive package medication quantities to one", async () => {
+      primeAppointmentPackageCreate();
+      mockedCatalogService.resolveSelection.mockResolvedValue(
+        buildPackageSelection({
+          includedItems: [
+            {
+              productItemId: "med_zero",
+              code: "M0",
+              name: "Med Zero",
+              kind: "MEDICATION",
+              quantity: 0,
+              currency: "USD",
+              unitPrice: 0,
+              referenceUnitPrice: null,
+              defaultDiscountPercent: null,
+              maxDiscountPercent: null,
+              discountPercent: 0,
+              grossAmount: 0,
+              discountAmount: 0,
+              finalAmount: 0,
+              isPackageComponent: true,
+              packageProductItemId: "pkg_1",
+            },
+            {
+              productItemId: "med_fraction",
+              code: "M1",
+              name: "Med Fraction",
+              kind: "MEDICATION",
+              quantity: 0.5,
+              currency: "USD",
+              unitPrice: 0,
+              referenceUnitPrice: null,
+              defaultDiscountPercent: null,
+              maxDiscountPercent: null,
+              discountPercent: 0,
+              grossAmount: 0,
+              discountAmount: 0,
+              finalAmount: 0,
+              isPackageComponent: true,
+              packageProductItemId: "pkg_1",
+            },
+          ],
+        }) as never,
+      );
+
+      await CaseEncounterService.createEncounter(
+        { ...baseEncounterInput, appointmentId: "appt_pkg" },
+        "org_1",
+      );
+
+      expect(mockedPrisma.prescription.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          items: {
+            create: [
+              expect.objectContaining({
+                medication: "Med Zero",
+                quantity: "1",
+              }),
+              expect.objectContaining({
+                medication: "Med Fraction",
+                quantity: "1",
+              }),
+            ],
+          },
+        }),
+      });
+    });
+
+    // -- updateEncounter guards ---------------------------------------------
+
+    it("rejects changing immutable encounter identifiers", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+
+      await expect(
+        CaseEncounterService.updateEncounter("enc_1", "org_1", {
+          caseId: "case_other",
+        }),
+      ).rejects.toMatchObject({
+        message:
+          "caseId, organisationId and patientId cannot be changed for an encounter.",
+        statusCode: 400,
+      } satisfies Partial<CaseEncounterServiceError>);
+      expect(mockedPrisma.encounter.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects relinking an encounter to a missing appointment", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null as never);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.updateEncounter("enc_1", "org_1", {
+          appointmentId: "appt_missing",
+        }),
+      ).rejects.toMatchObject({
+        message: "Appointment not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+      expect(mockedPrisma.encounter.update).not.toHaveBeenCalled();
+    });
+
+    // -- dischargeEncounter guards ------------------------------------------
+
+    it("rejects discharge when no admission exists for the encounter", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "onleave",
+      } as never);
+      mockedPrisma.admission.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.dischargeEncounter("enc_1", "org_1"),
+      ).rejects.toMatchObject({
+        message: "Admission not found for encounter.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects discharge when the admission is already discharged", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "onleave",
+      } as never);
+      mockedPrisma.admission.findUnique.mockResolvedValue({
+        ...activeAdmission,
+        dischargedAt: new Date("2026-06-11T09:00:00.000Z"),
+      } as never);
+
+      await expect(
+        CaseEncounterService.dischargeEncounter("enc_1", "org_1"),
+      ).rejects.toMatchObject({
+        message: "Admission is already discharged.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("falls back to the default gate message when discharge is blocked without a reason", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "onleave",
+      } as never);
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedWorkspaceService.getEncounterFinalizationGate.mockResolvedValueOnce(
+        {
+          enabled: false,
+          disabledReason: null,
+          requiredSoapOrDischargeComplete: true,
+          requiredFormsSigned: false,
+          pendingLabsResolved: true,
+          billingReady: true,
+          pendingDispenseRequestsResolved: true,
+          inpatientRoomAdmissionReady: true,
+          requiredTasksComplete: true,
+        },
+      );
+
+      await expect(
+        CaseEncounterService.dischargeEncounter("enc_1", "org_1"),
+      ).rejects.toMatchObject({
+        message: "Encounter finalization gate is blocking discharge.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("discharges with default timestamps and records a SYSTEM override audit", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "onleave",
+      } as never);
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedWorkspaceService.getEncounterFinalizationGate.mockResolvedValueOnce(
+        {
+          enabled: false,
+          disabledReason: "Labs pending.",
+          requiredSoapOrDischargeComplete: true,
+          requiredFormsSigned: true,
+          pendingLabsResolved: false,
+          billingReady: true,
+          pendingDispenseRequestsResolved: true,
+          inpatientRoomAdmissionReady: true,
+          requiredTasksComplete: true,
+        },
+      );
+      mockedPrisma.roomUnitAssignment.findFirst.mockResolvedValue(
+        null as never,
+      );
+      mockedPrisma.admission.update.mockResolvedValue({
+        encounterId: "enc_1",
+      } as never);
+      mockedPrisma.encounter.update.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "finished",
+      } as never);
+
+      const result = await CaseEncounterService.dischargeEncounter(
+        "enc_1",
+        "org_1",
+        { overrideReason: "  Approved by lead.  " },
+      );
+
+      expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "ENCOUNTER_DISCHARGE_OVERRIDDEN",
+          actorType: "SYSTEM",
+          actorId: null,
+          metadata: expect.objectContaining({
+            overrideReason: "Approved by lead.",
+          }),
+        }),
+      );
+      expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "ENCOUNTER_DISCHARGED",
+          actorType: "SYSTEM",
+          metadata: expect.objectContaining({
+            dischargedAt: undefined,
+            periodEnd: undefined,
+          }),
+        }),
+      );
+      expect(result.status).toBe("finished");
+    });
+
+    // -- assignUnit guards ---------------------------------------------------
+
+    it("rejects assignment with an invalid assignedAt", async () => {
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", {
+          unitId: "unit_1",
+          assignedAt: new Date("not-a-date"),
+        }),
+      ).rejects.toMatchObject({
+        message: "Invalid assignedAt.",
+        statusCode: 400,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment when no admission exists", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Admission not found for encounter.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment to a discharged admission", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue({
+        ...activeAdmission,
+        dischargedAt: new Date("2026-06-11T09:00:00.000Z"),
+      } as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Cannot assign unit to a discharged admission.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment when the encounter organisation is inconsistent", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        organisationId: "org_2",
+      } as never);
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Encounter organisation mismatch.",
+        statusCode: 403,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment when the unit does not exist", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Room unit not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment when the unit is inactive", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+        ...activeUnit,
+        isActive: false,
+      } as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Selected unit is inactive.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment when the companion cannot be found", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue(activeUnit as never);
+      mockedPrisma.patient.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment when the unit group is missing", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+        ...activeUnit,
+        unitGroupId: "group_1",
+      } as never);
+      mockedPrisma.patient.findUnique.mockResolvedValue({
+        id: "comp_1",
+        type: "dog",
+        speciesCode: "canislf",
+      } as never);
+      mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Room unit group not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("rejects assignment when the unit group organisation differs", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+        ...activeUnit,
+        unitGroupId: "group_1",
+      } as never);
+      mockedPrisma.patient.findUnique.mockResolvedValue({
+        id: "comp_1",
+        type: "dog",
+        speciesCode: "canislf",
+      } as never);
+      mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue({
+        id: "group_1",
+        organisationId: "org_2",
+        roomId: "room_1",
+        name: "Ward",
+        size: "M",
+        unitCount: 2,
+        speciesConstraints: ["dog"],
+        capabilities: [],
+        isActive: true,
+      } as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Room unit group organisation mismatch.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("throws 500 when the transaction client is missing the roomUnit delegate", async () => {
+      const partialTx = {
+        encounter: {
+          findFirst: jest.fn(async () => baseEncounterRow),
+        },
+        admission: {
+          findUnique: jest.fn(async () => activeAdmission),
+        },
+      };
+      mockedPrisma.$transaction.mockImplementationOnce(async (callback: any) =>
+        callback(partialTx),
+      );
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", { unitId: "unit_1" }),
+      ).rejects.toMatchObject({
+        message: "Transaction client is missing roomUnit delegate.",
+        statusCode: 500,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    it("assigns a unit with empty species constraints on the unit and its group", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+        ...activeUnit,
+        unitGroupId: "group_1",
+        speciesConstraints: null,
+      } as never);
+      mockedPrisma.patient.findUnique.mockResolvedValue({
+        id: "comp_1",
+        type: "dog",
+        speciesCode: "canislf",
+      } as never);
+      mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue({
+        id: "group_1",
+        organisationId: "org_1",
+        roomId: "room_1",
+        name: "Ward",
+        size: "M",
+        unitCount: 2,
+        speciesConstraints: null,
+        capabilities: [],
+        isActive: true,
+      } as never);
+      mockedPrisma.roomUnitAssignment.findFirst.mockResolvedValue(
+        null as never,
+      );
+      mockedPrisma.roomUnitAssignment.create.mockResolvedValue({
+        id: "assign_new",
+      } as never);
+      mockedPrisma.admission.update.mockResolvedValue({
+        encounterId: "enc_1",
+      } as never);
+
+      const result = await CaseEncounterService.assignUnit("enc_1", "org_1", {
+        unitId: "unit_1",
+      });
+
+      expect(mockedPrisma.roomUnitAssignment.create).toHaveBeenCalled();
+      expect(mockedPrisma.admission.update).toHaveBeenCalledWith({
+        where: { encounterId: "enc_1" },
+        data: { unitId: "unit_1" },
+      });
+      expect(result.id).toBe("enc_1");
+    });
+
+    it("releases the previous unit assignment when transferring to a new unit", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue(activeUnit as never);
+      mockedPrisma.patient.findUnique.mockResolvedValue({
+        id: "comp_1",
+        type: "dog",
+        speciesCode: "canislf",
+      } as never);
+      mockedPrisma.roomUnitAssignment.findFirst
+        .mockReset()
+        .mockResolvedValueOnce(null as never)
+        .mockResolvedValueOnce({
+          id: "assign_old",
+          encounterId: "enc_1",
+          admissionId: "enc_1",
+          unitId: "unit_old",
+          assignedAt: new Date("2026-06-11T09:00:00.000Z"),
+          releasedAt: null,
+          assignedBy: "user_1",
+          reason: "Initial",
+          createdAt: new Date("2026-06-11T09:00:00.000Z"),
+          updatedAt: new Date("2026-06-11T09:00:00.000Z"),
+        } as never);
+      mockedPrisma.roomUnitAssignment.update.mockResolvedValue({
+        id: "assign_old",
+      } as never);
+      mockedPrisma.roomUnitAssignment.create.mockResolvedValue({
+        id: "assign_new",
+      } as never);
+      mockedPrisma.admission.update.mockResolvedValue({
+        encounterId: "enc_1",
+      } as never);
+
+      await CaseEncounterService.assignUnit("enc_1", "org_1", {
+        unitId: "unit_1",
+        assignedAt: new Date("2026-06-11T11:00:00.000Z"),
+      });
+
+      expect(mockedPrisma.roomUnitAssignment.update).toHaveBeenCalledWith({
+        where: { id: "assign_old" },
+        data: { releasedAt: new Date("2026-06-11T11:00:00.000Z") },
+      });
+      expect(mockedPrisma.roomUnitAssignment.create).toHaveBeenCalled();
+    });
+
+    it("re-uses the existing assignment when the unit is unchanged", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue(activeUnit as never);
+      mockedPrisma.patient.findUnique.mockResolvedValue({
+        id: "comp_1",
+        type: "dog",
+        speciesCode: "canislf",
+      } as never);
+      const sameUnitAssignment = {
+        id: "assign_same",
+        encounterId: "enc_1",
+        admissionId: "enc_1",
+        unitId: "unit_1",
+        assignedAt: new Date("2026-06-11T09:00:00.000Z"),
+        releasedAt: null,
+        assignedBy: "user_1",
+        reason: "Initial",
+        createdAt: new Date("2026-06-11T09:00:00.000Z"),
+        updatedAt: new Date("2026-06-11T09:00:00.000Z"),
+      };
+      mockedPrisma.roomUnitAssignment.findFirst
+        .mockReset()
+        .mockResolvedValueOnce(sameUnitAssignment as never)
+        .mockResolvedValueOnce(sameUnitAssignment as never);
+      mockedPrisma.admission.update.mockResolvedValue({
+        encounterId: "enc_1",
+      } as never);
+
+      await CaseEncounterService.assignUnit("enc_1", "org_1", {
+        unitId: "unit_1",
+      });
+
+      expect(mockedPrisma.roomUnitAssignment.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.roomUnitAssignment.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.admission.update).toHaveBeenCalledWith({
+        where: { encounterId: "enc_1" },
+        data: { unitId: "unit_1" },
+      });
+    });
+
+    // -- startEncounter invalid input ---------------------------------------
+
+    it("rejects starting an encounter with an invalid startedAt", async () => {
+      await expect(
+        CaseEncounterService.startEncounter("enc_1", "org_1", {
+          startedAt: new Date("not-a-date"),
+        }),
+      ).rejects.toMatchObject({
+        message: "Invalid startedAt.",
+        statusCode: 400,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    // -- listActiveInpatientEncounters empty --------------------------------
+
+    it("returns an empty list when no active admissions exist", async () => {
+      mockedPrisma.admission.findMany.mockResolvedValue([] as never);
+
+      const result = await CaseEncounterService.listActiveInpatientEncounters({
+        organisationId: "org_1",
+      });
+
+      expect(result).toEqual([]);
+      expect(mockedPrisma.encounter.findMany).not.toHaveBeenCalled();
+    });
+
+    // -- domain mapping of nullable fields ----------------------------------
+
+    it("maps nullable encounter columns to undefined", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        parentId: null,
+        title: null,
+        reason: null,
+        periodStart: null,
+        periodEnd: null,
+      } as never);
+      mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+
+      const result = await CaseEncounterService.getEncounterById(
+        "enc_1",
+        "org_1",
+      );
+
+      expect(result.parentId).toBeUndefined();
+      expect(result.title).toBeUndefined();
+      expect(result.reason).toBeUndefined();
+      expect(result.periodStart).toBeUndefined();
+      expect(result.periodEnd).toBeUndefined();
+    });
+
+    // -- updateEncounter without changing the appointment link ---------------
+
+    it("updates encounter class and metadata without touching the appointment", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null as never);
+      mockedPrisma.encounter.update.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "arrived",
+        encounterClass: "AMB",
+      } as never);
+      mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+
+      const result = await CaseEncounterService.updateEncounter(
+        "enc_1",
+        "org_1",
+        {
+          status: "arrived",
+          encounterClass: "AMB",
+          parentId: "parent_2",
+          title: "Revised title",
+          reason: "Revised reason",
+        },
+      );
+
+      expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
+        where: { id: "enc_1" },
+        data: expect.objectContaining({
+          status: "arrived",
+          encounterClass: "AMB",
+          parentId: "parent_2",
+          title: "Revised title",
+          reason: "Revised reason",
+        }),
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+      expect(result.encounterClass).toBe("AMB");
+    });
+
+    it("clears encounter metadata to null when blank values are supplied", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null as never);
+      mockedPrisma.encounter.update.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+
+      await CaseEncounterService.updateEncounter("enc_1", "org_1", {
+        parentId: "   ",
+        title: "",
+        reason: "  ",
+      });
+
+      expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
+        where: { id: "enc_1" },
+        data: expect.objectContaining({
+          parentId: null,
+          title: null,
+          reason: null,
+        }),
+      });
+    });
+
+    it("detaches the current appointment when the update clears the link", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
+        id: "appt_old",
+        caseId: "case_1",
+        encounterId: "enc_1",
+        organisationId: "org_1",
+        patient: { id: "comp_1" },
+      } as never);
+      mockedPrisma.encounter.update.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+
+      await CaseEncounterService.updateEncounter("enc_1", "org_1", {
+        appointmentId: "   ",
+      });
+
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith({
+        where: { id: "appt_old" },
+        data: { encounterId: null },
+      });
+    });
+
+    // -- discharge metadata with explicit period end ------------------------
+
+    it("records ISO discharge metadata and tolerates a missing periodStart", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "onleave",
+        periodStart: null,
+      } as never);
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnitAssignment.findFirst.mockResolvedValue(
+        null as never,
+      );
+      mockedPrisma.admission.update.mockResolvedValue({
+        encounterId: "enc_1",
+      } as never);
+      mockedPrisma.encounter.update.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "finished",
+      } as never);
+      mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+
+      await CaseEncounterService.dischargeEncounter("enc_1", "org_1", {
+        dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
+        periodEnd: new Date("2026-06-11T13:00:00.000Z"),
+      });
+
+      expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: "ENCOUNTER_DISCHARGED",
+          metadata: expect.objectContaining({
+            dischargedAt: "2026-06-11T12:00:00.000Z",
+            periodEnd: "2026-06-11T13:00:00.000Z",
+          }),
+        }),
+      );
+    });
+
+    // -- listUnitAssignments active-only + null assignedBy ------------------
+
+    it("filters to open assignments and maps a null assignedBy", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        id: "enc_1",
+      } as never);
+      mockedPrisma.roomUnitAssignment.findMany.mockResolvedValue([
+        {
+          id: "assign_open",
+          encounterId: "enc_1",
+          admissionId: "enc_1",
+          unitId: "unit_1",
+          assignedAt: new Date("2026-06-11T11:00:00.000Z"),
+          releasedAt: null,
+          assignedBy: null,
+          reason: null,
+          createdAt: new Date("2026-06-11T11:00:00.000Z"),
+          updatedAt: new Date("2026-06-11T11:00:00.000Z"),
+        },
+      ] as never);
+
+      const result = await CaseEncounterService.listUnitAssignments({
+        organisationId: "org_1",
+        encounterId: "enc_1",
+        activeOnly: true,
+      });
+
+      expect(mockedPrisma.roomUnitAssignment.findMany).toHaveBeenCalledWith({
+        where: {
+          encounterId: "enc_1",
+          admissionId: undefined,
+          unitId: undefined,
+          releasedAt: null,
+          admission: { organisationId: "org_1" },
+        },
+        orderBy: { assignedAt: "asc" },
+      });
+      expect(result[0]?.assignedBy).toBeUndefined();
+    });
+
+    // -- startEncounter falls back to startedAt for periodStart --------------
+
+    it("uses startedAt as the periodStart when the encounter has none", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "arrived",
+        periodStart: null,
+      } as never);
+      mockedPrisma.encounter.update.mockResolvedValue({
+        ...baseEncounterRow,
+        status: "in-progress",
+      } as never);
+      mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+
+      await CaseEncounterService.startEncounter("enc_1", "org_1", {
+        startedAt: new Date("2026-06-11T12:00:00.000Z"),
+      });
+
+      expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
+        where: { id: "enc_1" },
+        data: {
+          status: "in-progress",
+          periodStart: new Date("2026-06-11T12:00:00.000Z"),
+        },
+      });
+    });
+
+    // -- species token normalisation edge cases -----------------------------
+
+    it("assigns a unit despite non-string and alias-less species tokens", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue(
+        activeAdmission as never,
+      );
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+        ...activeUnit,
+        speciesConstraints: ["rabbit", 42],
+      } as never);
+      mockedPrisma.patient.findUnique.mockResolvedValue({
+        id: "comp_1",
+        type: "rabbit",
+        speciesCode: null,
+      } as never);
+      mockedPrisma.roomUnitAssignment.findFirst.mockResolvedValue(
+        null as never,
+      );
+      mockedPrisma.roomUnitAssignment.create.mockResolvedValue({
+        id: "assign_new",
+      } as never);
+      mockedPrisma.admission.update.mockResolvedValue({
+        encounterId: "enc_1",
+      } as never);
+      mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+
+      const result = await CaseEncounterService.assignUnit("enc_1", "org_1", {
+        unitId: "unit_1",
+      });
+
+      expect(mockedPrisma.roomUnitAssignment.create).toHaveBeenCalled();
+      expect(result.id).toBe("enc_1");
+    });
+
+    // -- appointment with no companion id -----------------------------------
+
+    it("rejects encounter creation when the appointment carries no companion", async () => {
+      mockedPrisma.case.findUnique.mockResolvedValue(baseCaseRow as never);
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        id: "appt_1",
+        caseId: null,
+        encounterId: null,
+        organisationId: "org_1",
+        patient: null,
+      } as never);
+
+      await expect(
+        CaseEncounterService.createEncounter(
+          { ...baseEncounterInput, appointmentId: "appt_1" },
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Encounter appointment companion mismatch.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+    });
+
+    // -- package expansion with unrelated existing snapshots -----------------
+
+    it("expands a package when existing treatment snapshots do not match", async () => {
+      primeAppointmentPackageCreate();
+      mockedPrisma.workspaceTreatmentItem.findMany.mockResolvedValue([
+        { productSnapshot: null },
+        { productSnapshot: {} },
+      ] as never);
+      mockedCatalogService.resolveSelection.mockResolvedValue(
+        buildPackageSelection({
+          billingItems: [
+            {
+              productItemId: "lab_1",
+              code: "LAB-1",
+              name: "Lab",
+              kind: "LAB_TEST",
+              quantity: 1,
+              currency: "USD",
+              unitPrice: 30,
+              referenceUnitPrice: 30,
+              defaultDiscountPercent: null,
+              maxDiscountPercent: null,
+              discountPercent: 0,
+              grossAmount: 30,
+              discountAmount: 0,
+              finalAmount: 30,
+              isPackageComponent: true,
+              packageProductItemId: "pkg_1",
+            },
+          ],
+        }) as never,
+      );
+
+      await CaseEncounterService.createEncounter(
+        { ...baseEncounterInput, appointmentId: "appt_pkg" },
+        "org_1",
+      );
+
+      expect(mockedPrisma.workspaceTreatmentItem.findMany).toHaveBeenCalled();
+      expect(mockedPrisma.workspaceTreatmentItem.create).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockedPrisma.prescription.create).not.toHaveBeenCalled();
+    });
+
+    it("defaults a package template binding without a version to version one", async () => {
+      primeAppointmentPackageCreate();
+      mockedCatalogService.resolveSelection.mockResolvedValue(
+        buildPackageSelection({
+          templateBindings: [
+            {
+              templateKind: "INPATIENT_SCHEDULE",
+              templateId: "tmpl_no_version",
+            },
+          ],
+        }) as never,
+      );
+      mockedPrisma.templateInstance.findFirst.mockResolvedValue(null as never);
+
+      await CaseEncounterService.createEncounter(
+        { ...baseEncounterInput, appointmentId: "appt_pkg" },
+        "org_1",
+      );
+
+      expect(mockedPrisma.templateInstance.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          templateId: "tmpl_no_version",
+          templateVersion: 1,
+        }),
+      });
+    });
+
+    it("maps package medication rows for component and standalone medications", async () => {
+      primeAppointmentPackageCreate();
+      mockedCatalogService.resolveSelection.mockResolvedValue(
+        buildPackageSelection({
+          includedItems: [
+            {
+              productItemId: "med_comp",
+              code: null,
+              name: "Component Med",
+              kind: "MEDICATION",
+              quantity: 1,
+              currency: "USD",
+              unitPrice: 0,
+              referenceUnitPrice: null,
+              defaultDiscountPercent: null,
+              maxDiscountPercent: null,
+              discountPercent: 0,
+              grossAmount: 0,
+              discountAmount: 0,
+              finalAmount: 0,
+              isPackageComponent: true,
+              packageProductItemId: null,
+            },
+            {
+              productItemId: "med_standalone",
+              code: "MED-2",
+              name: "Standalone Med",
+              kind: "MEDICATION",
+              quantity: 1,
+              currency: "USD",
+              unitPrice: 12,
+              referenceUnitPrice: null,
+              defaultDiscountPercent: null,
+              maxDiscountPercent: null,
+              discountPercent: 0,
+              grossAmount: 12,
+              discountAmount: 0,
+              finalAmount: 12,
+              isPackageComponent: false,
+              packageProductItemId: null,
+            },
+          ],
+        }) as never,
+      );
+
+      await CaseEncounterService.createEncounter(
+        { ...baseEncounterInput, appointmentId: "appt_pkg" },
+        "org_1",
+      );
+
+      const rxCall = (
+        mockedPrisma.prescription.create.mock.calls as unknown as Array<
+          [{ data: { items: { create: Array<Record<string, unknown>> } } }]
+        >
+      )[0][0];
+      const rows = rxCall.data.items.create;
+
+      expect(rows[0]).toMatchObject({
+        medication: "Component Med",
+        route: "PACKAGE",
+        instructions: "Package component from med_comp",
+      });
+      expect(rows[0].strength).toBeUndefined();
+      expect(rows[0].frequency).toBeUndefined();
+      expect(rows[1].route).toBeUndefined();
+      expect(rows[1].instructions).toBeUndefined();
     });
   });
 });

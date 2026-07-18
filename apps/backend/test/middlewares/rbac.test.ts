@@ -13,6 +13,9 @@ jest.mock("../../src/config/prisma", () => ({
     invoice: {
       findUnique: jest.fn(),
     },
+    payment: {
+      findUnique: jest.fn(),
+    },
     paymentAttempt: {
       findFirst: jest.fn(),
     },
@@ -20,6 +23,21 @@ jest.mock("../../src/config/prisma", () => ({
       findUnique: jest.fn(),
     },
     inventoryItem: {
+      findUnique: jest.fn(),
+    },
+    encounter: {
+      findUnique: jest.fn(),
+    },
+    case: {
+      findUnique: jest.fn(),
+    },
+    renderedDocument: {
+      findUnique: jest.fn(),
+    },
+    roomUnit: {
+      findUnique: jest.fn(),
+    },
+    roomUnitGroup: {
       findUnique: jest.fn(),
     },
   },
@@ -30,10 +48,16 @@ import {
   requirePermission,
   type OrgRequest,
   withAppointmentOrgPermissions,
+  withCaseOrgPermissions,
+  withEncounterOrgPermissions,
   withInventoryItemOrgPermissions,
   withInvoiceOrgPermissions,
   withOrgPermissions,
   withPaymentIntentOrgPermissions,
+  withPaymentOrgPermissions,
+  withRenderedDocumentOrgPermissions,
+  withRoomUnitGroupOrgPermissions,
+  withRoomUnitOrgPermissions,
   withTaskOrgPermissions,
 } from "../../src/middlewares/rbac";
 
@@ -44,6 +68,16 @@ const mockRes = (): Response =>
   }) as unknown as Response;
 
 const next = () => jest.fn() as unknown as NextFunction;
+
+// A membership whose stored effective permissions already match the computed
+// set, so withOrgPermissions resolves cleanly (no updateMany) and calls next().
+const membership = () => ({
+  id: "map_1",
+  roleCode: undefined,
+  extraPermissions: ["tasks:view:any"],
+  revokedPermissions: [],
+  effectivePermissions: ["tasks:view:any"],
+});
 
 describe("rbac middleware", () => {
   beforeEach(() => {
@@ -349,6 +383,579 @@ describe("rbac middleware", () => {
     expect(paymentReq.params.organisationId).toBe("org_pi");
     expect(taskReq.params.organisationId).toBe("org_task");
     expect(itemReq.params.organisationId).toBe("org_item");
+  });
+
+  it("resolves org id from the organizationId param spelling", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    const req = {
+      userId: "user_1",
+      params: { organizationId: "org_z" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(prisma.userOrganization.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { organizationReference: "org_z" },
+            { organizationReference: "Organization/org_z" },
+          ],
+        }),
+      }),
+    );
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("resolves org id from the x-org-id header", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    const req = {
+      userId: "user_1",
+      params: {},
+      headers: { "x-org-id": "org_hdr" },
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(prisma.userOrganization.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { organizationReference: "org_hdr" },
+            { organizationReference: "Organization/org_hdr" },
+          ],
+        }),
+      }),
+    );
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("resolves org id from the query string (both spellings)", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+
+    const organisationReq = {
+      userId: "user_1",
+      params: {},
+      headers: {},
+      query: { organisationId: "org_q1" },
+    } as unknown as OrgRequest as Request;
+    await withOrgPermissions()(organisationReq, mockRes(), next());
+    expect(prisma.userOrganization.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { organizationReference: "org_q1" },
+            { organizationReference: "Organization/org_q1" },
+          ],
+        }),
+      }),
+    );
+
+    const organizationReq = {
+      userId: "user_1",
+      params: {},
+      headers: {},
+      query: { organizationId: "org_q2" },
+    } as unknown as OrgRequest as Request;
+    await withOrgPermissions()(organizationReq, mockRes(), next());
+    expect(prisma.userOrganization.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { organizationReference: "org_q2" },
+            { organizationReference: "Organization/org_q2" },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("skips non-object entries when extracting org id from an array body", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    const req = {
+      userId: "user_1",
+      params: {},
+      headers: {},
+      body: [null, "not-an-object", 42, { organisationId: "org_arr" }],
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(prisma.userOrganization.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { organizationReference: "org_arr" },
+            { organizationReference: "Organization/org_arr" },
+          ],
+        }),
+      }),
+    );
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 400 for an array body with no resolvable org id", async () => {
+    const res = mockRes();
+    await withOrgPermissions()(
+      {
+        userId: "user_1",
+        params: {},
+        headers: {},
+        body: [{ foo: "bar" }, "x"],
+      } as unknown as OrgRequest as Request,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.userOrganization.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for an array body naming two distinct organisations", async () => {
+    const res = mockRes();
+    await withOrgPermissions()(
+      {
+        userId: "user_1",
+        params: {},
+        headers: {},
+        body: [{ organisationId: "org_a" }, { organisationId: "org_b" }],
+      } as unknown as OrgRequest as Request,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.userOrganization.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when the mapping lookup throws", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockRejectedValue(
+      new Error("db down") as never,
+    );
+    const res = mockRes();
+    const middlewareNext = next();
+
+    await withOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { organisationId: "org_1" },
+        headers: {},
+      } as unknown as OrgRequest as Request,
+      res,
+      middlewareNext,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Failed to resolve permissions",
+    });
+    expect(middlewareNext).not.toHaveBeenCalled();
+  });
+
+  it("falls back to empty base permissions for an unknown role code", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+      id: "map_1",
+      roleCode: "NOT_A_REAL_ROLE",
+      extraPermissions: [],
+      revokedPermissions: [],
+      effectivePermissions: [],
+    } as never);
+
+    const req = {
+      userId: "user_1",
+      params: { organisationId: "org_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect((req as unknown as OrgRequest).userPermissions).toEqual([]);
+    expect(prisma.userOrganization.updateMany).not.toHaveBeenCalled();
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 400 when the resource id param is missing", async () => {
+    const res = mockRes();
+
+    await withAppointmentOrgPermissions()({ params: {} } as never, res, next());
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: "Missing appointmentId" });
+    expect(prisma.appointment.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the resource loader throws", async () => {
+    (prisma.appointment.findUnique as jest.Mock).mockRejectedValue(
+      new Error("bad id") as never,
+    );
+    const res = mockRes();
+
+    await withAppointmentOrgPermissions()(
+      { params: { appointmentId: "apt_bad" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: "Invalid appointmentId" });
+  });
+
+  it("hydrates organisationId from a payment's invoice", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValue({
+      invoice: { organisationId: "org_pay" },
+    } as never);
+    const req = {
+      userId: "user_1",
+      params: { paymentId: "pay_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withPaymentOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(req.params.organisationId).toBe("org_pay");
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the payment is missing", async () => {
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValue(null as never);
+    const res = mockRes();
+
+    await withPaymentOrgPermissions()(
+      { params: { paymentId: "pay_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: "Payment not found" });
+  });
+
+  it("hydrates organisationId from an encounter using the default param", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    (prisma.encounter.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_enc",
+    } as never);
+    const req = {
+      userId: "user_1",
+      params: { id: "enc_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withEncounterOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(prisma.encounter.findUnique).toHaveBeenCalledWith({
+      where: { id: "enc_1" },
+      select: { organisationId: true },
+    });
+    expect(req.params.organisationId).toBe("org_enc");
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the encounter is missing", async () => {
+    (prisma.encounter.findUnique as jest.Mock).mockResolvedValue(null as never);
+    const res = mockRes();
+
+    await withEncounterOrgPermissions()(
+      { params: { id: "enc_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: "Encounter not found" });
+  });
+
+  it("hydrates organisationId from a case using a custom param name", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    (prisma.case.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_case",
+    } as never);
+    const req = {
+      userId: "user_1",
+      params: { caseId: "case_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withCaseOrgPermissions("caseId")(req, mockRes(), middlewareNext);
+
+    expect(prisma.case.findUnique).toHaveBeenCalledWith({
+      where: { id: "case_1" },
+      select: { organisationId: true },
+    });
+    expect(req.params.organisationId).toBe("org_case");
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the case is missing", async () => {
+    (prisma.case.findUnique as jest.Mock).mockResolvedValue(null as never);
+    const res = mockRes();
+
+    await withCaseOrgPermissions()(
+      { params: { id: "case_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: "Case not found" });
+  });
+
+  it("hydrates organisationId from a rendered document", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    (prisma.renderedDocument.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_doc",
+    } as never);
+    const req = {
+      userId: "user_1",
+      params: { renderedDocumentId: "doc_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withRenderedDocumentOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(req.params.organisationId).toBe("org_doc");
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the rendered document is missing", async () => {
+    (prisma.renderedDocument.findUnique as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    const res = mockRes();
+
+    await withRenderedDocumentOrgPermissions()(
+      { params: { renderedDocumentId: "doc_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Rendered document not found",
+    });
+  });
+
+  it("hydrates organisationId from a room unit", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    (prisma.roomUnit.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_unit",
+    } as never);
+    const req = {
+      userId: "user_1",
+      params: { id: "unit_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withRoomUnitOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(req.params.organisationId).toBe("org_unit");
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the room unit is missing", async () => {
+    (prisma.roomUnit.findUnique as jest.Mock).mockResolvedValue(null as never);
+    const res = mockRes();
+
+    await withRoomUnitOrgPermissions()(
+      { params: { id: "unit_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: "Room unit not found" });
+  });
+
+  it("hydrates organisationId from a room unit group", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      membership() as never,
+    );
+    (prisma.roomUnitGroup.findUnique as jest.Mock).mockResolvedValue({
+      organisationId: "org_group",
+    } as never);
+    const req = {
+      userId: "user_1",
+      params: { id: "group_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withRoomUnitGroupOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(req.params.organisationId).toBe("org_group");
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the room unit group is missing", async () => {
+    (prisma.roomUnitGroup.findUnique as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    const res = mockRes();
+
+    await withRoomUnitGroupOrgPermissions()(
+      { params: { id: "group_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Room unit group not found",
+    });
+  });
+
+  it("returns 404 when the invoice has no organisation", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue(null as never);
+    const res = mockRes();
+
+    await withInvoiceOrgPermissions()(
+      { params: { invoiceId: "inv_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: "Invoice not found" });
+  });
+
+  it("returns 404 when no payment attempt matches the intent", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    const res = mockRes();
+
+    await withPaymentIntentOrgPermissions()(
+      { params: { paymentIntentId: "pi_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: "Invoice not found" });
+  });
+
+  it("returns 404 when the task is missing", async () => {
+    (prisma.task.findUnique as jest.Mock).mockResolvedValue(null as never);
+    const res = mockRes();
+
+    await withTaskOrgPermissions()(
+      { params: { taskId: "task_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: "Task not found" });
+  });
+
+  it("returns 404 when the inventory item is missing", async () => {
+    (prisma.inventoryItem.findUnique as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    const res = mockRes();
+
+    await withInventoryItemOrgPermissions()(
+      { params: { itemId: "item_x" } } as never,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Inventory item not found",
+    });
+  });
+
+  it("treats non-array stored effective permissions as empty and recomputes", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+      id: "map_1",
+      roleCode: undefined,
+      extraPermissions: ["tasks:view:any"],
+      revokedPermissions: [],
+      effectivePermissions: undefined,
+    } as never);
+
+    const req = {
+      userId: "user_1",
+      params: { organisationId: "org_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withOrgPermissions()(req, mockRes(), middlewareNext);
+
+    // stored `undefined` normalises to [], which differs from the computed
+    // set, forcing a persist and using the freshly computed permissions.
+    expect(prisma.userOrganization.updateMany).toHaveBeenCalledWith({
+      where: { id: "map_1" },
+      data: { effectivePermissions: ["tasks:view:any"] },
+    });
+    expect((req as unknown as OrgRequest).userPermissions).toEqual([
+      "tasks:view:any",
+    ]);
+    expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("recomputes when stored and computed permissions differ but match in length", async () => {
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+      id: "map_1",
+      roleCode: undefined,
+      extraPermissions: ["tasks:view:any", "tasks:edit:any"],
+      revokedPermissions: [],
+      // Same length as computed, but a different member -> samePermissions
+      // must return false on the mismatched entry.
+      effectivePermissions: ["tasks:view:any", "companions:view:any"],
+    } as never);
+
+    const req = {
+      userId: "user_1",
+      params: { organisationId: "org_1" },
+      headers: {},
+    } as unknown as OrgRequest as Request;
+    const middlewareNext = next();
+
+    await withOrgPermissions()(req, mockRes(), middlewareNext);
+
+    expect(prisma.userOrganization.updateMany).toHaveBeenCalledWith({
+      where: { id: "map_1" },
+      data: {
+        effectivePermissions: ["tasks:view:any", "tasks:edit:any"],
+      },
+    });
+    expect((req as unknown as OrgRequest).userPermissions).toEqual([
+      "tasks:view:any",
+      "tasks:edit:any",
+    ]);
+    expect(middlewareNext).toHaveBeenCalled();
   });
 });
 
