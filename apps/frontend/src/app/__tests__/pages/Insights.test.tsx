@@ -67,7 +67,10 @@ import { Insights } from '@/app/features/marketing/pages/Insights/Insights';
 describe('Insights page', () => {
   test('renders the hero and its live self-hoster proof', () => {
     render(<Insights />);
-    expect(screen.getByText('open.')).toBeInTheDocument();
+    // The heading is real text (with spaces) so its accessible name reads cleanly.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'We build in the open. Numbers included.'
+    );
     expect(screen.getByText('Numbers included.')).toBeInTheDocument();
     expect(screen.getByText('Building in public')).toBeInTheDocument();
   });

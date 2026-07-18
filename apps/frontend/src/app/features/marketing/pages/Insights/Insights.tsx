@@ -142,8 +142,6 @@ function LiveTag() {
 
 /* ---------- hero + live console ---------- */
 
-const HERO_WORDS = ['We', 'build', 'in', 'the', 'open.'] as const;
-
 function Heartbeat({ weeks }: Readonly<{ weeks: number[] | null }>) {
   if (!weeks || weeks.length === 0) {
     return (
@@ -412,9 +410,6 @@ const HERO_HEADING_STYLE: CSSProperties = {
   letterSpacing: '-0.06em',
   color: 'var(--ink)',
   textWrap: 'balance',
-  display: 'flex',
-  flexWrap: 'wrap',
-  columnGap: '0.24em',
 };
 
 const HERO_GRID_STYLE: CSSProperties = {
@@ -475,11 +470,7 @@ function Hero() {
             <span style={{ color: 'var(--ink)', fontWeight: 600 }}>Updated live</span>
           </div>
           <h1 style={HERO_HEADING_STYLE}>
-            {HERO_WORDS.map((word) => (
-              <span key={word} style={{ display: 'inline-block' }}>
-                {word}
-              </span>
-            ))}
+            We build in the open.{' '}
             <em
               style={{
                 display: 'inline-block',
@@ -1015,7 +1006,7 @@ const FACT_ROWS: ReadonlyArray<{ icon: ReactNode; label: string; key: keyof Repo
   },
   {
     icon: <IoAlertCircleOutline style={{ fontSize: 16 }} aria-hidden="true" />,
-    label: 'Open issues',
+    label: 'Open issues & PRs',
     key: 'issues',
   },
   {

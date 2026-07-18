@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getJsonStorageItem, setJsonStorageItem } from '@/app/lib/browserStorage';
 import { GITHUB_API_REPO } from './assets';
 
 export interface RepoLanguage {
@@ -44,10 +43,6 @@ export interface RepoInsights {
   /** Weekly commit totals for the heartbeat sparkline (oldest first). */
   heartbeat: number[] | null;
 }
-
-const CACHE_KEY = 'yc_repo_insights_v1';
-const CACHE_TS_KEY = 'yc_repo_insights_ts_v1';
-const TTL_MS = 5 * 60 * 1000;
 
 const EMPTY: RepoInsights = {
   facts: null,
@@ -227,31 +222,35 @@ const loadRepoInsights = async (): Promise<RepoInsights> => {
   };
 };
 
-const isCacheFresh = (): boolean => {
-  const raw = getJsonStorageItem<number>('session', CACHE_TS_KEY);
-  return typeof raw === 'number' && Date.now() - raw < TTL_MS;
+// The Insights page mounts this hook twice (LiveConsole + RepositoryPulse). A
+// single shared in-flight promise collapses a cold load to one set of GitHub
+// requests instead of doubling them (including the slow commit-activity retry).
+// There is deliberately NO persistent cache: the page pulls live on every visit,
+// which is the whole "building in public" point and keeps its copy honest.
+let inFlight: Promise<RepoInsights> | null = null;
+
+const loadShared = (): Promise<RepoInsights> => {
+  inFlight ??= loadRepoInsights().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
 };
 
 /**
  * Live repository metrics for the Insights page: languages, recent commits,
  * contributors, repo facts and a weekly commit heartbeat. Read straight from the
- * public GitHub API, seeded from a short session cache so a re-visit within the
- * TTL does not re-spend the unauthenticated rate limit.
+ * public GitHub API on every visit (no cache), sharing one in-flight fetch across
+ * the page's hook instances. The initial value is a deterministic placeholder so
+ * the server render and the first client render agree (no hydration mismatch).
  */
 export function useRepoInsights(): RepoInsights {
-  const [data, setData] = useState<RepoInsights>(
-    () => getJsonStorageItem<RepoInsights>('session', CACHE_KEY) ?? EMPTY
-  );
+  const [data, setData] = useState<RepoInsights>(EMPTY);
 
   useEffect(() => {
-    if (isCacheFresh()) return undefined;
     let active = true;
     void (async () => {
-      const next = await loadRepoInsights();
-      if (!active) return;
-      setData(next);
-      setJsonStorageItem('session', CACHE_KEY, next);
-      setJsonStorageItem('session', CACHE_TS_KEY, Date.now());
+      const next = await loadShared();
+      if (active) setData(next);
     })();
     return () => {
       active = false;
