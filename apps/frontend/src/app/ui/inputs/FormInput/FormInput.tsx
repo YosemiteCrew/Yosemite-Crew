@@ -44,7 +44,7 @@ const FormInput = ({
     <div className="w-full">
       <label
         htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800"
+        className="mb-1.5 block truncate text-[12px] font-semibold text-neutral-800"
       >
         {inlabel}
       </label>
@@ -65,8 +65,8 @@ const FormInput = ({
         onBlur={onBlur}
         onClick={handleInputClick}
         className={`
-          h-[42px] w-full rounded-xl border-[1.5px] bg-[var(--field-bg)]
-          px-3.5 text-[14px] text-text-primary outline-none transition-colors
+          h-[46px] w-full rounded-[13px] border-[1.5px] bg-[var(--field-bg)]
+          px-[13px] text-[13.5px] text-text-primary outline-none transition-colors
           placeholder:text-input-text-placeholder
           disabled:cursor-not-allowed disabled:opacity-60
           ${error ? 'border-input-border-error!' : 'border-input-border-default!'}

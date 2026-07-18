@@ -29,18 +29,18 @@ const DashboardProfile = () => {
     <div className="flex w-full flex-col gap-3">
       <div className="flex w-full flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="font-newsreader text-[16px] italic" style={{ color: 'var(--pink)' }}>
+          <span className="font-newsreader text-[15px] italic" style={{ color: 'var(--pink)' }}>
             Welcome back,
           </span>
-          <span className="flex items-center gap-2.5">
+          <span className="flex items-center gap-[9px]">
             <Image
               src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
               alt=""
-              height={38}
-              width={38}
-              className="max-h-[38px] min-w-[38px] rounded-full object-cover"
+              height={34}
+              width={34}
+              className="max-h-[34px] min-w-[34px] rounded-full object-cover"
             />
-            <span className="font-newsreader text-[27px] tracking-[-0.015em] text-text-primary">
+            <span className="font-newsreader text-[24px] tracking-[-0.015em] text-[var(--ink)]">
               {fullName}
             </span>
           </span>
@@ -49,9 +49,9 @@ const DashboardProfile = () => {
           </span>
         </div>
         {primaryOrg.isVerified && (
-          <span className="flex items-center gap-2 rounded-full border border-card-border bg-[var(--pill-raised)] px-3.5 py-2 text-[12.5px] font-semibold text-text-primary">
+          <span className="flex items-center gap-1.5 rounded-full border border-card-border bg-[var(--pill-raised)] px-3 py-[7px] text-[11.5px] font-semibold text-text-primary">
             <span
-              className="h-[7px] w-[7px] rounded-full"
+              className="h-1.5 w-1.5 rounded-full"
               style={{ background: 'var(--success)' }}
               aria-hidden="true"
             />

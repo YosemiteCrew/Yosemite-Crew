@@ -54,10 +54,7 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           {formatWeeklyWorkingHours(team.weeklyWorkingHours)}
         </div>
       </div>
-      <div
-        style={getAvailabilityStatusStyle(team.status)}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
+      <div style={getAvailabilityStatusStyle(team.status)} className="appointment-status">
         {team.status}
       </div>
       <Secondary href="#" onClick={() => handleViewTeam(team)} text="View" className="w-full" />

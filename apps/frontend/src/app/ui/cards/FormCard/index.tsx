@@ -41,10 +41,7 @@ const FormCard = ({ form, handleViewForm, getUserName, orgType }: FormCardProps)
         <div className="text-caption-1 text-text-extra">Last updated:</div>
         <div className="text-caption-1 text-text-primary">{form.lastUpdated}</div>
       </div>
-      <div
-        style={getFormsStatusStyle(form.status || '')}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
+      <div style={getFormsStatusStyle(form.status || '')} className="appointment-status">
         {form.status}
       </div>
       <div className="flex gap-3 w-full">

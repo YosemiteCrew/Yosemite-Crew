@@ -94,7 +94,7 @@ const CompanionCard = ({
       </div>
       <div
         style={getCompanionStatusStyle(companion.companion.status || 'inactive')}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
+        className="appointment-status"
       >
         {toTitleCase(companion.companion.status || 'inactive')}
       </div>

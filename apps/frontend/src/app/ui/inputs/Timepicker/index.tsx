@@ -37,7 +37,7 @@ const TimeInputButton = ({
       ref={ref}
       type="button"
       onClick={onClick}
-      className={`relative flex h-[42px] w-full items-center justify-between rounded-xl! border-[1.5px] bg-[var(--field-bg)] px-3.5 text-left text-[14px] text-text-primary outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
+      className={`relative flex h-[46px] w-full items-center justify-between rounded-[13px]! border-[1.5px] bg-[var(--field-bg)] px-[13px] text-left text-[13.5px] text-text-primary outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
         error ? 'border-input-border-error!' : 'border-input-border-default!'
       } focus:border-input-border-active! ${className ?? ''}`}
       aria-label={value ? `${label}: ${value}` : label}
@@ -100,7 +100,7 @@ const Timepicker = ({
 
   return (
     <div className="w-full">
-      <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800">
+      <span className="mb-1.5 block truncate text-[12px] font-semibold text-neutral-800">
         {label}
       </span>
       <ReactDatePicker

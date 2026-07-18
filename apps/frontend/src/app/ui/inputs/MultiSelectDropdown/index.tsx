@@ -265,14 +265,14 @@ const MultiSelectPanel = ({
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
   const base =
-    'relative w-full flex h-[42px] items-center px-3.5 pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+    'relative w-full flex h-[46px] items-center px-[13px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
   let borderState: string;
   if (open) {
-    borderState = 'border-input-border-active! border-b-0! rounded-t-xl! z-20';
+    borderState = 'border-input-border-active! border-b-0! rounded-t-[13px]! z-20';
   } else if (!hasSelection && error) {
-    borderState = 'border-input-border-error! rounded-xl!';
+    borderState = 'border-input-border-error! rounded-[13px]!';
   } else {
-    borderState = 'border-input-border-default! rounded-xl!';
+    borderState = 'border-input-border-default! rounded-[13px]!';
   }
   return `${base} ${borderState}`;
 };
@@ -323,13 +323,13 @@ const MultiSelectTriggerContent = ({
           onKeyDown(event);
         }}
         placeholder={hasSelection ? selectedLabel : ''}
-        className="w-full bg-transparent text-left text-[14px] text-text-primary outline-none placeholder:text-input-text-placeholder"
+        className="w-full bg-transparent text-left text-[13px] text-text-primary outline-none placeholder:text-input-text-placeholder"
       />
     );
   }
   return (
     <span
-      className="min-w-0 flex-1 truncate text-left text-[14px] text-text-primary"
+      className="min-w-0 flex-1 truncate text-left text-[13px] text-text-primary"
       title={hasSelection ? selectedLabel : placeholder}
     >
       {hasSelection ? selectedLabel : ''}
@@ -414,7 +414,7 @@ const MultiSelectDropdown = ({
 
   return (
     <div className="flex flex-col">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-neutral-800">
+      <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-neutral-800">
         {icon}
         {placeholder}
       </span>

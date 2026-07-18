@@ -11,12 +11,12 @@ type BoardScopeToggleProps = {
 // Neutral raised-pill segmented control per the design recipe:
 // track = --band + hairline, active segment = --screen raised (shadow), ink text.
 const segmentClass = (active: boolean, disabled?: boolean) =>
-  `relative z-10 h-full w-1/2 rounded-[999px]! text-[12.5px] transition-colors ${
+  `relative z-10 h-full w-1/2 rounded-[999px]! text-[12px] transition-colors ${
     disabled ? 'cursor-not-allowed' : 'cursor-pointer'
   } ${
     active
       ? 'bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
-      : 'font-semibold text-text-secondary hover:text-text-primary'
+      : 'font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]'
   }`;
 
 const BoardScopeToggle = ({

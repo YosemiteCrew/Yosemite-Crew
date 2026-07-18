@@ -50,10 +50,10 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
 
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
   const base =
-    'relative w-full flex h-[42px] items-center px-3.5 pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
-  if (open) return `${base} border-input-border-active! border-b-0! rounded-t-xl! z-20`;
+    'relative w-full flex h-[46px] items-center px-[13px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  if (open) return `${base} border-input-border-active! border-b-0! rounded-t-[13px]! z-20`;
   const border = hasErrorState ? 'border-input-border-error!' : 'border-input-border-default!';
-  return `${base} rounded-xl! ${border}`;
+  return `${base} rounded-[13px]! ${border}`;
 };
 
 const optionClassName = (isActive: boolean): string =>
@@ -167,11 +167,11 @@ const DropdownTriggerContent = ({
           event.stopPropagation();
           onSearchKeyDown(event);
         }}
-        className="w-full min-w-0 bg-transparent text-left text-[14px] text-text-primary focus-visible:outline-none placeholder:text-input-text-placeholder"
+        className="w-full min-w-0 bg-transparent text-left text-[13px] text-text-primary focus-visible:outline-none placeholder:text-input-text-placeholder"
       />
     )}
     {(!open || !searchable) && selected && (
-      <span className="min-w-0 flex-1 text-left text-text-primary text-[14px] truncate">
+      <span className="min-w-0 flex-1 text-left text-text-primary text-[13px] truncate">
         {selected.label}
       </span>
     )}
@@ -398,7 +398,7 @@ const LabelDropdown = ({
 
   return (
     <div className="flex flex-col w-full">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-neutral-800">
+      <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-neutral-800">
         {icon}
         {placeholder}
       </span>

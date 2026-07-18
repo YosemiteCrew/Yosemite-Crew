@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { IoNotifications } from 'react-icons/io5';
+import { IoNotificationsOutline } from 'react-icons/io5';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { useNotifications } from './useNotifications';
 import NotificationsPanel from './NotificationsPanel';
@@ -82,7 +82,7 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
       aria-controls={open ? panelId : undefined}
       onClick={() => setOpen((prev) => !prev)}
     >
-      <IoNotifications size={isPhone ? 18 : 19} />
+      <IoNotificationsOutline size={isPhone ? 15 : 16} />
       {unreadCount > 0 ? <span className={dotClass} aria-hidden /> : null}
     </button>
   );

@@ -70,10 +70,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           {formatMoney(invoice.totalAmount, currency)}
         </div>
       </div>
-      <div
-        style={getInvoiceStatusStyle(invoice.status)}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
+      <div style={getInvoiceStatusStyle(invoice.status)} className="appointment-status">
         {toTitle(invoice?.status)}
       </div>
       <div className="flex gap-1">

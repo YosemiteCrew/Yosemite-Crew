@@ -30,7 +30,7 @@ const FormDesc = ({
     <div className="w-full">
       <label
         htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800"
+        className="mb-1.5 block truncate text-[12px] font-semibold text-neutral-800"
       >
         {inlabel}
       </label>
@@ -46,8 +46,8 @@ const FormDesc = ({
         required
         aria-label={inlabel}
         className={`
-          min-h-[90px] w-full rounded-xl border-[1.5px] bg-[var(--field-bg)]
-          px-3.5 py-2.5 text-[14px] text-text-primary outline-none transition-colors
+          min-h-[90px] w-full rounded-[13px] border-[1.5px] bg-[var(--field-bg)]
+          px-[13px] py-[11px] text-[13.5px] leading-[1.5] text-text-primary outline-none transition-colors
           placeholder:text-input-text-placeholder
           disabled:cursor-not-allowed disabled:opacity-60
           ${error ? 'border-input-border-error!' : 'border-input-border-default!'}

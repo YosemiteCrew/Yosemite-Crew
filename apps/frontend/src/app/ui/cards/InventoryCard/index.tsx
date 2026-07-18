@@ -71,10 +71,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           {displayValue(item.stock.stockLocation)}
         </div>
       </div>
-      <div
-        style={getInventoryStatusStyle(displayStatusLabel(item))}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
+      <div style={getInventoryStatusStyle(displayStatusLabel(item))} className="appointment-status">
         {displayStatusLabel(item)}
       </div>
       <div className="flex gap-3 w-full">

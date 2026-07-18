@@ -82,7 +82,7 @@ const getDisplayName = (record: DispensaryRecord) => {
 
 const StatusPill = ({ status }: { status: DispensaryStatus }) => (
   <span
-    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] whitespace-nowrap"
+    className="inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase whitespace-nowrap"
     style={STATUS_STYLES[status]}
   >
     {STATUS_LABELS[status]}
@@ -106,7 +106,7 @@ const DispensaryRow = ({
       style={{ gridTemplateColumns: GRID_COLUMNS }}
     >
       <div
-        className="min-w-0 truncate text-[13px] font-bold text-text-primary"
+        className="min-w-0 truncate text-[13px] font-bold text-[var(--ink)]"
         title={getDisplayName(record)}
       >
         {getDisplayName(record)}

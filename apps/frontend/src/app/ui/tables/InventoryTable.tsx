@@ -85,7 +85,7 @@ const getInventoryImageSrc = (item: InventoryItem) => {
 
 const StatusPill = ({ label }: { label: string }) => (
   <span
-    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] whitespace-nowrap"
+    className="inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase whitespace-nowrap"
     style={getInventoryStatusStyle(label)}
   >
     {label}
@@ -104,7 +104,7 @@ const ProductCell = ({ item }: { item: InventoryItem }) => {
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-[13px] font-bold leading-tight text-text-primary">
+        <div className="truncate text-[13.5px] font-bold leading-tight text-[var(--ink)]">
           {item.basicInfo.name}
         </div>
         <div className="text-[11px] tabular-nums text-text-tertiary">{getSku(item)}</div>

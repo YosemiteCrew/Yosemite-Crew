@@ -12,7 +12,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const commonClasses =
-  'px-5 gap-2 flex items-center justify-center rounded-full! transition-all duration-200 ease-out text-[14px] font-semibold text-center font-satoshi border';
+  'px-5 gap-1.5 flex items-center justify-center rounded-full! transition-all duration-200 ease-out text-[14px] font-semibold text-center font-satoshi border';
 
 const defaultClasses = `${commonClasses} border-[var(--divider)]! text-[var(--ink)]! hover:text-[var(--blue)]! hover:border-[var(--blue)]!`;
 

@@ -36,7 +36,7 @@ const FormInputPass = ({
     <div className="w-full">
       <label
         htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800"
+        className="mb-1.5 block truncate text-[12px] font-semibold text-neutral-800"
       >
         {inlabel}
       </label>
@@ -55,8 +55,8 @@ const FormInputPass = ({
           aria-describedby={errorId}
           aria-label={inlabel}
           className={`
-            h-[42px] w-full rounded-xl border-[1.5px] bg-[var(--field-bg)]
-            pl-3.5 pr-11 text-[14px] text-text-primary outline-none transition-colors
+            h-[46px] w-full rounded-[13px] border-[1.5px] bg-[var(--field-bg)]
+            pl-[13px] pr-11 text-[13.5px] text-text-primary outline-none transition-colors
             placeholder:text-input-text-placeholder
             disabled:cursor-not-allowed disabled:opacity-60
             ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
@@ -66,11 +66,11 @@ const FormInputPass = ({
         <button
           type="button"
           onClick={togglePasswordVisibility}
-          className="absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer text-text-secondary hover:text-text-primary transition-colors"
+          className="absolute right-[13px] top-1/2 -translate-y-1/2 cursor-pointer text-text-secondary hover:text-text-primary transition-colors"
           aria-label={showPassword ? 'Hide password' : 'Show password'}
           title={showPassword ? 'Hide password' : 'Show password'}
         >
-          {showPassword ? <IoEyeOff size={20} /> : <IoEye size={20} />}
+          {showPassword ? <IoEyeOff size={18} /> : <IoEye size={18} />}
         </button>
       </div>
 

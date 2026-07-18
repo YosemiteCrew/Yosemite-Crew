@@ -26,11 +26,17 @@ const Search = ({
 
   return (
     <div
-      className={`${className ?? ''} h-12 w-60 xl:w-[280px] rounded-2xl border! border-input-border-default! focus-within:border-input-border-active! px-6 flex items-center justify-center`}
+      className={`${className ?? ''} h-[40px] w-60 xl:w-[280px] rounded-xl border-[1.5px]! border-input-border-default! bg-[var(--field-bg)] focus-within:border-input-border-active! px-[13px] flex items-center gap-[9px]`}
     >
       <label className="sr-only" htmlFor={inputId}>
         {label}
       </label>
+      <IoIosSearch
+        size={15}
+        color="var(--color-neutral-600)"
+        className="shrink-0"
+        aria-hidden="true"
+      />
       <input
         id={inputId}
         ref={inputRef}
@@ -39,14 +45,8 @@ const Search = ({
         value={value}
         onChange={(e) => setSearch(e.target.value)}
         onFocus={onFocus}
-        className="font-satoshi outline-none border-0 w-full text-body-4 placeholder:text-text-secondary text-text-primary"
+        className="font-satoshi outline-none border-0 w-full text-[12.5px] placeholder:text-neutral-600 text-text-primary"
         placeholder={placeholder}
-      />
-      <IoIosSearch
-        size={22}
-        color="var(--color-neutral-900)"
-        className="cursor-pointer"
-        aria-hidden="true"
       />
     </div>
   );

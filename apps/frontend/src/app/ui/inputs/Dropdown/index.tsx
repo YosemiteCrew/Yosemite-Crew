@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { IoCaretDown } from 'react-icons/io5';
+import { IoChevronDown } from 'react-icons/io5';
 import { IoIosWarning } from 'react-icons/io';
 
 type Option = {
@@ -156,7 +156,7 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        className={`w-full flex items-center justify-between gap-2 px-6 py-[10px] min-w-[120px] ${error && 'border-input-border-error!'} ${open ? 'border border-b-0 border-input-border-active! rounded-t-2xl!' : 'border border-input-border-default! rounded-2xl!'}`}
+        className={`w-full flex items-center justify-between gap-2 h-[46px] px-[13px] min-w-[120px] bg-[var(--field-bg)] border-[1.5px] text-[13px] transition-colors ${error ? 'border-input-border-error!' : ''} ${open ? 'border-b-0! border-input-border-active! rounded-t-[13px]!' : 'border-input-border-default! rounded-[13px]!'}`}
         onClick={() => setOpen((e) => !e)}
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
@@ -164,23 +164,29 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
         aria-controls={open ? listboxId : undefined}
       >
         {selected ? (
-          <div className="text-black-text text-body-4 truncate max-w-[200px]">{selected.label}</div>
+          <div className="text-text-primary text-[13px] truncate max-w-[200px]">
+            {selected.label}
+          </div>
         ) : (
-          <div className="text-black-text text-body-4 truncate max-w-[200px]">{placeholder}</div>
+          <div className="text-text-primary text-[13px] truncate max-w-[200px]">{placeholder}</div>
         )}
-        <IoCaretDown size={20} className={`text-black-text transition-transform cursor-pointer`} />
+        <IoChevronDown
+          size={14}
+          color="var(--color-neutral-600)"
+          className="shrink-0 transition-transform"
+        />
       </button>
       {open && (
         <div
           id={listboxId}
-          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
+          className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[13px] border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
         >
           {options.map((option, i) => (
             <button
               type="button"
               key={option.key + i}
               id={`${listboxId}-option-${option.key}`}
-              className={`px-[1.25rem] py-[0.75rem] text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
+              className={`px-5 py-3 text-[13px] hover:bg-card-hover rounded-[10px]! text-text-secondary! hover:text-text-primary! w-full text-left ${
                 activeOptionId === `${listboxId}-option-${option.key}`
                   ? 'bg-card-hover text-text-primary!'
                   : ''
