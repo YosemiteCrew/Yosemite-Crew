@@ -27,6 +27,12 @@ import {
   groupRecordsByMonth,
   sortRecords,
 } from '@/app/features/documents/components/recordDisplay';
+import {
+  RECORD_LIFECYCLE_FILTERS,
+  RECORD_LIFECYCLE_LABELS,
+  getAvailableLifecycleTabs,
+  getLifecycleForFilter,
+} from '@/app/features/documents/components/recordLifecycle';
 
 const handleDownload = async (id: string | undefined) => {
   try {
@@ -40,6 +46,9 @@ const handleDownload = async (id: string | undefined) => {
   }
 };
 
+// Source tabs, always available because every record carries the dimension.
+// The design's lifecycle tabs (Requested / Generated / Signed) are appended at
+// render time, and only for lifecycles the loaded records resolve to.
 const FILTER_TABS: { value: RecordFilter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'UPLOADED', label: 'Uploaded' },
@@ -149,6 +158,16 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
     };
   }, [companionId]);
 
+  const lifecycleTabs = useMemo(() => getAvailableLifecycleTabs(records), [records]);
+
+  // A lifecycle tab only exists while some loaded record resolves to it. If a
+  // reload empties the active one, drop back to All rather than stranding the
+  // list on a filter whose pill is no longer on screen.
+  useEffect(() => {
+    const activeLifecycle = getLifecycleForFilter(filter);
+    if (activeLifecycle && !lifecycleTabs.includes(activeLifecycle)) setFilter('ALL');
+  }, [filter, lifecycleTabs]);
+
   const groups = useMemo(
     () => groupRecordsByMonth(sortRecords(filterRecords(records, filter), sortDirection)),
     [records, filter, sortDirection]
@@ -223,6 +242,15 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                     onClick={() => setFilter(tab.value)}
                   >
                     {tab.value === 'ALL' ? `${tab.label} · ${records.length}` : tab.label}
+                  </FilterPill>
+                ))}
+                {lifecycleTabs.map((lifecycle) => (
+                  <FilterPill
+                    key={lifecycle}
+                    active={filter === RECORD_LIFECYCLE_FILTERS[lifecycle]}
+                    onClick={() => setFilter(RECORD_LIFECYCLE_FILTERS[lifecycle])}
+                  >
+                    {RECORD_LIFECYCLE_LABELS[lifecycle]}
                   </FilterPill>
                 ))}
               </div>

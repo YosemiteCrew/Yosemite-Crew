@@ -5,6 +5,7 @@ import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContai
 import { getStatusStyle } from '@/app/config/statusConfig';
 import type {
   OutpatientScheduleModel,
+  OutpatientSeriesProgress,
   OutpatientVisit,
   OutpatientVisitStatus,
 } from '@/app/features/appointments/lib/outpatientSchedule';
@@ -63,6 +64,16 @@ const StatusPill = ({ status }: { status: OutpatientVisitStatus }) => {
   );
 };
 
+/**
+ * "Laser therapy · session 2 of 6" — the design's session suffix. Only appended
+ * when the backend reports both the position and the course length; otherwise the
+ * plain visit title is shown.
+ */
+const visitTitle = (visit: OutpatientVisit): string =>
+  visit.seriesIndex && visit.seriesTotal
+    ? `${visit.title} · session ${visit.seriesIndex} of ${visit.seriesTotal}`
+    : visit.title;
+
 const VisitRow = ({ visit, isNext = false }: { visit: OutpatientVisit; isNext?: boolean }) => {
   const marker = dayMarker(visit.startTime);
   const subline = [
@@ -95,13 +106,61 @@ const VisitRow = ({ visit, isNext = false }: { visit: OutpatientVisit; isNext?: 
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-body-4 font-bold text-text-primary">
-          {visit.title}
+          {visitTitle(visit)}
         </span>
         <span className="block truncate text-caption-1 text-text-tertiary">{subline}</span>
       </span>
       <StatusPill status={visit.status} />
       <IoEllipsisHorizontal size={15} aria-hidden="true" className="shrink-0 text-text-tertiary" />
     </li>
+  );
+};
+
+/** The design's inset "Series note" card — shown only when a note actually exists. */
+const SeriesNote = ({ note }: { note: string }) => (
+  <div
+    className="flex flex-col gap-1.5 rounded-[14px] border px-4 py-3"
+    style={{ background: 'var(--inset)', borderColor: 'var(--divider)' }}
+  >
+    <span
+      className="text-caption-2 font-bold uppercase tracking-[0.1em]"
+      style={{ color: 'var(--ink-faint)' }}
+    >
+      Series note
+    </span>
+    <span className="text-body-4 leading-relaxed" style={{ color: 'var(--ink-body)' }}>
+      {note}
+    </span>
+  </div>
+);
+
+/**
+ * The design's "Series progress · 1 / 6 done" rail. The fill is a real ratio of
+ * backend-reported counts, so it is rendered only when both are known.
+ */
+const SeriesProgressRail = ({ progress }: { progress: OutpatientSeriesProgress }) => {
+  const percent = Math.round((progress.completed / progress.total) * 100);
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-[14px] border border-card-border bg-neutral-0 px-4 py-3 shadow-[0_1px_2px_var(--sh03)]">
+      <span className="shrink-0 text-body-4 text-text-secondary">Series progress</span>
+      <span
+        className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full"
+        style={{ background: 'var(--inset)' }}
+        role="progressbar"
+        aria-label="Series progress"
+        aria-valuenow={progress.completed}
+        aria-valuemin={0}
+        aria-valuemax={progress.total}
+      >
+        <span
+          className="block h-full rounded-full"
+          style={{ width: `${percent}%`, background: 'var(--blue)' }}
+        />
+      </span>
+      <span className="shrink-0 text-body-4 font-bold tabular-nums text-text-primary">
+        {progress.completed} / {progress.total} done
+      </span>
+    </div>
   );
 };
 
@@ -114,10 +173,12 @@ const GroupHeading = ({ label }: { label: string }) => (
 /**
  * Outpatient visit schedule for the Treatment step (design's "This week / Next week"
  * card), including the design's highlight on the nearest visit. It is built from the
- * companion's real upcoming appointments — there is still no dedicated outpatient
- * "series" data model, so the design's Today's-treatments checklist, series note and
- * series-progress rail stay omitted rather than fabricated. When no upcoming visits
- * are sourced it shows an empty state.
+ * companion's real upcoming appointments.
+ *
+ * The design's series note and series-progress rail render only when the schedule
+ * actually carries them; no backend populates the underlying `Appointment` series
+ * fields yet, so today they are simply absent rather than fabricated. When no
+ * upcoming visits are sourced the list shows an empty state.
  */
 const OutpatientSchedule = ({
   schedule,
@@ -184,6 +245,8 @@ const OutpatientSchedule = ({
           </>
         )}
       </div>
+      {schedule.seriesNote && <SeriesNote note={schedule.seriesNote} />}
+      {schedule.seriesProgress && <SeriesProgressRail progress={schedule.seriesProgress} />}
     </SectionContainer>
   );
 };

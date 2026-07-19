@@ -13,6 +13,12 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
 import PackageBreakdownTooltip from '@/app/features/appointments/pages/AppointmentWorkspace/components/PackageBreakdownTooltip';
+import PaymentLinkStatus from '@/app/features/appointments/pages/AppointmentWorkspace/components/PaymentLinkStatus';
+import {
+  derivePaymentLinkStatus,
+  findPaymentLinkInvoice,
+  type PaymentLinkStatus as PaymentLinkStatusModel,
+} from '@/app/features/appointments/lib/paymentLinkStatus';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
@@ -38,6 +44,7 @@ import {
   findOpenAppointmentInvoice,
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import {
   deletePrescriptionArtifact,
   savePrescriptionArtifact,
@@ -716,6 +723,7 @@ export const PaymentActions = ({
   currency,
   onCollect,
   onSendToClient,
+  paymentLinkStatus = null,
 }: {
   isInpatient: boolean;
   depositDisabled: boolean;
@@ -725,6 +733,8 @@ export const PaymentActions = ({
   currency: string;
   onCollect: (method: PaymentMethod) => void;
   onSendToClient: () => void;
+  /** Real payment-link state for this appointment's invoice; null hides the line. */
+  paymentLinkStatus?: PaymentLinkStatusModel | null;
 }) => {
   // Online/Cash/Deposit is a single method choice + one "Collect" action (design's
   // payment-method card). Send-to-Client remains a distinct action with its own gating.
@@ -788,6 +798,7 @@ export const PaymentActions = ({
       ) : (
         <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
       )}
+      <PaymentLinkStatus status={paymentLinkStatus} />
       {isInpatient && (
         <div className="flex flex-wrap gap-2 border-t border-card-border pt-3">
           <Secondary
@@ -936,6 +947,14 @@ const useInvoiceStepContent = ({
   const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
   const catalogServices = useRevampCatalogStore((s) => s.services);
   const catalogPackages = useRevampCatalogStore((s) => s.packages);
+  // Subscribed (not read via getState) so the status line under Collect updates as
+  // soon as generating a link upserts the invoice back into the store.
+  const invoicesById = useInvoiceStore((s) => s.invoicesById);
+  const paymentLinkStatus = useMemo(
+    () =>
+      derivePaymentLinkStatus(findPaymentLinkInvoice(Object.values(invoicesById), appointmentId)),
+    [invoicesById, appointmentId]
+  );
   const [confirmation, setConfirmation] = useState<string | null>(null);
   // A generated payment link shown under the confirmation; rendered as a wrapping
   // anchor so a long Stripe URL never overflows the container width.
@@ -1439,6 +1458,7 @@ const useInvoiceStepContent = ({
               currency={currency}
               onCollect={handleCollect}
               onSendToClient={handleSendToClient}
+              paymentLinkStatus={paymentLinkStatus}
             />
 
             {errorMessage && (

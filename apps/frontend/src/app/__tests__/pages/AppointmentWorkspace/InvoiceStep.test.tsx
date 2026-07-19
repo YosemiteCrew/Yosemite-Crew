@@ -173,6 +173,7 @@ jest.mock('@/app/stores/inventoryStore', () => ({
 }));
 
 import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
+import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
@@ -324,6 +325,10 @@ describe('<InvoiceStep /> component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // The invoice store is real here (the payment-link status subscribes to it),
+    // so it must not leak invoices between tests.
+    useInvoiceStore.getState().clearInvoices();
+
     // The real store returns the id it assigns a new bill line; the interlink
     // save path relies on it to link the line to its prescription.
     workspaceStoreMock.addInvoiceLineItem.mockReturnValue('inv-added');
@@ -374,6 +379,44 @@ describe('<InvoiceStep /> component', () => {
     expect(screen.getByRole('button', { name: 'Deposit' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Collect \$/ })).toBeInTheDocument();
     expect(screen.getByText(/no invoices recorded yet/i)).toBeInTheDocument();
+    // No invoice in the store means no payment link exists, so the design's status
+    // line under Collect must not appear at all.
+    expect(screen.queryByText(/Stripe · payment link/)).not.toBeInTheDocument();
+  });
+
+  it('shows the payment-link status under Collect when the invoice really has a link', async () => {
+    useInvoiceStore.getState().setInvoicesForOrg('org-1', [
+      {
+        id: 'inv-link',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        paymentCollectionMethod: 'PAYMENT_LINK',
+        stripeCheckoutUrl: 'https://checkout.example/pay',
+      },
+    ] as never);
+
+    renderInvoiceStep();
+
+    expect(await screen.findByText('Stripe · payment link ready')).toBeInTheDocument();
+  });
+
+  it('hides the payment-link status when the invoice collects at the clinic', async () => {
+    useInvoiceStore.getState().setInvoicesForOrg('org-1', [
+      {
+        id: 'inv-clinic',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+        stripeCheckoutUrl: 'https://checkout.example/pay',
+      },
+    ] as never);
+
+    renderInvoiceStep();
+
+    expect(await screen.findByTestId('total-bill-container')).toBeInTheDocument();
+    expect(screen.queryByText(/Stripe · payment link/)).not.toBeInTheDocument();
   });
 
   it('renders existing pastInvoices and expands a row to show the breakdown', async () => {
