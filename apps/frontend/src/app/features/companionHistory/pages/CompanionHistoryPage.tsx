@@ -526,7 +526,8 @@ const CompanionHistoryDesktopBody = ({
  * branch keeps the page function's return a single element.
  */
 const CompanionHistoryContent = (props: CompanionHistoryContentProps) => {
-  if (props.isPhone && props.hasCompanionId) {
+  const { isPhone, canEditCompanions } = props;
+  if (isPhone && props.hasCompanionId) {
     return (
       <PhoneCompanionRecord
         companionId={props.companionId}
@@ -534,7 +535,7 @@ const CompanionHistoryContent = (props: CompanionHistoryContentProps) => {
         title={props.title}
         companionAlerts={props.companionAlerts}
         clientAlerts={props.clientAlerts}
-        canEdit={props.canEditCompanions}
+        canEdit={canEditCompanions}
         replaceCompanionText={props.replaceCompanionText}
         onBack={props.onBack}
         onEdit={props.onEditCompanion}
