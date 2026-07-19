@@ -48,17 +48,21 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
   );
 };
 
+// Design select trigger: 46px tall, 0 13px padding (right side widened for the
+// chevron), 13px radius, 1.5px --hairline, warm --field-bg, 13px value text.
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
   const base =
-    'relative w-full flex h-[46px] items-center px-[14px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13.5px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
-  if (open) return `${base} border-[var(--blue)]! border-b-0! rounded-t-[13px]! z-20`;
+    'relative w-full flex h-[46px] items-center px-[13px] pr-9 min-w-30 rounded-[13px]! border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  if (open) return `${base} border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)] z-20`;
   const border = hasErrorState ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!';
-  return `${base} rounded-[13px]! ${border}`;
+  return `${base} ${border}`;
 };
 
+// Design menu row: 7px 11px padding, 8px radius, 12.5px / 600, --ink-body,
+// active/hover on the warm --nav-active-bg wash.
 const optionClassName = (isActive: boolean): string =>
-  `flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
-    isActive ? 'bg-card-hover text-text-primary!' : ''
+  `flex items-center justify-between gap-2 px-[11px] py-[7px] text-left text-[12.5px] font-semibold rounded-[8px]! w-full transition-colors hover:bg-[var(--nav-active-bg)] hover:text-[var(--nav-active)]! ${
+    isActive ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]!' : 'text-[var(--ink-body)]!'
   }`;
 
 type DropdownPanelProps = {
@@ -95,7 +99,7 @@ const DropdownPanel = ({
       aria-label={placeholder}
       data-portal-dropdown
       data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
-      className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[13px] border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
+      className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 rounded-[13px] border border-[var(--hairline-soft)] bg-[var(--glass-93)] shadow-[0_24px_60px_var(--sh28)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch gap-px w-full p-1.5"
       style={shouldPortal ? (portalStyle ?? undefined) : undefined}
     >
       {filteredOptions.length > 0 &&
@@ -110,14 +114,16 @@ const DropdownPanel = ({
           >
             <span className="min-w-0 truncate">{option.label}</span>
             {option.badge && (
-              <span className="shrink-0 rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
+              <span className="shrink-0 rounded-full bg-primary-100 px-2 py-0.5 text-[11px] font-semibold text-text-brand">
                 {option.badge}
               </span>
             )}
           </button>
         ))}
       {filteredOptions.length === 0 && (
-        <div className="text-caption-1 py-3 text-text-primary text-center">{emptyMessage}</div>
+        <div className="py-[7px] text-center text-[12.5px] font-medium text-[var(--ink-faint)]">
+          {emptyMessage}
+        </div>
       )}
     </div>
   );
@@ -167,17 +173,17 @@ const DropdownTriggerContent = ({
           event.stopPropagation();
           onSearchKeyDown(event);
         }}
-        className="w-full min-w-0 bg-transparent text-left text-[13.5px] text-[var(--ink-body)] focus-visible:outline-none placeholder:text-[var(--ink-faint)]"
+        className="w-full min-w-0 bg-transparent text-left text-[13px] text-[var(--ink-body)] focus-visible:outline-none placeholder:text-[var(--ink-faint)]"
       />
     )}
     {(!open || !searchable) && selected && (
-      <span className="min-w-0 flex-1 text-left text-[var(--ink-body)] text-[13.5px] truncate">
+      <span className="min-w-0 flex-1 text-left text-[var(--ink-body)] text-[13px] truncate">
         {selected.label}
       </span>
     )}
-    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center">
+    <span className="absolute right-[13px] top-1/2 -translate-y-1/2 flex items-center justify-center">
       <IoChevronDown
-        size={14}
+        size={13}
         aria-hidden="true"
         style={{
           flexShrink: 0,
@@ -257,7 +263,8 @@ const LabelDropdown = ({
       position: 'absolute',
       left: rect.left + globalThis.window.scrollX,
       width: rect.width,
-      top: rect.bottom + globalThis.window.scrollY - 1,
+      // Design detaches the menu from the trigger by 4px.
+      top: rect.bottom + globalThis.window.scrollY + 4,
       maxHeight: panelMaxHeight,
       zIndex: 5000,
     });
@@ -398,7 +405,7 @@ const LabelDropdown = ({
 
   return (
     <div className="flex flex-col w-full">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
+      <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-[var(--ink-soft)]">
         {icon}
         {placeholder}
       </span>
@@ -433,7 +440,7 @@ const LabelDropdown = ({
         </button>
         {open && shouldPortal && portalStyle && createPortal(panelNode, document.body)}
         {open && !shouldPortal && (
-          <div className="absolute top-full left-0 w-full">{panelNode}</div>
+          <div className="absolute top-full left-0 mt-1 w-full">{panelNode}</div>
         )}
       </div>
       {error && (

@@ -509,7 +509,7 @@ const ChannelHeaderWithCounterpart: FC<{
             <Text
               as="span"
               variant="body-3-emphasis"
-              className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[var(--ink)]"
+              className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[var(--ink)] xl:text-[14.5px]"
             >
               {title}
             </Text>
@@ -521,12 +521,18 @@ const ChannelHeaderWithCounterpart: FC<{
             )}
           </span>
           {online && !isGroupChat && !hasSessionClosed ? (
-            <span className="flex min-w-0 items-center gap-1.5 text-[10.5px] text-[var(--success)]">
-              <span className="chat-presence-dot h-[5px] w-[5px] shrink-0 rounded-full bg-[var(--success)]" />
+            /* Design (thread header, online): 11.5px --success with a 6px pulsing dot. */
+            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--success)]">
+              <span className="chat-presence-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]" />
               <span className="truncate">{statusText}</span>
             </span>
           ) : (
-            <Text as="span" variant="caption-2" className="truncate text-[var(--ink-faint)]">
+            /* Design (thread header, offline): 11px --ink-faint. */
+            <Text
+              as="span"
+              variant="caption-2"
+              className="truncate text-[11px] text-[var(--ink-faint)]"
+            >
               {statusText}
             </Text>
           )}
@@ -947,14 +953,16 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
         <ChatScopeSwitcher scope={scope} onScopeChange={onScopeChange} />
       </div>
       <div className="border-b border-chat-divider p-3">
-        <div className="flex min-h-[38px] items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] px-4 py-2 transition-colors focus-within:border-input-border-active">
-          <IoSearchOutline className="size-4 shrink-0 text-input-text-placeholder" />
+        {/* Design (channel-list search): 38px pill, --field-bg + --hairline,
+            0 13px padding, 14px icon, 12.5px --ink-faint placeholder. */}
+        <div className="flex min-h-[38px] items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] px-[13px] py-2 transition-colors focus-within:border-input-border-active">
+          <IoSearchOutline className="size-3.5 shrink-0 text-[var(--ink-faint)]" />
           <input
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
             placeholder="Search conversations…"
             aria-label="Search conversations"
-            className="w-full bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
+            className="w-full bg-transparent font-satoshi text-[12.5px] text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
           />
           <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-[var(--hairline)] px-1.5 py-0.5 text-xs font-semibold text-[var(--ink-faint)] sm:flex">
             <LuCommand className="size-3" />K
