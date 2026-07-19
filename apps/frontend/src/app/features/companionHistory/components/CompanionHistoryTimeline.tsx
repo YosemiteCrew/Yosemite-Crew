@@ -1153,6 +1153,96 @@ const historyLoadReducer = (
   return { ...state, ...action.patch };
 };
 
+// Desktop-only header row (Status / Sort pills + Search). Owns its own phone
+// gate so the timeline's return stays a single branch. Renders nothing on the
+// phone variant, matching the previous `isPhoneVariant ? null : (...)` block.
+const TimelineHeaderControls = ({
+  isPhoneVariant,
+  statusFilterOptions,
+  statusFilter,
+  setStatusFilter,
+  sortKey,
+  setSortKey,
+  query,
+  setQuery,
+}: {
+  isPhoneVariant: boolean;
+  statusFilterOptions: StatusFilterOption[];
+  statusFilter: string;
+  setStatusFilter: React.Dispatch<React.SetStateAction<string>>;
+  sortKey: SortKey;
+  setSortKey: React.Dispatch<React.SetStateAction<SortKey>>;
+  query: string;
+  setQuery: React.Dispatch<React.SetStateAction<string>>;
+}) => {
+  if (isPhoneVariant) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        {statusFilterOptions.length > 0 ? (
+          <PillDropdown
+            label="Status"
+            options={statusFilterOptions.map((option) => ({
+              label: option.label,
+              value: option.value,
+            }))}
+            value={statusFilter}
+            onSelect={setStatusFilter}
+          />
+        ) : null}
+        <PillDropdown
+          label="Sort by"
+          options={SORT_OPTIONS.map((option) => ({
+            label: option.label,
+            value: option.value,
+          }))}
+          value={sortKey}
+          onSelect={(value) => setSortKey(value as SortKey)}
+        />
+      </div>
+      <Search
+        value={query}
+        setSearch={setQuery}
+        placeholder="Search by service, appointment, invoice, or records"
+        label="Search overview records"
+        className="ml-auto w-full! md:w-120! xl:w-128!"
+      />
+    </div>
+  );
+};
+
+// "Load more" pager. Owns the compact / cursor gate so the timeline's return
+// carries neither the `!compact && nextCursor` branch nor the nested
+// loading-label ternary.
+const TimelineLoadMore = ({
+  compact,
+  nextCursor,
+  loadingMore,
+  loadHistory,
+}: {
+  compact: boolean;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  loadHistory: (cursor: string | null, shouldReplace: boolean) => Promise<void>;
+}) => {
+  if (compact || !nextCursor) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        /* v8 ignore next 3 -- unreachable: loadHistory wraps its body in try/catch/finally and always resolves, so this defensive .catch never fires */
+        loadHistory(nextCursor, false).catch((historyError) => {
+          console.error('Failed to load more history entries:', historyError);
+        });
+      }}
+      disabled={loadingMore}
+      className="w-full rounded-2xl border border-card-border bg-neutral-0 px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {loadingMore ? 'Loading…' : 'Load more'}
+    </button>
+  );
+};
+
 const useCompanionHistoryTimelineView = ({
   companionId,
   activeAppointmentId,
@@ -1754,39 +1844,16 @@ const useCompanionHistoryTimelineView = ({
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div className={isPhoneVariant ? 'flex w-full flex-col gap-3' : 'flex w-full flex-col gap-5'}>
-        {isPhoneVariant ? null : (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex shrink-0 flex-wrap items-center gap-3">
-              {statusFilterOptions.length > 0 ? (
-                <PillDropdown
-                  label="Status"
-                  options={statusFilterOptions.map((option) => ({
-                    label: option.label,
-                    value: option.value,
-                  }))}
-                  value={statusFilter}
-                  onSelect={setStatusFilter}
-                />
-              ) : null}
-              <PillDropdown
-                label="Sort by"
-                options={SORT_OPTIONS.map((option) => ({
-                  label: option.label,
-                  value: option.value,
-                }))}
-                value={sortKey}
-                onSelect={(value) => setSortKey(value as SortKey)}
-              />
-            </div>
-            <Search
-              value={query}
-              setSearch={setQuery}
-              placeholder="Search by service, appointment, invoice, or records"
-              label="Search overview records"
-              className="ml-auto w-full! md:w-120! xl:w-128!"
-            />
-          </div>
-        )}
+        <TimelineHeaderControls
+          isPhoneVariant={isPhoneVariant}
+          statusFilterOptions={statusFilterOptions}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          sortKey={sortKey}
+          setSortKey={setSortKey}
+          query={query}
+          setQuery={setQuery}
+        />
 
         <div
           className={
@@ -1885,21 +1952,12 @@ const useCompanionHistoryTimelineView = ({
           </div>
         ) : null}
 
-        {!compact && nextCursor ? (
-          <button
-            type="button"
-            onClick={() => {
-              /* v8 ignore next 3 -- unreachable: loadHistory wraps its body in try/catch/finally and always resolves, so this defensive .catch never fires */
-              loadHistory(nextCursor, false).catch((historyError) => {
-                console.error('Failed to load more history entries:', historyError);
-              });
-            }}
-            disabled={loadingMore}
-            className="w-full rounded-2xl border border-card-border bg-neutral-0 px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loadingMore ? 'Loading…' : 'Load more'}
-          </button>
-        ) : null}
+        <TimelineLoadMore
+          compact={compact}
+          nextCursor={nextCursor}
+          loadingMore={loadingMore}
+          loadHistory={loadHistory}
+        />
 
         <PdfPreviewOverlay
           open={Boolean(pdfPreview)}
