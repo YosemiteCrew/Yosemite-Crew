@@ -77,7 +77,7 @@ const GuidePlayerModal = ({
       <div className="flex items-center justify-between gap-3 border-b border-[var(--hairline)] px-5 py-3.5">
         <span className="flex min-w-0 items-center gap-2.5">
           <span
-            className="shrink-0 rounded-full px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.06em]"
+            className="shrink-0 rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em]"
             style={{ backgroundColor: 'var(--blue-soft)', color: 'var(--blue-text)' }}
           >
             {guide.category}
@@ -112,7 +112,11 @@ const GuidePlayerModal = ({
         <span
           aria-hidden="true"
           className="flex size-[68px] items-center justify-center rounded-full"
-          style={{ backgroundColor: 'rgba(247,243,236,0.94)', color: '#1d1c1b' }}
+          style={{
+            backgroundColor: 'rgba(247,243,236,0.94)',
+            color: '#1d1c1b',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.45)',
+          }}
         >
           <IoPlay size={28} className="ml-1" />
         </span>
@@ -150,7 +154,7 @@ const GuidePlayerModal = ({
       </div>
 
       {/* Footer: chapters + next */}
-      <div className="flex flex-col items-start justify-between gap-3 px-5 py-4 sm:flex-row sm:items-start">
+      <div className="flex flex-col items-start justify-between gap-4 px-5 pb-4 pt-3.5 sm:flex-row sm:items-start">
         {guide.chapters && guide.chapters.length > 0 && (
           <span className="max-w-[520px] text-[12.5px] leading-relaxed text-[var(--ink-muted)]">
             Chapters:{' '}

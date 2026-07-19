@@ -78,13 +78,13 @@ const NavButton = ({
       <span
         aria-hidden="true"
         className={`flex size-11 items-center justify-center rounded-full border transition-colors duration-150 ${
-          active ? 'border-text-brand text-text-brand' : 'border-neutral-300 text-neutral-700'
+          active ? 'border-text-brand text-blue-text' : 'border-neutral-300 text-neutral-700'
         }`}
       >
         <Icon size={20} />
       </span>
       <span
-        className={`text-[12px] leading-[120%] ${active ? 'font-bold text-text-brand' : 'font-medium text-neutral-700'}`}
+        className={`text-[12px] leading-[120%] ${active ? 'font-bold text-blue-text' : 'font-medium text-neutral-700'}`}
       >
         {item.label}
       </span>
@@ -158,9 +158,7 @@ const QuickActionsModal = ({
             </span>
             <span
               className={`text-[12px] leading-[120%] ${
-                activeAction === 'MSD'
-                  ? 'font-bold text-text-brand'
-                  : 'font-medium text-neutral-700'
+                activeAction === 'MSD' ? 'font-bold text-blue-text' : 'font-medium text-neutral-700'
               }`}
             >
               {MSD_LABEL}

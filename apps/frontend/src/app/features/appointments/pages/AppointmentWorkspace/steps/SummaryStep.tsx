@@ -290,11 +290,7 @@ export const AllDocumentsTable = ({
   };
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="All Documents"
-      className="flex flex-col gap-4"
-    >
+    <SectionContainer title="All Documents" className="flex flex-col gap-4">
       {error && (
         <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-danger-700">
           {error}
@@ -843,12 +839,7 @@ const useSummaryStepContent = ({
           {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
           Once saved, the editor is replaced by a read-only render of the summary
           with a fixed follow-up date and a "Saved on … by …" stamp. */}
-          <SectionContainer
-            titleClassName="text-yc-20-b-primary"
-            title="Discharge Summary"
-            compactTop
-            disableFocusBorder
-          >
+          <SectionContainer title="Discharge Summary" compactTop disableFocusBorder>
             {dischargeSaved ? (
               <div className="relative">
                 {/* Editable until the encounter is locked (window closed / completed /
@@ -887,7 +878,7 @@ const useSummaryStepContent = ({
                     <span className="text-[12px] font-bold text-neutral-900">
                       Saved by {encounter.dischargeSavedByName}
                     </span>
-                    <span className="text-[12px] font-medium text-text-brand">
+                    <span className="text-[12px] font-medium text-blue-text">
                       {formatDateTime(encounter.dischargeSavedAt ?? '')}
                     </span>
                   </div>

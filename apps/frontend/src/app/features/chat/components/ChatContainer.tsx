@@ -36,6 +36,7 @@ import {
   IoArrowBack,
   IoChatbubbleEllipsesOutline,
   IoGlobeOutline,
+  IoInformationCircleOutline,
   IoSearchOutline,
 } from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
@@ -43,6 +44,8 @@ import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
 import ConversationRow from './ConversationRow';
+import ConversationInfoPanel from './ConversationInfoPanel';
+import { deriveConversationPinned } from './conversationInfoPanelUtils';
 import { ChatAvatar } from './ChatAvatar';
 import { ChatHeaderContext } from './ChatHeaderContext';
 import ChatMessage from './ChatMessage';
@@ -80,6 +83,7 @@ import {
   getAppointmentChannel,
 } from '@/app/features/chat/services/streamChatService';
 import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
+import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import {
   createOrgDirectChat,
   createOrgGroupChat,
@@ -349,6 +353,10 @@ const ChannelHeaderWithCounterpart: FC<{
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  // Optimistic mirror of the channel's mute state so the info drawer's toggle
+  // flips immediately (Stream's muteStatus only settles after the round-trip).
+  const [muteOverride, setMuteOverride] = useState<boolean | null>(null);
   const { title, channelMemberCount, isClientChat, isGroupChat, appointmentId, patientId } =
     deriveHeaderChannelInfo(channel, currentUserId);
   const backendStatus = appointmentId ? statusByAppointmentId[appointmentId] : undefined;
@@ -485,9 +493,29 @@ const ChannelHeaderWithCounterpart: FC<{
     router.push('/appointments');
   };
 
+  const infoMuted = muteOverride ?? isChannelMuted(channel);
+  const pinnedMessages = deriveConversationPinned(channel);
+
+  const handleToggleMute = () => {
+    if (!channel) return;
+    const next = !infoMuted;
+    setMuteOverride(next);
+    if (next) {
+      void channel.mute();
+    } else {
+      void channel.unmute();
+    }
+  };
+
+  const handleArchiveConversation = () => {
+    if (!channel) return;
+    void channel.hide();
+    setInfoOpen(false);
+  };
+
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+      <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3 xl:px-[22px]">
         {showBack && (
           <button
             type="button"
@@ -505,6 +533,8 @@ const ChannelHeaderWithCounterpart: FC<{
           size="sm"
         />
         <div className="flex min-w-0 flex-1 flex-col">
+          {/* Design (thread header): name + status subtitle only — the pet-parent
+              relationship is carried by the subtitle, never by a header pill. */}
           <span className="flex min-w-0 items-center gap-2">
             <Text
               as="span"
@@ -513,12 +543,6 @@ const ChannelHeaderWithCounterpart: FC<{
             >
               {title}
             </Text>
-            {/* "Pet parent" is the fixed owner term and is NOT subject to the animal-terminology rewrite. */}
-            {isClientChat && (
-              <span className="hidden shrink-0 items-center self-center sm:inline-flex">
-                <Badge tone="warning">Pet parent</Badge>
-              </span>
-            )}
           </span>
           {online && !isGroupChat && !hasSessionClosed ? (
             /* Design (thread header, online): 11.5px --success with a 6px pulsing dot. */
@@ -540,6 +564,17 @@ const ChannelHeaderWithCounterpart: FC<{
         {/* No phone/video calling in chat. */}
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <MessageSearch />
+          {isClientChat && (
+            <button
+              type="button"
+              aria-label="Conversation info"
+              aria-expanded={infoOpen}
+              onClick={() => setInfoOpen((open) => !open)}
+              className="inline-flex size-[30px] items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)] transition-colors hover:bg-[var(--screen-2)] hover:text-[var(--ink)]"
+            >
+              <IoInformationCircleOutline className="h-3.5 w-3.5" />
+            </button>
+          )}
           {isGroupChat && (
             <Primary
               text="Group Info"
@@ -562,11 +597,26 @@ const ChannelHeaderWithCounterpart: FC<{
       </header>
       {isClientChat && (
         <>
+          {infoOpen && (
+            <ConversationInfoPanel
+              channel={channel ?? null}
+              name={title}
+              subtitle={[companion?.name, statusText].filter(Boolean).join(' · ')}
+              online={online && !hasSessionClosed}
+              clientRecordHref={patientId ? buildCompanionOverviewHref(patientId) : undefined}
+              muted={infoMuted}
+              onToggleMute={handleToggleMute}
+              onArchive={handleArchiveConversation}
+              onClose={() => setInfoOpen(false)}
+            />
+          )}
           <ChatHeaderContext
             allergy={companion?.allergy?.trim() || undefined}
             alerts={companion?.alerts}
             appointment={appointment}
             completing={completingAppointment}
+            pinned={pinnedMessages}
+            onOpenPinned={() => setInfoOpen(true)}
             onAction={handleApptAction}
           />
           {appointment && (

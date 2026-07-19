@@ -46,8 +46,62 @@ describe('SharedEntityCard', () => {
 
   it('falls back to the label as the title when title is absent', () => {
     render(<SharedEntityCard entity={makeEntity({ entityType: 'INVOICE', title: null })} />);
-    // Label appears both as the uppercase eyebrow and as the title fallback.
-    expect(screen.getAllByText('Invoice')).toHaveLength(2);
+    // The design drops the uppercase eyebrow — the label is the title fallback only.
+    expect(screen.getAllByText('Invoice')).toHaveLength(1);
+  });
+
+  it('renders the amount and the deep link in the value row', () => {
+    render(
+      <SharedEntityCard
+        entity={makeEntity({
+          entityType: 'INVOICE',
+          title: 'Invoice INV-2043',
+          snapshot: { amount: '€107.50' },
+        })}
+      />
+    );
+    expect(screen.getByText('€107.50')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /View in Finance/ });
+    expect(link).toHaveAttribute('href', '/finance');
+  });
+
+  it('renders the value row with only the deep link when no amount is present', () => {
+    render(<SharedEntityCard entity={makeEntity({ entityType: 'APPOINTMENT' })} />);
+    expect(screen.getByRole('link', { name: /View in Appointments/ })).toHaveAttribute(
+      'href',
+      '/appointments'
+    );
+  });
+
+  it('omits the value row for entity types without a deep link', () => {
+    render(<SharedEntityCard entity={makeEntity({ entityType: 'PRESCRIPTION' })} />);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders a status pill using the mapped status tokens', () => {
+    render(
+      <SharedEntityCard
+        entity={makeEntity({ entityType: 'INVOICE', snapshot: { status: 'PAID' } })}
+      />
+    );
+    const pill = screen.getByText('PAID');
+    expect(pill).toHaveStyle({ background: 'var(--status-completed-bg)' });
+  });
+
+  it('falls back to the requested tone for an unmapped status', () => {
+    render(
+      <SharedEntityCard
+        entity={makeEntity({ entityType: 'INVOICE', snapshot: { status: 'MYSTERY' } })}
+      />
+    );
+    expect(screen.getByText('MYSTERY')).toHaveStyle({ background: 'var(--status-requested-bg)' });
+  });
+
+  it('omits the status pill when snapshot.status is not a string', () => {
+    render(
+      <SharedEntityCard entity={makeEntity({ entityType: 'INVOICE', snapshot: { status: 7 } })} />
+    );
+    expect(screen.queryByText('7')).not.toBeInTheDocument();
   });
 
   it('renders the subtitle when snapshot.subtitle is a string', () => {

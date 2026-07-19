@@ -48,7 +48,7 @@ const SoapNoteRow = ({ item }: { item: SoapNoteListItem }) => {
   return (
     <li className="border-b border-card-border last:border-0">
       <div className="flex items-center gap-4 py-3">
-        <span className="flex size-9 shrink-0 items-center justify-center text-text-brand">
+        <span className="flex size-9 shrink-0 items-center justify-center text-blue-text">
           <IoClipboardOutline size={20} aria-hidden="true" />
         </span>
         <span className="w-28 shrink-0 text-body-4 font-medium text-text-primary">SOAP Note</span>
@@ -96,11 +96,7 @@ const SoapNotesList = ({
   emptyLabel = 'No SOAP notes recorded yet.',
 }: SoapNotesListProps) => {
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="All SOAP notes"
-      disableFocusBorder
-    >
+    <SectionContainer title="All SOAP notes" disableFocusBorder>
       {items.length === 0 ? (
         <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
           {emptyLabel}

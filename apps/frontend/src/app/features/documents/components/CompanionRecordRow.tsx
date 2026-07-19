@@ -66,7 +66,7 @@ const CompanionRecordRow = ({ doc, onOpen }: CompanionRecordRowProps) => {
         {pills.map((pill) => (
           <span
             key={pill.label}
-            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] ${STATUS_PILL_CLASSES[pill.tone]}`}
+            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase ${STATUS_PILL_CLASSES[pill.tone]}`}
           >
             {pill.label}
           </span>

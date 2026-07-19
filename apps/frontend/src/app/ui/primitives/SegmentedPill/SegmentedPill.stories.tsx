@@ -21,13 +21,17 @@ const meta = {
         component:
           'Neutral raised-pill segmented control. Track is `--band` with a `--hairline` border; the active ' +
           'segment is a raised `--screen` pill (shadow) with bold ink text, inactive segments use `--ink-muted`. ' +
-          'Segment padding 6px 14px, 12px text — matches the Calendar / Board / List switch in the design.',
+          'Three sizes match the design frames: `sm` (5px 13px / 11.5px, settings and phone controls), ' +
+          '`md` (5px 14px / 12px, dashboard, specialities and chat) and `lg` (6px 15px / 12.5px, main tab controls). ' +
+          'Pass `fullWidth` for equal-width segments that span their container, as in the chat sidebar.',
       },
     },
   },
   tags: ['autodocs'],
   argTypes: {
     disabled: { control: 'boolean' },
+    size: { control: 'radio', options: ['sm', 'md', 'lg'] },
+    fullWidth: { control: 'boolean' },
   },
   args: {
     options: VIEW_OPTIONS,
@@ -45,6 +49,21 @@ export const Calendar: Story = {};
 export const Board: Story = { args: { value: 'board' } };
 export const List: Story = { args: { value: 'list' } };
 export const Disabled: Story = { args: { disabled: true } };
+
+export const Medium: Story = { name: 'Size md', args: { size: 'md' } };
+export const Large: Story = { name: 'Size lg', args: { size: 'lg' } };
+
+export const FullWidth: Story = {
+  name: 'Full width',
+  args: { size: 'md', fullWidth: true },
+  decorators: [
+    (StoryFn) => (
+      <div style={{ width: 330 }}>
+        <StoryFn />
+      </div>
+    ),
+  ],
+};
 
 export const TwoOptions: Story = {
   name: 'Two options',

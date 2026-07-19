@@ -1,0 +1,64 @@
+/* Integrations page — design-local styling.
+   Kept in CSS (not Tailwind arbitrary values) so the colours resolve against the
+   live theme variables rather than being inlined as light-mode literals. */
+
+/* Pulsing "live" dot that trails the active-integrations pill.
+   Design: 7px var(--success) dot with a 3.4s expanding ring. */
+@keyframes ycIntegrationsPulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgb(0 143 93 / 35%);
+  }
+  60% {
+    box-shadow: 0 0 0 6px rgb(0 143 93 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(0 143 93 / 0%);
+  }
+}
+
+.yc-integrations-active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--success);
+  animation: ycIntegrationsPulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-integrations-active-dot {
+    animation: none;
+  }
+}
+
+/* Active-integrations count pill — design: 7px 13px, var(--pill-raised) on a
+   hairline border, 12px/600 var(--ink-body). */
+.yc-integrations-active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 9999px;
+  border: 1px solid var(--hairline);
+  background: var(--pill-raised);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-body);
+}
+
+/* Plugin-catalog hint strip — design: no border, var(--inset) fill, radius 14px. */
+.yc-integrations-plugin-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--inset);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.yc-integrations-plugin-strip-icon {
+  flex: none;
+  color: var(--blue-text);
+}

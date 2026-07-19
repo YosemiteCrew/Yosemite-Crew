@@ -1232,13 +1232,7 @@ function ContactForm({ values, setters, errors, confirm, submit }: Readonly<Cont
 
   return (
     <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit.onSubmit();
-        }}
-        style={FORM_STYLE}
-      >
+      <form action={() => void submit.onSubmit()} style={FORM_STYLE}>
         {/* type selector */}
         <ContactTypeSelector
           selectedQueryType={selectedQueryType}

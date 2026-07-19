@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import {
   IoAlertCircleOutline,
   IoArrowBack,
@@ -48,20 +49,10 @@ const AssumedBanner = () => (
   </span>
 );
 
-const SetupHeader = ({
-  orgInitial,
-  step,
-  label,
-}: {
-  orgInitial: string;
-  step: 1 | 2;
-  label: string;
-}) => (
-  <div className="flex items-center justify-between gap-3 px-7! py-4! border-b border-[var(--hairline)]">
-    <span className="flex items-center gap-3">
-      <span className="flex items-center justify-center size-7 rounded-lg bg-[var(--blue-soft)] text-[var(--blue-text)] text-[12px] font-extrabold">
-        {orgInitial}
-      </span>
+const SetupHeader = ({ step, label }: { step: 1 | 2; label: string }) => (
+  <div className="flex items-center justify-between gap-3 px-7! pt-5! pb-4! border-b border-[var(--hairline)]">
+    <span className="flex items-center gap-[11px]">
+      <Image src="/icon.svg" alt="Yosemite Crew" width={28} height={28} />
       <span className="text-[14px] font-bold text-[var(--ink)]">Set up online booking</span>
     </span>
     <span className="flex items-center gap-1.5 text-[11.5px] text-[var(--ink-faint)]">
@@ -74,7 +65,6 @@ const SetupHeader = ({
 );
 
 type ServicesStepProps = {
-  orgInitial: string;
   step: 1 | 2;
   bookableServices: ServiceRevamp[];
   selected: Set<string>;
@@ -90,7 +80,6 @@ type ServicesStepProps = {
 };
 
 const BookingServicesStep = ({
-  orgInitial,
   step,
   bookableServices,
   selected,
@@ -105,7 +94,7 @@ const BookingServicesStep = ({
   onContinue,
 }: ServicesStepProps) => (
   <>
-    <SetupHeader orgInitial={orgInitial} step={step} label="of 2 · Services & availability" />
+    <SetupHeader step={step} label="of 2 · Services & availability" />
     <div className="px-7! py-5! flex flex-col gap-3.5">
       <span className="font-[var(--font-newsreader)] text-[24px] tracking-[-0.015em] text-[var(--ink)]">
         What can pet parents book?
@@ -126,11 +115,11 @@ const BookingServicesStep = ({
                 key={service.id}
                 onClick={() => onToggleService(service.id)}
                 aria-pressed={isOn}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] text-left ${
-                  isOn
-                    ? 'border-[1.5px] border-primary-600 bg-[var(--screen)]'
-                    : 'border-[1.5px] border-[var(--hairline)] bg-[var(--screen)]'
-                }`}
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] text-left border-[1.5px] bg-[var(--screen)]"
+                style={{
+                  borderColor: isOn ? 'var(--blue)' : 'var(--hairline)',
+                  boxShadow: isOn ? '0 0 0 3px var(--glow-b10)' : undefined,
+                }}
               >
                 <span
                   className={`flex items-center justify-center size-[18px] rounded-md ${
@@ -270,7 +259,7 @@ const BookingBrandingStep = ({
   onGoLive,
 }: BrandingStepProps) => (
   <>
-    <SetupHeader orgInitial={orgInitial} step={step} label="of 2 · Branding & review" />
+    <SetupHeader step={step} label="of 2 · Branding & review" />
     <div className="px-7! py-5! flex flex-col gap-3.5">
       <span className="font-[var(--font-newsreader)] text-[24px] tracking-[-0.015em] text-[var(--ink)]">
         Your booking page
@@ -462,10 +451,9 @@ const PublicBookingSetup = () => {
         <AssumedBanner />
       </div>
 
-      <div className="w-full max-w-[720px] rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_2px_6px_var(--sh05),0_24px_60px_var(--sh10)]">
+      <div className="w-full max-w-[708px] rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_2px_6px_var(--sh05),0_24px_60px_var(--sh10)]">
         {step === 1 ? (
           <BookingServicesStep
-            orgInitial={orgInitial}
             step={step}
             bookableServices={bookableServices}
             selected={selected}

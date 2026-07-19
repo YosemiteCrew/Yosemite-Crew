@@ -4,14 +4,29 @@
   gap: 20px;
 }
 .step-logo-upload {
-  height: 60px;
-  width: 60px;
-  border-radius: 16px;
+  height: 66px;
+  width: 66px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--color-card-border);
+  border: 1.5px dashed var(--divider);
+  background: var(--field-bg);
+  color: var(--ink-faint);
   position: relative;
+}
+.step-logo-upload-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.step-logo-upload-caption {
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
 }
 .step-logo-title-container {
   display: flex;
@@ -52,10 +67,6 @@
   .step-logo-upload {
     height: 60px;
     width: 60px;
-  }
-  .step-logo-upload svg {
-    height: 30px;
-    width: 30px;
   }
   .step-logo-preview {
     height: 60px !important;

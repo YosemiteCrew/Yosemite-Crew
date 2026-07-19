@@ -24,12 +24,12 @@ const baseEntry = {
 const buildProps = (overrides: Record<string, unknown> = {}) => ({
   entry: baseEntry,
   results: [
-    { label: 'ALT', value: '48 / 10-125' },
-    { label: 'ALP', value: '' },
+    { label: 'ALT', value: '48', range: '10-125' },
+    { label: 'ALP', value: '212', range: '23-212', abnormal: true, direction: '↑' },
+    { label: 'HCT', value: '' },
   ],
   linkedLabel: 'Annual check-up',
   onClose: jest.fn(),
-  onView: jest.fn(),
   onDownload: jest.fn(),
   onOpenLinked: jest.fn(),
   onShare: jest.fn(),
@@ -55,11 +55,20 @@ describe('HistoryRecordDrawer', () => {
     expect(screen.getByText('Catalyst Chem 17 + CBC')).toBeInTheDocument();
     expect(screen.getByText('formatted-datetime')).toBeInTheDocument();
 
-    // Structured results table with an empty-value fallback
+    // Analyte / Result / Range table with an empty-cell fallback
+    expect(screen.getByText('Analyte')).toBeInTheDocument();
+    expect(screen.getByText('Result')).toBeInTheDocument();
+    expect(screen.getByText('Range')).toBeInTheDocument();
     expect(screen.getByText('ALT')).toBeInTheDocument();
-    expect(screen.getByText('48 / 10-125')).toBeInTheDocument();
-    expect(screen.getByText('ALP')).toBeInTheDocument();
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('48')).toBeInTheDocument();
+    expect(screen.getByText('10-125')).toBeInTheDocument();
+    // The flagged analyte carries the direction arrow and the warn tint
+    const flagged = screen.getByText('ALP ↑');
+    expect(flagged).toBeInTheDocument();
+    expect(flagged.closest('div')).toHaveStyle({ background: 'var(--warn-bg)' });
+    // The rangeless, valueless row falls back to a dash in both cells
+    expect(screen.getByText('HCT')).toBeInTheDocument();
+    expect(screen.getAllByText('-')).toHaveLength(2);
 
     // Note + linked row
     expect(screen.getByText('Dr. Weber: Mild ALP elevation, likely benign.')).toBeInTheDocument();
@@ -70,9 +79,6 @@ describe('HistoryRecordDrawer', () => {
   it('fires every action callback with the entry', () => {
     const props = buildProps();
     render(<HistoryRecordDrawer {...props} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'View document' }));
-    expect(props.onView).toHaveBeenCalledWith(baseEntry);
 
     fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
     expect(props.onDownload).toHaveBeenCalledWith(baseEntry);

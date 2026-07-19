@@ -131,6 +131,7 @@ type BarChartContentProps = {
   keys: ChartKey[];
   yTickFormatter?: (value: number) => string;
   yAxisWidth?: number;
+  hideYAxis?: boolean;
   xAxisLabel?: string;
   yAxisLabel?: string;
   barSize?: number;
@@ -147,6 +148,7 @@ const BarChartContent = ({
   keys,
   yTickFormatter,
   yAxisWidth,
+  hideYAxis,
   xAxisLabel,
   yAxisLabel,
   barSize,
@@ -160,7 +162,7 @@ const BarChartContent = ({
     width={width}
     height={height}
   >
-    <CartesianGrid strokeDasharray="4 4" vertical={false} />
+    {!hideYAxis && <CartesianGrid strokeDasharray="4 4" vertical={false} />}
     <XAxis
       dataKey={isVerticalLayout ? undefined : 'month'}
       type={isVerticalLayout ? 'number' : 'category'}
@@ -177,6 +179,7 @@ const BarChartContent = ({
       width={isVerticalLayout ? 100 : yAxisWidth}
       tick={isVerticalLayout ? TiltedYTick : { fontSize: 11 }}
       label={getYAxisLabel(yAxisLabel, isVerticalLayout)}
+      hide={hideYAxis}
     />
     <Tooltip />
     {keys.map((key) => (
@@ -195,6 +198,7 @@ export type ChartCanvasProps = {
   layout?: LayoutType;
   yTickFormatter?: (value: number) => string;
   yAxisWidth?: number;
+  hideYAxis?: boolean;
   barSize?: number;
   xAxisLabel?: string;
   yAxisLabel?: string;
@@ -217,6 +221,7 @@ const ChartCanvas = ({
   layout,
   yTickFormatter,
   yAxisWidth,
+  hideYAxis,
   barSize,
   xAxisLabel,
   yAxisLabel,
@@ -254,6 +259,7 @@ const ChartCanvas = ({
         keys={keys}
         yTickFormatter={yTickFormatter}
         yAxisWidth={yAxisWidth}
+        hideYAxis={hideYAxis}
         xAxisLabel={xAxisLabel}
         yAxisLabel={yAxisLabel}
         barSize={barSize}

@@ -51,11 +51,13 @@ const allCards = () => screen.queryAllByRole('button', { name: /^Play guide:/ })
 describe('Guides page', () => {
   it('renders the warm-bone header and all seed guides', () => {
     render(<ProtectedGuides />);
-    expect(screen.getByRole('heading', { name: /Learn the crew's way/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Guides \(6\)/ })).toBeInTheDocument();
     expect(
       screen.getByText('Short, practical walkthroughs · 2-6 minutes each')
     ).toBeInTheDocument();
-    expect(screen.getByText('12 guides · updated with each release')).toBeInTheDocument();
+    expect(
+      screen.getByText('Short, practical walkthroughs · updated with each release')
+    ).toBeInTheDocument();
     expect(allCards()).toHaveLength(6);
     expect(cardButton('Your first day in the PIMS')).toBeInTheDocument();
     expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();

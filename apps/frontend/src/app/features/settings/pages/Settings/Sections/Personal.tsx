@@ -1,12 +1,14 @@
 'use client';
 import React from 'react';
 import Image from 'next/image';
+import { IoTimeOutline } from 'react-icons/io5';
 import { useAuthStore } from '@/app/stores/authStore';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { usePrimaryAvailability } from '@/app/hooks/useAvailabiities';
 
 import { summarizeAvailability } from './personal.utils';
+import '@/app/features/settings/styles/Settings.css';
 
 const initialsFrom = (first: string, last: string): string => {
   const a = first.trim().charAt(0);
@@ -83,21 +85,23 @@ const Personal = () => {
           Edit profile
         </button>
       </div>
-      <div className="flex items-center justify-between gap-3 pt-[6px] border-t border-[var(--hairline)]">
-        <span className="text-[13px] font-semibold text-[var(--ink-body)]">
-          Availability &amp; consultation hours
+      <div className="flex items-center justify-between gap-3 pt-[12px] border-t border-[var(--hairline)]">
+        <span className="min-w-0">
+          <span className="block text-[13px] font-semibold text-[var(--ink-body)]">
+            Availability &amp; consultation hours
+          </span>
+          <span className="block truncate text-[11.5px] text-[var(--ink-faint)]">
+            {availabilitySummary ?? 'Not set'}
+          </span>
         </span>
-        <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--blue-text)]">
-          {availabilitySummary ?? 'Not set'}
-          <span aria-hidden="true">·</span>
-          <button
-            type="button"
-            onClick={() => scrollToSection('settings-availability')}
-            className="font-semibold text-[var(--blue-text)] hover:underline cursor-pointer"
-          >
-            edit
-          </button>
-        </span>
+        <button
+          type="button"
+          onClick={() => scrollToSection('settings-availability')}
+          className="yc-settings-ghost-pill"
+        >
+          <IoTimeOutline size={13} aria-hidden="true" className="yc-settings-ghost-pill-icon" />
+          Edit hours
+        </button>
       </div>
     </div>
   );

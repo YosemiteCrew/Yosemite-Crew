@@ -165,11 +165,13 @@ const BoardColumn = ({
               className="size-[7px] shrink-0 rounded-full"
               style={{ backgroundColor: style.borderColor }}
             />
-            <div className="text-[11.5px] font-bold uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+            <div className="text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--ink-muted)]">
               {column.label}
             </div>
           </div>
-          <div className="text-[11px] font-bold text-text-tertiary">{appointments.length}</div>
+          <div className="text-[11.5px] font-bold text-[var(--ink-faint)]">
+            {appointments.length}
+          </div>
         </div>
       </div>
       <div

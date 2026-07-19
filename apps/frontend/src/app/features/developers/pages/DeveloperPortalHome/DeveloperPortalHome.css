@@ -18,7 +18,8 @@
 }
 
 .dev-greet-eyebrow {
-  color: var(--color-cyan-text);
+  font-size: 16px;
+  color: var(--cyan-text);
 }
 
 .dev-greet-name {
@@ -41,6 +42,9 @@
 .dev-hero-subtext {
   margin: 0;
   max-width: 780px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-muted);
 }
 
 .dev-portal-hero {
@@ -88,10 +92,10 @@
 
 /* Dark "quick status" spot card — stays near-black in both themes */
 .dev-hero-card {
-  background: var(--color-ink);
+  background: var(--spot);
   border-radius: 18px;
   padding: 20px 22px;
-  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
+  box-shadow: 0 12px 34px var(--sh20);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -181,6 +185,13 @@
   gap: 12px;
 }
 
+.dev-card-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .dev-card-pill {
   display: inline-flex;
   align-items: center;
@@ -203,16 +214,19 @@
   display: flex;
   align-items: center;
   gap: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-body);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .dev-link:hover {
-  color: var(--color-cyan-text);
+  color: var(--cyan-text);
 }
 
 .dev-link-icon {
-  color: var(--color-cyan-text);
+  color: var(--cyan-text);
   flex-shrink: 0;
 }
 
@@ -261,9 +275,17 @@
   display: block;
 }
 
+.dev-plugin-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .dev-plugin-desc {
   margin: 0;
+  font-size: 12.5px;
   line-height: 1.55;
+  color: var(--ink-muted);
 }
 
 .dev-card-action {
@@ -272,8 +294,9 @@
   align-items: center;
   gap: 6px;
   text-decoration: none;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--color-cyan-text);
+  color: var(--cyan-text);
 }
 
 .dev-activity {
@@ -294,6 +317,9 @@
 
 .dev-req-path {
   min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -309,7 +335,7 @@
 }
 
 .dev-req-status.err {
-  color: var(--color-text-error);
+  color: var(--danger-text);
 }
 
 .dev-activity-foot {

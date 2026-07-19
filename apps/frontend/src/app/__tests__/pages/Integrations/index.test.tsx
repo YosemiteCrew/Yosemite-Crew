@@ -291,7 +291,7 @@ describe('IntegrationsPage — default disabled render', () => {
 
     expect(screen.getByRole('heading', { name: /Integrations/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Integrations info' })).toBeInTheDocument();
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 0');
+    expect(screen.getByText('0 active')).toBeInTheDocument();
 
     // Every card is visible under the default "All" filter.
     expect(screen.getByText('IDEXX VetConnect PLUS')).toBeInTheDocument();
@@ -385,7 +385,7 @@ describe('IntegrationsPage — enabled render', () => {
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1'));
 
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 2');
+    expect(screen.getByText('2 active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disable IDEXX quick action' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Disable MSD Veterinary Manual' })

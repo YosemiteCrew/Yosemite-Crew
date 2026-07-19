@@ -3,8 +3,10 @@ import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import React from 'react';
 import dynamic from 'next/dynamic';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 
 import { PreferenceGroup } from '@/app/features/settings/pages/Settings/Sections/PreferenceGroup';
+import '@/app/features/settings/styles/Settings.css';
 
 const SETTINGS_PAGE_SKELETON = <PageSkeleton variant="settings" />;
 
@@ -66,12 +68,27 @@ const DeleteProfile = dynamic(
 const Settings = () => {
   return (
     <div className="yc-page-content">
-      <h1
-        className="m-0! text-[22px] md:text-[26px] leading-[1.05] tracking-[-0.015em] text-[var(--ink)]"
-        style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 400 }}
-      >
-        Settings
-      </h1>
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 flex-col gap-[3px]">
+          <h1
+            className="m-0! flex items-center gap-2 text-[22px] md:text-[26px] leading-[1.05] tracking-[-0.015em] text-[var(--ink)]"
+            style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 400 }}
+          >
+            Settings
+            <IoInformationCircleOutline
+              size={17}
+              color="var(--ink-faint)"
+              aria-hidden="true"
+              className="flex-none"
+            />
+          </h1>
+          <span className="yc-settings-subtitle">Personal and workspace preferences</span>
+        </div>
+        <span className="yc-settings-autosave">
+          <span className="yc-settings-autosave-dot" aria-hidden="true" />
+          Changes save automatically
+        </span>
+      </div>
 
       {/* Compact control panel — the design's 2-column Settings grid:
           [Personal | Workspace preferences] / [Scheduling & messaging | Organizations + Delete]. */}

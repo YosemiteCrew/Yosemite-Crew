@@ -85,6 +85,52 @@ describe('AvailabilityStep Component', () => {
     expect(screen.getByTestId('btn-back')).toBeInTheDocument();
   });
 
+  it('renders the consultation-slot selector and updates the chosen duration', () => {
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+        isSaving={false}
+        setIsSaving={jest.fn()}
+        setIsRedirecting={jest.fn()}
+      />
+    );
+
+    const slot = screen.getByLabelText('Consultation slot') as HTMLSelectElement;
+    expect(slot.value).toBe('30 min');
+
+    fireEvent.change(slot, { target: { value: '45 min' } });
+    expect(slot.value).toBe('45 min');
+  });
+
+  it('toggles the consultation-type pills', () => {
+    render(
+      <AvailabilityStep
+        prevStep={mockPrevStep}
+        orgIdFromQuery={mockOrgId}
+        availability={mockAvailabilityState}
+        setAvailability={mockSetAvailability}
+        isSaving={false}
+        setIsSaving={jest.fn()}
+        setIsRedirecting={jest.fn()}
+      />
+    );
+
+    const inClinic = screen.getByRole('button', { name: 'In clinic' });
+    const homeVisits = screen.getByRole('button', { name: 'Home visits' });
+
+    expect(inClinic).toHaveAttribute('aria-pressed', 'true');
+    expect(homeVisits).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(homeVisits);
+    expect(homeVisits).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(inClinic);
+    expect(inClinic).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('calls prevStep when Back is clicked', () => {
     render(
       <AvailabilityStep

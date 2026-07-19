@@ -25,8 +25,8 @@
   border-radius: 20px;
   background: var(--screen);
   box-shadow:
-    0 18px 44px var(--sh12),
     0 6px 16px var(--sh10),
+    0 28px 70px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
 }
 
@@ -156,9 +156,12 @@
   color: var(--blue-text);
 }
 
+/* The design tints this disc with the translucent logo pink and a bright logo-pink
+   glyph, not the app's opaque --pink-soft / dark-raspberry --pink-text pair. Both
+   values are theme-neutral (a translucent wash reads correctly on either surface). */
 .yc-noti-disc--pink {
-  background: var(--pink-soft);
-  color: var(--pink-text);
+  background: rgb(255 144 212 / 18%);
+  color: #ff90d4;
 }
 
 .yc-noti-disc--danger {
@@ -224,6 +227,12 @@
   gap: 12px;
   border-top: 1px solid var(--hairline);
   padding: 11px 18px;
+}
+
+/* The design's footer is a two-end row ("View all" left, settings right). While
+   "View all" has no route to point at, the lone child keeps the right end. */
+.yc-noti-foot > :only-child {
+  margin-left: auto;
 }
 
 .yc-noti-viewall {

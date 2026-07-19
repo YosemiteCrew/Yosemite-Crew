@@ -650,6 +650,7 @@ type InventoryTableContentProps = {
   setActiveDispensaryRecord: React.Dispatch<React.SetStateAction<DispensaryRecord | null>>;
   setDispensaryModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   onRestock: (item: InventoryItem) => void;
+  onViewHistory: (item: InventoryItem) => void;
   onDispense?: (record: DispensaryRecord) => Promise<void>;
 };
 
@@ -670,6 +671,7 @@ export const InventoryTableContent = ({
   setActiveDispensaryRecord,
   setDispensaryModalOpen,
   onRestock,
+  onViewHistory,
   onDispense,
 }: InventoryTableContentProps) => {
   if (activeView === 'analytics') {
@@ -685,6 +687,7 @@ export const InventoryTableContent = ({
           inventory={inventory}
           setActiveView={setActiveView}
           onReorder={onRestock}
+          onViewHistory={onViewHistory}
         />
         <InventoryTurnoverTable filteredList={filteredTurnoverList} />
       </div>
@@ -1084,6 +1087,14 @@ const useInventoryContent = () => {
     setViewInventory(true);
   }, []);
 
+  // "History" on the turnover product panel opens the same record sheet on the
+  // batch and expiry section, which carries the item's stock movement history.
+  const handleViewHistory = useCallback((item: InventoryItem) => {
+    setActiveInventory(item);
+    setInfoInitialSection('batch');
+    setViewInventory(true);
+  }, []);
+
   // The phone catalog opens the same record sheet the desktop table's "view"
   // action does (InventoryInfo), with no forced section.
   const handleViewInventoryItem = useCallback((item: InventoryItem) => {
@@ -1338,6 +1349,7 @@ const useInventoryContent = () => {
                 setActiveDispensaryRecord={setActiveDispensaryRecord}
                 setDispensaryModalOpen={setDispensaryModalOpen}
                 onRestock={handleRestock}
+                onViewHistory={handleViewHistory}
                 onDispense={canEditPrescription ? handleDispense : undefined}
               />
             </div>

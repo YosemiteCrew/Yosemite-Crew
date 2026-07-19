@@ -182,14 +182,28 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
   const closeUpload = () => setUploadOpen(false);
   const toggleSort = () => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
 
+  const uploadButton = (
+    <Primary href="#" text="Upload record" onClick={openUpload} className="w-auto min-w-[150px]" />
+  );
+
   const uploadCta = (
+    <PermissionGate allOf={[PERMISSIONS.COMPANIONS_EDIT_ANY]}>{uploadButton}</PermissionGate>
+  );
+
+  // The design's empty state pairs the upload CTA with a secondary outline
+  // "Request from pet parent" pill. There is no request flow behind it yet, so
+  // the control ships in its unavailable state rather than inventing one.
+  const emptyStateActions = (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_EDIT_ANY]}>
-      <Primary
-        href="#"
-        text="Upload record"
-        onClick={openUpload}
-        className="w-auto min-w-[150px]"
-      />
+      {uploadButton}
+      <button
+        type="button"
+        disabled
+        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-body)' }}
+        className="flex h-[42px] items-center gap-1.5 rounded-full border px-[18px] text-[13px] font-semibold disabled:cursor-not-allowed"
+      >
+        Request from pet parent
+      </button>
     </PermissionGate>
   );
 
@@ -197,7 +211,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div className="flex w-full flex-1 flex-col gap-6 overflow-y-auto scrollbar-hidden">
         {records.length === 0 ? (
-          <CompanionRecordsEmptyState action={uploadCta} />
+          <CompanionRecordsEmptyState action={emptyStateActions} />
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">

@@ -105,6 +105,9 @@ describe('CompanionDocumentsSection', () => {
     expect(screen.getByText('No records yet')).toBeInTheDocument();
     expect(screen.getByText(/Everything from visits lands here automatically/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload record' })).toBeInTheDocument();
+    // The design pairs the CTA with a secondary "Request from pet parent" pill,
+    // which has no flow behind it yet and so renders unavailable.
+    expect(screen.getByRole('button', { name: 'Request from pet parent' })).toBeDisabled();
   });
 
   it('renders a grouped record row and opens the file on row click', async () => {

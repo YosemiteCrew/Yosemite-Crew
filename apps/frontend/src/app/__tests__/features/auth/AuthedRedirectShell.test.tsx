@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-const replace = jest.fn();
-jest.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }));
+const redirect = jest.fn();
+jest.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }));
 
 let mockState: { status: string; role: string };
 jest.mock('@/app/stores/authStore', () => ({
@@ -19,7 +19,7 @@ import AuthedRedirectShell from '@/app/features/auth/pages/AuthedRedirectShell';
 
 describe('AuthedRedirectShell', () => {
   beforeEach(() => {
-    replace.mockReset();
+    redirect.mockReset();
     resolvePostAuthRedirect.mockReset();
     mockState = { status: 'unauthenticated', role: 'member' };
   });
@@ -32,7 +32,7 @@ describe('AuthedRedirectShell', () => {
     );
     expect(screen.getByText('auth screen')).toBeInTheDocument();
     expect(resolvePostAuthRedirect).not.toHaveBeenCalled();
-    expect(replace).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('forwards an already-authenticated visitor to their post-auth route', async () => {
@@ -45,9 +45,12 @@ describe('AuthedRedirectShell', () => {
       </AuthedRedirectShell>
     );
 
+    // The auth screen is never painted for a visitor who is on their way elsewhere.
+    expect(screen.queryByText('auth screen')).not.toBeInTheDocument();
+
     await waitFor(() =>
       expect(resolvePostAuthRedirect).toHaveBeenCalledWith({ fallbackRole: 'admin' })
     );
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => expect(redirect).toHaveBeenCalledWith('/dashboard'));
   });
 });

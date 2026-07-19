@@ -93,32 +93,6 @@ jest.mock('@/app/ui/primitives/Buttons/Delete', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/primitives/SectionContainer/SectionContainer', () => ({
-  __esModule: true,
-  default: ({
-    title,
-    children,
-    titleSlot,
-  }: {
-    title: string;
-    children: React.ReactNode;
-    titleSlot?: React.ReactNode;
-  }) => (
-    <div>
-      <h2>{title}</h2>
-      {titleSlot && <div data-testid="title-slot">{titleSlot}</div>}
-      {children}
-    </div>
-  ),
-}));
-
-jest.mock('@/app/ui/Badge', () => ({
-  __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => (
-    <span data-testid="badge">{children}</span>
-  ),
-}));
-
 const mockNotify = jest.fn();
 const mockArchiveService = jest.fn();
 const mockLoadSpecialityCatalog = jest.fn();
@@ -162,6 +136,16 @@ const setupStoreMock = (services: ServiceRevamp[] = []) => {
   );
 };
 
+/** Opens the first row's ⋯ menu; both the wide and compact rows render one. */
+const openRowMenu = (serviceName = 'Consultation') => {
+  fireEvent.click(screen.getAllByLabelText(`Actions for ${serviceName}`)[0]);
+};
+
+/** Expands the first row so the verbose catalog fields are revealed. */
+const expandRow = (serviceName = 'Consultation') => {
+  fireEvent.click(screen.getAllByRole('button', { name: new RegExp(serviceName) })[0]);
+};
+
 describe('ServicesTab', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -194,54 +178,111 @@ describe('ServicesTab', () => {
       expect(screen.getAllByText('Consultation').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('renders service code', () => {
+    it('renders the design table header columns', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      expect(screen.getAllByText('CS-001').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Service')).toBeInTheDocument();
+      expect(screen.getByText('Practitioners')).toBeInTheDocument();
+      expect(screen.getByText('Duration')).toBeInTheDocument();
+      expect(screen.getByText('Price')).toBeInTheDocument();
+      expect(screen.getByText('Bookable')).toBeInTheDocument();
+      expect(screen.getByText('Status')).toBeInTheDocument();
+    });
+
+    it('renders the duration, price and status pill on the row', () => {
+      setupStoreMock([mockService]);
+      render(<ServicesTab {...defaultProps} />);
+      expect(screen.getAllByText('30 min').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('$ 90.00').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('ACTIVE').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('renders the practitioner avatar cluster with an overflow count', () => {
+      setupStoreMock([mockService]);
+      render(
+        <ServicesTab
+          {...defaultProps}
+          practitioners={[
+            { id: 'p1', name: 'Sarah Weber' },
+            { id: 'p2', name: 'Matteo Brunner' },
+            { id: 'p3', name: 'Anna Keller' },
+            { id: 'p4', name: 'Jonas Meier' },
+          ]}
+        />
+      );
+      expect(screen.getAllByText('SW').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('+1').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('renders an em dash when the speciality has no practitioners', () => {
+      setupStoreMock([mockService]);
+      render(<ServicesTab {...defaultProps} />);
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('reveals the verbose catalog fields when a row is expanded', () => {
+      setupStoreMock([mockService]);
+      render(<ServicesTab {...defaultProps} />);
+      expect(screen.queryByText('CS-001')).not.toBeInTheDocument();
+
+      expandRow();
+
+      expect(screen.getByText('CS-001')).toBeInTheDocument();
+      expect(screen.getByText('Code')).toBeInTheDocument();
+      expect(screen.getByText('-10%')).toBeInTheDocument();
+      expect(screen.getByText('-20%')).toBeInTheDocument();
+    });
+
+    it('reports the in-patient preference in the expanded detail', () => {
+      setupStoreMock([{ ...mockService, isInpatientPreferred: true }]);
+      render(<ServicesTab {...defaultProps} />);
+      expandRow();
+      expect(screen.getByText('In-patient')).toBeInTheDocument();
+      expect(screen.getByText('Preferred')).toBeInTheDocument();
     });
 
     it('renders the "In app" channel indicator when isBookable is true', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
       expect(screen.getAllByText('In app').length).toBeGreaterThanOrEqual(1);
-      expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
     });
 
     it('renders the "Desk only" channel indicator when isBookable is false', () => {
       setupStoreMock([{ ...mockService, isBookable: false }]);
       render(<ServicesTab {...defaultProps} />);
       expect(screen.getAllByText('Desk only').length).toBeGreaterThanOrEqual(1);
-      expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
     });
 
-    it('renders the in-patient badge when isInpatientPreferred is true', () => {
-      setupStoreMock([{ ...mockService, isInpatientPreferred: true }]);
-      render(<ServicesTab {...defaultProps} />);
-      expect(screen.getByTestId('badge')).toBeInTheDocument();
-      expect(screen.getAllByText('In-patient').length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('renders edit button for service', () => {
+    it('renders a ⋯ actions menu for each service', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      expect(screen.getAllByLabelText('Edit Consultation').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByLabelText('Actions for Consultation').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+
+      openRowMenu();
+
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
     });
 
-    it('renders delete button for service', () => {
+    it('closes the actions menu on Escape', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      expect(screen.getAllByLabelText('Archive Consultation').length).toBeGreaterThanOrEqual(1);
+      openRowMenu();
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Edit' }), { key: 'Escape' });
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     });
 
-    it('renders service description', () => {
+    it('renders service description as the row subline', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
       expect(screen.getAllByText('Basic consultation').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('renders "—" when description is empty', () => {
+    it('falls back to the type label when the description is empty', () => {
       setupStoreMock([{ ...mockService, description: '' }]);
       render(<ServicesTab {...defaultProps} />);
+      expandRow();
       expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
     });
 
@@ -288,11 +329,11 @@ describe('ServicesTab', () => {
   });
 
   describe('edit service flow', () => {
-    it('opens edit form when edit button is clicked', () => {
+    it('opens edit form from the row actions menu', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const editBtns = screen.getAllByLabelText('Edit Consultation');
-      fireEvent.click(editBtns[0]);
+      openRowMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
       expect(screen.getByTestId('edit-service-form')).toBeInTheDocument();
       expect(screen.getByText('Editing: Consultation')).toBeInTheDocument();
     });
@@ -300,8 +341,8 @@ describe('ServicesTab', () => {
     it('closes edit form and shows service row again', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const editBtns = screen.getAllByLabelText('Edit Consultation');
-      fireEvent.click(editBtns[0]);
+      openRowMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
       fireEvent.click(screen.getByRole('button', { name: 'Close Form' }));
       expect(screen.queryByTestId('edit-service-form')).not.toBeInTheDocument();
       expect(screen.getAllByText('Consultation').length).toBeGreaterThanOrEqual(1);
@@ -309,11 +350,15 @@ describe('ServicesTab', () => {
   });
 
   describe('delete service flow', () => {
-    it('opens delete confirmation modal when delete button is clicked', () => {
+    const openArchiveModal = () => {
+      openRowMenu();
+      fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    };
+
+    it('opens delete confirmation modal from the row actions menu', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
-      fireEvent.click(deleteBtns[0]);
+      openArchiveModal();
       expect(screen.getByTestId('center-modal')).toBeInTheDocument();
       expect(screen.getByText('Archive service')).toBeInTheDocument();
     });
@@ -321,16 +366,14 @@ describe('ServicesTab', () => {
     it('shows service name in delete confirmation', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
-      fireEvent.click(deleteBtns[0]);
+      openArchiveModal();
       expect(screen.getByText('Consultation', { selector: 'strong' })).toBeInTheDocument();
     });
 
     it('calls archiveService and notifies on confirm archive', async () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const archiveBtns = screen.getAllByLabelText('Archive Consultation');
-      fireEvent.click(archiveBtns[0]);
+      openArchiveModal();
       fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
       expect(mockArchiveService).toHaveBeenCalledWith('svc-1');
       await waitFor(() =>
@@ -344,8 +387,7 @@ describe('ServicesTab', () => {
     it('closes modal on Cancel without deleting', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
-      fireEvent.click(deleteBtns[0]);
+      openArchiveModal();
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
       expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
       expect(mockArchiveService).not.toHaveBeenCalled();
@@ -354,8 +396,7 @@ describe('ServicesTab', () => {
     it('closes modal via modal header close button', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
-      const deleteBtns = screen.getAllByLabelText('Archive Consultation');
-      fireEvent.click(deleteBtns[0]);
+      openArchiveModal();
       fireEvent.click(screen.getByRole('button', { name: 'Close Modal' }));
       expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
     });

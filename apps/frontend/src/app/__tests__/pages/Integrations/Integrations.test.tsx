@@ -313,14 +313,14 @@ describe('Integrations settings', () => {
 
   it('has no axe violations on initial render', async () => {
     const { container } = render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
   it('filter tabs expose aria-pressed state', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     const allTab = screen.getByRole('button', { name: 'All' });
     expect(allTab).toHaveAttribute('aria-pressed', 'true');
     const connectedTab = screen.getByRole('button', { name: 'Connected' });
@@ -348,7 +348,7 @@ describe('Integrations settings', () => {
     });
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     fireEvent.click(screen.getByRole('button', { name: 'Connected' }));
     await screen.findByText('No connected integrations yet.');
   });
@@ -367,7 +367,7 @@ describe('Integrations settings', () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledIntegration);
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     // When IDEXX is enabled and Available filter active, the IDEXX card should be hidden
     // (showIdexxCard = available && !idexxEnabled = false)
     const availableBtn = screen.getByRole('button', { name: 'Available' });
@@ -396,7 +396,7 @@ describe('Integrations settings', () => {
 
   it('shows the Vetnio integration card with "Coming soon" label', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(screen.getAllByText('Vetnio').length).toBeGreaterThanOrEqual(1);
     const comingSoonLabels = screen.getAllByText('Coming soon');
     expect(comingSoonLabels.length).toBeGreaterThan(0);
@@ -404,13 +404,13 @@ describe('Integrations settings', () => {
 
   it('shows Laika integration card with "Coming soon" label', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(screen.getAllByText('Laika').length).toBeGreaterThanOrEqual(1);
   });
 
   it('hides coming-soon cards when Connected filter is active', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     fireEvent.click(screen.getByRole('button', { name: 'Connected' }));
     await waitFor(() => {
       expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
@@ -419,7 +419,7 @@ describe('Integrations settings', () => {
 
   it('renders the workspace subtitle under the Integrations heading', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(
       screen.getByText('Connect labs, references and devices to the workspace')
     ).toBeInTheDocument();
@@ -427,7 +427,7 @@ describe('Integrations settings', () => {
 
   it('renders the live status pill (dot branch) for an enabled integration', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     // Enabled IDEXX reads as CONNECTED (design copy) and exercises the isLive === true
     // branch that adds the success indicator dot. The status pill is a <span>; the
     // "Connected" filter tab is a <button>, so scope the assertion to the pill span.
@@ -437,7 +437,7 @@ describe('Integrations settings', () => {
 
   it('shows the developer-portal plugin hint row', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(
       screen.getByText(/More integrations ship as plugins\. Browse the developer portal/i)
     ).toBeInTheDocument();
@@ -457,7 +457,7 @@ describe('Integrations settings', () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(disabledIntegration);
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     // The disabled IDEXX pill (plus other providers defaulting to disabled) exercises the
     // isLive === false branch (no indicator dot).
     expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);

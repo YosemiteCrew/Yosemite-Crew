@@ -15,6 +15,20 @@ type ToolButton = {
   run: () => void;
 };
 
+const renderButton = (btn: ToolButton) => (
+  <button
+    key={btn.key}
+    type="button"
+    aria-label={btn.label}
+    aria-pressed={btn.isActive()}
+    onMouseDown={(e) => e.preventDefault()}
+    onClick={btn.run}
+    className="yc-rte-tool-btn"
+  >
+    {btn.icon}
+  </button>
+);
+
 /**
  * Docked B / I / U | bulleted-list / indent toolbar for the rich text editor.
  * Rendered as a top bar inside the field (see RichTextEditor.css `.yc-rte-toolbar`,
@@ -79,20 +93,6 @@ const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
       },
     },
   ];
-
-  const renderButton = (btn: ToolButton) => (
-    <button
-      key={btn.key}
-      type="button"
-      aria-label={btn.label}
-      aria-pressed={btn.isActive()}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={btn.run}
-      className="yc-rte-tool-btn"
-    >
-      {btn.icon}
-    </button>
-  );
 
   // B / I / U, a hairline divider, then the list + indent controls — the design's
   // grouping. The trailing "editing" hint mirrors the active-field affordance.

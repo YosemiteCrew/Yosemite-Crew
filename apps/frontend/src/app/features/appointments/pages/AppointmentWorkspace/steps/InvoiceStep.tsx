@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   IoArrowForwardOutline,
-  IoCardOutline,
   IoCashOutline,
   IoCheckmarkOutline,
   IoCloudUploadOutline,
@@ -414,7 +413,7 @@ export const PaymentProgressOverlay = ({
             href={state.checkoutUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="max-w-full break-all text-body-4 text-text-brand underline"
+            className="max-w-full break-all text-body-4 text-blue-text underline"
           >
             Reopen Stripe checkout
           </a>
@@ -493,7 +492,12 @@ export const InvoiceBreakdown = ({
       </ul>
       <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-card-border pt-3">
         <span className="text-text-secondary">Total</span>
-        <span className="text-yc-20-b-primary">{formatCents(invoice.totalCents, currency)}</span>
+        <span
+          className="text-[26px] font-bold tracking-[-0.03em] tabular-nums"
+          style={{ color: 'var(--ink)' }}
+        >
+          {formatCents(invoice.totalCents, currency)}
+        </span>
         {isInvoiceSettled(invoice) && <SettledBadge invoice={invoice} />}
       </div>
       {invoice.payments && invoice.payments.length > 0 && (
@@ -667,11 +671,7 @@ export const InvoicesSection = ({
   const handleToggle = (id: string) => setExpandedId((current) => (current === id ? null : id));
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Invoices"
-      className="flex flex-col gap-5"
-    >
+    <SectionContainer title="Invoices" className="flex flex-col gap-5">
       {invoices.length === 0 ? (
         <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
           No invoices recorded yet.
@@ -700,6 +700,12 @@ export const InvoicesSection = ({
   );
 };
 
+const PAYMENT_METHOD_LABELS = {
+  ONLINE: 'Online',
+  CASH: 'Cash',
+  DEPOSIT: 'Deposit',
+} as const;
+
 /** Payment actions below the Total Bill (Collect Deposit / Collect Cash / Pay Online). */
 export const PaymentActions = ({
   isInpatient,
@@ -720,57 +726,70 @@ export const PaymentActions = ({
   onCollect: (method: PaymentMethod) => void;
   onSendToClient: () => void;
 }) => {
-  // Online/Cash is a single method choice + one "Collect" action (design's payment-method
-  // card). Deposit and Send-to-Client remain distinct actions with their own gating.
-  const [method, setMethod] = useState<'ONLINE' | 'CASH'>('ONLINE');
+  // Online/Cash/Deposit is a single method choice + one "Collect" action (design's
+  // payment-method card). Send-to-Client remains a distinct action with its own gating.
+  const [method, setMethod] = useState<'ONLINE' | 'CASH' | 'DEPOSIT'>('ONLINE');
+  const isDeposit = method === 'DEPOSIT';
+  const collectDisabled = isDeposit ? depositDisabled : paymentDisabled;
   const collectButton = (
-    <Primary
-      text={`Collect ${formatMoney(dueCents / 100, currency)}`}
-      icon={<IoCashOutline aria-hidden="true" />}
-      iconPosition="right"
+    <button
+      type="button"
       onClick={() => onCollect(method)}
-      isDisabled={paymentDisabled}
-    />
+      disabled={collectDisabled}
+      className="flex h-11 w-full items-center justify-center gap-2 rounded-full text-[14px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+      style={{ background: 'var(--blue)', boxShadow: '0 10px 26px var(--glow-b26)' }}
+    >
+      {`Collect ${formatMoney(dueCents / 100, currency)}`}
+      <IoCashOutline aria-hidden="true" />
+    </button>
   );
+  const disabledReason = isDeposit ? undefined : paymentDisabledReason;
   return (
     <section
       aria-label="Payment method"
       className="flex flex-col gap-3 rounded-[14px] border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
     >
-      <span className="text-body-3-emphasis text-text-primary">Payment method</span>
-      <div className="flex gap-1 rounded-xl bg-neutral-100 p-1">
-        {(['ONLINE', 'CASH'] as const).map((option) => (
+      <span
+        className="text-[14px] font-bold leading-[130%] tracking-[-0.01em]"
+        style={{ color: 'var(--ink)' }}
+      >
+        Payment method
+      </span>
+      <div
+        className="flex gap-1 rounded-xl border p-[3px]"
+        style={{ background: 'var(--band)', borderColor: 'var(--hairline)' }}
+      >
+        {(['ONLINE', 'CASH', 'DEPOSIT'] as const).map((option) => (
           <button
             key={option}
             type="button"
             aria-pressed={method === option}
+            disabled={option === 'DEPOSIT' && depositDisabled}
             onClick={() => setMethod(option)}
-            className={`flex-1 rounded-lg py-2 text-caption-1 font-semibold transition-colors ${
+            className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            style={
               method === option
-                ? 'bg-neutral-0 text-text-primary shadow-[0_1px_3px_var(--sh08)]'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
+                ? {
+                    background: 'var(--screen)',
+                    color: 'var(--ink)',
+                    boxShadow: '0 1px 3px var(--sh08)',
+                  }
+                : { color: 'var(--ink-muted)' }
+            }
           >
-            {option === 'ONLINE' ? 'Online' : 'Cash'}
+            {PAYMENT_METHOD_LABELS[option]}
           </button>
         ))}
       </div>
-      {paymentDisabledReason ? (
-        <GlassTooltip content={paymentDisabledReason} side="top" maxWidth={320}>
+      {disabledReason ? (
+        <GlassTooltip content={disabledReason} side="top" maxWidth={320}>
           <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
         </GlassTooltip>
       ) : (
         <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
       )}
-      <div className="flex flex-wrap gap-2 border-t border-card-border pt-3">
-        <Secondary
-          text="Collect Deposit"
-          icon={<IoCardOutline aria-hidden="true" />}
-          iconPosition="right"
-          onClick={() => onCollect('DEPOSIT')}
-          isDisabled={depositDisabled}
-        />
-        {isInpatient && (
+      {isInpatient && (
+        <div className="flex flex-wrap gap-2 border-t border-card-border pt-3">
           <Secondary
             text="Send to Client"
             icon={<IoCloudUploadOutline aria-hidden="true" />}
@@ -778,8 +797,8 @@ export const PaymentActions = ({
             onClick={onSendToClient}
             isDisabled={paymentDisabled}
           />
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 };
@@ -840,7 +859,7 @@ export const DepositModal = ({
               onClick={() => setMethod(option)}
               className={`rounded-2xl border px-4 py-3 text-body-4 ${
                 method === option
-                  ? 'border-primary-500 bg-primary-100 text-text-brand'
+                  ? 'border-primary-500 bg-primary-100 text-blue-text'
                   : 'border-card-border text-text-primary'
               }`}
             >
@@ -866,7 +885,7 @@ export const DepositModal = ({
           />
         </label>
         {generatedLink && (
-          <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
+          <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-blue-text">
             <span>Payment link generated:</span>
             <a
               href={generatedLink}
@@ -1429,7 +1448,7 @@ const useInvoiceStepContent = ({
             )}
 
             {confirmation && (
-              <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
+              <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-blue-text">
                 <span>{confirmation}</span>
                 {confirmationLink && (
                   <a

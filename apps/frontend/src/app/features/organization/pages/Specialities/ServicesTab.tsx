@@ -9,29 +9,33 @@ import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 import { useNotify } from '@/app/hooks/useNotify';
 import { computeServiceTotal } from '@/app/features/organization/services/catalogCalculations';
-import Badge from '@/app/ui/Badge';
-import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
-import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import YosemiteLoader from '@/app/ui/overlays/Loader/YosemiteLoader';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
 import {
+  avatarAccentFor,
+  initialsOf,
+} from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
+import {
   IoAddOutline,
   IoArchiveOutline,
-  IoBedOutline,
   IoCallOutline,
   IoCreateOutline,
+  IoEllipsisHorizontal,
   IoInformationCircleOutline,
   IoPhonePortraitOutline,
 } from 'react-icons/io5';
 
 export type ServicesTabHandle = { openAdd: () => void };
 
+export type ServicePractitioner = { id: string; name: string };
+
 type ServicesTabProps = Readonly<{
   specialityId: string;
   organisationId: string;
   specialityName?: string;
+  practitioners?: ServicePractitioner[];
   ref?: Ref<ServicesTabHandle>;
 }>;
 
@@ -45,219 +49,256 @@ const TYPE_LABELS: Record<string, string> = {
   MEDICATION: 'Medication',
 };
 
-const ServiceRow = ({
-  service,
-  index,
+/** Design column template for the speciality service table. */
+const GRID_COLS = 'grid-cols-[1.7fr_1fr_90px_90px_100px_120px_44px]';
+
+const STATUS_PILL_CLASS =
+  'inline-flex items-center rounded-full border px-[9px] py-[2px] text-[9.5px] font-bold bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]';
+
+const BookableCell = ({ isBookable }: { isBookable: boolean }) =>
+  isBookable ? (
+    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--pink)]">
+      <IoPhonePortraitOutline size={12} aria-hidden="true" />
+      In app
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--ink-faint)]">
+      <IoCallOutline size={12} aria-hidden="true" />
+      Desk only
+    </span>
+  );
+
+/** Overlapping monogram cluster for the practitioners who cover this speciality. */
+const PractitionerStack = ({ practitioners }: { practitioners: ServicePractitioner[] }) => {
+  if (practitioners.length === 0) {
+    return <span className="text-[11.5px] text-[var(--ink-faint)]">—</span>;
+  }
+  const shown = practitioners.slice(0, 3);
+  const overflow = practitioners.length - shown.length;
+  return (
+    <span className="flex items-center">
+      {shown.map((person, position) => (
+        <span
+          key={person.id}
+          title={person.name}
+          className={`flex size-[26px] items-center justify-center rounded-full border-2 border-[var(--screen)] text-[9.5px] font-bold ${avatarAccentFor(person.id)} ${position > 0 ? '-ml-[7px]' : ''}`}
+        >
+          {initialsOf(person.name)}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span className="ml-[5px] text-[10.5px] font-semibold text-[var(--ink-faint)]">
+          +{overflow}
+        </span>
+      )}
+    </span>
+  );
+};
+
+const RowActionsMenu = ({
+  serviceName,
   onEdit,
   onArchive,
 }: {
-  service: ServiceRevamp;
-  index: number;
+  serviceName: string;
   onEdit: () => void;
   onArchive: () => void;
 }) => {
-  const { total } = computeServiceTotal(service);
-  const orgCurrency = useCurrencyForPrimaryOrg();
-  const currency = service.currency ?? orgCurrency;
+  const [open, setOpen] = useState(false);
   return (
-    <div className="flex items-start gap-3">
-      <span className="text-body-4 font-semibold text-text-secondary shrink-0 w-6 text-right leading-none -mt-1.5">
-        {index + 1}.
-      </span>
-      <SectionContainer
-        title={service.name}
-        titleColor="var(--color-neutral-900)"
-        titleSlot={
-          <div className="flex items-center gap-2">
-            {service.isBookable ? (
-              <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--pink)]">
-                <IoPhonePortraitOutline size={12} aria-hidden="true" />
-                In app
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--ink-faint)]">
-                <IoCallOutline size={12} aria-hidden="true" />
-                Desk only
-              </span>
-            )}
-            {service.isInpatientPreferred && (
-              <Badge tone="brand">
-                <IoBedOutline size={14} aria-hidden="true" />
-                In-patient
-              </Badge>
-            )}
-          </div>
-        }
-        className="flex-1 min-w-0"
+    <div
+      className="relative flex justify-center"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        aria-label={`Actions for ${serviceName}`}
+        aria-expanded={open}
+        onClick={() => setOpen((previous) => !previous)}
+        className="flex size-7 items-center justify-center rounded-full text-[var(--ink-faint)] hover:bg-[var(--surface-soft)] hover:text-[var(--ink)] transition-colors cursor-pointer"
       >
-        {/* @container drives layout from available width (page vs. narrow side drawer) */}
-        <div className="@container">
-          {/* Action buttons row on narrow containers, inline on wide */}
-          <div className="flex @2xl:hidden items-center justify-end gap-2 mb-3">
-            <CircleIconButton
-              label={`Edit ${service.name}`}
-              tooltip="Edit"
-              onClick={onEdit}
-              icon={<IoCreateOutline size={20} aria-hidden="true" />}
-            />
-            <CircleIconButton
-              label={`Archive ${service.name}`}
-              tooltip="Archive"
-              onClick={onArchive}
-              variant="danger"
-              icon={<IoArchiveOutline size={20} aria-hidden="true" />}
-            />
-          </div>
-
-          <div className="flex items-start gap-4">
-            {/* Data grid: 2-col on narrow, full 8-col on wide */}
-            <div className="flex-1 min-w-0">
-              {/* Narrow: 2-column grid */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3 @2xl:hidden">
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">Code</span>
-                  <span className="text-body-4 text-text-primary break-all">{service.code}</span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">Type</span>
-                  <span className="text-body-4 text-text-primary">
-                    {TYPE_LABELS[service.type] ?? service.type}
-                  </span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Description
-                  </span>
-                  <span className="text-body-4 text-text-primary">
-                    {service.description || '—'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Duration
-                  </span>
-                  <span className="text-body-4 text-text-primary">
-                    {service.durationMinutes} mins
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Gross amt.
-                  </span>
-                  <span className="text-body-4 text-text-primary">
-                    {formatMoney(service.grossAmount, currency)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Disc. (default)
-                  </span>
-                  <span className="text-body-4 text-text-primary">-{service.defaultDiscount}%</span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Max disc.
-                  </span>
-                  <span className="text-body-4 text-text-primary">-{service.maxDiscount}%</span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">Total</span>
-                  <span className="text-body-4-emphasis text-text-primary">
-                    {formatMoney(total, currency)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Wide container: single-row grid */}
-              <div
-                className="hidden @2xl:grid gap-x-6 gap-y-1 items-start"
-                style={{
-                  gridTemplateColumns: 'auto auto minmax(0,220px) auto auto auto auto auto',
-                }}
-              >
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">Code</span>
-                  <span className="text-body-4 text-text-primary whitespace-nowrap">
-                    {service.code}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">Type</span>
-                  <span className="text-body-4 text-text-primary whitespace-nowrap">
-                    {TYPE_LABELS[service.type] ?? service.type}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Description
-                  </span>
-                  <span className="text-body-4 text-text-primary line-clamp-2">
-                    {service.description || '—'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Duration
-                  </span>
-                  <span className="text-body-4 text-text-primary whitespace-nowrap">
-                    {service.durationMinutes} mins
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Gross amt.
-                  </span>
-                  <span className="text-body-4 text-text-primary whitespace-nowrap">
-                    {formatMoney(service.grossAmount, currency)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Disc. (default)
-                  </span>
-                  <span className="text-body-4 text-text-primary whitespace-nowrap">
-                    -{service.defaultDiscount}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Max disc.
-                  </span>
-                  <span className="text-body-4 text-text-primary whitespace-nowrap">
-                    -{service.maxDiscount}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-caption-2 font-bold text-text-tertiary block">Total</span>
-                  <span className="text-body-4-emphasis text-text-primary whitespace-nowrap">
-                    {formatMoney(total, currency)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action buttons — hidden on narrow (shown above), visible on wide container */}
-            <div className="hidden @2xl:flex items-center gap-2 shrink-0">
-              <CircleIconButton
-                label={`Edit ${service.name}`}
-                onClick={onEdit}
-                icon={<IoCreateOutline size={20} aria-hidden="true" />}
-              />
-              <CircleIconButton
-                label={`Archive ${service.name}`}
-                onClick={onArchive}
-                variant="danger"
-                icon={<IoArchiveOutline size={20} aria-hidden="true" />}
-              />
-            </div>
-          </div>
+        <IoEllipsisHorizontal size={15} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-20 flex min-w-[150px] flex-col overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--screen)] py-1 shadow-[0_8px_22px_var(--sh10)]">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-left text-[12.5px] text-[var(--ink-body)] hover:bg-[var(--surface-soft)] cursor-pointer"
+          >
+            <IoCreateOutline size={14} aria-hidden="true" />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onArchive();
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-left text-[12.5px] text-[var(--danger-text)] hover:bg-[var(--surface-soft)] cursor-pointer"
+          >
+            <IoArchiveOutline size={14} aria-hidden="true" />
+            Archive
+          </button>
         </div>
-      </SectionContainer>
+      )}
     </div>
   );
 };
 
-function ServicesTab({ specialityId, organisationId, specialityName, ref }: ServicesTabProps) {
+const DetailField = ({ label, value }: { label: string; value: string }) => (
+  <div className="min-w-0">
+    <span className="block text-[9.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+      {label}
+    </span>
+    <span className="block break-words text-[12.5px] text-[var(--ink-body)]">{value}</span>
+  </div>
+);
+
+/**
+ * The verbose catalog fields the design keeps out of the default row. Revealed by
+ * expanding a row so the numbers stay reachable without crowding the table.
+ */
+const ServiceDetail = ({
+  service,
+  currency,
+  total,
+}: {
+  service: ServiceRevamp;
+  currency: string;
+  total: number;
+}) => (
+  <div className="grid grid-cols-2 gap-x-6 gap-y-3 px-5! pb-3! @3xl:grid-cols-4 @3xl:px-[22px]!">
+    <DetailField label="Code" value={service.code} />
+    <DetailField label="Type" value={TYPE_LABELS[service.type] ?? service.type} />
+    <DetailField label="Gross amt." value={formatMoney(service.grossAmount, currency)} />
+    <DetailField label="Total" value={formatMoney(total, currency)} />
+    <DetailField label="Disc. (default)" value={`-${service.defaultDiscount}%`} />
+    <DetailField label="Max disc." value={`-${service.maxDiscount}%`} />
+    <DetailField label="In-patient" value={service.isInpatientPreferred ? 'Preferred' : 'No'} />
+    <div className="col-span-2 min-w-0 @3xl:col-span-4">
+      <span className="block text-[9.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+        Description
+      </span>
+      <span className="block text-[12.5px] text-[var(--ink-body)]">
+        {service.description || '—'}
+      </span>
+    </div>
+  </div>
+);
+
+const ServiceNameCell = ({
+  service,
+  expanded,
+  onToggle,
+}: {
+  service: ServiceRevamp;
+  expanded: boolean;
+  onToggle: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    aria-expanded={expanded}
+    className="min-w-0 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)] rounded"
+  >
+    <span className="block truncate font-bold text-[var(--ink)]">{service.name}</span>
+    <span className="block truncate text-[11px] text-[var(--ink-faint)]">
+      {service.description || TYPE_LABELS[service.type] || service.type}
+    </span>
+  </button>
+);
+
+const ServiceRow = ({
+  service,
+  currency,
+  practitioners,
+  onEdit,
+  onArchive,
+}: {
+  service: ServiceRevamp;
+  currency: string;
+  practitioners: ServicePractitioner[];
+  onEdit: () => void;
+  onArchive: () => void;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const { total } = computeServiceTotal(service);
+  const toggle = () => setExpanded((previous) => !previous);
+  const price = formatMoney(total, currency);
+
+  return (
+    <div className="border-t border-[var(--hairline)]">
+      {/* Design table row — needs the full 7-column width */}
+      <div
+        className={`hidden @3xl:grid ${GRID_COLS} items-center gap-[10px] px-[22px]! py-[11px]! text-[13px] text-[var(--ink-body)]`}
+      >
+        <ServiceNameCell service={service} expanded={expanded} onToggle={toggle} />
+        <PractitionerStack practitioners={practitioners} />
+        <span className="text-right tabular-nums">{service.durationMinutes} min</span>
+        <span className="text-right font-bold tabular-nums text-[var(--ink)]">{price}</span>
+        <span>
+          <BookableCell isBookable={service.isBookable} />
+        </span>
+        <span>
+          <span className={STATUS_PILL_CLASS}>{service.status}</span>
+        </span>
+        <RowActionsMenu serviceName={service.name} onEdit={onEdit} onArchive={onArchive} />
+      </div>
+
+      {/* Compact stacked row for narrow containers (phone / side drawer) */}
+      <div className="flex flex-col gap-2 px-5! py-3! text-[13px] text-[var(--ink-body)] @3xl:hidden">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <ServiceNameCell service={service} expanded={expanded} onToggle={toggle} />
+          </div>
+          <span className={STATUS_PILL_CLASS}>{service.status}</span>
+          <RowActionsMenu serviceName={service.name} onEdit={onEdit} onArchive={onArchive} />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="tabular-nums text-[12px] text-[var(--ink-muted)]">
+            {service.durationMinutes} min
+          </span>
+          <span className="font-bold tabular-nums text-[var(--ink)]">{price}</span>
+          <BookableCell isBookable={service.isBookable} />
+          <PractitionerStack practitioners={practitioners} />
+        </div>
+      </div>
+
+      {expanded && <ServiceDetail service={service} currency={currency} total={total} />}
+    </div>
+  );
+};
+
+const ServicesTableHeader = () => (
+  <div
+    className={`hidden @3xl:grid ${GRID_COLS} items-center gap-[10px] bg-[var(--screen-2)] px-[22px]! py-[10px]! text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]`}
+  >
+    <span>Service</span>
+    <span>Practitioners</span>
+    <span className="text-right">Duration</span>
+    <span className="text-right">Price</span>
+    <span>Bookable</span>
+    <span>Status</span>
+    <span aria-hidden="true" />
+  </div>
+);
+
+function ServicesTab({
+  specialityId,
+  organisationId,
+  specialityName,
+  practitioners = [],
+  ref,
+}: ServicesTabProps) {
   const services = useRevampCatalogStore(
     useShallow((s) =>
       s.services.filter((svc) => svc.specialityId === specialityId && svc.status === 'ACTIVE')
@@ -266,6 +307,7 @@ function ServicesTab({ specialityId, organisationId, specialityName, ref }: Serv
   const archiveService = useRevampCatalogStore((s) => s.archiveService);
   const loadSpecialityCatalog = useRevampCatalogStore((s) => s.loadSpecialityCatalog);
   const { notify } = useNotify();
+  const orgCurrency = useCurrencyForPrimaryOrg();
 
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftAtTop, setDraftAtTop] = useState(false);
@@ -329,13 +371,15 @@ function ServicesTab({ specialityId, organisationId, specialityName, ref }: Serv
   };
 
   return (
-    <div className="flex flex-col gap-7 py-5">
+    <div className="@container flex flex-col">
       {draftOpen && !activeService && draftAtTop && (
-        <ServiceFormDraft
-          specialityId={specialityId}
-          organisationId={organisationId}
-          onClose={handleCloseForm}
-        />
+        <div className="px-5! py-4!">
+          <ServiceFormDraft
+            specialityId={specialityId}
+            organisationId={organisationId}
+            onClose={handleCloseForm}
+          />
+        </div>
       )}
 
       {loading && services.length === 0 && (
@@ -351,20 +395,24 @@ function ServicesTab({ specialityId, organisationId, specialityName, ref }: Serv
         </div>
       )}
 
-      {services.map((svc, i) =>
+      {services.length > 0 && <ServicesTableHeader />}
+
+      {services.map((svc) =>
         draftOpen && activeService?.id === svc.id && actionMode === 'edit' ? (
-          <ServiceFormDraft
-            key={svc.id}
-            specialityId={specialityId}
-            organisationId={organisationId}
-            editService={svc}
-            onClose={handleCloseForm}
-          />
+          <div key={svc.id} className="border-t border-[var(--hairline)] px-5! py-4!">
+            <ServiceFormDraft
+              specialityId={specialityId}
+              organisationId={organisationId}
+              editService={svc}
+              onClose={handleCloseForm}
+            />
+          </div>
         ) : (
           <ServiceRow
             key={svc.id}
             service={svc}
-            index={i}
+            currency={svc.currency ?? orgCurrency}
+            practitioners={practitioners}
             onEdit={() => handleEdit(svc)}
             onArchive={() => {
               setActiveService(svc);
@@ -375,22 +423,26 @@ function ServicesTab({ specialityId, organisationId, specialityName, ref }: Serv
       )}
 
       {draftOpen && !activeService && !draftAtTop && (
-        <ServiceFormDraft
-          specialityId={specialityId}
-          organisationId={organisationId}
-          onClose={handleCloseForm}
-        />
+        <div className="border-t border-[var(--hairline)] px-5! py-4!">
+          <ServiceFormDraft
+            specialityId={specialityId}
+            organisationId={organisationId}
+            onClose={handleCloseForm}
+          />
+        </div>
       )}
 
       {!draftOpen && (
-        <button
-          type="button"
-          onClick={handleAddClick}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-primary-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        >
-          <IoAddOutline size={16} aria-hidden="true" />
-          {specialityName ? `Add service to ${specialityName}` : 'Add service'}
-        </button>
+        <div className="border-t border-[var(--hairline)] px-5! py-[11px]! @3xl:px-[22px]!">
+          <button
+            type="button"
+            onClick={handleAddClick}
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)] rounded"
+          >
+            <IoAddOutline size={14} aria-hidden="true" />
+            {specialityName ? `Add service to ${specialityName}` : 'Add service'}
+          </button>
+        </div>
       )}
 
       {actionMode === 'archive' && activeService && (

@@ -12,7 +12,6 @@ import {
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
-import { Badge } from '@/app/ui';
 import { ChatAvatar } from './ChatAvatar';
 
 /**
@@ -44,16 +43,16 @@ export type ConversationRowProps = Readonly<{
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** Unread count pill — blue for across-the-network rows, pink brand otherwise. */
-function UnreadBadge({ count, network }: Readonly<{ count: number; network?: boolean }>) {
-  if (network) {
-    return (
-      <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
-        {count}
-      </span>
-    );
-  }
-  return <Badge tone="brand">{count}</Badge>;
+/**
+ * Unread count pill. Design (Chat workspace conversation list): a 17px --blue
+ * (#257bed) pill with white 10px/800 text — not the deeper solid brand badge.
+ */
+function UnreadBadge({ count }: Readonly<{ count: number }>) {
+  return (
+    <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
+      {count}
+    </span>
+  );
 }
 
 function MenuItem({
@@ -178,7 +177,7 @@ export function ConversationRow({
             >
               {preview}
             </Text>
-            {unread ? <UnreadBadge count={unread} network={network} /> : null}
+            {unread ? <UnreadBadge count={unread} /> : null}
           </span>
         </span>
       </button>

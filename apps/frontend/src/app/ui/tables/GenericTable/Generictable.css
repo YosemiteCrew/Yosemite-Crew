@@ -31,9 +31,11 @@
   border-collapse: separate;
   border-spacing: 0;
 }
+/* 12px top/bottom is the design's row rhythm ("padding: 12px 20px" on every
+   data row); the header re-declares its own 11px below. */
 .TableDiv thead tr th,
 .TableDiv tbody tr td {
-  padding: 6px 11px;
+  padding: 12px 11px;
   vertical-align: middle;
   border-bottom: 1px solid var(--hairline);
 }

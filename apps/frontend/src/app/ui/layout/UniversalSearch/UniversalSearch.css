@@ -49,8 +49,8 @@
   border-radius: 22px;
   background: var(--screen);
   box-shadow:
-    0 24px 60px var(--sh12),
     0 8px 20px var(--sh10),
+    0 36px 90px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
 }
 
@@ -98,7 +98,7 @@
   border: 1px solid var(--hairline);
   border-radius: 6px;
   background: var(--pill-raised);
-  color: var(--ink-muted);
+  color: var(--ink-faint);
   font-family: var(--font-satoshi);
   font-size: 10.5px;
   font-weight: 700;
@@ -236,12 +236,37 @@
   border: 1px solid var(--hairline);
   border-radius: 6px;
   background: var(--pill-raised);
-  color: var(--ink-muted);
+  color: var(--ink-faint);
   font-family: var(--font-satoshi);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 700;
   line-height: 1;
   padding: 3px 6px;
+}
+
+/* Empty-state rows ("Recent" / "Jump to") are the design's light treatment: a
+   bare 14px --ink-faint glyph and 12.5px --ink-body copy, with no icon tile. */
+.yc-usp-row--plain {
+  gap: 10px;
+  padding: 8px 14px;
+}
+
+.yc-usp-row-plain-icon {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+
+.yc-usp-row-plain-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--ink-body);
+  font-family: var(--font-satoshi);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* -------------------------------------------------------------- footer */

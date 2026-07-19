@@ -89,7 +89,9 @@
   min-width: 0;
   max-width: 100%;
   border-right: 1px solid var(--color-chat-divider);
-  background: var(--color-neutral-0);
+  /* Design (Chat workspace sidebar / thread-panel list column): the list reads a
+     step darker than the thread canvas (--screen). */
+  background: var(--screen-2);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -155,6 +157,24 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  /* Anchors the conversation-info drawer to the thread column. */
+  position: relative;
+}
+
+/* Design ("Chat conversation info"): 390px right drawer on --screen with a
+   --hairline left edge, overlaying the thread column. */
+.chat-conversation-info {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  z-index: 20;
+  width: min(390px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--screen);
+  border-left: 1px solid var(--hairline);
+  box-shadow: -8px 0 28px var(--sh05);
 }
 
 .str-chat__main-panel-inner {

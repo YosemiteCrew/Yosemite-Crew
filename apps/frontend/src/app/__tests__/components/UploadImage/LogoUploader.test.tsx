@@ -63,7 +63,7 @@ describe('LogoUploader Component', () => {
     render(<LogoUploader title={mockTitle} apiUrl={mockApiUrl} setImageUrl={mockSetImageUrl} />);
 
     expect(screen.getByText(mockTitle)).toBeInTheDocument();
-    expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCameraOutline')).toBeInTheDocument();
 
     const input = document.querySelector('input[type="file"]');
     expect(input).toBeInTheDocument();
@@ -170,7 +170,7 @@ describe('LogoUploader Component', () => {
 
     expect(mockRevokeObjectURL).toHaveBeenCalled();
     expect(screen.queryByAltText('Logo Preview')).not.toBeInTheDocument();
-    expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCameraOutline')).toBeInTheDocument();
   });
 
   it('does nothing if no file is selected (cancel dialog)', () => {

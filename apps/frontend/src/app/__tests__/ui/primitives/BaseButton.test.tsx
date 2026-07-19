@@ -2,7 +2,12 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import BaseButton from '@/app/ui/primitives/Buttons/BaseButton';
 
-const sizeClasses = { default: 'size-default', large: 'size-large' };
+const sizeClasses = {
+  compact: 'size-compact',
+  small: 'size-small',
+  default: 'size-default',
+  large: 'size-large',
+};
 const baseClasses = 'base-classes';
 
 describe('BaseButton', () => {

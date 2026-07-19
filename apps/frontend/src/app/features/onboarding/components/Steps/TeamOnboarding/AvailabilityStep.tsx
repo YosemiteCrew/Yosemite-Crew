@@ -1,5 +1,6 @@
 import { useImperativeHandle, useState, type Dispatch, type SetStateAction, type Ref } from 'react';
-import { IoArrowForward } from 'react-icons/io5';
+import type { IconType } from 'react-icons';
+import { IoArrowForward, IoBusinessOutline, IoCarOutline, IoChevronDown } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Availability from '@/app/features/appointments/components/Availability/Availability';
 import {
@@ -10,6 +11,13 @@ import {
 } from '@/app/features/appointments/components/Availability/utils';
 import { upsertAvailability } from '@/app/features/organization/services/availabilityService';
 import type { StepHandle } from './PersonalStep';
+
+const CONSULTATION_SLOT_OPTIONS = ['15 min', '20 min', '30 min', '45 min', '60 min'];
+
+const CONSULTATION_TYPES: ReadonlyArray<{ id: string; label: string; icon: IconType }> = [
+  { id: 'in-clinic', label: 'In clinic', icon: IoBusinessOutline },
+  { id: 'home-visits', label: 'Home visits', icon: IoCarOutline },
+];
 
 type AvailabilityStepProps = Readonly<{
   prevStep: () => void;
@@ -33,6 +41,13 @@ function AvailabilityStep({
   ref,
 }: AvailabilityStepProps) {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [consultationSlot, setConsultationSlot] = useState('30 min');
+  const [consultationTypes, setConsultationTypes] = useState<string[]>(['in-clinic']);
+
+  const toggleConsultationType = (id: string) =>
+    setConsultationTypes((prev) =>
+      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]
+    );
 
   useImperativeHandle(ref, () => ({
     validate: () => {
@@ -70,9 +85,37 @@ function AvailabilityStep({
   return (
     <div className="flex w-full flex-col">
       <div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] px-[30px] py-[28px] shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[17px] font-bold leading-tight tracking-[-0.34px] text-[var(--ink)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-[14.5px] font-bold leading-tight" style={{ color: 'var(--ink)' }}>
             Weekly availability
+          </span>
+          <span
+            className="flex items-center gap-2 text-[12.5px]"
+            style={{ color: 'var(--ink-muted)' }}
+          >
+            Consultation slot
+            <span
+              className="flex h-[34px] items-center gap-1.5 rounded-[10px] border-[1.5px] px-3"
+              style={{
+                background: 'var(--field-bg)',
+                borderColor: 'var(--hairline)',
+              }}
+            >
+              <select
+                aria-label="Consultation slot"
+                value={consultationSlot}
+                onChange={(event) => setConsultationSlot(event.target.value)}
+                className="appearance-none bg-transparent text-[12.5px] font-semibold outline-none"
+                style={{ color: 'var(--ink-body)' }}
+              >
+                {CONSULTATION_SLOT_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <IoChevronDown size={12} aria-hidden="true" style={{ color: 'var(--ink-faint)' }} />
+            </span>
           </span>
         </div>
 
@@ -82,16 +125,46 @@ function AvailabilityStep({
           <div className="text-caption-2 text-text-error">{availabilityError}</div>
         )}
 
-        <div className="mt-1 flex items-center justify-between gap-3 border-t border-[var(--hairline)] pt-[18px]">
-          <Secondary href="#" text="Back" onClick={prevStep} />
-          <Primary
-            href="#"
-            text={isSaving ? 'Saving...' : 'Finish · open dashboard'}
-            icon={<IoArrowForward aria-hidden="true" />}
-            iconPosition="right"
-            onClick={handleSaveAvailability}
-            isDisabled={isSaving}
-          />
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--hairline)] pt-[18px]">
+          <div className="flex gap-2">
+            {CONSULTATION_TYPES.map(({ id, label, icon: Icon }) => {
+              const isOn = consultationTypes.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={isOn}
+                  onClick={() => toggleConsultationType(id)}
+                  className={`flex items-center gap-[7px] rounded-full px-[15px] py-2 text-[12.5px] ${
+                    isOn ? 'border-[1.5px] font-bold' : 'border font-semibold'
+                  }`}
+                  style={
+                    isOn
+                      ? {
+                          borderColor: 'var(--blue)',
+                          background: 'var(--nav-active-bg)',
+                          color: 'var(--nav-active)',
+                        }
+                      : { borderColor: 'var(--hairline)', color: 'var(--ink-muted)' }
+                  }
+                >
+                  <Icon size={13} aria-hidden="true" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Secondary href="#" text="Back" onClick={prevStep} />
+            <Primary
+              href="#"
+              text={isSaving ? 'Saving...' : 'Finish · open dashboard'}
+              icon={<IoArrowForward aria-hidden="true" />}
+              iconPosition="right"
+              onClick={handleSaveAvailability}
+              isDisabled={isSaving}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -106,6 +106,9 @@ type RequiredStaffMember = {
 
 const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
 
+/** Companion detail rows condensed into the header's one-line identity summary. */
+const SUMMARY_META_LABELS = new Set(['Breed/Species', 'Sex', 'Age / DOB', 'Weight']);
+
 const isSameInstant = (left?: string | Date, right?: string | Date): boolean => {
   if (!left || !right) return false;
   const leftTime = new Date(left).getTime();
@@ -562,6 +565,17 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       ),
     [companion, companionRecord, terminologyText]
   );
+  // Compact "Beagle · F, spayed · 4y 2m · 12.4 kg" identity line under the header
+  // name — the same values the context card lists, condensed to one row.
+  const companionMetaLine = useMemo(() => {
+    const summaryValues: string[] = [];
+    for (const detail of companionDetails) {
+      if (SUMMARY_META_LABELS.has(detail.label) && detail.value && detail.value !== '-') {
+        summaryValues.push(detail.value);
+      }
+    }
+    return summaryValues.join(' · ');
+  }, [companionDetails]);
   // Clinical encounter — the time-based "Appointment lock window" freezes the
   // legal record (SOAP + Discharge/Summary). This is what the lock exists for.
   const effectiveEncounter = useMemo(
@@ -1691,6 +1705,9 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
             effectiveEncounter.startedAt ?? effectiveEncounter.admittedAt ?? appointment.startTime
           }
           bookedEndAt={appointment.endTime}
+          photoUrl={companionRecord?.photoUrl}
+          speciesType={companionRecord?.type ?? companion.species}
+          metaLine={companionMetaLine}
         />
 
         <CompanionContextCard

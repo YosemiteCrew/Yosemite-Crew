@@ -14,10 +14,11 @@ const BookOnboarding = () => {
       <button
         type="button"
         onClick={() => router.back()}
-        className="flex items-center gap-2 w-fit text-body-4 text-text-secondary hover:text-text-primary transition-colors"
+        className="flex h-[38px] w-fit items-center gap-[7px] rounded-full border px-4 text-[12.5px] font-semibold"
+        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-body)' }}
         aria-label="Go back"
       >
-        <IoArrowBack size={18} />
+        <IoArrowBack size={14} />
         <span>Back</span>
       </button>
       <CalEmbedFrame

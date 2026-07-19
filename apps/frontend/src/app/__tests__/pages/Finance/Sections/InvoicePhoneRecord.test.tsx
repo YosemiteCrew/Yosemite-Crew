@@ -125,6 +125,32 @@ describe('InvoicePhoneRecord', () => {
     expect(screen.getByText('Receipt sent to lena@x.com')).toBeInTheDocument();
   });
 
+  it('labels the payment row by the channel the payment came through', () => {
+    const { rerender } = render(
+      <InvoicePhoneRecord
+        {...baseProps}
+        invoice={{ ...baseInvoice, paymentCollectionMethod: 'PAYMENT_INTENT' }}
+      />
+    );
+    expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
+
+    rerender(
+      <InvoicePhoneRecord
+        {...baseProps}
+        invoice={{ ...baseInvoice, paymentCollectionMethod: 'PAYMENT_LINK' }}
+      />
+    );
+    expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
+
+    rerender(
+      <InvoicePhoneRecord
+        {...baseProps}
+        invoice={{ ...baseInvoice, paymentCollectionMethod: 'PAYMENT_AT_CLINIC' }}
+      />
+    );
+    expect(screen.getByText('Paid at the clinic')).toBeInTheDocument();
+  });
+
   it('omits the payment ledger when the invoice is not settled', () => {
     render(
       <InvoicePhoneRecord
