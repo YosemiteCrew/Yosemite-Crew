@@ -64,20 +64,27 @@ const Dashboard = () => {
       <VideosCard />
       <PermissionGate allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}>
         <Explorecard />
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
+        {/* Vertical day charts: tablet (>=768) and desktop only. The 390px phone
+            frames omit them and jump from the stat tiles straight to the schedule. */}
+        <div className="hidden md:grid md:grid-cols-2 md:gap-3 xl:gap-3.5">
           <AppointmentStat />
           <RevenueStat />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
+      </PermissionGate>
+      {/* Schedule follows the charts row, matching the design scroll order
+          (explore -> charts -> schedule -> leaders -> turnover -> availability). */}
+      <AppointmentTask />
+      <PermissionGate allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 xl:gap-3.5">
           <AppointmentLeadersStat />
           <RevenueLeadersStat />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
+        {/* Inventory turnover: tablet and desktop only; omitted on the phone frames. */}
+        <div className="hidden md:grid md:grid-cols-2 md:gap-3 xl:gap-3.5">
           <AnnualInventoryTurnoverStat />
           <IndividualProductTurnoverStat />
         </div>
       </PermissionGate>
-      <AppointmentTask />
       <Availability />
     </div>
   );

@@ -124,33 +124,31 @@ const AppointmentLockWindowPreference = () => {
   };
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
-        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+    <div className="flex flex-col gap-2.5">
+      <div>
+        <div className="text-[13px] font-semibold text-[var(--ink-body)]">
           Appointment lock window
         </div>
-      </div>
-      <div className="flex flex-col gap-3 px-5! py-5!">
-        <p className="text-[11.5px] text-[var(--ink-faint)]">
+        <div className="text-[11.5px] text-[var(--ink-faint)]">
           How long after an appointment starts it stays editable before locking to read-only.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-          <HoursField
-            id="lock-window-outpatient"
-            label="Outpatient"
-            value={outpatient}
-            onChange={setOutpatient}
-          />
-          <HoursField
-            id="lock-window-inpatient"
-            label="Inpatient"
-            value={inpatient}
-            onChange={setInpatient}
-          />
         </div>
-        <div className="w-full flex justify-end!">
-          <Primary href="#" text="Save lock window" onClick={handleSave} />
-        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <HoursField
+          id="lock-window-outpatient"
+          label="Outpatient"
+          value={outpatient}
+          onChange={setOutpatient}
+        />
+        <HoursField
+          id="lock-window-inpatient"
+          label="Inpatient"
+          value={inpatient}
+          onChange={setInpatient}
+        />
+      </div>
+      <div className="w-full flex justify-end!">
+        <Primary href="#" text="Save lock window" onClick={handleSave} />
       </div>
     </div>
   );
