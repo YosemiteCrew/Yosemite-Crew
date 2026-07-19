@@ -26,11 +26,5 @@ router.post(
   requireAuth(),
   (req: SessionRequest, res: Response) => MfaController.disableTotp(req, res),
 );
-router.post(
-  "/mfa/totp/debug/create-device",
-  requireAuth(),
-  (req: SessionRequest, res: Response) =>
-    MfaDebugController.createTotpDevice(req, res),
-);
 
 export default router;
