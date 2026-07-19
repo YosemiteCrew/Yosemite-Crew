@@ -368,7 +368,9 @@ textarea:focus-visible {
   --color-grey-border: var(--color-neutral-500);
   --color-grey-light: var(--color-neutral-200);
   --color-grey-noti: var(--color-neutral-700);
-  --color-blue-text: var(--color-primary-500);
+  /* The design's blue (#257bed), not the brighter brand-ramp primary-500
+     (#007cf5) — links, active states and badges read as --blue in every frame. */
+  --color-blue-text: var(--blue);
   --color-blue-light: var(--color-primary-100);
   --color-blue-sky: #428bec;
   --color-white-text: var(--color-neutral-100);
@@ -666,14 +668,15 @@ textarea:focus-visible {
   --surface-soft: rgba(239, 232, 220, 0.7);
   /* raised pill on a footer/inset surface */
   --pill-raised: #f7f3ec;
-  /* form inputs: warm, subtly recessed off the --screen surface (was a cool
-     #fafafa that read as a "white" box against the warm-bone palette; the dark
-     field is likewise recessed off its surface) */
-  --field-bg: #f2ede4;
+  /* form inputs: the design's crisp near-white field on the warm-bone surface
+     (site-theme.css :root). The dark field is recessed off its own surface. */
+  --field-bg: #fafafa;
   /* Semantic tinted surfaces for chrome + global-state components (notifications
      rows, permission-denied, filtered-empty). Values mirror the danger/warning
      ramps and the pink accent so tinted discs read consistently in light mode. */
   --danger-bg: rgba(234, 55, 41, 0.09);
+  /* Faintest danger tint (emergency / overdue row wash). */
+  --danger-bg-faint: rgba(234, 55, 41, 0.04);
   --danger-text: #c2261a;
   --danger: #ea3729;
   --danger-border: rgba(234, 55, 41, 0.32);
@@ -691,6 +694,19 @@ html[data-theme='dark'] {
   --screen: #2f271e;
   --screen-2: #221d17;
   --hairline: #40362b;
+  /* The warm-bone `--color-*` tokens are declared as light literals in @theme
+     (Tailwind needs a parseable value there at build time) and so never flip on
+     their own. Mirror them onto the semantic tokens here — otherwise anything
+     reading `var(--color-screen)` / `var(--color-ink)` directly, e.g. the
+     developer pages' CSS, renders as a light island on the dark shell. */
+  --color-band: var(--band);
+  --color-inset: var(--inset);
+  --color-screen: var(--screen);
+  --color-screen-2: var(--screen-2);
+  --color-hairline: var(--hairline);
+  --color-ink: var(--ink);
+  --color-ink-body: var(--ink-body);
+  --color-cyan-text: var(--cyan-text);
   --divider: #3a3128;
   --hairline-hover: #4a4033;
   --nav-active: #8fb6f5;
@@ -1495,12 +1511,13 @@ html[data-theme='dark'] {
   --field-bg: #241f18;
   /* Dark tint-on-dark equivalents for the chrome/state semantic surfaces. */
   --danger-bg: rgba(234, 55, 41, 0.18);
+  --danger-bg-faint: rgba(234, 55, 41, 0.08);
   --danger-text: #f2938a;
   --danger: #ea3729;
-  --danger-border: rgba(241, 121, 112, 0.5);
-  --warn-bg: rgba(245, 168, 60, 0.16);
+  --danger-border: rgba(242, 147, 138, 0.42);
+  --warn-bg: rgba(245, 158, 11, 0.16);
   --warn-text: #f2b56b;
-  --warn-border: rgba(249, 173, 108, 0.5);
+  --warn-border: rgba(245, 168, 60, 0.42);
   --pink-soft: rgba(255, 144, 212, 0.16);
   --pink-text: #ff9dd8;
 
@@ -1565,12 +1582,12 @@ html[data-theme='dark'] {
   --status-in-progress-border: rgba(154, 113, 247, 0.6);
   --status-completed-bg: rgba(74, 205, 155, 0.16);
   --status-completed-text: #74d0a2;
-  --status-completed-border: rgba(74, 205, 155, 0.5);
-  --status-cancelled-bg: rgba(249, 115, 22, 0.16);
-  --status-cancelled-text: #f9b47a;
+  --status-completed-border: rgba(74, 205, 155, 0.55);
+  --status-cancelled-bg: rgba(249, 115, 22, 0.15);
+  --status-cancelled-text: #f0a36c;
   --status-cancelled-border: rgba(249, 115, 22, 0.5);
-  --status-no-show-bg: rgba(249, 115, 22, 0.16);
-  --status-no-show-text: #f9b47a;
+  --status-no-show-bg: rgba(249, 115, 22, 0.15);
+  --status-no-show-text: #f0a36c;
   --status-no-show-border: rgba(249, 115, 22, 0.5);
 }
 
