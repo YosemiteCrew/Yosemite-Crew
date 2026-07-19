@@ -3334,3 +3334,90 @@ describe('AppointmentWorkspace container', () => {
     expect(useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')).toBeUndefined();
   });
 });
+
+describe('AppointmentWorkspace phone layout', () => {
+  const originalMatchMedia = globalThis.matchMedia;
+
+  beforeEach(() => {
+    resetStore();
+    // Drive useIsPhone true only for the phone breakpoint; every other query
+    // (e.g. prefers-color-scheme) keeps the default non-match.
+    globalThis.matchMedia = jest.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    }));
+  });
+
+  afterEach(() => {
+    globalThis.matchMedia = originalMatchMedia;
+  });
+
+  it('renders the bespoke phone shell instead of the desktop chrome and navigates via step chips', async () => {
+    // A future start keeps the visit timer resting so no interval runs during the test.
+    const future = new Date(Date.now() + 3_600_000);
+    render(<AppointmentWorkspace appointment={makeAppointment(future)} />);
+
+    // The reused step body still renders inside the phone shell.
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    // Phone-only chrome: the timer pill and the action-bar icon cluster are present.
+    expect(screen.getByTestId('visit-timer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Records' })).toBeInTheDocument();
+    // Desktop-only meta bar is not rendered on phone.
+    expect(screen.queryByText('Ready for billing')).not.toBeInTheDocument();
+
+    // Capture the action-bar + back-button refs before any side modal opens (the
+    // modal re-renders the same action labels, so scope subsequent lookups to the bar).
+    const actionBar = screen.getByRole('button', { name: 'Records' }).closest('div')!;
+    const backButton = screen.getByRole('button', { name: /go back/i });
+
+    // Step-chip navigation ("Treatment" is unambiguous — the advance CTA reads "Diagnostics").
+    fireEvent.click(screen.getByRole('button', { name: 'Treatment' }));
+    expect(mockReplace).toHaveBeenCalledWith(
+      '/appointments/appt-workspace/workspace?step=TREATMENT',
+      { scroll: false }
+    );
+
+    // The action-bar icon cluster opens the shared side-modal actions.
+    fireEvent.click(within(actionBar).getByRole('button', { name: 'Records' }));
+    expect(useAppointmentWorkspaceStore.getState().activeSideAction).toBe('RECORD');
+    fireEvent.click(within(actionBar).getByRole('button', { name: 'Chat' }));
+    expect(useAppointmentWorkspaceStore.getState().activeSideAction).toBe('CHAT');
+    fireEvent.click(within(actionBar).getByRole('button', { name: 'More' }));
+    expect(useAppointmentWorkspaceStore.getState().activeSideAction).toBe('RECORD');
+
+    // The compact back button routes to the appointments list.
+    fireEvent.click(backButton);
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('builds the phone signalment from the loaded companion record', async () => {
+    useCompanionStore.setState({
+      companionsById: {
+        'comp-1': {
+          id: 'comp-1',
+          name: 'Gigi',
+          type: 'dog',
+          breed: 'Beagle',
+          dateOfBirth: '2022-01-01',
+          currentWeight: 12.4,
+          allergy: 'penicillin',
+          photoUrl: '',
+        } as never,
+      },
+    });
+    render(
+      <AppointmentWorkspace appointment={makeAppointment(new Date(Date.now() + 3_600_000))} />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    // Signalment reads breed · age · weight from the record, allergy highlighted.
+    expect(screen.getByText(/Beagle · 4 Yrs · 12.4 kg/)).toBeInTheDocument();
+    expect(screen.getByText('Allergy: penicillin')).toBeInTheDocument();
+  });
+});

@@ -15,7 +15,17 @@ type VisitTimerProps = {
    *  pill turns amber ("Over booked slot"). It never blocks actions. */
   bookedEndAt?: string | Date;
   className?: string;
+  /**
+   * Presentation only. `default` is the desktop header pill; `phone` renders the
+   * compact clock + elapsed pill used by the phone patient bar. The timing logic
+   * (start resolution, tick, states) is identical across variants.
+   */
+  variant?: 'default' | 'phone';
 };
+
+/** Drop a leading "00:" so an under-an-hour elapsed reads "MM:SS" in the compact pill. */
+const toCompactElapsed = (elapsed: string): string =>
+  elapsed.startsWith('00:') ? elapsed.slice(3) : elapsed;
 
 const toMs = (value?: string | Date): number | undefined => {
   if (!value) return undefined;
@@ -29,7 +39,13 @@ const toMs = (value?: string | Date): number | undefined => {
  * resting ("Not started"), running (green pulse dot), and over-booked (amber, past
  * the booked slot). Purely informational — it never gates any action.
  */
-const VisitTimer = ({ startAt, bookedEndAt, className = '' }: VisitTimerProps) => {
+const VisitTimer = ({
+  startAt,
+  bookedEndAt,
+  className = '',
+  variant = 'default',
+}: VisitTimerProps) => {
+  const isPhone = variant === 'phone';
   const startMs = toMs(startAt);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -49,6 +65,18 @@ const VisitTimer = ({ startAt, bookedEndAt, className = '' }: VisitTimerProps) =
 
   // No start timestamp available, or the start is still in the future → resting.
   if (startMs === undefined || nowMs < startMs) {
+    if (isPhone) {
+      return (
+        <span
+          data-testid="visit-timer"
+          data-state="idle"
+          className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-(--hairline) bg-(--pill-raised) px-[9px] py-[5px] text-[10px] font-bold text-(--ink-faint) ${className}`}
+        >
+          <IoTimeOutline size={11} aria-hidden="true" className="text-(--ink-faint)" />
+          Not started
+        </span>
+      );
+    }
     return (
       <span
         data-testid="visit-timer"
@@ -66,6 +94,18 @@ const VisitTimer = ({ startAt, bookedEndAt, className = '' }: VisitTimerProps) =
   const overBooked = bookedEndMs !== undefined && nowMs > bookedEndMs;
 
   if (overBooked) {
+    if (isPhone) {
+      return (
+        <span
+          data-testid="visit-timer"
+          data-state="over"
+          className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-warning-300 bg-warning-100 px-[9px] py-[5px] text-[10px] font-bold tabular-nums text-warning-700 ${className}`}
+        >
+          <IoTimeOutline size={11} aria-hidden="true" />
+          {toCompactElapsed(elapsed)}
+        </span>
+      );
+    }
     return (
       <span
         data-testid="visit-timer"
@@ -74,6 +114,19 @@ const VisitTimer = ({ startAt, bookedEndAt, className = '' }: VisitTimerProps) =
       >
         <IoTimeOutline size={13} aria-hidden="true" />
         Over booked slot · {elapsed}
+      </span>
+    );
+  }
+
+  if (isPhone) {
+    return (
+      <span
+        data-testid="visit-timer"
+        data-state="running"
+        className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-(--hairline) bg-(--pill-raised) px-[9px] py-[5px] text-[10px] font-bold tabular-nums text-(--ink-body) ${className}`}
+      >
+        <IoTimeOutline size={11} aria-hidden="true" className="text-(--ink-faint)" />
+        {toCompactElapsed(elapsed)}
       </span>
     );
   }
