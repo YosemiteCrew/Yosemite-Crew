@@ -58,8 +58,10 @@ const getInitials = (name: string): string =>
 
 const joinMeta = (parts: Array<string | undefined>): string =>
   parts
-    .map((part) => String(part ?? '').trim())
-    .filter((part) => part && part !== '-')
+    .flatMap((part) => {
+      const value = String(part ?? '').trim();
+      return value && value !== '-' ? [value] : [];
+    })
     .join(' · ');
 
 /** Compact contextual header: back circle, record title, edit affordance. */
@@ -342,13 +344,13 @@ const PhoneCompanionRecord = ({
 
   const detailRows = useMemo(
     () =>
-      details
-        .filter((detail) =>
-          ['Blood Group', 'Microchip ID', 'Allergies', 'Age / DOB', 'Weight', idLabel].includes(
-            detail.label
-          )
+      details.flatMap((detail) =>
+        ['Blood Group', 'Microchip ID', 'Allergies', 'Age / DOB', 'Weight', idLabel].includes(
+          detail.label
         )
-        .map((detail) => ({ label: detail.label, value: detail.value })),
+          ? [{ label: detail.label, value: detail.value }]
+          : []
+      ),
     [details, idLabel]
   );
 

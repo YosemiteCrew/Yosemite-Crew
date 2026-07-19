@@ -44,8 +44,10 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
 const specialityNamesOf = (team: TeamProp): string => {
   if (!Array.isArray(team.speciality) || team.speciality.length === 0) return '';
   return team.speciality
-    .map((spec) => (typeof spec === 'string' ? spec : (spec?.name ?? '')))
-    .filter(Boolean)
+    .flatMap((spec) => {
+      const name = typeof spec === 'string' ? spec : (spec?.name ?? '');
+      return name ? [name] : [];
+    })
     .join(', ');
 };
 
@@ -162,7 +164,11 @@ const TeamListRow = ({ team, onOpen }: { team: TeamProp; onOpen: (team: TeamProp
 };
 
 const SpecialityAccordion = ({ specialities }: { specialities: SpecialityWeb[] }) => {
-  const [openId, setOpenId] = useState<string | undefined>(specialities[0]?._id);
+  // `undefined` means the user has not toggled yet, so the first speciality stays
+  // open by default and follows changes to the `specialities` prop; `null` means
+  // the user collapsed everything; a string is the id the user opened.
+  const [selectedId, setSelectedId] = useState<string | null | undefined>(undefined);
+  const openId = selectedId === undefined ? specialities[0]?._id : selectedId;
 
   if (specialities.length === 0) {
     return (
@@ -181,7 +187,7 @@ const SpecialityAccordion = ({ specialities }: { specialities: SpecialityWeb[] }
           <div key={speciality._id} className="border-t border-[var(--hairline)] first:border-t-0">
             <button
               type="button"
-              onClick={() => setOpenId(isOpen ? undefined : speciality._id)}
+              onClick={() => setSelectedId(isOpen ? null : speciality._id)}
               className="flex w-full items-center justify-between gap-2 px-[14px]! py-3! text-left cursor-pointer"
               aria-expanded={isOpen}
             >

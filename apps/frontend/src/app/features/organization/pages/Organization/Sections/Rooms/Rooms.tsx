@@ -68,8 +68,7 @@ const roomMeta = (room: ManagedRoom): string => {
   } else if (room.assignedSpecialiteis?.length) {
     parts.push(
       room.assignedSpecialiteis
-        .map((speciality) => speciality.name)
-        .filter(Boolean)
+        .flatMap((speciality) => (speciality.name ? [speciality.name] : []))
         .slice(0, 2)
         .join(', ')
     );

@@ -307,7 +307,7 @@ const MerckReaderOverlay = ({
           className="flex-1 size-full border-0"
           loading="lazy"
           referrerPolicy="strict-origin"
-          sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
+          sandbox="allow-scripts allow-popups allow-forms"
           onLoad={onLoad}
         />
       </div>

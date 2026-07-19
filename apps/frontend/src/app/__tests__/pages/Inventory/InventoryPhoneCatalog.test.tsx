@@ -4,10 +4,12 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import InventoryPhoneCatalog, {
   InventoryPhoneCard,
   InventoryPhoneFilterPills,
+} from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog';
+import {
   buildInventoryPhoneMeta,
   formatExpiryShort,
   getPhoneUnitAbbrev,
-} from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog';
+} from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog.utils';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import {
   InventoryFiltersState,
