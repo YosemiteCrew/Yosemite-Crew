@@ -57,7 +57,7 @@ describe('Search Component', () => {
     const container = input.parentElement;
 
     expect(container).toHaveClass('custom-class-test');
-    expect(container).toHaveClass('rounded-2xl');
+    expect(container).toHaveClass('rounded-xl');
   });
 
   it('renders correctly without className prop', () => {

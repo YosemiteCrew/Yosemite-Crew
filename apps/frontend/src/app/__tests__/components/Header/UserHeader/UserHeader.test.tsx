@@ -124,8 +124,8 @@ describe('UserHeader Component', () => {
 
     render(<UserHeader />);
 
-    // Notification Icon
-    expect(screen.getByTestId('IoNotifications')).toBeInTheDocument();
+    // Notification Icon (design uses the outline bell glyph)
+    expect(screen.getByTestId('IoNotificationsOutline')).toBeInTheDocument();
 
     // The account control is the header's own nav affordance
     expect(screen.getByRole('button', { name: /account/i })).toBeInTheDocument();

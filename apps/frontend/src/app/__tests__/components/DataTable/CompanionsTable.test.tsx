@@ -213,7 +213,7 @@ describe('CompanionsTable', () => {
     };
     render(<CompanionsTable {...baseProps} filteredList={[coParented]} />);
 
-    expect(screen.getByText('+ CO-PARENT')).toBeInTheDocument();
+    expect(screen.getByText('CO-PARENT')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
   });
 
@@ -476,7 +476,7 @@ describe('CompanionsTable', () => {
 
     // Co-parent pill shows in the phone card, status falls back to inactive,
     // the card fades, and the subline still renders (blank breed dropped).
-    expect(screen.getByText('+ CO-PARENT')).toBeInTheDocument();
+    expect(screen.getByText('CO-PARENT')).toBeInTheDocument();
     expect(screen.getByText(/inactive/)).toBeInTheDocument();
     expect(container.innerHTML).toContain('opacity-[0.62]');
     expect(screen.getByText(/Willow/)).toBeInTheDocument();
