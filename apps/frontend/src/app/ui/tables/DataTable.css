@@ -25,7 +25,11 @@
 }
 .forms-table-fixed {
   table-layout: fixed;
-  min-width: 914px; /* 200+130+130+140+140+110+64 */
+  /* 200+130+190+130+140+140+110+64 — includes the conditional "Linked services"
+     column (190px). The previous 914px omitted it, so with that column rendered
+     the colgroup demanded 1104px while the element only guaranteed 914px and the
+     trailing Actions column sat past the reachable scroll extent. */
+  min-width: 1104px;
 }
 .invoice-table-fixed {
   table-layout: fixed;
