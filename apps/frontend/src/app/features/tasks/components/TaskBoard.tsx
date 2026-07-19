@@ -111,6 +111,119 @@ const getTaskTitleColorClass = (isDone: boolean, isCancelled: boolean): string =
   return 'text-[var(--ink)]';
 };
 
+/**
+ * The companion thumbnail source. A stored photo can be a legacy relative key,
+ * an http:// URL or an 'undefined' placeholder, none of which next/image
+ * accepts — it throws and takes the whole board down. Resolving it through the
+ * same guard every other companion avatar uses degrades a rejected value to the
+ * species fallback. Returns '' when there is no photo, so the initial shows.
+ */
+const getCompanionThumbnailUrl = (companion?: StoredCompanion): string =>
+  companion?.photoUrl
+    ? getSafeImageUrl(companion.photoUrl, companion.type?.toLowerCase() as ImageType)
+    : '';
+
+/** The assignee name shown in the meta line, blank when there is no real name. */
+const getMetaAssigneeName = (assignedTo: MemberIdentity): string =>
+  assignedTo.name && assignedTo.name !== '-' ? (assignedTo.label ?? assignedTo.name) : '';
+
+type TaskCardVisualFlags = {
+  isParentTask: boolean;
+  isMuted: boolean;
+  isDone: boolean;
+  isCancelled: boolean;
+  isDragging: boolean;
+};
+
+const getTaskCardClassName = ({
+  isParentTask,
+  isMuted,
+  isDone,
+  isCancelled,
+  isDragging,
+}: TaskCardVisualFlags): string =>
+  clsx(
+    'group/card relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start border',
+    isParentTask
+      ? 'border-[var(--pink)] shadow-[0_4px_12px_var(--glow-p12)]'
+      : 'border-card-border',
+    !isParentTask && !isMuted && 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
+    isDone && 'opacity-70',
+    isCancelled && 'opacity-60',
+    isDragging
+      ? 'opacity-60 shadow-none'
+      : !isParentTask && 'hover:border-input-border-active! hover:bg-card-hover!'
+  );
+
+const AssigneeAvatar = ({ assignedTo }: { assignedTo: MemberIdentity }) =>
+  assignedTo.imageUrl ? (
+    <Image
+      src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
+      alt={assignedTo.name}
+      width={22}
+      height={22}
+      className="size-[22px] rounded-full border border-card-border object-cover"
+    />
+  ) : (
+    <span className="size-[22px] shrink-0 rounded-full bg-[var(--avatar-violet-bg)] text-[9px] font-bold text-[var(--avatar-violet-ink)] flex items-center justify-center">
+      {getInitialsStatic(assignedTo.name)}
+    </span>
+  );
+
+const CompanionThumbnail = ({ companion }: { companion?: StoredCompanion }) => {
+  const photoUrl = getCompanionThumbnailUrl(companion);
+  return (
+    <span
+      className="size-[22px] shrink-0 overflow-hidden rounded-full"
+      style={{ backgroundColor: 'var(--avatar-amber-bg)' }}
+    >
+      {photoUrl ? (
+        <Image
+          src={photoUrl}
+          alt={companion?.name ?? ''}
+          width={22}
+          height={22}
+          className="size-full object-cover"
+        />
+      ) : (
+        <span
+          className="flex size-full items-center justify-center text-[9px] font-bold"
+          style={{ color: 'var(--avatar-amber-ink)' }}
+        >
+          {getInitialsStatic(companion?.name ?? '').charAt(0)}
+        </span>
+      )}
+    </span>
+  );
+};
+
+type TaskCardFooterProps = {
+  isMuted: boolean;
+  isParentTask: boolean;
+  assignedTo: MemberIdentity;
+  companion?: StoredCompanion;
+};
+
+/** The card's bottom row: the assignee chip on the left, companion on the right. */
+const TaskCardFooter = ({ isMuted, isParentTask, assignedTo, companion }: TaskCardFooterProps) => {
+  const hasFooterRow = !isMuted && !isParentTask;
+  const showAvatar = hasFooterRow && Boolean(assignedTo.name) && assignedTo.name !== '-';
+  const showCompanion = hasFooterRow && Boolean(companion);
+  if (!showAvatar && !showCompanion) return null;
+  const assigneeLabel = assignedTo.label ?? assignedTo.name;
+  return (
+    <div className="relative z-10 mt-2 flex items-center justify-between gap-2">
+      <span className="flex min-w-0 items-center gap-1.5">
+        {showAvatar && <AssigneeAvatar assignedTo={assignedTo} />}
+        {showAvatar && (
+          <span className="truncate text-[11px] text-text-secondary">{assigneeLabel}</span>
+        )}
+      </span>
+      {showCompanion && <CompanionThumbnail companion={companion} />}
+    </div>
+  );
+};
+
 type TaskCardProps = {
   task: Task;
   draggedTaskId: string | null;
@@ -141,45 +254,21 @@ const TaskCard = ({
   const isCancelled = task.status === 'CANCELLED';
   const isMuted = isDone || isCancelled;
   const isDragging = draggedTaskId === (task._id ?? null);
-  const assigneeLabel = assignedTo.label ?? assignedTo.name;
-  const meta = buildBoardMeta(
-    task,
-    assignedTo.name && assignedTo.name !== '-' ? assigneeLabel : ''
-  );
-  const hasFooterRow = !isMuted && !isParentTask;
-  const showAvatar = hasFooterRow && Boolean(assignedTo.name) && assignedTo.name !== '-';
-  const showCompanion = hasFooterRow && Boolean(companion);
+  const taskName = task.name || '-';
+  const meta = buildBoardMeta(task, getMetaAssigneeName(assignedTo));
   const elapsedFraction = getTaskElapsedFraction(task);
-  // A stored photo can be a legacy relative key, an http:// URL or an
-  // 'undefined' placeholder, none of which next/image accepts — it throws and
-  // takes the whole board down. Resolve it through the same guard every other
-  // companion avatar uses so a rejected value degrades to the species fallback.
-  const companionPhotoUrl = companion?.photoUrl
-    ? getSafeImageUrl(companion.photoUrl, companion.type?.toLowerCase() as ImageType)
-    : '';
 
   return (
     <article
-      aria-label={`Open task ${task.name || '-'}`}
-      className={clsx(
-        'group/card relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start border',
-        isParentTask
-          ? 'border-[var(--pink)] shadow-[0_4px_12px_var(--glow-p12)]'
-          : 'border-card-border',
-        !isParentTask && !isMuted && 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
-        isDone && 'opacity-70',
-        isCancelled && 'opacity-60',
-        isDragging
-          ? 'opacity-60 shadow-none'
-          : !isParentTask && 'hover:border-input-border-active! hover:bg-card-hover!'
-      )}
+      aria-label={`Open task ${taskName}`}
+      className={getTaskCardClassName({ isParentTask, isMuted, isDone, isCancelled, isDragging })}
       draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
       onDragStart={(event) => onDragStart(event, task)}
       onDragEnd={onDragEnd}
     >
       <button
         type="button"
-        aria-label={`Open task ${task.name || '-'}`}
+        aria-label={`Open task ${taskName}`}
         className="absolute inset-0 rounded-[13px]!"
         onClick={() => onOpen(task)}
       />
@@ -192,7 +281,7 @@ const TaskCard = ({
         {isParentTask && (
           <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-[var(--pink)]" />
         )}
-        <span className="min-w-0 break-words">{task.name || '-'}</span>
+        <span className="min-w-0 break-words">{taskName}</span>
       </div>
 
       <div className="relative z-10 mt-[3px] text-[11px] leading-4 text-text-tertiary">{meta}</div>
@@ -200,58 +289,18 @@ const TaskCard = ({
       {elapsedFraction !== null && (
         <progress
           className="yc-task-progress relative z-10 mt-[9px]"
-          aria-label={`Time elapsed toward due for ${task.name || '-'}`}
+          aria-label={`Time elapsed toward due for ${taskName}`}
           max={100}
           value={Math.round(elapsedFraction * 100)}
         />
       )}
 
-      {(showAvatar || showCompanion) && (
-        <div className="relative z-10 mt-2 flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1.5">
-            {showAvatar &&
-              (assignedTo.imageUrl ? (
-                <Image
-                  src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
-                  alt={assignedTo.name}
-                  width={22}
-                  height={22}
-                  className="size-[22px] rounded-full border border-card-border object-cover"
-                />
-              ) : (
-                <span className="size-[22px] shrink-0 rounded-full bg-[var(--avatar-violet-bg)] text-[9px] font-bold text-[var(--avatar-violet-ink)] flex items-center justify-center">
-                  {getInitialsStatic(assignedTo.name)}
-                </span>
-              ))}
-            {showAvatar && (
-              <span className="truncate text-[11px] text-text-secondary">{assigneeLabel}</span>
-            )}
-          </span>
-          {showCompanion && (
-            <span
-              className="size-[22px] shrink-0 overflow-hidden rounded-full"
-              style={{ backgroundColor: 'var(--avatar-amber-bg)' }}
-            >
-              {companionPhotoUrl ? (
-                <Image
-                  src={companionPhotoUrl}
-                  alt={companion?.name ?? ''}
-                  width={22}
-                  height={22}
-                  className="size-full object-cover"
-                />
-              ) : (
-                <span
-                  className="flex size-full items-center justify-center text-[9px] font-bold"
-                  style={{ color: 'var(--avatar-amber-ink)' }}
-                >
-                  {getInitialsStatic(companion?.name ?? '').charAt(0)}
-                </span>
-              )}
-            </span>
-          )}
-        </div>
-      )}
+      <TaskCardFooter
+        isMuted={isMuted}
+        isParentTask={isParentTask}
+        assignedTo={assignedTo}
+        companion={companion}
+      />
 
       {updatingStatusId === task._id && (
         <div className="relative z-10 mt-1 text-[10px] text-text-secondary">Updating...</div>

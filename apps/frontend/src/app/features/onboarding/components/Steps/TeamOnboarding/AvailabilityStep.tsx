@@ -27,7 +27,7 @@ const CONSULTATION_TYPES: ReadonlyArray<{ id: string; label: string; icon: IconT
  * Re-enable them (and extend `ApiAvailability`) once the API persists these fields.
  */
 const DEFAULT_CONSULTATION_SLOT = '30 min';
-const DEFAULT_CONSULTATION_TYPES: ReadonlyArray<string> = ['in-clinic'];
+const DEFAULT_CONSULTATION_TYPES: ReadonlySet<string> = new Set(['in-clinic']);
 const CONSULTATION_UNSUPPORTED_HINT =
   'Not configurable yet - saved availability always uses these defaults';
 
@@ -134,7 +134,7 @@ function AvailabilityStep({
         <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--hairline)] pt-[18px]">
           <div className="flex gap-2 opacity-70" title={CONSULTATION_UNSUPPORTED_HINT}>
             {CONSULTATION_TYPES.map(({ id, label, icon: Icon }) => {
-              const isOn = DEFAULT_CONSULTATION_TYPES.includes(id);
+              const isOn = DEFAULT_CONSULTATION_TYPES.has(id);
               return (
                 <button
                   key={id}

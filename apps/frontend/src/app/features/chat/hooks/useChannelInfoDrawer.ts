@@ -36,8 +36,7 @@ export const useChannelInfoDrawer = (
   // channel it was recorded for, so selecting another conversation falls straight
   // back to that channel's real mute status.
   const channelCid = channel?.cid ?? null;
-  const infoMuted =
-    muteOverride && muteOverride.cid === channelCid ? muteOverride.muted : isChannelMuted(channel);
+  const infoMuted = muteOverride?.cid === channelCid ? muteOverride.muted : isChannelMuted(channel);
 
   const handleToggleMute = () => {
     if (!channel) return;
