@@ -156,7 +156,7 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        className={`w-full flex items-center justify-between gap-2 h-[46px] px-[13px] min-w-[120px] bg-[var(--field-bg)] border-[1.5px] text-[13px] transition-colors ${error ? 'border-input-border-error!' : ''} ${open ? 'border-b-0! border-input-border-active! rounded-t-[13px]!' : 'border-input-border-default! rounded-[13px]!'}`}
+        className={`w-full flex items-center justify-between gap-2 h-[46px] px-[14px] min-w-[120px] bg-[var(--field-bg)] border-[1.5px] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${error ? 'border-[var(--danger)]!' : ''} ${open ? 'border-b-0! border-[var(--blue)]! rounded-t-[12px]!' : 'border-[var(--hairline)]! rounded-[12px]!'}`}
         onClick={() => setOpen((e) => !e)}
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
@@ -164,22 +164,24 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
         aria-controls={open ? listboxId : undefined}
       >
         {selected ? (
-          <div className="text-text-primary text-[13px] truncate max-w-[200px]">
+          <div className="text-[var(--ink-body)] text-[14px] truncate max-w-[200px]">
             {selected.label}
           </div>
         ) : (
-          <div className="text-text-primary text-[13px] truncate max-w-[200px]">{placeholder}</div>
+          <div className="text-[var(--ink-faint)] text-[14px] truncate max-w-[200px]">
+            {placeholder}
+          </div>
         )}
         <IoChevronDown
           size={14}
-          color="var(--color-neutral-600)"
+          color="var(--ink-faint)"
           className="shrink-0 transition-transform"
         />
       </button>
       {open && (
         <div
           id={listboxId}
-          className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[13px] border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
+          className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[12px] border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
         >
           {options.map((option, i) => (
             <button

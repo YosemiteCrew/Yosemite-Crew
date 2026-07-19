@@ -44,7 +44,9 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
   // and its right edge landed exactly on the filter's left edge - a 0px gap.
   return (
     <div className="flex items-center justify-between w-full gap-3">
-      <div className="min-w-0 text-body-1 text-text-primary">{title}</div>
+      <div className="min-w-0 text-[16px] font-bold leading-[1.15] tracking-[-0.02em] text-[var(--ink)]">
+        {title}
+      </div>
       <div className="relative shrink-0" ref={filterRef}>
         <button
           type="button"
@@ -52,10 +54,10 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
           aria-label={`Filter ${title} by time period: ${selectedValue}`}
           aria-expanded={open}
           aria-haspopup="listbox"
-          className="outline-none inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-[11px] py-1.5 text-[11px] font-semibold text-[var(--ink-muted)]"
+          className="outline-none inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)]"
         >
           <span aria-hidden="true">{selectedValue}</span>
-          <IoChevronDownOutline color="var(--ink-muted)" size={10} aria-hidden="true" />
+          <IoChevronDownOutline color="var(--ink-faint)" size={12} aria-hidden="true" />
         </button>
         {open && (
           <div

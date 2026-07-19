@@ -24,7 +24,7 @@ describe('CardHeader', () => {
       name: /Filter Explore by time period: Last week/i,
     });
     expect(toggle).toHaveClass('rounded-full', 'border', 'border-[var(--hairline)]');
-    expect(toggle).toHaveClass('text-[11px]', 'font-semibold', 'text-[var(--ink-muted)]');
+    expect(toggle).toHaveClass('text-[12px]', 'font-semibold', 'text-[var(--ink-muted)]');
   });
 
   test('uses controlled selection and calls onSelect', () => {

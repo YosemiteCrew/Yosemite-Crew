@@ -22,7 +22,7 @@ const FilteredEmptyState = ({
   return (
     <div className="yc-state-card">
       <span className="yc-state-icon yc-state-icon--blue" aria-hidden>
-        <IoFilterOutline size={26} />
+        <IoFilterOutline size={24} />
       </span>
       <div className="yc-state-title">{title}</div>
       <p className="yc-state-text">{message}</p>

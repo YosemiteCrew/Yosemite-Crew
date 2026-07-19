@@ -50,14 +50,16 @@ const Explorecard = () => {
         selected={effectiveDuration}
         onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}
       />
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 xl:gap-3">
         {stats.map((stat) => (
           <div
-            className="yc-card-elevated px-3.5 py-3 w-full rounded-[14px] border border-card-border bg-neutral-0 flex flex-col gap-1"
+            className="w-full flex flex-col gap-[3px] rounded-[14px] xl:rounded-2xl border border-card-border bg-neutral-0 px-3.5 py-3 xl:px-[18px] xl:py-3.5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
             key={stat.name}
           >
-            <div className="text-[11.5px] text-[var(--ink-faint)]">{stat.name}</div>
-            <p className="text-[20px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
+            <div className="text-[11px] sm:text-[11.5px] xl:text-[12.5px] text-[var(--ink-faint)]">
+              {stat.name}
+            </div>
+            <p className="text-[19px] sm:text-[20px] xl:text-[24px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
               {stat.value}
             </p>
           </div>

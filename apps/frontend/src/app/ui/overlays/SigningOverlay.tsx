@@ -48,17 +48,17 @@ const SigningOverlay = () => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-5000 bg-[var(--sh55)] backdrop-blur-sm flex items-center justify-center p-4"
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
-      <div className="relative bg-neutral-0 rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
+      <div className="relative bg-neutral-0 rounded-[20px] border border-[var(--hairline)] shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)] w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--hairline)]">
           <div className="text-body-2 text-text-primary">Sign document</div>
           <button
             type="button"
             onClick={close}
-            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            className="p-2 hover:bg-[var(--inset)] rounded-full transition-colors cursor-pointer"
             aria-label="Close signing frame"
             style={{ pointerEvents: 'auto' }}
           >

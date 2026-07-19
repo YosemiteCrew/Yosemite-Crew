@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Section header with a title and a hairline period-filter pill (11px / semibold / --ink-muted, 10px chevron) matching the responsive dashboard design.',
+          'Section header with a 16px/700 --ink title and a hairline period-filter pill (12px / semibold / --ink-muted, 12px --ink-faint chevron, 6px×12px padding) matching the dashboard design.',
       },
     },
   },

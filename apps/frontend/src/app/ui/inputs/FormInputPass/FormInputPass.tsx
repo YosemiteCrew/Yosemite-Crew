@@ -36,7 +36,7 @@ const FormInputPass = ({
     <div className="w-full">
       <label
         htmlFor={uid}
-        className="mb-1.5 block truncate text-[12px] font-semibold text-neutral-800"
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
       >
         {inlabel}
       </label>
@@ -55,12 +55,12 @@ const FormInputPass = ({
           aria-describedby={errorId}
           aria-label={inlabel}
           className={`
-            h-[46px] w-full rounded-[13px] border-[1.5px] bg-[var(--field-bg)]
-            pl-[13px] pr-11 text-[13.5px] text-text-primary outline-none transition-colors
-            placeholder:text-input-text-placeholder
+            h-[46px] w-full rounded-[12px] border-[1.5px] bg-[var(--field-bg)]
+            pl-[14px] pr-11 text-[14px] text-[var(--ink-body)] outline-none transition-colors
+            placeholder:text-[var(--ink-faint)]
             disabled:cursor-not-allowed disabled:opacity-60
-            ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
-            focus:border-input-border-active! focus:shadow-[0_0_0_3px_var(--glow-b10)]
+            ${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'}
+            focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
           `}
         />
         <button

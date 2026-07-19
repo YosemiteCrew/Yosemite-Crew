@@ -48,7 +48,7 @@ const NotificationRow = ({
       onClick={() => onItemClick?.(item)}
     >
       <span className={`yc-noti-disc yc-noti-disc--${item.tone}`} aria-hidden>
-        <Icon size={17} />
+        <Icon size={16} />
       </span>
       <span className="yc-noti-body">
         <span className="yc-noti-title">
@@ -81,7 +81,7 @@ const NotificationsPanel = ({
       <div className={`yc-noti-content yc-noti--${layout}`}>
         <div className="yc-noti-empty">
           <span className="yc-noti-empty-disc" aria-hidden>
-            <IoNotificationsOutline size={24} />
+            <IoNotificationsOutline size={22} />
           </span>
           <div className="yc-noti-empty-title">All caught up</div>
           <p className="yc-noti-empty-text">

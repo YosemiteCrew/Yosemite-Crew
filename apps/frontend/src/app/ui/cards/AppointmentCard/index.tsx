@@ -54,7 +54,7 @@ const AppointmentCard = ({
   const appointmentCompanionName = getAppointmentCompanion(appointment).name || 'appointment';
 
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <AppointmentCardContent appointment={appointment} />
       <div className="flex gap-3 w-full justify-center">
         {isRequestedLikeStatus(appointment.status) ? (

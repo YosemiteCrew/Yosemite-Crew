@@ -51,11 +51,11 @@ const DateInputButton = ({
         ref={ref}
         type="button"
         onClick={onClick}
-        className={`flex h-[46px] w-[46px] items-center justify-center rounded-[13px]! border-[1.5px]! bg-[var(--field-bg)] transition-all duration-300 ease-in-out focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
+        className={`flex h-[46px] w-[46px] items-center justify-center rounded-[12px]! border-[1.5px]! bg-[var(--field-bg)] transition-all duration-300 ease-in-out focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
         aria-label="Toggle calendar"
         aria-describedby={errorId}
       >
-        <IoCalendarOutline size={18} color="var(--color-primary-500)" aria-hidden="true" />
+        <IoCalendarOutline size={18} color="var(--blue)" aria-hidden="true" />
       </button>
     );
   }
@@ -65,7 +65,7 @@ const DateInputButton = ({
       ref={ref}
       type="button"
       onClick={onClick}
-      className={`relative flex h-[46px] w-full items-center justify-between rounded-[13px]! border-[1.5px] bg-[var(--field-bg)] px-[13px] text-left text-[13.5px] text-text-primary outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
+      className={`relative flex h-[46px] w-full items-center justify-between rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[14px] text-left text-[14px] text-[var(--ink-body)] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
       aria-label={
         value
           ? `${accessibleLabel}: ${value}, toggle calendar`
@@ -78,7 +78,7 @@ const DateInputButton = ({
       <span className="truncate">{value || ''}</span>
       <IoCalendarOutline
         size={15}
-        color="var(--color-neutral-600)"
+        color="var(--ink-faint)"
         aria-hidden="true"
         className="ml-2 shrink-0"
       />
@@ -142,7 +142,7 @@ const Datepicker = ({
         inputId={inputId}
         label={placeholder}
         errorId={errorId}
-        className={`${error ? 'border-input-border-error!' : 'border-input-border-default!'} focus:border-input-border-active! ${className ?? ''}`}
+        className={`${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'} focus:border-[var(--blue)]! ${className ?? ''}`}
       />
     ),
     [className, error, errorId, inputId, isInput, placeholder]
@@ -151,7 +151,7 @@ const Datepicker = ({
   return (
     <div className={`relative ${containerClassName ?? ''}`}>
       {isInput && (
-        <span className="mb-1.5 block truncate text-[12px] font-semibold text-neutral-800">
+        <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
           {placeholder}
         </span>
       )}

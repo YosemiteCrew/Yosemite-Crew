@@ -14,12 +14,17 @@ jest.mock('@/app/features/dashboard/hooks/useDashboardAnalytics', () => ({
   useDashboardAnalytics: jest.fn(),
 }));
 
+const barsIn = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('div')).filter(
+    (node) => (node as HTMLDivElement).style.height
+  ) as HTMLDivElement[];
+
 describe('AnnualInventoryTurnoverStat', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders turnover numbers and date range labels', () => {
+  it('renders a monthly turnover bar for each trend point with proportional heights', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { annualInventoryTurnover: ['Last 1 year'] },
       emptyState: { annualInventoryTurnover: false },
@@ -37,15 +42,67 @@ describe('AnnualInventoryTurnoverStat', () => {
     const { container } = render(<AnnualInventoryTurnoverStat />);
 
     expect(screen.getByTestId('card-header')).toHaveTextContent('Annual inventory turnover');
-    expect(screen.getByText('6.4 turns / year')).toBeInTheDocument();
-    expect(screen.getByText('Restock every 45 days')).toBeInTheDocument();
-    expect(screen.getByText('Jan 2025')).toBeInTheDocument();
-    expect(screen.getByText('Dec 2025')).toBeInTheDocument();
+    expect(screen.getByText('Jan')).toBeInTheDocument();
+    expect(screen.getByText('Dec')).toBeInTheDocument();
 
-    const filled = Array.from(container.querySelectorAll('div')).filter((node) =>
-      (node as HTMLDivElement).className.includes('bg-[#F28A2E]')
-    );
-    expect(filled).toHaveLength(5);
+    const bars = barsIn(container);
+    expect(bars).toHaveLength(2);
+    // Heights are proportional to the max turnover (6.4).
+    expect(bars[0].style.height).toBe('62.5%');
+    expect(bars[1].style.height).toBe('100%');
+    // The final (partial) month is drawn with the muted divider fill.
+    expect(bars[1].style.background).toBe('var(--divider)');
+  });
+
+  it('draws the peak month at full opacity when it is not the final bar', () => {
+    (useDashboardAnalytics as jest.Mock).mockReturnValue({
+      durationOptions: { annualInventoryTurnover: ['Last 1 year'] },
+      emptyState: { annualInventoryTurnover: false },
+      inventoryTurnover: {
+        turnsPerYear: 10,
+        targetTurnsPerYear: 12,
+        restockCycleDays: 30,
+        trend: [
+          { month: 'Jan', year: 2026, turnover: 4 },
+          { month: 'Jun', year: 2026, turnover: 10 },
+          { month: 'Jul', year: 2026, turnover: 3 },
+        ],
+      },
+    });
+
+    const { container } = render(<AnnualInventoryTurnoverStat />);
+    const bars = barsIn(container);
+    expect(bars).toHaveLength(3);
+    // Non-peak, non-final month is the muted cta fill.
+    expect(bars[0].style.opacity).toBe('0.85');
+    expect(bars[0].style.background).toBe('var(--cta)');
+    // The peak month (not the final bar) is drawn at full opacity in cta.
+    expect(bars[1].style.opacity).toBe('1');
+    expect(bars[1].style.background).toBe('var(--cta)');
+    // The final (partial) month still uses the divider fill.
+    expect(bars[2].style.background).toBe('var(--divider)');
+  });
+
+  it('renders zero-height bars when every month has no turnover', () => {
+    (useDashboardAnalytics as jest.Mock).mockReturnValue({
+      durationOptions: { annualInventoryTurnover: ['Last 1 year'] },
+      emptyState: { annualInventoryTurnover: false },
+      inventoryTurnover: {
+        turnsPerYear: 0,
+        targetTurnsPerYear: 0,
+        restockCycleDays: 0,
+        trend: [
+          { month: 'Jan', year: 2026, turnover: 0 },
+          { month: 'Feb', year: 2026, turnover: 0 },
+        ],
+      },
+    });
+
+    const { container } = render(<AnnualInventoryTurnoverStat />);
+    const bars = barsIn(container);
+    expect(bars).toHaveLength(2);
+    expect(bars[0].style.height).toBe('0%');
+    expect(bars[1].style.height).toBe('0%');
   });
 
   it('renders the empty state placeholder when there is no turnover data', () => {
@@ -60,30 +117,28 @@ describe('AnnualInventoryTurnoverStat', () => {
       },
     });
 
-    render(<AnnualInventoryTurnoverStat />);
+    const { container } = render(<AnnualInventoryTurnoverStat />);
 
     expect(screen.getByText('No data available')).toBeInTheDocument();
-    expect(screen.queryByText(/turns \/ year/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Restock every/)).not.toBeInTheDocument();
+    expect(barsIn(container)).toHaveLength(0);
   });
 
-  it('clamps negative values and handles empty trend', () => {
+  it('renders the card with no bars when the trend is empty but data is not flagged empty', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { annualInventoryTurnover: ['Last 1 year'] },
       emptyState: { annualInventoryTurnover: false },
       inventoryTurnover: {
-        turnsPerYear: -1,
-        targetTurnsPerYear: -3,
-        restockCycleDays: -2,
+        turnsPerYear: 0,
+        targetTurnsPerYear: 0,
+        restockCycleDays: 0,
         trend: [],
       },
     });
 
-    render(<AnnualInventoryTurnoverStat />);
+    const { container } = render(<AnnualInventoryTurnoverStat />);
 
-    expect(screen.getByText('0.0 turns / year')).toBeInTheDocument();
-    expect(screen.getByText('Restock every 0 days')).toBeInTheDocument();
-    expect(screen.getByText('Start')).toBeInTheDocument();
-    expect(screen.getByText('End')).toBeInTheDocument();
+    expect(screen.getByTestId('card-header')).toHaveTextContent('Annual inventory turnover');
+    expect(screen.queryByText('No data available')).not.toBeInTheDocument();
+    expect(barsIn(container)).toHaveLength(0);
   });
 });

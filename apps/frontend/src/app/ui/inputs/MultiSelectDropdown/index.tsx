@@ -217,7 +217,7 @@ const MultiSelectPanel = ({
   <div
     id={listboxId}
     data-portal-dropdown
-    className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
+    className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
     style={shouldPortal ? (portalStyle ?? undefined) : undefined}
   >
     {filteredOptions.length > 0 ? (
@@ -265,14 +265,14 @@ const MultiSelectPanel = ({
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
   const base =
-    'relative w-full flex h-[46px] items-center px-[13px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+    'relative w-full flex h-[46px] items-center px-[14px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
   let borderState: string;
   if (open) {
-    borderState = 'border-input-border-active! border-b-0! rounded-t-[13px]! z-20';
+    borderState = 'border-[var(--blue)]! border-b-0! rounded-t-[12px]! z-20';
   } else if (!hasSelection && error) {
-    borderState = 'border-input-border-error! rounded-[13px]!';
+    borderState = 'border-[var(--danger)]! rounded-[12px]!';
   } else {
-    borderState = 'border-input-border-default! rounded-[13px]!';
+    borderState = 'border-[var(--hairline)]! rounded-[12px]!';
   }
   return `${base} ${borderState}`;
 };
@@ -323,13 +323,13 @@ const MultiSelectTriggerContent = ({
           onKeyDown(event);
         }}
         placeholder={hasSelection ? selectedLabel : ''}
-        className="w-full bg-transparent text-left text-[13px] text-text-primary outline-none placeholder:text-input-text-placeholder"
+        className="w-full bg-transparent text-left text-[14px] text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
       />
     );
   }
   return (
     <span
-      className="min-w-0 flex-1 truncate text-left text-[13px] text-text-primary"
+      className="min-w-0 flex-1 truncate text-left text-[14px] text-[var(--ink-body)]"
       title={hasSelection ? selectedLabel : placeholder}
     >
       {hasSelection ? selectedLabel : ''}
@@ -414,7 +414,7 @@ const MultiSelectDropdown = ({
 
   return (
     <div className="flex flex-col">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-neutral-800">
+      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
         {icon}
         {placeholder}
       </span>
@@ -453,7 +453,7 @@ const MultiSelectDropdown = ({
               aria-hidden="true"
               style={{
                 flexShrink: 0,
-                color: 'var(--color-neutral-600)',
+                color: 'var(--ink-faint)',
                 transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform 150ms ease',
               }}
