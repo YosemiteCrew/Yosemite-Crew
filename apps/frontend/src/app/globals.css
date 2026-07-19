@@ -666,8 +666,10 @@ textarea:focus-visible {
   --surface-soft: rgba(239, 232, 220, 0.7);
   /* raised pill on a footer/inset surface */
   --pill-raised: #f7f3ec;
-  /* form inputs */
-  --field-bg: #fafafa;
+  /* form inputs: warm, subtly recessed off the --screen surface (was a cool
+     #fafafa that read as a "white" box against the warm-bone palette; the dark
+     field is likewise recessed off its surface) */
+  --field-bg: #f2ede4;
   /* Semantic tinted surfaces for chrome + global-state components (notifications
      rows, permission-denied, filtered-empty). Values mirror the danger/warning
      ramps and the pink accent so tinted discs read consistently in light mode. */
