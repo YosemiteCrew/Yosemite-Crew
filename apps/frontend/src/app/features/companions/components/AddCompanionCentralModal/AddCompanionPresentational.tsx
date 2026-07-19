@@ -17,7 +17,8 @@ export const SectionHeading = ({ icon, title }: { icon: React.ReactNode; title: 
         fontSize: 16,
         fontWeight: 700,
         lineHeight: '120%',
-        color: 'var(--color-neutral-700)',
+        letterSpacing: '-0.02em',
+        color: 'var(--ink)',
       }}
     >
       {title}
@@ -36,7 +37,7 @@ export const AlertChipView = ({ alert }: { alert: CompanionAlert }) => {
   const cfg = ALERT_PRIORITY_CONFIG[alert.priority] ?? ALERT_PRIORITY_CONFIG.medium;
   return (
     <span
-      className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold border leading-[1.4]"
+      className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[10px] font-bold border leading-[1.4]"
       style={{ background: cfg.bg, color: cfg.text, borderColor: cfg.border }}
     >
       {alert.label}
@@ -54,7 +55,7 @@ export const AlertChipEdit = ({
   const cfg = ALERT_PRIORITY_CONFIG[alert.priority];
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold border leading-[1.4]"
+      className="inline-flex items-center gap-1.5 rounded-full px-[9px] py-[3px] text-[10px] font-bold border leading-[1.4]"
       style={{ background: cfg.bg, color: cfg.text, borderColor: cfg.border }}
     >
       {alert.label}

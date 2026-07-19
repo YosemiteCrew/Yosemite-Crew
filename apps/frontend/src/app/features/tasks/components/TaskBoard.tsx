@@ -72,7 +72,7 @@ const buildBoardMeta = (task: Task, assigneeName: string): string => {
 const getTaskTitleColorClass = (isDone: boolean, isCancelled: boolean): string => {
   if (isDone) return 'text-text-tertiary line-through';
   if (isCancelled) return 'text-text-tertiary';
-  return 'text-text-primary';
+  return 'text-[var(--ink)]';
 };
 
 type TaskCardProps = {
@@ -116,7 +116,8 @@ const TaskCard = ({
         'group/card relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start border',
         isParentTask
           ? 'border-[var(--pink)] shadow-[0_4px_12px_var(--glow-p12)]'
-          : 'border-card-border shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
+          : 'border-card-border',
+        !isParentTask && !isMuted && 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
         isDone && 'opacity-70',
         isCancelled && 'opacity-60',
         isDragging
@@ -158,7 +159,7 @@ const TaskCard = ({
               className="size-[22px] rounded-full border border-card-border object-cover"
             />
           ) : (
-            <div className="size-[22px] rounded-full border border-card-border bg-neutral-0 text-[9px] font-semibold text-text-secondary flex items-center justify-center">
+            <div className="size-[22px] rounded-full bg-[var(--avatar-violet-bg)] text-[9px] font-bold text-[var(--avatar-violet-ink)] flex items-center justify-center">
               {getInitialsStatic(assignedTo.name)}
             </div>
           )}
@@ -254,7 +255,6 @@ const BoardColumn = ({
   setScrollElement,
 }: BoardColumnProps) => {
   const hasTasks = columnTasks.length > 0;
-  const style = getStatusStyle(column.key);
   return (
     <div
       ref={setDropElement}
@@ -268,10 +268,7 @@ const BoardColumn = ({
               className="size-2 shrink-0 rounded-full"
               style={{ backgroundColor: getColumnDotColor(column.key) }}
             />
-            <div
-              className="text-[12px] font-bold uppercase tracking-[0.04em]"
-              style={{ color: style.color }}
-            >
+            <div className="text-[12px] font-bold uppercase text-[var(--ink-muted)]">
               {column.label}
             </div>
           </div>

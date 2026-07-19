@@ -389,7 +389,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         <Text
           as="span"
           variant="caption-1"
-          className={clsx('italic text-neutral-400', mine ? '' : 'ml-11')}
+          className={clsx('italic text-[var(--ink-faint)]', mine ? '' : 'ml-11')}
         >
           This message was deleted
         </Text>

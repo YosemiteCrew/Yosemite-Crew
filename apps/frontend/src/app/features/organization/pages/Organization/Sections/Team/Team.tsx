@@ -122,7 +122,7 @@ const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}>
-      <section className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]">
+      <section className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         <div className="flex items-center justify-between gap-3 px-5! pt-4! pb-3!">
           <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
             Team <span className="font-medium text-[var(--ink-faint)]">({teams.length})</span>

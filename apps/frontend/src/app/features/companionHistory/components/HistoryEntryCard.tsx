@@ -204,14 +204,14 @@ const HistoryEntryCard = ({
 
   return (
     <li
-      className={`flex gap-[11px] font-satoshi ${
+      className={`flex gap-[11px] font-satoshi md:gap-[14px] ${
         active ? 'rounded-[14px] bg-[var(--surface-soft)] px-2 py-1.5' : ''
       }`}
     >
       <span className="flex flex-none flex-col items-center">
         <span
           aria-hidden="true"
-          className="flex size-[30px] items-center justify-center rounded-full border"
+          className="flex size-[30px] items-center justify-center rounded-full border md:size-[34px]"
           style={tint}
         >
           {getTypeIcon(entry.type)}
@@ -219,13 +219,13 @@ const HistoryEntryCard = ({
         {isLast ? null : (
           <span
             aria-hidden="true"
-            className="my-[3px] flex-1"
+            className="my-[3px] flex-1 md:my-1"
             style={{ width: '1.5px', background: 'var(--hairline)' }}
           />
         )}
       </span>
 
-      <div className={isLast ? 'min-w-0 flex-1' : 'min-w-0 flex-1 pb-3'}>
+      <div className={isLast ? 'min-w-0 flex-1' : 'min-w-0 flex-1 pb-3 md:pb-4'}>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -233,7 +233,7 @@ const HistoryEntryCard = ({
             onClick={() => onOpen(entry)}
             className="group inline-flex w-fit max-w-full items-center text-left"
           >
-            <span className="truncate text-[13px] font-bold leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--blue-text)] group-hover:underline">
+            <span className="truncate text-[13px] font-bold leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--blue-text)] group-hover:underline md:text-[14px]">
               {entry.title}
             </span>
           </button>
@@ -241,24 +241,28 @@ const HistoryEntryCard = ({
             (statusLabel ? (
               <Badge tone={getHistoryStatusBadgeTone(entry.status)}>{statusLabel}</Badge>
             ) : null)}
-          {meta ? <span className="text-[11px] text-[var(--ink-faint)]">{meta}</span> : null}
+          {meta ? (
+            <span className="text-[11px] text-[var(--ink-faint)] md:text-[12px]">{meta}</span>
+          ) : null}
         </div>
 
         {subtitle ? (
-          <span className="mt-[1px] block text-[11px] text-[var(--ink-faint)]">{subtitle}</span>
+          <span className="mt-[1px] block text-[11px] text-[var(--ink-faint)] md:mt-[3px] md:text-[12.5px] md:text-[color:var(--ink-muted)]">
+            {subtitle}
+          </span>
         ) : null}
         {entry.summary ? (
-          <span className="mt-[1px] block text-[11px] text-[var(--ink-faint)]">
+          <span className="mt-[1px] block text-[11px] text-[var(--ink-faint)] md:mt-[3px] md:text-[12.5px] md:text-[color:var(--ink-muted)]">
             {entry.summary}
           </span>
         ) : null}
 
         {attachmentChips.length > 0 || actions ? (
-          <span className="mt-[6px] flex flex-wrap items-center gap-[5px]">
+          <span className="mt-[6px] flex flex-wrap items-center gap-[5px] md:mt-2 md:gap-1.5">
             {attachmentChips.map((chip) => (
               <span
                 key={`${entry.id}-${chip.key}`}
-                className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-[5px] text-[10.5px] font-semibold text-[var(--ink-body)]"
+                className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-[5px] text-[10.5px] font-semibold text-[var(--ink-body)] md:py-1 md:text-[11px]"
                 style={{ background: 'var(--inset)' }}
               >
                 <span aria-hidden="true" className="inline-flex text-[var(--blue-text)]">
@@ -278,7 +282,7 @@ const HistoryEntryCard = ({
             {tags.map((tag) => (
               <span
                 key={`${entry.id}-${tag}`}
-                className="rounded-full bg-card-hover px-2 py-0.5 text-[11px] text-[var(--ink-muted)]"
+                className="rounded-full bg-[var(--inset)] px-2 py-0.5 text-[11px] text-[var(--ink-muted)]"
               >
                 {tag}
               </span>

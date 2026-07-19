@@ -56,7 +56,7 @@ export const ToggleSwitch = ({
   >
     <span
       aria-hidden="true"
-      className={`block size-4 rounded-full bg-white shadow-sm transition-transform ${
+      className={`block size-4 rounded-full bg-[var(--screen)] shadow-sm transition-transform ${
         checked ? 'translate-x-6' : 'translate-x-0'
       }`}
     />

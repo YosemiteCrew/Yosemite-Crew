@@ -99,14 +99,14 @@ export function MessageSearch() {
             <ul className="mt-2 max-h-72 overflow-y-auto">
               {searching && (
                 <li className="px-3 py-4 text-center">
-                  <Text as="span" variant="caption-1" className="text-neutral-400">
+                  <Text as="span" variant="caption-1" className="text-[var(--ink-faint)]">
                     Searching…
                   </Text>
                 </li>
               )}
               {!searching && hasQuery && results.length === 0 && (
                 <li className="px-3 py-4 text-center">
-                  <Text as="span" variant="caption-1" className="text-neutral-400">
+                  <Text as="span" variant="caption-1" className="text-[var(--ink-faint)]">
                     No messages found
                   </Text>
                 </li>

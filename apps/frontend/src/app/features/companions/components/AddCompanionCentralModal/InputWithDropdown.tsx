@@ -104,7 +104,7 @@ const InputWithDropdown = ({
     <div
       data-iwd-panel
       aria-label={inlabel}
-      className="border-input-text-placeholder-active overflow-y-auto scrollbar-hidden rounded-b-2xl border border-t bg-white flex flex-col items-stretch px-3 py-2.5"
+      className="border-input-text-placeholder-active overflow-y-auto scrollbar-hidden rounded-b-2xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch px-3 py-2.5"
       style={portalStyle ?? undefined}
     >
       {filtered.map((opt) => (

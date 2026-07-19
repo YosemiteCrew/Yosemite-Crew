@@ -630,7 +630,7 @@ const InsetChipButton = ({
     aria-label={label}
     disabled={disabled}
     onClick={onClick}
-    className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-[5px] text-[10.5px] font-semibold text-[var(--ink-body)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60"
+    className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-[5px] text-[10.5px] font-semibold text-[var(--ink-body)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60 md:py-1 md:text-[11px]"
     style={{ background: 'var(--inset)' }}
   >
     <span aria-hidden="true" className="inline-flex text-[var(--blue-text)]">
@@ -1048,7 +1048,7 @@ const getPersistStatusAction = (
 };
 
 const FILTER_CHIP_BASE =
-  'inline-flex items-center rounded-full px-[11px] py-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
+  'inline-flex items-center rounded-full px-[11px] py-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand md:px-[13px] md:text-[12px]';
 
 // Slim rounded-full pill dropdown for the Status / Sort header selectors, so
 // they read as filter pills consistent with the adjacent history-tab chips
@@ -1863,7 +1863,7 @@ const useCompanionHistoryTimelineView = ({
           }
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[14px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+            <span className="text-[14px] font-bold tracking-[-0.02em] text-[var(--ink)] md:text-[16px]">
               History
             </span>
             <div

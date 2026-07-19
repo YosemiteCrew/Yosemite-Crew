@@ -480,7 +480,7 @@ const PatientDetailsColumn = ({
           className={clsx(
             'flex items-center justify-center size-12 rounded-full border transition-colors',
             alertInput.trim()
-              ? 'border-input-border-active text-text-brand hover:bg-neutral-50'
+              ? 'border-input-border-active text-text-brand hover:bg-card-hover'
               : 'border-card-border text-text-tertiary opacity-40 cursor-not-allowed'
           )}
         >
@@ -723,7 +723,7 @@ const ClientDetailsColumn = ({
           className={clsx(
             'flex items-center justify-center size-12 rounded-full border transition-colors',
             clientAlertInput.trim()
-              ? 'border-input-border-active text-text-brand hover:bg-neutral-50'
+              ? 'border-input-border-active text-text-brand hover:bg-card-hover'
               : 'border-card-border text-text-tertiary opacity-40 cursor-not-allowed'
           )}
         >

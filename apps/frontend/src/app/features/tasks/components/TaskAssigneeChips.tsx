@@ -54,7 +54,7 @@ const TaskAssigneeChips = ({
                 aria-pressed={isActive}
                 onClick={() => onSelectTeam?.(option)}
                 className={clsx(
-                  'inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[12.5px] transition-colors',
+                  'inline-flex items-center gap-[7px] rounded-full py-2 pl-2 pr-[13px] text-[12.5px] transition-colors',
                   isActive
                     ? 'border-[1.5px] border-[var(--blue)] bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
                     : 'border border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
@@ -76,7 +76,7 @@ const TaskAssigneeChips = ({
                 aria-pressed={isActive}
                 onClick={() => onSelectParent?.(option)}
                 className={clsx(
-                  'inline-flex items-center gap-2 rounded-full px-3 py-2 text-[12.5px] transition-colors',
+                  'inline-flex items-center gap-[7px] rounded-full px-[13px] py-2 text-[12.5px] transition-colors',
                   isActive
                     ? 'border-[1.5px] border-[var(--pink)] bg-[var(--nav-active-bg)] font-bold text-[var(--ink)]'
                     : 'border border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'

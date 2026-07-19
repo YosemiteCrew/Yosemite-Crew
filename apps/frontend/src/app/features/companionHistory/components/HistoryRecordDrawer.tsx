@@ -31,6 +31,11 @@ type HistoryRecordDrawerProps = {
 const MICRO_CAPTION_CLASS =
   'text-[9.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]';
 
+// The title-block eyebrow reads one step larger/looser than the in-body table
+// and "Linked to" captions in the design (10.5px / 0.1em vs 9.5px / 0.08em).
+const HEADER_CAPTION_CLASS =
+  'text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]';
+
 const FOOTER_SECONDARY_CLASS =
   'flex flex-1 items-center justify-center gap-1.5 rounded-full! border border-hairline py-2 text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
@@ -65,11 +70,11 @@ const HistoryRecordDrawer = ({
       />
       <section
         aria-label={`Record detail for ${entry.title}`}
-        className="relative z-10 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-hairline bg-[var(--screen-2)] shadow-2xl md:h-full md:max-h-none md:w-[380px] md:rounded-none md:border-y-0 md:border-r-0"
+        className="relative z-10 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-hairline bg-[var(--screen-2)] shadow-2xl md:h-full md:max-h-none md:w-[360px] md:rounded-none md:border-y-0 md:border-r-0"
       >
-        <header className="flex flex-none items-start justify-between gap-2.5 border-b border-hairline px-5 py-4">
+        <header className="flex flex-none items-start justify-between gap-2.5 border-b border-hairline px-5 pb-3.5 pt-[18px]">
           <div className="flex min-w-0 flex-col gap-1">
-            <span className={MICRO_CAPTION_CLASS}>Record detail</span>
+            <span className={HEADER_CAPTION_CLASS}>Record detail</span>
             <h2 className="truncate text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
               {entry.title}
             </h2>

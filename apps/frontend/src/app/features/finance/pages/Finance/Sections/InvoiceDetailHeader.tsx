@@ -65,13 +65,13 @@ const InvoiceDetailHeader = ({
           <span className="flex items-center gap-2">
             <h2
               id={titleId}
-              className="text-[17px] font-bold leading-tight tracking-[-0.02em] text-text-primary truncate"
+              className="text-[17px] font-bold leading-tight tracking-[-0.02em] text-[var(--ink)] truncate"
             >
               {numberLabel}
             </h2>
             {statusLabel && (
               <span
-                className="rounded-full px-2.5 py-0.5 text-caption-2 border shrink-0"
+                className="inline-flex items-center rounded-full px-2.5 py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] border shrink-0"
                 style={statusStyle}
               >
                 {statusLabel}
@@ -79,7 +79,7 @@ const InvoiceDetailHeader = ({
             )}
           </span>
           {subtitle && (
-            <span className="text-caption-1 text-text-tertiary truncate" title={subtitle}>
+            <span className="text-[12.5px] text-text-tertiary truncate" title={subtitle}>
               {subtitle}
             </span>
           )}
@@ -91,7 +91,7 @@ const InvoiceDetailHeader = ({
             href={pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-card-border text-body-4 text-text-secondary hover:bg-card-hover transition-colors"
+            className="flex items-center gap-1.5 h-9 px-[15px] rounded-full border border-[var(--divider)] text-[12.5px] font-semibold text-[var(--ink-body)] hover:bg-[var(--inset)] transition-colors"
             aria-label={`Download invoice ${numberLabel} PDF`}
           >
             <IoDownloadOutline size={14} aria-hidden="true" />
@@ -102,7 +102,7 @@ const InvoiceDetailHeader = ({
           <button
             type="button"
             onClick={onOpenAppointment}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-card-border text-body-4 text-text-secondary hover:bg-card-hover transition-colors"
+            className="flex items-center gap-1.5 h-9 px-[15px] rounded-full border border-[var(--divider)] text-[12.5px] font-semibold text-[var(--ink-body)] hover:bg-[var(--inset)] transition-colors"
           >
             <IoOpenOutline size={14} aria-hidden="true" />
             Open appointment

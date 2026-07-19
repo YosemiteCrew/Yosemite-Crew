@@ -290,7 +290,7 @@ const LOW_STOCK_STATUS = 'LOW_STOCK';
 
 const chipClass = (active: boolean) =>
   clsx(
-    'inline-flex items-center rounded-full! border px-3.5 py-2 text-[12px] transition-colors',
+    'inline-flex items-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
     active
       ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)] font-bold'
       : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
@@ -382,7 +382,7 @@ export const InventoryFilterBar = ({
             }))
           }
           className={clsx(
-            'inline-flex items-center gap-[5px] rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-3.5 py-2 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
+            'inline-flex items-center gap-1.5 rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-[13px] py-1.5 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
             lowStockActive && 'shadow-[0_1px_3px_var(--sh08)]'
           )}
         >
@@ -411,7 +411,7 @@ export const InventoryFilterBar = ({
           <button
             type="button"
             onClick={() => setFilterOpen(true)}
-            className="inline-flex h-[38px] items-center gap-2 rounded-full! border border-[var(--hairline)] bg-transparent px-4 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+            className="inline-flex h-[38px] items-center gap-2 rounded-full! border border-[var(--hairline)] bg-transparent px-[14px] text-[12.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
           >
             <IoOptionsOutline size={16} aria-hidden="true" />
             <span>Filter</span>
@@ -427,7 +427,7 @@ export const InventoryFilterBar = ({
             ref={triggerRef}
             type="button"
             onClick={() => setSortOpen((v) => !v)}
-            className="inline-flex h-[38px] items-center gap-1.5 rounded-full! border border-[var(--hairline)] bg-transparent px-4 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full! border border-[var(--hairline)] bg-transparent px-[14px] text-[12.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
           >
             <span>Sort: {SORT_OPTIONS.find((option) => option.key === sortMode)?.label}</span>
             <IoChevronDownOutline

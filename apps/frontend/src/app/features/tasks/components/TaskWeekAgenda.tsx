@@ -109,7 +109,7 @@ const AgendaCard = ({ task, isFutureDay, assigneeName, onOpen }: AgendaCardProps
       </span>
       <span
         className="mt-0.5 block text-[10px] leading-4"
-        style={{ color: style.metaColor, opacity: isParent ? 1 : 0.85 }}
+        style={{ color: style.metaColor, opacity: isParent ? 1 : 0.8 }}
       >
         {metaParts.join(' · ')}
       </span>

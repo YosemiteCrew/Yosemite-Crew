@@ -42,19 +42,19 @@ const InvoicePaymentLedger = ({
 
   return (
     <section className="flex flex-col gap-3" aria-label="Payments">
-      <h3 className="text-body-4-emphasis text-text-primary">Payments</h3>
+      <h3 className="text-[13px] font-bold text-[var(--ink)]">Payments</h3>
       <div className="rounded-[14px] border border-card-border overflow-hidden">
-        <div className="flex items-center gap-3 px-4 py-2.5">
+        <div className="flex items-center gap-3 px-4 py-[11px]">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-blue-light text-blue-text">
             <IoCardOutline size={16} aria-hidden="true" />
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-body-4-emphasis text-text-primary">Payment recorded</span>
-            <span className="block text-caption-1 text-text-tertiary truncate" title={caption}>
+            <span className="block text-[13px] font-bold text-[var(--ink)]">Payment recorded</span>
+            <span className="block text-[11.5px] text-text-tertiary truncate" title={caption}>
               {caption}
             </span>
           </span>
-          <span className="text-body-4-emphasis text-text-primary tabular-nums">
+          <span className="text-[13px] font-bold text-[var(--ink)] tabular-nums">
             {formatMoney(invoice.totalAmount ?? 0, currency)}
           </span>
           {receiptUrl && (
@@ -62,7 +62,7 @@ const InvoicePaymentLedger = ({
               href={receiptUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-caption-1 text-blue-text hover:underline"
+              className="text-[11.5px] font-semibold text-blue-text hover:underline"
             >
               Receipt
             </a>
@@ -70,12 +70,8 @@ const InvoicePaymentLedger = ({
         </div>
       </div>
       {email && (
-        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--inset)] text-caption-1 text-text-secondary">
-          <IoCheckmarkCircle
-            size={14}
-            aria-hidden="true"
-            style={{ color: 'var(--color-pill-success-text)' }}
-          />
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--inset)] text-[12px] text-text-secondary">
+          <IoCheckmarkCircle size={14} aria-hidden="true" style={{ color: 'var(--success)' }} />
           <span className="truncate" title={`Receipt sent to ${email}`}>
             Receipt sent to {email}
           </span>

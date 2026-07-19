@@ -754,7 +754,7 @@ const RegularChannelWindow: FC<{ currentUserId?: string | null }> = ({ currentUs
 
 const ChatEmptyThread: FC = () => (
   <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-    <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
+    <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-[var(--blue-text)]">
       <IoChatbubbleEllipsesOutline className="h-6 w-6" />
     </span>
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
@@ -971,7 +971,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                   onClick={onOpenNetworkDirectory}
                   className="flex cursor-pointer items-center gap-2 rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-2.5 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft"
                 >
-                  <IoGlobeOutline className="size-4 shrink-0 text-primary-600" />
+                  <IoGlobeOutline className="size-4 shrink-0 text-[var(--blue-text)]" />
                   <Text as="span" variant="body-4" className="text-neutral-900">
                     Message a colleague at another clinic
                   </Text>

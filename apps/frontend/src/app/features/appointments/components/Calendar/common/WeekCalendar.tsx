@@ -235,9 +235,9 @@ const AllDayBand = ({
   dayColumnsStyle: React.CSSProperties;
   handleViewAppointment: (appointment: Appointment) => void;
 }) => (
-  <div className="border-b border-card-border bg-slate-50">
+  <div className="border-b border-card-border bg-neutral-100">
     <div className="yc-week-grid__shell yc-week-grid__track py-2">
-      <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
+      <div className="sticky left-0 z-40 bg-neutral-100 text-xs font-satoshi text-grey-text flex items-start pr-2">
         All-day
       </div>
       <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
@@ -272,7 +272,7 @@ const AllDayBand = ({
           );
         })}
       </div>
-      <div className="sticky right-0 z-40 bg-slate-50" />
+      <div className="sticky right-0 z-40 bg-neutral-100" />
     </div>
   </div>
 );

@@ -110,15 +110,24 @@ const ProfileDetail = ({
   label,
   value,
   wrapValue = false,
+  labelWidth = 88,
 }: {
   label: string;
   value: string;
   wrapValue?: boolean;
+  /** Design label-column width: 88px on the companion panel, 74px on the parent panel. */
+  labelWidth?: 74 | 88;
 }) => (
-  <div className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)] items-start gap-2">
-    <span className="text-yc-12-r-neutral text-text-secondary">{label}:</span>
+  <div
+    className={`grid min-w-0 items-start gap-2 ${
+      labelWidth === 74 ? 'grid-cols-[74px_minmax(0,1fr)]' : 'grid-cols-[88px_minmax(0,1fr)]'
+    }`}
+  >
+    <span className="font-satoshi text-[12.5px] text-[var(--ink-faint)]">{label}:</span>
     <span
-      className={wrapValue ? 'break-words text-yc-12-b-neutral' : 'truncate text-yc-12-b-neutral'}
+      className={`font-satoshi text-[12.5px] font-bold text-[var(--ink)] ${
+        wrapValue ? 'break-words' : 'truncate'
+      }`}
     >
       {value}
     </span>
@@ -169,7 +178,7 @@ const CompanionProfilePanel = ({
   return (
     <section
       aria-label="Companion profile"
-      className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 p-5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 px-5 py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <Image
         alt={record.companion.name}
@@ -226,7 +235,7 @@ const ParentProfilePanel = ({
   return (
     <section
       aria-label="Parent profile"
-      className="flex min-h-36 flex-col gap-3 rounded-[18px] border border-card-border bg-neutral-0 p-5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 px-5 py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <div className="flex w-16 shrink-0 items-start">
         <Image
@@ -240,7 +249,13 @@ const ParentProfilePanel = ({
       <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="grid min-w-0 flex-1 grid-cols-1 gap-x-10 gap-y-3">
           {details.map((detail) => (
-            <ProfileDetail key={detail.label} label={detail.label} value={detail.value} wrapValue />
+            <ProfileDetail
+              key={detail.label}
+              label={detail.label}
+              value={detail.value}
+              wrapValue
+              labelWidth={74}
+            />
           ))}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
@@ -473,7 +488,9 @@ const CompanionHistoryDesktopBody = ({
           >
             <IoIosArrowBack size={16} aria-hidden="true" />
           </button>
-          <h1 className="text-page-title text-text-primary">{title}</h1>
+          <h1 className="font-newsreader text-[26px] font-normal leading-[1.1] tracking-[-0.015em] text-[var(--ink)]">
+            {title}
+          </h1>
           <div className="flex flex-wrap items-center gap-1.5">
             {companionAlerts.map((alert) => (
               <AlertPill
