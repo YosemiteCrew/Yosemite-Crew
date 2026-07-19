@@ -2,9 +2,8 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { Appointment } from '@yosemite-crew/types';
 
-import PhoneDayStrip, {
-  buildPhoneDayStrip,
-} from '@/app/features/appointments/components/Calendar/responsive/PhoneDayStrip';
+import PhoneDayStrip from '@/app/features/appointments/components/Calendar/responsive/PhoneDayStrip';
+import { buildPhoneDayStrip } from '@/app/features/appointments/components/Calendar/responsive/phoneDayStripModel';
 
 const WEEK_START = new Date(2026, 6, 6);
 const TODAY = new Date(2026, 6, 7, 10, 20);

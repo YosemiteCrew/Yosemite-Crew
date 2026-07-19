@@ -281,6 +281,14 @@ const FilterPills = ({
 const PILL_CONTROL_CLASS =
   'inline-flex size-[30px] shrink-0 cursor-pointer items-center justify-center rounded-full! transition-colors';
 
+/** Zoom-toggle segment: the selected half lifts onto --screen, the other stays faint. */
+const getZoomSegmentClass = (active: boolean): string =>
+  `${PILL_CONTROL_CLASS} ${
+    active
+      ? 'bg-neutral-0 text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
+      : 'text-[var(--ink-faint)] hover:text-[var(--ink)]'
+  }`;
+
 /** Track shared by the date-nav pill and the zoom toggle: 4px pad, --hairline, --field-bg. */
 const PILL_TRACK_STYLE: React.CSSProperties = {
   borderWidth: '1px',
@@ -297,12 +305,6 @@ const ZoomToggle = ({
   setZoomMode: React.Dispatch<React.SetStateAction<CalendarZoomMode>>;
 }) => {
   const isZoomIn = zoomMode !== 'out';
-  const segmentClass = (active: boolean) =>
-    `${PILL_CONTROL_CLASS} ${
-      active
-        ? 'bg-neutral-0 text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
-        : 'text-[var(--ink-faint)] hover:text-[var(--ink)]'
-    }`;
   return (
     <div
       className="inline-flex shrink-0 items-center gap-1 rounded-full p-1"
@@ -313,7 +315,7 @@ const ZoomToggle = ({
         onClick={() => setZoomMode('in')}
         title="Zoom in timeline"
         aria-label="Zoom in timeline"
-        className={segmentClass(isZoomIn)}
+        className={getZoomSegmentClass(isZoomIn)}
       >
         <IoAddOutline size={16} />
       </button>
@@ -322,7 +324,7 @@ const ZoomToggle = ({
         onClick={() => setZoomMode('out')}
         title="Zoom out timeline"
         aria-label="Zoom out timeline"
-        className={segmentClass(!isZoomIn)}
+        className={getZoomSegmentClass(!isZoomIn)}
       >
         <IoRemoveOutline size={16} />
       </button>
