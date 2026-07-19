@@ -62,7 +62,7 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
         {open && (
           <div
             aria-label={`Filter ${title} by time period`}
-            className="bg-neutral-0 border border-card-border px-2 py-1 min-w-full whitespace-nowrap absolute top-[120%] right-0 flex flex-col rounded-2xl z-10"
+            className="bg-neutral-0 border border-card-border px-2 py-1 min-w-full whitespace-nowrap absolute top-[120%] right-0 flex flex-col rounded-2xl z-10 shadow-[0_6px_16px_var(--sh10),0_20px_48px_var(--sh12)]"
           >
             {options.map((option: string) => (
               <button
@@ -72,7 +72,7 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
                 key={option}
                 onClick={() => handleSelect(option)}
               >
-                <span className="text-body-4 text-text-primary">{option}</span>
+                <span className="text-[12.5px] text-text-primary">{option}</span>
               </button>
             ))}
           </div>

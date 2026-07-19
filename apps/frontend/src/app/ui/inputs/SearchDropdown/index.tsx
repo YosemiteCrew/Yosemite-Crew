@@ -157,7 +157,7 @@ const SearchDropdown = ({
         {accessibleLabel}
       </label>
       <div
-        className={`h-[40px] border-[1.5px] bg-[var(--field-bg)] px-[13px] flex items-center gap-[9px] w-full focus-within:border-[var(--blue)]! ${canSearch ? 'border-[var(--blue)]! border-b-0! rounded-t-xl!' : 'border-[var(--hairline)]! rounded-xl!'}`}
+        className={`h-[40px] border-[1.5px] bg-[var(--field-bg)] px-[13px] flex items-center gap-[9px] w-full focus-within:border-[var(--blue)]! ${canSearch ? 'border-[var(--blue)]! border-b-0! rounded-t-[13px]!' : 'border-[var(--hairline)]! rounded-[13px]!'}`}
       >
         <IoIosSearch size={15} color="var(--ink-faint)" className="shrink-0" aria-hidden="true" />
         <input
@@ -185,7 +185,7 @@ const SearchDropdown = ({
         <div
           id={listboxId}
           aria-label={accessibleLabel}
-          className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-xl border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
+          className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[13px] border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
           onScroll={handleScroll}
         >
           {filtered.map((option) => (

@@ -43,7 +43,7 @@ const Explorecard = () => {
   const stats = getExploreStats(analytics.explore, currency);
 
   return (
-    <div className="flex flex-col w-full gap-3">
+    <div className="flex flex-col w-full gap-2.5">
       <CardHeader
         title={'Explore'}
         options={durationOptions}

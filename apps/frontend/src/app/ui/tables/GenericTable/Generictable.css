@@ -1,7 +1,10 @@
 .TableShell {
   background: var(--screen) !important;
   border: 1px solid var(--hairline) !important;
-  border-radius: 16px !important;
+  border-radius: 18px !important;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05) !important;
   overflow: hidden;
   min-height: 0;
   /* Own a compositing context so the 16px rounded overflow:hidden clip is

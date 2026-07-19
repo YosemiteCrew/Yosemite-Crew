@@ -8,7 +8,7 @@ import { IoAdd, IoChevronDown, IoWarning } from 'react-icons/io5';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
-// Design filter-chip recipe (list toolbars): pill, 6px 13px, 12px text.
+// Design filter-chip recipe (list toolbars): pill, 6px 11px, 11px text (measured).
 // Neutral: active = --inset fill + --divider border + --ink bold; rest = --hairline border + --ink-muted.
 // Emergency: always danger-toned (--danger-border/--danger-text); active adds --danger-bg fill.
 const getFilterChipClassName = (filterKey: string, activeFilter: string): string => {
@@ -121,8 +121,8 @@ const Filters = ({
                 type="button"
                 onClick={() => handleFilterToggle(filter.key)}
                 className={clsx(
-                  'relative inline-flex items-center justify-center gap-1.5 rounded-full! border text-[12px] transition-colors',
-                  compactFilterPills ? 'px-3 py-1' : 'px-[13px] py-1.5',
+                  'relative inline-flex items-center justify-center gap-1.5 rounded-full! border text-[11px] transition-colors',
+                  compactFilterPills ? 'px-3 py-1' : 'px-[11px] py-1.5',
                   getFilterChipClassName(filter.key, activeFilter ?? '')
                 )}
               >
@@ -159,7 +159,7 @@ const Filters = ({
               ref={triggerRef}
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[11px] py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] transition-colors"
               style={
                 showStatusTint
                   ? {

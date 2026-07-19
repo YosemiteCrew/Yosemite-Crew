@@ -37,7 +37,7 @@ const TimeInputButton = ({
       ref={ref}
       type="button"
       onClick={onClick}
-      className={`relative flex h-[46px] w-full items-center justify-between rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[14px] text-left text-[14px] text-[var(--ink-body)] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
+      className={`relative flex h-[46px] w-full items-center justify-between rounded-[13px]! border-[1.5px] bg-[var(--field-bg)] px-[14px] text-left text-[13.5px] text-[var(--ink-body)] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
         error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'
       } focus:border-[var(--blue)]! ${className ?? ''}`}
       aria-label={value ? `${label}: ${value}` : label}

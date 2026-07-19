@@ -8,7 +8,7 @@
   flex-shrink: 0;
   align-self: stretch;
   border: 1.5px solid var(--hairline);
-  border-radius: 12px;
+  border-radius: 13px;
   background: var(--field-bg);
   position: relative;
 }

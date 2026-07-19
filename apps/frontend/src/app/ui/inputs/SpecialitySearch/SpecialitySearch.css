@@ -6,7 +6,7 @@
   gap: 9px;
   flex-shrink: 0;
   align-self: stretch;
-  border-radius: 12px;
+  border-radius: 13px;
   border: 1.5px solid var(--hairline);
   background: var(--field-bg);
   position: relative;

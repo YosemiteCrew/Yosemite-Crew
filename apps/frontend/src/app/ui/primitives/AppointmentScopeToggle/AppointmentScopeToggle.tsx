@@ -11,8 +11,9 @@ const AppointmentScopeToggle = ({
   disabled = false,
   onChange,
 }: AppointmentScopeToggleProps) => {
-  // Design toggle-switch recipe: 40x24 track, 18px knob. On = --blue track + white knob;
-  // off = --divider track + --screen knob. Label follows ink-body (on) / ink-muted (off).
+  // Design toggle-switch recipe: 40x24 track (2.5px inset), 19px knob with a soft drop shadow.
+  // On = --blue track + white knob; off = --divider track + --screen knob.
+  // Label follows ink-body (on) / ink-muted (off).
   const trackClass = showMineOnly ? 'bg-[var(--blue)]' : 'bg-[var(--divider)]';
   const knobClass = showMineOnly ? 'translate-x-4 bg-white' : 'translate-x-0 bg-[var(--screen)]';
 
@@ -29,10 +30,10 @@ const AppointmentScopeToggle = ({
     >
       <span
         aria-hidden="true"
-        className={`relative block h-6 w-10 shrink-0 rounded-full p-[3px] transition-colors ${trackClass}`}
+        className={`relative block h-6 w-10 shrink-0 rounded-full p-[2.5px] transition-colors ${trackClass}`}
       >
         <span
-          className={`block size-[18px] rounded-full transition-transform duration-200 ${knobClass}`}
+          className={`block size-[19px] rounded-full shadow-[0_1px_3px_var(--sh22)] transition-transform duration-200 ${knobClass}`}
         />
       </span>
       <span

@@ -13,7 +13,7 @@ const primaryMeta = {
       description: {
         component:
           'Main CTA button. Renders a `<button>` by default; pass `href` for Next.js `<Link>` navigation. ' +
-          'Hover scale animation. Two sizes: `default` and `large`.',
+          'Flat --cta fill that darkens to --cta-hover on hover. Two sizes: `default` and `large`.',
       },
     },
   },

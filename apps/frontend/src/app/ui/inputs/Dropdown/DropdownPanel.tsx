@@ -45,7 +45,7 @@ const DropdownPanel = ({
     style={shouldPortal ? (portalStyle ?? undefined) : undefined}
   >
     {search && (
-      <div className="h-[40px]! rounded-xl border-[1.5px]! border-input-border-default! bg-[var(--field-bg)] px-[13px]! flex items-center gap-[9px]">
+      <div className="h-[40px]! rounded-[13px] border-[1.5px]! border-input-border-default! bg-[var(--field-bg)] px-[13px]! flex items-center gap-[9px]">
         <label htmlFor={searchInputId} className="sr-only">
           Search {placeholder}
         </label>

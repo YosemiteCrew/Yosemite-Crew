@@ -10,9 +10,10 @@ type BoardScopeToggleProps = {
 
 // Neutral raised-pill segmented control per the design recipe:
 // track = --band + hairline, active segment = --screen raised (shadow), ink text.
-// Segments are content-sized (padding 6px 16px) to match the design's segmented pill.
+// Board-density segment: 7px vertical padding, 12px text (measured from the design);
+// content-sized horizontally (16px) since this toggle sits inline in toolbars.
 const segmentClass = (active: boolean, disabled?: boolean) =>
-  `rounded-full! px-4 py-1.5 text-[12.5px] transition-colors ${
+  `rounded-full! px-4 py-[7px] text-[12px] transition-colors ${
     disabled ? 'cursor-not-allowed' : 'cursor-pointer'
   } ${
     active

@@ -28,7 +28,7 @@ const CenterModal = ({
       showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
     }`}
     overlayStyle={{ backgroundColor: 'var(--sh55)' }}
-    containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 transition-opacity duration-100 ease-out -translate-y-1/2 w-[90%] sm:w-[500px] z-[1200] bg-neutral-0 p-3 flex flex-col gap-3 rounded-[20px] border border-card-border shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)] ${
+    containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 transition-opacity duration-100 ease-out -translate-y-1/2 w-[90%] sm:w-[500px] z-[1200] bg-neutral-0 p-3 flex flex-col gap-3 rounded-[20px] border border-card-border shadow-[0_2px_6px_var(--sh05),0_18px_48px_var(--sh08)] ${
       showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
     } ${containerClassName ?? ''}`}
   >

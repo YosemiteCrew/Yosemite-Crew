@@ -293,13 +293,13 @@
 .appointment-profile-title.cell-muted {
   color: var(--ink-muted);
 }
-/* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 4px 10px, fully round.
+/* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 3px 10px, fully round.
    Per-status bg/text/border are supplied inline via getStatusStyle(...). */
 .appointment-status {
   display: inline-flex;
   width: fit-content;
   align-self: flex-start;
-  padding: 4px 10px;
+  padding: 3px 10px;
   justify-content: center;
   align-items: center;
   gap: 6px;
