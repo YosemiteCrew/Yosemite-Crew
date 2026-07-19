@@ -85,7 +85,15 @@ describe('AvailabilityStep Component', () => {
     expect(screen.getByTestId('btn-back')).toBeInTheDocument();
   });
 
-  it('renders the consultation-slot selector and updates the chosen duration', () => {
+  /**
+   * Regression guard. These controls once held local state that `handleSaveAvailability` never
+   * sent — `upsertAvailability` only ever receives `convertAvailability(availability)`, and the
+   * base-availability API has no field for slot length or visit modality. Any selection was
+   * therefore silently discarded on Finish. They must stay non-interactive until the API
+   * persists them; if you wire them into the payload, replace these tests with ones asserting
+   * the saved payload carries the choice.
+   */
+  it('renders the consultation-slot selector disabled at the default the API applies', () => {
     render(
       <AvailabilityStep
         prevStep={mockPrevStep}
@@ -100,12 +108,10 @@ describe('AvailabilityStep Component', () => {
 
     const slot = screen.getByLabelText('Consultation slot') as HTMLSelectElement;
     expect(slot.value).toBe('30 min');
-
-    fireEvent.change(slot, { target: { value: '45 min' } });
-    expect(slot.value).toBe('45 min');
+    expect(slot).toBeDisabled();
   });
 
-  it('toggles the consultation-type pills', () => {
+  it('renders the consultation-type pills disabled so a discarded choice cannot be made', () => {
     render(
       <AvailabilityStep
         prevStep={mockPrevStep}
@@ -123,12 +129,15 @@ describe('AvailabilityStep Component', () => {
 
     expect(inClinic).toHaveAttribute('aria-pressed', 'true');
     expect(homeVisits).toHaveAttribute('aria-pressed', 'false');
+    expect(inClinic).toBeDisabled();
+    expect(homeVisits).toBeDisabled();
 
+    // Clicking must not move the pills off the defaults the backend actually applies.
     fireEvent.click(homeVisits);
-    expect(homeVisits).toHaveAttribute('aria-pressed', 'true');
-
     fireEvent.click(inClinic);
-    expect(inClinic).toHaveAttribute('aria-pressed', 'false');
+
+    expect(inClinic).toHaveAttribute('aria-pressed', 'true');
+    expect(homeVisits).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('calls prevStep when Back is clicked', () => {
@@ -198,6 +207,12 @@ describe('AvailabilityStep Component', () => {
       expect(convertAvailability).toHaveBeenCalledWith(mockAvailabilityState);
       expect(upsertAvailability).toHaveBeenCalledWith(mockConvertedData, mockOrgId);
     });
+
+    // The saved payload is exactly the converted availability — the API takes nothing else,
+    // so no consultation slot/type data may be smuggled in alongside it.
+    const [payload, ...rest] = (upsertAvailability as jest.Mock).mock.calls[0];
+    expect(payload).toBe(mockConvertedData);
+    expect(rest).toEqual([mockOrgId]);
   });
 
   it('ignores a submit that arrives while a save is already in flight', async () => {

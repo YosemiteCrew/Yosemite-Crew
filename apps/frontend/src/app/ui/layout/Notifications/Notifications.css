@@ -156,12 +156,14 @@
   color: var(--blue-text);
 }
 
-/* The design tints this disc with the translucent logo pink and a bright logo-pink
-   glyph, not the app's opaque --pink-soft / dark-raspberry --pink-text pair. Both
-   values are theme-neutral (a translucent wash reads correctly on either surface). */
+/* Soft-tint background + strong-ink glyph, same pairing as the blue and danger
+   discs above. The literal logo pink this used to carry (#ff90d4 over an 18% wash
+   of itself) only clears ~1.8:1 on the light bone surface, so the glyph all but
+   disappeared; --pink-text keeps the bright logo pink in dark mode (5.6:1) and
+   drops to the raspberry ink in light (4.1:1). */
 .yc-noti-disc--pink {
-  background: rgb(255 144 212 / 18%);
-  color: #ff90d4;
+  background: var(--pink-soft);
+  color: var(--pink-text);
 }
 
 .yc-noti-disc--danger {

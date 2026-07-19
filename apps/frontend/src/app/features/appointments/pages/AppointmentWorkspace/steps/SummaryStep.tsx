@@ -890,7 +890,6 @@ const useSummaryStepContent = ({
                   ariaLabel="Discharge summary"
                   value={encounter.dischargeSummary}
                   readOnly={readOnly}
-                  toolbarPlacement="inset"
                   onChange={(html) => setDischargeSummary(appointmentId, html)}
                   placeholder="Discharge instructions and follow-up care"
                 />

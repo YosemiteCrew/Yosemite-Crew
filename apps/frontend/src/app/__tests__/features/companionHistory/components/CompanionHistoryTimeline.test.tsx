@@ -2177,6 +2177,73 @@ describe('CompanionHistoryTimeline', () => {
     }
   });
 
+  // Regression: the drawer's only primary action used to be "Download PDF", which
+  // pushed entry.link.id into the document download endpoint. A lab / invoice /
+  // task id is not a document id, so those records lost their open path and got a
+  // "Document unavailable" error instead. Each non-document type keeps its own
+  // routing and never touches the document endpoint.
+  it.each([
+    [
+      'lab result',
+      4,
+      'IDEXX Result',
+      'Open result',
+      '/appointments?appointmentId=a-1&open=labs&subLabel=idexx-labs',
+    ],
+    ['invoice', 5, 'Invoice', 'Open finance', '/finance?invoiceId=i-1'],
+    ['task', 1, 'Give medication', 'Open task', '/tasks?taskId=t-1'],
+  ])(
+    'opens a %s from the drawer through its own route, not the document endpoint',
+    async (_type, entryIndex, title, actionLabel, expectedPath) => {
+      (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+        entries: [baseEntries[entryIndex as number]],
+        nextCursor: null,
+        summary: { totalReturned: 1, countsByType: {} },
+      });
+
+      render(<CompanionHistoryTimeline companionId="c-1" />);
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: `Open record detail for ${title}` })
+      );
+      const drawer = await screen.findByRole('dialog', { name: new RegExp(title as string) });
+
+      expect(
+        within(drawer).queryByRole('button', { name: 'Download PDF' })
+      ).not.toBeInTheDocument();
+      fireEvent.click(within(drawer).getByRole('button', { name: actionLabel as string }));
+
+      expect(mockGetSafeSameOriginPath).toHaveBeenCalledWith(expectedPath);
+      expect(loadDocumentDownloadURL).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    }
+  );
+
+  it('opens the drawer record in place when it belongs to the active appointment', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[5]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { INVOICE: 1 } },
+    });
+    const onOpenAppointmentView = jest.fn();
+
+    render(
+      <CompanionHistoryTimeline
+        companionId="c-1"
+        activeAppointmentId="a-1"
+        onOpenAppointmentView={onOpenAppointmentView}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open record detail for Invoice' }));
+    const drawer = await screen.findByRole('dialog', { name: /Invoice/ });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Open finance' }));
+
+    expect(onOpenAppointmentView).toHaveBeenCalledWith({ label: 'finance', subLabel: 'summary' });
+    // The drawer must not stay on top of the workspace tab it just opened.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('uses the in-page callback and loaded appointment name for the drawer linked row', async () => {
     mockAppointmentsById['a-1'] = {
       id: 'a-1',

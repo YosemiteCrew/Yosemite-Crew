@@ -7,17 +7,31 @@ import { getStatusBadgeStyle } from '@/app/features/inventory/pages/Inventory/ut
    footer so the pill run reads the same everywhere. */
 const PAGE_PILL_LIMIT = 7;
 
-export const buildPagerPageList = (current: number, total: number): (number | 'gap')[] => {
-  if (total <= PAGE_PILL_LIMIT) return Array.from({ length: total }, (_, index) => index + 1);
+/** One slot in the pager run: a numbered pill, or the collapsed ellipsis when
+ *  `page` is null. `key` is a stable React key — a page pill is identified by its
+ *  own number and a gap by the page it follows, both unique within a run, so no
+ *  slot has to fall back to its array position. */
+export type PagerEntry = { key: string; page: number | null };
+
+const toPagerPage = (page: number): PagerEntry => ({ key: `page-${page}`, page });
+
+const toPagerGap = (afterPage: number): PagerEntry => ({
+  key: `gap-after-${afterPage}`,
+  page: null,
+});
+
+export const buildPagerPageList = (current: number, total: number): PagerEntry[] => {
+  if (total <= PAGE_PILL_LIMIT)
+    return Array.from({ length: total }, (_, index) => toPagerPage(index + 1));
   const wanted = [1, current - 1, current, current + 1, total].filter(
     (page) => page >= 1 && page <= total
   );
   const unique = [...new Set(wanted)].sort((a, b) => a - b);
-  const list: (number | 'gap')[] = [];
+  const list: PagerEntry[] = [];
   let previous = 0;
   for (const page of unique) {
-    if (previous && page - previous > 1) list.push('gap');
-    list.push(page);
+    if (previous && page - previous > 1) list.push(toPagerGap(previous));
+    list.push(toPagerPage(page));
     previous = page;
   }
   return list;

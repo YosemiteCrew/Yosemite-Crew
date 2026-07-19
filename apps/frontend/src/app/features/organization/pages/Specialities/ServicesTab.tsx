@@ -1,4 +1,10 @@
-import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
+import {
+  useEffect,
+  useImperativeHandle,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type Ref,
+} from 'react';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { ServiceRevamp } from '@/app/features/organization/types/revamp';
@@ -15,6 +21,7 @@ import YosemiteLoader from '@/app/ui/overlays/Loader/YosemiteLoader';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
 import {
   avatarAccentFor,
+  humanize,
   initialsOf,
 } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 import {
@@ -53,7 +60,18 @@ const TYPE_LABELS: Record<string, string> = {
 const GRID_COLS = 'grid-cols-[1.7fr_1fr_90px_90px_100px_120px_44px]';
 
 const STATUS_PILL_CLASS =
-  'inline-flex items-center rounded-full border px-[9px] py-[2px] text-[9.5px] font-bold bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]';
+  'inline-flex items-center rounded-full border px-[9px] py-[2px] text-[9.5px] font-bold uppercase bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]';
+
+/**
+ * The design's status micro-badge. The catalog status arrives as a backend enum
+ * (`ACTIVE`, `ARCHIVED`, ...) which must never reach UI copy, so it is humanized
+ * to a readable label ("Active") and the design's all-caps look is kept as a
+ * `text-transform`. Shared by the wide row and the compact row so the two can
+ * never drift apart.
+ */
+const StatusPill = ({ status }: { status: string }) => (
+  <span className={STATUS_PILL_CLASS}>{humanize(status)}</span>
+);
 
 const BookableCell = ({ isBookable }: { isBookable: boolean }) =>
   isBookable ? (
@@ -105,14 +123,22 @@ const RowActionsMenu = ({
   onArchive: () => void;
 }) => {
   const [open, setOpen] = useState(false);
+
+  /**
+   * Escape closes the menu. Focus is always on one of the three buttons while the
+   * menu is open (leaving them fires the wrapper's `blur`), so the handler lives on
+   * the native controls rather than on the positioning wrapper, which carries no
+   * interactive semantics of its own.
+   */
+  const closeOnEscape = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'Escape') setOpen(false);
+  };
+
   return (
     <div
       className="relative flex justify-center"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') setOpen(false);
       }}
     >
       <button
@@ -120,6 +146,7 @@ const RowActionsMenu = ({
         aria-label={`Actions for ${serviceName}`}
         aria-expanded={open}
         onClick={() => setOpen((previous) => !previous)}
+        onKeyDown={closeOnEscape}
         className="flex size-7 items-center justify-center rounded-full text-[var(--ink-faint)] hover:bg-[var(--surface-soft)] hover:text-[var(--ink)] transition-colors cursor-pointer"
       >
         <IoEllipsisHorizontal size={15} aria-hidden="true" />
@@ -132,6 +159,7 @@ const RowActionsMenu = ({
               setOpen(false);
               onEdit();
             }}
+            onKeyDown={closeOnEscape}
             className="flex items-center gap-2 px-3 py-2 text-left text-[12.5px] text-[var(--ink-body)] hover:bg-[var(--surface-soft)] cursor-pointer"
           >
             <IoCreateOutline size={14} aria-hidden="true" />
@@ -143,6 +171,7 @@ const RowActionsMenu = ({
               setOpen(false);
               onArchive();
             }}
+            onKeyDown={closeOnEscape}
             className="flex items-center gap-2 px-3 py-2 text-left text-[12.5px] text-[var(--danger-text)] hover:bg-[var(--surface-soft)] cursor-pointer"
           >
             <IoArchiveOutline size={14} aria-hidden="true" />
@@ -249,7 +278,7 @@ const ServiceRow = ({
           <BookableCell isBookable={service.isBookable} />
         </span>
         <span>
-          <span className={STATUS_PILL_CLASS}>{service.status}</span>
+          <StatusPill status={service.status} />
         </span>
         <RowActionsMenu serviceName={service.name} onEdit={onEdit} onArchive={onArchive} />
       </div>
@@ -260,7 +289,7 @@ const ServiceRow = ({
           <div className="min-w-0 flex-1">
             <ServiceNameCell service={service} expanded={expanded} onToggle={toggle} />
           </div>
-          <span className={STATUS_PILL_CLASS}>{service.status}</span>
+          <StatusPill status={service.status} />
           <RowActionsMenu serviceName={service.name} onEdit={onEdit} onArchive={onArchive} />
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

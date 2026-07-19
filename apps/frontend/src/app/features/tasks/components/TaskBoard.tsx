@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
+import './TaskBoard.css';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
@@ -14,6 +15,7 @@ import { getStatusStyle } from '@/app/config/statusConfig';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { useTaskStore } from '@/app/stores/taskStore';
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
 import { IoAdd } from 'react-icons/io5';
@@ -49,7 +51,7 @@ type MemberIdentity = {
  * Statuses whose columns collapse to the first few cards behind a "+N more"
  * link, as the design's Completed column does.
  */
-const COLLAPSING_COLUMNS: BoardStatus[] = ['COMPLETED', 'CANCELLED'];
+const COLLAPSING_COLUMNS: ReadonlySet<BoardStatus> = new Set(['COMPLETED', 'CANCELLED']);
 const COLLAPSED_CARD_COUNT = 2;
 
 const getInitialsStatic = (name: string) =>
@@ -61,6 +63,13 @@ const getInitialsStatic = (name: string) =>
     .join('') || '--';
 
 const getColumnDotColor = (status: BoardStatus): string => getStatusStyle(status).borderColor;
+
+/**
+ * The companion a task is about. Tasks loaded from the PMS carry the link on
+ * `patientId` after the patient rename; records created before it still carry
+ * `companionId`, so both have to be read or backend tasks lose their thumbnail.
+ */
+const getTaskCompanionId = (task: Task): string | undefined => task.companionId ?? task.patientId;
 
 /** One grey meta line under the card title, matching the design's density. */
 const buildBoardMeta = (task: Task, assigneeName: string): string => {
@@ -141,6 +150,13 @@ const TaskCard = ({
   const showAvatar = hasFooterRow && Boolean(assignedTo.name) && assignedTo.name !== '-';
   const showCompanion = hasFooterRow && Boolean(companion);
   const elapsedFraction = getTaskElapsedFraction(task);
+  // A stored photo can be a legacy relative key, an http:// URL or an
+  // 'undefined' placeholder, none of which next/image accepts — it throws and
+  // takes the whole board down. Resolve it through the same guard every other
+  // companion avatar uses so a rejected value degrades to the species fallback.
+  const companionPhotoUrl = companion?.photoUrl
+    ? getSafeImageUrl(companion.photoUrl, companion.type?.toLowerCase() as ImageType)
+    : '';
 
   return (
     <article
@@ -182,20 +198,12 @@ const TaskCard = ({
       <div className="relative z-10 mt-[3px] text-[11px] leading-4 text-text-tertiary">{meta}</div>
 
       {elapsedFraction !== null && (
-        <div
-          className="relative z-10 mt-[9px] block h-[5px] overflow-hidden rounded-full"
-          style={{ backgroundColor: 'var(--band)' }}
-          role="progressbar"
+        <progress
+          className="yc-task-progress relative z-10 mt-[9px]"
           aria-label={`Time elapsed toward due for ${task.name || '-'}`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(elapsedFraction * 100)}
-        >
-          <span
-            className="block h-full rounded-full"
-            style={{ width: `${elapsedFraction * 100}%`, backgroundColor: 'var(--blue)' }}
-          />
-        </div>
+          max={100}
+          value={Math.round(elapsedFraction * 100)}
+        />
       )}
 
       {(showAvatar || showCompanion) && (
@@ -204,7 +212,7 @@ const TaskCard = ({
             {showAvatar &&
               (assignedTo.imageUrl ? (
                 <Image
-                  src={assignedTo.imageUrl}
+                  src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
                   alt={assignedTo.name}
                   width={22}
                   height={22}
@@ -224,10 +232,10 @@ const TaskCard = ({
               className="size-[22px] shrink-0 overflow-hidden rounded-full"
               style={{ backgroundColor: 'var(--avatar-amber-bg)' }}
             >
-              {companion?.photoUrl ? (
+              {companionPhotoUrl ? (
                 <Image
-                  src={companion.photoUrl}
-                  alt={companion.name}
+                  src={companionPhotoUrl}
+                  alt={companion?.name ?? ''}
                   width={22}
                   height={22}
                   className="size-full object-cover"
@@ -324,8 +332,7 @@ const BoardColumn = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const hasTasks = columnTasks.length > 0;
   // The design truncates the settled columns and offers a "+N more" link.
-  const collapses =
-    COLLAPSING_COLUMNS.includes(column.key) && columnTasks.length > COLLAPSED_CARD_COUNT;
+  const collapses = COLLAPSING_COLUMNS.has(column.key) && columnTasks.length > COLLAPSED_CARD_COUNT;
   const isCollapsed = collapses && !isExpanded;
   const visibleTasks = isCollapsed ? columnTasks.slice(0, COLLAPSED_CARD_COUNT) : columnTasks;
   const hiddenCount = columnTasks.length - visibleTasks.length;
@@ -365,7 +372,7 @@ const BoardColumn = ({
             canEditTasks={canEditTasks}
             updatingStatusId={updatingStatusId}
             assignedTo={resolveMemberIdentity(task.assignedTo)}
-            companion={resolveCompanion(task.companionId)}
+            companion={resolveCompanion(getTaskCompanionId(task))}
             onOpen={onOpen}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}

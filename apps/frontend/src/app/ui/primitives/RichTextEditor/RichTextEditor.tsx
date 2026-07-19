@@ -13,13 +13,6 @@ type RichTextEditorProps = {
   placeholder?: string;
   readOnly?: boolean;
   ariaLabel: string;
-  className?: string;
-  /**
-   * Retained for API compatibility with existing call sites. The editor now
-   * always docks its toolbar at the top of the field (revealed on focus), the
-   * design's single rich-text treatment, so this no longer changes the layout.
-   */
-  toolbarPlacement?: 'title' | 'inline' | 'inset';
 };
 
 /**

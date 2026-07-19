@@ -86,7 +86,7 @@ const Settings = () => {
         </div>
         <span className="yc-settings-autosave">
           <span className="yc-settings-autosave-dot" aria-hidden="true" />
-          Changes save automatically
+          {'Changes save automatically'}
         </span>
       </div>
 

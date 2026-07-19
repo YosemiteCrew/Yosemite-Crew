@@ -39,7 +39,6 @@ const NativeSoapFields = ({
         ariaLabel="Subjective history"
         value={subjective}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onSubjectiveChange}
         placeholder={terminologyText('Patient history and owner-reported information')}
       />
@@ -55,7 +54,6 @@ const NativeSoapFields = ({
         ariaLabel="Objective examination"
         value={objective}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onObjectiveChange}
         placeholder="Examination findings and recorded vitals"
       />
@@ -78,7 +76,6 @@ const NativeSoapFields = ({
         ariaLabel="Assessment differential"
         value={assessment}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onAssessmentChange}
         placeholder="Diagnosis and differentials"
       />
@@ -94,7 +91,6 @@ const NativeSoapFields = ({
         ariaLabel="Plan"
         value={plan}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onPlanChange}
         placeholder="Treatment plan and next steps"
       />

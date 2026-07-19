@@ -69,7 +69,10 @@ import {
 } from '@/app/lib/tasks';
 import { useNotify } from '@/app/hooks/useNotify';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { getPayloadString } from '@/app/features/companionHistory/utils/historyFormatters';
+import {
+  getPayloadString,
+  resolveHistoryDocumentId,
+} from '@/app/features/companionHistory/utils/historyFormatters';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -1540,13 +1543,13 @@ const useCompanionHistoryTimelineView = ({
 
   // The drawer's "Download PDF" action resolves the document's real URL and hands
   // it to the browser for download/open, rather than re-opening the in-app viewer.
+  // It is only offered for records the document store actually holds — the drawer
+  // gates on the same resolver, so a lab/invoice/task id never reaches this endpoint.
   const handleDownloadRecord = useCallback(
     async (entry: HistoryEntry) => {
-      const payloadDocumentId = entry.payload.documentId;
-      const entryDocumentId =
-        typeof payloadDocumentId === 'string' && payloadDocumentId.trim()
-          ? payloadDocumentId
-          : entry.link.id;
+      const entryDocumentId = resolveHistoryDocumentId(entry);
+      /* v8 ignore next -- unreachable: HistoryRecordDrawer only renders the download action when resolveHistoryDocumentId returns an id */
+      if (!entryDocumentId) return;
       setPdfLoadingId(entry.id);
       try {
         const urls = await loadDocumentDownloadURL(entryDocumentId);
@@ -1863,6 +1866,18 @@ const useCompanionHistoryTimelineView = ({
     [activeAppointmentId, onOpenAppointmentView]
   );
 
+  // The drawer's open action for non-document records: it reuses the row's
+  // type-aware routing (lab → diagnostics, invoice → finance, task → tasks,
+  // appointment/form → the appointment workspace) and dismisses the drawer so the
+  // destination is not left behind an overlay when it opens in place.
+  const handleViewRecord = useCallback(
+    (entry: HistoryEntry) => {
+      setSelectedEntry(null);
+      handleOpenEntry(entry);
+    },
+    [handleOpenEntry]
+  );
+
   const handleShareRecord = useCallback(
     (entry: HistoryEntry) => {
       notify('info', {
@@ -2023,6 +2038,7 @@ const useCompanionHistoryTimelineView = ({
           linkedLabel={selectedLinkedLabel}
           onClose={() => setSelectedEntry(null)}
           onDownload={handleDownloadRecord}
+          onView={handleViewRecord}
           onOpenLinked={handleOpenLinkedFromDrawer}
           onShare={handleShareRecord}
           onDiscuss={handleDiscussRecord}

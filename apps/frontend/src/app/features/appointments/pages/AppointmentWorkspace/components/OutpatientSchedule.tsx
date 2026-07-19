@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { IoAddOutline, IoEllipsisHorizontal, IoPaperPlaneOutline } from 'react-icons/io5';
+import './OutpatientSchedule.css';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import type {
@@ -136,33 +137,24 @@ const SeriesNote = ({ note }: { note: string }) => (
 
 /**
  * The design's "Series progress · 1 / 6 done" rail. The fill is a real ratio of
- * backend-reported counts, so it is rendered only when both are known.
+ * backend-reported counts, so it is rendered only when both are known. The rail is
+ * a native <progress> — the engine derives the fill from value/max, and the design's
+ * pill geometry and token colours are restyled in OutpatientSchedule.css.
  */
-const SeriesProgressRail = ({ progress }: { progress: OutpatientSeriesProgress }) => {
-  const percent = Math.round((progress.completed / progress.total) * 100);
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-[14px] border border-card-border bg-neutral-0 px-4 py-3 shadow-[0_1px_2px_var(--sh03)]">
-      <span className="shrink-0 text-body-4 text-text-secondary">Series progress</span>
-      <span
-        className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full"
-        style={{ background: 'var(--inset)' }}
-        role="progressbar"
-        aria-label="Series progress"
-        aria-valuenow={progress.completed}
-        aria-valuemin={0}
-        aria-valuemax={progress.total}
-      >
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${percent}%`, background: 'var(--blue)' }}
-        />
-      </span>
-      <span className="shrink-0 text-body-4 font-bold tabular-nums text-text-primary">
-        {progress.completed} / {progress.total} done
-      </span>
-    </div>
-  );
-};
+const SeriesProgressRail = ({ progress }: { progress: OutpatientSeriesProgress }) => (
+  <div className="flex items-center justify-between gap-3 rounded-[14px] border border-card-border bg-neutral-0 px-4 py-3 shadow-[0_1px_2px_var(--sh03)]">
+    <span className="shrink-0 text-body-4 text-text-secondary">Series progress</span>
+    <progress
+      className="yc-series-progress"
+      aria-label="Series progress"
+      value={progress.completed}
+      max={progress.total}
+    />
+    <span className="shrink-0 text-body-4 font-bold tabular-nums text-text-primary">
+      {progress.completed} / {progress.total} done
+    </span>
+  </div>
+);
 
 const GroupHeading = ({ label }: { label: string }) => (
   <div className="px-4 pb-1.5 pt-3 text-caption-2 font-bold uppercase tracking-[0.1em] text-text-tertiary">

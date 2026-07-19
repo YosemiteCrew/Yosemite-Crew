@@ -23,8 +23,9 @@ type OrgCardProps = {
 // blue. Keyed off the name so a given org always keeps the same tint.
 const AVATAR_TONES = ['blue', 'green', 'amber'] as const;
 
+// `codePointAt` returns undefined for an empty name — fall back to the first tone.
 const getAvatarTone = (name: string) =>
-  AVATAR_TONES[(name.charCodeAt(0) || 0) % AVATAR_TONES.length];
+  AVATAR_TONES[(name.codePointAt(0) ?? 0) % AVATAR_TONES.length];
 
 const OrgCard = ({ org, handleOrgClick }: OrgCardProps) => {
   const { name, type, isVerified } = org.org;

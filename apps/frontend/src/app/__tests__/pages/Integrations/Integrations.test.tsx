@@ -148,9 +148,41 @@ jest.mock('@/app/features/integrations/services/merckService', () => ({
 const openSettings = () =>
   fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
 
+// The coming-soon cards each render a "Coming soon" <button>, so scope tab clicks to the
+// filter fieldset rather than matching every button with that label.
+const clickFilterTab = (name: string) => {
+  const tabs = screen.getByRole('group', { name: 'Filter integrations' });
+  fireEvent.click(within(tabs).getByRole('button', { name }));
+};
+
+// jest.config sets clearMocks (not resetMocks), so implementations set with mockReturnValue
+// leak between tests. Any test that depends on the MSD state must set it explicitly.
+const setMerckEnabled = (isEnabled: boolean) => {
+  const useMerckModule = jest.requireMock('@/app/hooks/useMerckIntegration');
+  (useMerckModule.useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({
+    integration: isEnabled
+      ? { provider: 'MERCK_MANUALS', status: 'enabled', source: 'backend' }
+      : null,
+    isEnabled,
+    refresh: refreshMerckIntegrationMock,
+  });
+};
+
+const COMING_SOON_CARD_TITLES = ['RadAnalyzer', 'Vetnio', 'QuickBooks', 'Laika'];
+const CONNECTABLE_CARD_TITLES = ['IDEXX VetConnect PLUS', 'MSD Veterinary Manual'];
+
+const expectCardsHidden = (titles: string[]) => {
+  titles.forEach((title) => {
+    expect(screen.queryByText(title)).not.toBeInTheDocument();
+  });
+};
+
 describe('Integrations settings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearMocks does not restore implementations, so re-assert the default MSD state here
+    // instead of letting a previous test's override leak into the next one.
+    setMerckEnabled(true);
     enableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'enabled' });
     disableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'disabled' });
     const enabledIntegration = {
@@ -415,6 +447,50 @@ describe('Integrations settings', () => {
     await waitFor(() => {
       expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
     });
+  });
+
+  it('hides coming-soon cards when the Available filter is active', async () => {
+    // IDEXX enabled (from beforeEach) + MSD disabled, so the Available tab has one real card.
+    setMerckEnabled(false);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Available');
+
+    await waitFor(() => {
+      expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    });
+    expectCardsHidden(COMING_SOON_CARD_TITLES);
+    // The genuinely available integration is still listed.
+    expect(screen.getByText('MSD Veterinary Manual')).toBeInTheDocument();
+  });
+
+  it('shows the Available empty state with no cards once IDEXX and MSD are both connected', async () => {
+    setMerckEnabled(true);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Available');
+
+    await screen.findByText('No available integrations right now.');
+    // The empty state must never render alongside visible cards.
+    expectCardsHidden([...COMING_SOON_CARD_TITLES, ...CONNECTABLE_CARD_TITLES]);
+  });
+
+  it('shows only coming-soon cards on the Coming soon tab', async () => {
+    setMerckEnabled(true);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Coming soon');
+
+    await screen.findByText('RadAnalyzer');
+    COMING_SOON_CARD_TITLES.forEach((title) => {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    });
+    expectCardsHidden(CONNECTABLE_CARD_TITLES);
+    expect(screen.queryByText('No available integrations right now.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No connected integrations yet.')).not.toBeInTheDocument();
   });
 
   it('renders the workspace subtitle under the Integrations heading', async () => {

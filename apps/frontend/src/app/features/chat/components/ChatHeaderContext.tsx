@@ -50,6 +50,7 @@ function PinnedBanner({
 }: Readonly<{ pinned: ConversationInfoPinned[]; onOpen?: () => void }>) {
   const [first] = pinned;
   const extra = pinned.length - 1;
+  const extraSuffix = extra > 0 ? ` + ${extra} more` : '';
   return (
     <div className="px-3.5 pt-1.5 sm:px-4 xl:px-[22px]">
       <button
@@ -64,7 +65,7 @@ function PinnedBanner({
           className="min-w-0 flex-1 truncate text-[11.5px] text-[var(--ink-body)]"
         >
           <strong className="font-bold text-[var(--ink)]">Pinned</strong>
-          {` · “${first.text}”${extra > 0 ? ` + ${extra} more` : ''}`}
+          {` · “${first.text}”${extraSuffix}`}
         </Text>
         <IoChevronForward className="ml-auto h-3 w-3 shrink-0 text-[var(--ink-faint)]" />
       </button>

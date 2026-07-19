@@ -356,7 +356,13 @@ const ChannelHeaderWithCounterpart: FC<{
   const [infoOpen, setInfoOpen] = useState(false);
   // Optimistic mirror of the channel's mute state so the info drawer's toggle
   // flips immediately (Stream's muteStatus only settles after the round-trip).
-  const [muteOverride, setMuteOverride] = useState<boolean | null>(null);
+  // Tagged with the channel it belongs to: the <Channel> wrapper is unkeyed, so
+  // this header instance is reused when another conversation is selected and an
+  // untagged override would leak the previous channel's mute state (and make the
+  // next toggle call the opposite API on the new channel).
+  const [muteOverride, setMuteOverride] = useState<{ cid: string | null; muted: boolean } | null>(
+    null
+  );
   const { title, channelMemberCount, isClientChat, isGroupChat, appointmentId, patientId } =
     deriveHeaderChannelInfo(channel, currentUserId);
   const backendStatus = appointmentId ? statusByAppointmentId[appointmentId] : undefined;
@@ -493,13 +499,18 @@ const ChannelHeaderWithCounterpart: FC<{
     router.push('/appointments');
   };
 
-  const infoMuted = muteOverride ?? isChannelMuted(channel);
+  // Derived during render (never effect-synced): the override only applies to the
+  // channel it was recorded for, so selecting another conversation falls straight
+  // back to that channel's real mute status.
+  const channelCid = channel?.cid ?? null;
+  const infoMuted =
+    muteOverride && muteOverride.cid === channelCid ? muteOverride.muted : isChannelMuted(channel);
   const pinnedMessages = deriveConversationPinned(channel);
 
   const handleToggleMute = () => {
     if (!channel) return;
     const next = !infoMuted;
-    setMuteOverride(next);
+    setMuteOverride({ cid: channelCid, muted: next });
     if (next) {
       void channel.mute();
     } else {

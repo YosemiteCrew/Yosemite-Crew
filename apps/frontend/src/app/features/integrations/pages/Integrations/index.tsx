@@ -136,16 +136,29 @@ const getIdexxCardButtonLabel = (saving: boolean, idexxEnabled: boolean): string
   return idexxEnabled ? 'Disable' : 'Enable';
 };
 
+// Coming-soon integrations cannot be connected or enabled, so they belong only in the
+// unfiltered list and in the dedicated "Coming soon" tab - never under Connected or Available.
+const shouldShowComingSoonCards = (activeFilter: IntegrationFilterKey): boolean =>
+  activeFilter === 'all' || activeFilter === 'coming-soon';
+
+const hasVisibleIntegrationCards = (
+  activeFilter: IntegrationFilterKey,
+  showIdexxCard: boolean,
+  showMerckCard: boolean
+): boolean => showIdexxCard || showMerckCard || shouldShowComingSoonCards(activeFilter);
+
 const getIntegrationEmptyState = (
   integrationStatus: string,
   activeFilter: IntegrationFilterKey,
-  idexxEnabled: boolean,
-  merckEnabled: boolean
+  showIdexxCard: boolean,
+  showMerckCard: boolean
 ) => {
   const isReady = integrationStatus !== 'loading';
+  // Derived from card visibility so an empty-state message can never render beside a visible card.
+  const isEmpty = !hasVisibleIntegrationCards(activeFilter, showIdexxCard, showMerckCard);
   return {
-    showNoConnected: isReady && activeFilter === 'connected' && !idexxEnabled && !merckEnabled,
-    showNoAvailable: isReady && activeFilter === 'available' && idexxEnabled && merckEnabled,
+    showNoConnected: isReady && activeFilter === 'connected' && isEmpty,
+    showNoAvailable: isReady && activeFilter === 'available' && isEmpty,
   };
 };
 
@@ -1082,7 +1095,7 @@ const RadIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
     <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
@@ -1120,7 +1133,7 @@ const VetnioIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
     <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
@@ -1159,7 +1172,7 @@ const QuickBooksIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
     <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
@@ -1198,7 +1211,7 @@ const LaikaIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
     <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
@@ -1242,7 +1255,7 @@ const IntegrationCards = ({
   idexxCardButtonLabel: string;
   merckCardButtonLabel: string;
 }) => {
-  if (!s.showIdexxCard && !s.showMerckCard && s.activeFilter === 'connected') return null;
+  if (!hasVisibleIntegrationCards(s.activeFilter, s.showIdexxCard, s.showMerckCard)) return null;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
@@ -1261,8 +1274,8 @@ const IntegrationsPage = () => {
   const { showNoConnected, showNoAvailable } = getIntegrationEmptyState(
     s.integrationStatus,
     s.activeFilter,
-    s.idexxEnabled,
-    s.merckEnabled
+    s.showIdexxCard,
+    s.showMerckCard
   );
   const idexxCardButtonLabel = getIdexxCardButtonLabel(s.saving, s.idexxEnabled);
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);

@@ -2,13 +2,27 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import TaskBoard from '@/app/features/tasks/components/TaskBoard';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { useNotify } from '@/app/hooks/useNotify';
 
+// next/image throws for a src it cannot resolve — a relative key with no leading
+// slash, or a remote host that is not configured. Reproducing that here means an
+// unsanitised src fails these tests instead of silently rendering.
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt }: any) => <span data-testid="next-image">{alt}</span>,
+  default: ({ alt, src }: any) => {
+    const value = String(src ?? '');
+    if (!value.startsWith('/') && !value.startsWith('https://')) {
+      throw new Error(`Invalid src prop (${value}) on \`next/image\``);
+    }
+    return (
+      <span data-testid="next-image" data-src={value}>
+        {alt}
+      </span>
+    );
+  },
 }));
 
 jest.mock('@/app/hooks/useBoardDragScroll', () => ({
@@ -559,8 +573,13 @@ describe('TaskBoard', () => {
       ] as any,
     });
 
-    // Image branch: member with profileUrl → next-image avatar.
+    // Image branch: member with profileUrl → next-image avatar. The stored value is
+    // an http:// URL next/image rejects, so it degrades to the person fallback.
     expect(screen.getAllByTestId('next-image').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('next-image')[0]).toHaveAttribute(
+      'data-src',
+      MEDIA_SOURCES.avatars.person
+    );
     // identity.name branch: resolveMemberName('unnamed') === '-' → identity.name 'Display Only'.
     expect(screen.getByText('Display Only')).toBeInTheDocument();
     // resolved truthy: unknown id 'ghost' shows raw id.
@@ -736,6 +755,74 @@ describe('TaskBoard', () => {
     expect(screen.getByText('Poppy')).toBeInTheDocument();
   });
 
+  it('resolves the linked companion from patientId for tasks loaded from the PMS', () => {
+    companionsMock.mockReturnValue([
+      { id: 'c3', name: 'Poppy', type: 'dog', photoUrl: 'https://cdn.example.com/poppy.png' },
+    ] as any);
+    renderBoard({
+      tasks: [
+        {
+          _id: 'pms',
+          name: 'PMS Task',
+          status: 'PENDING',
+          audience: 'EMPLOYEE_TASK',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          // Dr Two has no avatar, so the only image on the card is the companion.
+          assignedTo: 'user-2',
+          // Backend records carry the companion link on patientId, not companionId.
+          patientId: 'c3',
+        },
+      ] as any,
+    });
+
+    const thumbnail = screen.getByTestId('next-image');
+    expect(thumbnail).toHaveTextContent('Poppy');
+    expect(thumbnail).toHaveAttribute('data-src', 'https://cdn.example.com/poppy.png');
+  });
+
+  it('sanitises a companion photo that next/image would reject', () => {
+    companionsMock.mockReturnValue([
+      // A legacy relative storage key: next/image throws on it and takes the whole
+      // board down, so it has to degrade to the species fallback instead.
+      { id: 'c4', name: 'Rusty', type: 'dog', photoUrl: 'companions/c4/rusty.jpg' },
+    ] as any);
+    renderBoard({
+      tasks: [
+        {
+          _id: 'legacy',
+          name: 'Legacy Photo',
+          status: 'PENDING',
+          audience: 'EMPLOYEE_TASK',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedTo: 'user-2',
+          companionId: 'c4',
+        },
+      ] as any,
+    });
+
+    expect(screen.getByText('Legacy Photo')).toBeInTheDocument();
+    expect(screen.getByTestId('next-image')).toHaveAttribute('data-src', MEDIA_SOURCES.avatars.dog);
+  });
+
+  it('falls back to the default avatar for a placeholder photo on a companion with no species', () => {
+    companionsMock.mockReturnValue([{ id: 'c5', name: 'Nyx', photoUrl: 'undefined' }] as any);
+    renderBoard({
+      tasks: [
+        {
+          _id: 'placeholder',
+          name: 'Placeholder Photo',
+          status: 'PENDING',
+          audience: 'EMPLOYEE_TASK',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedTo: 'user-2',
+          companionId: 'c5',
+        },
+      ] as any,
+    });
+
+    expect(screen.getByTestId('next-image')).toHaveAttribute('data-src', MEDIA_SOURCES.avatars.dog);
+  });
+
   it('falls back to the companion initial when it has no photo', () => {
     companionsMock.mockReturnValue([{ id: 'c2', name: 'bruno' }] as any);
     renderBoard({
@@ -792,8 +879,33 @@ describe('TaskBoard', () => {
 
     const tracks = screen.getAllByRole('progressbar');
     expect(tracks).toHaveLength(1);
+    expect(tracks[0].tagName).toBe('PROGRESS');
     // The window closed long ago, so the fill is clamped to 100%.
-    expect(tracks[0]).toHaveAttribute('aria-valuenow', '100');
+    expect(tracks[0]).toHaveAttribute('value', '100');
+    expect(tracks[0]).toHaveAttribute('max', '100');
+  });
+
+  it('scales the progress track to the elapsed share of the run-up to the due time', () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(new Date('2020-01-01T06:00:00Z').getTime());
+    try {
+      renderBoard({
+        tasks: [
+          {
+            _id: 'quarter',
+            name: 'Quarter',
+            status: 'IN_PROGRESS',
+            audience: 'EMPLOYEE_TASK',
+            updatedAt: new Date('2020-01-01T00:00:00Z'),
+            dueAt: new Date('2020-01-02T00:00:00Z'),
+            assignedTo: 'user-2',
+          },
+        ] as any,
+      });
+
+      expect(screen.getByRole('progressbar')).toHaveAttribute('value', '25');
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it('skips the progress track when the due time is not after the start', () => {

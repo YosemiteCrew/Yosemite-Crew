@@ -5,10 +5,15 @@ import {
   IoChevronForwardOutline,
   IoClose,
   IoDownloadOutline,
+  IoOpenOutline,
   IoShareOutline,
 } from 'react-icons/io5';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
-import { formatHistoryDateTime } from '@/app/features/companionHistory/utils/historyFormatters';
+import {
+  formatHistoryDateTime,
+  getPrimaryActionLabel,
+  resolveHistoryDocumentId,
+} from '@/app/features/companionHistory/utils/historyFormatters';
 
 export type RecordDetailPair = {
   label: string;
@@ -26,7 +31,10 @@ type HistoryRecordDrawerProps = {
   results: RecordDetailPair[];
   linkedLabel: string | null;
   onClose: () => void;
+  /** Only invoked for records that resolve to a stored document. */
   onDownload: (entry: HistoryEntry) => void;
+  /** Type-aware open path for records that are not documents (lab, invoice, task, ...). */
+  onView: (entry: HistoryEntry) => void;
   onOpenLinked: (entry: HistoryEntry) => void;
   onShare: (entry: HistoryEntry) => void;
   onDiscuss: (entry: HistoryEntry) => void;
@@ -39,6 +47,9 @@ const MICRO_CAPTION_CLASS =
 // and "Linked to" captions in the design (10.5px / 0.1em vs 9.5px / 0.08em).
 const HEADER_CAPTION_CLASS =
   'text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]';
+
+const FOOTER_PRIMARY_CLASS =
+  'flex h-[42px] items-center justify-center gap-1.5 rounded-full! bg-[var(--cta)] text-[13px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
 const FOOTER_SECONDARY_CLASS =
   'flex flex-1 items-center justify-center gap-1.5 rounded-full! border border-hairline py-2 text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
@@ -70,12 +81,44 @@ const ResultRow = ({ result }: { result: RecordDetailPair }) => {
   );
 };
 
+/**
+ * The footer's primary action, matched to what the record actually is. Records
+ * held in the document store download through the document endpoint; every other
+ * type (lab result, invoice, task, appointment, form) keeps its own open path,
+ * whose id the download endpoint could never resolve.
+ */
+const RecordPrimaryAction = ({
+  entry,
+  onDownload,
+  onView,
+}: {
+  entry: HistoryEntry;
+  onDownload: (entry: HistoryEntry) => void;
+  onView: (entry: HistoryEntry) => void;
+}) => {
+  if (resolveHistoryDocumentId(entry)) {
+    return (
+      <button type="button" onClick={() => onDownload(entry)} className={FOOTER_PRIMARY_CLASS}>
+        <IoDownloadOutline size={15} aria-hidden="true" />
+        Download PDF
+      </button>
+    );
+  }
+  return (
+    <button type="button" onClick={() => onView(entry)} className={FOOTER_PRIMARY_CLASS}>
+      <IoOpenOutline size={15} aria-hidden="true" />
+      {getPrimaryActionLabel(entry)}
+    </button>
+  );
+};
+
 const HistoryRecordDrawer = ({
   entry,
   results,
   linkedLabel,
   onClose,
   onDownload,
+  onView,
   onOpenLinked,
   onShare,
   onDiscuss,
@@ -161,14 +204,7 @@ const HistoryRecordDrawer = ({
         </div>
 
         <footer className="flex flex-none flex-col gap-2 border-t border-hairline px-5 pb-5 pt-3.5">
-          <button
-            type="button"
-            onClick={() => onDownload(entry)}
-            className="flex h-[42px] items-center justify-center gap-1.5 rounded-full! bg-[var(--cta)] text-[13px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-          >
-            <IoDownloadOutline size={15} aria-hidden="true" />
-            Download PDF
-          </button>
+          <RecordPrimaryAction entry={entry} onDownload={onDownload} onView={onView} />
           <div className="flex gap-2">
             <button type="button" onClick={() => onShare(entry)} className={FOOTER_SECONDARY_CLASS}>
               <IoShareOutline size={13} aria-hidden="true" />

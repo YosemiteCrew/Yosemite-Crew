@@ -65,10 +65,10 @@ const PaginatedGridTable = <T,>({
           >
             <IoChevronBackOutline size={13} aria-hidden="true" />
           </button>
-          {buildPagerPageList(currentPage, totalPages).map((entry, index) =>
-            entry === 'gap' ? (
+          {buildPagerPageList(currentPage, totalPages).map(({ key, page }) =>
+            page === null ? (
               <span
-                key={`gap-${index}`}
+                key={key}
                 aria-hidden="true"
                 className="flex size-7 items-center justify-center text-[12px]"
               >
@@ -76,18 +76,18 @@ const PaginatedGridTable = <T,>({
               </span>
             ) : (
               <button
-                key={entry}
+                key={key}
                 type="button"
-                aria-label={`Page ${entry}`}
-                aria-current={entry === currentPage ? 'page' : undefined}
-                onClick={() => setPage(entry)}
+                aria-label={`Page ${page}`}
+                aria-current={page === currentPage ? 'page' : undefined}
+                onClick={() => setPage(page)}
                 className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] tabular-nums transition-colors ${
-                  entry === currentPage
+                  page === currentPage
                     ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
                     : 'font-semibold text-text-secondary hover:bg-[var(--surface-soft)]'
                 }`}
               >
-                {entry}
+                {page}
               </button>
             )
           )}

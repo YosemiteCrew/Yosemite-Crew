@@ -194,7 +194,35 @@ describe('ServicesTab', () => {
       render(<ServicesTab {...defaultProps} />);
       expect(screen.getAllByText('30 min').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('$ 90.00').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('ACTIVE').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Active').length).toBeGreaterThanOrEqual(1);
+    });
+
+    describe('status pill copy', () => {
+      it('never renders the raw backend enum, in the wide row or the compact row', () => {
+        setupStoreMock([mockService]);
+        render(<ServicesTab {...defaultProps} />);
+
+        // Both layouts (wide table row + compact stacked row) render a pill, and
+        // both must carry the humanized label rather than the backend value.
+        expect(screen.getAllByText('Active')).toHaveLength(2);
+        expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
+      });
+
+      it('keeps the design all-caps look as a text-transform, not as raw copy', () => {
+        setupStoreMock([mockService]);
+        render(<ServicesTab {...defaultProps} />);
+        expect(screen.getAllByText('Active')[0]).toHaveClass('uppercase');
+      });
+
+      it('drops non-active services before they can reach a pill', () => {
+        // The tab lists active services only (ARCHIVED lives in the Archive tab),
+        // so no other backend status can leak into the pill from here.
+        setupStoreMock([{ ...mockService, status: 'ARCHIVED' }]);
+        render(<ServicesTab {...defaultProps} />);
+        expect(screen.queryByText('ARCHIVED')).not.toBeInTheDocument();
+        expect(screen.queryByText('Archived')).not.toBeInTheDocument();
+        expect(screen.getByText("You haven't added any services yet.")).toBeInTheDocument();
+      });
     });
 
     it('renders the practitioner avatar cluster with an overflow count', () => {
@@ -271,6 +299,24 @@ describe('ServicesTab', () => {
       openRowMenu();
       fireEvent.keyDown(screen.getByRole('button', { name: 'Edit' }), { key: 'Escape' });
       expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    });
+
+    it('closes the actions menu on Escape from the ⋯ trigger', () => {
+      setupStoreMock([mockService]);
+      render(<ServicesTab {...defaultProps} />);
+      openRowMenu();
+      fireEvent.keyDown(screen.getAllByLabelText('Actions for Consultation')[0], {
+        key: 'Escape',
+      });
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the actions menu open for keys other than Escape', () => {
+      setupStoreMock([mockService]);
+      render(<ServicesTab {...defaultProps} />);
+      openRowMenu();
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Archive' }), { key: 'ArrowDown' });
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
     });
 
     it('renders service description as the row subline', () => {

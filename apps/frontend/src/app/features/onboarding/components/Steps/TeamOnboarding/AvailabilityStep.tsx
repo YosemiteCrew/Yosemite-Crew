@@ -19,6 +19,18 @@ const CONSULTATION_TYPES: ReadonlyArray<{ id: string; label: string; icon: IconT
   { id: 'home-visits', label: 'Home visits', icon: IoCarOutline },
 ];
 
+/**
+ * `POST /fhir/v1/availability/:orgId/base` accepts only `{ availabilities: [{ dayOfWeek, slots }] }`
+ * — the controller destructures nothing else and `BaseAvailability` has no column for slot length
+ * or visit modality. These controls are therefore rendered disabled at the values the backend
+ * actually applies, so a practitioner cannot pick something onboarding would silently discard.
+ * Re-enable them (and extend `ApiAvailability`) once the API persists these fields.
+ */
+const DEFAULT_CONSULTATION_SLOT = '30 min';
+const DEFAULT_CONSULTATION_TYPES: ReadonlyArray<string> = ['in-clinic'];
+const CONSULTATION_UNSUPPORTED_HINT =
+  'Not configurable yet - saved availability always uses these defaults';
+
 type AvailabilityStepProps = Readonly<{
   prevStep: () => void;
   orgIdFromQuery: string | null;
@@ -41,13 +53,6 @@ function AvailabilityStep({
   ref,
 }: AvailabilityStepProps) {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
-  const [consultationSlot, setConsultationSlot] = useState('30 min');
-  const [consultationTypes, setConsultationTypes] = useState<string[]>(['in-clinic']);
-
-  const toggleConsultationType = (id: string) =>
-    setConsultationTypes((prev) =>
-      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]
-    );
 
   useImperativeHandle(ref, () => ({
     validate: () => {
@@ -90,10 +95,11 @@ function AvailabilityStep({
             Weekly availability
           </span>
           <span
-            className="flex items-center gap-2 text-[12.5px]"
+            className="flex items-center gap-2 text-[12.5px] opacity-70"
             style={{ color: 'var(--ink-muted)' }}
+            title={CONSULTATION_UNSUPPORTED_HINT}
           >
-            Consultation slot
+            {'Consultation slot'}
             <span
               className="flex h-[34px] items-center gap-1.5 rounded-[10px] border-[1.5px] px-3"
               style={{
@@ -103,9 +109,9 @@ function AvailabilityStep({
             >
               <select
                 aria-label="Consultation slot"
-                value={consultationSlot}
-                onChange={(event) => setConsultationSlot(event.target.value)}
-                className="appearance-none bg-transparent text-[12.5px] font-semibold outline-none"
+                defaultValue={DEFAULT_CONSULTATION_SLOT}
+                disabled
+                className="cursor-not-allowed appearance-none bg-transparent text-[12.5px] font-semibold outline-none"
                 style={{ color: 'var(--ink-body)' }}
               >
                 {CONSULTATION_SLOT_OPTIONS.map((option) => (
@@ -126,16 +132,16 @@ function AvailabilityStep({
         )}
 
         <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--hairline)] pt-[18px]">
-          <div className="flex gap-2">
+          <div className="flex gap-2 opacity-70" title={CONSULTATION_UNSUPPORTED_HINT}>
             {CONSULTATION_TYPES.map(({ id, label, icon: Icon }) => {
-              const isOn = consultationTypes.includes(id);
+              const isOn = DEFAULT_CONSULTATION_TYPES.includes(id);
               return (
                 <button
                   key={id}
                   type="button"
                   aria-pressed={isOn}
-                  onClick={() => toggleConsultationType(id)}
-                  className={`flex items-center gap-[7px] rounded-full px-[15px] py-2 text-[12.5px] ${
+                  disabled
+                  className={`flex cursor-not-allowed items-center gap-[7px] rounded-full px-[15px] py-2 text-[12.5px] ${
                     isOn ? 'border-[1.5px] font-bold' : 'border font-semibold'
                   }`}
                   style={
