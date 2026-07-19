@@ -173,6 +173,16 @@ describe('TaskWeekAgenda', () => {
     expect(screen.getByText(/· today/)).toBeInTheDocument();
   });
 
+  it("tints only today's day column, matching the blue header cell above it", () => {
+    const { container } = renderAgenda();
+    // Week is Mon Jul 6 .. Sun Jul 12 and "today" is Wed Jul 8 → column index 2.
+    const columns = [...container.querySelectorAll('[class*="group/col"]')];
+    expect(columns).toHaveLength(7);
+    columns.forEach((column, index) => {
+      expect(column.className.includes('bg-[var(--surface-soft)]')).toBe(index === 2);
+    });
+  });
+
   it('formats a week range that spans two months', () => {
     const monthEnd = new Date(2026, 6, 29); // Wed Jul 29 → Jul 29 .. Aug 4
     renderAgenda({ currentDate: monthEnd, weekStart: monthEnd });
