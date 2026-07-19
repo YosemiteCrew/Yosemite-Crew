@@ -74,7 +74,13 @@ const PaginatedGridTable = <T,>({
   return (
     <div className="table-wrapper inventory-scroll-x h-full min-h-0 overflow-hidden">
       <div className="inventory-table-list h-full min-h-0 flex-1">
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        {/* `isolate` (isolation:isolate) makes this rounded container own a
+            compositing context so overflow-hidden actually clips the
+            position:sticky, z-10 header to the 18px corners — otherwise Chrome
+            renders the sticky header on its own layer and its square top edge
+            pokes out past the rounded corners on scroll repaint (same fix as
+            .TableShell in Generictable.css). */}
+        <div className="isolate flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
           <div className="min-h-0 flex-1 overflow-auto">
             <div className="min-w-[1080px]">
               <div

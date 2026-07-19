@@ -7,6 +7,8 @@ import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 const INTEGRATIONS_PAGE_SKELETON = <PageSkeleton variant="list" />;
+import Modal from '@/app/ui/overlays/Modal';
+import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -32,9 +34,8 @@ import {
 import { IvlsDevice, LabOrder } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
+import Close from '@/app/ui/primitives/Icons/Close';
 import {
-  IoCheckmarkCircleOutline,
-  IoChevronForwardOutline,
   IoExtensionPuzzleOutline,
   IoInformationCircleOutline,
   IoRefreshOutline,
@@ -65,11 +66,6 @@ const statusTokens: Record<string, StatusTokens> = {
     bg: 'var(--color-pill-info-bg)',
     text: 'var(--color-pill-info-text)',
     border: 'var(--color-pill-info-border)',
-  },
-  neutral: {
-    bg: 'var(--color-pill-neutral-bg)',
-    text: 'var(--color-pill-neutral-text)',
-    border: 'var(--color-pill-neutral-border)',
   },
 };
 
@@ -218,7 +214,7 @@ const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
   const isLive = key === 'enabled';
   return (
     <span
-      className="shrink-0 max-w-full inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-caption-3 px-2.5 py-1 rounded-full! border!"
+      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-label-xsmall px-2.5 py-1 rounded-full! border!"
       style={
         tokens
           ? {
@@ -265,6 +261,80 @@ const LinkedDevicesList = ({ devices }: { devices: IvlsDevice[] }) => {
   );
 };
 
+const ORDER_PILL_RESULTED = new Set(['result', 'complete', 'final', 'confirm']);
+const ORDER_PILL_RUNNING = new Set(['run', 'pending', 'progress', 'process', 'partial']);
+
+const getOrderPillTokens = (status?: string | null): StatusTokens => {
+  const key = String(status ?? '').toLowerCase();
+  if ([...ORDER_PILL_RESULTED].some((token) => key.includes(token))) {
+    return {
+      bg: 'var(--color-pill-success-bg)',
+      text: 'var(--color-pill-success-text)',
+      border: 'var(--color-pill-success-border)',
+    };
+  }
+  if ([...ORDER_PILL_RUNNING].some((token) => key.includes(token))) {
+    return {
+      bg: 'var(--color-pill-progress-bg)',
+      text: 'var(--color-pill-progress-text)',
+      border: 'var(--color-pill-progress-border)',
+    };
+  }
+  return {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
+  };
+};
+
+const formatOrderStatusLabel = (status?: string | null): string => {
+  const raw = String(status ?? '').trim();
+  if (!raw) return 'Pending';
+  return `${raw.charAt(0).toUpperCase()}${raw.slice(1).toLowerCase()}`;
+};
+
+const formatOrderLabel = (order: LabOrder): string => {
+  const name = String(order.patientName ?? '').trim();
+  const tests = (order.tests ?? []).filter(Boolean).join(', ');
+  if (name && tests) return `${name} · ${tests}`;
+  return name || tests || `Order ${order.idexxOrderId}`;
+};
+
+const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
+  if (orders.length === 0) {
+    return <div className="text-body-4 text-text-secondary">No recent orders.</div>;
+  }
+
+  return (
+    <>
+      {orders.slice(0, 3).map((order) => {
+        const tokens = getOrderPillTokens(order.status);
+        return (
+          <div
+            key={order._id || order.idexxOrderId}
+            className="flex items-center justify-between gap-2 text-caption-1"
+          >
+            <span className="min-w-0 truncate font-semibold text-text-primary">
+              {formatOrderLabel(order)}
+            </span>
+            <span
+              className="shrink-0 text-label-xsmall px-2 py-0.5 rounded-full! border!"
+              style={{
+                backgroundColor: tokens.bg,
+                color: tokens.text,
+                borderColor: tokens.border,
+                borderStyle: 'solid',
+              }}
+            >
+              {formatOrderStatusLabel(order.status)}
+            </span>
+          </div>
+        );
+      })}
+    </>
+  );
+};
+
 type IdexxActionsState = {
   primaryOrgId: string | null | undefined;
   refreshing: boolean;
@@ -277,6 +347,7 @@ type IdexxActionsState = {
   setRefreshing: (v: boolean) => void;
   setSaving: (v: boolean) => void;
   setValidateState: (v: ValidateState) => void;
+  setShowSettings: (v: boolean) => void;
 };
 
 const useIdexxActions = (s: IdexxActionsState) => {
@@ -348,6 +419,7 @@ const useIdexxActions = (s: IdexxActionsState) => {
       return true;
     } catch (validationError) {
       s.setValidateState('invalid');
+      s.setShowSettings(true);
       s.setError(
         getApiErrorMessage(
           validationError,
@@ -361,6 +433,7 @@ const useIdexxActions = (s: IdexxActionsState) => {
   const handleEnableDisable = useCallback(async () => {
     if (!s.primaryOrgId) return;
     if (!s.idexxIntegration) {
+      s.setShowSettings(true);
       s.setError('Store IDEXX credentials in settings before enabling.');
       return;
     }
@@ -415,6 +488,7 @@ const useIntegrationsPage = () => {
   const [recentOrders, setRecentOrders] = useState<LabOrder[]>([]);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [merckSaving, setMerckSaving] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -441,7 +515,7 @@ const useIntegrationsPage = () => {
           setDevices([]);
           setError(getApiErrorMessage(e, 'Unable to load linked IDEXX devices.'));
         }
-        // Recent orders feed the credentials panel footer. They are secondary to the
+        // Recent orders feed the settings modal's activity section. They are secondary to the
         // devices load, so a failure here is swallowed rather than surfaced as an error.
         try {
           const orders = await listIdexxOrders({ organisationId: primaryOrgId });
@@ -474,6 +548,7 @@ const useIntegrationsPage = () => {
       setRefreshing,
       setSaving,
       setValidateState,
+      setShowSettings,
     });
 
   const linkedCount = useMemo(() => {
@@ -536,6 +611,8 @@ const useIntegrationsPage = () => {
     recentOrders,
     saving,
     refreshing,
+    showSettings,
+    setShowSettings,
     username,
     setUsername,
     password,
@@ -562,109 +639,9 @@ const useIntegrationsPage = () => {
   };
 };
 
-const ORDER_PILL_RESULTED = new Set(['result', 'complete', 'final', 'confirm']);
-const ORDER_PILL_RUNNING = new Set(['run', 'pending', 'progress', 'process', 'partial']);
-
-const getOrderPillTokens = (status?: string | null): StatusTokens => {
-  const key = String(status ?? '').toLowerCase();
-  if ([...ORDER_PILL_RESULTED].some((token) => key.includes(token))) {
-    return {
-      bg: 'var(--color-pill-success-bg)',
-      text: 'var(--color-pill-success-text)',
-      border: 'var(--color-pill-success-border)',
-    };
-  }
-  if ([...ORDER_PILL_RUNNING].some((token) => key.includes(token))) {
-    return {
-      bg: 'var(--color-pill-progress-bg)',
-      text: 'var(--color-pill-progress-text)',
-      border: 'var(--color-pill-progress-border)',
-    };
-  }
-  return {
-    bg: 'var(--color-pill-neutral-bg)',
-    text: 'var(--color-pill-neutral-text)',
-    border: 'var(--color-pill-neutral-border)',
-  };
-};
-
-const formatOrderStatusLabel = (status?: string | null): string => {
-  const raw = String(status ?? '').trim();
-  if (!raw) return 'Pending';
-  return `${raw.charAt(0).toUpperCase()}${raw.slice(1).toLowerCase()}`;
-};
-
-const formatOrderLabel = (order: LabOrder): string => {
-  const name = String(order.patientName ?? '').trim();
-  const tests = (order.tests ?? []).filter(Boolean).join(', ');
-  if (name && tests) return `${name} · ${tests}`;
-  return name || tests || `Order ${order.idexxOrderId}`;
-};
-
-const RecentOrdersSection = ({ orders }: { orders: LabOrder[] }) => {
-  if (orders.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-2 border-t border-[var(--hairline)] px-5 py-4">
-      <span className="text-caption-3 uppercase tracking-[0.1em] text-text-extra">
-        Recent orders
-      </span>
-      {orders.slice(0, 3).map((order) => {
-        const tokens = getOrderPillTokens(order.status);
-        return (
-          <div
-            key={order._id || order.idexxOrderId}
-            className="flex items-center justify-between gap-2 text-caption-1"
-          >
-            <span className="min-w-0 truncate font-semibold text-text-primary">
-              {formatOrderLabel(order)}
-            </span>
-            <span
-              className="shrink-0 text-label-xsmall px-2 py-0.5 rounded-full! border!"
-              style={{
-                backgroundColor: tokens.bg,
-                color: tokens.text,
-                borderColor: tokens.border,
-                borderStyle: 'solid',
-              }}
-            >
-              {formatOrderStatusLabel(order.status)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-const CredentialsValidatedChip = ({
-  validateState,
-  hasStoredCredentials,
-}: {
-  validateState: ValidateState;
-  hasStoredCredentials: boolean;
-}) => {
-  if (validateState === 'valid') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-caption-1 font-bold text-green-700">
-        <IoCheckmarkCircleOutline size={14} aria-hidden="true" />
-        Credentials validated successfully
-      </span>
-    );
-  }
-  if (validateState === 'invalid') {
-    return (
-      <span className="text-caption-1 font-bold text-text-error">Credentials need attention</span>
-    );
-  }
-  return (
-    <span className="text-caption-1 font-semibold text-text-secondary">
-      {hasStoredCredentials ? 'Not validated yet' : 'No credentials stored'}
-    </span>
-  );
-};
-
-const IdexxCredentialsPanel = ({
-  panelRef,
+const IdexxSettingsModal = ({
+  showSettings,
+  setShowSettings,
   idexxIntegration,
   idexxEnabled,
   hasStoredCredentials,
@@ -674,6 +651,7 @@ const IdexxCredentialsPanel = ({
   validateState,
   saving,
   refreshing,
+  integrationsLastFetchedAt,
   devices,
   recentOrders,
   username,
@@ -685,7 +663,8 @@ const IdexxCredentialsPanel = ({
   handleValidate,
   handleEnableDisable,
 }: {
-  panelRef: React.RefObject<HTMLDivElement | null>;
+  showSettings: boolean;
+  setShowSettings: React.Dispatch<React.SetStateAction<boolean>>;
   idexxIntegration: ReturnType<typeof useIntegrationByProviderForPrimaryOrg>;
   idexxEnabled: boolean;
   hasStoredCredentials: boolean;
@@ -695,6 +674,7 @@ const IdexxCredentialsPanel = ({
   validateState: ValidateState;
   saving: boolean;
   refreshing: boolean;
+  integrationsLastFetchedAt: string | null | undefined;
   devices: IvlsDevice[];
   recentOrders: LabOrder[];
   username: string;
@@ -707,6 +687,7 @@ const IdexxCredentialsPanel = ({
   handleEnableDisable: () => Promise<void>;
 }) => {
   const enableDisableLabel = getEnableDisableLabel(saving, idexxEnabled);
+  const lastRefreshedText = formatOptionalDate(integrationsLastFetchedAt, 'Not refreshed yet');
   const refreshIconClass = refreshing ? 'animate-spin' : '';
   const validateMeta = getValidateStateMeta(validateState);
   const lastValidatedText = formatOptionalDate(
@@ -717,151 +698,172 @@ const IdexxCredentialsPanel = ({
   const enabledAtText = formatOptionalDate(idexxIntegration?.enabledAt, 'Not enabled');
 
   return (
-    <div
-      ref={panelRef}
-      data-testid="idexx-credentials-panel"
-      className="flex w-full flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] xl:sticky xl:top-4"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--hairline)] px-5 py-4">
-        <h2 className="text-heading-3 text-text-primary">IDEXX credentials</h2>
-        <div className="flex items-center gap-2">
-          <CredentialsValidatedChip
-            validateState={validateState}
-            hasStoredCredentials={hasStoredCredentials}
-          />
+    <Modal showModal={showSettings} setShowModal={setShowSettings}>
+      <div className="flex flex-col h-full gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-heading-3 text-text-primary">Integration settings</h3>
+            <div className="text-body-4 text-text-secondary">
+              Configure IDEXX for this organization
+            </div>
+          </div>
+          <Close onClick={() => setShowSettings(false)} />
+        </div>
+        <div className="flex items-center justify-between rounded-xl border border-[var(--hairline)] px-3 py-2 bg-[var(--field-bg)]">
+          <div className="text-caption-1 text-text-secondary">
+            Last refreshed: <span className="text-text-primary">{lastRefreshedText}</span>
+          </div>
           <button
             type="button"
             onClick={() => {
               handleManualRefresh().catch(() => undefined);
             }}
-            className="flex size-8 items-center justify-center rounded-full! border border-[var(--hairline)] text-text-primary hover:bg-card-hover"
+            className="size-8 rounded-full! border border-[var(--hairline)] flex items-center justify-center text-text-primary hover:bg-card-hover"
             aria-label="Refresh integrations"
             title="Refresh integrations"
             disabled={refreshing}
           >
-            <IoRefreshOutline className={refreshIconClass} size={15} />
+            <IoRefreshOutline className={refreshIconClass} size={16} />
           </button>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-3.5 px-5 py-4">
-        <FormInput
-          intype="text"
-          inname="idexx-username"
-          inlabel="VetConnect username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-        <FormInputPass
-          intype="password"
-          inname="idexx-password"
-          inlabel="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <div className="flex flex-wrap gap-2">
-          <Primary
-            href="#"
-            text={credentialsActionLabel}
-            onClick={handleStoreCredentials}
-            isDisabled={saving || !username.trim() || !password.trim()}
-          />
-          <Secondary
-            href="#"
-            text={saving ? 'Validating...' : 'Validate'}
-            onClick={handleValidate}
-            isDisabled={saving}
-          />
-        </div>
-        {validateMeta ? (
-          <div className={`text-body-4 ${validateMeta.className}`}>{validateMeta.text}</div>
-        ) : null}
-        <div className="grid grid-cols-2 gap-2 text-caption-1">
-          <div className="text-text-secondary">Credentials status</div>
-          <div className="text-right">
-            <span
-              className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
-              style={(() => {
-                const t = credentialsStatusTokens[credentialsStatusKey];
-                return t
-                  ? {
-                      backgroundColor: t.bg,
-                      color: t.text,
-                      borderColor: t.border,
-                      borderStyle: 'solid',
-                    }
-                  : {
-                      backgroundColor: 'var(--color-card-hover)',
-                      color: 'var(--color-text-secondary)',
-                      borderColor: 'var(--color-card-border)',
-                      borderStyle: 'solid',
-                    };
-              })()}
-            >
-              {credentialsStatusLabel}
-            </span>
+        <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-1">
+          <Accordion title="Credentials" defaultOpen showEditIcon={false} isEditing>
+            <div className="flex flex-col gap-3 py-2">
+              <FormInput
+                intype="text"
+                inname="idexx-username"
+                inlabel="IDEXX username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              <FormInputPass
+                intype="password"
+                inname="idexx-password"
+                inlabel="IDEXX password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Primary
+                  href="#"
+                  text={credentialsActionLabel}
+                  onClick={handleStoreCredentials}
+                  isDisabled={saving || !username.trim() || !password.trim()}
+                />
+                <Secondary
+                  href="#"
+                  text={saving ? 'Validating...' : 'Validate'}
+                  onClick={handleValidate}
+                  isDisabled={saving}
+                />
+              </div>
+              {validateMeta ? (
+                <div className={`text-body-4 ${validateMeta.className}`}>{validateMeta.text}</div>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2 text-caption-1">
+                <div className="text-text-secondary">Credentials status</div>
+                <div className="text-right">
+                  <span
+                    className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
+                    style={(() => {
+                      const t = credentialsStatusTokens[credentialsStatusKey];
+                      return t
+                        ? {
+                            backgroundColor: t.bg,
+                            color: t.text,
+                            borderColor: t.border,
+                            borderStyle: 'solid',
+                          }
+                        : {
+                            backgroundColor: 'var(--color-card-hover)',
+                            color: 'var(--color-text-secondary)',
+                            borderColor: 'var(--color-card-border)',
+                            borderStyle: 'solid',
+                          };
+                    })()}
+                  >
+                    {credentialsStatusLabel}
+                  </span>
+                </div>
+                <div className="text-text-secondary">Last validated</div>
+                <div className="text-text-primary text-right">{lastValidatedText}</div>
+              </div>
+            </div>
+          </Accordion>
+
+          <Accordion title="Connection" defaultOpen showEditIcon={false} isEditing>
+            <div className="flex flex-col gap-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-body-4 text-text-primary">Current status</div>
+                <StatusPill status={idexxIntegration?.status} />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-caption-1 text-text-secondary">Connected since</div>
+                <div className="text-caption-1 text-text-primary">
+                  {formatDateTimeLocal(idexxIntegration?.enabledAt)}
+                </div>
+              </div>
+              <div className="text-caption-1 text-text-secondary">
+                Enabling IDEXX allows appointment lab ordering and results visibility.
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Primary
+                  href="#"
+                  text={enableDisableLabel}
+                  onClick={handleEnableDisable}
+                  isDisabled={
+                    saving || !idexxIntegration || (!idexxEnabled && !hasStoredCredentials)
+                  }
+                />
+                <Secondary href="/appointments" text="Open appointments" />
+              </div>
+              <div className="text-caption-1 text-text-secondary">
+                {getConnectionHint(idexxEnabled, hasStoredCredentials)}
+              </div>
+            </div>
+          </Accordion>
+
+          <Accordion title="Sync health" defaultOpen showEditIcon={false} isEditing>
+            <div className="flex flex-col gap-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-caption-1 text-text-secondary">Last sync</div>
+                <div className="text-caption-1 text-text-primary">{lastSyncText}</div>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-caption-1 text-text-secondary">Enabled at</div>
+                <div className="text-caption-1 text-text-primary">{enabledAtText}</div>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-caption-1 text-text-secondary">Last validated</div>
+                <div className="text-caption-1 text-text-primary">{lastValidatedText}</div>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-caption-1 text-text-secondary">Linked IVLS devices</div>
+                <div className="text-caption-1 text-text-primary">{devices.length}</div>
+              </div>
+              <Secondary href="/appointments/idexx-workspace" text="IDEXX Hub" />
+            </div>
+          </Accordion>
+
+          <Accordion title="Recent orders" defaultOpen showEditIcon={false} isEditing>
+            <div className="flex flex-col gap-2 py-2">
+              <RecentOrdersList orders={recentOrders} />
+            </div>
+          </Accordion>
+
+          <Accordion title="Linked medical devices" defaultOpen showEditIcon={false} isEditing>
+            <div className="flex flex-col gap-2 py-2">
+              <LinkedDevicesList devices={devices} />
+            </div>
+          </Accordion>
+
+          <div className="text-caption-2 text-text-extra pt-1 pb-1">
+            {IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}
           </div>
-          <div className="text-text-secondary">Last validated</div>
-          <div className="text-text-primary text-right">{lastValidatedText}</div>
         </div>
       </div>
-
-      <div className="flex flex-col gap-3 border-t border-[var(--hairline)] px-5 py-4">
-        <span className="text-caption-3 uppercase tracking-[0.1em] text-text-extra">
-          Connection
-        </span>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-body-4 text-text-primary">Current status</div>
-          <StatusPill status={idexxIntegration?.status} />
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-caption-1 text-text-secondary">Connected since</div>
-          <div className="text-caption-1 text-text-primary">
-            {formatDateTimeLocal(idexxIntegration?.enabledAt)}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Primary
-            href="#"
-            text={enableDisableLabel}
-            onClick={handleEnableDisable}
-            isDisabled={saving || !idexxIntegration || (!idexxEnabled && !hasStoredCredentials)}
-          />
-          <Secondary href="/appointments" text="Open appointments" />
-        </div>
-        <div className="text-caption-1 text-text-secondary">
-          {getConnectionHint(idexxEnabled, hasStoredCredentials)}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3 border-t border-[var(--hairline)] px-5 py-4">
-        <span className="text-caption-3 uppercase tracking-[0.1em] text-text-extra">
-          Sync health
-        </span>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-caption-1 text-text-secondary">Last sync</div>
-          <div className="text-caption-1 text-text-primary">{lastSyncText}</div>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-caption-1 text-text-secondary">Enabled at</div>
-          <div className="text-caption-1 text-text-primary">{enabledAtText}</div>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-caption-1 text-text-secondary">Linked IVLS devices</div>
-          <div className="text-caption-1 text-text-primary">{devices.length}</div>
-        </div>
-        <Secondary href="/appointments/idexx-workspace" text="IDEXX Hub" />
-        <div className="flex flex-col gap-2 pt-1">
-          <LinkedDevicesList devices={devices} />
-        </div>
-      </div>
-
-      <RecentOrdersSection orders={recentOrders} />
-
-      <div className="border-t border-[var(--hairline)] px-5 py-3 text-caption-2 text-text-extra">
-        {IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}
-      </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -902,15 +904,15 @@ const INTEGRATION_CARD_CLASS =
   'rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-5 w-full flex items-stretch gap-4 min-h-[245px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
 const INTEGRATION_CARD_HEADER_CLASS = 'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2';
 const INTEGRATION_CARD_TITLE_CLASS = 'min-w-0 truncate text-heading-3 text-text-primary pt-1';
+const COMING_SOON_PILL_CLASS =
+  'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
 
 const IdexxIntegrationCard = ({
   s,
   buttonLabel,
-  onManageCredentials,
 }: {
   s: IntegrationsPageState;
   buttonLabel: string;
-  onManageCredentials: () => void;
 }) => {
   if (!s.showIdexxCard) return null;
 
@@ -958,7 +960,7 @@ const IdexxIntegrationCard = ({
           <Secondary
             href="#"
             text="Manage credentials"
-            onClick={onManageCredentials}
+            onClick={() => s.setShowSettings(true)}
             className="px-4 whitespace-nowrap"
           />
           {s.idexxEnabled ? (
@@ -1077,7 +1079,17 @@ const RadIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>RadAnalyzer</div>
-            <StatusPill status="neutral" label="Coming soon" />
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
+              Coming soon
+            </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
@@ -1118,7 +1130,17 @@ const VetnioIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>Vetnio</div>
-            <StatusPill status="neutral" label="Coming soon" />
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
+              Coming soon
+            </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             AI-powered documentation for veterinary practices &mdash; instantly generate clinical
@@ -1156,7 +1178,17 @@ const QuickBooksIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>QuickBooks</div>
-            <StatusPill status="neutral" label="Coming soon" />
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
+              Coming soon
+            </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             Accounting sync for invoices, payments, customers, and financial workflows through
@@ -1199,7 +1231,17 @@ const LaikaIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>Laika</div>
-            <StatusPill status="neutral" label="Coming soon" />
+            <span
+              className={COMING_SOON_PILL_CLASS}
+              style={{
+                backgroundColor: 'var(--color-pill-neutral-bg)',
+                color: 'var(--color-pill-neutral-text)',
+                borderColor: 'var(--color-pill-neutral-border)',
+                borderStyle: 'solid',
+              }}
+            >
+              Coming soon
+            </span>
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
@@ -1221,22 +1263,16 @@ const IntegrationCards = ({
   s,
   idexxCardButtonLabel,
   merckCardButtonLabel,
-  onManageCredentials,
 }: {
   s: IntegrationsPageState;
   idexxCardButtonLabel: string;
   merckCardButtonLabel: string;
-  onManageCredentials: () => void;
 }) => {
   if (!s.showIdexxCard && !s.showMerckCard && s.activeFilter === 'connected') return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-      <IdexxIntegrationCard
-        s={s}
-        buttonLabel={idexxCardButtonLabel}
-        onManageCredentials={onManageCredentials}
-      />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+      <IdexxIntegrationCard s={s} buttonLabel={idexxCardButtonLabel} />
       <MerckIntegrationCard s={s} buttonLabel={merckCardButtonLabel} />
       <RadIntegrationCard activeFilter={s.activeFilter} />
       <VetnioIntegrationCard activeFilter={s.activeFilter} />
@@ -1248,7 +1284,6 @@ const IntegrationCards = ({
 
 const IntegrationsPage = () => {
   const s = useIntegrationsPage();
-  const panelRef = React.useRef<HTMLDivElement>(null);
   const { showNoConnected, showNoAvailable } = getIntegrationEmptyState(
     s.integrationStatus,
     s.activeFilter,
@@ -1257,11 +1292,6 @@ const IntegrationsPage = () => {
   );
   const idexxCardButtonLabel = getIdexxCardButtonLabel(s.saving, s.idexxEnabled);
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
-  const handleManageCredentials = useCallback(() => {
-    // On stacked layouts the panel sits below the catalog; scroll it into view when the
-    // IDEXX card's "Manage credentials" is pressed. On xl the panel is already visible.
-    panelRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-  }, []);
 
   return (
     <div className="yc-page-content">
@@ -1305,65 +1335,59 @@ const IntegrationsPage = () => {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start">
-        <div className="flex flex-col gap-4">
-          <IntegrationCards
-            s={s}
-            idexxCardButtonLabel={idexxCardButtonLabel}
-            merckCardButtonLabel={merckCardButtonLabel}
-            onManageCredentials={handleManageCredentials}
-          />
+      <div className="flex flex-col gap-4">
+        <IntegrationCards
+          s={s}
+          idexxCardButtonLabel={idexxCardButtonLabel}
+          merckCardButtonLabel={merckCardButtonLabel}
+        />
 
-          <div className="flex items-center gap-2.5 rounded-[16px] border border-[var(--hairline)] px-3.5 py-3 text-[var(--ink-muted)]">
-            <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[var(--inset)] text-[var(--cyan-text)]">
-              <IoExtensionPuzzleOutline size={15} aria-hidden="true" />
-            </span>
-            <span className="flex-1 text-[11.5px] leading-[1.45]">
-              More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
-            </span>
-            <IoChevronForwardOutline
-              size={14}
-              aria-hidden="true"
-              className="shrink-0 text-[var(--ink-faint)]"
-            />
-          </div>
-
-          {showNoConnected ? (
-            <output className="text-body-4 text-text-secondary">
-              No connected integrations yet.
-            </output>
-          ) : null}
-
-          {showNoAvailable ? (
-            <output className="text-body-4 text-text-secondary">
-              No available integrations right now.
-            </output>
-          ) : null}
+        <div className="flex items-center gap-2.5 rounded-[16px] border border-[var(--hairline)] px-3.5 py-3 text-[var(--ink-muted)]">
+          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[var(--inset)] text-[var(--cyan-text)]">
+            <IoExtensionPuzzleOutline size={15} aria-hidden="true" />
+          </span>
+          <span className="flex-1 text-[11.5px] leading-[1.45]">
+            More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
+          </span>
         </div>
 
-        <IdexxCredentialsPanel
-          panelRef={panelRef}
-          idexxIntegration={s.idexxIntegration}
-          idexxEnabled={s.idexxEnabled}
-          hasStoredCredentials={s.hasStoredCredentials}
-          credentialsStatusKey={s.credentialsStatusKey}
-          credentialsStatusLabel={s.credentialsStatusLabel}
-          credentialsActionLabel={s.credentialsActionLabel}
-          validateState={s.validateState}
-          saving={s.saving}
-          refreshing={s.refreshing}
-          devices={s.devices}
-          recentOrders={s.recentOrders}
-          username={s.username}
-          setUsername={s.setUsername}
-          password={s.password}
-          setPassword={s.setPassword}
-          handleManualRefresh={s.handleManualRefresh}
-          handleStoreCredentials={s.handleStoreCredentials}
-          handleValidate={s.handleValidate}
-          handleEnableDisable={s.handleEnableDisable}
-        />
+        {showNoConnected ? (
+          <output className="text-body-4 text-text-secondary">
+            No connected integrations yet.
+          </output>
+        ) : null}
+
+        {showNoAvailable ? (
+          <output className="text-body-4 text-text-secondary">
+            No available integrations right now.
+          </output>
+        ) : null}
       </div>
+
+      <IdexxSettingsModal
+        showSettings={s.showSettings}
+        setShowSettings={s.setShowSettings}
+        idexxIntegration={s.idexxIntegration}
+        idexxEnabled={s.idexxEnabled}
+        hasStoredCredentials={s.hasStoredCredentials}
+        credentialsStatusKey={s.credentialsStatusKey}
+        credentialsStatusLabel={s.credentialsStatusLabel}
+        credentialsActionLabel={s.credentialsActionLabel}
+        validateState={s.validateState}
+        saving={s.saving}
+        refreshing={s.refreshing}
+        integrationsLastFetchedAt={s.integrationsLastFetchedAt}
+        devices={s.devices}
+        recentOrders={s.recentOrders}
+        username={s.username}
+        setUsername={s.setUsername}
+        password={s.password}
+        setPassword={s.setPassword}
+        handleManualRefresh={s.handleManualRefresh}
+        handleStoreCredentials={s.handleStoreCredentials}
+        handleValidate={s.handleValidate}
+        handleEnableDisable={s.handleEnableDisable}
+      />
     </div>
   );
 };

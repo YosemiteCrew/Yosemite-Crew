@@ -34,7 +34,9 @@ const disableMerckMock = jest.fn();
 // ---------------------------------------------------------------------------
 jest.mock('next/image', () => ({
   __esModule: true,
-  // Keep the mock accessible without triggering Next's <img> lint rule.
+  // Render as a <span> whose text is empty (alt is not rendered as content) so
+  // card titles that match their logo alt (e.g. "MSD Veterinary Manual") stay
+  // uniquely queryable by text.
   default: ({ alt }: any) => <span aria-label={alt || ''} data-testid="mock-next-image" />,
 }));
 
@@ -89,6 +91,22 @@ jest.mock('@/app/stores/integrationStore', () => {
   return { useIntegrationStore };
 });
 
+jest.mock('@/app/ui/overlays/Modal', () => ({
+  __esModule: true,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="settings-modal">{children}</div> : null,
+}));
+
+jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
+  __esModule: true,
+  default: ({ title, children }: any) => (
+    <div>
+      <div>{title}</div>
+      {children}
+    </div>
+  ),
+}));
+
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ inname, value, onChange }: any) => (
@@ -112,6 +130,15 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   Secondary: ({ text, onClick, isDisabled, href }: any) => (
     <button type="button" data-href={href} onClick={onClick} disabled={isDisabled}>
       {text}
+    </button>
+  ),
+}));
+
+jest.mock('@/app/ui/primitives/Icons/Close', () => ({
+  __esModule: true,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
     </button>
   ),
 }));
@@ -197,7 +224,7 @@ const waitForPage = () =>
 
 const openSettings = async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
-  return screen.findByTestId('idexx-credentials-panel');
+  return screen.findByTestId('settings-modal');
 };
 
 // Resolve an integration card root from its (unique) title text.
@@ -290,6 +317,9 @@ describe('IntegrationsPage — default disabled render', () => {
     expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
+    // The credentials surface is behind the modal, closed on first render.
+    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument();
+
     // "All" tab is active; the others are not.
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Connected' })).toHaveAttribute(
@@ -298,26 +328,41 @@ describe('IntegrationsPage — default disabled render', () => {
     );
   });
 
-  it('shows the store-credentials hint in the panel for a fresh integration', async () => {
+  it('opens the settings modal showing store-credentials hint for a fresh integration', async () => {
     renderPage();
     await waitForPage();
     await openSettings();
 
-    const modal = screen.getByTestId('idexx-credentials-panel');
-    expect(within(modal).getByRole('heading', { name: 'IDEXX credentials' })).toBeInTheDocument();
+    const modal = screen.getByTestId('settings-modal');
+    expect(within(modal).getByText('Integration settings')).toBeInTheDocument();
     // hasStoredCredentials === false → "Store credentials" + connect hint + Enable IDEXX.
     expect(within(modal).getByRole('button', { name: 'Store credentials' })).toBeInTheDocument();
     expect(within(modal).getByRole('button', { name: 'Enable IDEXX' })).toBeDisabled();
     expect(within(modal).getByText('Store credentials first to enable IDEXX.')).toBeInTheDocument();
-    // credentialsStatus "missing" → neutral fallback token label + the "no credentials" chip.
+    // credentialsStatus "missing" → neutral fallback token label + no validate meta yet.
     expect(within(modal).getByText('Missing')).toBeInTheDocument();
-    expect(within(modal).getByText('No credentials stored')).toBeInTheDocument();
     expect(
       within(modal).queryByText('Credentials validated successfully.')
     ).not.toBeInTheDocument();
+    // formatOptionalDate fallback branches.
+    expect(within(modal).getByText('Not refreshed yet')).toBeInTheDocument();
     expect(
       within(modal).getByText('No linked IVLS devices found for this organization.')
     ).toBeInTheDocument();
+    // Recent orders section renders its empty message while IDEXX is disabled.
+    expect(within(modal).getByText('Recent orders')).toBeInTheDocument();
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
+  });
+
+  it('closes the settings modal via the Close control', async () => {
+    renderPage();
+    await waitForPage();
+    await openSettings();
+
+    fireEvent.click(
+      within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'close' })
+    );
+    await waitFor(() => expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument());
   });
 });
 
@@ -395,7 +440,7 @@ describe('IntegrationsPage — enabled render', () => {
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalled());
     await openSettings();
 
-    const modal = screen.getByTestId('idexx-credentials-panel');
+    const modal = screen.getByTestId('settings-modal');
     // hasStoredCredentials === true → "Update credentials" + enabled connection.
     expect(within(modal).getByRole('button', { name: 'Update credentials' })).toBeInTheDocument();
     expect(within(modal).getByRole('button', { name: 'Disable IDEXX' })).toBeInTheDocument();
@@ -416,6 +461,59 @@ describe('IntegrationsPage — enabled render', () => {
     await flush();
   });
 
+  it('renders recent orders in the modal with label and pill branches', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        status: 'RUNNING',
+      },
+      {
+        _id: 'o2',
+        idexxOrderId: 'IDX-2',
+        patientName: '',
+        tests: ['pre-surgical CBC'],
+        status: 'RESULTED',
+      },
+      { idexxOrderId: 'IDX-3', patientName: '', tests: [], status: '' },
+    ]);
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() =>
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1' })
+    );
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    // name + tests, tests-only, and id-fallback label branches.
+    expect(within(modal).getByText('Poppy · ear cytology')).toBeInTheDocument();
+    expect(within(modal).getByText('pre-surgical CBC')).toBeInTheDocument();
+    expect(within(modal).getByText('Order IDX-3')).toBeInTheDocument();
+    // running / resulted / neutral(empty→Pending) pill branches.
+    expect(within(modal).getByText('Running')).toBeInTheDocument();
+    expect(within(modal).getByText('Resulted')).toBeInTheDocument();
+    expect(within(modal).getByText('Pending')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('swallows recent-orders load failures without surfacing an error', async () => {
+    listIdexxOrdersMock.mockRejectedValue(new Error('orders down'));
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() => expect(listIdexxOrdersMock).toHaveBeenCalled());
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
+    // The orders failure is intentionally swallowed — no page alert.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await flush();
+  });
+
   it('shows the empty-device message when no IVLS devices are linked', async () => {
     listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
     renderPage();
@@ -424,7 +522,7 @@ describe('IntegrationsPage — enabled render', () => {
     await openSettings();
 
     expect(
-      within(screen.getByTestId('idexx-credentials-panel')).getByText(
+      within(screen.getByTestId('settings-modal')).getByText(
         'No linked IVLS devices found for this organization.'
       )
     ).toBeInTheDocument();
@@ -638,7 +736,7 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
       'IDEXX credentials are missing or invalid. Open settings, fill credentials, validate, and then enable.'
     );
     // setShowSettings(true) opened the modal.
-    expect(await screen.findByTestId('idexx-credentials-panel')).toBeInTheDocument();
+    expect(await screen.findByTestId('settings-modal')).toBeInTheDocument();
     await flush();
   });
 
@@ -676,7 +774,7 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Store IDEXX credentials in settings before enabling.');
-    expect(await screen.findByTestId('idexx-credentials-panel')).toBeInTheDocument();
+    expect(await screen.findByTestId('settings-modal')).toBeInTheDocument();
     expect(enableIntegrationMock).not.toHaveBeenCalled();
     await flush();
   });
@@ -710,9 +808,7 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     await openSettings();
 
     fireEvent.click(
-      within(screen.getByTestId('idexx-credentials-panel')).getByRole('button', {
-        name: 'Disable IDEXX',
-      })
+      within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'Disable IDEXX' })
     );
 
     await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
@@ -750,9 +846,7 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     await openSettings();
 
     fireEvent.click(
-      within(screen.getByTestId('idexx-credentials-panel')).getByRole('button', {
-        name: 'Disable IDEXX',
-      })
+      within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'Disable IDEXX' })
     );
 
     // getEnableDisableLabel(saving=true) → "Updating..." (both the enable/disable and the
@@ -993,7 +1087,7 @@ describe('IntegrationsPage — misc branches', () => {
     expect(screen.getAllByText('Connecting').length).toBeGreaterThanOrEqual(1);
 
     await openSettings();
-    const modal = screen.getByTestId('idexx-credentials-panel');
+    const modal = screen.getByTestId('settings-modal');
     // credentialsStatusTokens fallback branch (unknown key) → "Expired" label rendered.
     expect(within(modal).getByText('Expired')).toBeInTheDocument();
     // resolveValidateState('expired') → 'idle' → no validate meta.
@@ -1011,7 +1105,7 @@ describe('IntegrationsPage — misc branches', () => {
     await waitForPage();
     await openSettings();
 
-    const modal = screen.getByTestId('idexx-credentials-panel');
+    const modal = screen.getByTestId('settings-modal');
     expect(
       within(modal).getByText('Stored credentials detected. Validate and enable when ready.')
     ).toBeInTheDocument();

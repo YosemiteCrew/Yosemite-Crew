@@ -1650,7 +1650,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
 
   return (
     <div className="flex flex-col gap-5 pb-12">
-      <div className="-mx-4 -mt-5 flex flex-col gap-5 bg-(--status-in-progress-bg) px-4 pt-5 pb-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="-mx-4 -mt-5 flex flex-col gap-5 bg-(--screen) px-4 pt-5 pb-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <WorkspaceHeader
           appointment={appointment}
           companionName={companion.name}
