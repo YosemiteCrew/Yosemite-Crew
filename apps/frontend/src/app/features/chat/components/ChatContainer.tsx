@@ -345,7 +345,7 @@ const ChannelHeaderWithCounterpart: FC<{
   const groupModalCtx = use(GroupModalContext);
   const { notify } = useNotify();
   const [closingSession, setClosingSession] = useState(false);
-  const [sessionClosed, setSessionClosed] = useState(false);
+  const [locallyClosed, setLocallyClosed] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
@@ -358,15 +358,15 @@ const ChannelHeaderWithCounterpart: FC<{
   const companion = useCompanionStore((s) => (patientId ? s.companionsById[patientId] : undefined));
   const router = useRouter();
 
-  // Check if session is already closed
-  useEffect(() => {
-    if (channel) {
-      const status = (channel.data as any)?.status;
-      const frozen = (channel.data as any)?.frozen;
-      const isSessionClosed = status === 'ended' || frozen === true || backendStatus === 'ended';
-      setSessionClosed(isSessionClosed);
-    }
-  }, [channel, backendStatus]);
+  // The session is closed when the channel or backend reports it ended/frozen,
+  // or when we just closed it locally (optimistic UI). Derived during render so
+  // it always tracks its source instead of being mirrored into state via an
+  // effect (react-doctor/no-derived-state).
+  const sessionClosed =
+    (channel?.data as any)?.status === 'ended' ||
+    (channel?.data as any)?.frozen === true ||
+    backendStatus === 'ended' ||
+    locallyClosed;
 
   const handleCloseSession = async () => {
     if (!channel) {
@@ -398,7 +398,7 @@ const ChannelHeaderWithCounterpart: FC<{
         }
         await endChatChannel(sessionId);
         chatSessionStatusCtx.refreshStatuses();
-        setSessionClosed(true);
+        setLocallyClosed(true);
         notify('success', {
           title: 'Chat session closed',
           text: 'Chat session closed successfully',

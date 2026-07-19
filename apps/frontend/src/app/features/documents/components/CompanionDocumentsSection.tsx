@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { IoClose, IoSwapVerticalOutline } from 'react-icons/io5';
 import Modal from '@/app/ui/overlays/Modal';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -71,10 +71,45 @@ type CompanionDocumentsSectionProps = {
   companionId: string;
 };
 
+// The upload sheet's draft — the picked file, the form fields, and their
+// validation errors — is one conceptual unit that is reset together on save, so
+// it is grouped into a single reducer instead of separate related useStates
+// (react-doctor/prefer-useReducer). Views that are genuinely independent
+// (records, filter, sort direction, sheet open/closed) stay as their own state.
+type UploadDraftState = {
+  file: File | null;
+  formData: CompanionRecord;
+  errors: DocumentUploadFormErrors;
+};
+
+const INITIAL_UPLOAD_DRAFT: UploadDraftState = {
+  file: null,
+  formData: emptyCompanionRecord,
+  errors: {},
+};
+
+const uploadDraftReducer = (
+  state: UploadDraftState,
+  update: (current: UploadDraftState) => Partial<UploadDraftState>
+): UploadDraftState => ({ ...state, ...update(state) });
+
+// Resolve a React setState-style value (a next value or an updater function)
+// against the previous value, so the reducer-backed setters below keep the
+// exact `Dispatch<SetStateAction<T>>` contract the child form expects.
+const resolveStateAction = <T,>(prev: T, value: React.SetStateAction<T>): T =>
+  typeof value === 'function' ? (value as (p: T) => T)(prev) : value;
+
 const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionProps) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [formData, setFormData] = useState<CompanionRecord>(emptyCompanionRecord);
-  const [formDataErrors, setFormDataErrors] = useState<DocumentUploadFormErrors>({});
+  const [uploadDraft, dispatchDraft] = useReducer(uploadDraftReducer, INITIAL_UPLOAD_DRAFT);
+  const { file, formData, errors: formDataErrors } = uploadDraft;
+  const setFormData = useCallback<React.Dispatch<React.SetStateAction<CompanionRecord>>>(
+    (value) => dispatchDraft((s) => ({ formData: resolveStateAction(s.formData, value) })),
+    []
+  );
+  const setFile = useCallback<React.Dispatch<React.SetStateAction<File | null>>>(
+    (value) => dispatchDraft((s) => ({ file: resolveStateAction(s.file, value) })),
+    []
+  );
   const [uploadOpen, setUploadOpen] = useState(false);
   const [filter, setFilter] = useState<RecordFilter>('ALL');
   const [sortDirection, setSortDirection] = useState<RecordSortDirection>('desc');
@@ -92,7 +127,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
       if (prev.issuingBusinessName?.trim()) return prev;
       return { ...prev, issuingBusinessName: primaryOrgName };
     });
-  }, [primaryOrgId, primaryOrgName]);
+  }, [primaryOrgId, primaryOrgName, setFormData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +158,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
     const errors: DocumentUploadFormErrors = {};
     if (!formData.title) errors.title = 'Name is required';
     if (formData.attachments.length <= 0) errors.fileUrl = 'File is required';
-    setFormDataErrors(errors);
+    dispatchDraft(() => ({ errors }));
     if (Object.keys(errors).length > 0) {
       return;
     }
@@ -135,7 +170,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
         ...emptyCompanionRecord,
         issuingBusinessName: primaryOrgName || undefined,
       });
-      setFormDataErrors({});
+      dispatchDraft(() => ({ errors: {} }));
       setFile(null);
       setUploadOpen(false);
     } catch (error) {
