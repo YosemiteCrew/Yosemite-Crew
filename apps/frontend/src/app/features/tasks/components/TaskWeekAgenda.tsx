@@ -93,7 +93,7 @@ const AgendaCard = ({ task, isFutureDay, assigneeName, onOpen }: AgendaCardProps
     >
       <span
         className={clsx(
-          'flex items-center gap-[5px] text-[11.5px] font-bold leading-[1.2]',
+          'flex items-center gap-1.5 text-[11.5px] font-bold leading-4',
           isCompleted && 'line-through'
         )}
         style={{ color: style.textColor }}
@@ -108,7 +108,7 @@ const AgendaCard = ({ task, isFutureDay, assigneeName, onOpen }: AgendaCardProps
         <span className="min-w-0 break-words">{task.name || '-'}</span>
       </span>
       <span
-        className="mt-0.5 block text-[10px] leading-[1.2]"
+        className="mt-0.5 block text-[10px] leading-4"
         style={{ color: style.metaColor, opacity: isParent ? 1 : 0.8 }}
       >
         {metaParts.join(' · ')}
@@ -207,7 +207,7 @@ const TaskWeekAgenda = ({
           >
             <IoChevronBack size={14} aria-hidden="true" />
           </button>
-          <span className="px-1.5 text-[13px] font-bold tabular-nums text-[var(--ink)]">
+          <span className="px-1.5 text-[13px] font-bold tabular-nums text-text-primary">
             {weekRangeLabel}
           </span>
           <button
@@ -231,7 +231,7 @@ const TaskWeekAgenda = ({
               <span
                 key={day.getTime()}
                 className={clsx(
-                  'px-3.5 py-[11px] text-[11px] font-bold tracking-[0.08em]',
+                  'px-3.5 py-2.5 text-[11px] font-bold tracking-[0.08em]',
                   index > 0 && 'border-l border-card-border',
                   isToday
                     ? 'text-[var(--blue-text)] bg-[var(--nav-active-bg)]'
@@ -239,7 +239,7 @@ const TaskWeekAgenda = ({
                 )}
               >
                 {weekday}{' '}
-                <span className={clsx('text-[12px]', !isToday && 'text-[var(--ink)]')}>
+                <span className={clsx('text-[12px]', !isToday && 'text-text-primary')}>
                   {dayNumber}
                   {isToday && ' · today'}
                 </span>
@@ -248,20 +248,16 @@ const TaskWeekAgenda = ({
           })}
         </div>
 
-        {/* The body scrolls as one block; the scrollbar is width-less in every
-            engine so the day columns stay aligned with the header's dividers. */}
-        <div className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto scrollbar-hidden [scrollbar-width:none]">
+        <div className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto scrollbar-hidden">
           {days.map((day, index) => {
             const isFutureDay = day.getTime() > todayStartMs;
-            const isToday = isOnPreferredTimeZoneCalendarDay(today, day);
             const dayTasks = tasksByDay[index] ?? [];
             return (
               <div
                 key={`${weekStartKey}-${day.getTime()}`}
                 className={clsx(
                   'group/col flex flex-col gap-2 px-2 py-2.5',
-                  index > 0 && 'border-l border-card-border',
-                  isToday && 'bg-[var(--surface-soft)]'
+                  index > 0 && 'border-l border-card-border'
                 )}
               >
                 {dayTasks.map((task) => (
