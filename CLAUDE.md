@@ -18,6 +18,18 @@ Modular skills in `.claude/skills/` provide deep, app-specific guidance. Load th
 | `.claude/skills/code-review`      | Reviewing code or auditing a PR                                   |
 | `.claude/skills/react-doctor`     | After React changes or before committing: scan/triage diagnostics |
 
+### Design & animation skills (external)
+
+| Skill                                        | When to use                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| `.claude/skills/web-design-guidelines`       | Review UI code for Web Interface Guidelines: accessibility, UX, best practices |
+| `.claude/skills/apple-design`                | Building/reviewing gesture-driven UI, spring/physical motion, materials, depth |
+| `.claude/skills/emil-design-eng`             | UI polish, component design, and the invisible details that make UI feel great |
+| `.claude/skills/find-animation-opportunities`| Find places in a codebase/UI that don't animate but should (read-only)         |
+| `.claude/skills/improve-animations`          | Audit motion across a codebase and produce prioritized improvement plans       |
+| `.claude/skills/review-animations`           | Review animation/motion code in a diff against a high craft bar                 |
+| `.claude/skills/animation-vocabulary`        | Name a motion effect from a vague description ("what's it called when…")        |
+
 Per-app `AGENTS.md` files (for Codex compatibility): `apps/frontend/AGENTS.md`, `apps/backend/AGENTS.md`, `apps/desktop/AGENTS.md`, `apps/mobileAppYC/AGENTS.md`.
 
 ---
