@@ -40,17 +40,16 @@ const TitleCalendar = ({
   const segW = n === 2 ? 'w-1/2' : 'w-1/3';
 
   return (
-    <div className="flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-2">
+    <div className="flex w-full flex-wrap items-end justify-between gap-x-4 gap-y-2">
       <div className="flex min-w-0 flex-col gap-[3px]">
-        <h1 className="text-page-title text-text-primary">
-          {title}
-          <span className="text-[17px] text-[var(--ink-faint)]">{` (${count})`}</span>
+        <h1 className="text-page-title">
+          {title} <span className="text-page-title-count">{`(${count})`}</span>
         </h1>
         {description ? (
           <p className="text-[13.5px] text-[var(--ink-muted)]">{description}</p>
         ) : null}
       </div>
-      <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
+      <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2.5 sm:w-auto">
         {actionBeforeAdd}
         {showAdd && (
           <Primary href="#" text="Add" onClick={() => setAddPopup(true)} className="px-7" />

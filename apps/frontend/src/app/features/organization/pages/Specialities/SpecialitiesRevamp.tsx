@@ -50,7 +50,7 @@ const SpecialitiesRevamp = () => {
   if (!primaryOrgId) {
     return (
       <div className="flex flex-col w-full gap-3 px-4 md:px-8 py-6 max-w-350 mx-auto">
-        <h1 className="text-page-title text-text-primary">Specialities</h1>
+        <h1 className="text-page-title">Specialities</h1>
         <p className="text-body-4 text-text-secondary">
           Select an organisation before managing specialities.
         </p>
@@ -70,7 +70,7 @@ const SpecialitiesRevamp = () => {
           >
             <IoChevronBack size={18} color="var(--color-neutral-900)" aria-hidden="true" />
           </Link>
-          <h1 className="text-page-title text-text-primary">Specialities</h1>
+          <h1 className="text-page-title">Specialities</h1>
         </div>
 
         <Primary

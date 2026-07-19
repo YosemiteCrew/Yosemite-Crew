@@ -17,6 +17,7 @@ import type { Task } from '@/app/features/tasks/types/task';
 import type { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 
 import PhoneDayRail from './PhoneDayRail';
+import PhoneDayStrip from './PhoneDayStrip';
 import PhoneWeekOverview from './PhoneWeekOverview';
 import PhoneMonthOverview from './PhoneMonthOverview';
 import PhoneMyDayRail from './PhoneMyDayRail';
@@ -307,6 +308,15 @@ const PhoneCalendar = ({
           ariaLabel="Calendar view"
         />
       </div>
+      {/* The frame gives the phone day view its own date strip rather than a
+          shrunken week header, so the week stays one tap away from the rail. */}
+      <PhoneDayStrip
+        weekStart={weekStart}
+        appointments={appointments}
+        selectedDate={currentDate}
+        today={referenceNow}
+        onSelectDay={setCurrentDate}
+      />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <PhoneDayRail
           appointments={dayEvents}

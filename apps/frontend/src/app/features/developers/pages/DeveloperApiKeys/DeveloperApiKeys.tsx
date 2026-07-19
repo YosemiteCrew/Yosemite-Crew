@@ -84,7 +84,7 @@ const DeveloperApiKeys = () => {
       <div className="OperationsWrapper">
         <div className="TitleContainer">
           <div className="dev-keys-heading">
-            <h1 className="text-page-title text-text-primary">API keys</h1>
+            <h1 className="text-page-title">API keys</h1>
             <p className="text-body-3 text-text-secondary">
               Keys are scoped per environment and shown only once
             </p>

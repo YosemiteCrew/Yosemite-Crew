@@ -12,6 +12,7 @@ import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { Task, TaskFilters, TaskStatus, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import { useSearchStore } from '@/app/stores/searchStore';
 import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
+import TaskWeekNav from '@/app/features/tasks/components/TaskWeekNav';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -172,6 +173,11 @@ const Tasks = () => {
       'w-full h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
   });
 
+  // The design carries the week-range navigator in the title row, beside the
+  // view toggle — so it only exists for the desktop/tablet week agenda, not for
+  // the board, the list, or the phone day list (which brings its own header).
+  const showWeekNav = activeView === 'calendar' && !isPhone;
+
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
     // The design's tasks "Calendar" is a 7-day agenda board on tablet/desktop; a
@@ -199,9 +205,7 @@ const Tasks = () => {
       <TaskWeekAgenda
         filteredList={filteredList}
         currentDate={currentDate}
-        setCurrentDate={handleCurrentDateChange}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
         canEditTasks={canEditTasks}
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
@@ -249,6 +253,15 @@ const Tasks = () => {
           setActiveView={setActiveView}
           showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
+          actionBeforeAdd={
+            showWeekNav ? (
+              <TaskWeekNav
+                currentDate={currentDate}
+                setCurrentDate={handleCurrentDateChange}
+                setWeekStart={setWeekStart}
+              />
+            ) : undefined
+          }
         />
         <MobileSearchBar placeholder="Search tasks" />
 

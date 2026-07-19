@@ -455,7 +455,8 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
       <MessageGutter mine={mine} firstOfGroup={firstOfGroup} name={counterpartName} />
       <div
         className={clsx(
-          'flex max-w-[80%] flex-col gap-1 sm:max-w-md',
+          // Design: bubble column caps at 460px on the wide desktop frame.
+          'flex max-w-[80%] flex-col gap-1 sm:max-w-md xl:max-w-[460px]',
           mine ? 'items-end' : 'items-start'
         )}
       >
@@ -468,7 +469,8 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
           {!mine && actions}
         </div>
         <span className={clsx('flex items-center gap-2 px-1', reactions.length > 0 && 'mt-2.5')}>
-          <Text as="span" variant="caption-2" className="text-[var(--ink-faint)] text-[10px]">
+          {/* Design (message meta): 10.5px --ink-faint, e.g. "09:29 · Dr. Weber". */}
+          <Text as="span" variant="caption-2" className="text-[10.5px] text-[var(--ink-faint)]">
             {formatMessageTimeLabel(mine, time, senderName)}
           </Text>
           {mine && <MessageStatusIcon sending={sending} seen={seen} />}

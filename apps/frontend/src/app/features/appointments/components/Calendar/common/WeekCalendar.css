@@ -9,7 +9,7 @@
    768–1279 band overrides them. */
 
 .yc-week-grid {
-  /* Time gutter and the mirrored nav-arrow column. */
+  /* Time gutter. 64px on desktop, per the planner frame's `64px repeat(n, 1fr)`. */
   --yc-week-gutter: 64px;
   /* Minimum width of a single day column before the track starts scrolling. */
   --yc-week-day-min: 140px;
@@ -25,10 +25,11 @@
   min-width: max-content;
 }
 
-/* Three-column shell: time gutter | day columns | next-week arrow. */
+/* Two-column shell: time gutter | day columns. The week grid in the design has no
+   arrow columns at all — prev/next live in the header toolbar's date-nav pill. */
 .yc-week-grid__shell {
   display: grid;
-  grid-template-columns: var(--yc-week-gutter) minmax(0, 1fr) var(--yc-week-gutter);
+  grid-template-columns: var(--yc-week-gutter) minmax(0, 1fr);
 }
 
 /* ------------------------------------------------------- tablet: 768–1279 */
@@ -48,15 +49,15 @@
   }
 
   /* The hour gutter drops from 64px to 44px, so the labels take the frame's
-     9.5px tabular type. Both selectors need to out-specify the unlayered
-     `.text-caption-2` override in globals.css. */
+     9.5px tabular type and tuck to a 6px right inset (the tablet frame's
+     `right: 6px`) instead of the desktop frame's 10px. */
   .yc-week-grid .yc-week-grid__hour-label {
-    padding-left: 2px !important;
-    font-size: 9.5px !important;
+    font-size: 9.5px;
     line-height: 1;
   }
 
   .yc-week-grid .yc-week-grid__hour-label span {
+    right: 6px;
     font-size: 9.5px;
   }
 }

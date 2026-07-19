@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import clsx from 'clsx';
-import { IoAdd, IoChevronBack, IoChevronForward } from 'react-icons/io5';
+import { IoAdd } from 'react-icons/io5';
 import {
   getStartOfWeek,
   getWeekDays,
@@ -18,41 +18,22 @@ import {
   getTaskCardVariant,
 } from '@/app/features/tasks/components/taskCardVisuals';
 
+/**
+ * The week-range navigator that drives `currentDate`/`weekStart` renders in the
+ * page title row (TaskWeekNav), per the design; this board only reads the week.
+ */
 type TaskWeekAgendaProps = {
   filteredList: Task[];
   currentDate: Date;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   weekStart: Date;
-  setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks?: boolean;
   setActiveTask?: (task: Task) => void;
   setViewPopup?: (open: boolean) => void;
   onCreateFromCalendarSlot?: (prefill: { dueAt: Date; assignedTo?: string }) => void;
 };
 
-const addDays = (date: Date, amount: number): Date => {
-  const next = new Date(date);
-  next.setDate(next.getDate() + amount);
-  return next;
-};
-
 /** Default drop time for a task created from an empty day column. */
 const DEFAULT_NEW_TASK_HOUR = 9;
-
-const buildWeekRangeLabel = (days: Date[]): string => {
-  const first = days[0];
-  const last = days.at(-1);
-  /* v8 ignore next 2 -- getWeekDays always returns 7 days; defensive only. */
-  if (!first || !last) return '';
-  const firstDay = formatDateInPreferredTimeZone(first, { day: 'numeric' });
-  const lastDay = formatDateInPreferredTimeZone(last, { day: 'numeric' });
-  const firstMonth = formatDateInPreferredTimeZone(first, { month: 'short' });
-  const lastMonth = formatDateInPreferredTimeZone(last, { month: 'short' });
-  if (firstMonth === lastMonth) {
-    return `${firstDay} – ${lastDay} ${lastMonth}`;
-  }
-  return `${firstDay} ${firstMonth} – ${lastDay} ${lastMonth}`;
-};
 
 type AgendaCardProps = {
   task: Task;
@@ -120,9 +101,7 @@ const AgendaCard = ({ task, isFutureDay, assigneeName, onOpen }: AgendaCardProps
 const TaskWeekAgenda = ({
   filteredList,
   currentDate,
-  setCurrentDate,
   weekStart,
-  setWeekStart,
   canEditTasks = false,
   setActiveTask,
   setViewPopup,
@@ -182,112 +161,73 @@ const TaskWeekAgenda = ({
     [onCreateFromCalendarSlot]
   );
 
-  const goToPrevWeek = useCallback(() => {
-    setCurrentDate((prev) => addDays(prev, -7));
-    setWeekStart((prev) => addDays(prev, -7));
-  }, [setCurrentDate, setWeekStart]);
-
-  const goToNextWeek = useCallback(() => {
-    setCurrentDate((prev) => addDays(prev, 7));
-    setWeekStart((prev) => addDays(prev, 7));
-  }, [setCurrentDate, setWeekStart]);
-
-  const weekRangeLabel = useMemo(() => buildWeekRangeLabel(days), [days]);
   const weekStartKey = weekStart.getTime();
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <span className="flex items-center gap-1 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] p-1">
-          <button
-            type="button"
-            aria-label="Previous week"
-            onClick={goToPrevWeek}
-            className="flex size-[30px] items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-card-hover hover:text-text-primary"
-          >
-            <IoChevronBack size={14} aria-hidden="true" />
-          </button>
-          <span className="px-1.5 text-[13px] font-bold tabular-nums text-text-primary">
-            {weekRangeLabel}
-          </span>
-          <button
-            type="button"
-            aria-label="Next week"
-            onClick={goToNextWeek}
-            className="flex size-[30px] items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-card-hover hover:text-text-primary"
-          >
-            <IoChevronForward size={14} aria-hidden="true" />
-          </button>
-        </span>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="grid grid-cols-7 border-b border-card-border bg-[var(--screen-2)]">
+        {days.map((day, index) => {
+          const isToday = isOnPreferredTimeZoneCalendarDay(today, day);
+          const weekday = formatDateInPreferredTimeZone(day, { weekday: 'short' }).toUpperCase();
+          const dayNumber = formatDateInPreferredTimeZone(day, { day: 'numeric' });
+          return (
+            <span
+              key={day.getTime()}
+              className={clsx(
+                'px-3.5 py-2.5 text-[11px] font-bold tracking-[0.08em]',
+                index > 0 && 'border-l border-card-border',
+                isToday ? 'text-[var(--blue-text)] bg-[var(--nav-active-bg)]' : 'text-text-tertiary'
+              )}
+            >
+              {weekday}{' '}
+              <span className={clsx('text-[12px]', !isToday && 'text-text-primary')}>
+                {dayNumber}
+                {isToday && ' · today'}
+              </span>
+            </span>
+          );
+        })}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-        <div className="grid grid-cols-7 border-b border-card-border bg-[var(--screen-2)]">
-          {days.map((day, index) => {
-            const isToday = isOnPreferredTimeZoneCalendarDay(today, day);
-            const weekday = formatDateInPreferredTimeZone(day, { weekday: 'short' }).toUpperCase();
-            const dayNumber = formatDateInPreferredTimeZone(day, { day: 'numeric' });
-            return (
-              <span
-                key={day.getTime()}
-                className={clsx(
-                  'px-3.5 py-2.5 text-[11px] font-bold tracking-[0.08em]',
-                  index > 0 && 'border-l border-card-border',
-                  isToday
-                    ? 'text-[var(--blue-text)] bg-[var(--nav-active-bg)]'
-                    : 'text-text-tertiary'
-                )}
-              >
-                {weekday}{' '}
-                <span className={clsx('text-[12px]', !isToday && 'text-text-primary')}>
-                  {dayNumber}
-                  {isToday && ' · today'}
-                </span>
-              </span>
-            );
-          })}
-        </div>
-
-        <div className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto scrollbar-hidden">
-          {days.map((day, index) => {
-            const isFutureDay = day.getTime() > todayStartMs;
-            const dayTasks = tasksByDay[index] ?? [];
-            return (
-              <div
-                key={`${weekStartKey}-${day.getTime()}`}
-                className={clsx(
-                  'group/col flex flex-col gap-2 px-2 py-2.5',
-                  index > 0 && 'border-l border-card-border'
-                )}
-              >
-                {dayTasks.map((task) => (
-                  <AgendaCard
-                    key={task._id}
-                    task={task}
-                    isFutureDay={isFutureDay}
-                    assigneeName={resolveAssignee(task)}
-                    onOpen={openTask}
-                  />
-                ))}
-                {canEditTasks && (
-                  <button
-                    type="button"
-                    aria-label={`Add task on ${formatDateInPreferredTimeZone(day, {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'short',
-                    })}`}
-                    onClick={() => handleColumnAdd(day)}
-                    className="mt-auto flex items-center justify-center gap-1 rounded-[10px] border border-dashed border-[var(--divider)] py-1.5 text-[11px] font-semibold text-text-tertiary opacity-0 transition-opacity hover:text-text-primary focus-visible:opacity-100 group-hover/col:opacity-100"
-                  >
-                    <IoAdd size={13} aria-hidden="true" />
-                    Add
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+      <div className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto scrollbar-hidden">
+        {days.map((day, index) => {
+          const isFutureDay = day.getTime() > todayStartMs;
+          const dayTasks = tasksByDay[index] ?? [];
+          return (
+            <div
+              key={`${weekStartKey}-${day.getTime()}`}
+              className={clsx(
+                'group/col flex flex-col gap-2 px-2 py-2.5',
+                index > 0 && 'border-l border-card-border'
+              )}
+            >
+              {dayTasks.map((task) => (
+                <AgendaCard
+                  key={task._id}
+                  task={task}
+                  isFutureDay={isFutureDay}
+                  assigneeName={resolveAssignee(task)}
+                  onOpen={openTask}
+                />
+              ))}
+              {canEditTasks && (
+                <button
+                  type="button"
+                  aria-label={`Add task on ${formatDateInPreferredTimeZone(day, {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'short',
+                  })}`}
+                  onClick={() => handleColumnAdd(day)}
+                  className="mt-auto flex items-center justify-center gap-1 rounded-[10px] border border-dashed border-[var(--divider)] py-1.5 text-[11px] font-semibold text-text-tertiary opacity-0 transition-opacity hover:text-text-primary focus-visible:opacity-100 group-hover/col:opacity-100"
+                >
+                  <IoAdd size={13} aria-hidden="true" />
+                  Add
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

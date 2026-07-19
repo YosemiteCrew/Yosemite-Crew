@@ -255,10 +255,9 @@ const Forms = () => {
     <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-page-title flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>
-              {'Templates'}
-              <span className="text-body-2 text-text-tertiary">{` (${list.length})`}</span>
+              {'Templates'} <span className="text-page-title-count">{`(${list.length})`}</span>
             </span>
             <GlassTooltip
               content="Build and reuse templates, link them to services, and use custom available templates."

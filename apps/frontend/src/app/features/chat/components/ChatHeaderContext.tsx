@@ -90,19 +90,29 @@ export function ChatHeaderContext({
         </div>
       )}
       {appointment && (
-        <div className="flex flex-col gap-2.5 border-b border-[var(--hairline)] bg-[var(--screen-2)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
-          {/* Compact appointment context chip that sits above the message thread. */}
-          <span className="inline-flex min-w-0 items-center gap-2.5 self-start rounded-full border border-[var(--hairline)] bg-[var(--pill-raised)] py-1.5 pl-1.5 pr-3.5 sm:self-auto">
-            <ChatAvatar name={apptName || 'Appointment'} size="sm" />
+        <div className="flex flex-col gap-2 border-b border-[var(--hairline)] bg-[var(--screen-2)] px-3.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-2.5">
+          {/* Compact appointment context chip that sits above the message thread.
+              Measured from the design's in-thread context pill ("Tasks & Chat"
+              header chip / design-07 thread chip): 20-22px avatar, 6px gap,
+              6-7px block padding, 11-12px / 600 --ink-body label on a
+              --pill-raised + --hairline pill. Sized so the chip lands at ~36px
+              — the same visual weight as the 40px Secondary actions beside it,
+              not the 48px block it was before. */}
+          <span className="inline-flex min-w-0 items-center gap-1.5 self-start rounded-full border border-[var(--hairline)] bg-[var(--pill-raised)] py-1 pl-1 pr-3 sm:self-auto">
+            <ChatAvatar name={apptName || 'Appointment'} size="xs" />
             <span className="flex min-w-0 flex-col">
               <Text
                 as="span"
                 variant="caption-2"
-                className="font-bold uppercase tracking-[0.08em] text-[var(--ink-muted)]"
+                className="text-[10px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-[var(--ink-muted)]"
               >
                 Appointment
               </Text>
-              <Text as="span" variant="caption-1" className="truncate text-[var(--ink-body)]">
+              <Text
+                as="span"
+                variant="caption-1"
+                className="truncate text-[11.5px] font-semibold leading-[1.35] text-[var(--ink-body)] xl:text-[12px]"
+              >
                 {[apptLabel, apptName].filter(Boolean).join(' · ') || 'Linked appointment'}
               </Text>
             </span>

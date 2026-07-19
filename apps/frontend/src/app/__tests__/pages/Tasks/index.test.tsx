@@ -80,6 +80,7 @@ const useSearchParamsMock = jest.fn();
 const useIsPhoneMock = jest.fn();
 const taskCalendarSpy = jest.fn();
 const taskAgendaSpy = jest.fn();
+const taskWeekNavSpy = jest.fn();
 const taskTableSpy = jest.fn();
 const taskBoardSpy = jest.fn();
 const taskInfoSpy = jest.fn();
@@ -142,6 +143,7 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
 
 jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
   <div>
+    {props.actionBeforeAdd}
     <button type="button" onClick={() => props.setActiveView('calendar')}>
       Calendar
     </button>
@@ -178,6 +180,11 @@ jest.mock('@/app/features/appointments/components/Calendar/TaskCalendar', () => 
 jest.mock('@/app/features/tasks/components/TaskWeekAgenda', () => (props: any) => {
   taskAgendaSpy(props);
   return <div data-testid="task-week-agenda" />;
+});
+
+jest.mock('@/app/features/tasks/components/TaskWeekNav', () => (props: any) => {
+  taskWeekNavSpy(props);
+  return <div data-testid="task-week-nav" />;
 });
 
 jest.mock('@/app/ui/tables/Tasks', () => (props: any) => {
@@ -412,36 +419,54 @@ describe('Tasks page', () => {
     );
   });
 
-  it('setCurrentDate prop passed to the agenda updates the date', async () => {
+  it('setCurrentDate prop passed to the title-row week nav updates the date', async () => {
     render(<ProtectedTasks />);
 
-    const agendaProps = taskAgendaSpy.mock.calls[0][0];
-    expect(agendaProps.setCurrentDate).toBeInstanceOf(Function);
+    const navProps = taskWeekNavSpy.mock.calls[0][0];
+    expect(navProps.setCurrentDate).toBeInstanceOf(Function);
     const newDate = new Date('2025-06-01');
 
     await act(async () => {
-      agendaProps.setCurrentDate(newDate);
+      navProps.setCurrentDate(newDate);
       await Promise.resolve();
     });
 
     expect(taskAgendaSpy).toHaveBeenCalledWith(expect.objectContaining({ currentDate: newDate }));
+    expect(taskWeekNavSpy).toHaveBeenCalledWith(expect.objectContaining({ currentDate: newDate }));
   });
 
-  it('setWeekStart prop passed to the agenda updates weekStart', async () => {
+  it('setWeekStart prop passed to the title-row week nav updates weekStart', async () => {
     render(<ProtectedTasks />);
 
-    const agendaProps = taskAgendaSpy.mock.calls[0][0];
-    expect(agendaProps.setWeekStart).toBeInstanceOf(Function);
+    const navProps = taskWeekNavSpy.mock.calls[0][0];
+    expect(navProps.setWeekStart).toBeInstanceOf(Function);
     const newWeekStart = new Date('2025-05-26');
 
     await act(async () => {
-      agendaProps.setWeekStart(newWeekStart);
+      navProps.setWeekStart(newWeekStart);
       await Promise.resolve();
     });
 
     expect(taskAgendaSpy).toHaveBeenCalledWith(
       expect.objectContaining({ weekStart: newWeekStart })
     );
+  });
+
+  it('renders the week nav in the title row only for the desktop calendar view', () => {
+    const { unmount } = render(<ProtectedTasks />);
+    expect(screen.getByTestId('task-week-nav')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('List'));
+    expect(screen.queryByTestId('task-week-nav')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Board'));
+    expect(screen.queryByTestId('task-week-nav')).not.toBeInTheDocument();
+    unmount();
+
+    // The phone day list brings its own header, so the pill stays off there.
+    useIsPhoneMock.mockReturnValue(true);
+    render(<ProtectedTasks />);
+    expect(screen.queryByTestId('task-week-nav')).not.toBeInTheDocument();
   });
 
   it('setActiveCalendar prop updates activeCalendar passed to the phone TaskCalendar', async () => {
@@ -531,7 +556,7 @@ describe('Tasks page', () => {
 
     const nextDate = new Date('2025-07-04');
     await act(async () => {
-      lastPropsOf(taskAgendaSpy).setCurrentDate(() => nextDate);
+      lastPropsOf(taskWeekNavSpy).setCurrentDate(() => nextDate);
       await Promise.resolve();
     });
 
