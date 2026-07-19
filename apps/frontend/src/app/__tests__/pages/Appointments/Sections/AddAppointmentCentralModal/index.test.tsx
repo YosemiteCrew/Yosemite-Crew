@@ -1615,7 +1615,6 @@ describe('AddAppointmentCentralModal — phone bottom-sheet variant', () => {
     mockAppointmentForm.formData = {
       ...mockFormData,
       isEmergency: true,
-      appointmentType: { id: 'svc-1', speciality: { id: 'spec-1' } },
     };
     render(<AddAppointmentCentralModal {...defaultProps} />);
     const body = screen.getByTestId('bottom-sheet-body');
