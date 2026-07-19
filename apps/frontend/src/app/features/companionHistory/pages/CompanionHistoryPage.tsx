@@ -9,6 +9,8 @@ import { IoAddOutline, IoCheckmarkOutline, IoPencilOutline } from 'react-icons/i
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
+import PhoneCompanionRecord from '@/app/features/companionHistory/pages/phone/PhoneCompanionRecord';
 import {
   useCompanionsParentsForPrimaryOrg,
   useLoadCompanionsForPrimaryOrg,
@@ -308,6 +310,7 @@ const CompanionHistoryPageInner = () => {
   useLoadCompanionsForPrimaryOrg();
   const companions = useCompanionsParentsForPrimaryOrg();
   const companionsStatus = useCompanionStore((s) => s.status);
+  const isPhone = useIsPhone();
   const router = useRouter();
   const searchParams = useSearchParams();
   const replaceCompanionText = useCompanionTerminologyText();
@@ -448,117 +451,138 @@ const CompanionHistoryPageInner = () => {
     );
   }
 
+  const desktopBody = (
+    <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-8">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <button
+              type="button"
+              aria-label="Go back"
+              onClick={handleBack}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+            >
+              <IoIosArrowBack size={16} aria-hidden="true" />
+            </button>
+            <h1 className="text-page-title text-text-primary">{historyTitle}</h1>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {companionAlerts.map((alert) => (
+                <AlertPill
+                  key={alert.id}
+                  id={alert.id}
+                  label={alert.label}
+                  severity={alert.severity}
+                  onRemove={handleRemoveCompanionAlert}
+                />
+              ))}
+              <AddAlertButton
+                show={Boolean(activeCompanion)}
+                tooltip={replaceCompanionText('Add alerts for patient')}
+                label={replaceCompanionText('Add companion alert')}
+                onClick={() => setAlertTarget('companion')}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Primary
+              icon={<IoAddOutline size={18} aria-hidden="true" />}
+              text="Add appointment"
+              onClick={() => setAddAppointmentOpen(true)}
+            />
+          </div>
+        </div>
+
+        {activeCompanion ? (
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,1fr)]">
+            <CompanionProfilePanel
+              record={activeCompanion}
+              onEdit={canEditCompanions ? () => setEditCompanionOpen(true) : undefined}
+            />
+            <ParentProfilePanel
+              parent={activeCompanion.parent}
+              companionId={activeCompanion.companion.id}
+              alerts={clientAlerts}
+              onAddAlert={() => setAlertTarget('client')}
+              onRemoveAlert={handleRemoveClientAlert}
+            />
+          </div>
+        ) : null}
+
+        {hasCompanionId ? null : (
+          <div className="rounded-2xl border border-card-border bg-neutral-0 px-4 py-6 text-body-3 text-text-secondary">
+            Companion id is missing. Please open overview from Appointments or Companions.
+          </div>
+        )}
+      </div>
+
+      {hasCompanionId ? (
+        <CompanionHistoryTimeline companionId={companionId} showDocumentUpload />
+      ) : null}
+    </div>
+  );
+
   return (
     <ProtectedRoute skeleton={PAGE_SKELETON}>
       <OrgGuard skeleton={PAGE_SKELETON}>
-        <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-8">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  aria-label="Go back"
-                  onClick={handleBack}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-                >
-                  <IoIosArrowBack size={16} aria-hidden="true" />
-                </button>
-                <h1 className="text-page-title text-text-primary">{historyTitle}</h1>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {companionAlerts.map((alert) => (
-                    <AlertPill
-                      key={alert.id}
-                      id={alert.id}
-                      label={alert.label}
-                      severity={alert.severity}
-                      onRemove={handleRemoveCompanionAlert}
-                    />
-                  ))}
-                  <AddAlertButton
-                    show={Boolean(activeCompanion)}
-                    tooltip={replaceCompanionText('Add alerts for patient')}
-                    label={replaceCompanionText('Add companion alert')}
-                    onClick={() => setAlertTarget('companion')}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Primary
-                  icon={<IoAddOutline size={18} aria-hidden="true" />}
-                  text="Add appointment"
-                  onClick={() => setAddAppointmentOpen(true)}
-                />
-              </div>
-            </div>
-
-            {activeCompanion ? (
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,1fr)]">
-                <CompanionProfilePanel
-                  record={activeCompanion}
-                  onEdit={canEditCompanions ? () => setEditCompanionOpen(true) : undefined}
-                />
-                <ParentProfilePanel
-                  parent={activeCompanion.parent}
-                  companionId={activeCompanion.companion.id}
-                  alerts={clientAlerts}
-                  onAddAlert={() => setAlertTarget('client')}
-                  onRemoveAlert={handleRemoveClientAlert}
-                />
-              </div>
-            ) : null}
-
-            {hasCompanionId ? null : (
-              <div className="rounded-2xl border border-card-border bg-neutral-0 px-4 py-6 text-body-3 text-text-secondary">
-                Companion id is missing. Please open overview from Appointments or Companions.
-              </div>
-            )}
-          </div>
-
-          {hasCompanionId ? (
-            <CompanionHistoryTimeline companionId={companionId} showDocumentUpload />
-          ) : null}
-
-          <AddAppointmentCentralModal
-            showModal={addAppointmentOpen}
-            setShowModal={setAddAppointmentOpen}
-            setActiveFilter={setAppointmentFilterState}
-            setActiveStatus={setAppointmentStatusState}
-            initialCompanionId={companionId || null}
+        {isPhone && hasCompanionId ? (
+          <PhoneCompanionRecord
+            companionId={companionId}
+            activeCompanion={activeCompanion}
+            title={historyTitle}
+            companionAlerts={companionAlerts}
+            clientAlerts={clientAlerts}
+            canEdit={canEditCompanions}
+            replaceCompanionText={replaceCompanionText}
+            onBack={handleBack}
+            onEdit={canEditCompanions ? () => setEditCompanionOpen(true) : undefined}
+            onAddAppointment={() => setAddAppointmentOpen(true)}
+            onAddCompanionAlert={() => setAlertTarget('companion')}
+            onRemoveCompanionAlert={handleRemoveCompanionAlert}
           />
+        ) : (
+          desktopBody
+        )}
 
-          {/* Reuses the Companions directory's editor so the overview edits the
-              patient and client through the same validated mutations. */}
-          {activeCompanion &&
-            canEditCompanions &&
-            (isCompanionRevampEnabled() ? (
-              <AddCompanionCentralModal
-                showModal={editCompanionOpen}
-                setShowModal={setEditCompanionOpen}
-                viewCompanion={activeCompanion}
-                canEditCompanionStatus={canEditCompanions}
-              />
-            ) : (
-              <CompanionInfo
-                showModal={editCompanionOpen}
-                setShowModal={setEditCompanionOpen}
-                activeCompanion={activeCompanion}
-                canEditCompanionStatus={canEditCompanions}
-              />
-            ))}
+        <AddAppointmentCentralModal
+          showModal={addAppointmentOpen}
+          setShowModal={setAddAppointmentOpen}
+          setActiveFilter={setAppointmentFilterState}
+          setActiveStatus={setAppointmentStatusState}
+          initialCompanionId={companionId || null}
+        />
 
-          <AddAlertModal
-            open={alertTarget !== null}
-            companionName={
-              alertTarget === 'client'
-                ? formatParentName(activeCompanion?.parent)
-                : (activeCompanion?.companion.name ?? '')
-            }
-            subject={alertTarget === 'client' ? 'client' : 'companion'}
-            onClose={() => setAlertTarget(null)}
-            onAdd={handleAddAlert}
-          />
-        </div>
+        {/* Reuses the Companions directory's editor so the overview edits the
+            patient and client through the same validated mutations. */}
+        {activeCompanion &&
+          canEditCompanions &&
+          (isCompanionRevampEnabled() ? (
+            <AddCompanionCentralModal
+              showModal={editCompanionOpen}
+              setShowModal={setEditCompanionOpen}
+              viewCompanion={activeCompanion}
+              canEditCompanionStatus={canEditCompanions}
+            />
+          ) : (
+            <CompanionInfo
+              showModal={editCompanionOpen}
+              setShowModal={setEditCompanionOpen}
+              activeCompanion={activeCompanion}
+              canEditCompanionStatus={canEditCompanions}
+            />
+          ))}
+
+        <AddAlertModal
+          open={alertTarget !== null}
+          companionName={
+            alertTarget === 'client'
+              ? formatParentName(activeCompanion?.parent)
+              : (activeCompanion?.companion.name ?? '')
+          }
+          subject={alertTarget === 'client' ? 'client' : 'companion'}
+          onClose={() => setAlertTarget(null)}
+          onAdd={handleAddAlert}
+        />
       </OrgGuard>
     </ProtectedRoute>
   );

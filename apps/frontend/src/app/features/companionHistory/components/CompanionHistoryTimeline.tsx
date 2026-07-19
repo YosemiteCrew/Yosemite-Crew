@@ -77,6 +77,19 @@ type CompanionHistoryTimelineProps = {
   onOpenAppointmentView?: (intent: AppointmentViewIntent) => void;
   compact?: boolean;
   fullPageHref?: string;
+  /**
+   * Presentation only. `'phone'` drops the desktop Search / Sort / Status header
+   * row and the bordered card chrome so the timeline reads as the compact
+   * bespoke phone-record History section (< 768px). The data flow, filters and
+   * every handler are identical to the default layout.
+   */
+  variant?: 'default' | 'phone';
+  /**
+   * Phone action-bar hook: incrementing this switches the active filter to
+   * Medical records (revealing the document uploader when `showDocumentUpload`
+   * is set). Ignored on the default layout.
+   */
+  openMedicalRecordsSignal?: number;
 };
 
 type SortKey = 'newest' | 'oldest';
@@ -1135,7 +1148,10 @@ const useCompanionHistoryTimelineView = ({
   onOpenAppointmentView,
   compact = false,
   fullPageHref,
+  variant = 'default',
+  openMedicalRecordsSignal = 0,
 }: CompanionHistoryTimelineProps) => {
+  const isPhoneVariant = variant === 'phone';
   useLoadAppointmentsForPrimaryOrg();
   useLoadTasksForPrimaryOrg();
   const organisationId = useOrgStore((state) => state.primaryOrgId);
@@ -1245,6 +1261,16 @@ const useCompanionHistoryTimelineView = ({
     setQuery('');
     setExpandedId(null);
     setStatusOverrides({});
+  }
+
+  // Phone action-bar upload trigger: when the signal advances, jump to Medical
+  // records so the uploader is on screen. Adjust state during render (tracking
+  // the previous value) rather than via an effect, matching the identity reset.
+  const [prevUploadSignal, setPrevUploadSignal] = useState(openMedicalRecordsSignal);
+  if (openMedicalRecordsSignal !== prevUploadSignal) {
+    setPrevUploadSignal(openMedicalRecordsSignal);
+    setActiveFilter('MEDICAL_RECORDS');
+    setStatusFilter(STATUS_FILTER_ALL);
   }
 
   useLayoutEffect(() => {
@@ -1722,45 +1748,60 @@ const useCompanionHistoryTimelineView = ({
 
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
-      <div className="flex w-full flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {statusFilterOptions.length > 0 ? (
+      <div className={isPhoneVariant ? 'flex w-full flex-col gap-3' : 'flex w-full flex-col gap-5'}>
+        {isPhoneVariant ? null : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex shrink-0 flex-wrap items-center gap-3">
+              {statusFilterOptions.length > 0 ? (
+                <PillDropdown
+                  label="Status"
+                  options={statusFilterOptions.map((option) => ({
+                    label: option.label,
+                    value: option.value,
+                  }))}
+                  value={statusFilter}
+                  onSelect={setStatusFilter}
+                />
+              ) : null}
               <PillDropdown
-                label="Status"
-                options={statusFilterOptions.map((option) => ({
+                label="Sort by"
+                options={SORT_OPTIONS.map((option) => ({
                   label: option.label,
                   value: option.value,
                 }))}
-                value={statusFilter}
-                onSelect={setStatusFilter}
+                value={sortKey}
+                onSelect={(value) => setSortKey(value as SortKey)}
               />
-            ) : null}
-            <PillDropdown
-              label="Sort by"
-              options={SORT_OPTIONS.map((option) => ({
-                label: option.label,
-                value: option.value,
-              }))}
-              value={sortKey}
-              onSelect={(value) => setSortKey(value as SortKey)}
+            </div>
+            <Search
+              value={query}
+              setSearch={setQuery}
+              placeholder="Search by service, appointment, invoice, or records"
+              label="Search overview records"
+              className="ml-auto w-full! md:w-120! xl:w-128!"
             />
           </div>
-          <Search
-            value={query}
-            setSearch={setQuery}
-            placeholder="Search by service, appointment, invoice, or records"
-            label="Search overview records"
-            className="ml-auto w-full! md:w-120! xl:w-128!"
-          />
-        </div>
+        )}
 
-        <div className="flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <div
+          className={
+            isPhoneVariant
+              ? 'flex flex-col gap-3'
+              : 'flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]'
+          }
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-[14px] font-bold tracking-[-0.02em] text-[var(--ink)]">
               History
             </span>
-            <div role="tablist" className="flex flex-wrap items-center gap-1.5">
+            <div
+              role="tablist"
+              className={
+                isPhoneVariant
+                  ? 'flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+                  : 'flex flex-wrap items-center gap-1.5'
+              }
+            >
               {historyFilters.map((filter) => {
                 const active = filter.key === activeFilter;
                 return (
@@ -1773,7 +1814,11 @@ const useCompanionHistoryTimelineView = ({
                       setActiveFilter(filter.key);
                       setStatusFilter(STATUS_FILTER_ALL);
                     }}
-                    className={FILTER_CHIP_BASE}
+                    className={
+                      isPhoneVariant
+                        ? `${FILTER_CHIP_BASE} shrink-0 whitespace-nowrap`
+                        : FILTER_CHIP_BASE
+                    }
                     style={
                       active
                         ? {
