@@ -35,6 +35,22 @@ jest.mock('@iconify/react', () => ({
   Icon: ({ icon }: any) => <span data-testid={`icon-${icon}`} />,
 }));
 
+const mockIsPhone = jest.fn(() => false);
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  useIsPhone: () => mockIsPhone(),
+  default: () => mockIsPhone(),
+}));
+
+jest.mock('@/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome', () => ({
+  __esModule: true,
+  default: ({ displayName, recentActivity }: any) => (
+    <div data-testid="phone-dev-home" data-activity-count={recentActivity?.length}>
+      {displayName}
+    </div>
+  ),
+}));
+
 import DeveloperPortalHome from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
 
 const createState = (attributes: Record<string, string>) => ({
@@ -44,6 +60,7 @@ const createState = (attributes: Record<string, string>) => ({
 describe('DeveloperPortalHome page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsPhone.mockReturnValue(false);
   });
 
   test('renders developer home content when authenticated', () => {
@@ -185,5 +202,22 @@ describe('DeveloperPortalHome page', () => {
       'href',
       '/developers/api-keys'
     );
+  });
+
+  test('renders the bespoke phone layout below the phone breakpoint', () => {
+    mockIsPhone.mockReturnValue(true);
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+
+    const phone = screen.getByTestId('phone-dev-home');
+    expect(phone).toHaveTextContent('Ada Lovelace');
+    // The four desktop recent-activity entries are handed to the phone log.
+    expect(phone).toHaveAttribute('data-activity-count', '4');
+    // Desktop-only sections are not rendered on phone.
+    expect(screen.queryByText('FHIR-NATIVE API')).not.toBeInTheDocument();
+    expect(screen.queryByText('Quick status')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('primary-View docs')).not.toBeInTheDocument();
   });
 });

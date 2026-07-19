@@ -46,6 +46,7 @@ jest.mock('@/app/ui/overlays/Modal/GuidePlayerModal', () => ({
 }));
 
 const cardButton = (title: string) => screen.getByRole('button', { name: `Play guide: ${title}` });
+const allCards = () => screen.queryAllByRole('button', { name: /^Play guide:/ });
 
 describe('Guides page', () => {
   it('renders the warm-bone header and all seed guides', () => {
@@ -55,7 +56,7 @@ describe('Guides page', () => {
       screen.getByText('Short, practical walkthroughs · 2-6 minutes each')
     ).toBeInTheDocument();
     expect(screen.getByText('12 guides · updated with each release')).toBeInTheDocument();
-    expect(screen.getByText('6 results')).toBeInTheDocument();
+    expect(allCards()).toHaveLength(6);
     expect(cardButton('Your first day in the PIMS')).toBeInTheDocument();
     expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
   });
@@ -70,7 +71,7 @@ describe('Guides page', () => {
   it('filters the grid by category chip', () => {
     render(<ProtectedGuides />);
     fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
-    expect(screen.getByText('1 results')).toBeInTheDocument();
+    expect(allCards()).toHaveLength(1);
     expect(cardButton('Run a visit end to end')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Play guide: Your first day in the PIMS' })
@@ -80,11 +81,24 @@ describe('Guides page', () => {
   it('filters the grid by search text', () => {
     render(<ProtectedGuides />);
     fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'idexx' } });
-    expect(screen.getByText('1 results')).toBeInTheDocument();
+    expect(allCards()).toHaveLength(1);
     expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'nonsense' } });
-    expect(screen.getByText('0 results')).toBeInTheDocument();
+    expect(allCards()).toHaveLength(0);
+    expect(screen.getByText('No guides match your search')).toBeInTheDocument();
+  });
+
+  it('clears filters from the empty state to restore the grid', () => {
+    render(<ProtectedGuides />);
+    fireEvent.click(screen.getByRole('button', { name: 'Finance' }));
+    fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'nonsense' } });
+    expect(allCards()).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(allCards()).toHaveLength(6);
+    expect(screen.queryByText('No guides match your search')).not.toBeInTheDocument();
+    expect((screen.getByLabelText('Search guides') as HTMLInputElement).value).toBe('');
   });
 
   it('opens the player and advances to the next guide', () => {
