@@ -84,22 +84,21 @@ const ServiceFormFields = ({
         onChange={(e) => onNameChange(e.target.value)}
         error={nameError}
       />
-      <div className="relative w-full">
+      <div className="w-full">
+        <label
+          htmlFor={descId}
+          className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
+        >
+          Description
+        </label>
         <textarea
           id={descId}
           aria-label="Description"
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}
           rows={3}
-          placeholder=" "
-          className="peer w-full rounded-2xl bg-transparent px-6 pt-4 pb-3 text-body-4 text-text-primary outline-none border border-input-border-default focus:border-input-border-active resize-none min-h-28"
+          className="w-full rounded-2xl bg-transparent px-6 pt-4 pb-3 text-body-4 text-text-primary outline-none border border-input-border-default focus:border-input-border-active resize-none min-h-28"
         />
-        <label
-          htmlFor={descId}
-          className="pointer-events-none absolute left-4 top-4 max-w-[calc(100%-2rem)] truncate text-body-4 text-input-text-placeholder transition-all duration-200 peer-focus:-top-2.5 peer-focus:left-4 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:text-input-text-placeholder-active peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:left-4 peer-not-placeholder-shown:translate-y-0 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-(--whitebg) peer-not-placeholder-shown:max-w-none"
-        >
-          Description
-        </label>
       </div>
     </div>
 
