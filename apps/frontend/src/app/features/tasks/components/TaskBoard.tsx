@@ -69,6 +69,12 @@ const buildBoardMeta = (task: Task, assigneeName: string): string => {
   return [category, when, assigneeName].filter(Boolean).join(' · ');
 };
 
+const getTaskTitleColorClass = (isDone: boolean, isCancelled: boolean): string => {
+  if (isDone) return 'text-text-tertiary line-through';
+  if (isCancelled) return 'text-text-tertiary';
+  return 'text-text-primary';
+};
+
 type TaskCardProps = {
   task: Task;
   draggedTaskId: string | null;
@@ -130,11 +136,7 @@ const TaskCard = ({
       <div
         className={clsx(
           'relative z-10 flex items-center gap-1.5 text-[13px] font-bold leading-4',
-          isDone
-            ? 'text-text-tertiary line-through'
-            : isCancelled
-              ? 'text-text-tertiary'
-              : 'text-text-primary'
+          getTaskTitleColorClass(isDone, isCancelled)
         )}
       >
         {isParentTask && (
@@ -173,14 +175,9 @@ const TaskCard = ({
 
 type TaskBoardProps = {
   tasks: Task[];
-  currentDate?: Date;
-  setCurrentDate?: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks: boolean;
   setActiveTask?: (task: Task) => void;
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
-  setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
-  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
-  setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   onAddTask?: () => void;
 };
 

@@ -53,7 +53,7 @@ const daysLabel = (room: ManagedRoom): string | undefined => {
   if (days.length === 0) return undefined;
   if (days.length >= 7) return 'Every day';
   if (days.length >= 4) {
-    return `${humanize(days[0]).slice(0, 3)}–${humanize(days[days.length - 1]).slice(0, 3)}`;
+    return `${humanize(days[0]).slice(0, 3)}–${humanize(days.at(-1)).slice(0, 3)}`;
   }
   return days.map((day) => humanize(day).slice(0, 3)).join(', ');
 };

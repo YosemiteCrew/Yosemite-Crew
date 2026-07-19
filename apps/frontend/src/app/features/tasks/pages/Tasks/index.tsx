@@ -212,14 +212,9 @@ const Tasks = () => {
     plannerContent = (
       <TaskBoard
         tasks={filteredList}
-        currentDate={currentDate}
-        setCurrentDate={handleCurrentDateChange}
         canEditTasks={canEditTasks}
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
-        setChangeStatusPopup={setChangeStatusPopup}
-        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-        setReschedulePopup={setReschedulePopup}
         onAddTask={openAddTask}
       />
     );

@@ -534,6 +534,18 @@ const getSearchableText = (entry: HistoryEntry): string => {
 const entryMatchesSearchQuery = (entry: HistoryEntry, normalizedQuery: string): boolean =>
   getSearchableText(entry).includes(normalizedQuery);
 
+const filterEntriesByActiveTab = (
+  entries: HistoryEntry[],
+  activeFilter: HistoryFilterKey,
+  requestedTypeSet: Set<HistoryEntryType> | undefined
+): HistoryEntry[] => {
+  if (activeFilter === 'ALL') return entries;
+  if (activeFilter === 'MEDICAL_RECORDS') {
+    return entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type));
+  }
+  return entries.filter((entry) => requestedTypeSet?.has(entry.type) ?? false);
+};
+
 const getEffectiveStatus = (entry: HistoryEntry, statusOverrides: StatusOverrides): string =>
   statusOverrides[entry.id] ?? entry.status ?? getPayloadString(entry.payload, ['status']) ?? '';
 
@@ -1327,14 +1339,7 @@ const useCompanionHistoryTimelineView = ({
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    let byTab: HistoryEntry[];
-    if (activeFilter === 'ALL') {
-      byTab = entries;
-    } else if (activeFilter === 'MEDICAL_RECORDS') {
-      byTab = entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type));
-    } else {
-      byTab = entries.filter((entry) => requestedTypeSet?.has(entry.type) ?? false);
-    }
+    const byTab = filterEntriesByActiveTab(entries, activeFilter, requestedTypeSet);
     const bySearch = normalizedQuery
       ? byTab.filter((entry) => entryMatchesSearchQuery(entry, normalizedQuery))
       : byTab;

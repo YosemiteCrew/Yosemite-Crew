@@ -28,7 +28,7 @@ export type TaskListFilters = {
   status?: TaskStatusFilter;
   category?: string;
   subcategory?: string;
-  priority?: Task['priority'];
+  priority?: NonNullable<Task['priority']>;
   kind?: TaskKind;
   includeCompleted?: boolean;
 };

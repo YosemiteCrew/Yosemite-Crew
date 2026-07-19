@@ -41,7 +41,7 @@ const DEFAULT_NEW_TASK_HOUR = 9;
 
 const buildWeekRangeLabel = (days: Date[]): string => {
   const first = days[0];
-  const last = days[days.length - 1];
+  const last = days.at(-1);
   /* v8 ignore next 2 -- getWeekDays always returns 7 days; defensive only. */
   if (!first || !last) return '';
   const firstDay = formatDateInPreferredTimeZone(first, { day: 'numeric' });
@@ -149,10 +149,9 @@ const TaskWeekAgenda = ({
       if (dayIndex === -1) return;
       buckets[dayIndex].push(task);
     });
-    buckets.forEach((bucket) =>
-      bucket.sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+    return buckets.map((bucket) =>
+      bucket.toSorted((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
     );
-    return buckets;
   }, [days, filteredList]);
 
   const resolveAssignee = useCallback(

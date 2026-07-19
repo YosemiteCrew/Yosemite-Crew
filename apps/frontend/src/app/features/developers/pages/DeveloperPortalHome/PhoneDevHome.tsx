@@ -65,7 +65,7 @@ const PhoneDevHome = ({ displayName, recentActivity }: PhoneDevHomeProps) => {
           <h2 className="dev-ph-status-title">Platform status</h2>
           <span className="dev-ph-status-live">
             <span className="dev-ph-status-live-dot" aria-hidden="true" />
-            All systems live
+            {'All systems live'}
           </span>
         </div>
         <dl className="dev-ph-metrics">

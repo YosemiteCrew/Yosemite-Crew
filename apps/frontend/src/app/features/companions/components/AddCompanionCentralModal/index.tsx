@@ -840,7 +840,6 @@ const useAddCompanionCentralModalContent = ({
         companionSearchOptions={companionSearchOptions}
         formStep={formStep}
         genderNeuterValue={genderNeuterValue}
-        hasUnsavedChanges={hasUnsavedChanges}
         localPhoneNumber={localPhoneNumber}
         mode={mode}
         onAddAlert={addAlert}
@@ -851,7 +850,6 @@ const useAddCompanionCentralModalContent = ({
         }
         onCompanionSelect={handleCompanionSelect}
         onCountryCodeSelect={handleCountryCodeSelect}
-        onGoToAppointment={onGoToAppointment}
         onParentDOBChange={
           handleParentDOBChange as React.Dispatch<React.SetStateAction<Date | null>>
         }
@@ -867,7 +865,6 @@ const useAddCompanionCentralModalContent = ({
         parentErrors={parentErrors}
         parentFormData={parentFormData}
         parentSearchOptions={parentSearchOptions}
-        pendingGoToAppointmentRef={pendingGoToAppointmentRef}
         scheduleParentSearch={scheduleParentSearch}
         selectedCountryCode={selectedCountryCode}
         setAlertInput={setAlertInput}
@@ -879,7 +876,6 @@ const useAddCompanionCentralModalContent = ({
         setMode={setMode}
         setParentErrors={setParentErrors}
         setParentFormData={setParentFormData}
-        setShowDiscardConfirm={setShowDiscardConfirm}
         speciesOptions={speciesOptions}
         terminologyText={terminologyText}
         variant={formVariant}

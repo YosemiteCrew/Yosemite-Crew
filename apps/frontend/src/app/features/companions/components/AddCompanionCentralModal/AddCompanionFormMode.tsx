@@ -66,7 +66,6 @@ type AddCompanionFormModeProps = {
   companionFormData: ExtCompanionForValidation;
   companionSearchOptions: SelectOption[];
   genderNeuterValue: string;
-  hasUnsavedChanges: boolean;
   localPhoneNumber: string;
   mode: ModalMode;
   /** Wizard step for create mode: 1 = patient details, 2 = parent details. */
@@ -91,12 +90,10 @@ type AddCompanionFormModeProps = {
     field: 'addressLine' | 'city' | 'state' | 'postalCode',
     value: string
   ) => void;
-  onGoToAppointment?: () => void;
   parentDOB: Date | null;
   parentErrors: Partial<Record<string, string>>;
   parentFormData: StoredParent;
   parentSearchOptions: SelectOption[];
-  pendingGoToAppointmentRef: React.RefObject<boolean>;
   scheduleParentSearch: (query: string) => void;
   selectedCountryCode: CountryDialCodeOption;
   setAlertInput: React.Dispatch<React.SetStateAction<string>>;
@@ -108,7 +105,6 @@ type AddCompanionFormModeProps = {
   setMode: React.Dispatch<React.SetStateAction<ModalMode>>;
   setParentErrors: React.Dispatch<React.SetStateAction<Partial<Record<string, string>>>>;
   setParentFormData: React.Dispatch<React.SetStateAction<StoredParent>>;
-  setShowDiscardConfirm: React.Dispatch<React.SetStateAction<boolean>>;
   speciesOptions: SpeciesOption[];
   terminologyText: (text: string) => string;
 };

@@ -306,48 +306,13 @@ const AddAlertButton = ({
   );
 };
 
-const CompanionHistoryPageInner = () => {
-  useLoadCompanionsForPrimaryOrg();
-  const companions = useCompanionsParentsForPrimaryOrg();
-  const companionsStatus = useCompanionStore((s) => s.status);
-  const isPhone = useIsPhone();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const replaceCompanionText = useCompanionTerminologyText();
-  const { notify } = useNotify();
-  const permissions = usePermissions();
-  const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
-  const [editCompanionOpen, setEditCompanionOpen] = useState(false);
-  const [addAppointmentOpen, setAddAppointmentOpen] = useState(false);
-  const appointmentFilterStateRef = useRef('all');
-  const appointmentStatusStateRef = useRef('all');
-  const setAppointmentFilterState = useCallback((value: string | ((prev: string) => string)) => {
-    appointmentFilterStateRef.current = resolveRefUpdate(value, appointmentFilterStateRef.current);
-  }, []);
-  const setAppointmentStatusState = useCallback((value: string | ((prev: string) => string)) => {
-    appointmentStatusStateRef.current = resolveRefUpdate(value, appointmentStatusStateRef.current);
-  }, []);
+const useCompanionAlerts = (
+  activeCompanion: CompanionParent | null,
+  notify: ReturnType<typeof useNotify>['notify'],
+  replaceCompanionText: (text: string) => string
+) => {
   const [alertTarget, setAlertTarget] = useState<'companion' | 'client' | null>(null);
 
-  const companionId = String(searchParams.get('companionId') ?? '').trim();
-  const source = String(searchParams.get('source') ?? '')
-    .trim()
-    .toLowerCase();
-  const backTo = String(searchParams.get('backTo') ?? '').trim();
-  const backPath = resolveSafeBackPath(backTo || null, source || null);
-  const hasCompanionId = Boolean(companionId);
-
-  const activeCompanion = useMemo(
-    () => companions.find((item) => item.companion.id === companionId) ?? null,
-    [companions, companionId]
-  );
-  const historyTitle = useMemo(
-    () =>
-      activeCompanion
-        ? `${activeCompanion.companion.name.split(' ')[0]}'s overview`
-        : replaceCompanionText('Companion overview'),
-    [activeCompanion, replaceCompanionText]
-  );
   const companionAlerts = useMemo<CompanionAlert[]>(
     () => storedAlertsToCompanionAlerts(activeCompanion?.companion.alerts, 'patient-alert'),
     [activeCompanion?.companion.alerts]
@@ -356,11 +321,6 @@ const CompanionHistoryPageInner = () => {
     () => storedAlertsToCompanionAlerts(activeCompanion?.parent.alerts, 'client-alert'),
     [activeCompanion?.parent.alerts]
   );
-
-  const handleBack = useCallback(() => {
-    startRouteLoader();
-    router.push(backPath);
-  }, [router, backPath]);
 
   const persistCompanionAlerts = useCallback(
     async (nextAlerts: CompanionAlert[]) => {
@@ -442,6 +402,73 @@ const CompanionHistoryPageInner = () => {
     },
     [clientAlerts, notify, persistClientAlerts]
   );
+
+  return {
+    alertTarget,
+    setAlertTarget,
+    companionAlerts,
+    clientAlerts,
+    handleAddAlert,
+    handleRemoveCompanionAlert,
+    handleRemoveClientAlert,
+  };
+};
+
+const CompanionHistoryPageInner = () => {
+  useLoadCompanionsForPrimaryOrg();
+  const companions = useCompanionsParentsForPrimaryOrg();
+  const companionsStatus = useCompanionStore((s) => s.status);
+  const isPhone = useIsPhone();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const replaceCompanionText = useCompanionTerminologyText();
+  const { notify } = useNotify();
+  const permissions = usePermissions();
+  const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
+  const [editCompanionOpen, setEditCompanionOpen] = useState(false);
+  const [addAppointmentOpen, setAddAppointmentOpen] = useState(false);
+  const appointmentFilterStateRef = useRef('all');
+  const appointmentStatusStateRef = useRef('all');
+  const setAppointmentFilterState = useCallback((value: string | ((prev: string) => string)) => {
+    appointmentFilterStateRef.current = resolveRefUpdate(value, appointmentFilterStateRef.current);
+  }, []);
+  const setAppointmentStatusState = useCallback((value: string | ((prev: string) => string)) => {
+    appointmentStatusStateRef.current = resolveRefUpdate(value, appointmentStatusStateRef.current);
+  }, []);
+
+  const companionId = String(searchParams.get('companionId') ?? '').trim();
+  const source = String(searchParams.get('source') ?? '')
+    .trim()
+    .toLowerCase();
+  const backTo = String(searchParams.get('backTo') ?? '').trim();
+  const backPath = resolveSafeBackPath(backTo || null, source || null);
+  const hasCompanionId = Boolean(companionId);
+
+  const activeCompanion = useMemo(
+    () => companions.find((item) => item.companion.id === companionId) ?? null,
+    [companions, companionId]
+  );
+  const historyTitle = useMemo(
+    () =>
+      activeCompanion
+        ? `${activeCompanion.companion.name.split(' ')[0]}'s overview`
+        : replaceCompanionText('Companion overview'),
+    [activeCompanion, replaceCompanionText]
+  );
+  const {
+    alertTarget,
+    setAlertTarget,
+    companionAlerts,
+    clientAlerts,
+    handleAddAlert,
+    handleRemoveCompanionAlert,
+    handleRemoveClientAlert,
+  } = useCompanionAlerts(activeCompanion, notify, replaceCompanionText);
+
+  const handleBack = useCallback(() => {
+    startRouteLoader();
+    router.push(backPath);
+  }, [router, backPath]);
 
   if (companionsStatus === 'loading') {
     return (

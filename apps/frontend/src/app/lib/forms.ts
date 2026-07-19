@@ -581,7 +581,7 @@ const toTemplateField = (
     // on save and is gone by the time the Form preview renders.
     rules:
       field.placeholder !== undefined
-        ? { ...(field.meta ?? {}), placeholder: field.placeholder }
+        ? { ...field.meta, placeholder: field.placeholder }
         : field.meta,
     source: 'USER',
   };

@@ -159,12 +159,8 @@ const makeDataTransfer = () => ({
 });
 
 describe('TaskBoard', () => {
-  const setCurrentDate = jest.fn();
   const setActiveTask = jest.fn();
   const setViewPopup = jest.fn();
-  const setChangeStatusPopup = jest.fn();
-  const setChangeStatusPreferredStatus = jest.fn();
-  const setReschedulePopup = jest.fn();
   const onAddTask = jest.fn();
   const notifyMock = jest.fn();
 
@@ -206,14 +202,9 @@ describe('TaskBoard', () => {
     render(
       <TaskBoard
         tasks={tasks}
-        currentDate={new Date('2026-03-31T00:00:00Z')}
-        setCurrentDate={setCurrentDate}
         canEditTasks
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
-        setChangeStatusPopup={setChangeStatusPopup}
-        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-        setReschedulePopup={setReschedulePopup}
         onAddTask={onAddTask}
         {...overrides}
       />
@@ -644,14 +635,7 @@ describe('TaskBoard', () => {
   });
 
   it('no-ops popup callbacks when optional handlers are not provided', () => {
-    render(
-      <TaskBoard
-        tasks={tasks}
-        currentDate={new Date('2026-03-31T00:00:00Z')}
-        setCurrentDate={setCurrentDate}
-        canEditTasks
-      />
-    );
+    render(<TaskBoard tasks={tasks} canEditTasks />);
     fireEvent.click(screen.getByRole('button', { name: 'Open task Task One' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add task to Pending' }));
     // Handlers were omitted, so the module-level spies are untouched.
