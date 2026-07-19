@@ -161,16 +161,17 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
   const lifecycleTabs = useMemo(() => getAvailableLifecycleTabs(records), [records]);
 
   // A lifecycle tab only exists while some loaded record resolves to it. If a
-  // reload empties the active one, drop back to All rather than stranding the
-  // list on a filter whose pill is no longer on screen.
-  useEffect(() => {
-    const activeLifecycle = getLifecycleForFilter(filter);
-    if (activeLifecycle && !lifecycleTabs.includes(activeLifecycle)) setFilter('ALL');
-  }, [filter, lifecycleTabs]);
+  // reload empties the active one, fall back to All rather than stranding the
+  // list on a filter whose pill is no longer on screen. Derived during render
+  // rather than corrected in an effect, so there is no extra render and no
+  // frame where the list is empty before the reset lands.
+  const activeLifecycle = getLifecycleForFilter(filter);
+  const effectiveFilter: RecordFilter =
+    activeLifecycle && !lifecycleTabs.includes(activeLifecycle) ? 'ALL' : filter;
 
   const groups = useMemo(
-    () => groupRecordsByMonth(sortRecords(filterRecords(records, filter), sortDirection)),
-    [records, filter, sortDirection]
+    () => groupRecordsByMonth(sortRecords(filterRecords(records, effectiveFilter), sortDirection)),
+    [records, effectiveFilter, sortDirection]
   );
 
   const handleSave = async () => {
@@ -238,7 +239,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                 {FILTER_TABS.map((tab) => (
                   <FilterPill
                     key={tab.value}
-                    active={filter === tab.value}
+                    active={effectiveFilter === tab.value}
                     onClick={() => setFilter(tab.value)}
                   >
                     {tab.value === 'ALL' ? `${tab.label} · ${records.length}` : tab.label}
@@ -247,7 +248,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                 {lifecycleTabs.map((lifecycle) => (
                   <FilterPill
                     key={lifecycle}
-                    active={filter === RECORD_LIFECYCLE_FILTERS[lifecycle]}
+                    active={effectiveFilter === RECORD_LIFECYCLE_FILTERS[lifecycle]}
                     onClick={() => setFilter(RECORD_LIFECYCLE_FILTERS[lifecycle])}
                   >
                     {RECORD_LIFECYCLE_LABELS[lifecycle]}

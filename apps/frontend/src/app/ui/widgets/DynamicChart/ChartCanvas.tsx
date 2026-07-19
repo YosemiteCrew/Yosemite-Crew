@@ -1,5 +1,9 @@
 'use client';
 import { type ReactNode } from 'react';
+/* recharts is already code-split: DynamicChartCard lazy-loads this whole module via
+   next/dynamic. These element imports must stay static or recharts sees anonymous
+   loadable components, silently drops them, and renders an empty chart. */
+// react-doctor-disable-next-line react-doctor/prefer-dynamic-import
 import {
   Bar,
   BarChart,

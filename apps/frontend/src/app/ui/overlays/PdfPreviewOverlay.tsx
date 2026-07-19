@@ -81,6 +81,7 @@ const PdfPreviewOverlay = ({
               `frame-src` in the CSP independently limits which origins may be
               framed at all, so the sandbox was never the control protecting
               this iframe. */}
+          {/* react-doctor-disable-next-line react-doctor/iframe-missing-sandbox */}
           <iframe
             key={safePdfUrl}
             src={safePdfUrl}
