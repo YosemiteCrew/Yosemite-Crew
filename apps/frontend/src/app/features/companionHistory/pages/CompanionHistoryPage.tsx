@@ -436,8 +436,15 @@ type CompanionHistoryContentProps = {
 /**
  * Desktop overview layout (title row, profile panels, timeline). Extracted so
  * the page's return renders a single branch and its conditional profile /
- * missing-id / timeline trees leave the page function's own body.
+ * missing-id / timeline trees leave the page function's own body. It never
+ * needs the phone flag or the raw edit permission (the parent resolves the
+ * latter into onEditCompanion), so those are omitted from its props.
  */
+type CompanionHistoryDesktopBodyProps = Omit<
+  CompanionHistoryContentProps,
+  'isPhone' | 'canEditCompanions'
+>;
+
 const CompanionHistoryDesktopBody = ({
   hasCompanionId,
   companionId,
@@ -453,7 +460,7 @@ const CompanionHistoryDesktopBody = ({
   onAddClientAlert,
   onRemoveCompanionAlert,
   onRemoveClientAlert,
-}: CompanionHistoryContentProps) => (
+}: CompanionHistoryDesktopBodyProps) => (
   <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-8">
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
