@@ -80,6 +80,11 @@ describe('ChatComposer', () => {
     expect(mockSetText).toHaveBeenCalledWith('Your appointment is confirmed.');
   });
 
+  it('labels the quick-reply row "Quick replies" (design)', () => {
+    render(<ChatComposer />);
+    expect(screen.getByText('Quick replies')).toBeInTheDocument();
+  });
+
   it('uploads safe selected files through the attachment manager', () => {
     const { container } = render(<ChatComposer />);
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;

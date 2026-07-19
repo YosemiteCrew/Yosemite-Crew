@@ -70,6 +70,24 @@ describe('ChatAvatar', () => {
     expect(container.querySelector('.size-9')).toBeInTheDocument();
   });
 
+  it('renders the clinic/business glyph (rounded-square, blue-soft, no initials)', () => {
+    const { container } = render(<ChatAvatar name="Tierklinik Oberland" business />);
+    // Initials are replaced by a business glyph.
+    expect(screen.queryByText('TO')).not.toBeInTheDocument();
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain('rounded-[12px]');
+    expect(badge?.className).toContain('var(--blue-soft)');
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('applies the responsive conversation-row size classes', () => {
+    const { container } = render(<ChatAvatar name="Sam" size="row" />);
+    // 36px base, bumping to 40px on the wide desktop frame.
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain('size-9');
+    expect(badge?.className).toContain('xl:size-10');
+  });
+
   it('applies the lg size classes', () => {
     const { container } = render(<ChatAvatar name="Sam" size="lg" />);
     expect(container.querySelector('.size-12')).toBeInTheDocument();

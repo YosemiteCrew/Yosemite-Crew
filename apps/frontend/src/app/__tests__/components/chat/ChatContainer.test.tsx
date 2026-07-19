@@ -2021,12 +2021,16 @@ describe('ChatContainer', () => {
         fireEvent.click(screen.getByText('Mobile Row'));
       });
 
-      const backBtn = await screen.findByText(/Back/);
+      // The phone thread renders one unified header bar whose round back control
+      // (aria "Back to conversations") returns to the list.
+      const backBtn = await screen.findByLabelText('Back to conversations');
       await act(async () => {
         fireEvent.click(backBtn);
       });
 
-      await waitFor(() => expect(screen.queryByText(/Back/)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Back to conversations')).not.toBeInTheDocument()
+      );
     } finally {
       Object.defineProperty(globalThis, 'innerWidth', {
         value: originalWidth,

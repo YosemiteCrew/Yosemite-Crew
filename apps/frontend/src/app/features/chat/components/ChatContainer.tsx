@@ -33,6 +33,7 @@ import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-ch
 import { LuCommand } from 'react-icons/lu';
 import {
   IoArchiveOutline,
+  IoArrowBack,
   IoChatbubbleEllipsesOutline,
   IoGlobeOutline,
   IoSearchOutline,
@@ -115,6 +116,13 @@ const ChatSessionStatusContext = createContext<{
 }>({
   statusByAppointmentId: {},
   refreshStatuses: () => undefined,
+});
+// Lets the thread header render the phone "back" control inline (design: one
+// unified compact bar — round back + avatar + name + status — instead of a
+// separate "← Back" strip stacked above the header).
+const ChatBackContext = createContext<{ showBack: boolean; onBack: () => void }>({
+  showBack: false,
+  onBack: () => undefined,
 });
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -333,6 +341,7 @@ const ChannelHeaderWithCounterpart: FC<{
   const { channel } = useChannelStateContext();
   const chatSessionStatusCtx = use(ChatSessionStatusContext);
   const { statusByAppointmentId } = chatSessionStatusCtx;
+  const { showBack, onBack } = use(ChatBackContext);
   const groupModalCtx = use(GroupModalContext);
   const { notify } = useNotify();
   const [closingSession, setClosingSession] = useState(false);
@@ -478,7 +487,17 @@ const ChannelHeaderWithCounterpart: FC<{
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-chat-divider bg-neutral-0 px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+      <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+        {showBack && (
+          <button
+            type="button"
+            aria-label="Back to conversations"
+            onClick={onBack}
+            className="inline-flex size-[34px] shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] transition-colors hover:bg-[var(--screen-2)]"
+          >
+            <IoArrowBack className="h-[15px] w-[15px]" />
+          </button>
+        )}
         <ChatAvatar
           name={title}
           online={!isGroupChat && !hasSessionClosed && online}
@@ -748,20 +767,18 @@ const ChatEmptyThread: FC = () => (
 );
 
 const ChatWindow: FC<ChatWindowProps> = ({ showBackButton, onBack, currentUserId }) => {
-  const shouldShowBackButton = showBackButton;
+  const backContextValue = useMemo(
+    () => ({ showBack: showBackButton, onBack }),
+    [showBackButton, onBack]
+  );
 
   return (
-    <>
-      {shouldShowBackButton && (
-        <button type="button" className="chat-back-button" onClick={onBack}>
-          ← Back
-        </button>
-      )}
+    <ChatBackContext.Provider value={backContextValue}>
       <Channel Message={ChatMessage} EmptyStateIndicator={ChatEmptyThread}>
         <RegularChannelWindow currentUserId={currentUserId} />
         <Thread />
       </Channel>
-    </>
+    </ChatBackContext.Provider>
   );
 };
 
@@ -908,7 +925,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
   return (
     <>
       <div className="flex items-center justify-between px-3 pt-3">
-        <h2 className="m-0 font-newsreader text-[20px] font-normal tracking-[-0.015em] text-[var(--ink)]">
+        <h2 className="m-0 font-newsreader text-[20px] font-normal tracking-[-0.015em] text-[var(--ink)] xl:text-[23px]">
           Chat
         </h2>
         <button

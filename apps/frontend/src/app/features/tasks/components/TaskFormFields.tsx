@@ -6,6 +6,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Option } from '@/app/features/companions/types/companion';
 import { Task, TaskKindOptions, TaskPriorityOptions } from '@/app/features/tasks/types/task';
+import TaskAssigneeChips from '@/app/features/tasks/components/TaskAssigneeChips';
 import { TaskFormErrors } from '@/app/lib/taskForm';
 import {
   offsetToReminderValue,
@@ -42,6 +43,16 @@ type TaskFormFieldsProps = {
    * to the single-column stack every other consumer (side panels) already uses.
    */
   twoColumn?: boolean;
+  /**
+   * Render the design's "Assign to" chip row (team members + pet-parent chips) in
+   * place of the audience Type + assignee dropdowns. Only used by the New task
+   * modal (twoColumn); side-panel consumers keep the dropdowns.
+   */
+  assigneeChips?: boolean;
+  teamOptions?: Option[];
+  parentOptions?: Option[];
+  onSelectTeam?: (option: Option) => void;
+  onSelectParent?: (option: Option) => void;
 };
 
 const DEFAULT_AUDIENCE_OPTIONS: Option[] = [];
@@ -65,6 +76,11 @@ const TaskFormFields = ({
   onAssigneeSelect,
   hideTemplatePicker = false,
   twoColumn = false,
+  assigneeChips = false,
+  teamOptions = DEFAULT_ASSIGNEE_OPTIONS,
+  parentOptions = DEFAULT_ASSIGNEE_OPTIONS,
+  onSelectTeam,
+  onSelectParent,
 }: TaskFormFieldsProps) => {
   const isRecurring = (formData.recurrence?.type ?? 'ONCE') !== 'ONCE';
   const endDate = formData.recurrence?.endDate ? new Date(formData.recurrence.endDate) : null;
@@ -94,6 +110,18 @@ const TaskFormFields = ({
       defaultOption={formData.assignedTo}
       error={formDataErrors.assignedTo}
       options={assigneeOptions}
+    />
+  ) : null;
+
+  const assignToChips = assigneeChips ? (
+    <TaskAssigneeChips
+      teamOptions={teamOptions}
+      parentOptions={parentOptions}
+      audience={formData.audience}
+      assignedTo={formData.assignedTo}
+      onSelectTeam={(option) => onSelectTeam?.(option)}
+      onSelectParent={(option) => onSelectParent?.(option)}
+      error={formDataErrors.assignedTo}
     />
   ) : null;
 
@@ -238,6 +266,30 @@ const TaskFormFields = ({
   ) : null;
 
   // Centered-dialog layout (New task modal): grouped grids matching the design.
+  // Task, then Category, then the "Assign to" chip row, then Due/Time/Repeat,
+  // with the secondary Priority/Reminder controls demoted below the core fields.
+  if (twoColumn && assigneeChips) {
+    return (
+      <div className="flex flex-col gap-3.5">
+        {templateField}
+        {taskField}
+        {categoryField}
+        {assignToChips}
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+          {dueField}
+          {timeField}
+          {repeatField}
+        </div>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          {priorityField}
+          {reminderField}
+        </div>
+        {endDateField}
+        {instructionsField}
+      </div>
+    );
+  }
+
   if (twoColumn) {
     return (
       <div className="flex flex-col gap-3.5">

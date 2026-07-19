@@ -16,6 +16,13 @@ jest.mock('next/dynamic', () => ({
         return <MockTaskCalendar {...props} />;
       }
 
+      if (source.includes('TaskWeekAgenda')) {
+        const MockTaskWeekAgenda = jest.requireMock(
+          '@/app/features/tasks/components/TaskWeekAgenda'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockTaskWeekAgenda {...props} />;
+      }
+
       if (source.includes('TaskBoard')) {
         const MockTaskBoard = jest.requireMock(
           '@/app/features/tasks/components/TaskBoard'
@@ -70,12 +77,14 @@ const useTasksMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
+const useIsPhoneMock = jest.fn();
 const taskCalendarSpy = jest.fn();
+const taskAgendaSpy = jest.fn();
 const taskTableSpy = jest.fn();
 const taskBoardSpy = jest.fn();
 const taskInfoSpy = jest.fn();
 const addTaskSpy = jest.fn();
-const filtersSpy = jest.fn();
+const filterBarSpy = jest.fn();
 const changeStatusSpy = jest.fn();
 const rescheduleSpy = jest.fn();
 
@@ -87,6 +96,10 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => ({
   startOfDay: (d: Date) => d,
+}));
+
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  useIsPhone: () => useIsPhoneMock(),
 }));
 
 jest.mock('@/app/hooks/usePlannerLayout', () => ({
@@ -144,26 +157,27 @@ jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
   </div>
 ));
 
-jest.mock(
-  '@/app/ui/filters/Filters',
-  () => (props: any) =>
-    (() => {
-      filtersSpy(props);
-      return (
-        <div data-testid="filters">
-          {props.showAddButton ? (
-            <button type="button" onClick={props.onAddButtonClick}>
-              Add
-            </button>
-          ) : null}
-        </div>
-      );
-    })()
-);
+jest.mock('@/app/features/tasks/components/TaskFilterBar', () => (props: any) => {
+  filterBarSpy(props);
+  return (
+    <div data-testid="task-filter-bar">
+      {props.showAddButton ? (
+        <button type="button" onClick={props.onAddButtonClick}>
+          Add
+        </button>
+      ) : null}
+    </div>
+  );
+});
 
 jest.mock('@/app/features/appointments/components/Calendar/TaskCalendar', () => (props: any) => {
   taskCalendarSpy(props);
   return <div data-testid="task-calendar" />;
+});
+
+jest.mock('@/app/features/tasks/components/TaskWeekAgenda', () => (props: any) => {
+  taskAgendaSpy(props);
+  return <div data-testid="task-week-agenda" />;
 });
 
 jest.mock('@/app/ui/tables/Tasks', () => (props: any) => {
@@ -206,13 +220,15 @@ describe('Tasks page', () => {
     usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: 'follow' }));
     useSearchParamsMock.mockReturnValue({ get: () => null });
+    // Default to the tablet/desktop experience (7-day agenda board).
+    useIsPhoneMock.mockReturnValue(false);
   });
 
-  it('renders calendar view and switches to table', () => {
+  it('renders the desktop week agenda and switches to table', () => {
     render(<ProtectedTasks />);
 
-    expect(screen.getByTestId('task-calendar')).toBeInTheDocument();
-    expect(taskCalendarSpy).toHaveBeenCalledWith(
+    expect(screen.getByTestId('task-week-agenda')).toBeInTheDocument();
+    expect(taskAgendaSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ _id: 't1' })],
       })
@@ -223,6 +239,20 @@ describe('Tasks page', () => {
     expect(taskTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ _id: 't1' })],
+      })
+    );
+  });
+
+  it('renders the phone day list (TaskCalendar) below the phone breakpoint', () => {
+    useIsPhoneMock.mockReturnValue(true);
+    render(<ProtectedTasks />);
+
+    expect(screen.getByTestId('task-calendar')).toBeInTheDocument();
+    expect(screen.queryByTestId('task-week-agenda')).not.toBeInTheDocument();
+    expect(taskCalendarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filteredList: [expect.objectContaining({ _id: 't1' })],
+        allTasks: expect.arrayContaining([expect.objectContaining({ _id: 't1' })]),
       })
     );
   });
@@ -290,10 +320,10 @@ describe('Tasks page', () => {
       await Promise.resolve();
     });
 
-    // After re-render with updated task list, taskCalendar should receive the updated filteredList
-    expect(taskCalendarSpy).toHaveBeenCalledWith(
+    // After re-render with the updated list, the agenda receives the fresh task.
+    expect(taskAgendaSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        allTasks: [expect.objectContaining({ _id: 't1', name: 'Follow up updated' })],
+        filteredList: [expect.objectContaining({ _id: 't1', name: 'Follow up updated' })],
       })
     );
   });
@@ -301,11 +331,11 @@ describe('Tasks page', () => {
   it('handleCreateFromCalendarSlot: onCreateFromCalendarSlot prop opens add popup', async () => {
     render(<ProtectedTasks />);
 
-    const calendarProps = taskCalendarSpy.mock.calls[0][0];
-    expect(calendarProps.onCreateFromCalendarSlot).toBeInstanceOf(Function);
+    const agendaProps = taskAgendaSpy.mock.calls[0][0];
+    expect(agendaProps.onCreateFromCalendarSlot).toBeInstanceOf(Function);
 
     await act(async () => {
-      calendarProps.onCreateFromCalendarSlot({ dueAt: new Date('2025-01-01'), assignedTo: 'u1' });
+      agendaProps.onCreateFromCalendarSlot({ dueAt: new Date('2025-01-01'), assignedTo: 'u1' });
       await Promise.resolve();
     });
 
@@ -337,7 +367,7 @@ describe('Tasks page', () => {
     expect(addTaskSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
   });
 
-  it('openAddTask: clicking Add button in Filters calls openAddTask', async () => {
+  it('openAddTask: clicking Add button in the filter bar calls openAddTask', async () => {
     render(<ProtectedTasks />);
 
     const addButton = screen.getByRole('button', { name: 'Add' });
@@ -349,12 +379,14 @@ describe('Tasks page', () => {
     expect(addTaskSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
   });
 
-  it('uses compact filter pills to match the companions pill styling', () => {
+  it('feeds the inline audience + status pills to the filter bar', () => {
     render(<ProtectedTasks />);
 
-    expect(filtersSpy).toHaveBeenCalledWith(
+    expect(filterBarSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        compactFilterPills: true,
+        filterOptions: expect.any(Array),
+        statusOptions: expect.any(Array),
+        addButtonText: 'New task',
       })
     );
   });
@@ -380,39 +412,40 @@ describe('Tasks page', () => {
     );
   });
 
-  it('setCurrentDate prop passed to TaskCalendar updates the date', async () => {
+  it('setCurrentDate prop passed to the agenda updates the date', async () => {
     render(<ProtectedTasks />);
 
-    const calendarProps = taskCalendarSpy.mock.calls[0][0];
-    expect(calendarProps.setCurrentDate).toBeInstanceOf(Function);
+    const agendaProps = taskAgendaSpy.mock.calls[0][0];
+    expect(agendaProps.setCurrentDate).toBeInstanceOf(Function);
     const newDate = new Date('2025-06-01');
 
     await act(async () => {
-      calendarProps.setCurrentDate(newDate);
+      agendaProps.setCurrentDate(newDate);
       await Promise.resolve();
     });
 
-    expect(taskCalendarSpy).toHaveBeenCalledWith(expect.objectContaining({ currentDate: newDate }));
+    expect(taskAgendaSpy).toHaveBeenCalledWith(expect.objectContaining({ currentDate: newDate }));
   });
 
-  it('setWeekStart prop passed to TaskCalendar updates weekStart', async () => {
+  it('setWeekStart prop passed to the agenda updates weekStart', async () => {
     render(<ProtectedTasks />);
 
-    const calendarProps = taskCalendarSpy.mock.calls[0][0];
-    expect(calendarProps.setWeekStart).toBeInstanceOf(Function);
+    const agendaProps = taskAgendaSpy.mock.calls[0][0];
+    expect(agendaProps.setWeekStart).toBeInstanceOf(Function);
     const newWeekStart = new Date('2025-05-26');
 
     await act(async () => {
-      calendarProps.setWeekStart(newWeekStart);
+      agendaProps.setWeekStart(newWeekStart);
       await Promise.resolve();
     });
 
-    expect(taskCalendarSpy).toHaveBeenCalledWith(
+    expect(taskAgendaSpy).toHaveBeenCalledWith(
       expect.objectContaining({ weekStart: newWeekStart })
     );
   });
 
-  it('setActiveCalendar prop updates activeCalendar passed to TaskCalendar', async () => {
+  it('setActiveCalendar prop updates activeCalendar passed to the phone TaskCalendar', async () => {
+    useIsPhoneMock.mockReturnValue(true);
     render(<ProtectedTasks />);
 
     const calendarProps = taskCalendarSpy.mock.calls[0][0];
@@ -457,10 +490,11 @@ describe('Tasks page', () => {
     // The planner skeleton div is rendered by loading states via dynamic() - verified via renders
     render(<ProtectedTasks />);
     // Tasks page renders without errors with mocked dynamic components
-    expect(screen.getByTestId('task-calendar')).toBeInTheDocument();
+    expect(screen.getByTestId('task-week-agenda')).toBeInTheDocument();
   });
 
   it('setActiveCalendar accepts a functional updater and resyncs weekStart on the week view', async () => {
+    useIsPhoneMock.mockReturnValue(true);
     render(<ProtectedTasks />);
 
     // Leave the week view first, so the date move below does not sync weekStart.
@@ -497,12 +531,12 @@ describe('Tasks page', () => {
 
     const nextDate = new Date('2025-07-04');
     await act(async () => {
-      lastPropsOf(taskCalendarSpy).setCurrentDate(() => nextDate);
+      lastPropsOf(taskAgendaSpy).setCurrentDate(() => nextDate);
       await Promise.resolve();
     });
 
-    expect(lastPropsOf(taskCalendarSpy).currentDate).toBe(nextDate);
-    expect(lastPropsOf(taskCalendarSpy).weekStart).toBe(nextDate);
+    expect(lastPropsOf(taskAgendaSpy).currentDate).toBe(nextDate);
+    expect(lastPropsOf(taskAgendaSpy).weekStart).toBe(nextDate);
   });
 
   it('falls back to the first task when the active task disappears from the list', async () => {
@@ -599,25 +633,25 @@ describe('Tasks page', () => {
     render(<ProtectedTasks />);
 
     await act(async () => {
-      lastPropsOf(filtersSpy).setActiveStatus('completed');
+      lastPropsOf(filterBarSpy).setActiveStatus('completed');
       await Promise.resolve();
     });
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+    expect(lastPropsOf(taskAgendaSpy).filteredList).toEqual([
       expect.objectContaining({ _id: 't2' }),
     ]);
 
     await act(async () => {
-      lastPropsOf(filtersSpy).setActiveFilter('employee_task');
+      lastPropsOf(filterBarSpy).setActiveFilter('employee_task');
       await Promise.resolve();
     });
     // t2 is the only completed task, but its audience is client_task.
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([]);
+    expect(lastPropsOf(taskAgendaSpy).filteredList).toEqual([]);
 
     await act(async () => {
-      lastPropsOf(filtersSpy).setActiveStatus('pending');
+      lastPropsOf(filterBarSpy).setActiveStatus('pending');
       await Promise.resolve();
     });
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+    expect(lastPropsOf(taskAgendaSpy).filteredList).toEqual([
       expect.objectContaining({ _id: 't1' }),
     ]);
   });
@@ -631,7 +665,7 @@ describe('Tasks page', () => {
 
     render(<ProtectedTasks />);
 
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+    expect(lastPropsOf(taskAgendaSpy).filteredList).toEqual([
       expect.objectContaining({ _id: 't1' }),
     ]);
   });
@@ -654,7 +688,7 @@ describe('Tasks page', () => {
 
     const dueAt = new Date('2025-01-01');
     await act(async () => {
-      lastPropsOf(taskCalendarSpy).onCreateFromCalendarSlot({ dueAt, assignedTo: 'u1' });
+      lastPropsOf(taskAgendaSpy).onCreateFromCalendarSlot({ dueAt, assignedTo: 'u1' });
       await Promise.resolve();
     });
     expect(lastPropsOf(addTaskSpy).prefill).toEqual({ dueAt, assignedTo: 'u1' });
@@ -685,7 +719,7 @@ describe('Tasks page', () => {
     expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('task-change-status')).not.toBeInTheDocument();
     expect(screen.queryByTestId('task-reschedule')).not.toBeInTheDocument();
-    expect(lastPropsOf(taskCalendarSpy).canEditTasks).toBe(false);
+    expect(lastPropsOf(taskAgendaSpy).canEditTasks).toBe(false);
   });
 
   it('renders the reschedule modal for the active task when editing is allowed', () => {
@@ -710,7 +744,7 @@ describe('Tasks page', () => {
     render(<ProtectedTasks />);
 
     // Verify both tasks pass initially (all filter)
-    expect(taskCalendarSpy).toHaveBeenCalledWith(
+    expect(taskAgendaSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: expect.arrayContaining([
           expect.objectContaining({ _id: 't1' }),

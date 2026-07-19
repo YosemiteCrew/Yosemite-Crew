@@ -25,6 +25,7 @@ import {
   IoHappyOutline,
   IoImageOutline,
   IoMicOutline,
+  IoSend,
   IoShareSocialOutline,
 } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -119,13 +120,16 @@ export function ChatComposer() {
           </Text>
         </div>
       )}
-      <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-2 flex items-center gap-2 overflow-x-auto pb-1">
+        <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+          Quick replies
+        </span>
         {TEMPLATES.map((t) => (
           <button
             key={t.label}
             type="button"
             onClick={() => composer.textComposer.setText(t.text)}
-            className="shrink-0 whitespace-nowrap rounded-full border border-[var(--hairline)] bg-[var(--screen-2)] px-3 py-1.5 font-satoshi text-xs font-semibold text-[var(--ink-soft)] transition-colors hover:border-[var(--blue)] hover:bg-[var(--blue-soft)] hover:text-[var(--blue)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
+            className="shrink-0 whitespace-nowrap rounded-full border border-[var(--hairline)] bg-[var(--screen)] px-3 py-1.5 font-satoshi text-[11.5px] font-semibold text-[var(--ink-body)] transition-colors hover:border-[var(--blue)] hover:bg-[var(--blue-soft)] hover:text-[var(--blue)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
           >
             {t.label}
           </button>
@@ -190,7 +194,9 @@ export function ChatComposer() {
           )}
         </div>
 
-        <div className="flex min-h-[42px] flex-1 items-center rounded-full border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-[14px] transition-colors focus-within:border-[var(--blue)]">
+        {/* Field holds the textarea plus the emoji + mic affordances on its
+            right edge (design: happy-outline + mic-outline inside the pill). */}
+        <div className="flex min-h-[42px] flex-1 items-center gap-1 rounded-full border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] pl-[14px] pr-2 transition-colors focus-within:border-[var(--blue)]">
           <TextareaComposer
             placeholder="Write a message…"
             minRows={1}
@@ -198,64 +204,71 @@ export function ChatComposer() {
             className="block w-full resize-none self-center bg-transparent font-satoshi text-[13px] leading-6 text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
             containerClassName="flex-1"
           />
+          <div className="relative flex shrink-0 items-center gap-0.5 self-center">
+            <button
+              type="button"
+              aria-label="Emoji"
+              onClick={() => {
+                closeAll();
+                setEmojiOpen((o) => !o);
+              }}
+              className={clsx(
+                'inline-flex size-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]',
+                emojiOpen
+                  ? 'text-[var(--blue)]'
+                  : 'text-[var(--ink-soft)] hover:text-[var(--ink-body)]'
+              )}
+            >
+              <IoHappyOutline className="h-[18px] w-[18px]" />
+            </button>
+            <button
+              type="button"
+              aria-label="Voice message"
+              title="Voice messages are coming soon"
+              disabled
+              className="inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] disabled:cursor-not-allowed"
+            >
+              <IoMicOutline className="h-[18px] w-[18px]" />
+            </button>
+            {emojiOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  className="fixed inset-0 z-10 cursor-default"
+                  onClick={() => setEmojiOpen(false)}
+                />
+                <div className="absolute bottom-11 right-0 z-20 flex w-56 flex-wrap gap-1 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-2 shadow-[0_6px_16px_var(--sh10),0_20px_48px_var(--sh12)]">
+                  {EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        insert(emoji);
+                        setEmojiOpen(false);
+                      }}
+                      className="flex size-9 items-center justify-center rounded-full text-lg hover:bg-[var(--inset)]"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="relative">
-          <ComposerIconButton
-            label="Emoji"
-            active={emojiOpen}
-            onClick={() => {
-              closeAll();
-              setEmojiOpen((o) => !o);
-            }}
-          >
-            <IoHappyOutline className="h-5 w-5" />
-          </ComposerIconButton>
-          {emojiOpen && (
-            <>
-              <button
-                type="button"
-                aria-label="Close menu"
-                className="fixed inset-0 z-10 cursor-default"
-                onClick={() => setEmojiOpen(false)}
-              />
-              <div className="absolute bottom-11 right-0 z-20 flex w-56 flex-wrap gap-1 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-2 shadow-lg">
-                {EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => {
-                      insert(emoji);
-                      setEmojiOpen(false);
-                    }}
-                    className="flex size-9 items-center justify-center rounded-lg text-lg hover:bg-[var(--screen-2)]"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        <button
-          type="button"
-          aria-label="Voice message"
-          title="Voice messages are coming soon"
-          disabled
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--ink-faint)] disabled:cursor-not-allowed"
-        >
-          <IoMicOutline className="h-5 w-5" />
-        </button>
-
+        {/* Send: blue arrow with glow on tablet/phone, warm-dark cta paper-plane
+            on the wide desktop frame. */}
         <button
           type="button"
           aria-label="Send message"
           onClick={send}
           disabled={Boolean(cooldownRemaining)}
-          className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[var(--blue)] text-white shadow-[0_8px_20px_var(--glow-b26)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[var(--blue)] text-white shadow-[0_8px_20px_var(--glow-b26)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 xl:h-11 xl:w-11 xl:bg-[var(--cta)] xl:text-[var(--cta-text)] xl:shadow-none"
         >
-          <IoArrowUp className="h-[17px] w-[17px]" />
+          <IoArrowUp className="h-[17px] w-[17px] xl:hidden" />
+          <IoSend className="hidden h-4 w-4 xl:block" />
         </button>
       </div>
 

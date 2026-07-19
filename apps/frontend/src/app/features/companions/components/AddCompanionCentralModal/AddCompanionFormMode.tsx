@@ -33,7 +33,14 @@ import {
   SpeciesOption,
   toNonNegativeNumber,
 } from './addCompanionCentralModalHelpers';
-import { AlertChipEdit, FooterLeft, SectionHeading } from './AddCompanionPresentational';
+import {
+  AlertChipEdit,
+  FooterLeft,
+  PhotoDropzone,
+  SectionHeading,
+  SexRadioRow,
+  WizardStepHeader,
+} from './AddCompanionPresentational';
 import InputWithDropdown from './InputWithDropdown';
 
 type SelectOption = { value: string; label: string };
@@ -62,6 +69,12 @@ type AddCompanionFormModeProps = {
   hasUnsavedChanges: boolean;
   localPhoneNumber: string;
   mode: ModalMode;
+  /** Wizard step for create mode: 1 = patient details, 2 = parent details. */
+  formStep: 1 | 2;
+  /** `sheet` renders the phone bottom-sheet single column; `modal` the desktop card. */
+  variant: 'modal' | 'sheet';
+  onPhotoSelected: (dataUrl: string) => void;
+  onSexChange: (gender: string, neutered: boolean) => void;
   onAddAlert: () => void;
   onAddClientAlert: () => void;
   onAddressSelect: (address: AddressSelection) => void;
@@ -138,32 +151,15 @@ const CompanionAdditionalDetails = ({
           portal
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <FormInput
-          intype="number"
-          inname="weight"
-          value={
-            companionFormData.currentWeight == null ? '' : String(companionFormData.currentWeight)
-          }
-          inlabel="Weight (kg)"
-          onChange={(event) =>
-            setCompanionFormData((prev) => ({
-              ...prev,
-              currentWeight: toNonNegativeNumber(event.target.value),
-            }))
-          }
-          className="min-h-12!"
-        />
-        <LabelDropdown
-          placeholder="Country of origin"
-          onSelect={(option) =>
-            setCompanionFormData((prev) => ({ ...prev, countryOfOrigin: option.value }))
-          }
-          defaultOption={companionFormData.countryOfOrigin}
-          options={CountriesOptions}
-          portal
-        />
-      </div>
+      <LabelDropdown
+        placeholder="Country of origin"
+        onSelect={(option) =>
+          setCompanionFormData((prev) => ({ ...prev, countryOfOrigin: option.value }))
+        }
+        defaultOption={companionFormData.countryOfOrigin}
+        options={CountriesOptions}
+        portal
+      />
       <div className="grid grid-cols-2 gap-3">
         <FormInput
           intype="text"
@@ -284,14 +280,59 @@ type PatientDetailsColumnProps = Pick<
   | 'onAddAlert'
   | 'onCompanionDOBChange'
   | 'onCompanionSelect'
+  | 'onPhotoSelected'
   | 'onRemoveAlert'
+  | 'onSexChange'
   | 'setAlertInput'
   | 'setAlertPriority'
   | 'setCompanionErrors'
   | 'setCompanionFormData'
   | 'speciesOptions'
   | 'terminologyText'
->;
+> & {
+  /** Render Sex as Male/Female radios + Neutered checkbox (design add flow) vs the combined dropdown. */
+  sexAsRadio: boolean;
+};
+
+const PatientSexControl = ({
+  sexAsRadio,
+  companionFormData,
+  genderNeuterValue,
+  onSexChange,
+  setCompanionFormData,
+}: Pick<
+  PatientDetailsColumnProps,
+  'sexAsRadio' | 'companionFormData' | 'genderNeuterValue' | 'onSexChange' | 'setCompanionFormData'
+>) => {
+  if (sexAsRadio) {
+    return (
+      <SexRadioRow
+        gender={companionFormData.gender ?? 'unknown'}
+        isNeutered={companionFormData.isneutered ?? false}
+        onChange={onSexChange}
+      />
+    );
+  }
+  return (
+    <LabelDropdown
+      placeholder="Sex"
+      options={GENDER_NEUTER_OPTIONS}
+      defaultOption={genderNeuterValue}
+      onSelect={(option) => {
+        const found = GENDER_NEUTER_OPTIONS.find((item) => item.value === option.value);
+        if (found) {
+          setCompanionFormData((prev) => ({
+            ...prev,
+            gender: found.data.gender as Gender,
+            isneutered: found.data.neutered,
+            ageWhenNeutered: found.data.neutered ? prev.ageWhenNeutered : '',
+          }));
+        }
+      }}
+      portal
+    />
+  );
+};
 
 const PatientDetailsColumn = ({
   alertInput,
@@ -305,29 +346,41 @@ const PatientDetailsColumn = ({
   onAddAlert,
   onCompanionDOBChange,
   onCompanionSelect,
+  onPhotoSelected,
   onRemoveAlert,
+  onSexChange,
   setAlertInput,
   setAlertPriority,
   setCompanionErrors,
   setCompanionFormData,
+  sexAsRadio,
   speciesOptions,
   terminologyText,
 }: PatientDetailsColumnProps) => (
   <div className="flex flex-col gap-3">
     <SectionHeading icon={<MdPets size={16} />} title={terminologyText('Patient Details')} />
 
-    <InputWithDropdown
-      inname="companionName"
-      inlabel="Name"
-      value={companionFormData.name}
-      onChange={(value) => {
-        setCompanionFormData((prev) => ({ ...prev, name: value }));
-        setCompanionErrors((prev) => ({ ...prev, name: undefined }));
-      }}
-      onSelect={(option) => onCompanionSelect(option.value)}
-      options={companionSearchOptions}
-      error={companionErrors.name}
-    />
+    <div className="flex items-start gap-3 sm:gap-4">
+      <PhotoDropzone
+        photoUrl={typeof companionFormData.photoUrl === 'string' ? companionFormData.photoUrl : ''}
+        onPhotoSelected={onPhotoSelected}
+        className="size-14 sm:size-[72px]"
+      />
+      <div className="min-w-0 flex-1">
+        <InputWithDropdown
+          inname="companionName"
+          inlabel="Name"
+          value={companionFormData.name}
+          onChange={(value) => {
+            setCompanionFormData((prev) => ({ ...prev, name: value }));
+            setCompanionErrors((prev) => ({ ...prev, name: undefined }));
+          }}
+          onSelect={(option) => onCompanionSelect(option.value)}
+          options={companionSearchOptions}
+          error={companionErrors.name}
+        />
+      </div>
+    </div>
 
     <div className="grid grid-cols-2 gap-3">
       <LabelDropdown
@@ -367,9 +420,6 @@ const PatientDetailsColumn = ({
         error={companionErrors.breed}
         portal
       />
-    </div>
-
-    <div className="grid grid-cols-2 gap-3">
       <Datepicker
         currentDate={companionDOB}
         setCurrentDate={onCompanionDOBChange}
@@ -379,24 +429,30 @@ const PatientDetailsColumn = ({
         placeholder="DOB"
         error={companionErrors.dateOfBirth}
       />
-      <LabelDropdown
-        placeholder="Sex"
-        options={GENDER_NEUTER_OPTIONS}
-        defaultOption={genderNeuterValue}
-        onSelect={(option) => {
-          const found = GENDER_NEUTER_OPTIONS.find((item) => item.value === option.value);
-          if (found) {
-            setCompanionFormData((prev) => ({
-              ...prev,
-              gender: found.data.gender as Gender,
-              isneutered: found.data.neutered,
-              ageWhenNeutered: found.data.neutered ? prev.ageWhenNeutered : '',
-            }));
-          }
-        }}
-        portal
+      <FormInput
+        intype="number"
+        inname="weight"
+        value={
+          companionFormData.currentWeight == null ? '' : String(companionFormData.currentWeight)
+        }
+        inlabel="Weight (kg)"
+        onChange={(event) =>
+          setCompanionFormData((prev) => ({
+            ...prev,
+            currentWeight: toNonNegativeNumber(event.target.value),
+          }))
+        }
+        className="min-h-12!"
       />
     </div>
+
+    <PatientSexControl
+      sexAsRadio={sexAsRadio}
+      companionFormData={companionFormData}
+      genderNeuterValue={genderNeuterValue}
+      onSexChange={onSexChange}
+      setCompanionFormData={setCompanionFormData}
+    />
 
     <div className="flex flex-col gap-2.5">
       <span className="text-body-4 text-text-secondary">Alerts (optional)</span>
@@ -690,98 +746,104 @@ const ClientDetailsColumn = ({
 );
 
 const AddCompanionFormMode = (props: AddCompanionFormModeProps) => {
-  const {
-    hasUnsavedChanges,
-    mode,
-    onGoToAppointment,
-    onSubmit,
-    pendingGoToAppointmentRef,
-    setCompanionErrors,
-    setMode,
-    setParentErrors,
-    setShowDiscardConfirm,
-  } = props;
+  const { formStep, mode, onSubmit, setCompanionErrors, setMode, setParentErrors, variant } = props;
 
+  const patientColumn = (sexAsRadio: boolean) => (
+    <PatientDetailsColumn
+      alertInput={props.alertInput}
+      alertPriority={props.alertPriority}
+      breedOptions={props.breedOptions}
+      companionDOB={props.companionDOB}
+      companionErrors={props.companionErrors}
+      companionFormData={props.companionFormData}
+      companionSearchOptions={props.companionSearchOptions}
+      genderNeuterValue={props.genderNeuterValue}
+      onAddAlert={props.onAddAlert}
+      onCompanionDOBChange={props.onCompanionDOBChange}
+      onCompanionSelect={props.onCompanionSelect}
+      onPhotoSelected={props.onPhotoSelected}
+      onRemoveAlert={props.onRemoveAlert}
+      onSexChange={props.onSexChange}
+      setAlertInput={props.setAlertInput}
+      setAlertPriority={props.setAlertPriority}
+      setCompanionErrors={setCompanionErrors}
+      setCompanionFormData={props.setCompanionFormData}
+      sexAsRadio={sexAsRadio}
+      speciesOptions={props.speciesOptions}
+      terminologyText={props.terminologyText}
+    />
+  );
+
+  const clientColumn = (
+    <ClientDetailsColumn
+      clientAlertInput={props.clientAlertInput}
+      clientAlertPriority={props.clientAlertPriority}
+      clientAlerts={props.clientAlerts}
+      localPhoneNumber={props.localPhoneNumber}
+      onAddClientAlert={props.onAddClientAlert}
+      onAddressSelect={props.onAddressSelect}
+      onCountryCodeSelect={props.onCountryCodeSelect}
+      onParentDOBChange={props.onParentDOBChange}
+      onParentSelect={props.onParentSelect}
+      onPhoneChange={props.onPhoneChange}
+      onRemoveClientAlert={props.onRemoveClientAlert}
+      onUpdateAddressField={props.onUpdateAddressField}
+      parentDOB={props.parentDOB}
+      parentErrors={props.parentErrors}
+      parentFormData={props.parentFormData}
+      parentSearchOptions={props.parentSearchOptions}
+      scheduleParentSearch={props.scheduleParentSearch}
+      selectedCountryCode={props.selectedCountryCode}
+      setClientAlertInput={props.setClientAlertInput}
+      setClientAlertPriority={props.setClientAlertPriority}
+      setParentErrors={setParentErrors}
+      setParentFormData={props.setParentFormData}
+    />
+  );
+
+  // ── Create: the design's 2-step "Add companion" wizard (patient → parent).
+  // The step footer is rendered by the parent modal so it can live in the phone
+  // sheet's sticky footer region. Both step panels share one column.
+  if (mode === 'create') {
+    return (
+      <div className={variant === 'modal' ? 'mx-auto w-full max-w-[760px]' : 'w-full'}>
+        <WizardStepHeader step={formStep} />
+        <div className="mt-4">{formStep === 1 ? patientColumn(true) : clientColumn}</div>
+      </div>
+    );
+  }
+
+  // ── Edit: single-scroll two-column layout with its own footer.
   return (
     <>
-      {mode === 'edit' && (
-        <div className="flex items-center gap-2 pb-2 border-b border-card-border">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('view');
-              setCompanionErrors({});
-              setParentErrors({});
-            }}
-            className="flex items-center gap-1.5 text-[13px] font-medium text-text-secondary hover:text-text-primary transition-colors"
-          >
-            ← Back to details
-          </button>
-        </div>
-      )}
+      <div className="flex items-center gap-2 pb-2 border-b border-card-border">
+        <button
+          type="button"
+          onClick={() => {
+            setMode('view');
+            setCompanionErrors({});
+            setParentErrors({});
+          }}
+          className="flex items-center gap-1.5 text-[13px] font-medium text-text-secondary hover:text-text-primary transition-colors"
+        >
+          ← Back to details
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-0 lg:items-stretch">
-        <PatientDetailsColumn
-          alertInput={props.alertInput}
-          alertPriority={props.alertPriority}
-          breedOptions={props.breedOptions}
-          companionDOB={props.companionDOB}
-          companionErrors={props.companionErrors}
-          companionFormData={props.companionFormData}
-          companionSearchOptions={props.companionSearchOptions}
-          genderNeuterValue={props.genderNeuterValue}
-          onAddAlert={props.onAddAlert}
-          onCompanionDOBChange={props.onCompanionDOBChange}
-          onCompanionSelect={props.onCompanionSelect}
-          onRemoveAlert={props.onRemoveAlert}
-          setAlertInput={props.setAlertInput}
-          setAlertPriority={props.setAlertPriority}
-          setCompanionErrors={setCompanionErrors}
-          setCompanionFormData={props.setCompanionFormData}
-          speciesOptions={props.speciesOptions}
-          terminologyText={props.terminologyText}
-        />
-
-        <ClientDetailsColumn
-          clientAlertInput={props.clientAlertInput}
-          clientAlertPriority={props.clientAlertPriority}
-          clientAlerts={props.clientAlerts}
-          localPhoneNumber={props.localPhoneNumber}
-          onAddClientAlert={props.onAddClientAlert}
-          onAddressSelect={props.onAddressSelect}
-          onCountryCodeSelect={props.onCountryCodeSelect}
-          onParentDOBChange={props.onParentDOBChange}
-          onParentSelect={props.onParentSelect}
-          onPhoneChange={props.onPhoneChange}
-          onRemoveClientAlert={props.onRemoveClientAlert}
-          onUpdateAddressField={props.onUpdateAddressField}
-          parentDOB={props.parentDOB}
-          parentErrors={props.parentErrors}
-          parentFormData={props.parentFormData}
-          parentSearchOptions={props.parentSearchOptions}
-          scheduleParentSearch={props.scheduleParentSearch}
-          selectedCountryCode={props.selectedCountryCode}
-          setClientAlertInput={props.setClientAlertInput}
-          setClientAlertPriority={props.setClientAlertPriority}
-          setParentErrors={setParentErrors}
-          setParentFormData={props.setParentFormData}
-        />
+        {patientColumn(false)}
+        {clientColumn}
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-3 pt-2 border-t border-card-border">
         <FooterLeft
-          mode={mode}
-          onGoToAppointment={onGoToAppointment}
-          hasUnsavedChanges={hasUnsavedChanges}
-          pendingGoToAppointmentRef={pendingGoToAppointmentRef}
-          setShowDiscardConfirm={setShowDiscardConfirm}
           setMode={setMode}
           setCompanionErrors={setCompanionErrors}
           setParentErrors={setParentErrors}
         />
         <Primary
           type="button"
-          text={mode === 'edit' ? 'Save changes' : 'Save Patient Info'}
+          text="Save changes"
           icon={<FiCheck size={15} />}
           onClick={onSubmit}
         />

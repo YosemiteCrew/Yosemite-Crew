@@ -11,11 +11,6 @@ import { getPreferredTimeValue } from '@/app/lib/date';
 import { getPreferredTimeZone } from '@/app/lib/timezone';
 import { Task } from '@/app/features/tasks/types/task';
 
-const TaskTypeOptions = [
-  { value: 'EMPLOYEE_TASK', label: 'Employee Task' },
-  { value: 'PARENT_TASK', label: 'Parent Task' },
-];
-
 type AddTaskProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -119,34 +114,25 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
             setDueTimeValue={setDueTimeValue}
             onSelectTemplate={selectTemplate}
             twoColumn
-            showAudienceSelect
-            audienceOptions={TaskTypeOptions}
-            onAudienceSelect={(option) =>
+            assigneeChips
+            teamOptions={TeamOptions}
+            parentOptions={CompanionOptions}
+            onSelectTeam={(option) =>
               setFormData({
                 ...formData,
-                audience: option.value as any,
-                assignedTo: '',
+                audience: 'EMPLOYEE_TASK',
+                assignedTo: option.value,
                 companionId: undefined,
               })
             }
-            showAssigneeSelect
-            assigneeOptions={formData.audience === 'EMPLOYEE_TASK' ? TeamOptions : CompanionOptions}
-            onAssigneeSelect={(option) => {
-              if (formData.audience === 'EMPLOYEE_TASK') {
-                setFormData({
-                  ...formData,
-                  assignedTo: option.value,
-                });
-                return;
-              }
+            onSelectParent={(option) => {
               const companion = companions?.find((c) => c.parentId === option.value);
-              if (companion) {
-                setFormData({
-                  ...formData,
-                  companionId: companion.id,
-                  assignedTo: option.value,
-                });
-              }
+              setFormData({
+                ...formData,
+                audience: 'PARENT_TASK',
+                assignedTo: option.value,
+                companionId: companion?.id,
+              });
             }}
           />
           <div className="flex flex-col items-center gap-3 w-full pb-3">
