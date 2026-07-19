@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import FloatingToolbar from '@/app/ui/primitives/RichTextEditor/FloatingToolbar';
 import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
+import './RichTextEditor.css';
 
 type RichTextEditorProps = {
   value: string;
@@ -14,20 +15,21 @@ type RichTextEditorProps = {
   ariaLabel: string;
   className?: string;
   /**
-   * `title` floats the toolbar up into the wrapping section's title row (used
-   * when the editor is the first element in the section). `inline` keeps it at
-   * the top-right of the editor and reserves space above the text. `inset`
-   * pins a chromeless toolbar to the editor's top-right corner *inside* the
-   * section and reserves right-hand width on the first lines so the text never
-   * runs under it (the SOAP section design).
+   * Retained for API compatibility with existing call sites. The editor now
+   * always docks its toolbar at the top of the field (revealed on focus), the
+   * design's single rich-text treatment, so this no longer changes the layout.
    */
   toolbarPlacement?: 'title' | 'inline' | 'inset';
 };
 
 /**
- * Shared rich-text editor (Tiptap) with a floating B/I/U/list/indent toolbar.
+ * Shared rich-text editor (Tiptap) matching the SOAP editor in the
+ * "PIMS - Appointments" design: an editable field carries the recessed
+ * `--field-bg` surface with a 1.5px hairline border and 12px radius; on focus it
+ * gains a blue border + glow and reveals a docked B/I/U/list/indent toolbar bar.
  * Emits sanitized HTML so the value can be stored and sent to the backend as-is.
- * In `readOnly` mode the toolbar is hidden and the content is not editable.
+ * In `readOnly` mode the surface and toolbar are dropped so a saved note never
+ * reads as an editable field.
  */
 const RichTextEditor = ({
   value,
@@ -35,15 +37,8 @@ const RichTextEditor = ({
   placeholder,
   readOnly = false,
   ariaLabel,
-  className,
-  toolbarPlacement = 'title',
 }: RichTextEditorProps) => {
   const labelId = useId();
-
-  const isInset = toolbarPlacement === 'inset';
-  // Inset toolbar sits inside the top-right corner — reserve right room on the
-  // first line(s) so the text never runs under it.
-  const contentPadding = isInset ? 'pr-52' : 'pr-0';
 
   // Always hold the latest onChange so onUpdate stays current WITHOUT listing it
   // as a useEditor recreation dep — a fresh inline handler (or a new controlled
@@ -68,7 +63,9 @@ const RichTextEditor = ({
         'aria-multiline': 'true',
         'aria-label': ariaLabel,
         'aria-readonly': String(readOnly),
-        class: `yc-rte-content min-h-[88px] ${contentPadding} outline-none text-body-4 text-text-primary leading-[150%] [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:my-1 [&_p]:min-h-5`,
+        // Font, colour, and list styling live in RichTextEditor.css so the text
+        // colour tracks the theme via a live var(--ink-body).
+        class: 'yc-rte-content',
       },
     },
     onUpdate: ({ editor: instance }) => {
@@ -92,43 +89,37 @@ const RichTextEditor = ({
     editor?.setEditable(!readOnly);
   }, [editor, readOnly]);
 
-  const showPlaceholder = !readOnly && placeholder && isRichTextEmpty(value);
-  // `title` overlaps the section title row (no reserved space); `inline` keeps
-  // the toolbar inside the editor and reserves room above the first text line;
-  // `inset` pins the pill toolbar to the top-right of the editor's content area
-  // (it sits below the section border, on the same band as the first text line),
-  // and the text starts at the very top-left of that band.
-  const isInline = toolbarPlacement === 'inline';
-  // `inline`/`inset` pin the toolbar at the top-right of the content area;
-  // `title` floats it up over the section title row instead.
-  const toolbarPosition = isInline || isInset ? 'top-0 right-0' : '-top-12 right-0';
+  const label = (
+    <span id={labelId} className="sr-only">
+      {ariaLabel}
+    </span>
+  );
 
-  // Inset: a small top padding keeps the first text line off the container edge
-  // while still starting it high, roughly aligned with the top of the toolbar
-  // pill (the text clears the pill horizontally via the `pr-52` reserve).
-  const insetContentClass = isInset ? 'min-h-22 [&_.yc-rte-content]:pt-1' : 'min-h-22';
+  // Read-only note: bare content, no field surface, no toolbar.
+  if (readOnly) {
+    return (
+      <div className="yc-rte-readonly">
+        {label}
+        <EditorContent editor={editor} />
+      </div>
+    );
+  }
+
+  const showPlaceholder = placeholder && isRichTextEmpty(value);
 
   return (
-    <div className={className}>
-      <span id={labelId} className="sr-only">
-        {ariaLabel}
-      </span>
-      <div className={`relative ${insetContentClass} ${!readOnly && isInline ? 'pt-12' : ''}`}>
-        {/* Toolbar floats over the top-right corner; the text starts top-left. */}
-        {!readOnly && editor && (
-          <div className={`absolute z-10 ${toolbarPosition}`}>
-            <FloatingToolbar editor={editor} />
-          </div>
-        )}
-        {showPlaceholder && (
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none absolute left-0 text-body-4 text-text-secondary ${isInline ? 'top-12' : 'top-1'} ${isInset ? 'pr-52' : ''}`}
-          >
-            {placeholder}
-          </span>
-        )}
-        <EditorContent editor={editor} />
+    <div>
+      {label}
+      <div className="yc-rte-field">
+        {editor && <FloatingToolbar editor={editor} />}
+        <div className="yc-rte-body">
+          {showPlaceholder && (
+            <span aria-hidden="true" className="yc-rte-placeholder">
+              {placeholder}
+            </span>
+          )}
+          <EditorContent editor={editor} />
+        </div>
       </div>
     </div>
   );

@@ -847,6 +847,7 @@ const useSummaryStepContent = ({
             titleClassName="text-yc-20-b-primary"
             title="Discharge Summary"
             compactTop
+            disableFocusBorder
           >
             {dischargeSaved ? (
               <div className="relative">

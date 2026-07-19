@@ -29,7 +29,12 @@ const NativeSoapFields = ({
   onRecordVitals,
 }: NativeSoapFieldsProps) => (
   <>
-    <SectionContainer titleClassName="text-yc-20-b-primary" title="Subjective (History)" compactTop>
+    <SectionContainer
+      titleClassName="text-yc-20-b-primary"
+      title="Subjective (History)"
+      compactTop
+      disableFocusBorder
+    >
       <RichTextEditor
         ariaLabel="Subjective history"
         value={subjective}
@@ -44,6 +49,7 @@ const NativeSoapFields = ({
       titleClassName="text-yc-20-b-primary"
       title="Objective (Examination)"
       compactTop
+      disableFocusBorder
     >
       <RichTextEditor
         ariaLabel="Objective examination"
@@ -66,6 +72,7 @@ const NativeSoapFields = ({
       titleClassName="text-yc-20-b-primary"
       title="Assessment (Differential)"
       compactTop
+      disableFocusBorder
     >
       <RichTextEditor
         ariaLabel="Assessment differential"
@@ -77,7 +84,12 @@ const NativeSoapFields = ({
       />
     </SectionContainer>
 
-    <SectionContainer titleClassName="text-yc-20-b-primary" title="Plan" compactTop>
+    <SectionContainer
+      titleClassName="text-yc-20-b-primary"
+      title="Plan"
+      compactTop
+      disableFocusBorder
+    >
       <RichTextEditor
         ariaLabel="Plan"
         value={plan}
