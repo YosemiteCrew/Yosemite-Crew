@@ -12,7 +12,9 @@ const UserLabels = ({ team, columnsStyle }: UserLabels) => {
   const currentUserId = attributes?.sub || attributes?.email;
 
   return (
-    <div className="grid min-w-max py-1.5" style={columnsStyle}>
+    // Team column headers take the planner frame's 13px/700 --ink name type
+    // (was 16px/500 muted body), on the frame's 12px vertical padding.
+    <div className="grid min-w-max py-3" style={columnsStyle}>
       {team.map((user, idx) => {
         const isCurrentUser = !!currentUserId && user.practionerId === currentUserId;
         return (
@@ -21,7 +23,7 @@ const UserLabels = ({ team, columnsStyle }: UserLabels) => {
             className="flex items-center justify-center flex-col"
           >
             <div
-              className={`text-body-4 font-medium ${isCurrentUser ? 'text-(--color-primary-700)' : 'text-text-secondary'}`}
+              className={`text-[13px] font-bold leading-[1.2] ${isCurrentUser ? 'text-(--color-primary-700)' : 'text-[var(--ink)]'}`}
             >
               {user.name || ''}
             </div>

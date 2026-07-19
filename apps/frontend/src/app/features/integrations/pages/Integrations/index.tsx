@@ -1297,7 +1297,7 @@ const IntegrationsPage = () => {
     <div className="yc-page-content">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-page-title flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>Integrations</span>
             <GlassTooltip
               content={`Connect and manage external tools for ${

@@ -1237,9 +1237,9 @@ const useInventoryContent = () => {
     <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-center w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-page-title flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>{pageTitle}</span>
-            <span className="text-[17px] text-[var(--ink-faint)]">({titleCount})</span>
+            <span className="text-page-title-count">({titleCount})</span>
             {activeView === 'inventory' && (
               <GlassTooltip
                 content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."

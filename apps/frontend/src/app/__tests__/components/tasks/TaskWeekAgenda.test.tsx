@@ -56,8 +56,6 @@ jest.mock('@/app/stores/authStore', () => ({
 describe('TaskWeekAgenda', () => {
   const setActiveTask = jest.fn();
   const setViewPopup = jest.fn();
-  const setCurrentDate = jest.fn();
-  const setWeekStart = jest.fn();
   const onCreateFromCalendarSlot = jest.fn();
 
   // Week: Mon Jul 6 2026 .. Sun Jul 12 2026; "today" is Wed Jul 8.
@@ -144,9 +142,7 @@ describe('TaskWeekAgenda', () => {
       <TaskWeekAgenda
         filteredList={tasks}
         currentDate={monday}
-        setCurrentDate={setCurrentDate}
         weekStart={monday}
-        setWeekStart={setWeekStart}
         canEditTasks
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
@@ -167,16 +163,22 @@ describe('TaskWeekAgenda', () => {
 
   it('lays out a 7-day agenda board and marks today', () => {
     renderAgenda();
-    // The week-range navigator pill.
-    expect(screen.getByText('6 – 12 Jul')).toBeInTheDocument();
-    // Today's header carries the "· today" marker.
-    expect(screen.getByText(/· today/)).toBeInTheDocument();
+    // One column header per day of the visible week; today (Wed 8) is marked.
+    const headers = ['MON 6', 'TUE 7', 'WED 8 · today', 'THU 9', 'FRI 10', 'SAT 11', 'SUN 12'];
+    headers.forEach((label) => {
+      expect(
+        screen.getByText(
+          (_content, element) => element?.tagName === 'SPAN' && element.textContent === label
+        )
+      ).toBeInTheDocument();
+    });
   });
 
-  it('formats a week range that spans two months', () => {
-    const monthEnd = new Date(2026, 6, 29); // Wed Jul 29 → Jul 29 .. Aug 4
-    renderAgenda({ currentDate: monthEnd, weekStart: monthEnd });
-    expect(screen.getByText('29 Jul – 4 Aug')).toBeInTheDocument();
+  it('leaves the week-range navigator to the page title row', () => {
+    renderAgenda();
+    expect(screen.queryByRole('button', { name: 'Previous week' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Next week' })).not.toBeInTheDocument();
+    expect(screen.queryByText('6 – 12 Jul')).not.toBeInTheDocument();
   });
 
   it('places tasks in their due-day columns and drops off-week tasks', () => {
@@ -222,18 +224,6 @@ describe('TaskWeekAgenda', () => {
     // Unknown / empty assignees drop the trailing name segment.
     expect(screen.getByText('Care · 12:00')).toBeInTheDocument();
     expect(screen.getByText('Care · 13:00')).toBeInTheDocument();
-  });
-
-  it('navigates weeks via the range pill', () => {
-    renderAgenda();
-    fireEvent.click(screen.getByRole('button', { name: 'Previous week' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
-    expect(setCurrentDate).toHaveBeenCalledTimes(2);
-    expect(setWeekStart).toHaveBeenCalledTimes(2);
-    const prevUpdater = setCurrentDate.mock.calls[0][0] as (d: Date) => Date;
-    const nextUpdater = setCurrentDate.mock.calls[1][0] as (d: Date) => Date;
-    expect(prevUpdater(new Date(2026, 6, 8)).getDate()).toBe(1);
-    expect(nextUpdater(new Date(2026, 6, 8)).getDate()).toBe(15);
   });
 
   it('creates a task from a day column at the default hour', () => {

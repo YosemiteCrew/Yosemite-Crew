@@ -68,7 +68,7 @@ const DeveloperPlugins = () => {
       <div className="OperationsWrapper">
         <div className="TitleContainer">
           <div className="dev-plugins-heading">
-            <h1 className="text-page-title text-text-primary">Plugins</h1>
+            <h1 className="text-page-title">Plugins</h1>
             <p className="text-body-3 text-text-secondary">
               Extend every clinic on the platform. The WordPress model, for animal health
             </p>

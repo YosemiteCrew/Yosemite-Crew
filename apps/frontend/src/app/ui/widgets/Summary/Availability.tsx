@@ -49,7 +49,7 @@ const Availability = () => {
   return (
     <PermissionGate allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}>
       <div className="summary-container">
-        <h2 className="text-[15px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+        <h2 className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
           Availability <span className="font-medium text-[var(--ink-faint)]">({teams.length})</span>
         </h2>
         <div className="flex items-center gap-2 flex-wrap">

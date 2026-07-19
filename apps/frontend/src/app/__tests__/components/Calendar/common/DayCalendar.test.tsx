@@ -399,7 +399,9 @@ describe('DayCalendar (Appointments)', () => {
     expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
   });
 
-  it('updates current date with navigation', () => {
+  it('renders a bare day header with no in-grid day arrows', () => {
+    // Day navigation is owned by the header toolbar's date-nav pill (covered in
+    // Header.test.tsx); the grid's day header is just the frame's label + date.
     render(
       <DayCalendar
         events={[]}
@@ -412,13 +414,8 @@ describe('DayCalendar (Appointments)', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Next'));
-    fireEvent.click(screen.getByText('Prev'));
-
-    const nextFn = setCurrentDate.mock.calls[0][0];
-    const prevFn = setCurrentDate.mock.calls[1][0];
-
-    expect(nextFn(new Date(2025, 0, 6)).getDate()).toBe(7);
-    expect(prevFn(new Date(2025, 0, 6)).getDate()).toBe(5);
+    expect(screen.queryByText('Next')).not.toBeInTheDocument();
+    expect(screen.queryByText('Prev')).not.toBeInTheDocument();
+    expect(setCurrentDate).not.toHaveBeenCalled();
   });
 });

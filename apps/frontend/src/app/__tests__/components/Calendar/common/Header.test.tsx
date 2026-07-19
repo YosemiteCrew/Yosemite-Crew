@@ -71,7 +71,7 @@ describe('Header Component', () => {
     const statusButton = screen.getByRole('button', { name: /Scheduled/i });
     const addAppointmentButton = screen.getByRole('button', { name: 'New appointment' });
     const datepicker = screen.getByTestId('datepicker');
-    const viewSelector = screen.getByRole('button', { name: /week/i });
+    const viewSelector = screen.getByRole('button', { name: 'Week' });
     const zoomInButton = screen.getByTitle('Zoom in timeline');
 
     // Design order: date -> view segmented pill -> status -> emergencies -> new appointment -> zoom.
@@ -89,6 +89,81 @@ describe('Header Component', () => {
     expect(addAppointmentButton.compareDocumentPosition(zoomInButton)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
+  });
+
+  // --- 1b. Date nav pill + Today (moved here from the grid headers) ---
+
+  it('steps the current date by a day from the nav pill outside the week view', () => {
+    render(<Header {...defaultProps} activeCalendar="team" setActiveCalendar={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }));
+
+    const prevFn = mockSetCurrentDate.mock.calls[0][0];
+    const nextFn = mockSetCurrentDate.mock.calls[1][0];
+
+    expect(prevFn(new Date(2025, 0, 6)).getDate()).toBe(5);
+    expect(nextFn(new Date(2025, 0, 6)).getDate()).toBe(7);
+  });
+
+  it('steps whole weeks from the nav pill when the week view owns the week start', () => {
+    const setWeekStart = jest.fn();
+    render(
+      <Header
+        {...defaultProps}
+        activeCalendar="week"
+        setActiveCalendar={jest.fn()}
+        weekStart={new Date('2025-01-06T00:00:00.000Z')}
+        setWeekStart={setWeekStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }));
+
+    // The week setter runs an updater that also syncs the current date.
+    const prevFn = setWeekStart.mock.calls[0][0];
+    const nextFn = setWeekStart.mock.calls[1][0];
+    const base = new Date('2025-01-06T00:00:00.000Z');
+
+    expect(prevFn(base).getDate()).toBe(30); // 30 Dec
+    expect(nextFn(base).getDate()).toBe(13); // 13 Jan
+    expect(mockSetCurrentDate).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to day stepping in the week view when no week setter is supplied', () => {
+    render(<Header {...defaultProps} activeCalendar="week" setActiveCalendar={jest.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Previous day' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }));
+    expect(mockSetCurrentDate.mock.calls[0][0](new Date(2025, 0, 6)).getDate()).toBe(7);
+  });
+
+  it('jumps to today and realigns the week start', () => {
+    const setWeekStart = jest.fn();
+    render(
+      <Header
+        {...defaultProps}
+        activeCalendar="week"
+        setActiveCalendar={jest.fn()}
+        weekStart={new Date('2025-01-06T00:00:00.000Z')}
+        setWeekStart={setWeekStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+
+    expect(mockSetCurrentDate).toHaveBeenCalledWith(expect.any(Date));
+    // Week views re-anchor to the Monday of the current week.
+    expect(setWeekStart).toHaveBeenCalledWith(expect.any(Date));
+    expect(setWeekStart.mock.calls[0][0].getDay()).toBe(1);
+  });
+
+  it('leaves the week start alone when jumping to today without a week setter', () => {
+    render(<Header {...defaultProps} />);
+
+    expect(() => fireEvent.click(screen.getByRole('button', { name: 'Today' }))).not.toThrow();
+    expect(mockSetCurrentDate).toHaveBeenCalledTimes(1);
   });
 
   it('renders the emergency pill as a slim danger-outlined pill with a leading dot', () => {
@@ -186,10 +261,11 @@ describe('Header Component', () => {
       />
     );
 
-    // Active non-emergency pill uses the brand/blue treatment and the brand border.
+    // Active non-emergency pill fills with --inset behind a --divider outline and
+    // steps its label to --ink 700, per the planner's filter row.
     const allPillActive = screen.getByRole('button', { name: 'All' });
-    expect(allPillActive).toHaveClass('bg-blue-light');
-    expect(allPillActive).toHaveStyle({ borderColor: 'var(--color-text-brand)' });
+    expect(allPillActive).toHaveClass('bg-[var(--inset)]', 'font-bold', 'text-[var(--ink)]');
+    expect(allPillActive).toHaveStyle({ borderColor: 'var(--divider)' });
 
     // Clicking an inactive pill selects it; clicking the active pill resets to 'all'.
     fireEvent.click(screen.getByRole('button', { name: 'Emergencies' }));
@@ -207,10 +283,11 @@ describe('Header Component', () => {
       />
     );
 
-    // Inactive non-emergency pill falls back to the muted tertiary treatment and card border.
+    // Inactive non-emergency pill falls back to a bare --hairline outline with
+    // --ink-muted 600 type.
     const allPillInactive = screen.getByRole('button', { name: 'All' });
-    expect(allPillInactive).toHaveClass('text-text-tertiary');
-    expect(allPillInactive).toHaveStyle({ borderColor: 'var(--color-card-border)' });
+    expect(allPillInactive).toHaveClass('text-[var(--ink-muted)]', 'font-semibold');
+    expect(allPillInactive).toHaveStyle({ borderColor: 'var(--hairline)' });
 
     // Active emergency pill draws its label colour from the inline style (white on
     // danger-800), so it no longer carries the AA-failing `text-danger-500!` class.
@@ -322,13 +399,13 @@ describe('Header Component', () => {
       <Header {...defaultProps} activeCalendar="week" setActiveCalendar={setActiveCalendar} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /week/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
     // Selecting a different view transitions to it.
     fireEvent.click(screen.getByText('Day').closest('button') as HTMLElement);
     expect(setActiveCalendar).toHaveBeenCalledWith('day');
 
     setActiveCalendar.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: /week/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
     // Re-selecting the already active view is a no-op.
     fireEvent.click(screen.getAllByText('Week').at(-1)!.closest('button') as HTMLElement);
     expect(setActiveCalendar).not.toHaveBeenCalled();

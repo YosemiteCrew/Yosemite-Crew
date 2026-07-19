@@ -959,12 +959,24 @@ input[type='number'] {
     @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.8px];
   }
 
-  /* Page title - Serif module page titles (Newsreader).
-     Fluid 30px -> 40px. It sits beside a body-size count and description, so a
-     fixed 46px overpowered that pairing at every width; unlike the display and
-     heading classes it had no step-down of its own. */
+  /* Page title - Serif screen titles (Newsreader 400).
+     Design: 26px / -0.015em / var(--ink) on desktop, 24px on tablet + phone.
+     The earlier 30->40px scale came from the design DOCUMENT's own 46px frame
+     heading, not from the app screens it documents - every PIMS screen title
+     in the frames is the 26px h2, which is what pairs with the count and the
+     13.5px description beside it. */
   .text-page-title {
-    @apply font-newsreader text-[clamp(1.875rem,1.35rem+1.6vw,2.5rem)] font-medium leading-[1.1] tracking-[-0.02em];
+    @apply font-newsreader text-[clamp(1.5rem,1.4rem+0.35vw,1.625rem)] font-normal leading-[1.2] tracking-[-0.015em];
+    color: var(--ink);
+  }
+
+  /* Count that trails a page title - "Appointments (14)".
+     Design: 17px / var(--ink-faint) desktop, 16px tablet + phone. Inherits the
+     serif family and 400 weight from .text-page-title so it reads as a quieter
+     companion to the title rather than a second heading. */
+  .text-page-title-count {
+    @apply text-[clamp(1rem,0.95rem+0.15vw,1.0625rem)] font-normal;
+    color: var(--ink-faint);
   }
 
   /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */

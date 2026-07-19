@@ -146,9 +146,9 @@ const Finance = () => {
             <div className="flex items-center justify-between w-full flex-wrap gap-2">
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-text-primary text-page-title">
-                    {'Finance'}
-                    <span className="text-body-2 text-text-tertiary">{` (${invoices.length})`}</span>
+                  <h1 className="text-page-title">
+                    {'Finance'}{' '}
+                    <span className="text-page-title-count">{`(${invoices.length})`}</span>
                   </h1>
                   <GlassTooltip
                     content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
