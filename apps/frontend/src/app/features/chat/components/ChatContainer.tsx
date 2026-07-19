@@ -33,6 +33,7 @@ import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-ch
 import { LuCommand } from 'react-icons/lu';
 import {
   IoArchiveOutline,
+  IoArrowBack,
   IoChatbubbleEllipsesOutline,
   IoGlobeOutline,
   IoSearchOutline,
@@ -116,6 +117,13 @@ const ChatSessionStatusContext = createContext<{
   statusByAppointmentId: {},
   refreshStatuses: () => undefined,
 });
+// Lets the thread header render the phone "back" control inline (design: one
+// unified compact bar — round back + avatar + name + status — instead of a
+// separate "← Back" strip stacked above the header).
+const ChatBackContext = createContext<{ showBack: boolean; onBack: () => void }>({
+  showBack: false,
+  onBack: () => undefined,
+});
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -130,11 +138,13 @@ interface ChatContainerProps {
   onScopeChange?: (scope: ChatScope) => void;
 }
 
-// Design labels this audience tab "Clients"; the per-chat "Pet parent" badge is
-// kept as the fixed owner term on the individual client conversation header.
+// Design labels these audience tabs "Clients / Team / Groups" (the middle tab
+// reads "Team", not "Colleagues"; the scope value stays `colleagues`). The
+// per-chat "Pet parent" badge is kept as the fixed owner term on the individual
+// client conversation header.
 const SCOPE_OPTIONS: ReadonlyArray<{ value: ChatScope; label: string }> = [
   { value: 'clients', label: 'Clients' },
-  { value: 'colleagues', label: 'Colleagues' },
+  { value: 'colleagues', label: 'Team' },
   { value: 'groups', label: 'Groups' },
 ];
 
@@ -331,10 +341,11 @@ const ChannelHeaderWithCounterpart: FC<{
   const { channel } = useChannelStateContext();
   const chatSessionStatusCtx = use(ChatSessionStatusContext);
   const { statusByAppointmentId } = chatSessionStatusCtx;
+  const { showBack, onBack } = use(ChatBackContext);
   const groupModalCtx = use(GroupModalContext);
   const { notify } = useNotify();
   const [closingSession, setClosingSession] = useState(false);
-  const [sessionClosed, setSessionClosed] = useState(false);
+  const [locallyClosed, setLocallyClosed] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
@@ -347,15 +358,15 @@ const ChannelHeaderWithCounterpart: FC<{
   const companion = useCompanionStore((s) => (patientId ? s.companionsById[patientId] : undefined));
   const router = useRouter();
 
-  // Check if session is already closed
-  useEffect(() => {
-    if (channel) {
-      const status = (channel.data as any)?.status;
-      const frozen = (channel.data as any)?.frozen;
-      const isSessionClosed = status === 'ended' || frozen === true || backendStatus === 'ended';
-      setSessionClosed(isSessionClosed);
-    }
-  }, [channel, backendStatus]);
+  // The session is closed when the channel or backend reports it ended/frozen,
+  // or when we just closed it locally (optimistic UI). Derived during render so
+  // it always tracks its source instead of being mirrored into state via an
+  // effect (react-doctor/no-derived-state).
+  const sessionClosed =
+    (channel?.data as any)?.status === 'ended' ||
+    (channel?.data as any)?.frozen === true ||
+    backendStatus === 'ended' ||
+    locallyClosed;
 
   const handleCloseSession = async () => {
     if (!channel) {
@@ -387,7 +398,7 @@ const ChannelHeaderWithCounterpart: FC<{
         }
         await endChatChannel(sessionId);
         chatSessionStatusCtx.refreshStatuses();
-        setSessionClosed(true);
+        setLocallyClosed(true);
         notify('success', {
           title: 'Chat session closed',
           text: 'Chat session closed successfully',
@@ -476,7 +487,17 @@ const ChannelHeaderWithCounterpart: FC<{
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2 border-b border-chat-divider bg-neutral-0 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+      <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+        {showBack && (
+          <button
+            type="button"
+            aria-label="Back to conversations"
+            onClick={onBack}
+            className="inline-flex size-[34px] shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] transition-colors hover:bg-[var(--screen-2)]"
+          >
+            <IoArrowBack className="h-[15px] w-[15px]" />
+          </button>
+        )}
         <ChatAvatar
           name={title}
           online={!isGroupChat && !hasSessionClosed && online}
@@ -488,7 +509,7 @@ const ChannelHeaderWithCounterpart: FC<{
             <Text
               as="span"
               variant="body-3-emphasis"
-              className="min-w-0 flex-1 truncate text-[var(--ink)]"
+              className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[var(--ink)]"
             >
               {title}
             </Text>
@@ -500,8 +521,8 @@ const ChannelHeaderWithCounterpart: FC<{
             )}
           </span>
           {online && !isGroupChat && !hasSessionClosed ? (
-            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--success)]">
-              <span className="chat-presence-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]" />
+            <span className="flex min-w-0 items-center gap-1.5 text-[10.5px] text-[var(--success)]">
+              <span className="chat-presence-dot h-[5px] w-[5px] shrink-0 rounded-full bg-[var(--success)]" />
               <span className="truncate">{statusText}</span>
             </span>
           ) : (
@@ -733,7 +754,7 @@ const RegularChannelWindow: FC<{ currentUserId?: string | null }> = ({ currentUs
 
 const ChatEmptyThread: FC = () => (
   <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-    <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
+    <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-[var(--blue-text)]">
       <IoChatbubbleEllipsesOutline className="h-6 w-6" />
     </span>
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
@@ -746,20 +767,18 @@ const ChatEmptyThread: FC = () => (
 );
 
 const ChatWindow: FC<ChatWindowProps> = ({ showBackButton, onBack, currentUserId }) => {
-  const shouldShowBackButton = showBackButton;
+  const backContextValue = useMemo(
+    () => ({ showBack: showBackButton, onBack }),
+    [showBackButton, onBack]
+  );
 
   return (
-    <>
-      {shouldShowBackButton && (
-        <button type="button" className="chat-back-button" onClick={onBack}>
-          ← Back
-        </button>
-      )}
+    <ChatBackContext.Provider value={backContextValue}>
       <Channel Message={ChatMessage} EmptyStateIndicator={ChatEmptyThread}>
         <RegularChannelWindow currentUserId={currentUserId} />
         <Thread />
       </Channel>
-    </>
+    </ChatBackContext.Provider>
   );
 };
 
@@ -906,7 +925,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
   return (
     <>
       <div className="flex items-center justify-between px-3 pt-3">
-        <h2 className="m-0 font-newsreader text-[22px] font-normal tracking-[-0.015em] text-[var(--ink)]">
+        <h2 className="m-0 font-newsreader text-[20px] font-normal tracking-[-0.015em] text-[var(--ink)] xl:text-[23px]">
           Chat
         </h2>
         <button
@@ -952,7 +971,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                   onClick={onOpenNetworkDirectory}
                   className="flex cursor-pointer items-center gap-2 rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-2.5 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft"
                 >
-                  <IoGlobeOutline className="size-4 shrink-0 text-primary-600" />
+                  <IoGlobeOutline className="size-4 shrink-0 text-[var(--blue-text)]" />
                   <Text as="span" variant="body-4" className="text-neutral-900">
                     Message a colleague at another clinic
                   </Text>

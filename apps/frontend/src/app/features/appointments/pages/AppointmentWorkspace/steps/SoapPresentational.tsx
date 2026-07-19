@@ -20,17 +20,17 @@ export const SoapSignActions = ({
 );
 
 export const SoapContextField = ({ label, value }: { label: string; value?: string }) => (
-  <div className="relative w-full">
-    <div className="relative flex min-h-12 w-full items-center rounded-2xl border border-input-border-default bg-(--whitebg) px-5 py-2">
+  <div className="w-full">
+    <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
+      {label}
+    </span>
+    <div className="flex min-h-12 w-full items-center rounded-2xl border border-input-border-default bg-(--whitebg) px-5 py-2">
       <span
         className={`min-w-0 flex-1 truncate text-left text-body-4 ${value?.trim() ? 'text-text-primary' : 'text-input-text-placeholder'}`}
       >
         {value?.trim() || '-'}
       </span>
     </div>
-    <span className="pointer-events-none absolute -top-2 left-5 z-10 bg-(--whitebg) px-1 text-caption-2 text-text-secondary">
-      {label}
-    </span>
   </div>
 );
 

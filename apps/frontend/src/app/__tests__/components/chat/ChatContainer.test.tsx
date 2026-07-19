@@ -862,10 +862,7 @@ describe('ChatContainer', () => {
     const switcher = screen.getByRole('group', { name: 'Chat audience' });
     expect(switcher).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clients' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Colleagues' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    expect(screen.getByRole('button', { name: 'Team' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('routes Send form to the invoice workspace step', async () => {
@@ -2024,12 +2021,16 @@ describe('ChatContainer', () => {
         fireEvent.click(screen.getByText('Mobile Row'));
       });
 
-      const backBtn = await screen.findByText(/Back/);
+      // The phone thread renders one unified header bar whose round back control
+      // (aria "Back to conversations") returns to the list.
+      const backBtn = await screen.findByLabelText('Back to conversations');
       await act(async () => {
         fireEvent.click(backBtn);
       });
 
-      await waitFor(() => expect(screen.queryByText(/Back/)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Back to conversations')).not.toBeInTheDocument()
+      );
     } finally {
       Object.defineProperty(globalThis, 'innerWidth', {
         value: originalWidth,

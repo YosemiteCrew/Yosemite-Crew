@@ -71,7 +71,7 @@ const ServiceSearchBase = ({
 
   return (
     <div className="service-search" ref={wrapperRef}>
-      <IoSearch size={20} className="service-search-icon" color="var(--color-neutral-900)" />
+      <IoSearch size={15} className="service-search-icon" color="var(--color-neutral-600)" />
       <input
         type="text"
         id={inputId}

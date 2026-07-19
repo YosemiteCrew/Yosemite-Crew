@@ -51,7 +51,7 @@
       inset 0 1px 0 var(--glass-inset-hi);
     -webkit-backdrop-filter: blur(24px) saturate(1.4);
     backdrop-filter: blur(24px) saturate(1.4);
-    padding: 8px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+    padding: 0 20px calc(16px + env(safe-area-inset-bottom, 0px));
     animation: ycPhoneSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
@@ -68,9 +68,9 @@
     width: 44px;
     height: 5px;
     flex: none;
-    margin: 4px auto 6px;
+    margin: 10px auto 4px;
     border-radius: 999px;
-    background: var(--hairline-hover);
+    background: var(--divider);
   }
 
   .yc-phone-sheet-head {
@@ -79,7 +79,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 2px 0 12px;
+    padding: 8px 0 12px;
   }
 
   .yc-phone-sheet-title {
@@ -88,20 +88,20 @@
     font-family: var(--font-satoshi);
     font-size: 17px;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
   .yc-phone-sheet-close {
     display: inline-flex;
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--hairline);
     border-radius: 999px;
-    background: var(--screen-2);
-    color: var(--ink-soft);
+    background: transparent;
+    color: var(--ink-faint);
     cursor: pointer;
   }
 
@@ -114,7 +114,7 @@
     display: flex;
     flex: none;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     padding-top: 14px;
   }
 

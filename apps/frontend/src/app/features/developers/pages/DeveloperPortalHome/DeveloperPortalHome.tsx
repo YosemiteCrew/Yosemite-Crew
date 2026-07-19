@@ -6,6 +6,8 @@ import { Icon } from '@iconify/react';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useAuthStore } from '@/app/stores/authStore';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
+import PhoneDevHome from '@/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome';
 
 import './DeveloperPortalHome.css';
 import '@/app/features/organizations/styles/Organizations.css';
@@ -17,7 +19,7 @@ type QuickLink = {
   external?: boolean;
 };
 
-type ActivityEntry = {
+export type ActivityEntry = {
   method: string;
   path: string;
   status: string;
@@ -49,6 +51,7 @@ const RECENT_ACTIVITY: ActivityEntry[] = [
 
 const DeveloperPortalHome = () => {
   const { attributes } = useAuthStore();
+  const isPhone = useIsPhone();
 
   const displayName = useMemo(() => {
     const name = `${attributes?.given_name || ''} ${attributes?.family_name || ''}`.trim();
@@ -56,6 +59,16 @@ const DeveloperPortalHome = () => {
     if (attributes?.email) return attributes.email;
     return 'Developer';
   }, [attributes?.email, attributes?.family_name, attributes?.given_name]);
+
+  if (isPhone) {
+    return (
+      <DevRouteGuard>
+        <div className="OperationsWrapper">
+          <PhoneDevHome displayName={displayName} recentActivity={RECENT_ACTIVITY} />
+        </div>
+      </DevRouteGuard>
+    );
+  }
 
   return (
     <DevRouteGuard>

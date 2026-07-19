@@ -147,7 +147,7 @@ const KpiCards = ({
       <span className={kpiLabelClass}>Annual turnover</span>
       <span className={kpiValueClass}>{formatTurns(annualTurnover)}</span>
       {annualDelta !== null ? (
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-[var(--success-text)]">
+        <span className="flex items-center gap-1 text-[11px] font-semibold text-[var(--success)]">
           {annualDelta >= 0 ? (
             <IoTrendingUpOutline size={12} aria-hidden="true" />
           ) : (

@@ -943,6 +943,42 @@ const resolveEncounterForAdmission = async (args: {
   return encounter;
 };
 
+// Record the encounter's real actual-start when the appointment first moves to
+// IN_PROGRESS. `periodStart` is seeded at check-in with the booked slot start
+// (often in the future), which is not a real start — leaving it would keep the
+// workspace visit timer showing "Not started" even though the visit is running.
+// Stamp it to the transition time and advance the encounter to "in-progress"; a
+// genuine, already-recorded start (in-progress/onleave) is preserved so the timer
+// never resets, and a closed encounter is left untouched.
+const stampEncounterActualStartOnProgress = async (args: {
+  tx: TransactionClient;
+  encounterId: string;
+  startedAt: Date;
+}) => {
+  const encounter = (await args.tx.encounter.findUnique({
+    where: { id: args.encounterId },
+    select: { status: true, periodStart: true },
+  })) as { status: string; periodStart: Date | null } | null;
+
+  if (!encounter) return;
+  if (encounter.status === "finished" || encounter.status === "cancelled") {
+    return;
+  }
+
+  const alreadyStarted =
+    encounter.status === "in-progress" || encounter.status === "onleave";
+
+  await args.tx.encounter.update({
+    where: { id: args.encounterId },
+    data: {
+      status: alreadyStarted ? encounter.status : "in-progress",
+      periodStart: alreadyStarted
+        ? (encounter.periodStart ?? args.startedAt)
+        : args.startedAt,
+    },
+  });
+};
+
 const assertEncounterMatchesAppointmentContext = async (args: {
   tx: TransactionClient;
   encounterId?: string;
@@ -1902,14 +1938,20 @@ export const AppointmentPrismaService = {
       const { nextLead, nextSupportStaff, nextRoom } =
         resolveInpatientAdmissionFields(row, input);
 
+      // Admission is the encounter's real actual-start. `periodStart` was seeded
+      // at check-in with the booked slot start (often in the future), so on the
+      // first move into "in-progress" record the real admission time; otherwise
+      // preserve the already-recorded start so the visit timer never resets.
+      const isStartingNow = encounter.status === "arrived";
       await tx.encounter.update({
         where: { id: encounterId },
         data: {
           appointmentKind: "INPATIENT",
           encounterClass: "IMP",
-          periodStart: encounter.periodStart ?? admittedAt,
-          status:
-            encounter.status === "arrived" ? "in-progress" : encounter.status,
+          periodStart: isStartingNow
+            ? admittedAt
+            : (encounter.periodStart ?? admittedAt),
+          status: isStartingNow ? "in-progress" : encounter.status,
         },
       });
 
@@ -2154,6 +2196,21 @@ export const AppointmentPrismaService = {
           organisationId: row.organisationId,
           startTime: patch.startTime,
           endTime: patch.endTime,
+        });
+      }
+
+      // On the transition into IN_PROGRESS, stamp the encounter's real
+      // actual-start so the workspace visit timer runs (bug #1903). Only fires on
+      // the first move into IN_PROGRESS and only when an encounter exists.
+      if (
+        patch.status === "IN_PROGRESS" &&
+        row.status !== "IN_PROGRESS" &&
+        encounterId
+      ) {
+        await stampEncounterActualStartOnProgress({
+          tx,
+          encounterId,
+          startedAt: new Date(),
         });
       }
 

@@ -156,8 +156,8 @@ describe('Slotpicker Component', () => {
         timeSlots={mockTimeSlots}
       />
     );
-    expect(screen.getByText('Formatted 10:00')).toHaveClass('text-blue-text');
-    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('text-blue-text');
+    expect(screen.getByText('Formatted 10:00')).toHaveClass('bg-blue-text!', 'text-white');
+    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('bg-blue-text!');
   });
 
   it('calls setSelectedSlot when a slot is clicked', () => {

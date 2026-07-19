@@ -119,8 +119,8 @@ const CompanionAvatar = ({
 );
 
 const CoParentPill = () => (
-  <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink)]">
-    + CO-PARENT
+  <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[6px] py-px text-[8.5px] font-bold text-[var(--pink)]">
+    CO-PARENT
   </span>
 );
 
@@ -411,11 +411,11 @@ const CompanionPhoneCard = ({
       type="button"
       onClick={() => onOpen(item)}
       title={terminologyText('Open companion history')}
-      className={`flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-2.5 text-left shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)] ${
+      className={`flex w-full items-center gap-[11px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-[11px] text-left shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)] ${
         isInactive ? 'opacity-[0.62]' : ''
       }`}
     >
-      <CompanionAvatar companion={item.companion} size={44} textClassName="text-[18px]" />
+      <CompanionAvatar companion={item.companion} size={44} textClassName="text-[19px]" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-1">
           <span className="truncate font-newsreader text-[16px] tracking-[-0.01em] text-[var(--ink)]">
@@ -423,7 +423,7 @@ const CompanionPhoneCard = ({
           </span>
           {hasCoParent(item) ? <CoParentPill /> : null}
         </span>
-        <span className="truncate text-[12px] text-[var(--ink-faint)]">{subline}</span>
+        <span className="truncate text-[11.5px] text-[var(--ink-faint)]">{subline}</span>
       </span>
       <IoChevronForwardOutline
         size={16}

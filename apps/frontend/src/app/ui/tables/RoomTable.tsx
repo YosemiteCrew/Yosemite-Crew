@@ -158,31 +158,31 @@ const RoomTable = ({
             <thead>
               <tr className="bg-[var(--screen-2)]">
                 <th
-                  className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]"
+                  className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]"
                   aria-label="Row number"
                 ></th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Room name
                 </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Code
                 </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Type
                 </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Speciality
                 </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Occupancy
                 </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Assigned Staff
                 </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Availability
                 </th>
-                <th className="px-4 py-3 text-center text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
+                <th className="px-4 py-3 text-center text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Action
                 </th>
               </tr>

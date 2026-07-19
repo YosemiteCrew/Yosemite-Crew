@@ -5,7 +5,7 @@
 .select-top-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 120%;
   font-family: var(--satoshi-font);
@@ -17,9 +17,9 @@
 }
 .select-input-container {
   width: 100%;
-  height: 42px;
-  padding: 0 14px;
-  border-radius: 12px;
+  height: 46px;
+  padding: 0 13px;
+  border-radius: 13px;
   border: 1.5px solid var(--hairline) !important;
   background-color: var(--field-bg);
   outline: none;
@@ -39,7 +39,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink-body);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 400;
   line-height: 120%;
   font-family: var(--satoshi-font);
@@ -100,7 +100,7 @@
   background: transparent;
   text-align: start;
   color: var(--ink-body);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 120%;
   font-family: var(--satoshi-font);

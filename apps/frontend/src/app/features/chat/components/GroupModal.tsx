@@ -228,7 +228,7 @@ export const GroupModal: FC<GroupModalProps> = ({
                             }`}
                             title="Remove member"
                           >
-                            <IoTrash size={20} color="var(--color-danger-600)" />
+                            <IoTrash size={20} color="var(--danger-text)" />
                           </button>
                         )}
                       </div>

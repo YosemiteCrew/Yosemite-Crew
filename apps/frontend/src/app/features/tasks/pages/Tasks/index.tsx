@@ -11,7 +11,8 @@ import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { Task, TaskFilters, TaskStatus, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import { useSearchStore } from '@/app/stores/searchStore';
-import Filters from '@/app/ui/filters/Filters';
+import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -33,6 +34,9 @@ const TaskCalendar = dynamic(
   () => import('@/app/features/appointments/components/Calendar/TaskCalendar'),
   { loading: () => <TaskPlannerSkeleton /> }
 );
+const TaskWeekAgenda = dynamic(() => import('@/app/features/tasks/components/TaskWeekAgenda'), {
+  loading: () => <TaskPlannerSkeleton />,
+});
 const TaskBoard = dynamic(() => import('@/app/features/tasks/components/TaskBoard'), {
   loading: () => <TaskPlannerSkeleton />,
 });
@@ -67,6 +71,7 @@ const Tasks = () => {
   const [activeView, setActiveView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
+  const isPhone = useIsPhone();
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
 
   const handleActiveCalendarChange = useCallback(
@@ -169,7 +174,10 @@ const Tasks = () => {
 
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
-    plannerContent = (
+    // The design's tasks "Calendar" is a 7-day agenda board on tablet/desktop; a
+    // time grid cannot shrink to a phone, so below 768px the planner keeps the
+    // dedicated thumb-checkable day list (PhoneTaskDayList via TaskCalendar).
+    plannerContent = isPhone ? (
       <TaskCalendar
         filteredList={filteredList}
         allTasks={tasks}
@@ -187,19 +195,26 @@ const Tasks = () => {
         canEditTasks={canEditTasks}
         onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
       />
+    ) : (
+      <TaskWeekAgenda
+        filteredList={filteredList}
+        currentDate={currentDate}
+        setCurrentDate={handleCurrentDateChange}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        canEditTasks={canEditTasks}
+        setActiveTask={setActiveTask}
+        setViewPopup={setViewPopup}
+        onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
+      />
     );
   } else if (activeView === 'board') {
     plannerContent = (
       <TaskBoard
         tasks={filteredList}
-        currentDate={currentDate}
-        setCurrentDate={handleCurrentDateChange}
         canEditTasks={canEditTasks}
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
-        setChangeStatusPopup={setChangeStatusPopup}
-        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-        setReschedulePopup={setReschedulePopup}
         onAddTask={openAddTask}
       />
     );
@@ -240,7 +255,7 @@ const Tasks = () => {
         <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
           <div className={wrapperClassName}>
             {activeView !== 'board' && (
-              <Filters
+              <TaskFilterBar
                 filterOptions={TaskFilters}
                 statusOptions={TaskStatusFilters}
                 activeFilter={activeFilter}
@@ -250,7 +265,6 @@ const Tasks = () => {
                 showAddButton={canEditTasks}
                 onAddButtonClick={openAddTask}
                 addButtonText="New task"
-                compactFilterPills
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

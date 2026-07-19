@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IoCaretDown } from 'react-icons/io5';
+import { IoChevronDown } from 'react-icons/io5';
 import classNames from 'classnames';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
@@ -193,7 +193,7 @@ const Dropdown = ({
         >
           <span className="select-input-selected">{selected ? selected.label : ''}</span>
           <span className="select-input-drop-icon" aria-hidden="true">
-            <IoCaretDown color="var(--color-neutral-600)" size={16} />
+            <IoChevronDown color="var(--color-neutral-600)" size={14} />
           </span>
         </button>
 

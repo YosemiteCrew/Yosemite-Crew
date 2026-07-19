@@ -53,7 +53,7 @@ const Personal = () => {
   const availabilitySummary = summarizeAvailability(availabilities);
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] px-5! py-4! flex flex-col gap-[14px]">
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] px-5! py-[18px]! flex flex-col gap-[14px]">
       <div className="text-[14.5px] font-bold text-[var(--ink)]">Personal</div>
       <div className="flex items-center gap-[14px]">
         {isHttpsAvatar(avatarUrl) ? (

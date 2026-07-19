@@ -63,10 +63,10 @@ export function MessageSearch() {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={clsx(
-          'inline-flex size-9 items-center justify-center rounded-full transition-colors',
+          'inline-flex size-9 items-center justify-center rounded-full border transition-colors',
           open
-            ? 'bg-chat-panel text-primary-600'
-            : 'text-neutral-500 hover:bg-chat-panel hover:text-neutral-900'
+            ? 'border-[var(--blue)] bg-[var(--blue-soft)] text-[var(--blue-text)]'
+            : 'border-[var(--hairline)] text-[var(--ink-soft)] hover:bg-[var(--screen-2)] hover:text-[var(--ink)]'
         )}
       >
         <IoSearchOutline className="h-4 w-4" />
@@ -79,8 +79,8 @@ export function MessageSearch() {
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-11 z-20 w-80 rounded-2xl border border-chat-divider bg-neutral-0 p-2 shadow-lg">
-            <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
+          <div className="absolute right-0 top-11 z-20 w-80 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-2 shadow-[0_6px_16px_var(--sh10),0_24px_56px_var(--sh12)]">
+            <div className="flex min-h-12 items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] px-4 py-2.5 transition-colors focus-within:border-[var(--blue)]">
               <IoSearchOutline className="h-4 w-4 shrink-0 text-input-text-placeholder" />
               <input
                 autoFocus
@@ -99,14 +99,14 @@ export function MessageSearch() {
             <ul className="mt-2 max-h-72 overflow-y-auto">
               {searching && (
                 <li className="px-3 py-4 text-center">
-                  <Text as="span" variant="caption-1" className="text-neutral-400">
+                  <Text as="span" variant="caption-1" className="text-[var(--ink-faint)]">
                     Searching…
                   </Text>
                 </li>
               )}
               {!searching && hasQuery && results.length === 0 && (
                 <li className="px-3 py-4 text-center">
-                  <Text as="span" variant="caption-1" className="text-neutral-400">
+                  <Text as="span" variant="caption-1" className="text-[var(--ink-faint)]">
                     No messages found
                   </Text>
                 </li>

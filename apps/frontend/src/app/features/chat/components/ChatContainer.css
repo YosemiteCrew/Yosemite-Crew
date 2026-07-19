@@ -1,12 +1,5 @@
 /* Stream Chat - Clean Default UI */
 
-/* Selected conversation row: soft warm-bone card with a pink left-stripe. */
-.chat-conversation-row--active {
-  background: var(--surface-soft);
-  box-shadow: inset 3px 0 0 var(--pink);
-  border-radius: 14px;
-}
-
 /* Gentle pulse for the online presence dot (conversation-row avatar + header). */
 @keyframes ycPulseDot {
   0% {
@@ -121,31 +114,6 @@
   outline-offset: 2px;
 }
 
-.chat-back-button {
-  padding: 12px 16px;
-  border: none;
-  border-bottom: 1px solid var(--color-chat-divider);
-  cursor: pointer;
-  color: var(--color-primary-700);
-  font-family: var(--font-satoshi);
-  font-size: 14px;
-  font-weight: 600;
-  flex-shrink: 0;
-  background: var(--color-neutral-0);
-  text-align: left;
-  width: 100%;
-  transition: background-color 0.2s ease;
-}
-
-.chat-back-button:hover {
-  background: var(--color-chat-surface-soft);
-}
-
-.chat-back-button:focus-visible {
-  outline: 2px solid var(--color-chat-panel-border);
-  outline-offset: 2px;
-}
-
 /* Main chat area */
 .str-chat__main-panel {
   flex: 1;
@@ -246,7 +214,7 @@
 }
 
 .str-chat__main-panel .str-chat__list {
-  padding: 16px 16px 8px;
+  padding: 16px 18px 8px;
 }
 
 /* Guard against horizontal overflow anywhere in the conversation pane: long
@@ -413,7 +381,7 @@
 
   /* Tighter message canvas gutters on phones */
   .str-chat__main-panel .str-chat__list {
-    padding: 12px 10px 6px;
+    padding: 14px 16px 6px;
   }
 }
 

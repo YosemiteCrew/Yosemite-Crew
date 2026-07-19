@@ -30,7 +30,7 @@ const AllDayEventsRow = ({
   onMarkerDoubleClick,
   onMarkerContextMenu,
 }: AllDayEventsRowProps) => (
-  <div className="p-2 border-b border-grey-light bg-slate-50 shrink-0">
+  <div className="p-2 border-b border-grey-light bg-neutral-100 shrink-0">
     <div className="text-xs font-satoshi text-grey-text mb-1">All-day</div>
     <div className="flex flex-wrap gap-2">
       {allDayEvents.map((ev, idx) => {

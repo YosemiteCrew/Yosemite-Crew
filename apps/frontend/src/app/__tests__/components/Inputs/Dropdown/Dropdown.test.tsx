@@ -72,7 +72,7 @@ describe('Dropdown Component', () => {
     render(<Dropdown placeholder="Select Item" value="" onChange={mockOnChange} />);
 
     expect(screen.getByText('Select Item')).toBeInTheDocument();
-    expect(screen.queryByTestId('IoCaretDown')).toBeInTheDocument();
+    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument();
   });
 
   it('renders with a selected value (String option)', () => {
@@ -116,7 +116,7 @@ describe('Dropdown Component', () => {
     fireEvent.click(button);
     // Should not open (query for dropdown content should fail)
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument(); // assuming standard role or just absence of options
-    expect(screen.queryByTestId('IoCaretDown')).toBeInTheDocument(); // Icon stays
+    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument(); // Icon stays
   });
 
   // --- 2. Interaction: Opening & Closing ---

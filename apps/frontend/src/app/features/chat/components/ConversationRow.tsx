@@ -104,10 +104,13 @@ export function ConversationRow({
   return (
     <div
       className={clsx(
-        'group relative flex items-center pr-1',
+        // Tablet keeps the raised-white card for the active row; the wide desktop
+        // frame (xl) uses the design's surface-soft fill with an inset pink
+        // left-stripe (see design "Chat extended", conversation list).
+        'group relative flex items-center pr-1 rounded-[13px] xl:rounded-[14px]',
         active
-          ? 'bg-[var(--screen)] border border-[var(--hairline)] shadow-[0_1px_3px_var(--sh05)] rounded-[14px]'
-          : 'rounded-[14px] hover:bg-[var(--screen)]',
+          ? 'border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_3px_var(--sh05)] xl:border-transparent xl:bg-[var(--surface-soft)] xl:shadow-[inset_3px_0_0_var(--pink)]'
+          : 'hover:bg-[var(--screen)] xl:hover:bg-[var(--surface-soft)]',
         muted && !active && 'opacity-[0.62]'
       )}
     >
@@ -115,15 +118,24 @@ export function ConversationRow({
         type="button"
         onClick={onClick}
         aria-current={active}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2.5 text-left"
+        className="flex min-w-0 flex-1 items-center gap-[9px] rounded-2xl px-2.5 py-2.5 text-left xl:px-3 xl:py-[11px]"
       >
-        <ChatAvatar name={name} online={online} group={group} />
+        <ChatAvatar
+          name={name}
+          online={online}
+          group={group}
+          business={network && !group}
+          size="row"
+        />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-2">
             <Text
               as="span"
               variant="body-4-emphasis"
-              className="min-w-0 flex-1 truncate text-[var(--ink)]"
+              className={clsx(
+                'min-w-0 flex-1 truncate text-[12.5px] xl:text-[13.5px]',
+                active ? 'font-bold text-[var(--ink)]' : 'font-semibold text-[var(--ink-body)]'
+              )}
             >
               {name}
             </Text>
@@ -146,7 +158,11 @@ export function ConversationRow({
               />
             )}
             {time && (
-              <Text as="span" variant="caption-2" className="shrink-0 text-[var(--ink-faint)]">
+              <Text
+                as="span"
+                variant="caption-2"
+                className="shrink-0 text-[9.5px] text-[var(--ink-faint)] xl:text-[10.5px]"
+              >
                 {time}
               </Text>
             )}
@@ -156,8 +172,8 @@ export function ConversationRow({
               as="span"
               variant="caption-1"
               className={clsx(
-                'min-w-0 flex-1 truncate',
-                unread ? 'font-semibold text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
+                'min-w-0 flex-1 truncate text-[11px] xl:text-[11.5px]',
+                unread ? 'text-[var(--ink-muted)]' : 'text-[var(--ink-faint)]'
               )}
             >
               {preview}
@@ -174,10 +190,12 @@ export function ConversationRow({
             aria-label="Conversation actions"
             onClick={() => setMenuOpen((o) => !o)}
             className={clsx(
-              'inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--screen-2)] hover:text-[var(--ink)]',
+              // On the wide desktop frame the kebab is a persistent filled inset
+              // circle; on tablet it stays a hover-revealed action.
+              'inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--screen-2)] hover:text-[var(--ink)] xl:size-7 xl:bg-[var(--inset)] xl:text-[var(--ink-body)]',
               menuOpen
                 ? 'opacity-100'
-                : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100'
+                : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 xl:opacity-100'
             )}
           >
             <IoEllipsisVertical className="h-4 w-4" />

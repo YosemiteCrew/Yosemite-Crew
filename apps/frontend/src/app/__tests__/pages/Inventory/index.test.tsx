@@ -24,6 +24,7 @@ import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 expect.extend(toHaveNoViolations);
 
@@ -407,6 +408,14 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
 jest.mock('@/app/ui/overlays/Fallback', () => ({
   __esModule: true,
   default: () => <div data-testid="fallback">No permission</div>,
+}));
+
+// The phone breakpoint hook is false by default (desktop/tablet path); the phone
+// suite flips it to true to exercise the bespoke catalog branch.
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  useIsPhone: jest.fn(() => false),
+  default: jest.fn(() => false),
 }));
 
 // Mock search store - search now comes from header
@@ -2236,6 +2245,40 @@ describe('Inventory Page', () => {
     await waitFor(() => {
       expect(screen.getByTestId('dispensary-record-dr-1')).toBeInTheDocument();
       expect(screen.getByTestId('dispensary-record-dr-2')).toBeInTheDocument();
+    });
+  });
+
+  describe('phone catalog branch (< 768px)', () => {
+    beforeEach(() => {
+      (useIsPhone as jest.Mock).mockReturnValue(true);
+    });
+    afterEach(() => {
+      (useIsPhone as jest.Mock).mockReturnValue(false);
+    });
+
+    it('renders the bespoke phone catalog instead of the desktop table and hides Add product', () => {
+      render(<ProtectedInventory />);
+
+      // Bespoke phone cards replace the shared table; the pill row + FAB own
+      // filtering and creation, so the desktop table and Add button are absent.
+      expect(screen.getByRole('button', { name: 'View Item A' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'View Item B' })).toBeInTheDocument();
+      expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Add product' })).not.toBeInTheDocument();
+      // The phone filter pill row is present.
+      expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    });
+
+    it('opens the record sheet from a phone card and keeps the shared tables for dispensary', () => {
+      render(<ProtectedInventory />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'View Item A' }));
+      expect(screen.getByTestId('info-modal')).toBeInTheDocument();
+
+      // Switching to the dispensary view falls back to the shared card table.
+      fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
+      expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'View Item A' })).not.toBeInTheDocument();
     });
   });
 });

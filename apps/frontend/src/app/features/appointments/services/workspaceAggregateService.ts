@@ -649,6 +649,10 @@ export const normalizeWorkspaceBootstrapForEncounter = (
       asOptionalIso(encounter.updatedAt);
     patch.dischargedAt = asOptionalIso(encounter.admission.dischargedAt);
   }
+  // Real actual-start of the visit — set outside the admission block so it also
+  // covers outpatient encounters (which have no admission). The backend stamps
+  // `periodStart` to the status-change time when the encounter goes In Progress.
+  patch.startedAt = asOptionalIso(encounter.periodStart);
   const invoice = isRecord(bootstrap.invoice) ? bootstrap.invoice : {};
   applyEncounterReadiness(patch, bootstrap, encounter, invoice);
   applyBootstrapCollections(patch, bootstrap);

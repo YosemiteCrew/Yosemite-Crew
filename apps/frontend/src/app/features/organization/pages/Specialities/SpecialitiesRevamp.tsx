@@ -96,7 +96,7 @@ const SpecialitiesRevamp = () => {
           />
         ))}
         {filteredSpecialities.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-[18px] border border-[var(--hairline)] text-text-secondary">
+          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border border-[var(--hairline)] text-text-secondary">
             <p className="text-body-3">{getSpecialitiesEmptyMessage(status, searchQuery)}</p>
             {!searchQuery && status !== 'loading' && (
               <Primary

@@ -48,7 +48,7 @@ const ReadyToggle = ({ label, state, disabled = false, onToggle }: ReadyTogglePr
           className={`flex size-4 items-center justify-center rounded-sm border transition-colors duration-150 ${
             checked
               ? 'border-pill-success-text bg-pill-success-text text-neutral-0'
-              : 'border-neutral-400'
+              : 'border-neutral-300'
           }`}
         >
           {checked && <IoCheckmarkOutline size={9} />}

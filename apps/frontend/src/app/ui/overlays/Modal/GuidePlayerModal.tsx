@@ -69,7 +69,7 @@ const GuidePlayerModal = ({
         showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
-      containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1200] flex w-[95vw] max-w-[920px] flex-col overflow-hidden rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] shadow-2xl transition-opacity duration-100 ${
+      containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1200] flex w-[95vw] max-w-[920px] flex-col overflow-hidden rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)] transition-opacity duration-100 ${
         showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
     >

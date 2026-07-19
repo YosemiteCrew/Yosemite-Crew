@@ -22,29 +22,61 @@ const getSelectedDropdownLabel = (
 ) => options.find((option) => option.value === selectedValue)?.label ?? selectedValue ?? fallback;
 
 const ReadOnlyMetaField = ({ label, value }: { label: string; value: string }) => (
-  <div className="relative w-full">
-    <div className="relative flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-5 pl-5">
+  <div className="w-full">
+    <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
+      {label}
+    </span>
+    <div className="flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-5 pl-5">
       <span className="min-w-0 flex-1 truncate text-left text-body-4 text-text-primary">
         {value}
       </span>
     </div>
-    <span className="pointer-events-none absolute -top-2 left-5 z-10 bg-(--whitebg) px-1 text-caption-2 text-text-secondary">
-      {label}
-    </span>
   </div>
 );
 
 /**
- * Read-only consultation-type field. Mirrors the StaffField floating-label box
- * but shows a mode-specific icon (bed = inpatient, footprints = outpatient)
+ * Editable Room/Unit dropdown that shares the same static-label-above-a-box shape
+ * as its sibling fields (StaffField / ConsultationTypeField / ReadOnlyMetaField).
+ * The shared LabelDropdown already renders a static label above its trigger, so we
+ * only restyle the trigger (`[&>div>div>button]`) into the meta box (min-h-12,
+ * rounded-2xl, --whitebg, pl-5) so the locked (ReadOnlyMetaField) and unlocked
+ * states share one 48px baseline with the value inside the box.
+ */
+const EditableMetaDropdown = ({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: DropdownItem[];
+  value?: string;
+  onSelect: (option: DropdownOption) => void;
+}) => (
+  <div className="w-full [&>div>div>button]:min-h-12 [&>div>div>button]:rounded-2xl! [&>div>div>button]:bg-(--whitebg)! [&>div>div>button]:pl-5!">
+    <LabelDropdown
+      placeholder={label}
+      options={options}
+      defaultOption={value}
+      onSelect={onSelect}
+    />
+  </div>
+);
+
+/**
+ * Read-only consultation-type field. Mirrors the StaffField label-above-a-box
+ * shape but shows a mode-specific icon (bed = inpatient, footprints = outpatient)
  * instead of an avatar — the value is changed via the hospitalization flow.
  */
 const ConsultationTypeField = ({ mode }: { mode: EncounterMode }) => {
   const isInpatient = mode === 'INPATIENT';
   const label = isInpatient ? 'Inpatient' : 'Outpatient';
   return (
-    <div className="relative w-full">
-      <div className="relative flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-2 pl-5">
+    <div className="w-full">
+      <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
+        Consultation type
+      </span>
+      <div className="flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-2 pl-5">
         <span className="min-w-0 flex-1 truncate text-left text-body-4 text-text-primary">
           {label}
         </span>
@@ -55,9 +87,6 @@ const ConsultationTypeField = ({ mode }: { mode: EncounterMode }) => {
           {isInpatient ? <IoBedOutline size={16} /> : <IoFootstepsOutline size={16} />}
         </span>
       </div>
-      <span className="pointer-events-none absolute -top-2 left-5 z-10 bg-(--whitebg) px-1 text-caption-2 text-text-secondary">
-        Consultation type
-      </span>
     </div>
   );
 };
@@ -141,10 +170,10 @@ const WorkspaceMetaBar = ({
               value={getSelectedDropdownLabel(roomOptions, encounter.roomId)}
             />
           ) : (
-            <LabelDropdown
-              placeholder="Room"
+            <EditableMetaDropdown
+              label="Room"
               options={roomOptions}
-              defaultOption={encounter.roomId}
+              value={encounter.roomId}
               onSelect={onSelectRoom}
             />
           )}
@@ -158,10 +187,10 @@ const WorkspaceMetaBar = ({
               value={getSelectedDropdownLabel(unitOptions, encounter.unitId)}
             />
           ) : (
-            <LabelDropdown
-              placeholder="Unit"
+            <EditableMetaDropdown
+              label="Unit"
               options={unitOptions}
-              defaultOption={encounter.unitId}
+              value={encounter.unitId}
               onSelect={onSelectUnit}
             />
           )}

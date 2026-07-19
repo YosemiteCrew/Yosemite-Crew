@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import Dropdown from '@/app/ui/inputs/Dropdown';
 
 jest.mock('react-icons/io5', () => ({
-  IoCaretDown: () => <span data-testid="caret" />,
+  IoChevronDown: () => <span data-testid="caret" />,
 }));
 
 jest.mock('react-icons/io', () => ({

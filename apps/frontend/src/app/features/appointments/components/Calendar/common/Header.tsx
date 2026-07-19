@@ -33,7 +33,11 @@ const getDropdownStatusTextColor = (status: StatusOption): string =>
 
 const getFilterClassName = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
-  if (filterKey === 'emergencies') return 'text-danger-500!';
+  // The active emergency pill draws its fill/label from getEmergencyPillStyle's
+  // inline style (AA-safe white on --color-danger-800); return no colour class so
+  // an `!important` text colour can't override it (the old `text-danger-500!`
+  // failed WCAG AA in dark mode).
+  if (filterKey === 'emergencies') return '';
   return 'bg-blue-light text-blue-text!';
 };
 

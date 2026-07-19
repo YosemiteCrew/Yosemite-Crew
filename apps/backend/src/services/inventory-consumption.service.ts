@@ -329,6 +329,32 @@ const toDispenseUnits = (quantity: number, packSize?: number) => {
   return Math.max(1, Math.ceil(quantity / packSize));
 };
 
+/**
+ * Total base units to dispense for a prescription line, matching the figure the
+ * Dispensary modal quotes to the user (DispensaryDetailModal.calcTotalUnits):
+ * the `quantity` field is the PER-DOSE amount, and the course total is
+ * `perDose x frequencyPerDay x durationInDays`. When frequency or duration are
+ * absent the per-dose amount is dispensed as-is. Stock consumption previously
+ * consumed the raw per-dose value, so a multi-week course deducted only a
+ * fraction of what the modal promised.
+ */
+const resolveDispenseTotalUnits = (
+  record: Record<string, unknown>,
+): number | undefined => {
+  const perDose = readPositiveNumber(
+    record.quantity ?? record.units ?? record.count ?? record.dispenseQuantity,
+  );
+  if (perDose === undefined) return undefined;
+  const frequencyPerDay =
+    readPositiveNumber(record.frequencyPerDay) ??
+    resolveFrequencyPerDay(asNonEmptyString(record.frequency ?? record.freq));
+  const durationDays = resolveDurationInDays(record);
+  if (frequencyPerDay !== undefined && durationDays !== undefined) {
+    return Math.max(1, Math.ceil(perDose * frequencyPerDay * durationDays));
+  }
+  return Math.max(1, Math.ceil(perDose));
+};
+
 const resolveDispenseStockSource = (
   appointmentKind?: AppointmentKindValue,
 ): DispenseStockSource =>
@@ -1264,12 +1290,7 @@ const normalizePrescriptionLines = (medications: unknown) => {
   return medications.flatMap((entry, index) => {
     if (!entry || typeof entry !== "object") return [];
     const record = entry as Record<string, unknown>;
-    const quantity = asPositiveInteger(
-      record.quantity ??
-        record.units ??
-        record.count ??
-        record.dispenseQuantity,
-    );
+    const quantity = resolveDispenseTotalUnits(record);
     if (!quantity) {
       // The line is skipped for stock purposes while the request can still be
       // marked dispensed, so record it rather than dropping it silently.

@@ -27,16 +27,16 @@
   box-shadow:
     0 1px 2px var(--sh05),
     0 12px 30px var(--sh08);
-  padding: 34px 28px 30px;
+  padding: 36px 32px;
   text-align: center;
 }
 
 .yc-state-404 {
   color: var(--ink);
   font-size: 56px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .yc-state-icon {
@@ -68,13 +68,13 @@
 }
 
 .yc-state-text {
-  max-width: 40ch;
+  max-width: 330px;
   margin: 0;
   color: var(--ink-muted);
   font-family: var(--font-satoshi);
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .yc-state-actions {
@@ -82,6 +82,6 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 9px;
   margin-top: 6px;
 }

@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { updateOrg } from '@/app/features/organization/services/orgService';
+import { PreferenceRow } from './PreferenceGroup';
 
 /**
  * Org-level gate for cross-clinic (network) colleague messaging. Off by default;
@@ -46,44 +47,36 @@ const CrossClinicMessagingPreference = () => {
   };
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
-        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-          Cross-clinic messaging
-        </div>
-      </div>
-      <div className="flex items-start justify-between gap-4 px-5! py-5!">
-        <p className="max-w-[70%] text-[12.5px] leading-relaxed text-[var(--ink-faint)]">
-          Let your staff message colleagues at other clinics on the network, and be discoverable to
-          them. Both clinics must enable this for a conversation to start. Off by default.
-        </p>
-        {isKnown ? (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={enabled}
-            aria-label="Cross-clinic messaging"
-            disabled={saving || !primaryOrg?._id}
-            onClick={handleToggle}
+    <PreferenceRow
+      label="Cross-clinic messaging"
+      description="Let other verified clinics reach your team"
+    >
+      {isKnown ? (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Cross-clinic messaging"
+          disabled={saving || !primaryOrg?._id}
+          onClick={handleToggle}
+          className={clsx(
+            'relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
+            enabled ? 'bg-[var(--blue)]' : 'bg-[var(--divider)]'
+          )}
+        >
+          <span
             className={clsx(
-              'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
-              enabled ? 'bg-primary-600' : 'bg-neutral-300'
+              'inline-block size-[18px] transform rounded-full bg-white transition-transform',
+              enabled ? 'translate-x-[19px]' : 'translate-x-[3px]'
             )}
-          >
-            <span
-              className={clsx(
-                'inline-block h-5 w-5 transform rounded-full bg-neutral-0 transition-transform',
-                enabled ? 'translate-x-5' : 'translate-x-0.5'
-              )}
-            />
-          </button>
-        ) : (
-          <p className="text-body-4 text-text-secondary shrink-0 text-right">
-            Current setting unavailable
-          </p>
-        )}
-      </div>
-    </div>
+          />
+        </button>
+      ) : (
+        <p className="shrink-0 text-right text-[11.5px] text-[var(--ink-faint)]">
+          Current setting unavailable
+        </p>
+      )}
+    </PreferenceRow>
   );
 };
 

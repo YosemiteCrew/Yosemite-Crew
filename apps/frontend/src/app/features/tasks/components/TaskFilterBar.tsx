@@ -1,0 +1,122 @@
+'use client';
+import React from 'react';
+import clsx from 'clsx';
+import { IoAdd } from 'react-icons/io5';
+import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
+import { Primary } from '@/app/ui/primitives/Buttons';
+
+/**
+ * Task filter row rebuilt to the design: fully-rounded audience pills (All /
+ * Team / Pet parents, the parent pill carrying a pink dot), a vertical hairline
+ * divider, then inline status pills (Pending / In progress / Completed /
+ * Cancelled) instead of the shared "All statuses" dropdown. Area-local so the
+ * shared Filters dropdown pattern stays untouched for the other modules.
+ */
+type TaskFilterBarProps = {
+  filterOptions: FilterOption[];
+  statusOptions: StatusOption[];
+  activeFilter: string;
+  activeStatus: string;
+  setActiveFilter: (value: string) => void;
+  setActiveStatus: (value: string) => void;
+  showAddButton?: boolean;
+  onAddButtonClick?: () => void;
+  addButtonText?: string;
+};
+
+const PARENT_AUDIENCE_KEY = 'parent_task';
+
+const TaskFilterBar = ({
+  filterOptions,
+  statusOptions,
+  activeFilter,
+  activeStatus,
+  setActiveFilter,
+  setActiveStatus,
+  showAddButton = false,
+  onAddButtonClick,
+  addButtonText = 'New task',
+}: TaskFilterBarProps) => {
+  const statusPills = statusOptions.filter((option) => option.key.toLowerCase() !== 'all');
+
+  const toggleFilter = (key: string) => setActiveFilter(activeFilter === key ? 'all' : key);
+  const toggleStatus = (key: string) => setActiveStatus(activeStatus === key ? 'all' : key);
+
+  return (
+    <div className="flex w-full flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {filterOptions.map((option) => {
+          const isActive = activeFilter === option.key;
+          const isParent = option.key === PARENT_AUDIENCE_KEY;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => toggleFilter(option.key)}
+              className={clsx(
+                'inline-flex h-7 items-center gap-1.5 rounded-full border px-3.5 text-[12px] transition-colors',
+                isActive
+                  ? 'border-[var(--divider)] bg-[var(--inset)] font-bold text-[var(--ink)]'
+                  : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
+              )}
+            >
+              {isParent && (
+                <span
+                  aria-hidden="true"
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: 'var(--pink)' }}
+                />
+              )}
+              {option.name}
+            </button>
+          );
+        })}
+
+        {statusPills.length > 0 && (
+          <span aria-hidden="true" className="mx-1 h-[18px] w-px shrink-0 bg-[var(--hairline)]" />
+        )}
+
+        {statusPills.map((option) => {
+          const isActive = activeStatus === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => toggleStatus(option.key)}
+              className={clsx(
+                'inline-flex h-7 items-center rounded-full border px-3.5 text-[12px] transition-colors',
+                !isActive &&
+                  'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
+              )}
+              style={
+                isActive
+                  ? {
+                      backgroundColor: option.bg,
+                      color: option.text,
+                      borderColor: option.border ?? option.bg,
+                      fontWeight: 700,
+                    }
+                  : undefined
+              }
+            >
+              {option.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {showAddButton && (
+        <Primary
+          text={addButtonText}
+          onClick={onAddButtonClick}
+          icon={<IoAdd size={18} aria-hidden="true" />}
+          className="h-10 w-fit justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+        />
+      )}
+    </div>
+  );
+};
+
+export default TaskFilterBar;

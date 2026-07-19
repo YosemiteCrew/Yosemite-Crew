@@ -151,7 +151,7 @@ const HERO_SUBTITLE_STYLE: CSSProperties = {
   fontWeight: 400,
   lineHeight: 1.6,
   letterSpacing: '-0.025em',
-  color: 'var(--ink-soft)',
+  color: 'var(--ink-body)',
   textShadow: '0 1px 16px var(--hero-halo1), 0 1px 3px var(--hero-halo2)',
   opacity: 0,
   animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.3s both',

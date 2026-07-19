@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import TaskBoard from '@/app/features/tasks/components/TaskBoard';
@@ -159,12 +159,8 @@ const makeDataTransfer = () => ({
 });
 
 describe('TaskBoard', () => {
-  const setCurrentDate = jest.fn();
   const setActiveTask = jest.fn();
   const setViewPopup = jest.fn();
-  const setChangeStatusPopup = jest.fn();
-  const setChangeStatusPreferredStatus = jest.fn();
-  const setReschedulePopup = jest.fn();
   const onAddTask = jest.fn();
   const notifyMock = jest.fn();
 
@@ -206,69 +202,44 @@ describe('TaskBoard', () => {
     render(
       <TaskBoard
         tasks={tasks}
-        currentDate={new Date('2026-03-31T00:00:00Z')}
-        setCurrentDate={setCurrentDate}
         canEditTasks
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
-        setChangeStatusPopup={setChangeStatusPopup}
-        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-        setReschedulePopup={setReschedulePopup}
         onAddTask={onAddTask}
         {...overrides}
       />
     );
 
-  it('renders board columns and toolbar actions', () => {
+  it('renders board columns and the slim toolbar (New task, no day nav)', () => {
     renderBoard();
 
     expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
     expect(screen.getAllByText('In progress').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'New task' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'back' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'next' })).toBeInTheDocument();
+    // The design's backlog board drops the datepicker + day back/next controls.
+    expect(screen.queryByRole('button', { name: 'back' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'next' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'select-date' })).not.toBeInTheDocument();
   });
 
-  it('opens task, status-change and reschedule flows from task card actions', () => {
+  it('opens a task by clicking its card (no per-card action buttons)', () => {
     renderBoard();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open task Task One' }));
     expect(setActiveTask).toHaveBeenCalledWith(expect.objectContaining({ _id: 'task-1' }));
     expect(setViewPopup).toHaveBeenCalledWith(true);
 
-    const statusAction = within(screen.getAllByTestId('tooltip-Change status')[0]).getByRole(
-      'button'
-    );
-    fireEvent.click(statusAction);
-    expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
-    // getPreferredNextTaskStatus('PENDING') → 'IN_PROGRESS'
-    expect(setChangeStatusPreferredStatus).toHaveBeenCalledWith('IN_PROGRESS');
-
-    const rescheduleAction = within(screen.getAllByTestId('tooltip-Reschedule')[0]).getByRole(
-      'button'
-    );
-    fireEvent.click(rescheduleAction);
-    expect(setReschedulePopup).toHaveBeenCalledWith(true);
+    // The minimal design card drops the view / change-status / reschedule buttons.
+    expect(screen.queryByTestId('tooltip-Change status')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('tooltip-Reschedule')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('tooltip-View task')).not.toBeInTheDocument();
   });
 
-  it('opens the task from the dedicated view (eye) action button', () => {
+  it('renders one grey meta line carrying the category', () => {
     renderBoard();
-
-    // The eye button lives in its own "View task" tooltip; its onClick calls
-    // preventDefault/stopPropagation before opening the task (Build.tsx L236-240).
-    const viewAction = within(screen.getAllByTestId('tooltip-View task')[0]).getByRole('button');
-    fireEvent.click(viewAction);
-
-    expect(setActiveTask).toHaveBeenCalledWith(expect.objectContaining({ _id: 'task-1' }));
-    expect(setViewPopup).toHaveBeenCalledWith(true);
-  });
-
-  it('renders computed quick-details and the category value', () => {
-    renderBoard();
-    // getTaskQuickDetails(task).slice(0,2) → Category + Description
-    expect(screen.getAllByText('Category:').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Grooming')).toBeInTheDocument();
-    expect(screen.getByText('Trim nails')).toBeInTheDocument();
+    // The dense label:value quick-details are replaced by a single meta line.
+    expect(screen.queryByText('Category:')).not.toBeInTheDocument();
+    expect(screen.getByText(/Grooming/)).toBeInTheDocument();
   });
 
   it('moves task to another status on drop', async () => {
@@ -360,24 +331,44 @@ describe('TaskBoard', () => {
     expect(changeTaskStatus).not.toHaveBeenCalled();
   });
 
-  it('paints task card status badges with theme-aware status tokens', () => {
-    renderBoard();
+  it('still orders cards within a column by priority even though the pill is gone', () => {
+    renderBoard({
+      tasks: [
+        {
+          _id: 'low',
+          name: 'Low One',
+          status: 'PENDING',
+          priority: 'LOW',
+          dueAt: new Date('2026-03-31T08:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'urg',
+          name: 'Urgent One',
+          status: 'PENDING',
+          priority: 'URGENT',
+          dueAt: new Date('2026-03-31T12:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'med',
+          name: 'Medium One',
+          status: 'PENDING',
+          priority: 'MEDIUM',
+          dueAt: new Date('2026-03-31T09:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+      ] as any,
+    });
 
-    const pendingCard = screen
-      .getByRole('button', { name: 'Open task Task One' })
-      .closest('article');
-    const pendingBadge = pendingCard!.querySelector('[style*="--status-requested-bg"]');
-    expect(pendingBadge).not.toBeNull();
-    expect(pendingBadge!.getAttribute('style')).toContain('color: var(--status-requested-text)');
-
-    const inProgressCard = screen
-      .getByRole('button', { name: 'Open task Task Two' })
-      .closest('article');
-    const inProgressBadge = inProgressCard!.querySelector('[style*="--status-in-progress-bg"]');
-    expect(inProgressBadge).not.toBeNull();
-    expect(inProgressBadge!.getAttribute('style')).toContain(
-      'color: var(--status-in-progress-text)'
-    );
+    // URGENT (due 12:00) sorts above MEDIUM (09:00) and LOW (08:00) despite later due time.
+    const order = screen
+      .getAllByRole('button', { name: /^Open task / })
+      .map((button) => button.getAttribute('aria-label'));
+    expect(order).toEqual(['Open task Urgent One', 'Open task Medium One', 'Open task Low One']);
   });
 
   it('shows warning and blocks drop for invalid status transition', async () => {
@@ -426,7 +417,7 @@ describe('TaskBoard', () => {
       ] as any,
     });
 
-    expect(screen.getByText('Parent task')).toBeInTheDocument();
+    expect(screen.getByText(/Parent task/)).toBeInTheDocument();
 
     const parentCard = screen
       .getByRole('button', { name: 'Open task Parent Care' })
@@ -438,7 +429,7 @@ describe('TaskBoard', () => {
     expect(teamCard).toHaveClass('border-card-border');
   });
 
-  it('mutes completed and cancelled task titles and hides their status/reschedule actions', () => {
+  it('mutes completed (line-through) and cancelled (dimmed) cards and blocks their drag', () => {
     renderBoard({
       tasks: [
         {
@@ -462,15 +453,19 @@ describe('TaskBoard', () => {
       ] as any,
     });
 
-    expect(screen.getByText('Done Task')).toHaveClass('line-through');
-    expect(screen.getByText('Void Task')).toHaveClass('line-through');
+    // Design: completed cards strike through; cancelled cards only dim.
+    const doneTitle = screen.getByText('Done Task').closest('div');
+    expect(doneTitle!.className).toContain('line-through');
+    const voidTitle = screen.getByText('Void Task').closest('div');
+    expect(voidTitle!.className).not.toContain('line-through');
 
     const doneCard = screen.getByRole('button', { name: 'Open task Done Task' }).closest('article');
     expect(doneCard).toHaveClass('opacity-70');
-    // Completed / cancelled → canShowTaskStatusChangeAction + canRescheduleTask are false.
+    const voidCard = screen.getByRole('button', { name: 'Open task Void Task' }).closest('article');
+    expect(voidCard).toHaveClass('opacity-60');
+    // Completed / cancelled → canShowTaskStatusChangeAction is false → not draggable.
     expect(doneCard).toHaveAttribute('draggable', 'false');
-    expect(screen.queryByTestId('tooltip-Change status')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('tooltip-Reschedule')).not.toBeInTheDocument();
+    expect(voidCard).toHaveAttribute('draggable', 'false');
   });
 
   it('applies and clears dragging styles on drag start and end', () => {
@@ -514,63 +509,56 @@ describe('TaskBoard', () => {
       ] as any,
     });
 
-    // assignedBy / assignedTo are undefined → resolveMemberIdentity hits `memberId ?? ''`.
+    // assignedTo is undefined → resolveMemberIdentity returns a dash name → no avatar chip.
     expect(screen.getByText('Unassigned')).toBeInTheDocument();
-    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('next-image')).not.toBeInTheDocument();
   });
 
-  it('renders member avatars for members with images and initials otherwise', () => {
+  it('renders the assignee avatar chip across the identity-resolution branches', () => {
     teamMock.mockReturnValue([
-      { _id: 'team-1', practionerId: 'user-1', name: 'Dr One', image: 'http://img/u1.png' },
       { _id: 'team-2', practionerId: 'user-2', name: 'Dr Two', profileUrl: 'http://img/u2.png' },
       { _id: 'unnamed', practionerId: 'unnamed', displayName: 'Display Only' },
-      { _id: '', practionerId: '', name: 'No Ids' },
-      { _id: 'team-5', userId: 'user-5' },
     ]);
     renderBoard({
       tasks: [
         {
-          _id: 'a',
-          name: 'A',
+          _id: 'd',
+          name: 'Image Assignee',
           status: 'PENDING',
           dueAt: new Date('2026-03-31T10:00:00Z'),
-          assignedBy: 'user-1',
-          assignedTo: 'user-5',
+          assignedTo: 'user-2',
         },
         {
           _id: 'b',
-          name: 'B',
+          name: 'Identity Name',
           status: 'PENDING',
           dueAt: new Date('2026-03-31T10:00:00Z'),
-          assignedBy: 'user-2',
           assignedTo: 'unnamed',
         },
         {
-          _id: 'c',
-          name: 'C',
+          _id: 'g',
+          name: 'Raw Id',
           status: 'PENDING',
           dueAt: new Date('2026-03-31T10:00:00Z'),
-          assignedBy: 'ghost',
-          assignedTo: '',
+          assignedTo: 'ghost',
         },
         {
-          _id: 'd',
-          name: 'D',
+          _id: 'l',
+          name: 'Team Fallback',
           status: 'PENDING',
           dueAt: new Date('2026-03-31T10:00:00Z'),
-          assignedBy: 'lost',
-          assignedTo: 'user-2',
+          assignedTo: 'lost',
         },
       ] as any,
     });
 
-    // Image branch (member.image / member.profileUrl present).
+    // Image branch: member with profileUrl → next-image avatar.
     expect(screen.getAllByTestId('next-image').length).toBeGreaterThan(0);
     // identity.name branch: resolveMemberName('unnamed') === '-' → identity.name 'Display Only'.
     expect(screen.getByText('Display Only')).toBeInTheDocument();
-    // else branch, resolved truthy: unknown id 'ghost' shows raw id.
+    // resolved truthy: unknown id 'ghost' shows raw id.
     expect(screen.getByText('ghost')).toBeInTheDocument();
-    // else branch, resolved '-' → teamNameById fallback → raw id 'lost'.
+    // resolved '-' + no identity → raw id 'lost'.
     expect(screen.getByText('lost')).toBeInTheDocument();
   });
 
@@ -622,33 +610,33 @@ describe('TaskBoard', () => {
     expect(screen.getByText('Task Two')).toBeInTheDocument();
   });
 
-  it('advances and rewinds the board date and accepts a picked date', () => {
-    renderBoard();
-    fireEvent.click(screen.getByRole('button', { name: 'back' }));
-    fireEvent.click(screen.getByRole('button', { name: 'next' }));
-    fireEvent.click(screen.getByRole('button', { name: 'select-date' }));
-
-    expect(setCurrentDate).toHaveBeenCalledTimes(3);
-    const backUpdater = setCurrentDate.mock.calls[0][0] as (d: Date) => Date;
-    const nextUpdater = setCurrentDate.mock.calls[1][0] as (d: Date) => Date;
-    expect(backUpdater(new Date(2026, 2, 15)).getDate()).toBe(14);
-    expect(nextUpdater(new Date(2026, 2, 15)).getDate()).toBe(16);
-    // Datepicker passes a concrete date, not an updater.
-    expect(setCurrentDate.mock.calls[2][0]).toBeInstanceOf(Date);
+  it('shows the whole backlog regardless of the day (no single-day scoping)', () => {
+    // Tasks dated on different days all appear — the board is a backlog, not a day.
+    renderBoard({
+      tasks: [
+        {
+          _id: 'today',
+          name: 'Today Task',
+          status: 'PENDING',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'nextweek',
+          name: 'Next Week Task',
+          status: 'PENDING',
+          dueAt: new Date('2026-04-30T10:00:00Z'),
+          assignedTo: 'user-1',
+        },
+      ] as any,
+    });
+    expect(screen.getByText('Today Task')).toBeInTheDocument();
+    expect(screen.getByText('Next Week Task')).toBeInTheDocument();
   });
 
   it('no-ops popup callbacks when optional handlers are not provided', () => {
-    render(
-      <TaskBoard
-        tasks={tasks}
-        currentDate={new Date('2026-03-31T00:00:00Z')}
-        setCurrentDate={setCurrentDate}
-        canEditTasks
-      />
-    );
+    render(<TaskBoard tasks={tasks} canEditTasks />);
     fireEvent.click(screen.getByRole('button', { name: 'Open task Task One' }));
-    fireEvent.click(within(screen.getAllByTestId('tooltip-Change status')[0]).getByRole('button'));
-    fireEvent.click(within(screen.getAllByTestId('tooltip-Reschedule')[0]).getByRole('button'));
     fireEvent.click(screen.getByRole('button', { name: 'Add task to Pending' }));
     // Handlers were omitted, so the module-level spies are untouched.
     expect(setViewPopup).not.toHaveBeenCalled();

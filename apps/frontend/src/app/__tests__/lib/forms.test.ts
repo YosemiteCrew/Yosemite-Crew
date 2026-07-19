@@ -1073,6 +1073,127 @@ describe('mapTemplateToUI ownership fallback', () => {
 
     expect(mapped.services).toEqual(['svc-1', 'pkg-1']);
   });
+
+  it('dedupes identical service and package ids from the appliesTo fallback', () => {
+    // buildTemplatePayload writes the same linked-id list into both serviceIds and
+    // packageIds, so a real reload sees each id twice; the read must return it once
+    // (otherwise the count compounds on every edit).
+    const mapped = mapTemplateToUI({
+      id: 'tpl-dupe',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'SOAP_NOTE',
+      name: 'SOAP',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {
+        appliesTo: {
+          serviceIds: ['svc-1', 'svc-2'],
+          packageIds: ['svc-1', 'svc-2'],
+        },
+      },
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    expect(mapped.services).toEqual(['svc-1', 'svc-2']);
+  });
+});
+
+describe('mapTemplateToUI category resolution', () => {
+  const template = (overrides: Record<string, unknown>) =>
+    ({
+      id: 'tpl-cat',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'FORM',
+      name: 'X',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {},
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      ...overrides,
+    }) as any;
+
+  it('prefers the persisted granular category from rules.category over the coarse kind', () => {
+    // kind FORM would otherwise collapse to "Custom".
+    expect(mapTemplateToUI(template({ rules: { category: 'SOAP' } })).category).toBe('SOAP');
+    expect(
+      mapTemplateToUI(template({ rules: { category: 'Groomer - Grooming Prep' } })).category
+    ).toBe('Groomer - Grooming Prep');
+  });
+
+  it('falls back to the kind-derived category when rules.category is missing or invalid', () => {
+    expect(mapTemplateToUI(template({ kind: 'VITAL_RECORD', rules: {} })).category).toBe('Vitals');
+    expect(mapTemplateToUI(template({ rules: { category: 'not-a-category' } })).category).toBe(
+      'Custom'
+    );
+  });
+});
+
+describe('template custom field placeholder round-trip', () => {
+  it('restores an authored placeholder after save -> reload', () => {
+    const form = {
+      name: 'Custom form',
+      description: '',
+      category: 'Custom',
+      usage: 'Internal',
+      requiredSigner: '',
+      updatedBy: 'u1',
+      lastUpdated: '',
+      species: ['Canine'],
+      services: [],
+      status: 'Draft',
+      schema: [
+        { id: 'note', type: 'input', label: 'Note', placeholder: 'Enter a note' },
+        { id: 'plain', type: 'input', label: 'Plain' },
+      ],
+    } as unknown as FormsProps;
+
+    const schemaSnapshot = buildTemplateSchemaSnapshot(form, 'FORM');
+
+    const reloaded = mapTemplateToUI({
+      id: 'tpl-ph',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'FORM',
+      name: 'Custom form',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: { category: 'Custom' },
+      latestVersion: 1,
+      publishedVersion: 1,
+      versions: [{ version: 1, schemaSnapshot }],
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    // Reloaded custom fields live inside a section group, so flatten before lookup.
+    const flatten = (fields: FormField[]): FormField[] =>
+      fields.flatMap((field) => (field.type === 'group' ? flatten(field.fields ?? []) : [field]));
+    const allFields = flatten(reloaded.schema);
+    const withPlaceholder = allFields.find((field) => field.id === 'note');
+    const withoutPlaceholder = allFields.find((field) => field.id === 'plain');
+    expect(withPlaceholder?.placeholder).toBe('Enter a note');
+    expect(withoutPlaceholder?.placeholder).toBeUndefined();
+  });
 });
 
 describe('label helpers and category maps', () => {

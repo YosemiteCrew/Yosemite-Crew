@@ -1540,6 +1540,13 @@ enum TaskStatus {
   CANCELLED
 }
 
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum RecurrenceType {
   ONCE
   DAILY
@@ -2344,6 +2351,7 @@ model Task {
   calendarEventId   String?
   attachments       Json?
   status            TaskStatus   @default(PENDING)
+  priority          TaskPriority?
   completedAt       DateTime?
   completedBy       String?
   createdAt         DateTime     @default(now())

@@ -50,10 +50,10 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
 
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
   const base =
-    'relative w-full flex h-[42px] items-center px-3.5 pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
-  if (open) return `${base} border-input-border-active! border-b-0! rounded-t-xl! z-20`;
-  const border = hasErrorState ? 'border-input-border-error!' : 'border-input-border-default!';
-  return `${base} rounded-xl! ${border}`;
+    'relative w-full flex h-[46px] items-center px-[14px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13.5px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  if (open) return `${base} border-[var(--blue)]! border-b-0! rounded-t-[13px]! z-20`;
+  const border = hasErrorState ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!';
+  return `${base} rounded-[13px]! ${border}`;
 };
 
 const optionClassName = (isActive: boolean): string =>
@@ -95,7 +95,7 @@ const DropdownPanel = ({
       aria-label={placeholder}
       data-portal-dropdown
       data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
-      className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
+      className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[13px] border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
       style={shouldPortal ? (portalStyle ?? undefined) : undefined}
     >
       {filteredOptions.length > 0 &&
@@ -167,11 +167,11 @@ const DropdownTriggerContent = ({
           event.stopPropagation();
           onSearchKeyDown(event);
         }}
-        className="w-full min-w-0 bg-transparent text-left text-[14px] text-text-primary focus-visible:outline-none placeholder:text-input-text-placeholder"
+        className="w-full min-w-0 bg-transparent text-left text-[13.5px] text-[var(--ink-body)] focus-visible:outline-none placeholder:text-[var(--ink-faint)]"
       />
     )}
     {(!open || !searchable) && selected && (
-      <span className="min-w-0 flex-1 text-left text-text-primary text-[14px] truncate">
+      <span className="min-w-0 flex-1 text-left text-[var(--ink-body)] text-[13.5px] truncate">
         {selected.label}
       </span>
     )}
@@ -181,7 +181,7 @@ const DropdownTriggerContent = ({
         aria-hidden="true"
         style={{
           flexShrink: 0,
-          color: 'var(--color-neutral-600)',
+          color: 'var(--ink-faint)',
           transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
           transition: 'transform 150ms ease',
         }}
@@ -206,12 +206,24 @@ const LabelDropdown = ({
   portal = true,
   noOptionsMessage,
 }: DropdownProps) => {
-  const [internalSelected, setInternalSelected] = useState<DropdownOption | null>(null);
+  const [internalSelected, setInternalSelected] = useState<DropdownOption | null>(() =>
+    findDropdownOption(options, defaultOption)
+  );
   const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const listboxId = useId();
   const controlledSelected = findDropdownOption(options, defaultOption);
-  const selected = defaultOption === undefined ? internalSelected : controlledSelected;
+  // `internalSelected` is the single source of truth so a user click always moves
+  // the label (selectOption sets it), even when a controlled parent never echoes
+  // the chosen value back into `defaultOption`. When the external default (or the
+  // options that resolve it) changes — async loads, a parent reset/cancel — the
+  // render-time guard re-syncs, mirroring the activeIndex pattern below.
+  const [syncedValue, setSyncedValue] = useState(controlledSelected?.value);
+  if (controlledSelected?.value !== syncedValue) {
+    setSyncedValue(controlledSelected?.value);
+    setInternalSelected(controlledSelected);
+  }
+  const selected = internalSelected;
   const triggerLabel = selected ? `${placeholder}: ${selected.label}` : placeholder;
   const {
     open,
@@ -386,7 +398,7 @@ const LabelDropdown = ({
 
   return (
     <div className="flex flex-col w-full">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-neutral-800">
+      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
         {icon}
         {placeholder}
       </span>

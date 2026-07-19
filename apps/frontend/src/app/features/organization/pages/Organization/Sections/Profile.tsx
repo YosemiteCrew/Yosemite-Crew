@@ -1,135 +1,44 @@
 import React, { useState } from 'react';
-import ProfileCard from '@/app/features/organization/pages/Organization/Sections/ProfileCard';
+import { IoCheckmark } from 'react-icons/io5';
+import OrgProfileBand from '@/app/features/organization/pages/Organization/Sections/OrgProfileBand';
+import OrgProfileEditCards from '@/app/features/organization/pages/Organization/Sections/OrgProfileEditCards';
+import { useOrgProfileForm } from '@/app/features/organization/pages/Organization/Sections/useOrgProfileForm';
 import { Organisation } from '@yosemite-crew/types';
-import { updateOrg } from '@/app/features/organization/services/orgService';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
-import { useNotify } from '@/app/hooks/useNotify';
-import {
-  AddressFields,
-  BasicFields,
-  CheckInFields,
-} from '@/app/features/organization/pages/Organization/Sections/profileFields';
 
 type ProfileProps = {
   primaryOrg: Organisation;
 };
 
-const parseNonNegativeInteger = (value: unknown, fallback: number): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return fallback;
-  }
-  return Math.floor(parsed);
-};
-
 const Profile = ({ primaryOrg }: ProfileProps) => {
-  const [formData, setFormData] = useState<Organisation>(primaryOrg);
+  const form = useOrgProfileForm(primaryOrg);
+  const [isEditing, setIsEditing] = useState(false);
   const { can } = usePermissions();
   const canEditOrg = can(PERMISSIONS.ORG_EDIT);
-  const { notify } = useNotify();
 
-  const handleOrgSave = async (values: Record<string, string>) => {
-    const updated: Organisation = {
-      ...formData,
-      ...values,
-      address: {
-        ...formData.address,
-        ...(values.country ? { country: values.country } : {}),
-      },
-    };
-    try {
-      await updateOrg(updated);
-      setFormData(updated);
-      notify('success', {
-        title: 'Organization updated',
-        text: 'Organization details have been updated successfully.',
-      });
-    } catch (error: any) {
-      console.error('Error updating organization:', error);
-      notify('error', {
-        title: 'Unable to update organization',
-        text: 'Failed to update organization. Please try again.',
-      });
-    }
-  };
-
-  const handleAddressSave = async (values: Record<string, string>) => {
-    const updated: Organisation = {
-      ...formData,
-      address: {
-        ...formData.address,
-        ...values,
-      },
-    };
-    try {
-      await updateOrg(updated);
-      setFormData(updated);
-      notify('success', {
-        title: 'Organization updated',
-        text: 'Organization details have been updated successfully.',
-      });
-    } catch (error: any) {
-      console.error('Error updating organization:', error);
-      notify('error', {
-        title: 'Unable to update organization',
-        text: 'Failed to update organization. Please try again.',
-      });
-    }
-  };
-
-  const handleCheckInSave = async (values: Record<string, string>) => {
-    const updated: Organisation = {
-      ...formData,
-      appointmentCheckInBufferMinutes: parseNonNegativeInteger(
-        values.appointmentCheckInBufferMinutes,
-        formData.appointmentCheckInBufferMinutes ?? 5
-      ),
-      appointmentCheckInRadiusMeters: parseNonNegativeInteger(
-        values.appointmentCheckInRadiusMeters,
-        formData.appointmentCheckInRadiusMeters ?? 200
-      ),
-    };
-    try {
-      await updateOrg(updated);
-      setFormData(updated);
-      notify('success', {
-        title: 'Organization updated',
-        text: 'Organization details have been updated successfully.',
-      });
-    } catch (error: any) {
-      console.error('Error updating organization:', error);
-      notify('error', {
-        title: 'Unable to update organization',
-        text: 'Failed to update organization. Please try again.',
-      });
-    }
-  };
+  if (!isEditing) {
+    return (
+      <OrgProfileBand org={form.formData} canEdit={canEditOrg} onEdit={() => setIsEditing(true)} />
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <ProfileCard
-        title="Organization"
-        fields={BasicFields}
-        org={{ ...formData, country: formData.address?.country }}
-        showProfile
-        onSave={canEditOrg ? handleOrgSave : undefined}
-      />
-      <ProfileCard
-        title="Address"
-        fields={AddressFields}
-        org={{ ...formData.address }}
-        onSave={canEditOrg ? handleAddressSave : undefined}
-      />
-      <ProfileCard
-        title="Check-in settings"
-        fields={CheckInFields}
-        org={{
-          appointmentCheckInBufferMinutes: formData.appointmentCheckInBufferMinutes ?? 5,
-          appointmentCheckInRadiusMeters: formData.appointmentCheckInRadiusMeters ?? 200,
-        }}
-        onSave={canEditOrg ? handleCheckInSave : undefined}
-      />
+    <div className="flex flex-col gap-[14px]">
+      <div className="flex items-center justify-between gap-3">
+        <div className="font-newsreader text-[22px] tracking-[-0.015em] text-[var(--ink)]">
+          Edit organization profile
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsEditing(false)}
+          className="inline-flex h-[38px] flex-none items-center gap-[7px] rounded-full bg-[var(--cta)] px-4! text-[12.5px] font-semibold text-[var(--cta-text)] hover:opacity-90 transition-opacity cursor-pointer"
+        >
+          <IoCheckmark size={14} aria-hidden="true" />
+          Done
+        </button>
+      </div>
+      <OrgProfileEditCards form={form} canEditOrg={canEditOrg} />
     </div>
   );
 };

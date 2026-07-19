@@ -218,6 +218,62 @@ describe("TaskService", () => {
     expect(result.assignedGroupId).toBe("group-1");
   });
 
+  it("persists a valid priority and drops an invalid one on a custom task", async () => {
+    mockedPrisma.task.create
+      .mockResolvedValueOnce({
+        id: "task-p1",
+        audience: "EMPLOYEE_TASK",
+        assignedTo: "user-2",
+        assignedGroupId: "group-1",
+        dueAt,
+        name: "P",
+        priority: "URGENT",
+      })
+      .mockResolvedValueOnce({
+        id: "task-p2",
+        audience: "EMPLOYEE_TASK",
+        assignedTo: "user-2",
+        assignedGroupId: "group-1",
+        dueAt,
+        name: "P",
+        priority: null,
+      });
+
+    await TaskService.createCustom({
+      category: "Care",
+      name: "P",
+      createdBy: "user-1",
+      assignedBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      dueAt,
+      audience: "EMPLOYEE_TASK",
+      priority: "URGENT",
+    });
+    expect(mockedPrisma.task.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: "URGENT" }),
+      }),
+    );
+
+    await TaskService.createCustom({
+      category: "Care",
+      name: "P",
+      createdBy: "user-1",
+      assignedBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      dueAt,
+      audience: "EMPLOYEE_TASK",
+      priority: "NONSENSE" as never,
+    });
+    expect(mockedPrisma.task.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: undefined }),
+      }),
+    );
+  });
+
   it("creates a task from a library definition", async () => {
     mockedPrisma.taskLibraryDefinition.findFirst.mockResolvedValueOnce({
       id: "lib-1",
@@ -491,6 +547,41 @@ describe("TaskService", () => {
           assignedTo: "user-2",
           assignedBy: "user-1",
         }),
+      }),
+    );
+  });
+
+  it("persists a changed priority on update", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-1",
+      assignedGroupId: null,
+      assignedBy: "user-1",
+      name: "Old name",
+      priority: null,
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      assignedTo: "user-1",
+      name: "Old name",
+      priority: "HIGH",
+    });
+
+    await expect(
+      TaskService.updateTask("task-1", { priority: "HIGH" }, "user-1"),
+    ).resolves.toEqual(expect.objectContaining({ priority: "HIGH" }));
+
+    expect(mockedPrisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: "HIGH" }),
       }),
     );
   });
@@ -890,6 +981,22 @@ describe("TaskService", () => {
       }),
     );
     expect(result).toEqual([{ id: "task-2", _id: "task-2" }]);
+  });
+
+  it("filters employee tasks by priority", async () => {
+    mockedPrisma.task.findMany.mockResolvedValueOnce([{ id: "task-9" }]);
+
+    await TaskService.listForEmployee({
+      organisationId: "org-1",
+      userId: "user-1",
+      priority: "URGENT",
+    });
+
+    expect(mockedPrisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ priority: "URGENT" }),
+      }),
+    );
   });
 
   it("lists tasks for an employee with derived schedule, appointment, and kind filters", async () => {

@@ -4,6 +4,7 @@ import {
   TaskSource as PrismaTaskSource,
   TaskKind as PrismaTaskKind,
   TaskStatus as PrismaTaskStatus,
+  TaskPriority as PrismaTaskPriority,
 } from "@prisma/client";
 import { isTaskCategory } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
@@ -25,6 +26,7 @@ export class TaskServiceError extends Error {
 export type TaskAudience = "EMPLOYEE_TASK" | "PARENT_TASK";
 export type TaskSource = "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
 export type TaskStatus = PrismaTaskStatus;
+export type TaskPriority = PrismaTaskPriority;
 
 export type MedicationDoseInput = {
   time?: string;
@@ -56,6 +58,13 @@ const TASK_STATUSES = new Set<TaskStatus>([
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
+]);
+
+const TASK_PRIORITIES = new Set<TaskPriority>([
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
 ]);
 
 type TaskRow = Prisma.TaskGetPayload<Record<string, never>>;
@@ -104,6 +113,11 @@ const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
 
 const sanitizeTaskCategory = (value: unknown): string | undefined =>
   typeof value === "string" && isTaskCategory(value) ? value : undefined;
+
+const sanitizeTaskPriority = (value: unknown): TaskPriority | undefined =>
+  typeof value === "string" && TASK_PRIORITIES.has(value as TaskPriority)
+    ? (value as TaskPriority)
+    : undefined;
 
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value)
@@ -524,6 +538,10 @@ const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
     updates.subcategory === undefined
       ? (task.subcategory ?? undefined)
       : (updates.subcategory ?? undefined),
+  priority:
+    updates.priority === undefined
+      ? (task.priority ?? undefined)
+      : (sanitizeTaskPriority(updates.priority) ?? task.priority ?? undefined),
   timezone:
     updates.timezone === undefined
       ? (task.timezone ?? undefined)
@@ -593,6 +611,7 @@ const buildCreateTaskData = (input: {
     id: string;
     name: string;
   }[];
+  priority?: TaskPriority;
 }) => ({
   organisationId: input.organisationId ?? undefined,
   appointmentId: input.appointmentId ?? undefined,
@@ -620,6 +639,7 @@ const buildCreateTaskData = (input: {
   calendarEventId: undefined,
   attachments: toNullableJsonInput(input.attachments ?? []),
   status: "PENDING" as PrismaTaskStatus,
+  priority: sanitizeTaskPriority(input.priority),
 });
 
 type TaskWriteClient = Pick<Prisma.TransactionClient, "task">;
@@ -642,6 +662,7 @@ const updateTaskRow = async (
     description?: string;
     additionalNotes?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     dueAt?: Date;
     timezone?: string | null;
     assignedTo?: string;
@@ -684,6 +705,12 @@ const updateTaskRow = async (
         updates.subcategory === undefined
           ? (task.subcategory ?? undefined)
           : (updates.subcategory ?? undefined),
+      priority:
+        updates.priority === undefined
+          ? (task.priority ?? undefined)
+          : (sanitizeTaskPriority(updates.priority) ??
+            task.priority ??
+            undefined),
       dueAt: updates.dueAt ?? task.dueAt,
       timezone:
         updates.timezone === undefined
@@ -948,6 +975,7 @@ const buildTaskListWhere = async (params: {
   status?: TaskStatus[];
   category?: string;
   subcategory?: string;
+  priority?: TaskPriority;
   kind?: PrismaTaskKind;
   dueFrom?: Date;
   dueTo?: Date;
@@ -994,6 +1022,7 @@ const buildTaskListBaseWhere = (
     assignedTo?: string;
     category?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     status?: TaskStatus[];
     dueFrom?: Date;
     dueTo?: Date;
@@ -1152,6 +1181,7 @@ const buildPatientWhere = (params: {
 const buildTaskScalarFilters = (params: {
   category?: string;
   subcategory?: string;
+  priority?: TaskPriority;
   status?: TaskStatus[];
   includeCompleted?: boolean;
   dueFrom?: Date;
@@ -1167,6 +1197,11 @@ const buildTaskScalarFilters = (params: {
   const subcategory = asNonEmptyString(params.subcategory);
   if (subcategory) {
     baseWhere.subcategory = subcategory;
+  }
+
+  const priority = sanitizeTaskPriority(params.priority);
+  if (priority) {
+    baseWhere.priority = priority;
   }
 
   const status = sanitizeStatusList(params.status);
@@ -1213,6 +1248,7 @@ export interface BaseTaskCreateInput {
     id: string;
     name: string;
   }[];
+  priority?: TaskPriority;
 }
 
 export interface CreateFromLibraryInput extends BaseTaskCreateInput {
@@ -1247,6 +1283,7 @@ export interface TaskUpdateInput {
   description?: string;
   additionalNotes?: string;
   subcategory?: string;
+  priority?: TaskPriority;
   dueAt?: Date;
   timezone?: string | null;
   assignedTo?: string;
@@ -1318,6 +1355,7 @@ export const TaskService = {
         reminder: input.reminder,
         syncWithCalendar: input.syncWithCalendar,
         attachments: input.attachments,
+        priority: input.priority,
       }),
     });
 
@@ -1429,6 +1467,7 @@ export const TaskService = {
         reminder,
         syncWithCalendar: input.syncWithCalendar,
         attachments: input.attachments,
+        priority: input.priority,
       }),
     });
 
@@ -1474,6 +1513,7 @@ export const TaskService = {
         reminder: input.reminder,
         syncWithCalendar: input.syncWithCalendar,
         attachments: input.attachments,
+        priority: input.priority,
       }),
     });
 
@@ -1591,6 +1631,7 @@ export const TaskService = {
           description: updates.description,
           additionalNotes: updates.additionalNotes,
           subcategory: updates.subcategory,
+          priority: updates.priority,
           dueAt: updates.dueAt,
           timezone: updates.timezone,
           assignedTo: updates.assignedTo,
@@ -1987,6 +2028,7 @@ export const TaskService = {
     status?: TaskStatus[];
     category?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     kind?: PrismaTaskKind;
     dueFrom?: Date;
     dueTo?: Date;
@@ -2013,6 +2055,7 @@ export const TaskService = {
       status: params.status,
       category: params.category,
       subcategory: params.subcategory,
+      priority: params.priority,
       kind: params.kind,
       dueFrom: params.dueFrom,
       dueTo: params.dueTo,
@@ -2105,6 +2148,7 @@ export const TaskService = {
     status?: TaskStatus[];
     category?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     kind?: PrismaTaskKind;
     dueFrom?: Date;
     dueTo?: Date;
@@ -2132,6 +2176,7 @@ export const TaskService = {
       status: params.status,
       category: params.category,
       subcategory: params.subcategory,
+      priority: params.priority,
       kind: params.kind,
       dueFrom: params.dueFrom,
       dueTo: params.dueTo,

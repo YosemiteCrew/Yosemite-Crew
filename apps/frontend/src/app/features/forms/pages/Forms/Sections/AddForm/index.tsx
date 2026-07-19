@@ -219,7 +219,7 @@ const AddForm = ({
       <div className="flex h-full flex-col gap-4">
         {/* Header: title + details summary + preview / MSD / close actions */}
         <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
-          <div className="flex flex-col gap-0.5">
+          <div className="flex min-w-0 flex-col gap-0.5">
             <div className="text-body-1 text-text-primary">
               {isEditing ? 'Edit template' : 'Add template'}
               {formData.name ? ` · ${formData.name}` : ''}
@@ -231,7 +231,7 @@ const AddForm = ({
               type="button"
               aria-pressed={view === 'preview'}
               onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'preview' })}
-              className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
+              className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
                 view === 'preview'
                   ? 'border-[var(--blue)] text-[var(--blue-text)]'
                   : 'border-[var(--divider)] text-text-secondary'
@@ -245,7 +245,7 @@ const AddForm = ({
                 type="button"
                 aria-pressed={view === 'merck'}
                 onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'merck' })}
-                className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
+                className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
                   view === 'merck'
                     ? 'border-[var(--blue)] text-[var(--blue-text)]'
                     : 'border-[var(--divider)] text-text-secondary'

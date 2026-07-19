@@ -357,7 +357,7 @@ const FilterModalFooter = ({ setFilterOpen, setFilters }: FilterModalFooterProps
         setFilters(defaultFilters);
         setFilterOpen(false);
       }}
-      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-white px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
+      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-transparent px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
     >
       Discard
     </button>

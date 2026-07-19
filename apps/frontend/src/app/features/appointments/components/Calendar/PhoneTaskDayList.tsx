@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { IoCheckmark, IoChevronBack, IoChevronForward } from 'react-icons/io5';
+import { IoCheckmark, IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 
 import SegmentedPill, {
   SegmentedPillOption,
@@ -282,7 +282,7 @@ const PhoneTaskDayList = ({
             onClick={() => stepDay(-1)}
             className="flex size-11 items-center justify-center text-[var(--ink-muted)]"
           >
-            <IoChevronBack size={15} aria-hidden="true" />
+            <IoChevronBackOutline size={15} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -297,7 +297,7 @@ const PhoneTaskDayList = ({
             onClick={() => stepDay(1)}
             className="flex size-11 items-center justify-center text-[var(--ink-muted)]"
           >
-            <IoChevronForward size={15} aria-hidden="true" />
+            <IoChevronForwardOutline size={15} aria-hidden="true" />
           </button>
         </span>
       </header>

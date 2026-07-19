@@ -313,6 +313,13 @@ const PanelTaskForm = ({
           dueAt: new Date(),
           // Parent (companion) tasks require the appointment's companion id.
           ...(isParent && companionId ? { companionId } : {}),
+          // The backend keys patient-linked tasks (parent / medication /
+          // observation-tool) off `patientId`, and `companionId` IS the patient
+          // id in this system. Forward it as `patientId` whenever present — not
+          // gated on isParent — so medication/observation-tool tasks created from
+          // the Employee tab satisfy the backend's companion requirement instead
+          // of 400ing. Harmless (stored, not required) for plain employee tasks.
+          ...(companionId ? { patientId: companionId } : {}),
         },
     onSuccess: onSaved,
   });

@@ -41,7 +41,7 @@ const ROW_GRID = 'grid gap-3 sm:grid-cols-[1.6fr_100px_1.4fr_110px_120px] sm:ite
 
 const ColumnHeadings = () => (
   <div
-    className={`${ROW_GRID} px-1 text-caption-2 font-medium tracking-wide text-text-secondary uppercase`}
+    className={`${ROW_GRID} text-caption-2 font-medium tracking-wide text-text-secondary uppercase`}
   >
     <span>Name</span>
     <span>Qty.</span>
@@ -148,7 +148,7 @@ const ServicesPackagesEditor = ({
             setSearch={setSearch}
             placeholder="Search for services, packages..."
             label="Search for services and packages"
-            className="w-full!"
+            className="w-full! bg-(--whitebg) transition-colors"
           />
           <SearchResultsDropdown
             anchorRef={searchRef}
@@ -184,7 +184,7 @@ const ServicesPackagesEditor = ({
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            <div className="hidden px-5 sm:block">
+            <div className="hidden border border-transparent px-4 sm:block">
               <ColumnHeadings />
             </div>
             <ul className="flex flex-col gap-3">

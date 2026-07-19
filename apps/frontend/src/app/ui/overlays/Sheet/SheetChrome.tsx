@@ -41,7 +41,7 @@ const SheetChrome = ({ children, title, titleId, onClose, footer }: SheetChromeP
           {title}
         </h2>
         <button type="button" className="yc-phone-sheet-close" onClick={onClose} aria-label="Close">
-          <IoClose size={20} aria-hidden />
+          <IoClose size={15} aria-hidden />
         </button>
       </div>
     )}

@@ -45,10 +45,16 @@ const DropdownPanel = ({
     style={shouldPortal ? (portalStyle ?? undefined) : undefined}
   >
     {search && (
-      <div className="h-12! rounded-2xl border! border-input-border-default! px-4! py-2! flex items-center justify-center">
+      <div className="h-[40px]! rounded-[13px] border-[1.5px]! border-input-border-default! bg-[var(--field-bg)] px-[13px]! flex items-center gap-[9px]">
         <label htmlFor={searchInputId} className="sr-only">
           Search {placeholder}
         </label>
+        <IoSearch
+          size={15}
+          color="var(--color-neutral-600)"
+          className="shrink-0"
+          aria-hidden="true"
+        />
         <input
           id={searchInputId}
           type="search"
@@ -61,15 +67,9 @@ const DropdownPanel = ({
           }}
           aria-controls={listboxId}
           aria-activedescendant={activeOptionId}
-          className="border-0 text-[16px]! w-full px-2 focus-visible:outline-none"
+          className="border-0 text-[12.5px]! w-full focus-visible:outline-none placeholder:text-neutral-600"
           placeholder={`Search ${placeholder}`}
           autoComplete="off"
-        />
-        <IoSearch
-          size={22}
-          color="var(--color-neutral-200)"
-          className="cursor-pointer"
-          aria-hidden="true"
         />
       </div>
     )}

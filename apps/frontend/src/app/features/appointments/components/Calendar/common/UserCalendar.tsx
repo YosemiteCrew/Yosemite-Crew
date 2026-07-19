@@ -291,7 +291,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                                 style={{
                                   top: `${topPct}%`,
                                   height: `${heightPct}%`,
-                                  backgroundColor: 'rgba(0,0,0,0.045)',
+                                  backgroundColor: 'var(--color-calendar-dim-overlay)',
                                   transition: 'opacity 0.25s ease',
                                 }}
                               />,

@@ -44,14 +44,18 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   ),
 }));
 
+const serialize = (options: any[]) =>
+  (options ?? []).map((option: any) => `${option.label}:${option.value}`).join('|');
+
 jest.mock('@/app/features/tasks/components/TaskFormFields', () => ({
   __esModule: true,
   default: ({
     formData,
     formDataErrors,
-    assigneeOptions,
-    onAudienceSelect,
-    onAssigneeSelect,
+    teamOptions,
+    parentOptions,
+    onSelectTeam,
+    onSelectParent,
   }: any) => (
     <div>
       <div data-testid="errors">
@@ -62,28 +66,27 @@ jest.mock('@/app/features/tasks/components/TaskFormFields', () => ({
       <div data-testid="audience">{formData.audience}</div>
       <div data-testid="assignedTo">{formData.assignedTo}</div>
       <div data-testid="companionId">{formData.companionId ?? ''}</div>
-      <div data-testid="assignee-options">
-        {(assigneeOptions ?? []).map((option: any) => `${option.label}:${option.value}`).join('|')}
-      </div>
-      <button type="button" onClick={() => onAudienceSelect({ value: 'PARENT_TASK' })}>
-        audience-parent
-      </button>
-      <button type="button" onClick={() => onAudienceSelect({ value: 'EMPLOYEE_TASK' })}>
-        audience-employee
+      <div data-testid="team-options">{serialize(teamOptions)}</div>
+      <div data-testid="parent-options">{serialize(parentOptions)}</div>
+      <button
+        type="button"
+        onClick={() => onSelectTeam?.((teamOptions ?? [])[0] ?? { value: 'none', label: 'none' })}
+      >
+        select-team-first
       </button>
       <button
         type="button"
         onClick={() =>
-          onAssigneeSelect((assigneeOptions ?? [])[0] ?? { value: 'none', label: 'none' })
+          onSelectParent?.((parentOptions ?? [])[0] ?? { value: 'none', label: 'none' })
         }
       >
-        assignee-first
+        select-parent-first
       </button>
       <button
         type="button"
-        onClick={() => onAssigneeSelect({ value: 'missing', label: 'missing' })}
+        onClick={() => onSelectParent?.({ value: 'missing', label: 'missing' })}
       >
-        assignee-missing
+        select-parent-missing
       </button>
     </div>
   ),
@@ -253,34 +256,35 @@ describe('Tasks AddTask', () => {
 
     render(<AddTask showModal setShowModal={jest.fn()} />);
 
-    // Default audience is EMPLOYEE_TASK -> staff (team) options with fallbacks.
-    expect(screen.getByTestId('assignee-options')).toHaveTextContent(
-      'Team One:pr-1|pr-2:pr-2|t3:t3'
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'assignee-first' }));
-    expect(screen.getByTestId('assignedTo')).toHaveTextContent('pr-1');
-
-    // Switch to a parent task.
-    fireEvent.click(screen.getByRole('button', { name: 'audience-parent' }));
-    expect(screen.getByTestId('audience')).toHaveTextContent('PARENT_TASK');
-    expect(screen.getByTestId('assignedTo')).toBeEmptyDOMElement();
-    expect(screen.getByTestId('assignee-options')).toHaveTextContent(
+    // The chip row is fed BOTH lists at once: team members and pet-parent chips.
+    expect(screen.getByTestId('team-options')).toHaveTextContent('Team One:pr-1|pr-2:pr-2|t3:t3');
+    expect(screen.getByTestId('parent-options')).toHaveTextContent(
       'Resolved Person:p-resolved|Buddy:p-named|p-noname:p-noname'
     );
 
-    // Select a companion that resolves to a real parent id (found branch).
-    fireEvent.click(screen.getByRole('button', { name: 'assignee-first' }));
+    // Picking a team chip assigns the employee task to that member.
+    fireEvent.click(screen.getByRole('button', { name: 'select-team-first' }));
+    expect(screen.getByTestId('audience')).toHaveTextContent('EMPLOYEE_TASK');
+    expect(screen.getByTestId('assignedTo')).toHaveTextContent('pr-1');
+    expect(screen.getByTestId('companionId')).toBeEmptyDOMElement();
+
+    // Picking a pet-parent chip flips to a parent task, sets the parent + companion.
+    fireEvent.click(screen.getByRole('button', { name: 'select-parent-first' }));
+    expect(screen.getByTestId('audience')).toHaveTextContent('PARENT_TASK');
     expect(screen.getByTestId('assignedTo')).toHaveTextContent('p-resolved');
     expect(screen.getByTestId('companionId')).toHaveTextContent('c1');
 
-    // Select an option with no matching companion (not-found branch -> no change).
-    fireEvent.click(screen.getByRole('button', { name: 'assignee-missing' }));
-    expect(screen.getByTestId('assignedTo')).toHaveTextContent('p-resolved');
+    // A parent option with no matching companion still assigns, without a companion id.
+    fireEvent.click(screen.getByRole('button', { name: 'select-parent-missing' }));
+    expect(screen.getByTestId('audience')).toHaveTextContent('PARENT_TASK');
+    expect(screen.getByTestId('assignedTo')).toHaveTextContent('missing');
+    expect(screen.getByTestId('companionId')).toBeEmptyDOMElement();
 
-    // Switch back to an employee task.
-    fireEvent.click(screen.getByRole('button', { name: 'audience-employee' }));
+    // Re-picking a team chip flips back to an employee task and clears the companion.
+    fireEvent.click(screen.getByRole('button', { name: 'select-team-first' }));
     expect(screen.getByTestId('audience')).toHaveTextContent('EMPLOYEE_TASK');
+    expect(screen.getByTestId('assignedTo')).toHaveTextContent('pr-1');
+    expect(screen.getByTestId('companionId')).toBeEmptyDOMElement();
   });
 
   it('handles missing companion and team collections', () => {
@@ -289,7 +293,8 @@ describe('Tasks AddTask', () => {
 
     render(<AddTask showModal setShowModal={jest.fn()} />);
 
-    expect(screen.getByTestId('assignee-options')).toBeEmptyDOMElement();
+    expect(screen.getByTestId('team-options')).toBeEmptyDOMElement();
+    expect(screen.getByTestId('parent-options')).toBeEmptyDOMElement();
   });
 
   it('surfaces an error when task creation fails', async () => {

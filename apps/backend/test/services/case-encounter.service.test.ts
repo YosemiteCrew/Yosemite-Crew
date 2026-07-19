@@ -1297,7 +1297,10 @@ describe("CaseEncounterService", () => {
     expect(result[0]?.admissionId).toBe("enc_1");
   });
 
-  it("starts an encounter and keeps the original periodStart when present", async () => {
+  it("stamps the real actual-start when a not-yet-started encounter begins", async () => {
+    // `periodStart` was seeded at check-in with the booked slot (10:30), which is
+    // not a real start. Starting the encounter must record the actual-start
+    // (12:00) so the visit timer runs instead of showing "Not started".
     mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "arrived",
@@ -1305,6 +1308,7 @@ describe("CaseEncounterService", () => {
     mockedPrisma.encounter.update.mockResolvedValue({
       ...baseEncounterRow,
       status: "in-progress",
+      periodStart: new Date("2026-06-11T12:00:00.000Z"),
     } as never);
     mockedPrisma.appointment.findMany.mockResolvedValue([
       { id: "appt_1", encounterId: "enc_1" },
@@ -1331,10 +1335,41 @@ describe("CaseEncounterService", () => {
       where: { id: "enc_1" },
       data: {
         status: "in-progress",
-        periodStart: new Date("2026-06-11T10:30:00.000Z"),
+        periodStart: new Date("2026-06-11T12:00:00.000Z"),
       },
     });
     expect(result.status).toBe("in-progress");
+  });
+
+  it("preserves the recorded start when an already-started encounter re-starts", async () => {
+    // Once genuinely started (in-progress/onleave), `periodStart` is a real start
+    // and must survive a repeat transition so the visit timer never resets.
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "onleave",
+      periodStart: new Date("2026-06-11T09:15:00.000Z"),
+    } as never);
+    mockedPrisma.encounter.update.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "in-progress",
+      periodStart: new Date("2026-06-11T09:15:00.000Z"),
+    } as never);
+    mockedPrisma.appointment.findMany.mockResolvedValue([
+      { id: "appt_1", encounterId: "enc_1" },
+    ] as never);
+    mockedPrisma.admission.findMany.mockResolvedValue([] as never);
+
+    await CaseEncounterService.startEncounter("enc_1", "org_1", {
+      startedAt: new Date("2026-06-11T12:00:00.000Z"),
+    });
+
+    expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
+      where: { id: "enc_1" },
+      data: {
+        status: "in-progress",
+        periodStart: new Date("2026-06-11T09:15:00.000Z"),
+      },
+    });
   });
 
   it("marks an encounter ready for discharge", async () => {

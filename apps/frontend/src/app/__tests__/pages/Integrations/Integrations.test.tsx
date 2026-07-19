@@ -73,32 +73,17 @@ jest.mock('@/app/stores/integrationStore', () => ({
     }),
 }));
 
-jest.mock('@/app/ui/overlays/Modal', () => ({
-  __esModule: true,
-  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
-}));
-
-jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
-  __esModule: true,
-  default: ({ title, children }: any) => (
-    <div>
-      <div>{title}</div>
-      {children}
-    </div>
-  ),
-}));
-
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
-  default: ({ inname, value, onChange }: any) => (
-    <input data-testid={inname} value={value} onChange={onChange} />
+  default: ({ inname, inlabel, value, onChange }: any) => (
+    <input data-testid={inname} aria-label={inlabel} value={value} onChange={onChange} />
   ),
 }));
 
 jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
   __esModule: true,
-  default: ({ inname, value, onChange }: any) => (
-    <input data-testid={inname} value={value} onChange={onChange} />
+  default: ({ inname, inlabel, value, onChange }: any) => (
+    <input data-testid={inname} aria-label={inlabel} value={value} onChange={onChange} />
   ),
 }));
 
@@ -111,15 +96,6 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   Secondary: ({ text, onClick, isDisabled }: any) => (
     <button type="button" onClick={onClick} disabled={isDisabled}>
       {text}
-    </button>
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      close
     </button>
   ),
 }));
@@ -196,13 +172,14 @@ describe('Integrations settings', () => {
     });
   });
 
-  it('stores credentials from settings modal', async () => {
+  it('stores credentials from the inline panel', async () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument();
     });
 
+    // Inputs live in the always-visible panel; "Manage credentials" just scrolls to it.
     fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
     fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'user-a' } });
     fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'pass-a' } });
@@ -287,7 +264,7 @@ describe('Integrations settings', () => {
         'IDEXX credentials are missing or invalid. Open settings, fill credentials, validate, and then enable.'
       )
     ).toBeInTheDocument();
-    expect(screen.getByText('Integration settings')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'IDEXX credentials' })).toBeInTheDocument();
   });
 
   it('reloads integrations and refreshes Merck status after toggling Merck', async () => {
@@ -367,8 +344,9 @@ describe('Integrations settings', () => {
     const availableBtn = screen.getByRole('button', { name: 'Available' });
     fireEvent.click(availableBtn);
     await waitFor(() => {
-      // Disable button should not appear as IDEXX card is hidden
-      expect(screen.queryByRole('button', { name: /Disable IDEXX/i })).not.toBeInTheDocument();
+      // The IDEXX catalog card (its title is card-only; the always-on panel is "IDEXX
+      // credentials") is hidden when Available is active and IDEXX is already enabled.
+      expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
     });
   });
 
@@ -456,5 +434,151 @@ describe('Integrations settings', () => {
     // The disabled IDEXX pill (plus other providers defaulting to disabled) exercises the
     // isLive === false branch (no indicator dot).
     expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the inline IDEXX credentials panel without any interaction', async () => {
+    render(<ProtectedIntegrations />);
+    // The panel is always visible in the 2-column layout, not gated behind a modal.
+    expect(await screen.findByRole('heading', { name: 'IDEXX credentials' })).toBeInTheDocument();
+    expect(screen.getByTestId('idexx-username')).toBeInTheDocument();
+    expect(screen.getByTestId('idexx-password')).toBeInTheDocument();
+  });
+
+  it('shows the validated chip when credentials are valid', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'IDEXX credentials' });
+    // Chip copy (no trailing period) is distinct from the inline validate message.
+    expect(screen.getByText('Credentials validated successfully')).toBeInTheDocument();
+  });
+
+  it('shows the "no credentials stored" chip when credentials are missing', async () => {
+    const missingIntegration = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'disabled',
+      credentialsStatus: 'missing',
+      enabledAt: null,
+      lastValidatedAt: null,
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([missingIntegration]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(missingIntegration);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'IDEXX credentials' });
+    expect(screen.getByText('No credentials stored')).toBeInTheDocument();
+  });
+
+  it('renders recent orders in the panel footer when IDEXX is enabled', async () => {
+    // Give sync health a real lastSyncAt so its "Pending" fallback does not collide with
+    // the empty-status order pill, which is the "Pending" this test asserts on.
+    const enabledWithSync = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'enabled',
+      credentialsStatus: 'valid',
+      enabledAt: '2026-01-12T00:00:00.000Z',
+      lastValidatedAt: '2026-01-12T00:00:00.000Z',
+      lastSyncAt: '2026-01-12T00:00:00.000Z',
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([enabledWithSync]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledWithSync);
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        status: 'RUNNING',
+      },
+      {
+        // No patient name: the label falls back to the joined tests.
+        _id: 'o2',
+        idexxOrderId: 'IDX-2',
+        patientName: '',
+        tests: ['pre-surgical CBC'],
+        status: 'RESULTED',
+      },
+      {
+        // No _id, no name, no tests, no status: the key and label fall back to the
+        // order id and the pill reads "Pending".
+        idexxOrderId: 'IDX-3',
+        patientName: '',
+        tests: [],
+        status: '',
+      },
+    ]);
+
+    render(<ProtectedIntegrations />);
+
+    expect(await screen.findByText('Recent orders')).toBeInTheDocument();
+    expect(screen.getByText('Poppy · ear cytology')).toBeInTheDocument();
+    expect(screen.getByText('pre-surgical CBC')).toBeInTheDocument();
+    expect(screen.getByText('Order IDX-3')).toBeInTheDocument();
+    expect(screen.getByText('Running')).toBeInTheDocument();
+    expect(screen.getByText('Resulted')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+  });
+
+  it('lists linked IVLS devices in the panel with their activation status', async () => {
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [
+        {
+          deviceSerialNumber: 'SN-1',
+          displayName: 'Catalyst One',
+          vcpActivatedStatus: 'active',
+          lastPolledCloudTime: '2026-01-12T00:00:00.000Z',
+        },
+        {
+          deviceSerialNumber: 'SN-2',
+          displayName: '',
+          vcpActivatedStatus: 'inactive',
+          lastPolledCloudTime: '',
+        },
+      ],
+    });
+
+    render(<ProtectedIntegrations />);
+
+    expect(await screen.findByText('Catalyst One')).toBeInTheDocument();
+    expect(screen.getByText('SN-1')).toBeInTheDocument();
+    // Empty display name falls back, and both activation-status pill branches render.
+    expect(screen.getByText('IVLS device')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
+    expect(screen.getByText('Not available')).toBeInTheDocument();
+  });
+
+  it('refreshes integrations from the panel refresh control', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'IDEXX credentials' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh integrations' }));
+
+    await waitFor(() => {
+      expect(loadIntegrationsForPrimaryOrgMock).toHaveBeenCalledWith({ force: true, silent: true });
+    });
+  });
+
+  it('does not fetch recent orders when IDEXX is disabled', async () => {
+    const disabledIntegration = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'disabled',
+      credentialsStatus: 'missing',
+      enabledAt: null,
+      lastValidatedAt: null,
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([disabledIntegration]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(disabledIntegration);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'IDEXX credentials' });
+    await waitFor(() => {
+      expect(listIdexxOrdersMock).not.toHaveBeenCalled();
+    });
+    expect(screen.queryByText('Recent orders')).not.toBeInTheDocument();
   });
 });

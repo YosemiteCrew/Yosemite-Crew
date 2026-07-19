@@ -9,6 +9,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 const GUIDES_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import GuidePlayerModal from '@/app/ui/overlays/Modal/GuidePlayerModal';
 import Search from '@/app/ui/inputs/Search';
+import FilteredEmptyState from '@/app/ui/layout/states/FilteredEmptyState';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
 
@@ -78,6 +79,11 @@ const Guides = () => {
 
   const handleNextGuide = () => setActiveVideo(nextGuide);
 
+  const handleClearFilters = () => {
+    setSearch('');
+    setActiveCategory(ALL_CATEGORY);
+  };
+
   return (
     <div className="yc-page-content">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -135,60 +141,68 @@ const Guides = () => {
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-[13px] font-semibold text-[var(--ink)]">All guides</div>
-        <div className="text-[12px] text-[var(--ink-faint)]">{filteredGuides.length} results</div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-3">
-        {filteredGuides.map((video) => (
-          <button
-            type="button"
-            key={video.id}
-            onClick={() => handleOpenVideo(video)}
-            aria-label={`Play guide: ${video.title}`}
-            className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] text-left transition-shadow hover:shadow-sm"
-          >
-            <div
-              className="relative flex aspect-video w-full items-center justify-center"
-              style={{ backgroundColor: '#23211f' }}
+      {filteredGuides.length > 0 ? (
+        <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-3">
+          {filteredGuides.map((video) => (
+            <button
+              type="button"
+              key={video.id}
+              onClick={() => handleOpenVideo(video)}
+              aria-label={`Play guide: ${video.title}`}
+              className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] text-left shadow-[0_1px_2px_var(--sh03),0_10px_28px_var(--sh05)] transition-shadow hover:shadow-[0_4px_10px_var(--sh05),0_20px_50px_var(--sh10)]"
             >
-              <span
-                aria-hidden="true"
-                className="flex size-[52px] items-center justify-center rounded-full shadow-lg"
-                style={{ backgroundColor: 'rgba(247,243,236,0.92)', color: '#1d1c1b' }}
+              <div
+                className="relative flex aspect-video w-full items-center justify-center"
+                style={{ backgroundColor: '#23211f' }}
               >
-                <IoPlay size={21} className="ml-[3px]" />
-              </span>
-              <span
-                className="absolute bottom-2.5 right-2.5 rounded-md px-2 py-[3px] text-[10.5px] font-bold tabular-nums"
-                style={{ backgroundColor: 'rgba(0,0,0,0.62)', color: '#f7f3ec' }}
-              >
-                {video.duration}
-              </span>
-              <span
-                className="absolute left-2.5 top-2.5 rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em]"
-                style={{ backgroundColor: 'rgba(247,243,236,0.92)', color: '#1d1c1b' }}
-              >
-                {video.category}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1.5 px-4 pb-[15px] pt-3.5">
-              <span className="text-[14.5px] font-bold text-[var(--ink)]">{video.title}</span>
-              <span className="text-[12px] leading-[1.55] text-[var(--ink-muted)]">
-                {video.description}
-              </span>
-              <span className="mt-1 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--blue-text)]">
-                  Watch now
-                  <IoArrowForward size={12} aria-hidden="true" />
+                <span
+                  aria-hidden="true"
+                  className="flex size-[52px] items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: 'rgba(247,243,236,0.92)',
+                    color: '#1d1c1b',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  <IoPlay size={21} className="ml-[3px]" />
                 </span>
-                <GuideCardStatus guide={video} />
-              </span>
-            </div>
-          </button>
-        ))}
-      </div>
+                <span
+                  className="absolute bottom-2.5 right-2.5 rounded-[7px] px-2 py-[3px] text-[10.5px] font-bold tabular-nums"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.62)', color: '#f7f3ec' }}
+                >
+                  {video.duration}
+                </span>
+                <span
+                  className="absolute left-2.5 top-2.5 rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em]"
+                  style={{ backgroundColor: 'rgba(247,243,236,0.92)', color: '#1d1c1b' }}
+                >
+                  {video.category}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 px-4 pb-[15px] pt-3.5">
+                <span className="text-[14.5px] font-bold text-[var(--ink)]">{video.title}</span>
+                <span className="text-[12px] leading-[1.55] text-[var(--ink-muted)]">
+                  {video.description}
+                </span>
+                <span className="mt-1 flex items-center justify-between">
+                  <span className="flex items-center gap-[5px] text-[12px] font-semibold text-[var(--blue-text)]">
+                    Watch now
+                    <IoArrowForward size={12} aria-hidden="true" />
+                  </span>
+                  <GuideCardStatus guide={video} />
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <FilteredEmptyState
+          title="No guides match your search"
+          message="Try a different search or pick another category."
+          onClearFilters={handleClearFilters}
+          clearLabel="Clear filters"
+        />
+      )}
 
       <GuidePlayerModal
         showModal={showModal}

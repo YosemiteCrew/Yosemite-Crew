@@ -913,7 +913,9 @@ describe("AppointmentPrismaService", () => {
       status: "arrived",
       encounterClass: "AMB",
       appointmentKind: "OUTPATIENT",
-      periodStart: null,
+      // Seeded at check-in with the booked slot (16:00, in the future relative to
+      // the 12:00 admission). Admission must overwrite it with the real start.
+      periodStart: new Date("2026-06-11T16:00:00.000Z"),
       periodEnd: null,
     } as any);
     mockedPrisma.admission.findUnique
@@ -1012,6 +1014,8 @@ describe("AppointmentPrismaService", () => {
           appointmentKind: "INPATIENT",
           encounterClass: "IMP",
           status: "in-progress",
+          // The future booked slot (16:00) is replaced by the real admission time.
+          periodStart: new Date("2026-06-11T12:00:00.000Z"),
         }),
       }),
     );
@@ -3135,6 +3139,150 @@ describe("AppointmentPrismaService", () => {
         mockedInvoiceService.markAppointmentReadyForBilling,
       ).not.toHaveBeenCalled();
       expect(result.status).toBe("UPCOMING");
+    });
+
+    const seedInProgressTransition = (encounter: Record<string, unknown>) => {
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        status: "IN_PROGRESS",
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "CHECKED_IN",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+      mockedPrisma.encounter.findUnique.mockResolvedValue({
+        id: "enc_1",
+        caseId: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        ...encounter,
+      } as any);
+      mockedPrisma.encounter.update.mockResolvedValue({ id: "enc_1" } as any);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+    };
+
+    it("stamps the encounter actual-start when the appointment goes IN_PROGRESS (bug #1903)", async () => {
+      // periodStart was seeded at check-in with the booked slot; the transition
+      // must overwrite it with the real start so the visit timer runs.
+      seedInProgressTransition({
+        status: "arrived",
+        periodStart: new Date("2026-06-10T10:00:00.000Z"),
+      });
+
+      const before = Date.now();
+      const result = await AppointmentPrismaService.updateAppointmentPMS(
+        "appt_1",
+        { resourceType: "Appointment" } as any,
+      );
+
+      expect(mockedPrisma.encounter.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "enc_1" },
+          data: expect.objectContaining({ status: "in-progress" }),
+        }),
+      );
+      const stampCall = mockedPrisma.encounter.update.mock.calls.find(
+        ([arg]: any[]) =>
+          arg?.where?.id === "enc_1" && arg?.data?.status === "in-progress",
+      );
+      const stampedPeriodStart = stampCall?.[0]?.data?.periodStart as Date;
+      expect(stampedPeriodStart).toBeInstanceOf(Date);
+      // The stamped start is the real transition time, not the booked slot.
+      expect(stampedPeriodStart.getTime()).toBeGreaterThanOrEqual(before);
+      expect(stampedPeriodStart.getTime()).not.toBe(
+        new Date("2026-06-10T10:00:00.000Z").getTime(),
+      );
+      expect(result.status).toBe("IN_PROGRESS");
+    });
+
+    it("preserves a recorded start and status when the encounter is already under way", async () => {
+      seedInProgressTransition({
+        status: "onleave",
+        periodStart: new Date("2026-06-10T09:15:00.000Z"),
+      });
+
+      await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+
+      expect(mockedPrisma.encounter.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "enc_1" },
+          data: {
+            status: "onleave",
+            periodStart: new Date("2026-06-10T09:15:00.000Z"),
+          },
+        }),
+      );
+    });
+
+    it("leaves a closed encounter untouched on an IN_PROGRESS update", async () => {
+      seedInProgressTransition({
+        status: "finished",
+        periodStart: new Date("2026-06-10T09:15:00.000Z"),
+      });
+
+      await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+
+      expect(mockedPrisma.encounter.update).not.toHaveBeenCalled();
+    });
+
+    it("does not re-stamp when the appointment is already IN_PROGRESS", async () => {
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        status: "IN_PROGRESS",
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+      mockedPrisma.encounter.findUnique.mockResolvedValue({
+        id: "enc_1",
+        caseId: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        status: "in-progress",
+        periodStart: new Date("2026-06-10T09:15:00.000Z"),
+      } as any);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+
+      expect(mockedPrisma.encounter.update).not.toHaveBeenCalled();
     });
   });
 
