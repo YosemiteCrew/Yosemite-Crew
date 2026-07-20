@@ -303,6 +303,7 @@ const SLOT_MATCH_TOLERANCE_MINUTES = 5;
 const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
 const CALENDAR_PREFILL_CACHE_MAX_ENTRIES = 2_000;
 const CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS = 15_000;
+const NEARBY_ORGANISATION_LIMIT = 100;
 const calendarPrefillCache = new Map<
   string,
   CachedPromise<CatalogCalendarPrefillMatch[]>
@@ -2004,11 +2005,18 @@ export const CatalogService = {
 
   async updateProduct(
     id: string,
-    input: Partial<CatalogProductUpsertInput> & { expectedVersion?: number },
+    input: Partial<Omit<CatalogProductUpsertInput, "organisationId">> & {
+      organisationId: string;
+      expectedVersion?: number;
+    },
   ) {
     const productId = requireSafeString(id, "productId");
-    const existing = await prisma.productItem.findUnique({
-      where: { id: productId },
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
+    const existing = await prisma.productItem.findFirst({
+      where: { id: productId, organisationId },
       include: {
         prices: true,
         bookable: true,
@@ -2045,18 +2053,14 @@ export const CatalogService = {
     assertBookableConfig(input.bookable);
     assertPriceConfig(input.price);
 
-    const nextOrganisationId =
-      input.organisationId == null
-        ? existing.organisationId
-        : requireSafeString(input.organisationId, "organisationId");
     const nextSpecialityId =
       input.specialityId === undefined
         ? existing.specialityId
         : optionalSafeString(input.specialityId);
-    await ensureSpecialityExists(nextOrganisationId, nextSpecialityId);
+    await ensureSpecialityExists(organisationId, nextSpecialityId);
     if (nextKind === "PACKAGE" && packageItems) {
       await ensurePackageItemsValid({
-        organisationId: nextOrganisationId,
+        organisationId,
         packageItems,
         currentProductId: productId,
       });
@@ -2064,7 +2068,7 @@ export const CatalogService = {
     const resolvedPackageItems =
       nextKind === "PACKAGE" && packageItems
         ? await resolvePackageItemPersistenceData({
-            organisationId: nextOrganisationId,
+            organisationId,
             packageItems,
           })
         : undefined;
@@ -2080,17 +2084,15 @@ export const CatalogService = {
           : existing.code
         : optionalSafeString(input.code);
     const resolvedCode =
-      nextCode ?? (await generateProductCode(nextOrganisationId, nextKind));
+      nextCode ?? (await generateProductCode(organisationId, nextKind));
     await ensureCodeUniqueness({
-      organisationId: nextOrganisationId,
+      organisationId,
       code: resolvedCode,
       excludeProductId: productId,
     });
 
     const updated = await prisma.$transaction(async (tx) => {
       const updateData = {
-        organisationId:
-          input.organisationId == null ? undefined : nextOrganisationId,
         name:
           input.name == null
             ? undefined
@@ -2206,19 +2208,17 @@ export const CatalogService = {
 
           if (nextPackageItems.length > 0) {
             await tx.productPackageItem.createMany({
-              data: nextPackageItems.map(
-                (item): PackageItemCreateData => ({
-                  packageId: pkg.id,
-                  childProductItemId: item.childProductItemId,
-                  inventoryItemId: item.inventoryItemId,
-                  quantity: item.quantity,
-                  pricingMode: item.pricingMode,
-                  overridePrice: item.overridePrice,
-                  discountPercent: item.discountPercent,
-                  sortOrder: item.sortOrder,
-                  isOptional: item.isOptional,
-                }),
-              ),
+              data: nextPackageItems.map((item): PackageItemCreateData => ({
+                packageId: pkg.id,
+                childProductItemId: item.childProductItemId,
+                inventoryItemId: item.inventoryItemId,
+                quantity: item.quantity,
+                pricingMode: item.pricingMode,
+                overridePrice: item.overridePrice,
+                discountPercent: item.discountPercent,
+                sortOrder: item.sortOrder,
+                isOptional: item.isOptional,
+              })),
             });
           }
         }
@@ -2244,13 +2244,14 @@ export const CatalogService = {
     return mapProductRecordToView(updated);
   },
 
-  async getProductById(id: string, organisationId?: string) {
+  async getProductById(id: string, organisationIdInput: string) {
     const productId = requireSafeString(id, "productId");
+    const organisationId = requireSafeString(
+      organisationIdInput,
+      "organisationId",
+    );
     const product = (await prisma.productItem.findFirst({
-      where: {
-        id: productId,
-        ...(organisationId ? { organisationId } : {}),
-      },
+      where: { id: productId, organisationId },
       include: productSelectionInclude,
     })) as unknown as ProductRecord | null;
 
@@ -2261,14 +2262,14 @@ export const CatalogService = {
     return mapProductRecordToView(product);
   },
 
-  async getPackageDetail(id: string, organisationId?: string) {
+  async getPackageDetail(id: string, organisationIdInput: string) {
     const productId = requireSafeString(id, "productId");
+    const organisationId = requireSafeString(
+      organisationIdInput,
+      "organisationId",
+    );
     const product = (await prisma.productItem.findFirst({
-      where: {
-        id: productId,
-        kind: "PACKAGE",
-        ...(organisationId ? { organisationId } : {}),
-      },
+      where: { id: productId, kind: "PACKAGE", organisationId },
       include: productSelectionInclude,
     })) as unknown as ProductRecord | null;
 
@@ -2395,11 +2396,15 @@ export const CatalogService = {
     };
   },
 
-  async resolveSelection(productItemId: string, organisationId?: string) {
+  async resolveSelection(productItemId: string, organisationIdInput: string) {
+    const organisationId = requireSafeString(
+      organisationIdInput,
+      "organisationId",
+    );
     const product = (await prisma.productItem.findFirst({
       where: {
         OR: [{ id: productItemId }, { legacyServiceId: productItemId }],
-        ...(organisationId ? { organisationId } : {}),
+        organisationId,
       },
       include: productSelectionInclude,
     })) as unknown as ProductRecord | null;
@@ -2622,6 +2627,7 @@ export const CatalogService = {
           },
         },
         include: { address: true },
+        take: NEARBY_ORGANISATION_LIMIT,
       });
 
       const nearbyOrgs = filterWithinRadius(
@@ -2635,14 +2641,18 @@ export const CatalogService = {
         nearbyOrgs.length > 0
           ? nearbyOrgs
           : await prisma.organization.findMany({
+              where: { isVerified: true, isActive: true },
               include: { address: true },
+              take: NEARBY_ORGANISATION_LIMIT,
             });
     } else {
       logger.warn(
         "No coordinates provided for catalog nearby search, returning all organisations",
       );
       candidateOrgs = await prisma.organization.findMany({
+        where: { isVerified: true, isActive: true },
         include: { address: true },
+        take: NEARBY_ORGANISATION_LIMIT,
       });
     }
 
@@ -2899,23 +2909,22 @@ export const CatalogService = {
     };
   },
 
+  /**
+   * `organisationIdInput` accepts `undefined` only so that callers which cannot
+   * prove an organisation still type-check; an absent value is rejected with a
+   * 400 rather than widening the lookup to every tenant.
+   */
   async getSpecialityById(
     specialityIdInput: string,
-    organisationIdInput?: string,
+    organisationIdInput: string,
   ) {
     const specialityId = requireSafeString(specialityIdInput, "specialityId");
+    const organisationId = requireSafeString(
+      organisationIdInput,
+      "organisationId",
+    );
     const speciality = await prisma.speciality.findFirst({
-      where: {
-        id: specialityId,
-        ...(organisationIdInput
-          ? {
-              organisationId: requireSafeString(
-                organisationIdInput,
-                "organisationId",
-              ),
-            }
-          : {}),
-      },
+      where: { id: specialityId, organisationId },
       select: {
         id: true,
         organisationId: true,
@@ -3159,11 +3168,11 @@ export const CatalogService = {
 
   async archiveProduct(
     id: string,
-    organisationId?: string,
+    organisationId: string,
     expectedVersion?: number,
   ) {
     return this.updateProduct(id, {
-      ...(organisationId ? { organisationId } : {}),
+      organisationId,
       isActive: false,
       expectedVersion,
     });
@@ -3171,7 +3180,7 @@ export const CatalogService = {
 
   async restoreProduct(
     id: string,
-    organisationId?: string,
+    organisationId: string,
     expectedVersion?: number,
   ) {
     const product = await this.getProductById(id, organisationId);
@@ -3197,7 +3206,7 @@ export const CatalogService = {
     }
 
     return this.updateProduct(id, {
-      ...(organisationId ? { organisationId } : {}),
+      organisationId,
       isActive: true,
       expectedVersion: expectedVersion ?? product.version,
     });
@@ -3205,15 +3214,16 @@ export const CatalogService = {
 
   async deleteProduct(
     id: string,
-    organisationId?: string,
+    organisationIdInput: string,
     expectedVersion?: number,
   ) {
     const productId = requireSafeString(id, "productId");
+    const organisationId = requireSafeString(
+      organisationIdInput,
+      "organisationId",
+    );
     const existing = await prisma.productItem.findFirst({
-      where: {
-        id: productId,
-        ...(organisationId ? { organisationId } : {}),
-      },
+      where: { id: productId, organisationId },
       select: { id: true, version: true },
     });
     if (!existing) {
@@ -3263,20 +3273,23 @@ export const CatalogService = {
 
   async updateSpeciality(
     specialityIdInput: string,
-    input: Partial<CatalogSpecialityInput>,
+    input: Partial<Omit<CatalogSpecialityInput, "organisationId">> & {
+      organisationId: string;
+    },
   ) {
     const specialityId = requireSafeString(specialityIdInput, "specialityId");
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
     const existing = await prisma.speciality.findFirst({
-      where: { id: specialityId },
+      where: { id: specialityId, organisationId },
     });
 
     if (!existing) {
       throw new CatalogServiceError("Speciality not found.", 404, "NOT_FOUND");
     }
 
-    const organisationId = input.organisationId
-      ? requireSafeString(input.organisationId, "organisationId")
-      : existing.organisationId;
     const name = input.name
       ? requireSafeString(input.name, "name")
       : existing.name;
@@ -3308,7 +3321,6 @@ export const CatalogService = {
     return prisma.speciality.update({
       where: { id: specialityId },
       data: {
-        organisationId,
         name,
         headUserId,
         headName:

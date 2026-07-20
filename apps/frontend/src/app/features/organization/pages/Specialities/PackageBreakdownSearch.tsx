@@ -20,7 +20,7 @@ const PackageBreakdownSearch = ({
   onSelectItem,
 }: PackageBreakdownSearchProps) => (
   <div className="relative">
-    <div className="flex items-center gap-2 w-full border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white">
+    <div className="flex items-center gap-2 w-full border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-[var(--field-bg)]">
       <input
         type="text"
         placeholder="Search services, inventory, lab tests, packages..."
@@ -37,7 +37,7 @@ const PackageBreakdownSearch = ({
       />
     </div>
     {filteredSearch.length > 0 && (
-      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-card-border rounded-2xl shadow-lg overflow-hidden">
+      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[var(--screen)] border border-card-border rounded-2xl shadow-lg overflow-hidden">
         {filteredSearch.map((item) => (
           <button
             key={item.id}
@@ -55,7 +55,7 @@ const PackageBreakdownSearch = ({
       </div>
     )}
     {searchQuery.trim() && filteredSearch.length === 0 && !searchLoading && (
-      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-card-border rounded-2xl shadow-lg px-4 py-3 text-body-4 text-text-secondary">
+      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[var(--screen)] border border-card-border rounded-2xl shadow-lg px-4 py-3 text-body-4 text-text-secondary">
         No items found.
       </div>
     )}

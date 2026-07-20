@@ -87,15 +87,19 @@ describe('SharedEntityCard', () => {
     expect(container).toBeTruthy();
   });
 
-  it('applies the "mine" border styling when mine is true', () => {
+  it('renders the tokenized hairline card chrome when mine is true', () => {
     const { container } = render(<SharedEntityCard entity={makeEntity()} mine />);
-    expect(container.querySelector('.border-primary-300')).toBeInTheDocument();
+    const card = container.firstChild as HTMLElement;
+    expect(card.className).toContain('border-[var(--hairline)]');
+    // The legacy cool-slate accent border is gone (dark-mode safe).
+    expect(container.querySelector('.border-primary-300')).not.toBeInTheDocument();
   });
 
-  it('applies the default (not mine) border styling when mine is false', () => {
-    const { container } = render(<SharedEntityCard entity={makeEntity()} mine={false} />);
-    expect(container.querySelector('.border-chat-divider')).toBeInTheDocument();
-    expect(container.querySelector('.border-primary-300')).not.toBeInTheDocument();
+  it('renders the same card chrome whether or not the message is mine', () => {
+    const { container: a } = render(<SharedEntityCard entity={makeEntity()} mine />);
+    const { container: b } = render(<SharedEntityCard entity={makeEntity()} mine={false} />);
+    expect((a.firstChild as HTMLElement).className).toContain('border-[var(--hairline)]');
+    expect((b.firstChild as HTMLElement).className).toContain('border-[var(--hairline)]');
   });
 
   it('renders an icon glyph for the entity', () => {

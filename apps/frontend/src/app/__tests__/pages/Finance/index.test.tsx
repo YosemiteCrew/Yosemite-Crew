@@ -16,6 +16,13 @@ jest.mock('next/dynamic', () => ({
         return <MockInvoiceTable {...props} />;
       }
 
+      if (source.includes('Sections/PhoneInvoiceList')) {
+        const MockPhoneList = jest.requireMock(
+          '@/app/features/finance/pages/Finance/Sections/PhoneInvoiceList'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockPhoneList {...props} />;
+      }
+
       if (source.includes('Sections/InvoiceInfo')) {
         const MockInvoiceInfo = jest.requireMock(
           '@/app/features/finance/pages/Finance/Sections/InvoiceInfo'
@@ -37,6 +44,8 @@ const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
 const useSubscriptionMock = jest.fn();
 const invoiceTableSpy = jest.fn();
+const phoneListSpy = jest.fn();
+const mockIsPhone = jest.fn(() => false);
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
@@ -101,16 +110,29 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/filters/Filters', () => () => <div data-testid="filters" />);
-
-jest.mock('@/app/features/billing/components/StripeSettingsButton', () => ({
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
   __esModule: true,
-  default: () => <a href="/stripe-onboarding?orgId=org-1">Settings</a>,
+  default: () => mockIsPhone(),
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills', () => ({
+  __esModule: true,
+  default: ({ activeStatus }: any) => <div data-testid="status-pills">{activeStatus}</div>,
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/StripeStatusPill', () => ({
+  __esModule: true,
+  default: () => <a href="/stripe-onboarding?orgId=org-1">Stripe · settings</a>,
 }));
 
 jest.mock('@/app/ui/tables/InvoiceTable', () => (props: any) => {
   invoiceTableSpy(props);
   return <div data-testid="invoice-table" />;
+});
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/PhoneInvoiceList', () => (props: any) => {
+  phoneListSpy(props);
+  return <div data-testid="phone-invoice-list" />;
 });
 
 const invoiceInfoSpy = jest.fn();
@@ -122,6 +144,7 @@ jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceInfo', () => (pr
 describe('Finance page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsPhone.mockReturnValue(false);
     mockSearchParamsGet.mockReturnValue(null);
     useSearchParamsMock.mockReturnValue({ get: mockSearchParamsGet });
     useLoadInvoicesMock.mockReturnValue(undefined);
@@ -138,13 +161,53 @@ describe('Finance page', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: /Finance/ })).toBeInTheDocument();
     expect(screen.getByTestId('invoice-table')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+    expect(screen.getByTestId('status-pills')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Stripe/ })).toHaveAttribute(
       'href',
       '/stripe-onboarding?orgId=org-1'
     );
     expect(invoiceTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ id: 'inv-1' })],
+      })
+    );
+  });
+
+  it('renders the phone invoice list (not the desktop table) below 768px', () => {
+    mockIsPhone.mockReturnValue(true);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    render(<ProtectedFinance />);
+
+    expect(screen.getByTestId('phone-invoice-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('invoice-table')).not.toBeInTheDocument();
+    expect(phoneListSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeStatus: 'all',
+        currency: 'USD',
+        onViewInvoice: expect.any(Function),
+        metrics: expect.objectContaining({ collectedThisWeek: expect.any(Number) }),
+      })
+    );
+  });
+
+  it('opens the invoice record when the phone list requests it', async () => {
+    mockIsPhone.mockReturnValue(true);
+    useInvoicesMock.mockReturnValue([{ id: 'inv-9', status: 'paid', appointmentId: 'appt-9' }]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    render(<ProtectedFinance />);
+
+    const { onViewInvoice } = phoneListSpy.mock.calls[0][0];
+    await act(async () => {
+      onViewInvoice({ id: 'inv-9' });
+      await Promise.resolve();
+    });
+
+    expect(invoiceInfoSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        showModal: true,
+        activeInvoice: expect.objectContaining({ id: 'inv-9' }),
       })
     );
   });

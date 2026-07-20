@@ -126,6 +126,7 @@ const Modal = ({
         flex flex-col overflow-hidden max-h-[calc(100%-1.5rem)]
         w-[calc(100%-1.5rem)] ${CENTERED_WIDTHS[size]}
         bg-neutral-0 border border-card-border rounded-[20px] z-[1200]
+        shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)]
         transition-opacity duration-300 ease-in-out
         ${fadeClass(showModal)}`}
       >
@@ -149,6 +150,7 @@ const Modal = ({
       overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
       containerClassName={`fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] sm:w-[530px]
         bg-neutral-0 border border-card-border rounded-2xl z-[1200]
+        shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)]
         transition-transform duration-300 ease-in-out
         ${drawerSlideClass(showModal)}`}
     >

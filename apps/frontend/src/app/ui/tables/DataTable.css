@@ -43,6 +43,23 @@
   table-layout: fixed;
   min-width: 1040px; /* 160+110+130+120+100+120+100+100+100 */
 }
+.invoice-compact-fixed {
+  table-layout: fixed;
+}
+/* Right-align the money / metric column HEADERS so they sit over their figures,
+   matching the design (GenericTable's <th> is left by default). Body figures are
+   right-aligned via the .cell-figure* classes on the rendered cell.
+   Desktop invoice ledger: Subtotal(5) Discount(6) Tax(7) Total(8).
+   Compact (tablet) invoice: Total(3).
+   Turnover metrics: Beginning(3) Ending(4) Avg(5) Purchases(6) Turns(7) Days(8). */
+.invoice-table-fixed thead th:nth-child(5),
+.invoice-table-fixed thead th:nth-child(6),
+.invoice-table-fixed thead th:nth-child(7),
+.invoice-table-fixed thead th:nth-child(8),
+.invoice-compact-fixed thead th:nth-child(3),
+.inventory-turnover-table-fixed thead th:nth-child(n + 3):nth-child(-n + 8) {
+  text-align: right;
+}
 /* Allow fixed-layout tables to scroll horizontally when the viewport is
    narrower than their min-width without breaking other tables. */
 .appointments-scroll-x .TableBodyScroll,
@@ -253,13 +270,36 @@
   line-height: 120%;
   letter-spacing: -0.32px;
 }
-/* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 4px 10px, fully round.
+/* Ledger / metric cell modifiers, compounded with .appointment-profile-title so
+   they always beat the shared 400-weight / left-aligned base by specificity.
+   Mirrors the design's finance table: numeric money columns are right-aligned
+   with tabular figures (`cell-figure`), the emphasised figures - Invoice # and
+   Total - are bold ink (`cell-strong` / `cell-figure-strong`), and the secondary
+   Services / Payment columns are muted ink (`cell-muted`). */
+.appointment-profile-title.cell-figure {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.appointment-profile-title.cell-figure-strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink);
+}
+.appointment-profile-title.cell-strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+.appointment-profile-title.cell-muted {
+  color: var(--ink-muted);
+}
+/* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 3px 10px, fully round.
    Per-status bg/text/border are supplied inline via getStatusStyle(...). */
 .appointment-status {
   display: inline-flex;
   width: fit-content;
   align-self: flex-start;
-  padding: 4px 10px;
+  padding: 3px 10px;
   justify-content: center;
   align-items: center;
   gap: 6px;

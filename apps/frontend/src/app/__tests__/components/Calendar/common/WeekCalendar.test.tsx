@@ -131,7 +131,10 @@ describe('WeekCalendar (Appointments)', () => {
     expect(slotSpy).toHaveBeenCalled();
   });
 
-  it('updates week start and current date on navigation', () => {
+  it('renders bare day headers with no in-grid week arrows', () => {
+    // The frame's week grid is `gutter + 7 day columns` with no arrow columns —
+    // week navigation is owned by the header toolbar's date-nav pill (covered in
+    // Header.test.tsx). The grid header carries only the day label and date.
     render(
       <WeekCalendar
         events={events}
@@ -144,17 +147,44 @@ describe('WeekCalendar (Appointments)', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('PrevWeek'));
-    fireEvent.click(screen.getByText('NextWeek'));
+    expect(screen.queryByText('PrevWeek')).not.toBeInTheDocument();
+    expect(screen.queryByText('NextWeek')).not.toBeInTheDocument();
+    expect(setWeekStart).not.toHaveBeenCalled();
+  });
 
-    const prevFn = setWeekStart.mock.calls[0][0];
-    const nextFn = setWeekStart.mock.calls[1][0];
+  it('styles the day header strip with the frame typography and tints today', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-07T10:00:00Z'));
 
-    prevFn(weekStart);
-    nextFn(weekStart);
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+      />
+    );
 
-    expect(setCurrentDate).toHaveBeenCalledWith(new Date('2024-12-30T00:00:00Z'));
-    expect(setCurrentDate).toHaveBeenCalledWith(new Date('2025-01-13T00:00:00Z'));
+    // Day label: all-caps 9.5px/700/0.08em (was 16px body type).
+    const dayLabel = container.querySelector('.text-\\[9\\.5px\\]');
+    expect(dayLabel).toHaveClass('font-bold', 'uppercase', 'tracking-[0.08em]');
+
+    // Today's date drops into a 24px --blue disc, and its header cell takes
+    // --nav-active-bg. Days mock to 6/7/8 Jan, so the 7th is today.
+    const todayDisc = Array.from(container.querySelectorAll('div')).find(
+      (el) =>
+        el.className.includes('size-6') &&
+        el.getAttribute('style')?.includes('background-color: var(--blue)')
+    );
+    expect(todayDisc).toHaveTextContent('7');
+    expect(todayDisc?.parentElement?.getAttribute('style')).toContain(
+      'background-color: var(--nav-active-bg)'
+    );
+
+    jest.useRealTimers();
   });
 
   it('shows now indicator when current time is within week', () => {
@@ -173,7 +203,11 @@ describe('WeekCalendar (Appointments)', () => {
       />
     );
 
-    expect(container.querySelector('.border-t-red-500')).toBeInTheDocument();
+    // The now-line follows the frame's --blue 2px rule, not the old red-500.
+    const nowLine = Array.from(container.querySelectorAll('div')).find((el) =>
+      el.getAttribute('style')?.includes('border-top-color: var(--blue)')
+    );
+    expect(nowLine).toBeInTheDocument();
 
     jest.useRealTimers();
   });

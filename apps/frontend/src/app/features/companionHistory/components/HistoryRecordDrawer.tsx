@@ -5,6 +5,7 @@ import {
   IoChevronForwardOutline,
   IoClose,
   IoDownloadOutline,
+  IoEyeOutline,
   IoShareOutline,
 } from 'react-icons/io5';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
@@ -20,6 +21,7 @@ type HistoryRecordDrawerProps = {
   results: RecordDetailPair[];
   linkedLabel: string | null;
   onClose: () => void;
+  onView: (entry: HistoryEntry) => void;
   onDownload: (entry: HistoryEntry) => void;
   onOpenLinked: (entry: HistoryEntry) => void;
   onShare: (entry: HistoryEntry) => void;
@@ -29,6 +31,11 @@ type HistoryRecordDrawerProps = {
 const MICRO_CAPTION_CLASS =
   'text-[9.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]';
 
+// The title-block eyebrow reads one step larger/looser than the in-body table
+// and "Linked to" captions in the design (10.5px / 0.1em vs 9.5px / 0.08em).
+const HEADER_CAPTION_CLASS =
+  'text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]';
+
 const FOOTER_SECONDARY_CLASS =
   'flex flex-1 items-center justify-center gap-1.5 rounded-full! border border-hairline py-2 text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
@@ -37,6 +44,7 @@ const HistoryRecordDrawer = ({
   results,
   linkedLabel,
   onClose,
+  onView,
   onDownload,
   onOpenLinked,
   onShare,
@@ -62,11 +70,11 @@ const HistoryRecordDrawer = ({
       />
       <section
         aria-label={`Record detail for ${entry.title}`}
-        className="relative z-10 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-hairline bg-[var(--screen-2)] shadow-2xl md:h-full md:max-h-none md:w-[380px] md:rounded-none md:border-y-0 md:border-r-0"
+        className="relative z-10 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-hairline bg-[var(--screen-2)] shadow-2xl md:h-full md:max-h-none md:w-[360px] md:rounded-none md:border-y-0 md:border-r-0"
       >
-        <header className="flex flex-none items-start justify-between gap-2.5 border-b border-hairline px-5 py-4">
+        <header className="flex flex-none items-start justify-between gap-2.5 border-b border-hairline px-5 pb-3.5 pt-[18px]">
           <div className="flex min-w-0 flex-col gap-1">
-            <span className={MICRO_CAPTION_CLASS}>Record detail</span>
+            <span className={HEADER_CAPTION_CLASS}>Record detail</span>
             <h2 className="truncate text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
               {entry.title}
             </h2>
@@ -132,10 +140,18 @@ const HistoryRecordDrawer = ({
         <footer className="flex flex-none flex-col gap-2 border-t border-hairline px-5 pb-5 pt-3.5">
           <button
             type="button"
-            onClick={() => onDownload(entry)}
+            onClick={() => onView(entry)}
             className="flex h-[42px] items-center justify-center gap-1.5 rounded-full! bg-[var(--cta)] text-[13px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
           >
-            <IoDownloadOutline size={15} aria-hidden="true" />
+            <IoEyeOutline size={15} aria-hidden="true" />
+            View document
+          </button>
+          <button
+            type="button"
+            onClick={() => onDownload(entry)}
+            className={FOOTER_SECONDARY_CLASS}
+          >
+            <IoDownloadOutline size={13} aria-hidden="true" />
             Download PDF
           </button>
           <div className="flex gap-2">

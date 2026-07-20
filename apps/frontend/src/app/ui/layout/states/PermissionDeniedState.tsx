@@ -45,7 +45,7 @@ const PermissionDeniedState = ({
     <div className="yc-state-wrap">
       <div className="yc-state-card">
         <span className="yc-state-icon yc-state-icon--warn" aria-hidden>
-          <IoLockClosedOutline size={26} />
+          <IoLockClosedOutline size={25} />
         </span>
         <div className="yc-state-title">You don&apos;t have access to {resource}</div>
         <p className="yc-state-text">

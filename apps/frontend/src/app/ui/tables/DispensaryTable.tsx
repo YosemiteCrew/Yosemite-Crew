@@ -22,7 +22,7 @@ const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Status' },
   { label: 'Items' },
   { label: 'Requested' },
-  { label: 'Amount', align: 'right' },
+  { label: 'Amount', align: 'right', className: 'pr-4' },
   { label: 'Lead' },
   { label: 'Location' },
   { label: 'Dispensed' },
@@ -83,7 +83,7 @@ const getDisplayName = (record: DispensaryRecord) => {
 
 const StatusPill = ({ status }: { status: DispensaryStatus }) => (
   <span
-    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] whitespace-nowrap"
+    className="inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase whitespace-nowrap"
     style={STATUS_STYLES[status]}
   >
     {STATUS_LABELS[status]}
@@ -107,7 +107,7 @@ const DispensaryRow = ({
       style={{ gridTemplateColumns: GRID_COLUMNS }}
     >
       <div
-        className="min-w-0 truncate text-[13px] font-bold text-text-primary"
+        className="min-w-0 truncate text-[13px] font-bold text-[var(--ink)]"
         title={getDisplayName(record)}
       >
         {getDisplayName(record)}
@@ -129,7 +129,7 @@ const DispensaryRow = ({
       <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--color-success-600)]">
         {formatDateTime(record.prescriptionCreated)}
       </div>
-      <div className="text-right font-semibold tabular-nums">
+      <div className="text-right font-semibold tabular-nums pr-4">
         {formatAmount(record.amountCents, record.currency)}
       </div>
       <div className="truncate text-[12.5px] text-text-secondary">{record.lead || '—'}</div>

@@ -176,7 +176,7 @@ const Companions = () => {
     <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-end w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-page-title flex items-baseline gap-2 flex-wrap">
+          <h1 className="text-page-title flex items-baseline gap-2 flex-wrap">
             <span className="flex items-baseline gap-3">
               {terminologyText('Companions')}
               <span className="font-newsreader text-[16px] italic text-[var(--ink-faint)]">

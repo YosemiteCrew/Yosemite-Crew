@@ -147,6 +147,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         name: values.name,
         description: values.description,
         category: values.category,
+        priority: (values.priority ?? activeTask.priority) as Task['priority'],
         assignedTo: resolveAssigneeId(),
         dueAt: nextDueAt,
         timezone: activeTask.timezone || getPreferredTimeZone(),

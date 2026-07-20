@@ -592,7 +592,6 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
   const handleSave = handleSubmit(async data => {
     console.log('=== Form Submission Started ===');
-    console.log('Form Data:', JSON.stringify(data, null, 2));
 
     if (!user?.parentId) {
       setSubmissionError(

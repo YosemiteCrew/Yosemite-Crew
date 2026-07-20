@@ -2,11 +2,9 @@
 import { Request, Response } from "express";
 import { ChatService, ChatServiceError } from "src/services/chat.service";
 import { NetworkChatService } from "src/services/networkChat.service";
-import ChatSessionModel from "src/models/chatSession";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { resolveUserIdFromRequest } from "src/utils/request";
 import { SharedChatEntityService } from "src/services/sharedChatEntity.service";
 import { z } from "zod";
@@ -21,6 +19,35 @@ const isStringArray = (value: unknown): value is string[] =>
 
 const getStringArray = (value: unknown): string[] | undefined =>
   isStringArray(value) ? value : undefined;
+
+type ChatSessionRow = Awaited<
+  ReturnType<typeof prisma.chatSession.findMany>
+>[number];
+
+const toChatSessionResponse = (session: ChatSessionRow) => ({
+  _id: session.id,
+  id: session.id,
+  type: session.type,
+  appointmentId: session.appointmentId,
+  channelId: session.channelId,
+  organisationId: session.organisationId,
+  counterpartOrganisationId: session.counterpartOrganisationId,
+  patientId: session.patientId,
+  parentId: session.parentId,
+  vetId: session.vetId,
+  supportStaffIds: session.supportStaffIds,
+  createdBy: session.createdBy,
+  title: session.title,
+  isPrivate: session.isPrivate,
+  members: session.members,
+  participants: session.participants,
+  status: session.status,
+  allowedFrom: session.allowedFrom,
+  allowedUntil: session.allowedUntil,
+  closedAt: session.closedAt,
+  createdAt: session.createdAt,
+  updatedAt: session.updatedAt,
+});
 
 const shareEntitySchema = z.object({
   channelId: z.string().min(1),
@@ -350,24 +377,16 @@ export const ChatController = {
 
       const includeClosed = req.query.includeClosed === "true";
 
-      const sessions = isReadFromPostgres()
-        ? await prisma.chatSession.findMany({
-            where: {
-              organisationId,
-              members: { has: userId },
-              ...(includeClosed ? {} : { status: { not: "CLOSED" } }),
-            },
-            orderBy: { updatedAt: "desc" },
-          })
-        : await ChatSessionModel.find({
-            organisationId,
-            members: userId,
-            ...(includeClosed ? {} : { status: { $ne: "CLOSED" } }),
-          })
-            .sort({ updatedAt: -1 })
-            .lean();
+      const sessions = await prisma.chatSession.findMany({
+        where: {
+          organisationId,
+          members: { has: userId },
+          ...(includeClosed ? {} : { status: { not: "CLOSED" } }),
+        },
+        orderBy: { updatedAt: "desc" },
+      });
 
-      return res.status(200).json(sessions);
+      return res.status(200).json(sessions.map(toChatSessionResponse));
     } catch (err) {
       logger.error("List sessions failed", err);
       return res.status(500).json({ message: "Failed to list sessions" });

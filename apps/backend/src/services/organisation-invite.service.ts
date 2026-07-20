@@ -1,30 +1,19 @@
-import { Types } from "mongoose";
 import validator from "validator";
 
-import OrganisationInviteModel, {
-  type CreateOrganisationInviteInput,
-  type OrganisationInviteDocument,
-} from "../models/organisationInvite";
-import OrganizationModel, {
-  type OrganizationMongo,
-} from "../models/organization";
-import SpecialityModel, { type SpecialityDocument } from "../models/speciality";
+import { type CreateOrganisationInviteInput } from "../models/organisationInvite";
+import { type OrganizationMongo } from "../models/organization";
 import logger from "../utils/logger";
-import type { InviteStatus, OrganisationInvite } from "@yosemite-crew/types";
+import type { OrganisationInvite } from "@yosemite-crew/types";
 import {
   OrganisationInviteEmploymentType,
-  OrganisationInviteStatus,
   type OrganisationInvite as PrismaOrganisationInvite,
 } from "@prisma/client";
 import { prisma } from "../config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "../utils/dual-write";
-import { isReadFromPostgres } from "src/config/read-switch";
 import {
   UserOrganizationService,
   UserOrganizationServiceError,
 } from "./user-organization.service";
 import { sendEmailTemplate } from "../utils/email";
-import UserModel from "src/models/user";
 import { randomBytes } from "node:crypto";
 
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9\-.]{1,64}$/;
@@ -50,10 +39,12 @@ const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const INVITE_TOKEN_BYTES = 32;
 
 type OrganisationIdentity = Pick<OrganizationMongo, "name" | "type"> & {
-  _id: string;
+  id: string;
 };
 
-type DepartmentIdentity = Pick<SpecialityDocument, "_id">;
+type DepartmentIdentity = {
+  id: string;
+};
 
 export class OrganisationInviteServiceError extends Error {
   constructor(
@@ -116,10 +107,7 @@ const requireString = (value: unknown, fieldName: string): string => {
 const normalizeIdentifier = (value: unknown, fieldName: string): string => {
   const identifier = requireString(value, fieldName);
 
-  if (
-    !Types.ObjectId.isValid(identifier) &&
-    !IDENTIFIER_PATTERN.test(identifier)
-  ) {
+  if (!IDENTIFIER_PATTERN.test(identifier)) {
     throw new OrganisationInviteServiceError(
       `Invalid ${fieldName.toLowerCase()} format.`,
       400,
@@ -161,50 +149,6 @@ const validateEmploymentType = (value: unknown) => {
   );
 };
 
-const buildIdentifierLookup = (identifier: string) => {
-  const predicates: Array<Record<string, string>> = [];
-
-  if (Types.ObjectId.isValid(identifier)) {
-    predicates.push({ _id: identifier });
-  }
-
-  if (IDENTIFIER_PATTERN.test(identifier)) {
-    predicates.push({ fhirId: identifier });
-  }
-
-  if (!predicates.length) {
-    throw new OrganisationInviteServiceError(
-      "Unable to build identifier lookup.",
-      400,
-    );
-  }
-
-  return predicates.length === 1 ? predicates[0] : { $or: predicates };
-};
-
-const buildInviteResponse = (
-  document: OrganisationInviteDocument,
-): OrganisationInviteResponse => {
-  const { _id, ...rest } = document.toObject({ virtuals: false });
-
-  return {
-    _id: _id.toString(),
-    organisationId: rest.organisationId,
-    invitedByUserId: rest.invitedByUserId,
-    departmentIds: rest.departmentIds,
-    inviteeEmail: rest.inviteeEmail,
-    inviteeName: rest.inviteeName,
-    role: rest.role,
-    employmentType: rest.employmentType,
-    token: rest.token,
-    status: rest.status,
-    expiresAt: rest.expiresAt,
-    acceptedAt: rest.acceptedAt,
-    createdAt: rest.createdAt,
-    updatedAt: rest.updatedAt,
-  };
-};
-
 const buildInviteResponseFromPrisma = (
   invite: PrismaOrganisationInvite,
 ): OrganisationInviteResponse => ({
@@ -224,43 +168,40 @@ const buildInviteResponseFromPrisma = (
   updatedAt: invite.updatedAt,
 });
 
-const toPrismaOrganisationInviteData = (doc: OrganisationInviteDocument) => ({
-  id: doc._id.toString(),
-  organisationId: doc.organisationId,
-  invitedByUserId: doc.invitedByUserId,
-  departmentIds: doc.departmentIds ?? [],
-  inviteeEmail: doc.inviteeEmail,
-  inviteeName: doc.inviteeName ?? undefined,
-  role: doc.role,
-  employmentType: (doc.employmentType ?? undefined) as
-    | OrganisationInviteEmploymentType
-    | undefined,
-  token: doc.token,
-  status: doc.status as OrganisationInviteStatus,
-  expiresAt: doc.expiresAt,
-  acceptedAt: doc.acceptedAt ?? undefined,
-  createdAt: doc.createdAt ?? undefined,
-  updatedAt: doc.updatedAt ?? undefined,
-});
-
-const syncOrganisationInviteToPostgres = async (
-  doc: OrganisationInviteDocument,
-) => {
-  if (!shouldDualWrite) return;
-  try {
-    const data = toPrismaOrganisationInviteData(doc);
-    await prisma.organisationInvite.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-  } catch (err) {
-    handleDualWriteError("OrganisationInvite", err);
-  }
-};
-
 const generateInviteToken = () =>
   randomBytes(INVITE_TOKEN_BYTES).toString("hex");
+
+const maskIdentifier = (identifier: string) => {
+  if (identifier.length <= 6) {
+    return `${identifier.slice(0, 1)}***`;
+  }
+
+  return `${identifier.slice(0, 3)}***${identifier.slice(-2)}`;
+};
+
+const findOrganisationByIdOrFhirId = async (
+  identifier: string,
+  select:
+    { id?: true; name?: true; type?: true } | { name?: true; type?: true },
+): Promise<OrganisationIdentity | null> => {
+  return (await prisma.organization.findFirst({
+    where: { OR: [{ id: identifier }, { fhirId: identifier }] },
+    select,
+  })) as OrganisationIdentity | null;
+};
+
+const findDepartmentByIdOrFhirId = async (
+  identifier: string,
+  organisationId: string,
+): Promise<DepartmentIdentity | null> => {
+  return (await prisma.speciality.findFirst({
+    where: {
+      organisationId,
+      OR: [{ id: identifier }, { fhirId: identifier }],
+    },
+    select: { id: true },
+  })) as DepartmentIdentity | null;
+};
 
 const createOrReplaceInvitePostgres = async (input: {
   organisationId: string;
@@ -320,28 +261,10 @@ const createOrReplaceInvitePostgres = async (input: {
 const findOrganisationOrThrow = async (
   organisationId: string,
 ): Promise<OrganisationIdentity> => {
-  if (isReadFromPostgres()) {
-    const organisation = await prisma.organization.findFirst({
-      where: {
-        OR: [{ id: organisationId }, { fhirId: organisationId }],
-      },
-      select: { id: true, name: true, type: true },
-    });
-
-    if (!organisation) {
-      throw new OrganisationInviteServiceError("Organisation not found.", 404);
-    }
-
-    return {
-      _id: organisation.id,
-      name: organisation.name,
-      type: organisation.type,
-    };
-  }
-
-  const query = buildIdentifierLookup(organisationId);
-  const organisation = await OrganizationModel.findOne(query).setOptions({
-    sanitizeFilter: true,
+  const organisation = await findOrganisationByIdOrFhirId(organisationId, {
+    id: true,
+    name: true,
+    type: true,
   });
 
   if (!organisation) {
@@ -349,7 +272,7 @@ const findOrganisationOrThrow = async (
   }
 
   return {
-    _id: organisation._id.toString(),
+    id: organisation.id,
     name: organisation.name,
     type: organisation.type,
   };
@@ -359,33 +282,10 @@ const ensureDepartmentBelongsToOrganisation = async (
   departmentId: string,
   organisationId: string,
 ): Promise<DepartmentIdentity> => {
-  if (isReadFromPostgres()) {
-    const department = await prisma.speciality.findFirst({
-      where: {
-        organisationId,
-        OR: [{ id: departmentId }, { fhirId: departmentId }],
-      },
-    });
-
-    if (!department) {
-      throw new OrganisationInviteServiceError(
-        "Department not found for the organisation.",
-        404,
-      );
-    }
-
-    return {
-      _id: department.id as unknown as SpecialityDocument["_id"],
-    };
-  }
-
-  const query = buildIdentifierLookup(departmentId);
-  const department = await SpecialityModel.findOne({
-    ...query,
+  const department = await findDepartmentByIdOrFhirId(
+    departmentId,
     organisationId,
-  }).setOptions({
-    sanitizeFilter: true,
-  });
+  );
 
   if (!department) {
     throw new OrganisationInviteServiceError(
@@ -394,7 +294,9 @@ const ensureDepartmentBelongsToOrganisation = async (
     );
   }
 
-  return department;
+  return {
+    id: department.id,
+  };
 };
 
 const ensureUserOrganizationMembership = async (
@@ -429,7 +331,7 @@ const ensureUserOrganizationMembership = async (
         "User already associated with organisation role; skipping duplicate creation.",
         {
           organisationId,
-          practitionerReference,
+          userId: maskIdentifier(practitionerReference),
           role,
         },
       );
@@ -444,19 +346,10 @@ const addUserToDepartment = async (
   department: DepartmentIdentity,
   userId: string,
 ) => {
-  if (isReadFromPostgres()) {
-    await prisma.speciality.update({
-      where: { id: department._id.toString() },
-      data: { memberUserIds: { push: userId } },
-    });
-    return;
-  }
-
-  await SpecialityModel.updateOne(
-    { _id: department._id },
-    { $addToSet: { memberUserIds: userId } },
-    { sanitizeFilter: true },
-  );
+  await prisma.speciality.update({
+    where: { id: department.id.toString() },
+    data: { memberUserIds: { push: userId } },
+  });
 };
 
 const buildAcceptInviteUrl = (token: string): string => {
@@ -514,14 +407,10 @@ const sendInviteEmail = async (params: {
   const acceptUrl = buildAcceptInviteUrl(params.invite.token);
   const declineUrl = buildDeclineInviteUrl(params.invite.token);
 
-  const inviter = isReadFromPostgres()
-    ? await prisma.user.findFirst({
-        where: { userId: params.invite.invitedByUserId },
-        select: { firstName: true, lastName: true, email: true },
-      })
-    : await UserModel.findOne({
-        userId: params.invite.invitedByUserId,
-      });
+  const inviter = await prisma.user.findFirst({
+    where: { userId: params.invite.invitedByUserId },
+    select: { firstName: true, lastName: true, email: true },
+  });
   await sendEmailTemplate({
     to: params.invite.inviteeEmail,
     templateId: "organisationInvite",
@@ -610,46 +499,7 @@ export const OrganisationInviteService = {
       ),
     );
 
-    if (isReadFromPostgres()) {
-      const invite = await createOrReplaceInvitePostgres({
-        organisationId,
-        departmentIds,
-        invitedByUserId,
-        inviteeEmail,
-        inviteeName,
-        role,
-        employmentType,
-      });
-
-      logger.info("Organisation invite created/replaced.", {
-        inviteId: invite.id,
-        organisationId,
-        inviteeEmail,
-      });
-
-      try {
-        await sendInviteEmail({
-          invite: {
-            token: invite.token,
-            inviteeEmail: invite.inviteeEmail,
-            inviteeName: invite.inviteeName ?? undefined,
-            invitedByUserId: invite.invitedByUserId,
-            expiresAt: invite.expiresAt,
-          },
-          organisation,
-        });
-      } catch (error) {
-        logger.error("Failed to send organisation invite email.", error);
-        throw new OrganisationInviteServiceError(
-          "Unable to send organisation invite email.",
-          502,
-        );
-      }
-
-      return buildInviteResponseFromPrisma(invite);
-    }
-
-    const invite = await OrganisationInviteModel.createOrReplaceInvite({
+    const invite = await createOrReplaceInvitePostgres({
       organisationId,
       departmentIds,
       invitedByUserId,
@@ -659,10 +509,8 @@ export const OrganisationInviteService = {
       employmentType,
     });
 
-    await syncOrganisationInviteToPostgres(invite);
-
     logger.info("Organisation invite created/replaced.", {
-      inviteId: invite._id?.toString(),
+      inviteId: invite.id,
       organisationId,
       inviteeEmail,
     });
@@ -686,7 +534,7 @@ export const OrganisationInviteService = {
       );
     }
 
-    return buildInviteResponse(invite);
+    return buildInviteResponseFromPrisma(invite);
   },
 
   async listOrganisationInvites(
@@ -698,74 +546,41 @@ export const OrganisationInviteService = {
     );
     await findOrganisationOrThrow(organisationId);
 
-    if (isReadFromPostgres()) {
-      const invites = await prisma.organisationInvite.findMany({
-        where: { organisationId },
-        orderBy: { createdAt: "desc" },
-      });
+    const invites = await prisma.organisationInvite.findMany({
+      where: { organisationId },
+      orderBy: { createdAt: "desc" },
+    });
 
-      return invites.map((invite) => buildInviteResponseFromPrisma(invite));
-    }
-
-    const invites = await OrganisationInviteModel.find({ organisationId })
-      .sort({ createdAt: -1 })
-      .setOptions({ sanitizeFilter: true });
-
-    return invites.map((invite) => buildInviteResponse(invite));
+    return invites.map((invite) => buildInviteResponseFromPrisma(invite));
   },
 
   async listPendingInvitesForEmail(email: string) {
     const safeEmail = requireString(email, "Invitee email").toLowerCase();
 
-    if (isReadFromPostgres()) {
-      const invites = await prisma.organisationInvite.findMany({
-        where: {
-          inviteeEmail: safeEmail,
-          status: "PENDING",
-          expiresAt: { gt: new Date(Date.now()) },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!invites.length) return [];
-
-      const results = [];
-      for (const invite of invites) {
-        const organisation = await prisma.organization.findFirst({
-          where: {
-            OR: [
-              { id: invite.organisationId },
-              { fhirId: invite.organisationId },
-            ],
-          },
-          select: { name: true, type: true },
-        });
-
-        results.push({
-          invite: buildInviteResponseFromPrisma(invite),
-          organisationName: organisation?.name,
-          organisationType: organisation?.type,
-        });
-      }
-
-      return results;
-    }
-
-    const invites = await OrganisationInviteModel.find({
-      inviteeEmail: safeEmail,
-      status: "PENDING",
-      expiresAt: { $gt: new Date(Date.now()) },
-    }).sort({ createdAt: -1 });
+    const invites = await prisma.organisationInvite.findMany({
+      where: {
+        inviteeEmail: safeEmail,
+        status: "PENDING",
+        expiresAt: { gt: new Date(Date.now()) },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     if (!invites.length) return [];
-    const results = [];
+
+    const results: Array<{
+      invite: OrganisationInviteResponse;
+      organisationName?: string;
+      organisationType?: string;
+    }> = [];
     for (const invite of invites) {
-      const organisation = await OrganizationModel.findOne({
-        _id: new Types.ObjectId(invite.organisationId),
-      });
+      const organisation = await findOrganisationByIdOrFhirId(
+        invite.organisationId,
+        { name: true, type: true },
+      );
 
       results.push({
-        invite: buildInviteResponse(invite),
+        invite: buildInviteResponseFromPrisma(invite),
         organisationName: organisation?.name,
         organisationType: organisation?.type,
       });
@@ -783,88 +598,19 @@ export const OrganisationInviteService = {
     const safeUserId = requireString(userId, "User identifier");
     const safeEmail = normalizeEmail(userEmail);
 
-    if (isReadFromPostgres()) {
-      const invite = await prisma.organisationInvite.findFirst({
-        where: { token: safeToken },
-      });
-
-      if (!invite) {
-        throw new OrganisationInviteServiceError("Invitation not found.", 404);
-      }
-      await assertInviteIsActionable(invite, safeEmail, () =>
-        prisma.organisationInvite.update({
-          where: { id: invite.id },
-          data: { status: "EXPIRED" },
-        }),
-      );
-
-      await findOrganisationOrThrow(invite.organisationId);
-      const departments = await Promise.all(
-        invite.departmentIds.map((departmentId) =>
-          ensureDepartmentBelongsToOrganisation(
-            departmentId,
-            invite.organisationId,
-          ),
-        ),
-      );
-
-      try {
-        await ensureUserOrganizationMembership(
-          invite.organisationId,
-          invite.role,
-          safeUserId,
-        );
-      } catch (error) {
-        if (error instanceof OrganisationInviteServiceError) {
-          throw error;
-        }
-        logger.error(
-          "Failed to ensure user-organisation membership during invite acceptance.",
-          error,
-        );
-        throw new OrganisationInviteServiceError(
-          "Unable to associate user with organisation.",
-          500,
-        );
-      }
-
-      const updatedInvite = await prisma.organisationInvite.update({
-        where: { id: invite.id },
-        data: {
-          status: "ACCEPTED",
-          acceptedAt: new Date(),
-        },
-      });
-
-      await Promise.all(
-        departments.map((department) =>
-          addUserToDepartment(department, safeUserId),
-        ),
-      );
-
-      logger.info("Organisation invite accepted.", {
-        inviteId: updatedInvite.id,
-        organisationId: updatedInvite.organisationId,
-        userId: safeUserId,
-      });
-
-      return buildInviteResponseFromPrisma(updatedInvite);
-    }
-
-    const invite = await OrganisationInviteModel.findOne({
-      token: safeToken,
-    }).setOptions({
-      sanitizeFilter: true,
+    const invite = await prisma.organisationInvite.findFirst({
+      where: { token: safeToken },
     });
 
     if (!invite) {
       throw new OrganisationInviteServiceError("Invitation not found.", 404);
     }
-    await assertInviteIsActionable(invite, safeEmail, async () => {
-      invite.status = "EXPIRED";
-      await invite.save();
-      await syncOrganisationInviteToPostgres(invite);
-    });
+    await assertInviteIsActionable(invite, safeEmail, () =>
+      prisma.organisationInvite.update({
+        where: { id: invite.id },
+        data: { status: "EXPIRED" },
+      }),
+    );
 
     await findOrganisationOrThrow(invite.organisationId);
     const departments = await Promise.all(
@@ -896,10 +642,13 @@ export const OrganisationInviteService = {
       );
     }
 
-    invite.status = "ACCEPTED";
-    invite.acceptedAt = new Date();
-    await invite.save();
-    await syncOrganisationInviteToPostgres(invite);
+    const updatedInvite = await prisma.organisationInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: "ACCEPTED",
+        acceptedAt: new Date(),
+      },
+    });
 
     await Promise.all(
       departments.map((department) =>
@@ -908,12 +657,12 @@ export const OrganisationInviteService = {
     );
 
     logger.info("Organisation invite accepted.", {
-      inviteId: invite._id?.toString(),
-      organisationId: invite.organisationId,
-      userId: safeUserId,
+      inviteId: updatedInvite.id,
+      organisationId: updatedInvite.organisationId,
+      userId: maskIdentifier(safeUserId),
     });
 
-    return buildInviteResponse(invite);
+    return buildInviteResponseFromPrisma(updatedInvite);
   },
 
   async rejectInvite({
@@ -925,65 +674,34 @@ export const OrganisationInviteService = {
     const safeUserId = requireString(userId, "User identifier");
     const safeEmail = normalizeEmail(userEmail);
 
-    if (isReadFromPostgres()) {
-      const invite = await prisma.organisationInvite.findFirst({
-        where: { token: safeToken },
-      });
-
-      if (!invite) {
-        throw new OrganisationInviteServiceError("Invitation not found.", 404);
-      }
-      await assertInviteIsActionable(invite, safeEmail, () =>
-        prisma.organisationInvite.update({
-          where: { id: invite.id },
-          data: { status: "EXPIRED" },
-        }),
-      );
-
-      const updatedInvite = await prisma.organisationInvite.update({
-        where: { id: invite.id },
-        data: {
-          status: "CANCELLED",
-          acceptedAt: null,
-        },
-      });
-
-      logger.info("Organisation invite rejected.", {
-        inviteId: updatedInvite.id,
-        organisationId: updatedInvite.organisationId,
-        userId: safeUserId,
-      });
-
-      return buildInviteResponseFromPrisma(updatedInvite);
-    }
-
-    const invite = await OrganisationInviteModel.findOne({
-      token: safeToken,
-    }).setOptions({
-      sanitizeFilter: true,
+    const invite = await prisma.organisationInvite.findFirst({
+      where: { token: safeToken },
     });
 
     if (!invite) {
       throw new OrganisationInviteServiceError("Invitation not found.", 404);
     }
-    await assertInviteIsActionable(invite, safeEmail, async () => {
-      invite.status = "EXPIRED";
-      await invite.save();
-      await syncOrganisationInviteToPostgres(invite);
-    });
+    await assertInviteIsActionable(invite, safeEmail, () =>
+      prisma.organisationInvite.update({
+        where: { id: invite.id },
+        data: { status: "EXPIRED" },
+      }),
+    );
 
-    // Mark as rejected
-    invite.status = "REJECTED" as InviteStatus;
-    invite.acceptedAt = undefined;
-    await invite.save();
-    await syncOrganisationInviteToPostgres(invite);
+    const updatedInvite = await prisma.organisationInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: "CANCELLED",
+        acceptedAt: null,
+      },
+    });
 
     logger.info("Organisation invite rejected.", {
-      inviteId: invite._id?.toString(),
-      organisationId: invite.organisationId,
-      userId: safeUserId,
+      inviteId: updatedInvite.id,
+      organisationId: updatedInvite.organisationId,
+      userId: maskIdentifier(safeUserId),
     });
 
-    return buildInviteResponse(invite);
+    return buildInviteResponseFromPrisma(updatedInvite);
   },
 };

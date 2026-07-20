@@ -15,6 +15,8 @@ type DropdownPanelProps = {
   handleKeyDown: (event: React.KeyboardEvent) => void;
   activeOptionId: string | undefined;
   filteredList: DropdownOption[];
+  /** Unfiltered option list. Part of the caller contract; the design's menu has
+   *  no per-row dividers, so the panel itself only renders `filteredList`. */
   list: DropdownOption[];
   setActiveIndex: (index: number) => void;
   selectOption: (option: DropdownOption) => void;
@@ -33,7 +35,6 @@ const DropdownPanel = ({
   handleKeyDown,
   activeOptionId,
   filteredList,
-  list,
   setActiveIndex,
   selectOption,
 }: DropdownPanelProps) => (
@@ -45,10 +46,11 @@ const DropdownPanel = ({
     style={shouldPortal ? (portalStyle ?? undefined) : undefined}
   >
     {search && (
-      <div className="h-12! rounded-2xl border! border-input-border-default! px-4! py-2! flex items-center justify-center">
+      <div className="select-input-dropdown-search">
         <label htmlFor={searchInputId} className="sr-only">
           Search {placeholder}
         </label>
+        <IoSearch size={13} color="var(--ink-faint)" className="shrink-0" aria-hidden="true" />
         <input
           id={searchInputId}
           type="search"
@@ -61,29 +63,21 @@ const DropdownPanel = ({
           }}
           aria-controls={listboxId}
           aria-activedescendant={activeOptionId}
-          className="border-0 text-[16px]! w-full px-2 focus-visible:outline-none"
           placeholder={`Search ${placeholder}`}
           autoComplete="off"
-        />
-        <IoSearch
-          size={22}
-          color="var(--color-neutral-200)"
-          className="cursor-pointer"
-          aria-hidden="true"
         />
       </div>
     )}
     {filteredList.map((option, index: number) => {
       const label: string = option.label ?? option.value ?? '';
       const valueToSend: string = option.value ?? option.label ?? '';
+      const isActive = activeOptionId === `${listboxId}-option-${valueToSend}`;
       return (
         <button
           key={valueToSend || label}
           id={`${listboxId}-option-${valueToSend}`}
           type="button"
-          className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'} ${
-            activeOptionId === `${listboxId}-option-${valueToSend}` ? 'bg-card-hover' : ''
-          }`}
+          className={`select-input-dropdown-item ${isActive ? 'select-input-dropdown-item-active' : ''}`}
           onMouseEnter={() => setActiveIndex(index)}
           onClick={() => selectOption(option)}
         >

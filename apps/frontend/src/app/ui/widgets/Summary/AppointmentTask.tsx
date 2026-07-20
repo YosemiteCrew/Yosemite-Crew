@@ -153,7 +153,7 @@ const AppointmentTask = () => {
   return (
     <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_ANY]}>
       <div className="summary-container pt-1">
-        <h2 className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+        <h2 className="text-[15px] font-bold tracking-[-0.02em] text-[var(--ink)]">
           Schedule{' '}
           <span className="font-medium text-[var(--ink-faint)]">
             ({activeTable === 'Appointments' ? appointments.length : tasks.length})
@@ -201,7 +201,7 @@ const AppointmentTask = () => {
         <div className="flex w-full justify-end">
           <Link
             href={activeTable === 'Appointments' ? '/appointments' : '/tasks'}
-            className="text-[12.5px] font-semibold text-[var(--blue-text)]"
+            className="text-[12px] font-semibold text-[var(--blue-text)]"
           >
             {activeTable === 'Appointments' ? 'Open appointments' : 'Open tasks'} &rarr;
           </Link>

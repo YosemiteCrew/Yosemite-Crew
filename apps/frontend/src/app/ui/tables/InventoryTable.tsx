@@ -17,6 +17,7 @@ import {
 import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { getSafeOrgImageUrl } from '@/app/lib/urls';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 import './DataTable.css';
 
@@ -45,7 +46,7 @@ const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Unit cost', align: 'right' },
   { label: 'Selling', align: 'right' },
   { label: 'Margin', align: 'right' },
-  { label: 'Location' },
+  { label: 'Location', className: 'pl-3' },
   { label: '' },
 ];
 
@@ -72,12 +73,19 @@ const getImageFallback = (item: InventoryItem) => {
   return '💊';
 };
 
-const getInventoryImageSrc = (item: InventoryItem) =>
-  getSafeOrgImageUrl(item.basicInfo.imageUrl || item.imageUrl);
+// next/image throws when the host is outside next.config's allowlist. Inventory
+// images are org uploads stored as S3 keys, so anything that does not resolve to
+// the org CDN falls back to the category emoji instead of taking the page down.
+const ORG_IMAGE_URL_PREFIX = MEDIA_SOURCES.organization.fromS3Key('');
+
+const getInventoryImageSrc = (item: InventoryItem) => {
+  const src = getSafeOrgImageUrl(item.basicInfo.imageUrl || item.imageUrl);
+  return src.startsWith(ORG_IMAGE_URL_PREFIX) ? src : '';
+};
 
 const StatusPill = ({ label }: { label: string }) => (
   <span
-    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] whitespace-nowrap"
+    className="inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase whitespace-nowrap"
     style={getInventoryStatusStyle(label)}
   >
     {label}
@@ -96,7 +104,7 @@ const ProductCell = ({ item }: { item: InventoryItem }) => {
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-[13px] font-bold leading-tight text-text-primary">
+        <div className="truncate text-[13.5px] font-bold leading-tight text-[var(--ink)]">
           {item.basicInfo.name}
         </div>
         <div className="text-[11px] tabular-nums text-text-tertiary">{getSku(item)}</div>
@@ -174,7 +182,7 @@ const InventoryRow = ({
       >
         {formatPercentValue(margin)}
       </div>
-      <div className="truncate text-[12.5px] text-blue-text">
+      <div className="truncate pl-3 text-[12.5px] text-blue-text">
         {displayValue(item.stock.stockLocation)}
       </div>
       <div className="flex items-center justify-center gap-1.5">

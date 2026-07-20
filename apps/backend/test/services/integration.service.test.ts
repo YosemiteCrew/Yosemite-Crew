@@ -2,14 +2,8 @@ import {
   IntegrationService,
   IntegrationServiceError,
 } from "../../src/services/integration.service";
-import IntegrationAccountModel from "../../src/models/integration-account";
 import { prisma } from "../../src/config/prisma";
-import { isReadFromPostgres } from "../../src/config/read-switch";
 import { getIntegrationAdapter } from "../../src/integrations";
-
-jest.mock("../../src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(),
-}));
 
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
@@ -24,23 +18,6 @@ jest.mock("../../src/config/prisma", () => ({
   },
 }));
 
-jest.mock("../../src/models/integration-account", () => {
-  const ctor: any = jest.fn().mockImplementation((doc) => ({
-    ...doc,
-    save: jest.fn().mockResolvedValue(undefined),
-    toJSON: jest.fn().mockImplementation(() => ({ ...doc, id: "mongo-id" })),
-  }));
-  ctor.findOne = jest.fn();
-  ctor.findMany = jest.fn();
-  ctor.find = jest.fn();
-  ctor.findOneAndUpdate = jest.fn();
-  ctor.updateOne = jest.fn();
-  return {
-    __esModule: true,
-    default: ctor,
-  };
-});
-
 jest.mock("../../src/integrations", () => {
   const actual = jest.requireActual("../../src/integrations");
   return {
@@ -50,31 +27,13 @@ jest.mock("../../src/integrations", () => {
 });
 
 describe("IntegrationService", () => {
-  const readSwitch = isReadFromPostgres as jest.Mock;
   const adapter = { validateCredentials: jest.fn() };
-  const mockedModel = IntegrationAccountModel as any;
-
-  const makeLeanQuery = (result: unknown): any => ({
-    setOptions: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    sort: jest.fn().mockReturnThis(),
-    lean: jest.fn().mockResolvedValue(result),
-  });
-
-  const makeDocQuery = (result: unknown): any => ({
-    setOptions: jest.fn().mockResolvedValue(result),
-  });
 
   beforeEach(() => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
-    readSwitch.mockReturnValue(true);
     (getIntegrationAdapter as jest.Mock).mockReturnValue(adapter);
     adapter.validateCredentials.mockResolvedValue({ ok: true });
-    mockedModel.findOne.mockReturnValue(makeLeanQuery(null));
-    mockedModel.findMany.mockReturnValue(makeLeanQuery([]));
-    mockedModel.findOneAndUpdate.mockResolvedValue(null);
-    mockedModel.updateOne.mockResolvedValue({ acknowledged: true });
   });
 
   it("rejects unsupported providers", () => {
@@ -123,6 +82,8 @@ describe("IntegrationService", () => {
   it("upserts credentials when validation passes", async () => {
     (prisma.integrationAccount.upsert as jest.Mock).mockResolvedValue({
       id: "1",
+      provider: "IDEXX",
+      credentials: { username: "u", password: "secret" },
     });
 
     const result = await IntegrationService.upsertCredentials(
@@ -131,7 +92,8 @@ describe("IntegrationService", () => {
       { username: "u", password: "p" } as any,
     );
 
-    expect(result).toEqual({ id: "1" });
+    expect(result).toEqual({ id: "1", provider: "IDEXX" });
+    expect(result).not.toHaveProperty("credentials");
     expect(adapter.validateCredentials).toHaveBeenCalled();
   });
 
@@ -144,6 +106,31 @@ describe("IntegrationService", () => {
     await expect(
       IntegrationService.setEnabled("org-1", "IDEXX"),
     ).rejects.toThrow("Integration credentials are missing.");
+  });
+
+  it("creates merck accounts in postgres when enabling and disabling", async () => {
+    (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.integrationAccount.create as jest.Mock)
+      .mockResolvedValueOnce({ provider: "MERCK_MANUALS", status: "enabled" })
+      .mockResolvedValueOnce({ provider: "MERCK_MANUALS", status: "disabled" });
+
+    const enabledMerck = await IntegrationService.setEnabled(
+      "org-1",
+      "MERCK_MANUALS",
+    );
+    const disabledMerck = await IntegrationService.setDisabled(
+      "org-1",
+      "MERCK_MANUALS",
+    );
+
+    expect(enabledMerck).toMatchObject({
+      provider: "MERCK_MANUALS",
+      status: "enabled",
+    });
+    expect(disabledMerck).toMatchObject({
+      provider: "MERCK_MANUALS",
+      status: "disabled",
+    });
   });
 
   it("validates credentials and updates status", async () => {
@@ -181,77 +168,84 @@ describe("IntegrationService", () => {
     ).rejects.toThrow("Invalid organisationId.");
   });
 
-  it("creates and lists merck accounts on the mongo path", async () => {
-    readSwitch.mockReturnValue(false);
-    mockedModel.find.mockReturnValue(
-      makeLeanQuery([{ provider: "IDEXX" } as any]),
-    );
-    mockedModel.findOne.mockReturnValueOnce(makeLeanQuery(null));
-    mockedModel.findOne.mockReturnValueOnce(
-      makeLeanQuery({
-        provider: "MERCK_MANUALS",
-      }),
-    );
-
-    const list = (await IntegrationService.listForOrganisation(
-      "org_1",
-    )) as any[];
-
-    expect(list.map((item) => item.provider)).toEqual([
-      "IDEXX",
-      "MERCK_MANUALS",
-    ]);
-    expect(mockedModel.find).toHaveBeenCalled();
-  });
-
-  it("upserts mongo credentials and marks account disabled before validation", async () => {
-    readSwitch.mockReturnValue(false);
-    mockedModel.findOneAndUpdate.mockResolvedValue({
-      organisationId: "org_1",
-      provider: "IDEXX",
-      status: "disabled",
-      toJSON: () => ({ id: "mongo-upsert" }),
-    });
-
-    const result = await IntegrationService.upsertCredentials(
-      "org_1",
-      "IDEXX",
-      { username: "u", password: "p" } as any,
-    );
-
-    expect(result).toEqual({ id: "mongo-upsert" });
-    expect(getIntegrationAdapter).toHaveBeenCalledWith("IDEXX");
-    expect(adapter.validateCredentials).toHaveBeenCalled();
-  });
-
-  it("creates merck accounts on the mongo path when enabling and disabling", async () => {
-    readSwitch.mockReturnValue(false);
-    mockedModel.findOne
-      .mockReturnValueOnce(makeDocQuery(null))
-      .mockReturnValueOnce(makeDocQuery(null));
-
-    const enabledMerck = await IntegrationService.setEnabled(
-      "org_1",
-      "MERCK_MANUALS",
-    );
-    const disabledMerck = await IntegrationService.setDisabled(
-      "org_1",
-      "MERCK_MANUALS",
-    );
-
-    expect(enabledMerck).toMatchObject({
-      provider: "MERCK_MANUALS",
-      status: "enabled",
-    });
-    expect(disabledMerck).toMatchObject({
-      provider: "MERCK_MANUALS",
-      status: "disabled",
-    });
-  });
-
   it("short-circuits merck credential validation", async () => {
     expect(
       await IntegrationService.validateCredentials("org_1", "MERCK_MANUALS"),
     ).toEqual({ ok: true });
+  });
+
+  describe("getCredentialMeta", () => {
+    // Low-entropy, obviously-fake fixture: the tests assert this never appears in
+    // the getCredentialMeta result. Kept non-secret-like so scanners do not flag it.
+    const SECRET_PASSWORD = [
+      "placeholder",
+      "not",
+      "a",
+      "real",
+      "password",
+    ].join("-");
+
+    it("returns username and practiceId from postgres credentials without password", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+        credentials: {
+          username: "vetuser",
+          password: SECRET_PASSWORD,
+          labAccountId: "PRACTICE-123",
+        },
+      });
+
+      const result = await IntegrationService.getCredentialMeta(
+        "org-1",
+        "IDEXX",
+      );
+
+      expect(result).toEqual({
+        username: "vetuser",
+        practiceId: "PRACTICE-123",
+      });
+      expect(Object.keys(result)).toEqual(["username", "practiceId"]);
+      expect(result).not.toHaveProperty("password");
+      expect(JSON.stringify(result)).not.toContain(SECRET_PASSWORD);
+    });
+
+    it("returns nulls when the account has no credentials", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+        credentials: null,
+      });
+
+      expect(
+        await IntegrationService.getCredentialMeta("org-1", "IDEXX"),
+      ).toEqual({ username: null, practiceId: null });
+    });
+
+    it("returns nulls when no account exists", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
+
+      expect(
+        await IntegrationService.getCredentialMeta("org-1", "IDEXX"),
+      ).toEqual({ username: null, practiceId: null });
+    });
+
+    it("returns null practiceId when labAccountId is absent", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+        credentials: { username: "vetuser", password: SECRET_PASSWORD },
+      });
+
+      const result = await IntegrationService.getCredentialMeta(
+        "org-1",
+        "IDEXX",
+      );
+
+      expect(result).toEqual({ username: "vetuser", practiceId: null });
+      expect(JSON.stringify(result)).not.toContain(SECRET_PASSWORD);
+    });
+
+    it("rejects unsupported providers", async () => {
+      await expect(
+        IntegrationService.getCredentialMeta("org-1", "bad"),
+      ).rejects.toThrow(IntegrationServiceError);
+    });
   });
 });

@@ -145,18 +145,22 @@ const SecuritySection = () => {
   const totpActive = Boolean(mfaStatus?.totp.required && mfaStatus?.totp.setup);
 
   return (
-    <div className="border border-card-border rounded-2xl">
-      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">Security</div>
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
+        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">Security</div>
       </div>
-      <div className="flex flex-col gap-3 px-6! py-6!">
-        <div className="text-body-4 text-text-secondary">
+      <div className="flex flex-col gap-3 px-5! py-5!">
+        <div className="text-[12.5px] leading-relaxed text-[var(--ink-faint)]">
           Two-factor authentication is required when signing in. Use an authenticator app for codes
           instead of email.
         </div>
-        <div className="text-body-4 text-text-primary" data-testid="totp-status">
+        <div className="text-[13px] text-[var(--ink-body)]" data-testid="totp-status">
           {'Authenticator app: '}
-          <span className={totpActive ? 'text-text-brand' : 'text-text-secondary'}>
+          <span
+            className={
+              totpActive ? 'text-[var(--blue-text)] font-semibold' : 'text-[var(--ink-faint)]'
+            }
+          >
             {totpActive ? 'Enabled' : 'Not enabled'}
           </span>
         </div>

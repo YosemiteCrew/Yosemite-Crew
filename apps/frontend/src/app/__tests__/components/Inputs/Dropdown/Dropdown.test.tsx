@@ -72,7 +72,7 @@ describe('Dropdown Component', () => {
     render(<Dropdown placeholder="Select Item" value="" onChange={mockOnChange} />);
 
     expect(screen.getByText('Select Item')).toBeInTheDocument();
-    expect(screen.queryByTestId('IoCaretDown')).toBeInTheDocument();
+    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument();
   });
 
   it('renders with a selected value (String option)', () => {
@@ -116,7 +116,7 @@ describe('Dropdown Component', () => {
     fireEvent.click(button);
     // Should not open (query for dropdown content should fail)
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument(); // assuming standard role or just absence of options
-    expect(screen.queryByTestId('IoCaretDown')).toBeInTheDocument(); // Icon stays
+    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument(); // Icon stays
   });
 
   // --- 2. Interaction: Opening & Closing ---
@@ -394,6 +394,47 @@ describe('Dropdown Component', () => {
     expect(screen.getByText('Banana')).toBeInTheDocument();
     expect(screen.queryByText('Apple')).not.toBeInTheDocument();
     expect(screen.queryByText('Cherry')).not.toBeInTheDocument();
+  });
+
+  it('lets Space type into the search box instead of selecting', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Golden Retriever', 'Great Dane']}
+        search={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    const searchInput = screen.getByPlaceholderText('Search Select');
+
+    const spaceEvent = fireEvent.keyDown(searchInput, { key: ' ' });
+
+    // Space must reach the input as text; selecting here would both close the
+    // dropdown and make multi-word queries impossible to type.
+    expect(spaceEvent).toBe(true);
+    expect(mockOnChange).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Search Select')).toBeInTheDocument();
+  });
+
+  it('still selects on Space from the trigger button', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Apple', 'Banana']}
+        search={true}
+      />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: ' ' });
+
+    expect(mockOnChange).toHaveBeenCalledWith('Apple');
   });
 
   it('clears search query upon selection', () => {

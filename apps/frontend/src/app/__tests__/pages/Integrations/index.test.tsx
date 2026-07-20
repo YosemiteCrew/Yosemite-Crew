@@ -317,6 +317,9 @@ describe('IntegrationsPage — default disabled render', () => {
     expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
+    // The credentials surface is behind the modal, closed on first render.
+    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument();
+
     // "All" tab is active; the others are not.
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Connected' })).toHaveAttribute(
@@ -346,6 +349,9 @@ describe('IntegrationsPage — default disabled render', () => {
     expect(
       within(modal).getByText('No linked IVLS devices found for this organization.')
     ).toBeInTheDocument();
+    // Recent orders section renders its empty message while IDEXX is disabled.
+    expect(within(modal).getByText('Recent orders')).toBeInTheDocument();
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
   });
 
   it('closes the settings modal via the Close control', async () => {
@@ -452,6 +458,59 @@ describe('IntegrationsPage — enabled render', () => {
     expect(within(modal).getByText('SN-2')).toBeInTheDocument();
     expect(within(modal).getByText('Unknown')).toBeInTheDocument(); // '' vcpActivatedStatus fallback
     expect(within(modal).getAllByText('Not available').length).toBeGreaterThanOrEqual(1);
+    await flush();
+  });
+
+  it('renders recent orders in the modal with label and pill branches', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        status: 'RUNNING',
+      },
+      {
+        _id: 'o2',
+        idexxOrderId: 'IDX-2',
+        patientName: '',
+        tests: ['pre-surgical CBC'],
+        status: 'RESULTED',
+      },
+      { idexxOrderId: 'IDX-3', patientName: '', tests: [], status: '' },
+    ]);
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() =>
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1' })
+    );
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    // name + tests, tests-only, and id-fallback label branches.
+    expect(within(modal).getByText('Poppy · ear cytology')).toBeInTheDocument();
+    expect(within(modal).getByText('pre-surgical CBC')).toBeInTheDocument();
+    expect(within(modal).getByText('Order IDX-3')).toBeInTheDocument();
+    // running / resulted / neutral(empty→Pending) pill branches.
+    expect(within(modal).getByText('Running')).toBeInTheDocument();
+    expect(within(modal).getByText('Resulted')).toBeInTheDocument();
+    expect(within(modal).getByText('Pending')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('swallows recent-orders load failures without surfacing an error', async () => {
+    listIdexxOrdersMock.mockRejectedValue(new Error('orders down'));
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() => expect(listIdexxOrdersMock).toHaveBeenCalled());
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
+    // The orders failure is intentionally swallowed — no page alert.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await flush();
   });
 

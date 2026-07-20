@@ -174,7 +174,10 @@ describe('Details Component', () => {
   it('restricts category options to canonical structures for YC default templates', () => {
     render(
       <Details
-        formData={{ ...defaultFormData, templateSource: 'YC_LIBRARY' }}
+        // A real YC-default template's category is one of the curated five; using
+        // that here keeps the "own saved category is always appended" guard (see
+        // the retained-category test below) from adding an extra option.
+        formData={{ ...defaultFormData, templateSource: 'YC_LIBRARY', category: 'SOAP' }}
         setFormData={mockSetFormData}
         onNext={mockOnNext}
         serviceOptions={serviceOptions}
@@ -190,6 +193,82 @@ describe('Details Component', () => {
     expect(categoryOptions).not.toHaveTextContent('Vitals');
     expect(categoryOptions).not.toHaveTextContent('Custom');
     expect(categoryOptions).not.toHaveTextContent('Inpatient Schedule');
+  });
+
+  it('keeps the template own saved category selectable when it is outside the offering', () => {
+    // Vitals is not one of the five curated YC-default categories, but it is this
+    // template's saved value. A controlled dropdown can only display a value that
+    // is present in its options, so the saved category must remain selectable
+    // (otherwise the Category field reads as blank when editing).
+    render(
+      <Details
+        formData={{ ...defaultFormData, templateSource: 'YC_LIBRARY', category: 'Vitals' }}
+        setFormData={mockSetFormData}
+        onNext={mockOnNext}
+        serviceOptions={serviceOptions}
+      />
+    );
+
+    expect(screen.getByTestId('dropdown-options-Category')).toHaveTextContent('Vitals');
+    expect(screen.getByTestId('dropdown-option-Category-Vitals')).toBeInTheDocument();
+  });
+
+  it('drops the library-backed identity when converting a YC default template to Custom', () => {
+    const setFormData = jest.fn();
+    const ycTemplate = {
+      ...defaultFormData,
+      templateSource: 'YC_LIBRARY',
+      category: 'SOAP',
+      _id: 'lib-1',
+      templateId: 'lib-1',
+    } as FormsProps;
+    render(
+      <Details
+        formData={ycTemplate}
+        setFormData={setFormData}
+        onNext={mockOnNext}
+        serviceOptions={serviceOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('dropdown-option-Template Source-CUSTOM'));
+    const updater = setFormData.mock.calls.at(-1)?.[0];
+    const next = typeof updater === 'function' ? updater(ycTemplate) : updater;
+    // Clearing the ids makes the save POST a new org-owned copy instead of
+    // PATCHing the un-writable shared library record (which 403s on publish).
+    expect(next).toEqual(
+      expect.objectContaining({
+        templateSource: 'ORG_TEMPLATE',
+        isTemplateBacked: false,
+        templateId: undefined,
+        _id: undefined,
+      })
+    );
+  });
+
+  it('keeps the id when re-selecting Custom on an already org-owned template', () => {
+    const setFormData = jest.fn();
+    const orgTemplate = {
+      ...defaultFormData,
+      templateSource: 'ORG_TEMPLATE',
+      _id: 'org-1',
+      templateId: 'org-1',
+    } as FormsProps;
+    render(
+      <Details
+        formData={orgTemplate}
+        setFormData={setFormData}
+        onNext={mockOnNext}
+        serviceOptions={serviceOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('dropdown-option-Template Source-CUSTOM'));
+    const updater = setFormData.mock.calls.at(-1)?.[0];
+    const next = typeof updater === 'function' ? updater(orgTemplate) : updater;
+    expect(next.templateId).toBe('org-1');
+    expect(next._id).toBe('org-1');
+    expect(next.templateSource).toBe('ORG_TEMPLATE');
   });
 
   it('keeps the full hospital category set for custom templates', () => {

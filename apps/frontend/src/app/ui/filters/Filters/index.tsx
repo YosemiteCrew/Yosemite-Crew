@@ -8,27 +8,20 @@ import { IoAdd, IoChevronDown, IoWarning } from 'react-icons/io5';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
-const getFilterClassName = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
-  if (filterKey === 'emergencies') return 'text-danger-500!';
-  return 'bg-[var(--inset)] text-[var(--ink)]! font-semibold';
+// Design filter-chip recipe (list toolbars): pill, 6px 11px, 11px text (measured).
+// Neutral: active = --inset fill + --divider border + --ink bold; rest = --hairline border + --ink-muted.
+// Emergency: always danger-toned (--danger-border/--danger-text); active adds --danger-bg fill.
+const getFilterChipClassName = (filterKey: string, activeFilter: string): string => {
+  const isActive = filterKey === activeFilter;
+  if (filterKey === 'emergencies') {
+    return isActive
+      ? 'bg-[var(--danger-bg)] border-[var(--danger-border)]! text-[var(--danger-text)]! font-bold'
+      : 'border-[var(--hairline)]! text-[var(--danger-text)]! font-semibold hover:border-[var(--danger-border)]!';
+  }
+  return isActive
+    ? 'bg-[var(--inset)] border-[var(--divider)]! text-[var(--ink)]! font-bold'
+    : 'border-[var(--hairline)]! text-[var(--ink-muted)]! font-semibold hover:border-[var(--divider)]!';
 };
-
-const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter) return 'var(--color-card-border)';
-  if (filterKey === 'emergencies') return 'var(--color-danger-500)';
-  return 'var(--divider)';
-};
-
-const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
-  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  borderRadius: '16px',
-  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
-  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
-});
 
 type FiltersProps = {
   filterOptions?: FilterOption[];
@@ -122,36 +115,23 @@ const Filters = ({
         <div className="flex items-center gap-2 flex-wrap">
           {filterOptions?.map((filter) => {
             const isEmergency = filter.key === 'emergencies';
-            const isActiveEmergency = isEmergency && filter.key === activeFilter;
-            const emergencyColor = isActiveEmergency
-              ? 'var(--color-semantic-error-700)'
-              : 'var(--color-neutral-700)';
             return (
               <button
                 key={filter.key}
                 type="button"
                 onClick={() => handleFilterToggle(filter.key)}
                 className={clsx(
-                  'relative inline-flex items-center justify-center text-body-4 px-3 rounded-2xl! border! transition-all duration-300',
-                  compactFilterPills ? 'h-9 min-w-fit' : 'h-12 min-w-20',
-                  isEmergency ? 'gap-2' : getFilterClassName(filter.key, activeFilter ?? '')
+                  'relative inline-flex items-center justify-center gap-1.5 rounded-full! border text-[11px] transition-colors',
+                  compactFilterPills ? 'px-3 py-1' : 'px-[11px] py-1.5',
+                  getFilterChipClassName(filter.key, activeFilter ?? '')
                 )}
-                style={
-                  isEmergency
-                    ? getEmergencyPillStyle(isActiveEmergency)
-                    : {
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-                      }
-                }
               >
                 {isEmergency && (
                   <IoWarning
-                    size={18}
+                    size={14}
                     aria-hidden="true"
                     className="shrink-0"
-                    color={emergencyColor}
+                    color="var(--danger-text)"
                   />
                 )}
                 <span>{filter.name}</span>
@@ -160,8 +140,8 @@ const Filters = ({
                     aria-label="Emergency appointments present"
                     className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
                     style={{
-                      backgroundColor: 'var(--color-semantic-error-700)',
-                      outline: '2px solid white',
+                      backgroundColor: 'var(--danger)',
+                      outline: '2px solid var(--screen)',
                     }}
                   />
                 )}
@@ -179,7 +159,7 @@ const Filters = ({
               ref={triggerRef}
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[11px] py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] transition-colors"
               style={
                 showStatusTint
                   ? {

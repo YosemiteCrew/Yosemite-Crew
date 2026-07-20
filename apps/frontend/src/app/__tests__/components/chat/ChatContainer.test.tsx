@@ -377,6 +377,35 @@ describe('ChatContainer', () => {
     );
   });
 
+  it('does not reset the selection when only the onChannelSelect identity changes', async () => {
+    const { rerender } = render(
+      <ChatContainer scope="clients" onChannelSelect={() => undefined} />
+    );
+
+    await act(async () => {
+      rerender(<ChatContainer scope="clients" onChannelSelect={() => undefined} />);
+    });
+
+    // Callers pass an inline arrow, so a fresh identity arrives on every parent
+    // render; only a scope change may clear the active channel.
+    expect(screen.queryByText('Your conversations live here')).not.toBeInTheDocument();
+  });
+
+  it('clears the selection through the latest callback when the scope changes', async () => {
+    const firstCallback = jest.fn();
+    const latestCallback = jest.fn();
+    const { rerender } = render(
+      <ChatContainer scope="colleagues" onChannelSelect={firstCallback} />
+    );
+
+    await act(async () => {
+      rerender(<ChatContainer scope="clients" onChannelSelect={latestCallback} />);
+    });
+
+    await waitFor(() => expect(latestCallback).toHaveBeenCalledWith(null));
+    expect(firstCallback).not.toHaveBeenCalled();
+  });
+
   it('searches and starts direct chat (creates new)', async () => {
     // Force queryChannels to return empty so it doesn't find existing chat
     mockClient.queryChannels.mockResolvedValue([]);
@@ -833,10 +862,7 @@ describe('ChatContainer', () => {
     const switcher = screen.getByRole('group', { name: 'Chat audience' });
     expect(switcher).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clients' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Colleagues' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    expect(screen.getByRole('button', { name: 'Team' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('routes Send form to the invoice workspace step', async () => {
@@ -1995,12 +2021,16 @@ describe('ChatContainer', () => {
         fireEvent.click(screen.getByText('Mobile Row'));
       });
 
-      const backBtn = await screen.findByText(/Back/);
+      // The phone thread renders one unified header bar whose round back control
+      // (aria "Back to conversations") returns to the list.
+      const backBtn = await screen.findByLabelText('Back to conversations');
       await act(async () => {
         fireEvent.click(backBtn);
       });
 
-      await waitFor(() => expect(screen.queryByText(/Back/)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Back to conversations')).not.toBeInTheDocument()
+      );
     } finally {
       Object.defineProperty(globalThis, 'innerWidth', {
         value: originalWidth,

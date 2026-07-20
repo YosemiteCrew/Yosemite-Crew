@@ -13,7 +13,7 @@ describe('getOrganizationStatusStyle', () => {
   it("returns the warning style for 'Pending'", () => {
     expect(getOrganizationStatusStyle('Pending')).toEqual({
       color: 'var(--color-warning-600)',
-      backgroundColor: '#FEF3E9',
+      backgroundColor: 'var(--color-warning-100)',
     });
   });
 

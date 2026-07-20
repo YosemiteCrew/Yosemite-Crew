@@ -217,6 +217,52 @@ jest.mock('@/shared/components/common/Header/Header', () => ({
 }));
 
 jest.mock(
+  '@/features/tasks/components/TaskDeleteBottomSheet/TaskDeleteBottomSheet',
+  () => ({
+    TaskDeleteBottomSheet: require('react').forwardRef(
+      ({onDeleteAll, onDeleteForDay}: any, _ref: any) => {
+        const {View, Text, TouchableOpacity} = require('react-native');
+        return (
+          <View>
+            <TouchableOpacity
+              testID="confirm-delete-all-btn"
+              onPress={onDeleteAll}>
+              <Text>Delete All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="confirm-delete-day-btn"
+              onPress={onDeleteForDay}>
+              <Text>Delete For Day</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      },
+    ),
+  }),
+);
+
+jest.mock(
+  '@/features/tasks/components/TaskSaveOptionsBottomSheet/TaskSaveOptionsBottomSheet',
+  () => ({
+    TaskSaveOptionsBottomSheet: require('react').forwardRef(
+      ({onSaveAll, onSaveForDay}: any, _ref: any) => {
+        const {View, Text, TouchableOpacity} = require('react-native');
+        return (
+          <View>
+            <TouchableOpacity testID="save-all-btn" onPress={onSaveAll}>
+              <Text>Save All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID="save-for-day-btn" onPress={onSaveForDay}>
+              <Text>Save For Day</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      },
+    ),
+  }),
+);
+
+jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
   () => ({
     ConfirmActionBottomSheet: require('react').forwardRef(
@@ -625,27 +671,68 @@ describe('EditTaskScreen — additional coverage', () => {
   // -------------------------------------------------------------------------
 
   describe('handleSave — recurring tasks', () => {
-    it('calls updateTask directly for daily frequency', async () => {
+    it.each(['daily', 'weekly', 'monthly'])(
+      'asks for the change scope instead of saving straight away (%s)',
+      async frequency => {
+        Object.assign(mockHookData, {
+          task: {id: 't1', title: 'Task', companionId: 'c1', frequency},
+        });
+
+        const {getByTestId} = renderScreen();
+        fireEvent.press(getByTestId('save-btn'));
+
+        // The scope sheet is offered; nothing is written until an option is picked.
+        expect(getByTestId('save-all-btn')).toBeTruthy();
+        expect(getByTestId('save-for-day-btn')).toBeTruthy();
+        await waitFor(() => {
+          expect(mockUpdateTask).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it('saves once a scope is chosen', async () => {
       Object.assign(mockHookData, {
         task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
       });
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('save-btn'));
+      fireEvent.press(getByTestId('save-all-btn'));
 
       await waitFor(() => {
         expect(mockUpdateTask).toHaveBeenCalled();
       });
     });
 
-    it('calls updateTask directly for weekly frequency', async () => {
+    it('surfaces an error when saving a chosen scope rejects', async () => {
+      const error = new Error('Save failed');
+      mockUnwrap.mockRejectedValue(error);
+      mockUpdateTask.mockReturnValue({unwrap: mockUnwrap});
       Object.assign(mockHookData, {
-        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'weekly'},
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
       });
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('save-btn'));
+      fireEvent.press(getByTestId('save-for-day-btn'));
 
+      await waitFor(() => {
+        expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
+          'Unable to update task',
+          error,
+        );
+      });
+    });
+
+    it('does not offer a scope choice for a one-off task', async () => {
+      Object.assign(mockHookData, {
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'once'},
+      });
+
+      const {queryByTestId, getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      expect(queryByTestId('save-all-btn')).toBeNull();
       await waitFor(() => {
         expect(mockUpdateTask).toHaveBeenCalled();
       });
@@ -868,7 +955,25 @@ describe('EditTaskScreen — additional coverage', () => {
       });
     });
 
-    it('shows confirm sheet and calls deleteTask regardless of task frequency', async () => {
+    it('asks for the delete scope on a recurring task instead of deleting straight away', async () => {
+      Object.assign(mockHookData, {
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
+      });
+      setupDispatch();
+
+      const {getByTestId, queryByTestId} = renderScreen();
+      fireEvent.press(getByTestId('header-delete-btn'));
+
+      // The plain single-action confirm must not stand in for the scope choice.
+      expect(queryByTestId('confirm-primary-btn')).toBeNull();
+      expect(getByTestId('confirm-delete-all-btn')).toBeTruthy();
+      expect(getByTestId('confirm-delete-day-btn')).toBeTruthy();
+      await waitFor(() => {
+        expect(mockDeleteTask).not.toHaveBeenCalled();
+      });
+    });
+
+    it('deletes a recurring task once a scope is chosen', async () => {
       Object.assign(mockHookData, {
         task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
       });
@@ -876,7 +981,7 @@ describe('EditTaskScreen — additional coverage', () => {
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('header-delete-btn'));
-      fireEvent.press(getByTestId('confirm-primary-btn'));
+      fireEvent.press(getByTestId('confirm-delete-all-btn'));
 
       await waitFor(() => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
@@ -939,6 +1044,70 @@ describe('EditTaskScreen — additional coverage', () => {
           'Unable to delete task',
           error,
         );
+      });
+    });
+
+    it('calls showErrorAlert when deleting all occurrences rejects', async () => {
+      const error = new Error('Delete failed');
+      mockUnwrap.mockRejectedValue(error);
+      mockDeleteTask.mockReturnValue({unwrap: mockUnwrap});
+      mockHookData.task = {
+        id: 't1',
+        title: 'Task',
+        companionId: 'c1',
+        frequency: 'daily',
+      };
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('confirm-delete-all-btn'));
+
+      await waitFor(() => {
+        expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
+          'Unable to delete task',
+          error,
+        );
+      });
+    });
+
+    it('calls showErrorAlert when deleting this day only rejects', async () => {
+      const error = new Error('Delete failed');
+      mockUnwrap.mockRejectedValue(error);
+      mockDeleteTask.mockReturnValue({unwrap: mockUnwrap});
+      mockHookData.task = {
+        id: 't1',
+        title: 'Task',
+        companionId: 'c1',
+        frequency: 'daily',
+      };
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+
+      await waitFor(() => {
+        expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
+          'Unable to delete task for this day',
+          error,
+        );
+      });
+    });
+  });
+
+  describe('recurring delete — this day only', () => {
+    it('deletes the task when the this-day-only scope is chosen', async () => {
+      Object.assign(mockHookData, {
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'weekly'},
+      });
+      setupDispatch();
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('header-delete-btn'));
+      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+
+      await waitFor(() => {
+        expect(mockDeleteTask).toHaveBeenCalledWith({
+          taskId: 't1',
+          companionId: 'c1',
+        });
       });
     });
   });

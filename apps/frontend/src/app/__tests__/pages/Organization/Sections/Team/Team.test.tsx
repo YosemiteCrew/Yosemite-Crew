@@ -19,24 +19,6 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock(
-  '@/app/ui/tables/AvailabilityTable',
-  () =>
-    ({ setActive, setView, filteredList }: any) => (
-      <div data-testid="availability-table">
-        <button
-          type="button"
-          onClick={() => {
-            setActive(filteredList[0]);
-            setView(true);
-          }}
-        >
-          open-first
-        </button>
-      </div>
-    )
-);
-
 jest.mock('@/app/features/organization/pages/Organization/Sections/Team/AddTeam', () => () => (
   <div data-testid="add-team" />
 ));
@@ -52,11 +34,64 @@ describe('Team section', () => {
     usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
   });
 
-  it('renders the team table and member count', () => {
+  it('renders the design team table with member count and a member row', () => {
     render(<Team isVerified={true} />);
 
-    expect(screen.getByTestId('availability-table')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Team/ })).toHaveTextContent('(1)');
+    expect(screen.getByText('Alex')).toBeInTheDocument();
+    expect(screen.getByText('Member')).toBeInTheDocument();
+    expect(screen.getByText('Employment')).toBeInTheDocument();
+  });
+
+  it('renders role, employment and an uppercase status pill for a member', () => {
+    useTeamMock.mockReturnValue([
+      {
+        _id: 'team-1',
+        name: 'Dr. Sarah Weber',
+        role: 'VETERINARIAN',
+        status: 'Available',
+        employmentType: 'FULL_TIME',
+        speciality: [{ name: 'Small animals' }],
+      },
+    ]);
+    render(<Team isVerified={true} />);
+
+    expect(screen.getByText('Veterinarian')).toBeInTheDocument();
+    expect(screen.getByText('Full time')).toBeInTheDocument();
+    expect(screen.getByText('AVAILABLE')).toBeInTheDocument();
+    expect(screen.getByText('Small animals')).toBeInTheDocument();
+  });
+
+  it('maps a requested member to an INVITED status pill', () => {
+    useTeamMock.mockReturnValue([{ _id: 'team-1', name: 'Jules', status: 'Requested' }]);
+    render(<Team isVerified={true} />);
+
+    expect(screen.getByText('INVITED')).toBeInTheDocument();
+  });
+
+  it('renders a photo avatar and supports string specialities', () => {
+    useTeamMock.mockReturnValue([
+      {
+        _id: 'team-1',
+        name: 'Elif Kaya',
+        role: 'TECHNICIAN',
+        status: 'Available',
+        image: 'https://example.com/elif.png',
+        speciality: ['Vet tech'],
+      },
+    ]);
+    const { container } = render(<Team isVerified={true} />);
+
+    expect(container.querySelector('img')).toBeInTheDocument();
+    expect(screen.getByText('Vet tech')).toBeInTheDocument();
+  });
+
+  it('falls back to placeholder labels when member fields are missing', () => {
+    useTeamMock.mockReturnValue([{ _id: 'team-1' }]);
+    render(<Team isVerified={true} />);
+
+    expect(screen.getByText('Team member')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open team member details' })).toBeInTheDocument();
   });
 
   it('shows the invite button when verified and permitted', () => {
@@ -71,7 +106,7 @@ describe('Team section', () => {
   it('hides the invite button when not verified', () => {
     render(<Team isVerified={false} />);
 
-    expect(screen.getByTestId('availability-table')).toBeInTheDocument();
+    expect(screen.getByText('Alex')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Invite member/ })).not.toBeInTheDocument();
   });
 
@@ -85,17 +120,16 @@ describe('Team section', () => {
   it('defaults isVerified to false when the prop is omitted', () => {
     render(<Team />);
 
-    // Default false → invite hidden even though the user can edit.
     expect(screen.queryByRole('button', { name: /Invite member/ })).not.toBeInTheDocument();
-    expect(screen.getByTestId('availability-table')).toBeInTheDocument();
+    expect(screen.getByText('Alex')).toBeInTheDocument();
   });
 
-  it('renders no member-info modal when the team list is empty', () => {
+  it('renders the empty state and no member-info modal when the team list is empty', () => {
     useTeamMock.mockReturnValue([]);
     render(<Team isVerified={true} />);
 
-    // teams[0] ?? null → null initial and the effect returns null → activeTeam stays null.
     expect(screen.getByRole('heading', { name: /Team/ })).toHaveTextContent('(0)');
+    expect(screen.getByText('No team members yet.')).toBeInTheDocument();
     expect(screen.queryByTestId('team-info')).not.toBeInTheDocument();
   });
 
@@ -104,7 +138,6 @@ describe('Team section', () => {
     const { rerender } = render(<Team isVerified={true} />);
     expect(screen.queryByTestId('team-info')).not.toBeInTheDocument();
 
-    // Re-render with a populated list: prev is null (prev?._id falsy) → returns teams[0].
     useTeamMock.mockReturnValue([{ _id: 'team-9', name: 'Nova' }]);
     rerender(<Team isVerified={true} />);
     expect(screen.getByTestId('team-info')).toBeInTheDocument();
@@ -115,7 +148,6 @@ describe('Team section', () => {
     const { rerender } = render(<Team isVerified={true} />);
     expect(screen.getByTestId('team-info')).toBeInTheDocument();
 
-    // Active was team-1; new list no longer contains it → updated is undefined → returns teams[0].
     useTeamMock.mockReturnValue([{ _id: 'team-2', name: 'Blair' }]);
     rerender(<Team isVerified={true} />);
     expect(screen.getByTestId('team-info')).toBeInTheDocument();
@@ -125,15 +157,14 @@ describe('Team section', () => {
     useTeamMock.mockReturnValue([{ _id: 'team-1', name: 'Alex' }]);
     const { rerender } = render(<Team isVerified={true} />);
 
-    // Same _id present but object identity changed → updated found → returns updated.
     useTeamMock.mockReturnValue([{ _id: 'team-1', name: 'Alex Renamed' }]);
     rerender(<Team isVerified={true} />);
     expect(screen.getByTestId('team-info')).toBeInTheDocument();
   });
 
-  it('opens the member-info modal from the availability table', () => {
+  it('opens the member-info modal from the row ellipsis action', () => {
     render(<Team isVerified={true} />);
-    fireEvent.click(screen.getByRole('button', { name: 'open-first' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Alex details' }));
     expect(screen.getByTestId('team-info')).toBeInTheDocument();
   });
 });

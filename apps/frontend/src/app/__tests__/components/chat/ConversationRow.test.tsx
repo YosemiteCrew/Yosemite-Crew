@@ -65,6 +65,18 @@ describe('ConversationRow', () => {
     expect(badge).toHaveClass('bg-[var(--blue)]');
   });
 
+  it('renders a clinic business glyph (not initials) for a network row', () => {
+    render(<ConversationRow name="Tierklinik Oberland" preview="imaging" network />);
+    // The across-the-network row leads with the rounded-square clinic glyph, so
+    // the monogram initials are not rendered.
+    expect(screen.queryByText('TO')).not.toBeInTheDocument();
+  });
+
+  it('keeps initials (no business glyph) for a non-network row', () => {
+    render(<ConversationRow name="Bella Rose" preview="hi" />);
+    expect(screen.getByText('BR')).toBeInTheDocument();
+  });
+
   it('applies the active styling and aria-current when active', () => {
     render(<ConversationRow {...base} active />);
     const rowButton = screen.getByRole('button', { name: /Bella Rose/ });

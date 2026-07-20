@@ -2,15 +2,20 @@ import type { IconType } from 'react-icons';
 import {
   IoBookOutline,
   IoBusinessOutline,
+  IoCalendar,
   IoCalendarOutline,
+  IoChatbubbleEllipses,
   IoChatbubbleEllipsesOutline,
+  IoCheckmarkDoneOutline,
   IoCodeSlashOutline,
   IoCubeOutline,
-  IoEllipsisHorizontal,
+  IoEllipsisHorizontalCircle,
+  IoEllipsisHorizontalCircleOutline,
   IoGitNetworkOutline,
-  IoHomeOutline,
-  IoListOutline,
+  IoGrid,
+  IoGridOutline,
   IoPaw,
+  IoPawOutline,
   IoSettingsOutline,
   IoWalletOutline,
 } from 'react-icons/io5';
@@ -27,6 +32,8 @@ export type PhoneTabConfig = {
   key: PhoneTabKey;
   label: string;
   icon: IconType;
+  /** Filled icon variant shown while the tab is active (design: active tab is filled). */
+  activeIcon: IconType;
   /** Route pushed on tap (absent for the More tab, which opens a sheet). */
   href?: string;
   /** Matching entry in `appRoutes`, used to reuse the sidebar permission gate. */
@@ -43,7 +50,8 @@ export const PHONE_TABS: PhoneTabConfig[] = [
   {
     key: 'home',
     label: 'Home',
-    icon: IoHomeOutline,
+    icon: IoGridOutline,
+    activeIcon: IoGrid,
     href: '/dashboard',
     routeName: 'Dashboard',
     activePrefixes: ['/dashboard'],
@@ -52,6 +60,7 @@ export const PHONE_TABS: PhoneTabConfig[] = [
     key: 'schedule',
     label: 'Schedule',
     icon: IoCalendarOutline,
+    activeIcon: IoCalendar,
     href: '/appointments',
     routeName: 'Appointments',
     activePrefixes: ['/appointments'],
@@ -59,7 +68,8 @@ export const PHONE_TABS: PhoneTabConfig[] = [
   {
     key: 'patients',
     label: 'Patients',
-    icon: IoPaw,
+    icon: IoPawOutline,
+    activeIcon: IoPaw,
     href: '/companions',
     routeName: 'Companions',
     activePrefixes: ['/companions'],
@@ -68,6 +78,7 @@ export const PHONE_TABS: PhoneTabConfig[] = [
     key: 'chat',
     label: 'Chat',
     icon: IoChatbubbleEllipsesOutline,
+    activeIcon: IoChatbubbleEllipses,
     href: '/chat',
     routeName: 'Chat',
     activePrefixes: ['/chat'],
@@ -76,7 +87,8 @@ export const PHONE_TABS: PhoneTabConfig[] = [
   {
     key: 'more',
     label: 'More',
-    icon: IoEllipsisHorizontal,
+    icon: IoEllipsisHorizontalCircleOutline,
+    activeIcon: IoEllipsisHorizontalCircle,
     isMore: true,
     activePrefixes: [
       '/tasks',
@@ -171,7 +183,7 @@ export const PHONE_MORE_SECTIONS: MoreSectionConfig[] = [
     context: 'Team to-dos and follow-ups',
     href: '/tasks',
     routeName: 'Tasks',
-    icon: IoListOutline,
+    icon: IoCheckmarkDoneOutline,
   },
   {
     key: 'finance',

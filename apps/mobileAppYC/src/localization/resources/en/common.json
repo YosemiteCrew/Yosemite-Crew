@@ -166,7 +166,7 @@
     "optionalMessage": "A newer version is available with improvements. Update now for the best experience.",
     "updateNowButton": "Update now",
     "laterButton": "Later",
-    "missingStoreUrl": "Update link is not configured. Please contact support.",
+    "missingStoreUrl": "Update link is not configured. Please update Yosemite Crew from your app store.",
     "openStoreFailed": "Could not open the app store. Please try again."
   },
   "payments": {

@@ -283,15 +283,17 @@ const SearchInput = ({
   onClose: () => void;
 }) => (
   <div className="yc-usp-input-row">
-    <IoSearchOutline className="yc-usp-search-icon" size={18} aria-hidden />
-    <input
-      ref={inputRef}
-      value={query}
-      onChange={(e) => onQueryChange(e.target.value)}
-      placeholder="Search anything…"
-      className="yc-usp-input"
-      aria-label="Universal search input"
-    />
+    <span className="yc-usp-field">
+      <IoSearchOutline className="yc-usp-search-icon" size={18} aria-hidden />
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        placeholder="Search anything…"
+        className="yc-usp-input"
+        aria-label="Universal search input"
+      />
+    </span>
     {isPhone ? (
       <button type="button" className="yc-usp-cancel" onClick={onClose}>
         Cancel

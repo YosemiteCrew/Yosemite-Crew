@@ -159,6 +159,14 @@ describe('TaskFormFields', () => {
     expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ category: 'BILLING' }));
   });
 
+  it('renders the priority picker and updates the priority from the canonical list', () => {
+    renderFields();
+
+    expect(screen.getByText('Priority')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Priority:Urgent' }));
+    expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ priority: 'URGENT' }));
+  });
+
   it('renders the centered-dialog two-column layout with grouped grid rows', () => {
     const { container } = render(
       <TaskFormFields
@@ -184,6 +192,63 @@ describe('TaskFormFields', () => {
     // Category + assignee share one grid row; Due date + Time + Repeat share another.
     expect(container.querySelectorAll('div.grid')).toHaveLength(2);
     // Fields stay wired up in the gridded layout.
+    expect(screen.getByText('Category')).toBeInTheDocument();
+    expect(screen.getByText('Repeat')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Category:Billing' }));
+    expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ category: 'BILLING' }));
+  });
+
+  it('shows the end-date field for a recurring task and updates the recurrence end date', () => {
+    renderFields({ recurrence: { type: 'DAILY', isMaster: true } });
+
+    // A recurring task renders a second date picker (due + end date).
+    const dateButtons = screen.getAllByRole('button', { name: 'set-due' });
+    expect(dateButtons.length).toBeGreaterThan(1);
+    fireEvent.click(dateButtons[dateButtons.length - 1]);
+
+    // setEndDate delegates to setFormData with an updater; exercise both the
+    // "has recurrence" and the fallback branches to cover the updater body.
+    const updater = setFormData.mock.calls.at(-1)?.[0];
+    const withRecurrence = updater({ recurrence: { type: 'DAILY', isMaster: true } });
+    expect(withRecurrence.recurrence.endDate).toBeInstanceOf(Date);
+    const withoutRecurrence = updater({});
+    expect(withoutRecurrence.recurrence.endDate).toBeInstanceOf(Date);
+  });
+
+  it('renders the "Assign to" chip row in the new-task (assigneeChips) layout', () => {
+    const onSelectTeam = jest.fn();
+    const onSelectParent = jest.fn();
+    render(
+      <TaskFormFields
+        formData={{ ...baseFormData }}
+        setFormData={setFormData}
+        formDataErrors={{} as any}
+        templateOptions={[{ value: 'tpl-1', label: 'Template 1' } as any]}
+        due={null}
+        setDue={setDue}
+        dueTimeValue=""
+        setDueTimeValue={setDueTimeValue}
+        onSelectTemplate={onSelectTemplate}
+        twoColumn
+        assigneeChips
+        teamOptions={[{ value: 'u1', label: 'Dr Brunner' } as any]}
+        parentOptions={[{ value: 'p1', label: 'Amelia' } as any]}
+        onSelectTeam={onSelectTeam}
+        onSelectParent={onSelectParent}
+      />
+    );
+
+    // The audience Type dropdown is gone; the chip row is present instead.
+    expect(screen.queryByText('Type')).not.toBeInTheDocument();
+    expect(screen.getByText('Assign to')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Dr Brunner/ }));
+    expect(onSelectTeam).toHaveBeenCalledWith(expect.objectContaining({ value: 'u1' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Pet parent · Amelia/ }));
+    expect(onSelectParent).toHaveBeenCalledWith(expect.objectContaining({ value: 'p1' }));
+
+    // Core fields still render and stay wired.
     expect(screen.getByText('Category')).toBeInTheDocument();
     expect(screen.getByText('Repeat')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Category:Billing' }));

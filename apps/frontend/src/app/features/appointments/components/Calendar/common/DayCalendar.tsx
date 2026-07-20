@@ -27,7 +27,7 @@ import { AppointmentViewIntent, LaidOutEvent } from '@/app/features/appointments
 import TimeLabels from '@/app/features/appointments/components/Calendar/common/TimeLabels';
 import HorizontalLines from '@/app/features/appointments/components/Calendar/common/HorizontalLines';
 import { Appointment } from '@yosemite-crew/types';
-import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
+import { getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import { createPortal } from 'react-dom';
 import {
   CalendarZoomMode,
@@ -484,7 +484,8 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   handleChangeRoomAppointment,
   handleAcceptAppointment,
   canEditAppointments,
-  setCurrentDate,
+  // setCurrentDate stays on the props contract for callers, but day navigation
+  // now lives in the header toolbar's date-nav pill, which owns the setter.
   draggedAppointmentId,
   draggedAppointmentLabel,
   canDragAppointment,
@@ -515,7 +516,6 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   } = usePopoverManager({ closeOnHoverLeave: false });
   const appointmentPopoverId = useId();
   const timelineInstructionsId = useId();
-  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
@@ -638,12 +638,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <DayCalendarHeader
-        weekday={weekday}
-        dateNumber={dateNumber}
-        onPrevDay={handlePrevDay}
-        onNextDay={handleNextDay}
-      />
+      <DayCalendarHeader weekday={weekday} dateNumber={dateNumber} />
       {allDayEvents.length > 0 && (
         <AllDayEventsRow
           allDayEvents={allDayEvents}

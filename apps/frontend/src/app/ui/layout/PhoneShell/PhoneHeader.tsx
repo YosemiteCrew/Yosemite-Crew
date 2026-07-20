@@ -40,12 +40,12 @@ const PhoneHeader = () => {
           <Image
             src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
             alt=""
-            width={30}
-            height={30}
+            width={28}
+            height={28}
             className="yc-phone-org-avatar"
           />
           <span className="yc-phone-org-name">{primaryOrg.name}</span>
-          <IoCaretDown size={13} aria-hidden />
+          <IoCaretDown size={9} className="yc-phone-org-caret" aria-hidden />
         </button>
       ) : (
         <span className="yc-phone-brand">
@@ -67,7 +67,7 @@ const PhoneHeader = () => {
           aria-label="Search"
           onClick={openUniversalSearch}
         >
-          <IoSearchOutline size={19} aria-hidden />
+          <IoSearchOutline size={15} aria-hidden />
         </button>
         <NotificationsBell variant="phone" />
       </div>

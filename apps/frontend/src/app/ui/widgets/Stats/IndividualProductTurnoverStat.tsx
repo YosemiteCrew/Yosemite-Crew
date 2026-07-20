@@ -18,25 +18,18 @@ const IndividualProductTurnoverStat = () => {
       {visibleProducts.map((product) => {
         const widthPercentage = maxValue > 0 ? (product.turnover / maxValue) * 100 : 0;
         return (
-          <div key={product.itemId} className="grid grid-cols-[120px_1fr_32px] gap-2 items-center">
-            <div className="text-body-4 text-text-primary break-words leading-4">
-              {product.name}
-            </div>
+          <div
+            key={product.itemId}
+            className="grid grid-cols-[minmax(0,120px)_1fr_48px] items-center gap-2.5"
+          >
+            <span className="truncate text-[12.5px] text-[var(--ink-muted)]">{product.name}</span>
             <div
-              className="h-5 rounded-full bg-neutral-100 overflow-hidden"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(to right, rgba(17,17,17,0.08) 0, rgba(17,17,17,0.08) 1px, transparent 1px, transparent 16.66%)',
-              }}
-            >
-              <div
-                className="h-full bg-text-primary rounded-full"
-                style={{ width: `${Math.max(0, Math.min(100, widthPercentage))}%` }}
-              />
-            </div>
-            <div className="text-body-4 text-text-primary text-right">
+              className="h-[13px] rounded-[4px] bg-[var(--cta)]"
+              style={{ width: `${Math.max(0, Math.min(100, widthPercentage))}%` }}
+            />
+            <span className="text-right text-[12px] font-bold text-[var(--ink)] tabular-nums">
               {formatTurnoverValue(product.turnover)}
-            </div>
+            </span>
           </div>
         );
       })}

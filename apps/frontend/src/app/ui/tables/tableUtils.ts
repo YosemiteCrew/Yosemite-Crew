@@ -227,7 +227,7 @@ export const getOrganizationStatusStyle = (status: string) => {
     case 'active':
       return { color: 'var(--color-success-400)', backgroundColor: 'var(--color-success-100)' };
     case 'pending':
-      return { color: 'var(--color-warning-600)', backgroundColor: '#FEF3E9' };
+      return { color: 'var(--color-warning-600)', backgroundColor: 'var(--color-warning-100)' };
     default:
       return { color: 'var(--color-neutral-0)', backgroundColor: 'var(--color-badge-blue-bg)' };
   }

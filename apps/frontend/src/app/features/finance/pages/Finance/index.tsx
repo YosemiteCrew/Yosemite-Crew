@@ -7,7 +7,6 @@ import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { Invoice } from '@yosemite-crew/types';
-import Filters from '@/app/ui/filters/Filters';
 import { InvoiceStatusFilters } from '@/app/features/finance/types/invoice';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -21,7 +20,9 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
-import StripeSettingsButton from '@/app/features/billing/components/StripeSettingsButton';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
+import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
+import StripeStatusPill from '@/app/features/finance/pages/Finance/Sections/StripeStatusPill';
 
 const FINANCE_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -35,6 +36,10 @@ const InvoiceDataTable = dynamic(() => import('@/app/ui/tables/InvoiceTable'), {
 const InvoiceInfo = dynamic(
   () => import('@/app/features/finance/pages/Finance/Sections/InvoiceInfo')
 );
+const PhoneInvoiceList = dynamic(
+  () => import('@/app/features/finance/pages/Finance/Sections/PhoneInvoiceList'),
+  { loading: () => <FinanceSectionSkeleton /> }
+);
 
 const Finance = () => {
   const invoices = useInvoicesForPrimaryOrg();
@@ -46,7 +51,13 @@ const Finance = () => {
   const [activeStatus, setActiveStatus] = useState('all');
   const [viewInvoice, setViewInvoice] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(invoices[0] || null);
+  const isPhone = useIsPhone();
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
+
+  const openInvoice = (invoice: Invoice) => {
+    setActiveInvoice(invoice);
+    setViewInvoice(true);
+  };
 
   useEffect(() => {
     setActiveInvoice((prev) => {
@@ -120,52 +131,64 @@ const Finance = () => {
       </PermissionGate>
       <MobileSearchBar placeholder="Search invoices" />
       <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
-        <div className={wrapperClassName}>
-          <div className="flex items-center justify-between w-full flex-wrap gap-2">
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <h1 className="text-text-primary text-page-title">
-                  {'Finance'}
-                  <span className="text-body-2 text-text-tertiary">{` (${invoices.length})`}</span>
-                </h1>
-                <GlassTooltip
-                  content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
-                  side="bottom"
-                >
-                  <button
-                    type="button"
-                    aria-label="Finance info"
-                    className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+        {isPhone ? (
+          <PhoneInvoiceList
+            filteredList={filteredList}
+            statusOptions={InvoiceStatusFilters}
+            activeStatus={activeStatus}
+            setActiveStatus={setActiveStatus}
+            metrics={financeMetrics}
+            currency={currency}
+            onViewInvoice={openInvoice}
+          />
+        ) : (
+          <div className={wrapperClassName}>
+            <div className="flex items-center justify-between w-full flex-wrap gap-2">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-page-title">
+                    {'Finance'}{' '}
+                    <span className="text-page-title-count">{`(${invoices.length})`}</span>
+                  </h1>
+                  <GlassTooltip
+                    content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
+                    side="bottom"
                   >
-                    <IoInformationCircleOutline size={20} />
-                  </button>
-                </GlassTooltip>
+                    <button
+                      type="button"
+                      aria-label="Finance info"
+                      className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+                    >
+                      <IoInformationCircleOutline size={20} />
+                    </button>
+                  </GlassTooltip>
+                </div>
+                <p className="text-body-4 text-text-tertiary">
+                  {`${formatMoney(financeMetrics.collectedThisWeek, currency)} collected this week · ${formatMoney(
+                    financeMetrics.outstanding,
+                    currency
+                  )} outstanding`}
+                </p>
               </div>
-              <p className="text-body-4 text-text-tertiary">
-                {`${formatMoney(financeMetrics.collectedThisWeek, currency)} collected this week · ${formatMoney(
-                  financeMetrics.outstanding,
-                  currency
-                )} outstanding`}
-              </p>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <InvoiceStatusFilterPills
+                  options={InvoiceStatusFilters}
+                  activeStatus={activeStatus}
+                  setActiveStatus={setActiveStatus}
+                  className="flex-wrap justify-end"
+                />
+                <StripeStatusPill />
+              </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <Filters
-                statusOptions={InvoiceStatusFilters}
-                activeStatus={activeStatus}
-                setActiveStatus={setActiveStatus}
-                className="w-auto"
+            <div ref={plannerSectionRef} className={plannerSectionClassName}>
+              <InvoiceDataTable
+                setActiveInvoice={setActiveInvoice}
+                setViewInvoice={setViewInvoice}
+                filteredList={filteredList}
               />
-              <StripeSettingsButton className="h-12!" />
             </div>
           </div>
-          <div ref={plannerSectionRef} className={plannerSectionClassName}>
-            <InvoiceDataTable
-              setActiveInvoice={setActiveInvoice}
-              setViewInvoice={setViewInvoice}
-              filteredList={filteredList}
-            />
-          </div>
-        </div>
+        )}
         {activeInvoice && (
           <InvoiceInfo
             showModal={viewInvoice}

@@ -52,19 +52,21 @@ const InvoiceBilledTo = ({ parentId, appointment }: InvoiceBilledToProps) => {
       className="rounded-[14px] border border-card-border px-4 py-3.5 flex flex-col gap-2"
       aria-label="Billed to"
     >
-      <span className="text-caption-2 text-text-tertiary uppercase tracking-wider">Billed to</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-tertiary">
+        Billed to
+      </span>
       {hasDetails ? (
         <>
-          {fullName && <span className="text-body-4-emphasis text-text-primary">{fullName}</span>}
+          {fullName && <span className="text-[13px] font-bold text-[var(--ink)]">{fullName}</span>}
           {streetLine && (
-            <span className="text-caption-1 text-text-tertiary leading-relaxed">{streetLine}</span>
+            <span className="text-[12.5px] leading-[1.5] text-text-secondary">{streetLine}</span>
           )}
           {contactLine && (
-            <span className="text-caption-1 text-text-tertiary leading-relaxed">{contactLine}</span>
+            <span className="text-[12.5px] leading-[1.5] text-text-secondary">{contactLine}</span>
           )}
         </>
       ) : (
-        <span className="text-caption-1 text-text-tertiary">No billing contact on file.</span>
+        <span className="text-[12.5px] text-text-secondary">No billing contact on file.</span>
       )}
     </section>
   );

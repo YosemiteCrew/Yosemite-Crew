@@ -99,36 +99,29 @@ const DefaultOpenScreenPreference = () => {
   };
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
-        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-          Default open screen
-        </div>
-      </div>
-      <div className="flex flex-col gap-3 px-5! py-5!">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+    <div className="flex flex-col gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <LabelDropdown
+          placeholder="Default open screen"
+          options={options}
+          defaultOption={selection}
+          onSelect={(option) => setSelection(option.value)}
+        />
+        {shouldShowDefaultView && (
           <LabelDropdown
-            placeholder="Default open screen"
-            options={options}
-            defaultOption={selection}
-            onSelect={(option) => setSelection(option.value)}
+            placeholder="Default appointment view"
+            options={[
+              { value: 'calendar', label: 'Calendar' },
+              { value: 'board', label: 'Status Board' },
+              { value: 'list', label: 'Table' },
+            ]}
+            defaultOption={defaultView}
+            onSelect={(option) => setDefaultView(option.value as DefaultAppointmentsView)}
           />
-          {shouldShowDefaultView && (
-            <LabelDropdown
-              placeholder="Default appointment view"
-              options={[
-                { value: 'calendar', label: 'Calendar' },
-                { value: 'board', label: 'Status Board' },
-                { value: 'list', label: 'Table' },
-              ]}
-              defaultOption={defaultView}
-              onSelect={(option) => setDefaultView(option.value as DefaultAppointmentsView)}
-            />
-          )}
-        </div>
-        <div className="w-full flex justify-end!">
-          <Primary href="#" text="Save defaults" onClick={handleSave} />
-        </div>
+        )}
+      </div>
+      <div className="w-full flex justify-end!">
+        <Primary href="#" text="Save defaults" onClick={handleSave} />
       </div>
     </div>
   );

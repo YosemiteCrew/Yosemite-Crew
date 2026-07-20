@@ -14,6 +14,11 @@ jest.mock('@/app/features/dashboard/hooks/useDashboardAnalytics', () => ({
   useDashboardAnalytics: jest.fn(),
 }));
 
+const barsIn = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('div')).filter(
+    (node) => (node as HTMLDivElement).style.width
+  ) as HTMLDivElement[];
+
 describe('IndividualProductTurnoverStat', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -53,9 +58,10 @@ describe('IndividualProductTurnoverStat', () => {
     expect(screen.getByText('F')).toBeInTheDocument();
     expect(screen.queryByText('G')).not.toBeInTheDocument();
 
-    const bars = container.querySelectorAll('.h-full.bg-text-primary.rounded-full');
-    expect((bars[0] as HTMLElement).style.width).toBe('100%');
-    expect((bars[1] as HTMLElement).style.width).toBe('50%');
+    const bars = barsIn(container);
+    expect(bars).toHaveLength(6);
+    expect(bars[0].style.width).toBe('100%');
+    expect(bars[1].style.width).toBe('50%');
   });
 
   it('renders zero-width bars when every product has no turnover', () => {
@@ -76,9 +82,9 @@ describe('IndividualProductTurnoverStat', () => {
     expect(screen.getByText('A')).toBeInTheDocument();
     expect(screen.getByText('B')).toBeInTheDocument();
 
-    const bars = container.querySelectorAll('.h-full.bg-text-primary.rounded-full');
+    const bars = barsIn(container);
     expect(bars).toHaveLength(2);
-    expect((bars[0] as HTMLElement).style.width).toBe('0%');
-    expect((bars[1] as HTMLElement).style.width).toBe('0%');
+    expect(bars[0].style.width).toBe('0%');
+    expect(bars[1].style.width).toBe('0%');
   });
 });

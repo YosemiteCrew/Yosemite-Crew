@@ -88,32 +88,27 @@ const TimezonePreference = () => {
   };
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
-        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">Timezone</div>
-      </div>
-      <div className="flex flex-col gap-3 px-5! py-5!">
+    <div className="flex flex-col gap-2.5">
+      <LabelDropdown
+        placeholder="Timezone mode"
+        options={modeOptions}
+        defaultOption={syncMode}
+        onSelect={(option) => setSyncMode(option.value as TimezoneSyncMode)}
+      />
+      {syncMode === 'custom' ? (
         <LabelDropdown
-          placeholder="Timezone mode"
-          options={modeOptions}
-          defaultOption={syncMode}
-          onSelect={(option) => setSyncMode(option.value as TimezoneSyncMode)}
+          placeholder="Preferred timezone"
+          options={options}
+          defaultOption={selectedTimezone}
+          onSelect={(option) => setSelectedTimezone(option.value)}
         />
-        {syncMode === 'custom' ? (
-          <LabelDropdown
-            placeholder="Preferred timezone"
-            options={options}
-            defaultOption={selectedTimezone}
-            onSelect={(option) => setSelectedTimezone(option.value)}
-          />
-        ) : (
-          <div className="px-6 py-2.75 border border-input-border-default rounded-2xl text-body-4 text-text-secondary">
-            Device timezone: {getSystemTimeZone()}
-          </div>
-        )}
-        <div className="w-full flex justify-end!">
-          <Primary href="#" text="Save timezone" onClick={handleSave} />
+      ) : (
+        <div className="rounded-[13px] border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-[13px] py-2.5 text-[12.5px] text-[var(--ink-muted)]">
+          Device timezone: {getSystemTimeZone()}
         </div>
+      )}
+      <div className="w-full flex justify-end!">
+        <Primary href="#" text="Save timezone" onClick={handleSave} />
       </div>
     </div>
   );

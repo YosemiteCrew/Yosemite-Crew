@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, @typescript-eslint/require-await, @typescript-eslint/no-duplicate-type-constituents */
 // src/services/inventory.service.ts
 import dayjs from "dayjs";
 import { prisma } from "src/config/prisma";
@@ -31,21 +30,7 @@ type InventoryStatusFilter =
 export type StockHealthStatus =
   "HEALTHY" | "LOW_STOCK" | "EXPIRED" | "EXPIRING_SOON";
 
-type FilterQuery<T> = Record<string, unknown>;
-
-const InventoryItemModel: any = {};
-const InventoryBatchModel: any = {};
-const InventoryVendorModel: any = {};
-const InventoryMetaFieldModel: any = {};
-const InventoryCategoryModel: any = {};
-const InventorySubcategoryModel: any = {};
-const StockMovementModel: any = {};
-const shouldDualWrite = false;
-const handleDualWriteError = (_scope: string, _err: unknown) => undefined;
-const syncInventoryItemToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryBatchToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryVendorToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryMetaFieldToPostgres = async (_doc: unknown) => undefined;
+type FilterQuery = Record<string, unknown>;
 
 const resolveUnitQuantity = (
   unitQuantity?: number | null,
@@ -63,12 +48,7 @@ const readPositiveNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-type InventoryItemMongo = PrismaInventoryItem;
-type InventoryBatchMongo = PrismaInventoryBatch;
 type InventoryVendorMongo = Prisma.InventoryVendorGetPayload<
-  Record<string, never>
->;
-type InventoryMetaFieldMongo = Prisma.InventoryMetaFieldGetPayload<
   Record<string, never>
 >;
 
@@ -305,10 +285,10 @@ const sortInventoryRows = <T extends InventorySortableRow>(
 // In Postgres read-mode we still return objects shaped like the legacy models.
 const toMongoId = (value: string) => value;
 
-type InventoryItemLike = (InventoryItemMongo | PrismaInventoryItem) & {
+type InventoryItemLike = PrismaInventoryItem & {
   _id: string;
 };
-type InventoryBatchLike = (InventoryBatchMongo | PrismaInventoryBatch) & {
+type InventoryBatchLike = PrismaInventoryBatch & {
   _id: string;
 };
 
@@ -500,10 +480,7 @@ const computeStockHealthStatus = (args: {
   return "HEALTHY";
 };
 
-const applyOptionalBusinessType = (
-  query: FilterQuery<InventoryItemMongo>,
-  value: unknown,
-) => {
+const applyOptionalBusinessType = (query: FilterQuery, value: unknown) => {
   if (value === undefined) return;
   const businessType = sanitizeBusinessType(value);
   if (!businessType) {
@@ -513,7 +490,7 @@ const applyOptionalBusinessType = (
 };
 
 const applyOptionalStringFilter = (
-  query: FilterQuery<InventoryItemMongo>,
+  query: FilterQuery,
   value: unknown,
   fieldName: "category" | "subCategory",
 ) => {
@@ -549,7 +526,7 @@ const resolveStatusFilter = (
 };
 
 const applySearchFilter = (
-  query: FilterQuery<InventoryItemMongo>,
+  query: FilterQuery,
   search: ListInventoryFilter["search"],
 ) => {
   if (!search) return;
@@ -1406,7 +1383,7 @@ export const InventoryService = {
       filter.organisationId,
       "organisationId",
     );
-    const query: FilterQuery<InventoryItemMongo> = {
+    const query: FilterQuery = {
       organisationId,
     };
     const expiringWithinDays = sanitizePositiveNumber(
@@ -1896,10 +1873,12 @@ export const InventoryService = {
       });
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
+    // Reservations are tracked on the item (see allocateStock), not on batches,
+    // so consumption must not recompute `allocated` from the batch rows.
+    const { onHand } = await recomputeStockFromBatches(safeItemId);
     const updated = await prisma.inventoryItem.update({
       where: { id: safeItemId },
-      data: { onHand, allocated },
+      data: { onHand },
     });
 
     return {
@@ -1931,7 +1910,7 @@ export const InventoryService = {
     return results;
   },
 
-  async getInventoryTurnoverByItem(params: {
+  getInventoryTurnoverByItem(params: {
     organisationId: string;
     from?: Date; // default: 12 months ago
     to?: Date; // default: now
@@ -2149,7 +2128,7 @@ export const InventoryVendorService = {
       "organisationId",
     );
 
-    return prisma.inventoryVendor.create({
+    const created = await prisma.inventoryVendor.create({
       data: {
         organisationId,
         name: input.name,
@@ -2161,7 +2140,8 @@ export const InventoryVendorService = {
         leadTimeDays: input.leadTimeDays ?? undefined,
         contactInfo: (input.contactInfo ?? undefined) as Prisma.InputJsonValue,
       },
-    }) as unknown as InventoryVendorDocument;
+    });
+    return created as unknown as InventoryVendorDocument;
   },
 
   async updateVendor(
@@ -2198,7 +2178,7 @@ export const InventoryVendorService = {
     return updated as unknown as InventoryVendorDocument;
   },
 
-  async listVendors(organisationId: string) {
+  listVendors(organisationId: string) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",
@@ -2209,7 +2189,7 @@ export const InventoryVendorService = {
     });
   },
 
-  async getVendor(vendorId: string, organisationId: string) {
+  getVendor(vendorId: string, organisationId: string) {
     ensureObjectId(vendorId);
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
@@ -2244,14 +2224,15 @@ export const InventoryMetaFieldService = {
       throw new InventoryServiceError("Invalid businessType", 400);
     }
 
-    return prisma.inventoryMetaField.create({
+    const created = await prisma.inventoryMetaField.create({
       data: {
         businessType,
         fieldKey: input.fieldKey,
         label: input.label,
         values: input.values ?? [],
       },
-    }) as unknown as InventoryMetaFieldDocument;
+    });
+    return created as unknown as InventoryMetaFieldDocument;
   },
 
   async updateField(
@@ -2278,7 +2259,7 @@ export const InventoryMetaFieldService = {
     return;
   },
 
-  async listFields(businessType: string) {
+  listFields(businessType: string) {
     const safeBusinessType = sanitizeBusinessType(businessType);
     if (!safeBusinessType) {
       throw new InventoryServiceError("Invalid businessType", 400);
@@ -2305,7 +2286,7 @@ export const InventoryAlertService = {
     });
   },
 
-  async getExpiringItems(organisationId: string, days = 7) {
+  getExpiringItems(organisationId: string, days = 7) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",

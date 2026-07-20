@@ -12,11 +12,13 @@ jest.mock("../../src/services/audit-trail.service", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
     task: {
       create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     taskCompletion: {
       create: jest.fn(),
@@ -57,11 +59,13 @@ jest.mock("../../src/utils/logger", () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
+  $transaction: jest.Mock;
   task: {
     create: jest.Mock;
     findFirst: jest.Mock;
     findMany: jest.Mock;
     update: jest.Mock;
+    updateMany: jest.Mock;
   };
   taskCompletion: {
     create: jest.Mock;
@@ -212,6 +216,62 @@ describe("TaskService", () => {
       }),
     );
     expect(result.assignedGroupId).toBe("group-1");
+  });
+
+  it("persists a valid priority and drops an invalid one on a custom task", async () => {
+    mockedPrisma.task.create
+      .mockResolvedValueOnce({
+        id: "task-p1",
+        audience: "EMPLOYEE_TASK",
+        assignedTo: "user-2",
+        assignedGroupId: "group-1",
+        dueAt,
+        name: "P",
+        priority: "URGENT",
+      })
+      .mockResolvedValueOnce({
+        id: "task-p2",
+        audience: "EMPLOYEE_TASK",
+        assignedTo: "user-2",
+        assignedGroupId: "group-1",
+        dueAt,
+        name: "P",
+        priority: null,
+      });
+
+    await TaskService.createCustom({
+      category: "Care",
+      name: "P",
+      createdBy: "user-1",
+      assignedBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      dueAt,
+      audience: "EMPLOYEE_TASK",
+      priority: "URGENT",
+    });
+    expect(mockedPrisma.task.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: "URGENT" }),
+      }),
+    );
+
+    await TaskService.createCustom({
+      category: "Care",
+      name: "P",
+      createdBy: "user-1",
+      assignedBy: "user-1",
+      assignedTo: "user-2",
+      assignedGroupId: "group-1",
+      dueAt,
+      audience: "EMPLOYEE_TASK",
+      priority: "NONSENSE" as never,
+    });
+    expect(mockedPrisma.task.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: undefined }),
+      }),
+    );
   });
 
   it("creates a task from a library definition", async () => {
@@ -487,6 +547,41 @@ describe("TaskService", () => {
           assignedTo: "user-2",
           assignedBy: "user-1",
         }),
+      }),
+    );
+  });
+
+  it("persists a changed priority on update", async () => {
+    mockedPrisma.task.findFirst.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "user-1",
+      assignedTo: "user-1",
+      assignedGroupId: null,
+      assignedBy: "user-1",
+      name: "Old name",
+      priority: null,
+      recurrence: null,
+      medication: null,
+      reminder: null,
+      attachments: null,
+      syncWithCalendar: false,
+    });
+    mockedPrisma.task.update.mockResolvedValueOnce({
+      id: "task-1",
+      organisationId: "org-1",
+      assignedTo: "user-1",
+      name: "Old name",
+      priority: "HIGH",
+    });
+
+    await expect(
+      TaskService.updateTask("task-1", { priority: "HIGH" }, "user-1"),
+    ).resolves.toEqual(expect.objectContaining({ priority: "HIGH" }));
+
+    expect(mockedPrisma.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: "HIGH" }),
       }),
     );
   });
@@ -888,6 +983,22 @@ describe("TaskService", () => {
     expect(result).toEqual([{ id: "task-2", _id: "task-2" }]);
   });
 
+  it("filters employee tasks by priority", async () => {
+    mockedPrisma.task.findMany.mockResolvedValueOnce([{ id: "task-9" }]);
+
+    await TaskService.listForEmployee({
+      organisationId: "org-1",
+      userId: "user-1",
+      priority: "URGENT",
+    });
+
+    expect(mockedPrisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ priority: "URGENT" }),
+      }),
+    );
+  });
+
   it("lists tasks for an employee with derived schedule, appointment, and kind filters", async () => {
     mockedPrisma.appointment.findMany.mockResolvedValueOnce([{ id: "appt-1" }]);
     mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
@@ -1084,6 +1195,117 @@ describe("TaskService", () => {
       expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
         where: { id: "task-1", organisationId: "org-1" },
       });
+    });
+  });
+
+  // A recurrence scope fans one authorized task id out across the series.
+  // Ownership was only proven for the URL task, so the other rows must be
+  // re-checked before they are written.
+  describe("recurring series ownership", () => {
+    const seriesTask = (overrides: Record<string, unknown> = {}) => ({
+      id: "task-1",
+      organisationId: "org-1",
+      createdBy: "actor-1",
+      assignedTo: "actor-1",
+      dueAt: new Date("2026-02-01T09:00:00.000Z"),
+      status: "PENDING",
+      recurrence: { type: "DAILY", isMaster: true },
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("rejects scope=ALL when the series contains a row the actor does not own", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(seriesTask() as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        seriesTask(),
+        seriesTask({
+          id: "task-2",
+          createdBy: "someone-else",
+          assignedTo: "someone-else",
+          dueAt: new Date("2026-02-02T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+      ] as never);
+
+      await expect(
+        TaskService.updateTask(
+          "task-1",
+          { name: "hijacked" },
+          "actor-1",
+          "ALL",
+          "org-1",
+        ),
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("rejects deleteTask scope=ALL when a series row is not owned", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(seriesTask() as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        {
+          id: "task-1",
+          dueAt: new Date("2026-02-01T09:00:00.000Z"),
+          createdBy: "actor-1",
+          assignedTo: "actor-1",
+        },
+        {
+          id: "task-2",
+          dueAt: new Date("2026-02-02T09:00:00.000Z"),
+          createdBy: "someone-else",
+          assignedTo: "someone-else",
+        },
+      ] as never);
+
+      await expect(
+        TaskService.deleteTask("task-1", "actor-1", "ALL", "org-1"),
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("scopes the deleteTask lookup to the supplied organisationId", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        TaskService.deleteTask("task-1", "actor-1", "THIS", "org-1"),
+      ).rejects.toThrow("Task not found");
+
+      expect(mockedPrisma.task.findFirst).toHaveBeenCalledWith({
+        where: { id: "task-1", organisationId: "org-1" },
+      });
+    });
+
+    it("allows scope=ALL when the actor owns every row", async () => {
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(seriesTask() as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        seriesTask(),
+        seriesTask({
+          id: "task-2",
+          dueAt: new Date("2026-02-02T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+      ] as never);
+      const txUpdate = jest
+        .fn()
+        .mockResolvedValue(seriesTask({ name: "renamed" }));
+      mockedPrisma.$transaction.mockImplementationOnce(
+        async (cb: (tx: unknown) => Promise<unknown>) =>
+          cb({ task: { update: txUpdate } }),
+      );
+
+      await TaskService.updateTask(
+        "task-1",
+        { name: "renamed" },
+        "actor-1",
+        "ALL",
+        "org-1",
+      );
+
+      expect(txUpdate).toHaveBeenCalledTimes(2);
     });
   });
 });

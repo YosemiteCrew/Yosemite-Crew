@@ -301,7 +301,7 @@ export const getModalTitle = (
 ): string => {
   if (mode === 'view') return companionTitle || terminologyText('Patient Details');
   if (mode === 'edit') return terminologyText('Edit Patient / Client');
-  return terminologyText('New Patient / Client');
+  return terminologyText('Add companion');
 };
 
 export const getSexLabel = (

@@ -410,7 +410,7 @@ textarea:focus-visible {
   --color-toast-success-bg: #b0dccd;
   --color-select-ink: #312943;
   --color-select-ink-muted: #31294399;
-  --color-surface-disabled: #f5f5f5;
+  --color-surface-disabled: #ece5d9;
   --color-text-subtle: #555555;
   --color-text-strong: #333333;
   --color-text-body-dark: #222222;
@@ -600,6 +600,7 @@ textarea:focus-visible {
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
   --success: #008f5d;
+  --warn: #f59e0b;
   /* always-dark spotlight blocks (manifesto / code / phone bezel) */
   --spot: #1d1c1b;
   /* light-surface code card syntax + mockup avatar chips */
@@ -665,18 +666,20 @@ textarea:focus-visible {
   --surface-soft: rgba(239, 232, 220, 0.7);
   /* raised pill on a footer/inset surface */
   --pill-raised: #f7f3ec;
-  /* form inputs */
-  --field-bg: #fafafa;
+  /* form inputs: warm, subtly recessed off the --screen surface (was a cool
+     #fafafa that read as a "white" box against the warm-bone palette; the dark
+     field is likewise recessed off its surface) */
+  --field-bg: #f2ede4;
   /* Semantic tinted surfaces for chrome + global-state components (notifications
      rows, permission-denied, filtered-empty). Values mirror the danger/warning
      ramps and the pink accent so tinted discs read consistently in light mode. */
-  --danger-bg: #fdebea;
-  --danger-text: #d53225;
+  --danger-bg: rgba(234, 55, 41, 0.09);
+  --danger-text: #c2261a;
   --danger: #ea3729;
-  --danger-border: #f17970;
-  --warn-bg: #fef3e9;
-  --warn-text: #af5e19;
-  --warn-border: #f9ad6c;
+  --danger-border: rgba(234, 55, 41, 0.32);
+  --warn-bg: rgba(245, 158, 11, 0.12);
+  --warn-text: #b45309;
+  --warn-border: rgba(245, 158, 11, 0.3);
   --pink-soft: #ffe8f6;
   --pink-text: #c43d94;
 }
@@ -713,6 +716,7 @@ html[data-theme='dark'] {
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --warn: #f5a83c;
   --spot: #17140f;
   --code-str: #8acbb4;
   --avatar-violet-bg: rgba(167, 139, 250, 0.2);
@@ -955,12 +959,24 @@ input[type='number'] {
     @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.8px];
   }
 
-  /* Page title - Serif module page titles (Newsreader).
-     Fluid 30px -> 40px. It sits beside a body-size count and description, so a
-     fixed 46px overpowered that pairing at every width; unlike the display and
-     heading classes it had no step-down of its own. */
+  /* Page title - Serif screen titles (Newsreader 400).
+     Design: 26px / -0.015em / var(--ink) on desktop, 24px on tablet + phone.
+     The earlier 30->40px scale came from the design DOCUMENT's own 46px frame
+     heading, not from the app screens it documents - every PIMS screen title
+     in the frames is the 26px h2, which is what pairs with the count and the
+     13.5px description beside it. */
   .text-page-title {
-    @apply font-newsreader text-[clamp(1.875rem,1.35rem+1.6vw,2.5rem)] font-medium leading-[1.1] tracking-[-0.02em];
+    @apply font-newsreader text-[clamp(1.5rem,1.4rem+0.35vw,1.625rem)] font-normal leading-[1.2] tracking-[-0.015em];
+    color: var(--ink);
+  }
+
+  /* Count that trails a page title - "Appointments (14)".
+     Design: 17px / var(--ink-faint) desktop, 16px tablet + phone. Inherits the
+     serif family and 400 weight from .text-page-title so it reads as a quieter
+     companion to the title rather than a second heading. */
+  .text-page-title-count {
+    @apply text-[clamp(1rem,0.95rem+0.15vw,1.0625rem)] font-normal;
+    color: var(--ink-faint);
   }
 
   /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
@@ -1525,6 +1541,13 @@ html[data-theme='dark'] {
   /* calendar gridlines */
   --color-calendar-line-strong: #4a4136;
   --color-calendar-line-soft: #302820;
+  /* Calendar overlays: the light theme dims unavailable slots with a black wash
+     (rgba(0,0,0,0.045)) that is invisible on the dark surface. Re-declare the
+     three overlays as light/colour washes so unavailable, available, and preview
+     slots stay distinguishable in dark mode. */
+  --color-calendar-dim-overlay: rgba(255, 255, 255, 0.06);
+  --color-calendar-availability-overlay: rgba(74, 205, 155, 0.2);
+  --color-calendar-preview-overlay: rgba(103, 160, 239, 0.26);
   /* active input border */
   --color-input-border-active: #8fb6f5;
   /* DS Badge status set — dark tint-on-dark equivalents */

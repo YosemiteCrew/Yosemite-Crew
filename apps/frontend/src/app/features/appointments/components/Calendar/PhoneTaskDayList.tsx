@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { IoCheckmark, IoChevronBack, IoChevronForward } from 'react-icons/io5';
+import { IoCheckmark, IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 
 import SegmentedPill, {
   SegmentedPillOption,
@@ -271,9 +271,10 @@ const PhoneTaskDayList = ({
       aria-label="Tasks"
       className="flex h-full min-h-0 flex-col bg-[var(--screen)] text-[var(--ink-body)]"
     >
-      <header className="flex h-[54px] flex-none items-center justify-between gap-2 border-b border-[var(--hairline)] px-4">
-        <h2 className="m-0 font-newsreader text-xl font-normal tracking-[-0.015em] text-[var(--ink)]">
-          {`Tasks (${list.totalCount})`}
+      <header className="flex h-[54px] flex-none items-center justify-between gap-2.5 border-b border-[var(--hairline)] px-3.5">
+        <h2 className="m-0 font-satoshi text-[15px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+          Tasks{' '}
+          <span className="font-medium text-[var(--ink-faint)]">{`(${list.totalCount})`}</span>
         </h2>
         <span className="flex flex-none items-center gap-1">
           <button
@@ -282,7 +283,7 @@ const PhoneTaskDayList = ({
             onClick={() => stepDay(-1)}
             className="flex size-11 items-center justify-center text-[var(--ink-muted)]"
           >
-            <IoChevronBack size={15} aria-hidden="true" />
+            <IoChevronBackOutline size={15} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -297,7 +298,7 @@ const PhoneTaskDayList = ({
             onClick={() => stepDay(1)}
             className="flex size-11 items-center justify-center text-[var(--ink-muted)]"
           >
-            <IoChevronForward size={15} aria-hidden="true" />
+            <IoChevronForwardOutline size={15} aria-hidden="true" />
           </button>
         </span>
       </header>

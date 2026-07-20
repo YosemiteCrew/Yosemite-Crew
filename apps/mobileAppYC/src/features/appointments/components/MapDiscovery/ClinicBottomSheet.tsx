@@ -73,19 +73,27 @@ const ClinicBottomSheet = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const flatListRef = useRef<BottomSheetFlatListMethods>(null);
+  const clinicsRef = useRef(clinics);
+  clinicsRef.current = clinics;
+
+  // The list can be refiltered while a scroll is pending, so resolve the row
+  // against the current data at fire time rather than trusting a captured index.
+  const scrollToClinicId = useCallback((id: string) => {
+    const index = clinicsRef.current.findIndex(c => c.id === id);
+    if (index < 0) return;
+    flatListRef.current?.scrollToIndex({
+      index,
+      animated: true,
+      viewPosition: 0.1,
+    });
+  }, []);
 
   useImperativeHandle(ref, () => ({
     scrollToClinic: (id: string) => {
       const index = clinics.findIndex(c => c.id === id);
       bottomSheetRef.current?.snapToIndex(1);
       if (index < 0 || !flatListRef.current) return;
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0.1,
-        });
-      }, 300);
+      setTimeout(() => scrollToClinicId(id), 300);
     },
     snapToExpanded: () => bottomSheetRef.current?.snapToIndex(1),
     snapToCollapsed: () => bottomSheetRef.current?.snapToIndex(0),
@@ -95,6 +103,8 @@ const ClinicBottomSheet = ({
 
   const handleScrollToIndexFailed = useCallback((info: {index: number}) => {
     setTimeout(() => {
+      const clinic = clinicsRef.current[info.index];
+      if (!clinic) return;
       flatListRef.current?.scrollToIndex({
         index: info.index,
         animated: true,

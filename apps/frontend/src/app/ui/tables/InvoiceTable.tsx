@@ -59,7 +59,7 @@ const STATUS_COLUMN_WIDTH = '160px';
 
 const renderInvoiceNumber = (item: Invoice) => (
   <div
-    className="appointment-profile-title tabular-nums"
+    className="appointment-profile-title tabular-nums cell-strong"
     title={getInvoiceNumberLabel(item) || undefined}
   >
     {getInvoiceNumberLabel(item) || '-'}
@@ -67,7 +67,7 @@ const renderInvoiceNumber = (item: Invoice) => (
 );
 
 const renderServices = (item: Invoice) => (
-  <div className="appointment-profile-title">{getInvoiceItemNames(item.items)}</div>
+  <div className="appointment-profile-title cell-muted">{getInvoiceItemNames(item.items)}</div>
 );
 
 const renderStatus = (item: Invoice) => (
@@ -77,7 +77,7 @@ const renderStatus = (item: Invoice) => (
 );
 
 const renderPayment = (item: Invoice) => (
-  <div className="appointment-profile-title">{getInvoicePaymentMethodLabel(item)}</div>
+  <div className="appointment-profile-title cell-muted">{getInvoicePaymentMethodLabel(item)}</div>
 );
 
 type Column<T> = {
@@ -216,17 +216,21 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
   };
 
   const renderSubtotal = (item: Invoice) => (
-    <div className="appointment-profile-title">{formatMoney(item.subtotal, currency)}</div>
+    <div className="appointment-profile-title cell-figure">
+      {formatMoney(item.subtotal, currency)}
+    </div>
   );
 
   const renderDiscount = (item: Invoice) => (
-    <div className="appointment-profile-title">
+    <div className="appointment-profile-title cell-figure">
       {formatMoney(item.discountTotal ?? 0, currency)}
     </div>
   );
 
   const renderTax = (item: Invoice) => (
-    <div className="appointment-profile-title">{formatMoney(item.taxTotal ?? 0, currency)}</div>
+    <div className="appointment-profile-title cell-figure">
+      {formatMoney(item.taxTotal ?? 0, currency)}
+    </div>
   );
 
   const renderTotal = (item: Invoice, foldBreakdown: boolean) => {
@@ -240,7 +244,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       : '';
     return (
       <div className="appointment-profile-two min-w-0">
-        <div className="appointment-profile-title">
+        <div className="appointment-profile-title cell-figure-strong">
           {formatMoney(item.totalAmount ?? 0, currency)}
         </div>
         {breakdown && (
@@ -258,7 +262,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
         type="button"
         onClick={() => handleViewInvoice(item)}
         aria-label={`View invoice ${item.id ?? ''}`.trim()}
-        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
       >
         <IoEye size={20} color="var(--color-neutral-900)" />
       </button>
@@ -338,7 +342,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           bordered={false}
           pagination
           pageSize={10}
-          tableClassName="table-fixed min-w-[540px]"
+          tableClassName="invoice-compact-fixed table-fixed min-w-[540px]"
           caption="Invoices with parent and patient, totals, statuses, payment methods, and actions"
         />
       </div>

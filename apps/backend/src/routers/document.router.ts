@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { DocumentController } from "../controllers/app/document.controller";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
-import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import {
+  withAppointmentOrgPermissions,
+  withOrgPermissions,
+  requirePermission,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -140,7 +144,7 @@ router.post(
 router.post(
   "/pms/appointments/:appointmentId",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("document:view:any"),
   DocumentController.listForAppointment,
 );

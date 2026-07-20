@@ -1081,6 +1081,7 @@ describe("ClinicalArtifactService", () => {
       "prescription-1",
       { status: "VOID" },
       organisationId,
+      { actorId: "actor-1", canEditAny: true },
     );
 
     const { InventoryConsumptionService } =
@@ -1172,6 +1173,7 @@ describe("ClinicalArtifactService", () => {
         metadata: { source: "revision" },
       },
       organisationId,
+      { actorId: "actor-1", canEditAny: true },
     );
 
     const { InventoryConsumptionService } =
@@ -1298,6 +1300,7 @@ describe("ClinicalArtifactService", () => {
           ],
         },
         organisationId,
+        { actorId: "actor-1", canEditAny: true },
       ),
     ).rejects.toMatchObject({ statusCode: 409 });
 
@@ -1377,6 +1380,7 @@ describe("ClinicalArtifactService", () => {
       "prescription-4",
       { status: "DRAFT", medications: revisedMedications },
       organisationId,
+      { actorId: "actor-1", canEditAny: true },
     );
 
     expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
@@ -1995,6 +1999,7 @@ describe("ClinicalArtifactService", () => {
     await ClinicalArtifactService.deletePrescription(
       artifactId,
       organisationId,
+      { actorId: "actor-1", canEditAny: true },
     );
 
     expect(mockedPrisma.workspaceTreatmentItem.findFirst).toHaveBeenCalledWith(
@@ -2052,7 +2057,10 @@ describe("ClinicalArtifactService", () => {
     } as never);
 
     await expect(
-      ClinicalArtifactService.deletePrescription(artifactId, organisationId),
+      ClinicalArtifactService.deletePrescription(artifactId, organisationId, {
+        actorId: "actor-1",
+        canEditAny: true,
+      }),
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 
@@ -2113,6 +2121,7 @@ describe("ClinicalArtifactService", () => {
     const result = await ClinicalArtifactService.cancelPrescription(
       artifactId,
       organisationId,
+      { actorId: "actor-1", canEditAny: true },
     );
 
     expect(
@@ -2186,6 +2195,7 @@ describe("ClinicalArtifactService", () => {
     await ClinicalArtifactService.cancelPrescription(
       artifactId,
       organisationId,
+      { actorId: "actor-1", canEditAny: true },
     );
 
     expect(
@@ -2237,7 +2247,10 @@ describe("ClinicalArtifactService", () => {
     });
 
     await expect(
-      ClinicalArtifactService.cancelPrescription(artifactId, organisationId),
+      ClinicalArtifactService.cancelPrescription(artifactId, organisationId, {
+        actorId: "actor-1",
+        canEditAny: true,
+      }),
     ).rejects.toMatchObject({
       message: "Prescription has already been billed or paid.",
       statusCode: 409,
@@ -2534,4 +2547,143 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       }),
     );
   });
+});
+
+describe("prescription actor authorization", () => {
+  const prescriptionRow = (authorId: string | null) => ({
+    id: "rx_1",
+    artifactId: "artifact_1",
+    artifact: {
+      id: "artifact_1",
+      kind: "PRESCRIPTION",
+      organisationId: "org_1",
+      authorId,
+    },
+    items: [],
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("rejects a caller without org-wide edit authority who did not author the prescription", async () => {
+    (prisma.prescription.findFirst as jest.Mock).mockResolvedValue(
+      prescriptionRow("vet_author") as never,
+    );
+
+    await expect(
+      ClinicalArtifactService.finalizePrescription("rx_1", "org_1", {
+        actorId: "vet_other",
+        canEditAny: false,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: "Prescription was authored by another user",
+    });
+
+    expect(prisma.prescription.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unidentified caller even when the prescription has no author", async () => {
+    (prisma.prescription.findFirst as jest.Mock).mockResolvedValue(
+      prescriptionRow(null) as never,
+    );
+
+    await expect(
+      ClinicalArtifactService.reopenPrescription("rx_1", "org_1", {
+        actorId: "",
+        canEditAny: false,
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("rejects an own-scope caller targeting a prescription in another organisation", async () => {
+    (prisma.prescription.findFirst as jest.Mock).mockResolvedValue(
+      prescriptionRow("vet_author") as never,
+    );
+
+    await expect(
+      ClinicalArtifactService.amendPrescription("rx_1", "org_other", {
+        actorId: "vet_author",
+        canEditAny: false,
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("does not load the prescription for the ownership check when the caller holds org-wide edit authority", async () => {
+    (prisma.prescription.findFirst as jest.Mock).mockRejectedValue(
+      new Error("ownership check should be skipped") as never,
+    );
+
+    await expect(
+      ClinicalArtifactService.finalizePrescription("rx_1", "org_1", {
+        actorId: "supervisor_1",
+        canEditAny: true,
+      }),
+    ).rejects.not.toMatchObject({
+      message: "Prescription was authored by another user",
+    });
+  });
+});
+
+describe("prescription mutation ownership", () => {
+  const prescriptionRow = (authorId: string | null) => ({
+    id: "rx_1",
+    artifactId: "artifact_1",
+    artifact: {
+      id: "artifact_1",
+      kind: "PRESCRIPTION",
+      organisationId: "org_1",
+      authorId,
+      status: "DRAFT",
+    },
+    items: [],
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each([
+    [
+      "updatePrescription",
+      () =>
+        ClinicalArtifactService.updatePrescription(
+          "rx_1",
+          { summary: "x" },
+          "org_1",
+          { actorId: "other_vet", canEditAny: false },
+        ),
+    ],
+    [
+      "deletePrescription",
+      () =>
+        ClinicalArtifactService.deletePrescription("rx_1", "org_1", {
+          actorId: "other_vet",
+          canEditAny: false,
+        }),
+    ],
+    [
+      "cancelPrescription",
+      () =>
+        ClinicalArtifactService.cancelPrescription("rx_1", "org_1", {
+          actorId: "other_vet",
+          canEditAny: false,
+        }),
+    ],
+  ])(
+    "%s refuses an own-scope caller who did not author the prescription",
+    async (_name, call) => {
+      (prisma.prescription.findFirst as jest.Mock).mockResolvedValue(
+        prescriptionRow("author_vet") as never,
+      );
+
+      await expect(call()).rejects.toMatchObject({
+        statusCode: 403,
+        message: "Prescription was authored by another user",
+      });
+
+      expect(prisma.prescription.update).not.toHaveBeenCalled();
+    },
+  );
 });

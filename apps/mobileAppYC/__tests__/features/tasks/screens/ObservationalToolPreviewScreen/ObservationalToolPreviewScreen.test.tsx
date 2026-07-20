@@ -54,7 +54,6 @@ jest.mock(
   () => ({
     observationToolApi: {
       get: jest.fn(),
-      getSubmission: jest.fn(),
       previewTaskSubmission: jest.fn(),
     },
     getCachedObservationTool: jest.fn(),
@@ -164,10 +163,10 @@ describe('ObservationalToolPreviewScreen', () => {
       goBack: mockGoBack,
     });
     (useRoute as jest.Mock).mockReturnValue({
-      params: {submissionId: 'sub-1'},
+      params: {taskId: 'task-1', submissionId: 'sub-1'},
     });
 
-    (observationToolApi.getSubmission as jest.Mock).mockResolvedValue(
+    (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
       mockSubmission,
     );
     (observationToolApi.get as jest.Mock).mockResolvedValue(mockDefinition);
@@ -179,28 +178,32 @@ describe('ObservationalToolPreviewScreen', () => {
 
   describe('Initialization & Loading', () => {
     it('shows loading state initially', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockImplementation(
-        () => new Promise(() => {}),
-      );
+      (
+        observationToolApi.previewTaskSubmission as jest.Mock
+      ).mockImplementation(() => new Promise(() => {}));
 
       const {getByText} = renderScreen();
       expect(getByText('Loading submission...')).toBeTruthy();
     });
 
-    it('fetches submission by ID if provided', async () => {
+    // The submission-by-id route exists only under /pms, so loading the preview
+    // must always go through the task route even when otSubmissionId is known.
+    it('fetches via the task preview route even when submissionId is present', async () => {
       renderScreen();
       await waitFor(() => {
-        expect(observationToolApi.getSubmission).toHaveBeenCalledWith('sub-1');
+        expect(observationToolApi.previewTaskSubmission).toHaveBeenCalledWith(
+          'task-1',
+        );
       });
+      expect(
+        (observationToolApi as Record<string, unknown>).getSubmission,
+      ).toBeUndefined();
     });
 
     it('fetches submission by Task ID if submissionId missing', async () => {
       (useRoute as jest.Mock).mockReturnValue({
         params: {taskId: 'task-1'},
       });
-      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
-        mockSubmission,
-      );
 
       renderScreen();
 
@@ -269,10 +272,12 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('renders "No responses available" if answers empty', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        ...mockSubmission,
-        answers: {},
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          ...mockSubmission,
+          answers: {},
+        },
+      );
 
       const {findByText} = renderScreen();
       expect(await findByText('No responses available.')).toBeTruthy();
@@ -282,7 +287,7 @@ describe('ObservationalToolPreviewScreen', () => {
   describe('Error Handling', () => {
     it('shows a friendly error message (not the raw error) on submission fetch failure', async () => {
       const rawError = new Error('Network Error');
-      (observationToolApi.getSubmission as jest.Mock).mockRejectedValue(
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockRejectedValue(
         rawError,
       );
       const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -301,7 +306,7 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('shows the same friendly error message if error is not an Error object', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockRejectedValue(
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockRejectedValue(
         'String Error',
       );
       const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -332,7 +337,9 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('shows "No submission found" if load returns null', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue(null);
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        null,
+      );
     });
   });
 
@@ -349,11 +356,13 @@ describe('ObservationalToolPreviewScreen', () => {
 
   describe('Static definition resolution', () => {
     it('resolves a static definition by tool name when the id is not a known key', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        ...mockSubmission,
-        toolId: 'unknown-key',
-        toolName: 'Test Tool',
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          ...mockSubmission,
+          toolId: 'unknown-key',
+          toolName: 'Test Tool',
+        },
+      );
 
       const {findByText} = renderScreen();
 
@@ -362,11 +371,13 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('resolves a static definition by short name when the id is not a known key', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        ...mockSubmission,
-        toolId: 'unknown-key',
-        toolName: 'Test',
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          ...mockSubmission,
+          toolId: 'unknown-key',
+          toolName: 'Test',
+        },
+      );
 
       const {findByText} = renderScreen();
 
@@ -375,12 +386,14 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('renders no static overview when neither name nor short name matches', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        ...mockSubmission,
-        toolId: 'unknown-key',
-        toolName: 'zzz',
-        summary: undefined,
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          ...mockSubmission,
+          toolId: 'unknown-key',
+          toolName: 'zzz',
+          summary: undefined,
+        },
+      );
 
       const {findByText, queryByText} = renderScreen();
 
@@ -395,10 +408,12 @@ describe('ObservationalToolPreviewScreen', () => {
       (useRoute as jest.Mock).mockReturnValue({
         params: {submissionId: 'sub-9'},
       });
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        id: 'sub-9',
-        createdAt: '2025-02-02T09:00:00Z',
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          id: 'sub-9',
+          createdAt: '2025-02-02T09:00:00Z',
+        },
+      );
 
       const {findByText} = renderScreen();
 
@@ -416,10 +431,12 @@ describe('ObservationalToolPreviewScreen', () => {
         name: 'Test Tool',
         fields: [{key: 'q1'}],
       });
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        ...mockSubmission,
-        answers: {q1: 'Answer one'},
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          ...mockSubmission,
+          answers: {q1: 'Answer one'},
+        },
+      );
 
       const {findByText} = renderScreen();
 
@@ -429,11 +446,13 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('renders the instruction callout and attribution footer from static steps', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        ...mockSubmission,
-        toolId: 'stepped-tool',
-        toolName: 'Stepped Tool',
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          ...mockSubmission,
+          toolId: 'stepped-tool',
+          toolName: 'Stepped Tool',
+        },
+      );
 
       const {findByText} = renderScreen();
 
@@ -457,7 +476,7 @@ describe('ObservationalToolPreviewScreen', () => {
   describe('Unmount guards', () => {
     it('ignores a resolved submission after unmount', async () => {
       let resolveSubmission: (value: unknown) => void = () => {};
-      (observationToolApi.getSubmission as jest.Mock).mockReturnValue(
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockReturnValue(
         new Promise(resolvePromise => {
           resolveSubmission = resolvePromise;
         }),
@@ -469,12 +488,14 @@ describe('ObservationalToolPreviewScreen', () => {
         resolveSubmission(mockSubmission);
       });
 
-      expect(observationToolApi.getSubmission).toHaveBeenCalledWith('sub-1');
+      expect(observationToolApi.previewTaskSubmission).toHaveBeenCalledWith(
+        'task-1',
+      );
     });
 
     it('ignores a rejected submission after unmount', async () => {
       let rejectSubmission: (error: unknown) => void = () => {};
-      (observationToolApi.getSubmission as jest.Mock).mockReturnValue(
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockReturnValue(
         new Promise((_resolvePromise, rejectPromise) => {
           rejectSubmission = rejectPromise;
         }),
@@ -486,12 +507,12 @@ describe('ObservationalToolPreviewScreen', () => {
         rejectSubmission(new Error('too late'));
       });
 
-      expect(observationToolApi.getSubmission).toHaveBeenCalled();
+      expect(observationToolApi.previewTaskSubmission).toHaveBeenCalled();
     });
 
     it('ignores a resolved definition after unmount', async () => {
       let resolveDef: (value: unknown) => void = () => {};
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue(
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
         mockSubmission,
       );
       (getCachedObservationTool as jest.Mock).mockReturnValue(null);

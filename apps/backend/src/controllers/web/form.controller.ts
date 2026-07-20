@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { FormService, FormServiceError } from "src/services/form.service";
 import { FormRequestDTO, FormSubmissionRequestDTO } from "@yosemite-crew/types";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { resolveUserIdFromRequest } from "src/utils/request";
@@ -11,49 +12,44 @@ const FORM_RESPONSE_PARENT_URL =
 const FORM_RESPONSE_SUBMITTED_BY_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-by";
 
-const hasExtension = (extensions: unknown[], url: string) =>
-  extensions.some(
+const withoutExtensions = (extensions: unknown[], urls: string[]) =>
+  extensions.filter(
     (extension) =>
-      typeof extension === "object" &&
-      extension !== null &&
-      (extension as { url?: unknown }).url === url,
+      !(
+        typeof extension === "object" &&
+        extension !== null &&
+        urls.includes((extension as { url?: unknown }).url as string)
+      ),
   );
 
+/**
+ * The identity extensions and the target questionnaire are rewritten from the
+ * authenticated mobile session rather than merged with the payload: a
+ * client-supplied value here would decide whose submission this is.
+ */
 const normalizeMobileSubmissionRequest = (
   body: FormSubmissionRequestDTO,
-  formId: string | undefined,
-  parentId: string | undefined,
+  formId: string,
+  parentId: string,
 ): FormSubmissionRequestDTO => {
   const normalized = {
     ...(body as unknown as Record<string, unknown>),
   } as Record<string, unknown>;
 
-  if (formId && !normalized.questionnaire) {
-    normalized.questionnaire = `Questionnaire/${formId}`;
-  }
+  normalized.questionnaire = `Questionnaire/${formId}`;
 
   const rawExtensions = normalized.extension;
-  const extensions: unknown[] = Array.isArray(rawExtensions)
-    ? rawExtensions.slice()
-    : [];
+  const extensions: unknown[] = withoutExtensions(
+    Array.isArray(rawExtensions) ? rawExtensions : [],
+    [FORM_RESPONSE_PARENT_URL, FORM_RESPONSE_SUBMITTED_BY_URL],
+  );
 
-  if (parentId && !hasExtension(extensions, FORM_RESPONSE_PARENT_URL)) {
-    extensions.push({
-      url: FORM_RESPONSE_PARENT_URL,
-      valueString: parentId,
-    });
-  }
+  extensions.push(
+    { url: FORM_RESPONSE_PARENT_URL, valueString: parentId },
+    { url: FORM_RESPONSE_SUBMITTED_BY_URL, valueString: parentId },
+  );
 
-  if (parentId && !hasExtension(extensions, FORM_RESPONSE_SUBMITTED_BY_URL)) {
-    extensions.push({
-      url: FORM_RESPONSE_SUBMITTED_BY_URL,
-      valueString: parentId,
-    });
-  }
-
-  if (extensions.length) {
-    normalized.extension = extensions;
-  }
+  normalized.extension = extensions;
 
   return normalized as unknown as FormSubmissionRequestDTO;
 };
@@ -226,23 +222,37 @@ export const FormController = {
 
   submitForm: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
-      const authUser = await AuthUserMobileService.getByProviderUserId(
-        authUserId!,
-      );
-      if (!authUser) {
+      const authUserId = (req as AuthenticatedRequest).userId;
+      if (!authUserId) {
         return res
           .status(401)
-          .json({ message: "Unauthorized: User not found" });
+          .json({ message: "Unauthorized: User ID missing" });
+      }
+
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      const parentId = authUser?.parentId?.toString();
+      if (!parentId) {
+        return res.status(403).json({ message: "Parent account not found" });
+      }
+
+      const formId = req.params.formId;
+      if (!formId) {
+        return res.status(400).json({ message: "formId is required" });
       }
 
       const submissionRequest = normalizeMobileSubmissionRequest(
         req.body as FormSubmissionRequestDTO,
-        req.params.formId,
-        authUser.parentId?.toString(),
+        formId,
+        parentId,
       );
 
-      const submission = await FormService.submitFHIR(submissionRequest);
+      const submission = await FormService.submitFHIR(
+        submissionRequest,
+        undefined,
+        parentId,
+        { parentId },
+      );
       return res.status(201).json(submission);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -267,10 +277,16 @@ export const FormController = {
           .json({ message: "Unauthorized: User ID missing" });
       }
 
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       const submission = await FormService.submitFHIR(
         submissionRequest,
         undefined,
         userId,
+        { organisationId },
       );
       return res.status(201).json(submission);
     } catch (error) {

@@ -1541,7 +1541,6 @@ export const appointmentApi = {
         headers: withAuthHeaders(accessToken),
       });
       const intentPayload = intentResp.data?.data ?? intentResp.data ?? {};
-      console.log('[Payment] /mobile/payment-intent response:', intentPayload);
       clientSecret =
         intentPayload.clientSecret ?? intentPayload.client_secret ?? null;
     }

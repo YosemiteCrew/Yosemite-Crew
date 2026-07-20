@@ -6,6 +6,7 @@ import { Task, TaskKindOptions, TaskStatusOptions } from '@/app/features/tasks/t
 import {
   offsetToReminderValue,
   recurrenceToRepeatValue,
+  TASK_PRIORITY_OPTIONS,
   TASK_REMINDER_OPTIONS,
   TASK_REPEAT_OPTIONS,
 } from '@/app/features/tasks/constants/taskTaxonomy';
@@ -125,6 +126,13 @@ export const useTaskInfoFields = ({
         type: 'select',
         options: categoryOptions,
         required: true,
+        editable: canEditDetails,
+      },
+      {
+        label: 'Priority',
+        key: 'priority',
+        type: 'select',
+        options: TASK_PRIORITY_OPTIONS,
         editable: canEditDetails,
       },
       {

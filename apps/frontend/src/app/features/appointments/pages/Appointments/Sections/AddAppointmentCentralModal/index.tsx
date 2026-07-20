@@ -24,6 +24,8 @@ import { formatTimeLabel } from '@/app/lib/forms';
 import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import BottomSheet from '@/app/ui/layout/PhoneShell/BottomSheet';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import Datepicker from '@/app/ui/inputs/Datepicker';
@@ -701,6 +703,13 @@ type AppointmentFormContentProps = {
   showError: (field: string) => string | undefined;
   handleSubmit: () => void;
   onCancel: () => void;
+  /**
+   * `modal` (default) is the desktop CenterModal layout: a 2-column field grid
+   * with an inline Cancel + Book footer. `sheet` is the phone bottom-sheet
+   * layout: a single full-width stacked column with no inline footer (the
+   * sticky Book button lives in the BottomSheet footer instead).
+   */
+  variant?: 'modal' | 'sheet';
 };
 
 export const AppointmentFormContent = ({
@@ -747,9 +756,16 @@ export const AppointmentFormContent = ({
   showError,
   handleSubmit,
   onCancel,
+  variant = 'modal',
 }: AppointmentFormContentProps) => (
   <div className="relative">
-    <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+    <div
+      className={
+        variant === 'sheet'
+          ? 'grid grid-cols-1 gap-y-4'
+          : 'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2'
+      }
+    >
       <div className="flex flex-col gap-4">
         <PersonRow
           fieldId="central-patient"
@@ -928,18 +944,26 @@ export const AppointmentFormContent = ({
       </div>
     )}
 
-    <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
-      <Secondary text="Cancel" onClick={onCancel} isDisabled={formState.loading} />
-      <Primary
-        text="Book appointment"
-        onClick={handleSubmit}
-        isDisabled={formState.loading}
-        icon={<IoArrowForward aria-hidden="true" />}
-        iconPosition="right"
-      />
-    </div>
+    {variant === 'sheet' ? null : (
+      <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
+        <Secondary text="Cancel" onClick={onCancel} isDisabled={formState.loading} />
+        <Primary
+          text="Book appointment"
+          onClick={handleSubmit}
+          isDisabled={formState.loading}
+          icon={<IoArrowForward aria-hidden="true" />}
+          iconPosition="right"
+        />
+      </div>
+    )}
   </div>
 );
+
+// ─── Phone sticky footer "Book" button ────────────────────────────────────────
+export const buildBookButtonLabel = (selectedClientName?: string): string => {
+  const firstName = selectedClientName?.split(' ')[0];
+  return firstName ? `Book · ${firstName} gets notified` : 'Book appointment';
+};
 
 export const DiscardConfirmationModal = ({
   showModal,
@@ -972,7 +996,7 @@ export const DiscardConfirmationModal = ({
         <button
           type="button"
           onClick={onDiscard}
-          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] text-white! disabled:cursor-not-allowed disabled:opacity-60"
+          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] disabled:cursor-not-allowed disabled:opacity-60"
           onPointerDown={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
@@ -1022,6 +1046,7 @@ const useAddAppointmentCentralModalView = ({
 }: AddAppointmentCentralModalProps) => {
   const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
+  const isPhone = useIsPhone();
   const [uiState, dispatchUi] = useReducer(modalUiReducer, undefined, createInitialModalUiState);
   const [visitType, setVisitType] = useState('Outpatient');
   const prefillActive = Boolean(prefill) && !uiState.prefillDismissed;
@@ -1343,8 +1368,13 @@ const useAddAppointmentCentralModalView = ({
       if (mins > 0) return `${mins} mins`;
     }
     if (formData.durationMinutes) return `${formData.durationMinutes} mins`;
+    // Before a time slot is chosen, fall back to the selected service's configured
+    // duration so the badge reflects the picked service instead of staying empty.
+    // Display-only: booking still requires a real slot (durationMinutes validation).
+    const serviceMins = Number(ServiceInfoData?.duration);
+    if (Number.isFinite(serviceMins) && serviceMins > 0) return `${serviceMins} mins`;
     return null;
-  }, [selectedSlot, formData.durationMinutes]);
+  }, [selectedSlot, formData.durationMinutes, ServiceInfoData?.duration]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -1356,72 +1386,92 @@ const useAddAppointmentCentralModalView = ({
   const noSlotsMessage = getNoSlotsMessage(hasService, hasSpeciality);
   const patientLabel = terminologyText('Patient');
 
+  const formContentProps: AppointmentFormContentProps = {
+    patientLabel,
+    selectedPatientName,
+    selectedPatientPhoto,
+    patientQuery: uiState.patientQuery,
+    setPatientQuery: (value) => dispatchUi({ type: 'setPatientQuery', value }),
+    patientOptions,
+    handlePatientSelect,
+    handlePatientClear,
+    selectedClientName,
+    clientQuery: uiState.clientQuery,
+    setClientQuery: (value) => dispatchUi({ type: 'setClientQuery', value }),
+    clientOptions,
+    handleClientSelect,
+    handleClientClear,
+    setAddCompanionTarget: (target) => dispatchUi({ type: 'setAddCompanionTarget', value: target }),
+    selectedDate,
+    handleDateChange,
+    today,
+    timeSlots,
+    selectedSlot,
+    onSlotSelect: (slot) => {
+      dispatchUi({ type: 'dismissPrefill' });
+      setSelectedSlot(slot);
+    },
+    formState: {
+      loadingTimeSlots: uiState.isLoadingTimeSlots,
+      loadingSlotScopedOptions: isLoadingSlotScopedOptions,
+      serviceSelected: hasService,
+      submitted: uiState.submitAttempted,
+      loading: isLoading,
+    },
+    noSlotsMessage,
+    prefillTimeLabel,
+    durationDisplay,
+    visitType,
+    handleVisitTypeSelect,
+    LeadOptions,
+    formData,
+    formDataErrors,
+    handleLeadSelectWithReset,
+    leadEmptyStateMessage,
+    supportOptions,
+    handleSupportStaffChange,
+    SpecialitiesOptions,
+    handleSpecialitySelect,
+    ServicesOptions,
+    handleServiceSelect,
+    setFormData,
+    ServiceInfoData,
+    showError: (field) => showError(field as keyof typeof formDataErrors),
+    handleSubmit,
+    onCancel: handleCancel,
+  };
+
   return (
     <>
-      <AppointmentCentralModalShell
-        showModal={showModal}
-        setShowModal={setShowModal}
-        title="New appointment"
-        canClose={canCloseModal}
-        isLoading={isLoading}
-      >
-        <AppointmentFormContent
-          patientLabel={patientLabel}
-          selectedPatientName={selectedPatientName}
-          selectedPatientPhoto={selectedPatientPhoto}
-          patientQuery={uiState.patientQuery}
-          setPatientQuery={(value) => dispatchUi({ type: 'setPatientQuery', value })}
-          patientOptions={patientOptions}
-          handlePatientSelect={handlePatientSelect}
-          handlePatientClear={handlePatientClear}
-          selectedClientName={selectedClientName}
-          clientQuery={uiState.clientQuery}
-          setClientQuery={(value) => dispatchUi({ type: 'setClientQuery', value })}
-          clientOptions={clientOptions}
-          handleClientSelect={handleClientSelect}
-          handleClientClear={handleClientClear}
-          setAddCompanionTarget={(target) =>
-            dispatchUi({ type: 'setAddCompanionTarget', value: target })
+      {isPhone ? (
+        <BottomSheet
+          open={showModal}
+          title="New appointment"
+          onClose={handleCancel}
+          className="yc-appointment-sheet"
+          footer={
+            <Primary
+              text={buildBookButtonLabel(selectedClientName)}
+              onClick={handleSubmit}
+              isDisabled={isLoading}
+              size="large"
+              style={{ minHeight: 48, fontSize: 14, fontWeight: 700 }}
+            />
           }
-          selectedDate={selectedDate}
-          handleDateChange={handleDateChange}
-          today={today}
-          timeSlots={timeSlots}
-          selectedSlot={selectedSlot}
-          onSlotSelect={(slot) => {
-            dispatchUi({ type: 'dismissPrefill' });
-            setSelectedSlot(slot);
-          }}
-          formState={{
-            loadingTimeSlots: uiState.isLoadingTimeSlots,
-            loadingSlotScopedOptions: isLoadingSlotScopedOptions,
-            serviceSelected: hasService,
-            submitted: uiState.submitAttempted,
-            loading: isLoading,
-          }}
-          noSlotsMessage={noSlotsMessage}
-          prefillTimeLabel={prefillTimeLabel}
-          durationDisplay={durationDisplay}
-          visitType={visitType}
-          handleVisitTypeSelect={handleVisitTypeSelect}
-          LeadOptions={LeadOptions}
-          formData={formData}
-          formDataErrors={formDataErrors}
-          handleLeadSelectWithReset={handleLeadSelectWithReset}
-          leadEmptyStateMessage={leadEmptyStateMessage}
-          supportOptions={supportOptions}
-          handleSupportStaffChange={handleSupportStaffChange}
-          SpecialitiesOptions={SpecialitiesOptions}
-          handleSpecialitySelect={handleSpecialitySelect}
-          ServicesOptions={ServicesOptions}
-          handleServiceSelect={handleServiceSelect}
-          setFormData={setFormData}
-          ServiceInfoData={ServiceInfoData}
-          showError={(field) => showError(field as keyof typeof formDataErrors)}
-          handleSubmit={handleSubmit}
-          onCancel={handleCancel}
-        />
-      </AppointmentCentralModalShell>
+        >
+          <AppointmentFormContent {...formContentProps} variant="sheet" />
+        </BottomSheet>
+      ) : (
+        <AppointmentCentralModalShell
+          showModal={showModal}
+          setShowModal={setShowModal}
+          title="New appointment"
+          canClose={canCloseModal}
+          isLoading={isLoading}
+        >
+          <AppointmentFormContent {...formContentProps} />
+        </AppointmentCentralModalShell>
+      )}
 
       <AddCompanionCentralModal
         showModal={showAddCompanionModal}

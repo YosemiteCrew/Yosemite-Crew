@@ -10,17 +10,10 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-jest.mock('next/image', () => ({
+const mockIsPhone = jest.fn(() => false);
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
   __esModule: true,
-  default: ({ alt }: any) => <span>{alt}</span>,
-}));
-
-jest.mock('@/app/constants/mediaSources', () => ({
-  MEDIA_SOURCES: { appointments: { stripe: '/stripe.png' } },
-}));
-
-jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
-  useCompanionTerminologyText: () => (text: string) => text,
+  default: () => mockIsPhone(),
 }));
 
 const mockGetParentById = jest.fn(() => null as any);
@@ -52,6 +45,23 @@ jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceDetailHeader', (
   ),
 }));
 
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoicePhoneRecord', () => ({
+  __esModule: true,
+  default: ({ titleId, invoice, onClose, onOpenAppointment }: any) => (
+    <div data-testid="phone-record">
+      <h2 id={titleId}>{invoice?.id}</h2>
+      <button type="button" onClick={onClose}>
+        phone-close
+      </button>
+      {onOpenAppointment && (
+        <button type="button" onClick={onOpenAppointment}>
+          phone-open-appointment
+        </button>
+      )}
+    </div>
+  ),
+}));
+
 jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceBilledItems', () => ({
   __esModule: true,
   default: () => <div data-testid="billed-items" />,
@@ -77,41 +87,9 @@ jest.mock('@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger', 
   ),
 }));
 
-jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
-  __esModule: true,
-  default: ({ title, data, rightElement }: any) => (
-    <div>
-      <div>{title}</div>
-      {rightElement}
-      {data?.paymentMethod ? <div>{data.paymentMethod}</div> : null}
-    </div>
-  ),
+jest.mock('@/app/ui/tables/tableUtils', () => ({
+  getInvoiceStatusStyle: () => ({}),
 }));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
-jest.mock('@/app/lib/invoicePaymentMethod', () => ({
-  getInvoicePaymentMethodLabel: () => 'Paid in cash',
-}));
-
-jest.mock(
-  '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions',
-  () => ({
-    __esModule: true,
-    default: ({ invoiceId }: any) => <div data-testid="payment-actions">{invoiceId}</div>,
-  })
-);
 
 jest.mock('@/app/hooks/useAppointments', () => ({
   useAppointmentsForPrimaryOrg: () => [],
@@ -135,7 +113,6 @@ jest.mock('@/app/lib/appointments', () => ({
 
 const mockGetOwnerFirstName = jest.fn(() => 'Lena' as string);
 jest.mock('@/app/lib/companionName', () => ({
-  formatCompanionNameWithOwnerLastName: () => 'Lena Hartmann / Poppy',
   getOwnerFirstName: () => mockGetOwnerFirstName(),
 }));
 
@@ -152,23 +129,24 @@ describe('InvoiceInfo', () => {
     const invoiceLib = jest.requireMock('@/app/lib/invoice');
     (invoiceLib.getAppointmentByIdFromList as jest.Mock).mockReturnValue(undefined);
     mockPush.mockClear();
+    mockIsPhone.mockReturnValue(false);
     mockGetParentById.mockReset();
     mockGetParentById.mockReturnValue(null);
     mockGetOwnerFirstName.mockReset();
     mockGetOwnerFirstName.mockReturnValue('Lena');
   });
 
-  it('renders modal with enriched header and tabs', () => {
+  it('renders the modal with the desktop header and no Details/Payment tabs', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByTestId('invoice-header')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Payment' })).toBeInTheDocument();
+    // The net-new segmented tabs are gone.
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
   });
 
-  it('renders the design billing sections on the details tab', () => {
+  it('renders the clean two-column record (billed items, ledger, summary, billed-to)', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
@@ -178,51 +156,38 @@ describe('InvoiceInfo', () => {
     expect(screen.getByTestId('payment-ledger')).toBeInTheDocument();
   });
 
-  it('shows appointment details accordions by default', () => {
+  it('does not render the removed EditableAccordions', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
-    expect(screen.getByText('Appointment details')).toBeInTheDocument();
-    expect(screen.getByText('Payment details')).toBeInTheDocument();
+    expect(screen.queryByText('Appointment details')).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment details')).not.toBeInTheDocument();
   });
 
-  it('switches to payment tab and shows Pay card with stripe logo', () => {
+  it('renders the phone record instead of the desktop record below 768px', () => {
+    mockIsPhone.mockReturnValue(true);
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
-    expect(screen.getByTestId('payment-actions')).toBeInTheDocument();
-    expect(screen.getByText('Pay')).toBeInTheDocument();
-    expect(screen.getByText('Powered by stripe')).toBeInTheDocument();
+    expect(screen.getByTestId('phone-record')).toBeInTheDocument();
+    expect(screen.queryByTestId('invoice-header')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('billed-items')).not.toBeInTheDocument();
   });
 
-  it('exposes proper tab semantics for invoice sections', () => {
-    const setShowModal = jest.fn();
-    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
-
-    const detailsTab = screen.getByRole('tab', { name: 'Details' });
-    const paymentTab = screen.getByRole('tab', { name: 'Payment' });
-
-    expect(detailsTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveAttribute(
-      'aria-labelledby',
-      detailsTab.getAttribute('id')
-    );
-
-    fireEvent.click(paymentTab);
-
-    expect(paymentTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveAttribute(
-      'aria-labelledby',
-      paymentTab.getAttribute('id')
-    );
-  });
-
-  it('closes modal when header close button clicked', () => {
+  it('closes the modal from the desktop header close button', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
     fireEvent.click(screen.getByText('close'));
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('closes the modal from the phone record close button', () => {
+    mockIsPhone.mockReturnValue(true);
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    fireEvent.click(screen.getByText('phone-close'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
@@ -232,32 +197,6 @@ describe('InvoiceInfo', () => {
       <InvoiceInfo showModal={false} setShowModal={setShowModal} activeInvoice={baseInvoice} />
     );
     expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
-  });
-
-  it('shows status badge in accordion rightElement on details tab', () => {
-    const setShowModal = jest.fn();
-    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
-
-    // Status badge is rendered as rightElement in the Appointment details accordion
-    expect(screen.getAllByText('PAID').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('shows status badge and row in payment tab Pay card', () => {
-    const setShowModal = jest.fn();
-    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
-    expect(screen.getByText('Status')).toBeInTheDocument();
-    // Status value rendered as badge in Pay card
-    expect(screen.getAllByText('PAID').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders the payment ledger on the payment tab', () => {
-    const setShowModal = jest.fn();
-    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
-    expect(screen.getByTestId('payment-ledger')).toBeInTheDocument();
   });
 
   it('ignores the open-appointment action when no appointment is linked', () => {
@@ -286,10 +225,24 @@ describe('InvoiceInfo', () => {
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
+  it('opens the linked appointment from the phone record action', () => {
+    mockIsPhone.mockReturnValue(true);
+    const invoiceLib = jest.requireMock('@/app/lib/invoice');
+    (invoiceLib.getAppointmentByIdFromList as jest.Mock).mockReturnValue({
+      id: 'appt-2',
+      appointmentType: { name: 'Suture check' },
+      organisationId: 'org-1',
+    });
+
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    fireEvent.click(screen.getByText('phone-open-appointment'));
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush.mock.calls[0][0]).toContain('appointmentId=appt-2');
+  });
+
   it('composes the payer name from a stored parent, tolerating a missing surname', () => {
-    // parentId present → useParentStore returns a stored parent → the storedParent
-    // branch (InvoiceInfo L85-91) runs: firstName trims, undefined lastName short-circuits
-    // the optional chain, and the non-empty composed value is returned as payerName.
     mockGetParentById.mockReturnValue({
       firstName: 'Lena',
       lastName: undefined,
@@ -309,8 +262,6 @@ describe('InvoiceInfo', () => {
   });
 
   it('skips a stored parent whose name parts are all blank and clears the payer email', () => {
-    // storedParent is truthy but every name part trims to empty → composed collapses to ''
-    // → the `if (composed)` arm is skipped and payerName falls through to '' (no appointment).
     mockGetParentById.mockReturnValue({ firstName: '  ', lastName: '', email: '' });
     const setShowModal = jest.fn();
     render(
@@ -326,57 +277,36 @@ describe('InvoiceInfo', () => {
   });
 
   it('renders the shell without an active invoice, skipping every invoice-gated block', () => {
-    // activeInvoice=null exercises the falsy arm of the header / details-billing / ledger guards
-    // and the `activeInvoice?.x ?? default` nullish fallbacks throughout.
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={null} />);
 
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.queryByTestId('invoice-header')).not.toBeInTheDocument();
     expect(screen.queryByTestId('billed-items')).not.toBeInTheDocument();
-    // The static accordions still render even without an invoice.
-    expect(screen.getByText('Appointment details')).toBeInTheDocument();
-
-    // Payment tab: no ledger (invoice-gated) but the Pay card status falls back to '-'.
-    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
-    expect(screen.queryByTestId('payment-ledger')).not.toBeInTheDocument();
-    expect(screen.getByText('-')).toBeInTheDocument();
   });
 
-  it('falls back the status label arms when the invoice status is empty', () => {
+  it('renders no phone record when there is no active invoice on phone', () => {
+    mockIsPhone.mockReturnValue(true);
     const setShowModal = jest.fn();
-    render(
-      <InvoiceInfo
-        showModal
-        setShowModal={setShowModal}
-        activeInvoice={{ ...baseInvoice, status: '' }}
-      />
-    );
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={null} />);
 
-    // Empty status → invoiceStatusLabel is '' → the accordion rightElement is omitted (details tab).
-    expect(screen.queryByText('PAID')).not.toBeInTheDocument();
-
-    // Payment tab: the status pill uses the `|| '-'` fallback.
-    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
+    expect(screen.queryByTestId('phone-record')).not.toBeInTheDocument();
   });
 
-  it('falls back to a dash when a linked appointment has no owner first name', () => {
+  it('derives the parent id and payer name from a linked appointment when no stored parent', () => {
     const invoiceLib = jest.requireMock('@/app/lib/invoice');
     (invoiceLib.getAppointmentByIdFromList as jest.Mock).mockReturnValue({
       id: 'appt-1',
       appointmentType: { name: 'Rabies booster' },
       organisationId: 'org-1',
     });
-    mockGetOwnerFirstName.mockReturnValue('');
+    mockGetOwnerFirstName.mockReturnValue('Lena');
 
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
-    // getOwnerFirstName() → '' exercises the `|| '-'` arm in appointmentInfoData and the
-    // empty payer-name path (storedParent absent, appointment present).
-    expect(screen.getByTestId('ledger-payer-name').textContent).toBe('');
-    expect(screen.getByText('Appointment details')).toBeInTheDocument();
+    expect(screen.getByTestId('ledger-payer-name')).toHaveTextContent('Lena');
   });
 
   it('has no axe accessibility violations', async () => {

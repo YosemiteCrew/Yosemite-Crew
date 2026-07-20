@@ -16,7 +16,7 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
     },
     admission: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   },
 }));
@@ -41,7 +41,7 @@ const mockedPrisma = prisma as unknown as {
     findFirst: jest.Mock;
   };
   admission: {
-    findUnique: jest.Mock;
+    findFirst: jest.Mock;
   };
 };
 
@@ -53,6 +53,16 @@ const mockedTaskService = TaskService as unknown as {
 describe("TaskWorkflowService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // The appointment deref is now organisation-scoped and fails closed, so the
+    // default fixture has to resolve inside the fixtures' org.
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      appointmentKind: "OUTPATIENT",
+      patient: { id: "patient-1", parent: { id: "parent-1" } },
+      lead: { id: "lead-1" },
+      supportStaff: [],
+      startTime: new Date("2026-01-01T09:00:00.000Z"),
+      encounterId: null,
+    });
   });
 
   it("launches a task template instance into a persisted schedule", async () => {
@@ -131,7 +141,7 @@ describe("TaskWorkflowService", () => {
     const result = await TaskWorkflowService.launchFromTemplateInstance(
       "instance-1",
       "org-1",
-      "creator-1",
+      { actorId: "creator-1", canEditAny: true },
       { client: prisma, notify: false },
     );
 
@@ -295,7 +305,7 @@ describe("TaskWorkflowService", () => {
     await TaskWorkflowService.launchFromTemplateInstance(
       "instance-1",
       "org-1",
-      "creator-1",
+      { actorId: "creator-1", canEditAny: true },
       { client: prisma, notify: false },
     );
 
@@ -345,7 +355,7 @@ describe("TaskWorkflowService", () => {
       TaskWorkflowService.launchFromTemplateInstance(
         "instance-inpatient",
         "org-1",
-        "creator-1",
+        { actorId: "creator-1", canEditAny: true },
         { client: prisma, notify: false },
       ),
     ).rejects.toMatchObject({
@@ -391,7 +401,7 @@ describe("TaskWorkflowService", () => {
     const result = await TaskWorkflowService.launchFromTemplateInstance(
       "instance-2",
       "org-1",
-      "creator-1",
+      { actorId: "creator-1", canEditAny: true },
       { client: prisma, notify: false },
     );
 
@@ -447,7 +457,7 @@ describe("TaskWorkflowService", () => {
 
     const paused = await TaskWorkflowService.pauseSchedule(
       "instance-4",
-      "actor-1",
+      { actorId: "actor-1", canEditAny: true },
       "org-1",
     );
     expect(paused.status).toBe("PAUSED");
@@ -498,7 +508,7 @@ describe("TaskWorkflowService", () => {
 
     const resumed = await TaskWorkflowService.resumeSchedule(
       "instance-4",
-      "actor-1",
+      { actorId: "actor-1", canEditAny: true },
       "org-1",
     );
     expect(resumed.status).toBe("ACTIVE");
@@ -552,7 +562,7 @@ describe("TaskWorkflowService", () => {
 
     const cancelled = await TaskWorkflowService.cancelSchedule(
       "instance-4",
-      "actor-1",
+      { actorId: "actor-1", canEditAny: true },
       "org-1",
     );
     expect(mockedTaskService.changeStatus).toHaveBeenCalledWith(
@@ -652,7 +662,7 @@ describe("TaskWorkflowService", () => {
     const result = await TaskWorkflowService.regenerateSchedule(
       "instance-5",
       "org-1",
-      "creator-1",
+      { actorId: "creator-1", canEditAny: true },
       { client: prisma, notify: false },
     );
 
@@ -738,7 +748,7 @@ describe("TaskWorkflowService", () => {
     const result = await TaskWorkflowService.launchFromTemplateInstance(
       "instance-6",
       "org-1",
-      "creator-1",
+      { actorId: "creator-1", canEditAny: true },
       { client: prisma, notify: false, deferUntil: deferredUntil },
     );
 
@@ -780,11 +790,199 @@ describe("TaskWorkflowService", () => {
       TaskWorkflowService.launchFromTemplateInstance(
         "instance-3",
         "org-1",
-        "creator-1",
+        { actorId: "creator-1", canEditAny: true },
         { client: prisma, notify: false },
       ),
     ).rejects.toThrow(
       "Template kind does not support task workflow generation",
     );
+  });
+
+  describe("tenant and ownership enforcement", () => {
+    const taskTemplateInstance = (overrides: Record<string, unknown> = {}) => ({
+      id: "instance-1",
+      organisationId: "org-1",
+      appointmentId: "appt-victim",
+      caseId: null,
+      encounterId: null,
+      templateId: "template-1",
+      templateVersion: 1,
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T08:00:00.000Z"),
+      data: {
+        sections: [
+          {
+            id: "definition",
+            data: {
+              taskKind: "MEDICATION",
+              category: "Medication",
+              name: "Evening medicine",
+            },
+          },
+          {
+            id: "assignment",
+            data: {
+              defaultRole: "EMPLOYEE_TASK",
+              defaultAssigneeRole: "EMPLOYEE_TASK",
+            },
+          },
+          { id: "timing", data: { dueOffsetMinutes: 30 } },
+        ],
+      },
+      template: {
+        id: "template-1",
+        kind: "TASK_TEMPLATE",
+        ownership: "ORG_TEMPLATE",
+      },
+      taskSchedule: null,
+      ...overrides,
+    });
+
+    it("refuses to dereference an appointment from another organisation", async () => {
+      mockedPrisma.templateInstance.findUnique.mockResolvedValue(
+        taskTemplateInstance(),
+      );
+      // The org-scoped lookup finds nothing: the appointment belongs to another
+      // tenant. Without this the victim's patient/parent/lead ids would be
+      // harvested into the generated tasks.
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        TaskWorkflowService.launchFromTemplateInstance(
+          "instance-1",
+          "org-1",
+          { actorId: "author-1", canEditAny: true },
+          { client: prisma, notify: false },
+        ),
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      expect(mockedTaskService.createFromWorkflowSeed).not.toHaveBeenCalled();
+    });
+
+    it("scopes the appointment lookup to the instance organisation", async () => {
+      mockedPrisma.templateInstance.findUnique.mockResolvedValue(
+        taskTemplateInstance({ taskSchedule: null }),
+      );
+      mockedTaskService.createFromWorkflowSeed.mockResolvedValue({
+        id: "task-1",
+      });
+      mockedPrisma.taskSchedule.create.mockResolvedValue({
+        id: "schedule-1",
+        templateInstanceId: "instance-1",
+        templateId: "template-1",
+        templateVersion: 1,
+        templateKind: "TASK_TEMPLATE",
+        organisationId: "org-1",
+        createdBy: "author-1",
+        status: "DRAFT",
+        materializedSeeds: [],
+        generatedTaskIds: [],
+      });
+      mockedPrisma.taskSchedule.update.mockResolvedValue({
+        id: "schedule-1",
+        templateInstanceId: "instance-1",
+        templateId: "template-1",
+        templateVersion: 1,
+        templateKind: "TASK_TEMPLATE",
+        organisationId: "org-1",
+        createdBy: "author-1",
+        status: "COMPLETED",
+        materializedSeeds: [],
+        generatedTaskIds: [],
+      });
+
+      await TaskWorkflowService.launchFromTemplateInstance(
+        "instance-1",
+        "org-1",
+        { actorId: "author-1", canEditAny: true },
+        { client: prisma, notify: false },
+      );
+
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "appt-victim", organisationId: "org-1" },
+        }),
+      );
+    });
+
+    it("rejects a template instance from another organisation", async () => {
+      mockedPrisma.templateInstance.findUnique.mockResolvedValue(
+        taskTemplateInstance({ organisationId: "org-victim" }),
+      );
+
+      await expect(
+        TaskWorkflowService.launchFromTemplateInstance(
+          "instance-1",
+          "org-attacker",
+          { actorId: "author-1", canEditAny: true },
+          { client: prisma, notify: false },
+        ),
+      ).rejects.toMatchObject({ statusCode: 403 });
+    });
+
+    // tasks:edit:own reaches these routes, so a caller without tasks:edit:any
+    // must be shown to own the schedule rather than merely to be in the org.
+    const scheduled = () =>
+      taskTemplateInstance({
+        appointmentId: null,
+        authorId: "author-1",
+        taskSchedule: {
+          id: "schedule-1",
+          templateInstanceId: "instance-1",
+          organisationId: "org-1",
+          createdBy: "author-1",
+          activatedBy: null,
+          status: "ACTIVE",
+          generatedTaskIds: [],
+          materializedSeeds: [],
+        },
+      });
+
+    it.each([
+      ["pauseSchedule"],
+      ["resumeSchedule"],
+      ["cancelSchedule"],
+    ] as const)(
+      "%s rejects a non-owner holding only tasks:edit:own",
+      async (method) => {
+        mockedPrisma.templateInstance.findUnique.mockResolvedValue(scheduled());
+
+        await expect(
+          TaskWorkflowService[method](
+            "instance-1",
+            { actorId: "stranger", canEditAny: false },
+            "org-1",
+          ),
+        ).rejects.toMatchObject({ statusCode: 403 });
+
+        expect(mockedPrisma.taskSchedule.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it("pauseSchedule allows the schedule owner holding only tasks:edit:own", async () => {
+      mockedPrisma.templateInstance.findUnique.mockResolvedValue(scheduled());
+      mockedPrisma.taskSchedule.update.mockResolvedValue({
+        id: "schedule-1",
+        templateInstanceId: "instance-1",
+        templateId: "template-1",
+        templateVersion: 1,
+        templateKind: "TASK_TEMPLATE",
+        organisationId: "org-1",
+        createdBy: "author-1",
+        status: "PAUSED",
+        generatedTaskIds: [],
+        materializedSeeds: [],
+      });
+
+      const paused = await TaskWorkflowService.pauseSchedule(
+        "instance-1",
+        { actorId: "author-1", canEditAny: false },
+        "org-1",
+      );
+
+      expect(paused.status).toBe("PAUSED");
+    });
   });
 });

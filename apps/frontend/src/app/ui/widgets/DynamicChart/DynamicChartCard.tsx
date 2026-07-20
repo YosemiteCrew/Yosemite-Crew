@@ -6,7 +6,11 @@ import type { LayoutType } from 'recharts/types/util/types';
 import { type ChartKey, getMonthLabelFromData } from '@/app/ui/widgets/DynamicChart/chartAxis';
 
 const ChartSkeleton = ({ height }: { height: number }) => (
-  <div className="rounded-2xl bg-card-hover animate-pulse" style={{ height }} aria-hidden="true" />
+  <div
+    className="rounded-[18px] bg-[var(--inset)] animate-pulse"
+    style={{ height }}
+    aria-hidden="true"
+  />
 );
 
 /* The whole recharts canvas is one lazy chunk. Splitting at this boundary - rather
@@ -43,19 +47,19 @@ type ChartProps = {
 };
 
 const ChartLegend = ({ keys }: { keys: ChartKey[] }) => (
-  <div className="flex items-center justify-center w-full gap-6">
+  <div className="flex items-center justify-center w-full gap-4">
     {keys.map((key) => (
       <span key={key.name} className="flex items-center gap-1.5">
         <span
           style={{
-            width: '16px',
-            height: '16px',
+            width: '9px',
+            height: '9px',
             backgroundColor: key.color,
-            borderRadius: '50%',
+            borderRadius: '3px',
             display: 'inline-block',
           }}
         />
-        <span className="text-capton-1 text-text-primary">{key.name}</span>
+        <span className="text-[11px] text-[var(--ink-muted)]">{key.name}</span>
       </span>
     ))}
   </div>
@@ -63,15 +67,15 @@ const ChartLegend = ({ keys }: { keys: ChartKey[] }) => (
 
 const EmptyChartState = ({ height }: { height: number }) => (
   <div
-    className="flex flex-col items-center justify-center gap-2 text-text-tertiary"
+    className="flex flex-col items-center justify-center gap-2 text-[var(--ink-faint)]"
     style={{ height }}
   >
     <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-      <rect x="4" y="24" width="8" height="12" rx="2" fill="var(--color-neutral-200)" />
-      <rect x="16" y="16" width="8" height="20" rx="2" fill="var(--color-neutral-200)" />
-      <rect x="28" y="10" width="8" height="26" rx="2" fill="var(--color-neutral-200)" />
+      <rect x="4" y="24" width="8" height="12" rx="2" fill="var(--divider)" />
+      <rect x="16" y="16" width="8" height="20" rx="2" fill="var(--divider)" />
+      <rect x="28" y="10" width="8" height="26" rx="2" fill="var(--divider)" />
     </svg>
-    <span className="text-body-3">No data available</span>
+    <span className="text-[13px]">No data available</span>
   </div>
 );
 
@@ -112,7 +116,7 @@ const DynamicChartCard: FC<ChartProps> = ({
   };
 
   return (
-    <div className="bg-neutral-0 border border-card-border p-3 flex flex-col gap-2 rounded-2xl">
+    <div className="flex flex-col gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
       {headerContent}
       {!hideKeys && !headerContent && <ChartLegend keys={keys} />}
       {isEmpty ? (

@@ -58,7 +58,10 @@ function useReleaseFor(variant: ReleaseVariant): ReleaseInfo {
   const latest = useLatestRelease();
   const mobile = useMobileRelease();
   if (variant === 'mobile') return mobile;
-  if (variant === 'platform' || variant === 'latest') return latest;
+  if (variant === 'latest') return latest;
+  // platform + static: no live release metadata. The repo-wide "latest release" is a
+  // desktop build, so a platform pill must not borrow its tag, date, or URL (it would
+  // link to and date-stamp the desktop release while showing the platform version).
   return { tag: null, date: null, url: null };
 }
 
@@ -68,10 +71,9 @@ function useReleaseFor(variant: ReleaseVariant): ReleaseInfo {
  */
 export function ReleasePill({ variant, label, version, href }: Readonly<ReleasePillProps>) {
   const release = useReleaseFor(variant);
-  const resolvedHref =
-    release.url ??
-    href ??
-    (variant === 'latest' ? `${GITHUB_REPO_URL}/releases` : `${GITHUB_REPO_URL}/releases/latest`);
+  // When no specific release URL resolved, link to the releases index rather than
+  // /releases/latest, so a platform/static pill never deep-links the desktop build.
+  const resolvedHref = release.url ?? href ?? `${GITHUB_REPO_URL}/releases`;
 
   const dot = (
     <span
@@ -102,6 +104,10 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
   }
 
   const isStatic = variant === 'static';
+  // The live release tag is only trusted for the mobile pill (useMobileRelease filters
+  // to mobile tags). The platform pill keeps its hard-coded copy, since the repo-wide
+  // "latest release" is a desktop build, not the platform version.
+  const shownVersion = variant === 'mobile' ? (release.tag ?? version) : version;
   return (
     <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={PILL_STYLE}>
       {dot}
@@ -110,7 +116,7 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
         style={{ width: 1, height: 12, background: 'var(--divider)', margin: '0 3px' }}
         aria-hidden="true"
       />
-      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{version}</span>
+      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{shownVersion}</span>
       {!isStatic && release.date ? (
         <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>{` · ${release.date}`}</span>
       ) : null}

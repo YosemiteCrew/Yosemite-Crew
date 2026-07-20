@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AddAppointmentCentralModal, {
   FieldError,
@@ -9,10 +9,12 @@ import AddAppointmentCentralModal, {
   TimeSlotDropdown,
   SlotBadge,
   DiscardConfirmationModal,
+  buildBookButtonLabel,
 } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
 import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 // ── React 19 createPortal mock ──────────────────────────────────────────────
 jest.mock('react-dom', () => ({
@@ -207,6 +209,29 @@ jest.mock(
       </div>
     ) : null
 );
+
+// Phone detection: defaults to desktop (false); the phone-sheet suite overrides it.
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  default: jest.fn(() => false),
+}));
+
+// BottomSheet: passthrough that exposes title, children and the sticky footer so
+// the phone variant can be asserted without the real sheet chrome/focus-trap.
+jest.mock('@/app/ui/layout/PhoneShell/BottomSheet', () => ({
+  __esModule: true,
+  default: ({ open, title, footer, children, onClose }: any) =>
+    open ? (
+      <div data-testid="bottom-sheet">
+        <span data-testid="bottom-sheet-title">{title}</span>
+        <button type="button" data-testid="bottom-sheet-close" onClick={onClose}>
+          close
+        </button>
+        <div data-testid="bottom-sheet-body">{children}</div>
+        <div data-testid="bottom-sheet-footer">{footer}</div>
+      </div>
+    ) : null,
+}));
 
 jest.mock('react-icons/io', () => ({
   IoIosWarning: () => <span data-testid="warning-icon" />,
@@ -913,6 +938,15 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByText('45 mins')).toBeInTheDocument();
   });
 
+  // #1898: after picking a specialty/service but before choosing a time slot,
+  // the badge shows the selected service's configured duration instead of staying
+  // empty (previously it only read the slot/durationMinutes, both unset here).
+  it('falls back to the selected service duration when no slot or durationMinutes is set', () => {
+    mockAppointmentForm.ServiceInfoData = { duration: 25 } as never;
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+    expect(screen.getByText('25 mins')).toBeInTheDocument();
+  });
+
   // ── Slot selection dismisses prefill and sets the slot ─────────────────────
   it('selecting a time slot dismisses prefill and sets the selected slot', async () => {
     mockAppointmentForm.timeSlots = [
@@ -1512,5 +1546,103 @@ describe('PersonRow (direct)', () => {
     });
     // no selectedName → the outside-click handler resets the query
     expect(setQuery).toHaveBeenCalledWith('');
+  });
+});
+
+describe('AddAppointmentCentralModal — phone bottom-sheet variant', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAppointmentForm.formData = { ...mockFormData };
+    mockAppointmentForm.formDataErrors = {};
+    mockAppointmentForm.isLoading = false;
+    mockAppointmentForm.isLoadingSlotScopedOptions = false;
+    mockAppointmentForm.selectedDate = null;
+    mockAppointmentForm.selectedSlot = null;
+    mockAppointmentForm.timeSlots = [];
+    mockAppointmentForm.ServiceInfoData = null;
+    mockAppointmentForm.LeadOptions = [{ value: 'lead-1', label: 'Dr. Smith' }];
+    mockAppointmentForm.TeamOptions = [{ value: 'staff-1', label: 'Nurse Joy' }];
+    mockAppointmentForm.setFormData = jest.fn();
+    mockAppointmentForm.setFormDataErrors = jest.fn();
+    mockAppointmentForm.setSelectedDate = jest.fn();
+    mockAppointmentForm.setSelectedSlot = jest.fn();
+    validateFormMock.mockReturnValue(true);
+    (useCompanionsParentsForPrimaryOrg as jest.Mock).mockReturnValue(mockCompanions);
+    (loadCompanionsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
+    (useIsPhone as jest.Mock).mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    (useIsPhone as jest.Mock).mockReturnValue(false);
+  });
+
+  it('renders the add-appointment form inside the bottom sheet on phone', () => {
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    // The shared BottomSheet is used, titled "New appointment"…
+    expect(screen.getByTestId('bottom-sheet')).toBeInTheDocument();
+    expect(screen.getByTestId('bottom-sheet-title')).toHaveTextContent('New appointment');
+    // …and the desktop CenterModal shell is NOT rendered on phone.
+    expect(screen.queryByTestId('modal-shell')).not.toBeInTheDocument();
+    // Same fields/handlers, presented inside the sheet body.
+    const body = screen.getByTestId('bottom-sheet-body');
+    expect(within(body).getByLabelText('Patient')).toBeInTheDocument();
+    expect(within(body).getByLabelText('Client')).toBeInTheDocument();
+    expect(within(body).getByLabelText(/emergency/i)).toBeInTheDocument();
+  });
+
+  it('renders the sticky footer Book button and submits the form', async () => {
+    validateFormMock.mockReturnValue(true);
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    const footer = screen.getByTestId('bottom-sheet-footer');
+    const book = within(footer).getByRole('button', { name: /book/i });
+
+    await act(async () => {
+      fireEvent.click(book);
+      await Promise.resolve();
+    });
+
+    expect(handleCreateMock).toHaveBeenCalled();
+  });
+
+  it('does not render the sheet when the modal is closed', () => {
+    render(<AddAppointmentCentralModal {...defaultProps} showModal={false} />);
+    expect(screen.queryByTestId('bottom-sheet')).not.toBeInTheDocument();
+  });
+
+  it('reflects an emergency draft and edits notes inside the sheet', () => {
+    mockAppointmentForm.formData = {
+      ...mockFormData,
+      isEmergency: true,
+    };
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+    const body = screen.getByTestId('bottom-sheet-body');
+
+    // Emergency toggle renders in its "on" state within the sheet…
+    expect(within(body).getByLabelText(/emergency/i)).toBeChecked();
+    // …and is still wired to the shared form handler.
+    fireEvent.click(within(body).getByLabelText(/emergency/i));
+    fireEvent.change(within(body).getByTestId('form-desc'), { target: { value: 'x' } });
+    expect(mockAppointmentForm.setFormData).toHaveBeenCalled();
+  });
+
+  it('closes the sheet via its onClose when there are no unsaved changes', () => {
+    const setShowModal = jest.fn();
+    render(<AddAppointmentCentralModal {...defaultProps} setShowModal={setShowModal} />);
+
+    fireEvent.click(screen.getByTestId('bottom-sheet-close'));
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('buildBookButtonLabel', () => {
+  it('uses the client first name when a client is selected', () => {
+    expect(buildBookButtonLabel('Lena Hartmann')).toBe('Book · Lena gets notified');
+  });
+
+  it('falls back to a generic label when no client is selected', () => {
+    expect(buildBookButtonLabel()).toBe('Book appointment');
+    expect(buildBookButtonLabel('')).toBe('Book appointment');
   });
 });

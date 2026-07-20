@@ -59,7 +59,7 @@ export const RoomUnitGroupController = {
 
       const dto = req.body as Parameters<typeof fromFHIRRoomUnitGroup>[0];
       const payload = fromFHIRRoomUnitGroup(dto);
-      const organisationId = getOrganisationId(req, payload.organisationId);
+      const organisationId = getOrganisationId(req);
 
       if (!requireParam(res, req.params.id, "Group identifier is required.")) {
         return;
@@ -71,10 +71,18 @@ export const RoomUnitGroupController = {
         });
       }
 
-      const updated = await RoomUnitGroupService.update(req.params.id, {
-        ...payload,
+      if (payload.organisationId && payload.organisationId !== organisationId) {
+        return res.status(403).json({
+          message:
+            "Organization identifier does not match the authorized organisation.",
+        });
+      }
+
+      const updated = await RoomUnitGroupService.update(
+        req.params.id,
         organisationId,
-      });
+        payload,
+      );
 
       return res.status(200).json(toFHIRRoomUnitGroup(updated));
     } catch (error) {
@@ -89,11 +97,16 @@ export const RoomUnitGroupController = {
 
   list: async (req: Request, res: Response) => {
     try {
+      const organisationId = getOrganisationId(req);
+
+      if (!organisationId) {
+        return res.status(400).json({
+          message: "Organization identifier is required.",
+        });
+      }
+
       const values = await RoomUnitGroupService.list({
-        organisationId:
-          typeof req.query.organizationId === "string"
-            ? req.query.organizationId
-            : undefined,
+        organisationId,
         roomId:
           typeof req.query.roomId === "string" ? req.query.roomId : undefined,
         isActive:

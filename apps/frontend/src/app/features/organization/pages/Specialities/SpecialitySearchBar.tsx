@@ -31,7 +31,7 @@ const SpecialitySearchBar = ({
   onSelectResult,
 }: SpecialitySearchBarProps) => (
   <div ref={searchRef} className="relative w-full sm:w-64 sm:ml-auto shrink-0">
-    <div className="flex items-center gap-2 border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white w-full">
+    <div className="flex items-center gap-2 border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-[var(--field-bg)] w-full">
       <input
         type="text"
         placeholder="Search services & packages..."
@@ -62,7 +62,7 @@ const SpecialitySearchBar = ({
     </div>
 
     {searchOpen && searchQuery.trim() && (
-      <div className="absolute top-full left-0 sm:left-auto sm:right-0 z-50 mt-1 w-full sm:w-96 bg-white border border-card-border rounded-2xl shadow-lg overflow-hidden">
+      <div className="absolute top-full left-0 sm:left-auto sm:right-0 z-50 mt-1 w-full sm:w-96 bg-[var(--screen)] border border-card-border rounded-2xl shadow-lg overflow-hidden">
         {searchResults.length > 0 ? (
           searchResults.map((result) => (
             <button

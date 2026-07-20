@@ -31,6 +31,19 @@ import { ThemeToggle } from '@/app/ui/theme';
 import NotificationsBell from '@/app/ui/layout/Notifications/NotificationsBell';
 import './UserHeader.css';
 
+/**
+ * RouteLoaderOverlay releases the org-switch loader when the pathname or query
+ * changes. Pushing the route we are already on fires neither, so callers have to
+ * release it themselves.
+ */
+const isCurrentRoute = (route: string) => {
+  const next = new URL(route, globalThis.window.location.origin);
+  return (
+    next.pathname === globalThis.window.location.pathname &&
+    next.search === globalThis.window.location.search
+  );
+};
+
 const shouldHideSearch = (pathname: string): boolean =>
   pathname.startsWith('/chat') ||
   pathname.startsWith('/settings') ||
@@ -135,6 +148,10 @@ const useUserHeaderContent = () => {
       const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
       const nextRoute = await resolveOrgScopedRedirect({ orgId, fallbackRole: role });
       router.push(nextRoute);
+      if (isCurrentRoute(nextRoute)) {
+        hide('org-switch');
+        stopRouteLoader();
+      }
     } catch {
       hide('org-switch');
       stopRouteLoader();

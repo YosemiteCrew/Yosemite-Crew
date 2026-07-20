@@ -155,7 +155,7 @@ function NavLinks({ active }: Readonly<Pick<SiteNavProps, 'active'>>) {
             aria-current={isActive ? 'page' : undefined}
             style={{
               ...linkBase,
-              color: isActive ? 'var(--nav-active)' : 'var(--ink-muted)',
+              color: isActive ? 'var(--nav-active)' : 'var(--ink-body)',
               background: isActive ? 'var(--nav-active-bg)' : 'transparent',
             }}
           >

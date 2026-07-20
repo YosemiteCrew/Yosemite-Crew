@@ -130,9 +130,7 @@ export const evaluateAppUpdatePrompt = (
   if (!appUpdate) return null;
 
   let platformPolicy:
-    | typeof appUpdate.ios
-    | typeof appUpdate.android
-    | undefined;
+    typeof appUpdate.ios | typeof appUpdate.android | undefined;
   if (Platform.OS === 'ios') {
     platformPolicy = appUpdate.ios;
   } else if (Platform.OS === 'android') {
@@ -190,6 +188,12 @@ export const evaluateAppUpdatePrompt = (
   }
 
   const storeUrl = resolveStoreUrl(appUpdate, bundleId);
+  // A forced update is only emitted as 'required' when there is a store URL to
+  // send the user to. The required sheet is non-dismissible (no close button,
+  // pan, or backdrop dismiss) and its action only opens the store, so a
+  // 'required' prompt without a storeUrl (e.g. an iOS config missing both
+  // storeUrl and appStoreId) would trap the user in the app with no way to
+  // update or leave. Degrade to a dismissible 'optional' prompt in that case.
   const kind: AppUpdatePrompt['kind'] =
     mustUpdate && storeUrl ? 'required' : 'optional';
 

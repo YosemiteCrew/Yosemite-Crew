@@ -8,39 +8,63 @@ export { CalendarTeamNamesRow } from './CalendarTeamNamesRow';
 type CalendarDayNavProps = {
   weekday: string;
   dateNumber: string;
-  onPrevDay: () => void;
-  onNextDay: () => void;
+  /**
+   * Inline day-stepper arrows. Omitted by the appointments planner, whose header
+   * toolbar owns navigation via its date-nav pill; the task calendar still passes
+   * them and keeps its arrows here.
+   */
+  onPrevDay?: () => void;
+  onNextDay?: () => void;
 };
 
 /**
- * Fixed date-navigation bar — arrows flank the date, never scrolls horizontally.
- * Rendered outside the overflow-x-auto scroll container in UserCalendar.
+ * Date band above the team columns, styled like the week grid's day headers: an
+ * all-caps 9.5px/700/0.08em --ink-faint label over the 14px/700 date on the
+ * --screen-2 band.
+ *
+ * UserCalendar renders this inside its overflow-x-auto scroll container, on a
+ * min-w-max track sized to the full team grid, so `sticky left-0` keeps the date
+ * legible at any horizontal scroll offset and `w-fit` stops it stretching across
+ * the whole scrollable width.
  */
 export const CalendarDayNav = ({
   weekday,
   dateNumber,
   onPrevDay,
   onNextDay,
-}: CalendarDayNavProps) => (
-  <div className="flex items-center justify-between gap-2 p-2 bg-neutral-0 shrink-0">
-    <Back onClick={onPrevDay} />
-    <div className="flex items-center gap-2">
-      <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
-      <div className="text-body-4-emphasis text-white size-8 flex items-center justify-center rounded-full bg-text-brand">
-        {dateNumber}
+}: CalendarDayNavProps) => {
+  const hasInlineNav = !!onPrevDay && !!onNextDay;
+  return (
+    <div
+      className={`sticky left-0 z-30 flex w-fit shrink-0 items-center gap-1.5 py-2 ${
+        hasInlineNav ? 'px-2' : 'px-4'
+      }`}
+      style={{ backgroundColor: 'var(--screen-2)' }}
+    >
+      {hasInlineNav && <Back onClick={onPrevDay} />}
+      <div className="flex items-baseline gap-1.5">
+        <div
+          className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
+          style={{ color: 'var(--ink-faint)' }}
+        >
+          {weekday}
+        </div>
+        <div className="text-[14px] font-bold" style={{ color: 'var(--ink)' }}>
+          {dateNumber}
+        </div>
       </div>
+      {hasInlineNav && <Next onClick={onNextDay} />}
     </div>
-    <Next onClick={onNextDay} />
-  </div>
-);
+  );
+};
 
 type CalendarDayHeaderProps = {
   weekday: string;
   dateNumber: string;
   team: Team[];
   teamColumnsStyle: React.CSSProperties;
-  onPrevDay: () => void;
-  onNextDay: () => void;
+  onPrevDay?: () => void;
+  onNextDay?: () => void;
 };
 
 const CalendarDayHeader = ({
@@ -51,7 +75,7 @@ const CalendarDayHeader = ({
   onPrevDay,
   onNextDay,
 }: CalendarDayHeaderProps) => (
-  <div className="min-w-max bg-neutral-0 shrink-0">
+  <div className="min-w-max shrink-0" style={{ backgroundColor: 'var(--screen-2)' }}>
     <CalendarDayNav
       weekday={weekday}
       dateNumber={dateNumber}

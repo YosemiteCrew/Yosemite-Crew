@@ -7,7 +7,6 @@
  * ("Companion record" -> "Patient record" etc.). "Pet parent" is never rewritten.
  */
 
-import clsx from 'clsx';
 import type { IconType } from 'react-icons';
 import {
   IoCalendarOutline,
@@ -46,7 +45,6 @@ const LABELS: Record<string, string> = {
 
 export function SharedEntityCard({
   entity,
-  mine,
 }: Readonly<{ entity: SharedEntityData; mine?: boolean }>) {
   const rewrite = useCompanionTerminologyText();
   const Icon = ICONS[entity.entityType] ?? IoDocumentTextOutline;
@@ -56,24 +54,23 @@ export function SharedEntityCard({
     typeof entity.snapshot?.subtitle === 'string' ? entity.snapshot.subtitle : undefined;
 
   return (
-    <div
-      className={clsx(
-        'flex w-64 max-w-full items-start gap-3 rounded-2xl border p-3',
-        mine ? 'border-primary-300 bg-neutral-0' : 'border-chat-divider bg-neutral-0'
-      )}
-    >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-chat-panel text-primary-600">
+    <div className="flex w-64 max-w-full items-start gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-3 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] xl:w-[340px]">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--blue-soft)] text-[var(--blue-text)]">
         <Icon className="size-5" />
       </span>
       <div className="flex min-w-0 flex-col">
-        <Text as="span" variant="caption-2" className="uppercase tracking-wide text-neutral-400">
+        <Text
+          as="span"
+          variant="caption-2"
+          className="uppercase tracking-wide text-[var(--ink-faint)]"
+        >
           {label}
         </Text>
-        <Text as="span" variant="body-4-emphasis" className="truncate text-neutral-900">
+        <Text as="span" variant="body-4-emphasis" className="truncate text-[var(--ink)]">
           {entity.title || label}
         </Text>
         {subtitle && (
-          <Text as="span" variant="caption-1" className="truncate text-neutral-500">
+          <Text as="span" variant="caption-1" className="truncate text-[var(--ink-faint)]">
             {subtitle}
           </Text>
         )}

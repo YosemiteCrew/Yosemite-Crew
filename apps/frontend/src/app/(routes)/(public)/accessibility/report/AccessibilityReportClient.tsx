@@ -88,6 +88,7 @@ export default function AccessibilityReportClient() {
       const severityLabel =
         SEVERITY_OPTIONS.find((o) => o.value === form.severity)?.label ?? form.severity;
       const message = [
+        'Accessibility barrier report',
         `Page / URL: ${form.pageUrl || 'not specified'}`,
         `Severity: ${severityLabel}`,
         '',
@@ -96,7 +97,7 @@ export default function AccessibilityReportClient() {
 
       await postData('/v1/contact-us/contact-web', {
         type: 'COMPLAINT',
-        source: 'accessibility',
+        source: 'PMS_WEB',
         fullName: form.name.trim(),
         email: form.email.trim(),
         message,

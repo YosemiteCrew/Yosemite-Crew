@@ -27,10 +27,11 @@ import {
   enableIntegration,
   getApiErrorMessage,
   listIdexxIvlsDevices,
+  listIdexxOrders,
   storeIntegrationCredentials,
   validateIntegrationCredentials,
 } from '@/app/features/integrations/services/idexxService';
-import { IvlsDevice } from '@/app/features/integrations/services/types';
+import { IvlsDevice, LabOrder } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -260,6 +261,80 @@ const LinkedDevicesList = ({ devices }: { devices: IvlsDevice[] }) => {
   );
 };
 
+const ORDER_PILL_RESULTED = new Set(['result', 'complete', 'final', 'confirm']);
+const ORDER_PILL_RUNNING = new Set(['run', 'pending', 'progress', 'process', 'partial']);
+
+const getOrderPillTokens = (status?: string | null): StatusTokens => {
+  const key = String(status ?? '').toLowerCase();
+  if ([...ORDER_PILL_RESULTED].some((token) => key.includes(token))) {
+    return {
+      bg: 'var(--color-pill-success-bg)',
+      text: 'var(--color-pill-success-text)',
+      border: 'var(--color-pill-success-border)',
+    };
+  }
+  if ([...ORDER_PILL_RUNNING].some((token) => key.includes(token))) {
+    return {
+      bg: 'var(--color-pill-progress-bg)',
+      text: 'var(--color-pill-progress-text)',
+      border: 'var(--color-pill-progress-border)',
+    };
+  }
+  return {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
+  };
+};
+
+const formatOrderStatusLabel = (status?: string | null): string => {
+  const raw = String(status ?? '').trim();
+  if (!raw) return 'Pending';
+  return `${raw.charAt(0).toUpperCase()}${raw.slice(1).toLowerCase()}`;
+};
+
+const formatOrderLabel = (order: LabOrder): string => {
+  const name = String(order.patientName ?? '').trim();
+  const tests = (order.tests ?? []).filter(Boolean).join(', ');
+  if (name && tests) return `${name} · ${tests}`;
+  return name || tests || `Order ${order.idexxOrderId}`;
+};
+
+const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
+  if (orders.length === 0) {
+    return <div className="text-body-4 text-text-secondary">No recent orders.</div>;
+  }
+
+  return (
+    <>
+      {orders.slice(0, 3).map((order) => {
+        const tokens = getOrderPillTokens(order.status);
+        return (
+          <div
+            key={order._id || order.idexxOrderId}
+            className="flex items-center justify-between gap-2 text-caption-1"
+          >
+            <span className="min-w-0 truncate font-semibold text-text-primary">
+              {formatOrderLabel(order)}
+            </span>
+            <span
+              className="shrink-0 text-label-xsmall px-2 py-0.5 rounded-full! border!"
+              style={{
+                backgroundColor: tokens.bg,
+                color: tokens.text,
+                borderColor: tokens.border,
+                borderStyle: 'solid',
+              }}
+            >
+              {formatOrderStatusLabel(order.status)}
+            </span>
+          </div>
+        );
+      })}
+    </>
+  );
+};
+
 type IdexxActionsState = {
   primaryOrgId: string | null | undefined;
   refreshing: boolean;
@@ -410,6 +485,7 @@ const useIntegrationsPage = () => {
   const integrationError = useIntegrationStore((s) => s.error);
   const integrationsLastFetchedAt = useIntegrationStore((s) => s.lastFetchedAt);
   const [devices, setDevices] = useState<IvlsDevice[]>([]);
+  const [recentOrders, setRecentOrders] = useState<LabOrder[]>([]);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -439,8 +515,17 @@ const useIntegrationsPage = () => {
           setDevices([]);
           setError(getApiErrorMessage(e, 'Unable to load linked IDEXX devices.'));
         }
+        // Recent orders feed the settings modal's activity section. They are secondary to the
+        // devices load, so a failure here is swallowed rather than surfaced as an error.
+        try {
+          const orders = await listIdexxOrders({ organisationId: primaryOrgId });
+          setRecentOrders(orders);
+        } catch {
+          setRecentOrders([]);
+        }
       } else {
         setDevices([]);
+        setRecentOrders([]);
       }
     };
     run().catch(() => undefined);
@@ -523,6 +608,7 @@ const useIntegrationsPage = () => {
     idexxStatus,
     idexxEnabled,
     devices,
+    recentOrders,
     saving,
     refreshing,
     showSettings,
@@ -567,6 +653,7 @@ const IdexxSettingsModal = ({
   refreshing,
   integrationsLastFetchedAt,
   devices,
+  recentOrders,
   username,
   setUsername,
   password,
@@ -589,6 +676,7 @@ const IdexxSettingsModal = ({
   refreshing: boolean;
   integrationsLastFetchedAt: string | null | undefined;
   devices: IvlsDevice[];
+  recentOrders: LabOrder[];
   username: string;
   setUsername: (v: string) => void;
   password: string;
@@ -621,7 +709,7 @@ const IdexxSettingsModal = ({
           </div>
           <Close onClick={() => setShowSettings(false)} />
         </div>
-        <div className="flex items-center justify-between rounded-xl border border-card-border px-3 py-2 bg-card-bg">
+        <div className="flex items-center justify-between rounded-xl border border-[var(--hairline)] px-3 py-2 bg-[var(--field-bg)]">
           <div className="text-caption-1 text-text-secondary">
             Last refreshed: <span className="text-text-primary">{lastRefreshedText}</span>
           </div>
@@ -630,7 +718,7 @@ const IdexxSettingsModal = ({
             onClick={() => {
               handleManualRefresh().catch(() => undefined);
             }}
-            className="size-8 rounded-full! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover"
+            className="size-8 rounded-full! border border-[var(--hairline)] flex items-center justify-center text-text-primary hover:bg-card-hover"
             aria-label="Refresh integrations"
             title="Refresh integrations"
             disabled={refreshing}
@@ -755,6 +843,12 @@ const IdexxSettingsModal = ({
                 <div className="text-caption-1 text-text-primary">{devices.length}</div>
               </div>
               <Secondary href="/appointments/idexx-workspace" text="IDEXX Hub" />
+            </div>
+          </Accordion>
+
+          <Accordion title="Recent orders" defaultOpen showEditIcon={false} isEditing>
+            <div className="flex flex-col gap-2 py-2">
+              <RecentOrdersList orders={recentOrders} />
             </div>
           </Accordion>
 
@@ -1203,7 +1297,7 @@ const IntegrationsPage = () => {
     <div className="yc-page-content">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-page-title flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>Integrations</span>
             <GlassTooltip
               content={`Connect and manage external tools for ${
@@ -1284,6 +1378,7 @@ const IntegrationsPage = () => {
         refreshing={s.refreshing}
         integrationsLastFetchedAt={s.integrationsLastFetchedAt}
         devices={s.devices}
+        recentOrders={s.recentOrders}
         username={s.username}
         setUsername={s.setUsername}
         password={s.password}

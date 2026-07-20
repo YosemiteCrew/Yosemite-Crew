@@ -1056,7 +1056,9 @@ describe('TreatmentStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    // #1909: a non-409 failure now surfaces the backend/error reason instead of the
+    // generic "Unable to save treatment items" copy.
+    expect(await screen.findByText(/save failed/)).toBeInTheDocument();
     expect(onOpenInvoice).not.toHaveBeenCalled();
     expect(
       useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
@@ -1102,11 +1104,14 @@ describe('TreatmentStep', () => {
     errorSpy.mockRestore();
   });
 
-  // Guards the other direction: a transport-level failure has no response/status and stays
-  // retryable, so the 409 mapping must not swallow every prescription-save failure.
-  it('keeps the generic retry copy when the prescription save fails without a 409', async () => {
+  // Guards the fallback: a raw axios transport failure carries no backend reason (its
+  // message is the meaningless "Request failed with status code N"), so the generic
+  // retry copy is shown rather than dumping the raw status text.
+  it('keeps the generic retry copy when the prescription save fails with no backend reason', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce(
+      new Error('Request failed with status code 500')
+    );
     const onOpenInvoice = jest.fn();
     const enc = seedAndGet();
     render(
@@ -1122,6 +1127,43 @@ describe('TreatmentStep', () => {
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
     expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/already finalized and can no longer be edited/i)
+    ).not.toBeInTheDocument();
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  // #1909: a non-409 backend rejection (e.g. a 400 validation failure) must surface the
+  // backend's specific `{ message }` instead of the generic "please try again" copy, so
+  // the clinician learns which field/rule failed.
+  it('surfaces the backend reason when a non-409 save fails with a message', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: { message: 'Dosage exceeds the maximum allowed for this species.' },
+      },
+    });
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(
+      await screen.findByText(/Dosage exceeds the maximum allowed for this species\./i)
+    ).toBeInTheDocument();
+    // Neither the generic copy nor the 409 finalized copy should be shown.
+    expect(screen.queryByText(/Unable to save treatment items/)).not.toBeInTheDocument();
     expect(
       screen.queryByText(/already finalized and can no longer be edited/i)
     ).not.toBeInTheDocument();

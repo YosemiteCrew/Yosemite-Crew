@@ -1537,7 +1537,7 @@ const IdexxHubHeader = ({
 }) => (
   <div className="flex flex-wrap items-start justify-between gap-3">
     <div className="flex flex-col gap-2">
-      <h1 className="flex flex-wrap items-center gap-2 text-page-title text-text-primary">
+      <h1 className="flex flex-wrap items-center gap-2 text-page-title">
         IDEXX diagnostics
         <HubInfoPill />
       </h1>

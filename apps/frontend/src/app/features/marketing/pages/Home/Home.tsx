@@ -151,7 +151,7 @@ const HERO_SUBTITLE_STYLE: CSSProperties = {
   fontWeight: 400,
   lineHeight: 1.6,
   letterSpacing: '-0.025em',
-  color: 'var(--ink-soft)',
+  color: 'var(--ink-body)',
   textShadow: '0 1px 16px var(--hero-halo1), 0 1px 3px var(--hero-halo2)',
   opacity: 0,
   animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.3s both',
@@ -660,6 +660,7 @@ function HeroCtaButtons({
 }
 
 function HeroSocialProof() {
+  const stats = useGithubStats();
   return (
     <div
       style={{
@@ -707,7 +708,8 @@ function HeroSocialProof() {
             color: 'var(--ink-body)',
           }}
         >
-          Trusted by <CountUp value="67,134" style={{ color: 'var(--ink)' }} /> self-hosters
+          Trusted by <CountUp value={stats.selfHosters ?? '·'} style={{ color: 'var(--ink)' }} />{' '}
+          self-hosters
         </div>
         <div style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-6b)' }}>
           Clinics and developers running it in the open, no platform fees.
@@ -1996,15 +1998,13 @@ function BuildingInPublic() {
               Our numbers are public. Hiding them only delays fixing them.
             </h2>
           </div>
-          <a
-            href="https://www.yosemitecrew.com/insights"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/insights"
             className="yc-link"
             style={{ ...MARKETING_LINK_STYLE, paddingBottom: 6 }}
           >
             See all insights <IoArrowForwardOutline style={{ fontSize: 16 }} aria-hidden="true" />
-          </a>
+          </Link>
         </Reveal>
 
         <div

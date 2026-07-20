@@ -31,8 +31,8 @@ Status note: this plan is written against the current AWS Cognito setup that the
 1. Backend validates Cognito JWTs via JWKS (`apps/backend/src/middlewares/auth.ts`).
 2. There is no dedicated PMS web sign-in/signup endpoint (web auth is effectively Cognito-direct from frontend).
 3. Backend user bootstrap (`POST /fhir/v1/user`) trusts Cognito-authenticated token claims.
-4. Backend is in dual-write/read-switch migration mode (`READ_FROM_POSTGRES`, `DUAL_WRITE_ENABLED`) and already has Prisma + Postgres schema.
-5. New auth-security features should be implemented Postgres-first (no new Mongo dependency).
+4. Backend uses Prisma + PostgreSQL as the sole datastore.
+5. New auth-security features are implemented against Postgres/Prisma.
 
 ## Key gap summary
 

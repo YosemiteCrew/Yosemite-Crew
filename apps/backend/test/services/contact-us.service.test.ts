@@ -2,12 +2,9 @@ import {
   ContactService,
   ContactServiceError,
 } from "../../src/services/contact-us.service";
-import ContactRequestModel from "../../src/models/contect-us";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError } from "src/utils/dual-write";
 
 // --- Mocks ---
-jest.mock("../../src/models/contect-us");
 jest.mock("src/config/prisma", () => ({
   prisma: {
     contactRequest: {
@@ -15,20 +12,13 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
-      updateMany: jest.fn(),
     },
   },
-}));
-jest.mock("src/utils/dual-write", () => ({
-  shouldDualWrite: true,
-  isDualWriteStrict: false,
-  handleDualWriteError: jest.fn(),
 }));
 
 describe("ContactService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.READ_FROM_POSTGRES = "false";
   });
 
   // 1. createRequest
@@ -50,57 +40,25 @@ describe("ContactService", () => {
       ).rejects.toThrow("subject and message are required");
     });
 
-    it("should successfully create a general request", async () => {
-      (ContactRequestModel.create as jest.Mock).mockResolvedValue({
-        ...baseInput,
-        status: "OPEN",
-        _id: "123",
-      });
-
-      const result = await ContactService.createRequest(baseInput);
-
-      expect(ContactRequestModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "OPEN",
-          subject: "Help",
-        }),
-      );
-      expect(result).toEqual(expect.objectContaining({ _id: "123" }));
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
+    it("should successfully create a general request via prisma", async () => {
       (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
         id: "pg-1",
+        subject: "Help",
+        status: "OPEN",
       });
 
       const result = await ContactService.createRequest(baseInput);
 
       expect(prisma.contactRequest.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ status: "OPEN" }),
+          data: expect.objectContaining({
+            status: "OPEN",
+            subject: "Help",
+          }),
         }),
       );
-      expect(result).toEqual({ id: "pg-1" });
-    });
-
-    it("handles dual-write errors", async () => {
-      (ContactRequestModel.create as jest.Mock).mockResolvedValue({
-        ...baseInput,
-        status: "OPEN",
-        _id: { toString: () => "mongo-1" },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      (prisma.contactRequest.create as jest.Mock).mockRejectedValue(
-        new Error("sync fail"),
-      );
-
-      await ContactService.createRequest(baseInput);
-
-      expect(handleDualWriteError).toHaveBeenCalledWith(
-        "ContactRequest",
-        expect.any(Error),
+      expect(result).toEqual(
+        expect.objectContaining({ id: "pg-1", subject: "Help" }),
       );
     });
 
@@ -135,17 +93,19 @@ describe("ContactService", () => {
       });
 
       it("should auto-populate declarationAcceptedAt if missing", async () => {
-        (ContactRequestModel.create as jest.Mock).mockResolvedValue({
-          ...dsarInput,
+        (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+          id: "dsar-1",
           status: "OPEN",
         });
 
         await ContactService.createRequest(dsarInput);
 
-        expect(ContactRequestModel.create).toHaveBeenCalledWith(
+        expect(prisma.contactRequest.create).toHaveBeenCalledWith(
           expect.objectContaining({
-            dsarDetails: expect.objectContaining({
-              declarationAcceptedAt: expect.any(Date),
+            data: expect.objectContaining({
+              dsarDetails: expect.objectContaining({
+                declarationAcceptedAt: expect.any(Date),
+              }),
             }),
           }),
         );
@@ -160,14 +120,19 @@ describe("ContactService", () => {
             declarationAcceptedAt: date,
           },
         };
-        (ContactRequestModel.create as jest.Mock).mockResolvedValue(input);
+        (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+          id: "dsar-2",
+          status: "OPEN",
+        });
 
         await ContactService.createRequest(input);
 
-        expect(ContactRequestModel.create).toHaveBeenCalledWith(
+        expect(prisma.contactRequest.create).toHaveBeenCalledWith(
           expect.objectContaining({
-            dsarDetails: expect.objectContaining({
-              declarationAcceptedAt: date,
+            data: expect.objectContaining({
+              dsarDetails: expect.objectContaining({
+                declarationAcceptedAt: date,
+              }),
             }),
           }),
         );
@@ -182,6 +147,7 @@ describe("ContactService", () => {
       message: "Need help",
       fullName: "Web User",
       email: "web@user.com",
+      phone: " 1234567890 ",
     };
 
     it("should require message, fullName, and email", async () => {
@@ -198,49 +164,40 @@ describe("ContactService", () => {
       ).rejects.toThrow("email is required");
     });
 
-    it("should set subject from type and create the request", async () => {
-      (ContactRequestModel.create as jest.Mock).mockResolvedValue({
-        ...baseWebInput,
+    it("should set subject from type and create the request via prisma", async () => {
+      (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+        id: "web-1",
         subject: "GENERAL_ENQUIRY",
         status: "OPEN",
-        _id: "web-1",
       });
 
       const result = await ContactService.createWebRequest(baseWebInput);
 
-      expect(ContactRequestModel.create).toHaveBeenCalledWith(
+      expect(prisma.contactRequest.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: "GENERAL_ENQUIRY",
-          fullName: "Web User",
-          email: "web@user.com",
-          status: "OPEN",
+          data: expect.objectContaining({
+            subject: "GENERAL_ENQUIRY",
+            email: "web@user.com",
+            complaintContext: {
+              fullName: "Web User",
+              phone: "1234567890",
+            },
+            status: "OPEN",
+          }),
         }),
       );
-      expect(result).toEqual(expect.objectContaining({ _id: "web-1" }));
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
-        id: "pg-1",
-      });
-
-      const result = await ContactService.createWebRequest(baseWebInput);
-
-      expect(prisma.contactRequest.create).toHaveBeenCalled();
-      expect(result).toEqual({ id: "pg-1" });
+      expect(result).toEqual(
+        expect.objectContaining({ id: "web-1", subject: "GENERAL_ENQUIRY" }),
+      );
     });
   });
 
   // 2. listRequests
   describe("listRequests", () => {
     it("should build query based on filters", async () => {
-      const mockChain = {
-        sort: jest.fn().mockReturnValue({
-          limit: jest.fn().mockResolvedValue(["doc1", "doc2"]),
-        }),
-      };
-      (ContactRequestModel.find as jest.Mock).mockReturnValue(mockChain);
+      (prisma.contactRequest.findMany as jest.Mock).mockResolvedValue([
+        { id: "pg-1" },
+      ]);
 
       const filter = {
         status: "OPEN" as const,
@@ -249,115 +206,62 @@ describe("ContactService", () => {
       };
       const result = await ContactService.listRequests(filter);
 
-      expect(ContactRequestModel.find).toHaveBeenCalledWith({
-        status: "OPEN",
-        type: "DSAR",
-        organisationId: "org1",
-      });
-      expect(result).toEqual(["doc1", "doc2"]);
-    });
-
-    it("should handle empty filters", async () => {
-      const mockChain = {
-        sort: jest.fn().mockReturnValue({
-          limit: jest.fn().mockResolvedValue([]),
-        }),
-      };
-      (ContactRequestModel.find as jest.Mock).mockReturnValue(mockChain);
-
-      await ContactService.listRequests({});
-
-      expect(ContactRequestModel.find).toHaveBeenCalledWith({});
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.contactRequest.findMany as jest.Mock).mockResolvedValue([
-        { id: "pg-1" },
-      ]);
-
-      const result = await ContactService.listRequests({
-        status: "OPEN",
-      });
-
       expect(prisma.contactRequest.findMany).toHaveBeenCalledWith({
-        where: { status: "OPEN", type: undefined, organisationId: undefined },
+        where: { status: "OPEN", type: "DSAR", organisationId: "org1" },
         orderBy: { createdAt: "desc" },
         take: 100,
       });
       expect(result).toEqual([{ id: "pg-1" }]);
     });
+
+    it("should handle empty filters", async () => {
+      (prisma.contactRequest.findMany as jest.Mock).mockResolvedValue([]);
+
+      await ContactService.listRequests({});
+
+      expect(prisma.contactRequest.findMany).toHaveBeenCalledWith({
+        where: {
+          status: undefined,
+          type: undefined,
+          organisationId: undefined,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+    });
   });
 
   // 3. getById
   describe("getById", () => {
-    it("should return document by ID", async () => {
-      (ContactRequestModel.findById as jest.Mock).mockResolvedValue({
-        _id: "123",
-      });
-      const res = await ContactService.getById("123");
-      expect(res).toEqual({ _id: "123" });
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
+    it("should return document by ID via prisma", async () => {
       (prisma.contactRequest.findUnique as jest.Mock).mockResolvedValue({
         id: "pg-1",
       });
 
       const res = await ContactService.getById("pg-1");
+
+      expect(prisma.contactRequest.findUnique).toHaveBeenCalledWith({
+        where: { id: "pg-1" },
+      });
       expect(res).toEqual({ id: "pg-1" });
     });
   });
 
   // 4. updateStatus
   describe("updateStatus", () => {
-    it("should update status and return new doc", async () => {
-      (ContactRequestModel.findByIdAndUpdate as jest.Mock).mockResolvedValue({
-        _id: "123",
-        status: "CLOSED",
-      });
-
-      const res = await ContactService.updateStatus("123", "CLOSED");
-
-      expect(ContactRequestModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        "123",
-        { status: "CLOSED" },
-        { new: true },
-      );
-      expect(res).toEqual({ _id: "123", status: "CLOSED" });
-    });
-
-    it("uses prisma when READ_FROM_POSTGRES is true", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
+    it("should update status and return new doc via prisma", async () => {
       (prisma.contactRequest.update as jest.Mock).mockResolvedValue({
         id: "pg-1",
         status: "CLOSED",
       });
 
       const res = await ContactService.updateStatus("pg-1", "CLOSED");
-      expect(res).toEqual({ id: "pg-1", status: "CLOSED" });
+
       expect(prisma.contactRequest.update).toHaveBeenCalledWith({
         where: { id: "pg-1" },
         data: { status: "CLOSED" },
       });
-    });
-
-    it("handles dual-write errors", async () => {
-      (ContactRequestModel.findByIdAndUpdate as jest.Mock).mockResolvedValue({
-        _id: "123",
-        status: "OPEN",
-      });
-      (prisma.contactRequest.updateMany as jest.Mock).mockRejectedValue(
-        new Error("sync fail"),
-      );
-
-      await ContactService.updateStatus("123", "CLOSED");
-
-      expect(handleDualWriteError).toHaveBeenCalledWith(
-        "ContactRequest",
-        expect.any(Error),
-      );
+      expect(res).toEqual({ id: "pg-1", status: "CLOSED" });
     });
   });
 

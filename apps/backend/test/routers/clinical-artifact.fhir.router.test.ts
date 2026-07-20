@@ -204,7 +204,10 @@ describe("clinical-artifact.fhir.router", () => {
     );
     expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(3);
-    expect(requirePermission).toHaveBeenCalledWith(["prescription:edit:any"]);
+    expect(requirePermission).toHaveBeenCalledWith([
+      "prescription:edit:any",
+      "prescription:edit:own",
+    ]);
     expect(requirePermission).toHaveBeenCalledWith(["forms:view:any"]);
   });
 

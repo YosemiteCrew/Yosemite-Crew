@@ -333,10 +333,10 @@
    ring, pinned to the top-right of the bell button. */
 .yc-notification-dot {
   position: absolute;
-  top: 8px;
-  right: 9px;
-  width: 7px;
-  height: 7px;
+  top: 7px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 9999px;
   background: var(--pink);
   border: 1.5px solid var(--screen);
@@ -378,23 +378,102 @@
 }
 
 /* Tablet (768-1279px): the 76px icon rail is the navigation, so the header keeps
-   its desktop content but on a tighter frame. The desktop grid reserves a fixed
-   220-300px first column, which starved the search pill down to ~81px once the
-   rail took 76px off the viewport. Size the org column to its content instead and
-   hold the search near the 200px of the Foundations tablet template. */
+   its desktop content on the design's tighter 60px frame. Foundations/Dashboard
+   tablet header spec (design-01/02): 60px bar, padding 0 20; org = a 30x30 radius-9
+   "A" chip + 13.5px/700 --ink name + 10px --ink-faint caret, NO kicker and NO pill
+   chrome; a 200x36 fully-round --field-bg / --hairline search pill (12.5px copy);
+   a 36px round --hairline bell with an --ink-soft glyph. The glassy desktop pills
+   are flattened to that flat, calm treatment here. */
 @media screen and (min-width: 768px) and (max-width: 1279px) {
+  .yc-user-header-shell,
+  .yc-user-header-shell.yc-liquid-header-shell {
+    min-height: 60px;
+  }
+
   .yc-user-header {
     grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    height: 60px;
     gap: 12px;
-    padding: 0 18px;
+    padding: 0 20px;
   }
 
+  /* Org switcher → flat inline chip + name + caret (no pill). */
+  .yc-header-org-trigger {
+    width: auto;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .yc-header-org-trigger .yc-header-avatar {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+    border: 0;
+    border-radius: 9px;
+    box-shadow: none;
+  }
+
+  .yc-header-org-trigger .yc-header-kicker {
+    display: none;
+  }
+
+  .yc-header-org-trigger .yc-header-primary-text {
+    color: var(--ink);
+  }
+
+  .yc-header-org-trigger svg {
+    width: 10px;
+    height: 10px;
+    color: var(--ink-faint);
+  }
+
+  /* Search → 200x36 fully-round flat field pill. */
   .yc-header-search {
     width: 200px !important;
+    height: 36px !important;
     flex: none;
+    border-radius: 9999px !important;
+    border-color: var(--hairline);
+    background: var(--field-bg);
+    box-shadow: none;
+    padding: 0 13px !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
+  .yc-header-search input {
+    font-size: 12.5px;
+  }
+
+  /* The design's tablet header carries no ⌘K control (search pill + bell only). */
+  .yc-command-button {
+    display: none;
+  }
+
+  /* Bell → 36px round, hairline border, --ink-soft glyph, no glass. */
+  .yc-icon-button {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--hairline);
+    border-radius: 9999px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-soft);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Profile → flatten to match the calm bell/search treatment. */
   .yc-profile-trigger {
     max-width: 150px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

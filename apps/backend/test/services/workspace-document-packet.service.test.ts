@@ -187,6 +187,20 @@ describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
         }),
       }),
     );
+
+    // Packet assembly has no request permissions of its own; it must ask for
+    // system access or it silently persists an empty clinical packet.
+    expect(mockedWorkspaceService.getEncounterBootstrap).toHaveBeenCalledWith(
+      { organisationId: "org-1", encounterId: "enc-1" },
+      undefined,
+      { systemAccess: true },
+    );
+    const created =
+      mockedPrisma.workspaceDocumentPacket.create.mock.calls[0][0];
+    expect(created.data.documents).toHaveLength(1);
+    expect(created.data.documents[0]).toEqual(
+      expect.objectContaining({ documentId: "doc-1" }),
+    );
   });
 
   it("returns an existing signed encounter packet instead of creating a duplicate draft", async () => {
@@ -284,6 +298,35 @@ describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
 
     expect(packet.packetId).toBe("packet-1");
     expect(packet.signing).toBeNull();
+  });
+
+  it("never returns the signing bearer url when reading a packet", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        id: "packet-1",
+        documents: [],
+        signing: {
+          required: true,
+          provider: "DOCUMENSO",
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          signerEmail: "vet@example.com",
+          signerName: "Vet",
+          signingUrl: "https://sign.example/sign/secret-token",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+
+    const packet = await WorkspaceDocumentPacketService.getById(
+      "org-1",
+      "packet-1",
+    );
+
+    expect(packet.signing?.status).toBe("IN_PROGRESS");
+    expect(packet.signing?.signingUrl).toBeNull();
+    expect(JSON.stringify(packet)).not.toContain("secret-token");
   });
 
   it("treats a signing blob without a string status as no signing", async () => {
@@ -396,19 +439,35 @@ describe("WorkspaceDocumentPacketService.sign", () => {
     expect(result.signing?.status).toBe("IN_PROGRESS");
   });
 
-  it("uses an explicit signer email when provided", async () => {
+  it("refuses to sign when the authenticated signer has no resolvable email", async () => {
     arrange();
     mockedPrisma.user.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.sign({
+        organisationId: "org-1",
+        packetId: "pkt-1",
+        signerId: "user-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(mockedDocumenso.createDocument).not.toHaveBeenCalled();
+  });
+
+  it("always addresses the signing request to the authenticated signer's own record", async () => {
+    arrange();
 
     await WorkspaceDocumentPacketService.sign({
       organisationId: "org-1",
       packetId: "pkt-1",
       signerId: "user-1",
-      signerEmail: "override@example.com",
     });
 
+    expect(mockedPrisma.user.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "user-1" } }),
+    );
     expect(mockedDocumenso.createDocument).toHaveBeenCalledWith(
-      expect.objectContaining({ signerEmail: "override@example.com" }),
+      expect.objectContaining({ signerEmail: "vet@example.com" }),
     );
   });
 
@@ -1382,7 +1441,8 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () =
         organisationId: "org-1",
         encounterId: "enc-1",
       },
-      [],
+      undefined,
+      { systemAccess: true },
     );
   });
 

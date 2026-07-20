@@ -68,6 +68,7 @@ import {
   serviceToLineItem,
   taskToScheduleTask,
 } from './treatmentStepUtils';
+import { getInvoiceErrorMessage } from './invoiceStepUtils';
 
 type TreatmentStepProps = {
   appointmentId: string;
@@ -666,7 +667,7 @@ const usePrescriptionActions = ({
 const getTreatmentSaveErrorMessage = (error: unknown): string =>
   (error as { response?: { status?: number } })?.response?.status === 409
     ? 'This prescription is already finalized and can no longer be edited.'
-    : 'Unable to save treatment items. Please try again.';
+    : getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.');
 
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.

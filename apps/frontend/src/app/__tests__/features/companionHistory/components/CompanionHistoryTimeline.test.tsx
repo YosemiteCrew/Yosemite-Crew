@@ -2078,7 +2078,10 @@ describe('CompanionHistoryTimeline', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('downloads the record PDF from the drawer using the preserved open behaviour', async () => {
+  it('downloads the record PDF from the drawer as a real browser download', async () => {
+    (loadDocumentDownloadURL as jest.Mock).mockResolvedValueOnce([
+      { url: 'https://files.example.com/referral-resolved.pdf' },
+    ]);
     (fetchCompanionHistory as jest.Mock).mockResolvedValue({
       entries: [
         {
@@ -2091,17 +2094,45 @@ describe('CompanionHistoryTimeline', () => {
       summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
     });
 
-    render(<CompanionHistoryTimeline companionId="c-1" />);
+    const clickedAnchors: { href: string; download: string; rel: string; target: string }[] = [];
+    const anchorClickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function mockAnchorClick(this: HTMLAnchorElement) {
+        clickedAnchors.push({
+          href: this.getAttribute('href') ?? '',
+          download: this.getAttribute('download') ?? '',
+          rel: this.getAttribute('rel') ?? '',
+          target: this.getAttribute('target') ?? '',
+        });
+      });
 
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Open record detail for Referral letter' })
-    );
-    const drawer = await screen.findByRole('dialog', { name: /Referral letter/ });
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Download PDF' }));
+    try {
+      render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
-      'Referral letter-https://example.com/referral.pdf'
-    );
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Open record detail for Referral letter' })
+      );
+      const drawer = await screen.findByRole('dialog', { name: /Referral letter/ });
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Download PDF' }));
+
+      // The drawer resolves the document's real URL by id and hands it to the
+      // browser via a synthesised anchor, rather than opening the in-app viewer.
+      await waitFor(() => expect(anchorClickSpy).toHaveBeenCalledTimes(1));
+      expect(loadDocumentDownloadURL).toHaveBeenCalledWith('d-1');
+      expect(clickedAnchors).toEqual([
+        {
+          href: 'https://files.example.com/referral-resolved.pdf',
+          download: 'Referral letter',
+          rel: 'noopener',
+          target: '_blank',
+        },
+      ]);
+
+      // A real download must not open the in-app PDF preview overlay.
+      expect(screen.queryByTestId('pdf-preview')).not.toBeInTheDocument();
+    } finally {
+      anchorClickSpy.mockRestore();
+    }
   });
 
   it('uses the in-page callback and loaded appointment name for the drawer linked row', async () => {
@@ -2430,6 +2461,63 @@ describe('CompanionHistoryTimeline', () => {
       fireEvent.click(openButton);
       expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'entry-appointment' }));
       expect(onStatusChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('phone variant', () => {
+    it('renders the compact layout without the desktop search / sort controls', async () => {
+      (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+        entries: baseEntries,
+        nextCursor: null,
+        summary: { totalReturned: baseEntries.length, countsByType: {} },
+      });
+
+      render(<CompanionHistoryTimeline companionId="c-1" variant="phone" showDocumentUpload />);
+
+      // Timeline entries and the filter tabs still render...
+      expect(await screen.findByText('Recheck visit')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /All/ })).toBeInTheDocument();
+      // ...but the desktop-only Search field and Sort pill are dropped on phone.
+      expect(screen.queryByLabelText('Search overview records')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Sort by:/ })).not.toBeInTheDocument();
+    });
+
+    it('jumps to Medical records and reveals the uploader when the signal advances', async () => {
+      (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+        entries: baseEntries,
+        nextCursor: null,
+        summary: { totalReturned: baseEntries.length, countsByType: {} },
+      });
+
+      const { rerender } = render(
+        <CompanionHistoryTimeline
+          companionId="c-1"
+          variant="phone"
+          showDocumentUpload
+          openMedicalRecordsSignal={0}
+        />
+      );
+
+      await screen.findByText('Recheck visit');
+      // The uploader is hidden while the default (All) filter is active.
+      expect(screen.queryByText('history-document-upload-c-1')).not.toBeInTheDocument();
+
+      rerender(
+        <CompanionHistoryTimeline
+          companionId="c-1"
+          variant="phone"
+          showDocumentUpload
+          openMedicalRecordsSignal={1}
+        />
+      );
+
+      // Advancing the signal switches the active filter to Medical records,
+      // which surfaces the document uploader.
+      expect(await screen.findByText('history-document-upload-c-1')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Medical records/ })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
     });
   });
 });

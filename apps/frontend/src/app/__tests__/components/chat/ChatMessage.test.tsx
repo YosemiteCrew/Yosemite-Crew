@@ -107,6 +107,17 @@ describe('ChatMessage', () => {
     expect(handleReaction).toHaveBeenCalledWith('👍', expect.anything());
   });
 
+  it('sums multiple reactions into one combined-pill total while keeping each toggleable', () => {
+    const { handleReaction } = setup({
+      message: { reaction_counts: { '👍': 2, '❤️': 1 }, own_reactions: [{ type: '❤️' }] },
+    });
+    // Combined running total (2 + 1) is shown once.
+    expect(screen.getByText('3')).toBeInTheDocument();
+    // Each emoji remains individually toggleable.
+    fireEvent.click(screen.getByLabelText('2 👍 reaction'));
+    expect(handleReaction).toHaveBeenCalledWith('👍', expect.anything());
+  });
+
   it('prefers Stream v13 reaction_groups over reaction_counts', () => {
     setup({
       message: {

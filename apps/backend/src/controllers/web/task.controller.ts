@@ -30,7 +30,7 @@ import {
   TaskTemplateService,
   UpdateTaskTemplateInput,
 } from "src/services/taskTemplate.service";
-import { TaskKind, TaskStatus } from "@prisma/client";
+import { TaskKind, TaskStatus, TaskPriority } from "@prisma/client";
 
 type CreateCustomTaskRequestBody = Omit<
   CreateCustomTaskInput,
@@ -62,6 +62,12 @@ const TASK_STATUSES = new Set<TaskStatus>([
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
+]);
+const TASK_PRIORITIES = new Set<TaskPriority>([
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
 ]);
 const pickFirstQueryValue = (value?: string | string[]): string | undefined =>
   Array.isArray(value) ? value[0] : value;
@@ -129,6 +135,15 @@ const parseTaskCategory = (
   return value && isTaskCategory(value) ? value : undefined;
 };
 
+const parseTaskPriority = (
+  priority?: string | string[],
+): TaskPriority | undefined => {
+  const value = pickFirstQueryValue(priority);
+  return value && TASK_PRIORITIES.has(value as TaskPriority)
+    ? (value as TaskPriority)
+    : undefined;
+};
+
 const parseRecurrenceScope = (
   scope?: string | string[],
 ): RecurrenceScope | undefined => {
@@ -156,6 +171,7 @@ type TaskListQuery = {
   status?: string | string[];
   category?: string | string[];
   subcategory?: string | string[];
+  priority?: string | string[];
   kind?: string | string[];
   dueFrom?: string | string[];
   dueTo?: string | string[];
@@ -299,9 +315,27 @@ export const TaskController = {
       const task = await TaskService.getById(req.params.taskId, organisationId);
       if (!task) return res.status(404).json({ message: "Task not found" });
 
+      // Mobile has no org context, so `organisationId` is undefined and the PMS
+      // permission check below never runs; the parent identity is the only
+      // authority there and ownership is therefore unconditional.
+      if (!organisationId) {
+        const authUser = await AuthUserMobileService.getByProviderUserId(
+          resolveUserId(req),
+        );
+        const parentId = authUser?.parentId?.toString();
+        const isOwner =
+          !!parentId &&
+          (task.createdBy === parentId || task.assignedTo === parentId);
+        if (!isOwner) {
+          return res.status(404).json({ message: "Task not found" });
+        }
+
+        return res.json(task);
+      }
+
       // PMS context (org membership resolved): callers without tasks:view:any
       // may only read tasks they created or are assigned to.
-      if (organisationId && !hasPermission(req, "tasks:view:any")) {
+      if (!hasPermission(req, "tasks:view:any")) {
         const actorId = resolveUserId(req);
         const isOwner =
           !!actorId &&
@@ -383,7 +417,12 @@ export const TaskController = {
 
       const scope =
         parseRecurrenceScope(req.query.scope as string | string[]) ?? "THIS";
-      await TaskService.deleteTask(taskId, actorId, scope);
+      await TaskService.deleteTask(
+        taskId,
+        actorId,
+        scope,
+        resolveOrganisationId(req),
+      );
       res.status(204).json({});
     } catch (error) {
       handleError(error, res);
@@ -545,6 +584,7 @@ export const TaskController = {
         status: parseStatusList(req.query.status),
         category: parseTaskCategory(req.query.category),
         subcategory: pickFirstQueryValue(req.query.subcategory),
+        priority: parseTaskPriority(req.query.priority),
         kind: parseTaskKind(req.query.kind),
         dueFrom:
           parseDateQuery(req.query.dueFrom) ??
@@ -584,6 +624,7 @@ export const TaskController = {
         status: parseStatusList(req.query.status),
         category: parseTaskCategory(req.query.category),
         subcategory: pickFirstQueryValue(req.query.subcategory),
+        priority: parseTaskPriority(req.query.priority),
         kind: parseTaskKind(req.query.kind),
         dueFrom:
           parseDateQuery(req.query.dueFrom) ??
