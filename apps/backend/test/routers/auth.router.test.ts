@@ -33,6 +33,11 @@ jest.mock("../../src/controllers/web/mfa-debug.controller", () => ({
   MfaDebugController,
 }));
 
+// The debug route is gated on the explicit local-development flag, and the
+// router evaluates that gate at import time, so it has to be set before the
+// module is required for the baseline suite below.
+process.env.LOCAL_DEVELOPMENT = "true";
+
 const authRouter = jest.requireActual("../../src/routers/auth.router")
   .default as Router;
 
@@ -192,63 +197,66 @@ describe("auth.router", () => {
     expect(MfaDebugController.createTotpDevice).toHaveBeenCalled();
   });
 
-  // The debug route must fail closed for anything that is not a recognised
-  // local environment. A `NODE_ENV !== "production"` denylist would mount the
-  // route for every one of these values, which is the misconfigured-production
-  // case the guard exists for.
-  describe.each([
-    ["production", "production"],
-    ["an unset NODE_ENV", undefined],
-    ["an empty NODE_ENV", ""],
-    ["a misspelled NODE_ENV", "Production"],
-    ["a non-standard NODE_ENV", "prod"],
-    ["a staging NODE_ENV", "staging"],
-  ])("with %s", (_label, value) => {
-    it("does not register the MFA debug route", () => {
-      const original = process.env.NODE_ENV;
-      if (value === undefined) {
-        delete process.env.NODE_ENV;
-      } else {
-        process.env.NODE_ENV = value;
-      }
+  describe("MFA debug route gating", () => {
+    const originalFlag = process.env.LOCAL_DEVELOPMENT;
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    const loadRouter = (
+      flag: string | undefined,
+      nodeEnv: string | undefined,
+      assert: (stack: Layer[]) => void,
+    ) => {
+      if (flag === undefined) delete process.env.LOCAL_DEVELOPMENT;
+      else process.env.LOCAL_DEVELOPMENT = flag;
+      if (nodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = nodeEnv;
+
       try {
         jest.isolateModules(() => {
-          const gatedRouter = jest.requireActual(
-            "../../src/routers/auth.router",
-          ).default as Router;
-          const stack =
-            (gatedRouter as unknown as { stack: Layer[] }).stack ?? [];
-          expect(
-            stack.find(
-              (l) => l.route?.path === "/mfa/totp/debug/create-device",
-            ),
-          ).toBeUndefined();
-          // The production-safe routes are still registered, so the gate
-          // removes only the debug endpoint and not the router.
-          expect(
-            stack.find((l) => l.route?.path === "/mfa/totp/disable"),
-          ).toBeDefined();
+          const gated = jest.requireActual("../../src/routers/auth.router")
+            .default as Router;
+          assert((gated as unknown as { stack: Layer[] }).stack ?? []);
         });
       } finally {
-        process.env.NODE_ENV = original;
+        process.env.LOCAL_DEVELOPMENT = originalFlag;
+        process.env.NODE_ENV = originalNodeEnv;
       }
-    });
-  });
+    };
 
-  it("registers the MFA debug route in a recognised local environment", () => {
-    const original = process.env.NODE_ENV;
-    process.env.NODE_ENV = "development";
-    try {
-      jest.isolateModules(() => {
-        const devRouter = jest.requireActual("../../src/routers/auth.router")
-          .default as Router;
-        const stack = (devRouter as unknown as { stack: Layer[] }).stack ?? [];
+    const debugRoute = (stack: Layer[]) =>
+      stack.find((l) => l.route?.path === "/mfa/totp/debug/create-device");
+
+    // NODE_ENV alone must never mount the debug route. A deployed dev or
+    // staging tier commonly runs NODE_ENV=development while being a real remote
+    // environment, and it will not set the local-development flag.
+    it.each([
+      ["no flag, NODE_ENV=development", undefined, "development"],
+      ["no flag, NODE_ENV=test", undefined, "test"],
+      ["no flag, NODE_ENV unset", undefined, undefined],
+      ["no flag, NODE_ENV=staging", undefined, "staging"],
+      ["flag=false", "false", "development"],
+      ["flag empty", "", "development"],
+      ["flag set in production", "true", "production"],
+    ])("does not register the debug route with %s", (_label, flag, nodeEnv) => {
+      loadRouter(flag, nodeEnv, (stack) => {
+        expect(debugRoute(stack)).toBeUndefined();
+        // Only the debug endpoint is withheld; the rest of the router stands.
         expect(
-          stack.find((l) => l.route?.path === "/mfa/totp/debug/create-device"),
+          stack.find((l) => l.route?.path === "/mfa/totp/disable"),
         ).toBeDefined();
       });
-    } finally {
-      process.env.NODE_ENV = original;
-    }
+    });
+
+    // A genuine local run is driven by the documented flag, whatever NODE_ENV
+    // happens to be.
+    it.each([
+      ["NODE_ENV=development", "development"],
+      ["NODE_ENV=test", "test"],
+      ["NODE_ENV unset", undefined],
+    ])("registers the debug route with the flag and %s", (_label, nodeEnv) => {
+      loadRouter("true", nodeEnv, (stack) => {
+        expect(debugRoute(stack)).toBeDefined();
+      });
+    });
   });
 });

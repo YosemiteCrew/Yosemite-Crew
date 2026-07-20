@@ -85,10 +85,10 @@ router.post(
 );
 // Local-development helper for creating a TOTP device without the full
 // enrollment flow. Gated at registration so the route is structurally absent
-// anywhere that is not a recognised local environment, and gated again at
-// runtime by the controller's assertLocalDev. Both use the same allowlist, so an
-// unset, empty or misspelled NODE_ENV fails closed at both layers rather than
-// mounting and serving the endpoint.
+// unless this process is an explicitly-flagged local run, and gated again at
+// runtime by the controller's assertLocalDev. Both consult the same helper, so
+// any deployed environment - including a dev or staging tier running
+// NODE_ENV=development - fails closed at both layers.
 if (isLocalDevEnvironment()) {
   router.post(
     "/mfa/totp/debug/create-device",

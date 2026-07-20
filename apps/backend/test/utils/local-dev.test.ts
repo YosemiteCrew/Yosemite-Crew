@@ -1,30 +1,49 @@
 import { isLocalDevEnvironment } from "../../src/utils/local-dev";
 
 describe("isLocalDevEnvironment", () => {
-  const original = process.env.NODE_ENV;
+  const originalFlag = process.env.LOCAL_DEVELOPMENT;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  const setEnv = (flag: string | undefined, nodeEnv: string | undefined) => {
+    if (flag === undefined) delete process.env.LOCAL_DEVELOPMENT;
+    else process.env.LOCAL_DEVELOPMENT = flag;
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+  };
 
   afterEach(() => {
-    process.env.NODE_ENV = original;
+    setEnv(originalFlag, originalNodeEnv);
   });
 
-  it.each(["development", "test"])("is true for %s", (env) => {
-    process.env.NODE_ENV = env;
-    expect(isLocalDevEnvironment()).toBe(true);
-  });
+  it.each(["development", "test", undefined])(
+    "is true with the explicit flag and NODE_ENV %p",
+    (nodeEnv) => {
+      setEnv("true", nodeEnv);
+      expect(isLocalDevEnvironment()).toBe(true);
+    },
+  );
 
-  // The allowlist exists so that anything unrecognised is treated as
-  // production. A `!== "production"` denylist would return true for every value
-  // below, enabling debug-only behaviour on a misconfigured production deploy.
-  it.each(["production", "", "Production", "PRODUCTION", "prod", "staging"])(
-    "is false for %p",
-    (env) => {
-      process.env.NODE_ENV = env;
+  // The flag is the signal. NODE_ENV alone must never enable local-only
+  // behaviour: a deployed dev or staging tier commonly sets NODE_ENV=development
+  // while being a real remote environment.
+  it.each(["development", "test", "staging", "production", undefined])(
+    "is false without the flag, NODE_ENV %p",
+    (nodeEnv) => {
+      setEnv(undefined, nodeEnv);
       expect(isLocalDevEnvironment()).toBe(false);
     },
   );
 
-  it("is false when NODE_ENV is unset", () => {
-    delete process.env.NODE_ENV;
+  it.each(["false", "0", "", "TRUE", "yes"])(
+    "is false for a non-exact flag value %p",
+    (flag) => {
+      setEnv(flag, "development");
+      expect(isLocalDevEnvironment()).toBe(false);
+    },
+  );
+
+  it("is false in production even when the flag is set", () => {
+    setEnv("true", "production");
     expect(isLocalDevEnvironment()).toBe(false);
   });
 });
