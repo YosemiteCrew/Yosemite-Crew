@@ -228,7 +228,7 @@ const MultiSelectPanel = ({
             type="button"
             id={`${listboxId}-option-${option.value}`}
             aria-pressed={isSelected}
-            className={`flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
+            className={`flex items-center justify-between gap-2 px-5 py-2 text-left text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
               activeOptionId === `${listboxId}-option-${option.value}`
                 ? 'bg-card-hover text-text-primary!'
                 : ''

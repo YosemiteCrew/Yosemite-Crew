@@ -355,7 +355,7 @@ const AddFieldDropdown: React.FC<{
                 onSelect(option.key);
                 setOpen(false);
               }}
-              className={`${i === 0 ? 'border-t-0!' : 'border-t! border-t-grey-light!'} font-satoshi font-medium text-[16px] text-black-text text-left px-3 py-2 w-full`}
+              className={`${i === 0 ? 'border-t-0!' : 'border-t! border-t-grey-light!'} font-satoshi font-medium text-[13px] text-black-text text-left px-3 py-2 w-full`}
             >
               {option.name}
             </button>

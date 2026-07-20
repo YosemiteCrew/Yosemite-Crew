@@ -111,7 +111,7 @@ const InputWithDropdown = ({
         <button
           key={opt.value}
           type="button"
-          className="px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
+          className="px-5 py-2 text-left text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={() => handleSelect(opt)}
         >

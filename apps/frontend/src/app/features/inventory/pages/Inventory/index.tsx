@@ -453,7 +453,7 @@ export const InventoryFilterBar = ({
                         setSortMode(option.key);
                         setSortOpen(false);
                       }}
-                      className={`w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors ${isActive ? 'font-medium text-text-primary' : 'text-text-secondary hover:bg-card-hover'}`}
+                      className={`w-full flex items-center px-3 py-2 text-[13px] text-left transition-colors ${isActive ? 'font-medium text-text-primary' : 'text-text-secondary hover:bg-card-hover'}`}
                     >
                       {option.label}
                       {isActive && <span className="ml-auto font-semibold">✓</span>}

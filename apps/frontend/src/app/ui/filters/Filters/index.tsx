@@ -239,13 +239,13 @@ const Filters = ({
                           setOpen(false);
                         }}
                         className={clsx(
-                          'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                          'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
                           isActive && status.key !== 'all' ? 'font-medium' : 'hover:bg-card-hover'
                         )}
                       >
                         {status.border && (
                           <span
-                            className="inline-block size-3 rounded-full shrink-0"
+                            className="inline-block size-2 rounded-full shrink-0"
                             style={{
                               backgroundColor: status.border,
                               borderWidth: '1px',
@@ -259,7 +259,7 @@ const Filters = ({
                         </span>
                         {isActive && (
                           <span
-                            className="ml-auto text-sm font-semibold"
+                            className="ml-auto text-[12px] font-semibold"
                             style={{ color: getDropdownStatusTextColor(status) }}
                           >
                             ✓
