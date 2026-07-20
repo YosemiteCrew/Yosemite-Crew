@@ -82,11 +82,18 @@ router.post(
   requireAuth(),
   (req: SessionRequest, res: Response) => MfaController.disableTotp(req, res),
 );
-router.post(
-  "/mfa/totp/debug/create-device",
-  requireAuth(),
-  (req: SessionRequest, res: Response) =>
-    MfaDebugController.createTotpDevice(req, res),
-);
+// Local-development helper for creating a TOTP device without the full
+// enrollment flow. Gated at registration so the route is structurally absent in
+// production rather than relying only on the controller's runtime NODE_ENV
+// check: a misconfigured NODE_ENV cannot expose a route that was never mounted.
+// The controller keeps its own assertLocalDev guard as defense in depth.
+if (process.env.NODE_ENV !== "production") {
+  router.post(
+    "/mfa/totp/debug/create-device",
+    requireAuth(),
+    (req: SessionRequest, res: Response) =>
+      MfaDebugController.createTotpDevice(req, res),
+  );
+}
 
 export default router;

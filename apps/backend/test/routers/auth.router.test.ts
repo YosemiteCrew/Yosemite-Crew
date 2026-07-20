@@ -191,4 +191,28 @@ describe("auth.router", () => {
     )(req, res);
     expect(MfaDebugController.createTotpDevice).toHaveBeenCalled();
   });
+
+  it("does not register the MFA debug route when NODE_ENV is production", () => {
+    const original = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      jest.isolateModules(() => {
+        const prodRouter = jest.requireActual("../../src/routers/auth.router")
+          .default as Router;
+        const stack = (prodRouter as unknown as { stack: Layer[] }).stack ?? [];
+        const debugRoute = stack.find(
+          (l) => l.route?.path === "/mfa/totp/debug/create-device",
+        );
+        expect(debugRoute).toBeUndefined();
+        // The production-safe routes are still registered, so the gate removes
+        // only the debug endpoint and not the router.
+        const disableRoute = stack.find(
+          (l) => l.route?.path === "/mfa/totp/disable",
+        );
+        expect(disableRoute).toBeDefined();
+      });
+    } finally {
+      process.env.NODE_ENV = original;
+    }
+  });
 });
