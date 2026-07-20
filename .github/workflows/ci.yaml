@@ -5,12 +5,11 @@ name: CI
 # artifacts and outputs to each other by ordinary same-run means: no
 # workflow_run, no download-by-run-id, no PAT.
 #
-# TRANSITIONAL: ci-affected.yaml, frontend-quality.yml, frontend-a11y.yml and
-# dev-docs-build.yml are all still live and still the gates that matter. This
-# workflow runs beside them so the two can be compared on real pull requests
-# before anything is switched over or removed. That means some work is duplicated
-# on each PR for now; that is deliberate and ends when the old workflows are
-# retired.
+# This is the primary CI. It replaced the standalone ci-affected, frontend-a11y
+# and dev-docs-build workflows (all deleted) and slimmed frontend-quality to a
+# reusable bundle/Lighthouse stage called from here. It is not yet a required
+# status check; docs/ci/required-checks-migration.md covers making it required
+# and enabling the merge queue.
 
 on:
   pull_request: {}

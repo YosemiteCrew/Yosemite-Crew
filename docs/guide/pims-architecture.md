@@ -293,20 +293,19 @@ Three projects configured:
 - No `console.log` in production code - use logger
 - Extract magic numbers into named constants
 
-### CI/CD (13 Workflows - All Must Stay Green)
+### CI/CD (key workflows - all must stay green)
 
-| Workflow                   | Purpose                           | Must pass on              |
-| -------------------------- | --------------------------------- | ------------------------- |
-| `ci-affected.yaml`         | Test affected workspaces          | All PRs                   |
-| `sonar-cloud-analysis.yml` | SonarQube gate                    | All PRs                   |
-| `frontend-a11y.yml`        | jest-axe WCAG 2.1 AA              | All PRs touching frontend |
-| `frontend-quality.yml`     | Build, bundle budgets, Lighthouse | All PRs                   |
-| `frontend-e2e.yml`         | Playwright E2E                    | PRs to main/dev           |
-| `chromatic.yml`            | Visual regression (Storybook)     | Component changes         |
-| `codeql.yml`               | CodeQL security analysis          | Weekly + PRs              |
-| `dependency-review.yml`    | Vulnerability scanning            | All PRs                   |
-| `secret-scan.yml`          | Secret detection                  | All PRs                   |
-| `pr-governance.yml`        | PR rules                          | All PRs                   |
+| Workflow                   | Purpose                                                                                                                                                                                     | Must pass on              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `ci.yaml`                  | Single-run pipeline: detect, build once, lint/type-check, sharded tests, coverage, scan-only Sonar; folds in the former affected-test, jest-axe accessibility, and dev-docs build workflows | All PRs                   |
+| `sonar-cloud-analysis.yml` | Nightly full SonarQube baseline                                                                                                                                                             | Schedule                  |
+| `frontend-quality.yml`     | Bundle budgets, Lighthouse (via `ci.yaml`)                                                                                                                                                  | All PRs touching frontend |
+| `frontend-e2e.yml`         | Playwright E2E                                                                                                                                                                              | PRs to main/dev           |
+| `chromatic.yml`            | Visual regression (Storybook)                                                                                                                                                               | Component changes         |
+| `codeql.yml`               | CodeQL security analysis                                                                                                                                                                    | Weekly + PRs              |
+| `dependency-review.yml`    | Vulnerability scanning                                                                                                                                                                      | All PRs                   |
+| `secret-scan.yml`          | Secret detection                                                                                                                                                                            | All PRs                   |
+| `pr-governance.yml`        | PR rules                                                                                                                                                                                    | All PRs                   |
 
 ### Accessibility Standards (WCAG 2.1 AA - Non-Negotiable)
 
