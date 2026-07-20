@@ -23,14 +23,6 @@ on:
         description: Base SHA override, for re-running after a force push.
         required: false
         type: string
-      run_sonar:
-        description: >
-          Run the scan-only Sonar stage. Off by default while
-          sonar-cloud-analysis.yml is still live, because two analyses of the
-          same SonarCloud project in one run would race each other.
-        required: false
-        type: boolean
-        default: false
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -56,8 +48,11 @@ jobs:
     needs: [core, test]
     # Gated on the test stage's own output rather than on the affected booleans,
     # so this can never ask for a coverage artifact that was not produced.
+    # vars.DISABLE_SONAR is a kill switch that works on every trigger, unlike a
+    # workflow_dispatch input, which is null on pull_request and would silently
+    # skip the stage on exactly the events that matter most.
     if: >
-      inputs.run_sonar &&
+      vars.DISABLE_SONAR != 'true' &&
       needs.test.outputs.apps-with-coverage != '' &&
       needs.test.outputs.apps-with-coverage != '[]'
     # A reusable workflow cannot request more than its caller grants, and

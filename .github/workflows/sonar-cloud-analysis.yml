@@ -1,12 +1,16 @@
 name: sonar-cloud-analysis
 
+# Schedule-only. The per-pull-request and per-push analysis moved into the
+# single pipeline as the scan-only _sonar stage, which reads the coverage the
+# test stage already produced instead of reinstalling and rerunning every suite.
+# What stays here is the nightly full run: it does install, generate Prisma and
+# run the suites with coverage, so it remains the drift baseline and the
+# type-aware backstop for the rules the scan-only path cannot see without
+# node_modules. workflow_dispatch is kept so it can still be run on demand.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   schedule:
     - cron: '0 4 * * *'
-  push:
-    branches: [main, dev]
+  workflow_dispatch: {}
 
 concurrency:
   group: sonar-${{ github.ref }}
