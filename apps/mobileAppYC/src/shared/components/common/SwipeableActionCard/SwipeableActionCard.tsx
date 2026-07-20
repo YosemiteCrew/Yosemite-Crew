@@ -73,7 +73,9 @@ export const SwipeableActionCard: React.FC<SwipeableActionCardProps> = ({
                     onPress={() => {
                       close();
                       onPressEdit?.();
-                    }}>
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit">
                     <Image
                       source={Images.editIconSlide}
                       style={styles.actionIcon}
@@ -91,7 +93,9 @@ export const SwipeableActionCard: React.FC<SwipeableActionCardProps> = ({
                   onPress={() => {
                     close();
                     onPressView?.();
-                  }}>
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="View">
                   <Image
                     source={Images.viewIconSlide}
                     style={styles.actionIcon}

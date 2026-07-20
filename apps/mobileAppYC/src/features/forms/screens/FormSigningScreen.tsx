@@ -1,5 +1,6 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {View, ActivityIndicator, Text, StyleSheet, Linking} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
   useNavigation,
   useRoute,
@@ -35,6 +36,7 @@ export const FormSigningScreen: React.FC = () => {
   const isFocused = useIsFocused();
   const [refreshing, setRefreshing] = useState(false);
   const [hasOpenedOnce, setHasOpenedOnce] = useState(false);
+  const [openFailed, setOpenFailed] = useState(false);
 
   const appointment: Appointment | undefined = useSelector((state: RootState) =>
     state.appointments.items.find(a => a.id === appointmentId),
@@ -91,10 +93,14 @@ export const FormSigningScreen: React.FC = () => {
     }
     openedRef.current = true;
     Linking.openURL(signingUrl)
-      .then(() => setHasOpenedOnce(true))
+      .then(() => {
+        setHasOpenedOnce(true);
+        setOpenFailed(false);
+      })
       .catch(() => {
         openedRef.current = false;
         setHasOpenedOnce(false);
+        setOpenFailed(true);
       });
   }, [signingUrl]);
 
@@ -116,76 +122,177 @@ export const FormSigningScreen: React.FC = () => {
   const handleReopenLink = useCallback(() => {
     if (!signingUrl) return;
     Linking.openURL(signingUrl)
-      .then(() => setHasOpenedOnce(true))
-      .catch(() => {});
+      .then(() => {
+        setHasOpenedOnce(true);
+        setOpenFailed(false);
+      })
+      .catch(() => setOpenFailed(true));
   }, [signingUrl]);
 
-  const buildContent = () => {
-    if (!signingUrl) {
-      return (
-        <View style={styles.centered}>
-          <Text style={styles.message}>
-            Signing link is not available yet. Please try again from the
-            appointment.
+  const formName = currentEntry?.form?.name ?? formTitle ?? 'Sign form';
+  const formDescription = currentEntry?.form?.description ?? null;
+
+  const renderSummaryCard = () => (
+    <View style={styles.summaryCard}>
+      <View style={styles.summaryIconTile}>
+        <Ionicons
+          name="create-outline"
+          size={20}
+          color={theme.colors.blueText}
+        />
+      </View>
+      <View style={styles.summaryText}>
+        <Text style={styles.summaryTitle} numberOfLines={2}>
+          {formName}
+        </Text>
+        {formDescription ? (
+          <Text style={styles.summaryMeta} numberOfLines={2}>
+            {formDescription}
           </Text>
-        </View>
-      );
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const renderInfoBanner = (icon: string, message: string) => (
+    <View style={styles.infoBanner}>
+      <Ionicons
+        name={icon}
+        size={16}
+        color={theme.colors.blueText}
+        style={styles.leadingIcon}
+      />
+      <Text style={styles.infoText}>{message}</Text>
+    </View>
+  );
+
+  const buildStateContent = () => {
+    if (!signingUrl) {
+      return {
+        body: (
+          <View style={styles.noteChip}>
+            <Ionicons
+              name="information-circle-outline"
+              size={16}
+              color={theme.colors.inkFaint}
+              style={styles.leadingIcon}
+            />
+            <Text style={styles.noteText}>
+              Signing link is not available yet. Please try again from the
+              appointment.
+            </Text>
+          </View>
+        ),
+        actions: null as React.ReactNode,
+        footnote: null as React.ReactNode,
+      };
+    }
+
+    if (openFailed) {
+      return {
+        body: renderInfoBanner(
+          'warning-outline',
+          "We couldn't open the signing link automatically. Tap below to open it in your browser.",
+        ),
+        actions: (
+          <View style={styles.actionBar}>
+            <LiquidGlassButton
+              title="Open signing link"
+              onPress={handleReopenLink}
+              height={56}
+              borderRadius={theme.borderRadius.button}
+              tintColor={theme.colors.cta}
+              shadowIntensity="medium"
+              textStyle={styles.ctaText}
+              leftIcon={
+                <Ionicons
+                  name="open-outline"
+                  size={18}
+                  color={theme.colors.ctaText}
+                />
+              }
+            />
+          </View>
+        ),
+        footnote: null as React.ReactNode,
+      };
     }
 
     if (!hasOpenedOnce && !refreshing) {
-      return (
-        <View style={styles.centered}>
-          <ActivityIndicator />
-          <Text style={styles.message}>
-            We opened the signing link in your browser. Complete signing, then
-            return here to refresh the status.
-          </Text>
-        </View>
-      );
+      return {
+        body: (
+          <>
+            <View style={styles.pendingBlock}>
+              <ActivityIndicator color={theme.colors.blueText} />
+            </View>
+            {renderInfoBanner(
+              'open-outline',
+              'We opened the signing link in your browser. Complete signing, then return here to refresh the status.',
+            )}
+          </>
+        ),
+        actions: null as React.ReactNode,
+        footnote: null as React.ReactNode,
+      };
     }
 
-    return (
-      <View style={styles.centered}>
-        {refreshing ? (
-          <ActivityIndicator style={styles.refreshSpinner} />
-        ) : null}
-        <Text style={styles.message}>
-          Complete signing in your browser. When you come back, tap Refresh
-          status to update this screen.
-        </Text>
-        <View style={styles.buttonGroup}>
+    return {
+      body: renderInfoBanner(
+        'shield-checkmark-outline',
+        'Complete signing in your browser. When you come back, tap Refresh status to update this screen.',
+      ),
+      actions: (
+        <View style={styles.actionBar}>
           <LiquidGlassButton
             title="Refresh status"
             onPress={handleRefresh}
             height={56}
-            borderRadius={theme.borderRadius.lg}
-            tintColor={theme.colors.secondary}
+            borderRadius={theme.borderRadius.button}
+            tintColor={theme.colors.cta}
             shadowIntensity="medium"
             loading={refreshing}
             disabled={refreshing}
-            textStyle={styles.buttonText}
+            textStyle={styles.ctaText}
+            leftIcon={
+              <Ionicons name="refresh" size={18} color={theme.colors.ctaText} />
+            }
           />
           <LiquidGlassButton
             title="Open signing link again"
             onPress={handleReopenLink}
-            height={56}
-            borderRadius={theme.borderRadius.md}
+            height={54}
+            borderRadius={theme.borderRadius.button}
             glassEffect="clear"
-            forceBorder
-            borderColor={theme.colors.secondary}
-            textStyle={styles.secondaryButtonText}
-            shadowIntensity="light"
+            tintColor={theme.colors.transparent}
+            borderColor={theme.colors.divider}
+            shadowIntensity="none"
+            textStyle={styles.secondaryText}
+            leftIcon={
+              <Ionicons
+                name="open-outline"
+                size={17}
+                color={theme.colors.inkBody}
+              />
+            }
           />
         </View>
-      </View>
-    );
+      ),
+      footnote: (
+        <Text style={styles.footnote}>
+          Once signed, a copy is saved to your Documents and shared with the
+          clinic.
+        </Text>
+      ),
+    };
   };
+
+  const {body, actions, footnote} = buildStateContent();
 
   return (
     <LiquidGlassHeaderScreen
       header={
         <Header
-          title={formTitle ?? 'Sign form'}
+          title="Review & sign"
           showBackButton
           onBack={() => navigation.goBack()}
           glass={false}
@@ -194,7 +301,14 @@ export const FormSigningScreen: React.FC = () => {
       contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
         <View style={[styles.container, contentPaddingStyle]}>
-          <View style={styles.surface}>{buildContent()}</View>
+          <View style={styles.body}>
+            {renderSummaryCard()}
+            {body}
+          </View>
+          {actions}
+          {footnote ? (
+            <View style={styles.footnoteWrap}>{footnote}</View>
+          ) : null}
         </View>
       )}
     </LiquidGlassHeaderScreen>
@@ -205,46 +319,101 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      minHeight: 300,
+      paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['6'],
     },
-    centered: {
+    body: {
       flex: 1,
+      paddingTop: theme.spacing['4'],
+      gap: theme.spacing['3.5'],
+    },
+    summaryCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      backgroundColor: theme.colors.screen,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.cardSmall,
+      padding: theme.spacing['3.5'],
+    },
+    summaryIconTile: {
+      width: 42,
+      height: 42,
+      borderRadius: theme.borderRadius.field,
+      backgroundColor: theme.colors.blueSoft,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: theme.spacing['4'],
     },
-    message: {
-      ...theme.typography.body14,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-    },
-    buttonGroup: {
-      marginTop: theme.spacing['4'],
-      gap: theme.spacing['3'],
-      alignSelf: 'stretch',
-    },
-    buttonText: {
-      ...theme.typography.button,
-      color: theme.colors.white,
-      textAlign: 'center',
-    },
-    secondaryButtonText: {
-      ...theme.typography.button,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-    },
-    refreshSpinner: {
-      marginBottom: theme.spacing['2'],
-    },
-    surface: {
+    summaryText: {
       flex: 1,
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 0,
-      borderColor: 'transparent',
-      overflow: 'hidden',
-      minHeight: 320,
+      gap: theme.spacing['1'],
+    },
+    summaryTitle: {
+      ...theme.typography.pillSubtitleBold15,
+      lineHeight: 20,
+      color: theme.colors.inkBody,
+    },
+    summaryMeta: {
+      ...theme.typography.body13,
+      color: theme.colors.inkFaint,
+    },
+    infoBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: theme.spacing['2.5'],
+      backgroundColor: theme.colors.blueSoft,
+      borderRadius: theme.borderRadius.field,
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+    },
+    infoText: {
+      ...theme.typography.body13,
+      color: theme.colors.navActive,
+      flex: 1,
+    },
+    noteChip: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: theme.spacing['2.5'],
+      backgroundColor: theme.colors.inset,
+      borderRadius: theme.borderRadius.field,
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+    },
+    noteText: {
+      ...theme.typography.caption,
+      lineHeight: 17,
+      color: theme.colors.inkFaint,
+      flex: 1,
+    },
+    leadingIcon: {
+      marginTop: 1,
+    },
+    pendingBlock: {
+      alignItems: 'center',
+      paddingVertical: theme.spacing['4'],
+    },
+    actionBar: {
+      gap: theme.spacing['2.5'],
+      paddingTop: theme.spacing['3'],
+    },
+    ctaText: {
+      ...theme.typography.button,
+      color: theme.colors.ctaText,
+    },
+    secondaryText: {
+      ...theme.typography.button,
+      color: theme.colors.inkBody,
+    },
+    footnoteWrap: {
+      paddingTop: theme.spacing['3.5'],
+      alignItems: 'center',
+    },
+    footnote: {
+      ...theme.typography.caption,
+      color: theme.colors.inkFaint2,
+      textAlign: 'center',
     },
   });
 

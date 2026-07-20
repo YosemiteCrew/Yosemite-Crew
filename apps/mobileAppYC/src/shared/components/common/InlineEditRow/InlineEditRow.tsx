@@ -53,7 +53,9 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
       <PressableOpacity
         style={styles.row}
         activeOpacity={0.8}
-        onPress={startEdit}>
+        onPress={startEdit}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}, ${displayValue}`}>
         <Text style={styles.label}>{label}</Text>
         <View style={styles.valueContainer}>
           <Text style={styles.value} numberOfLines={1}>

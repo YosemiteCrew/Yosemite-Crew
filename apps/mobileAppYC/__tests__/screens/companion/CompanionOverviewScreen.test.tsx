@@ -14,6 +14,7 @@ import type {HomeStackParamList} from '@/navigation/types'; // Ensure this path 
 import {CompanionOverviewScreen} from '@/features/companion/screens/CompanionOverviewScreen'; // Ensure this path is correct
 // Assuming Breed type is also exported or available for import
 import type {Companion, Breed} from '@/features/companion/types'; // Ensure this path is correct
+import {usePreferences} from '@/features/preferences/PreferencesContext';
 
 // --- Global Variables for Module Mocks ---
 let mockAddEventListener: jest.Mock;
@@ -446,6 +447,19 @@ jest.mock('@/features/companion/services/codeEntriesService', () => ({
 jest.mock('@/features/auth/sessionManager', () => ({
   getFreshStoredTokens: jest.fn(),
 }));
+// Mirrors PreferencesContext's real default value so existing tests are
+// unaffected; individual tests can override via mockReturnValueOnce.
+jest.mock('@/features/preferences/PreferencesContext', () => ({
+  usePreferences: jest.fn(() => ({
+    measurementSystem: 'metric',
+    weightUnit: 'kg',
+    distanceUnit: 'km',
+    currency: 'EUR',
+    setWeightUnit: jest.fn(),
+    setDistanceUnit: jest.fn(),
+    setCurrency: jest.fn(),
+  })),
+}));
 
 // --- Mock Redux Store Interaction --- (Remain the same)
 const mockDispatch = jest.fn();
@@ -610,10 +624,7 @@ describe('CompanionOverviewScreen', () => {
 
   it('renders correctly with companion data (initial state)', () => {
     renderWithState(mockCompanion);
-    expect(screen.getByTestId('header')).toHaveProp(
-      'title',
-      "Sparky's Overview",
-    );
+    expect(screen.getByTestId('header')).toHaveProp('title', 'Overview');
     expect(screen.getByTestId('inline-edit-Name')).toHaveProp(
       'value',
       'Sparky',
@@ -696,6 +707,53 @@ describe('CompanionOverviewScreen', () => {
           updatedAt: expect.any(String),
         }),
       }),
+    );
+  });
+
+  it('converts an lbs-entered weight to kg before saving (currentWeight is always stored in kg)', async () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      measurementSystem: 'imperial',
+      weightUnit: 'lbs',
+      distanceUnit: 'mi',
+      currency: 'USD',
+      setWeightUnit: jest.fn(),
+      setDistanceUnit: jest.fn(),
+      setCurrency: jest.fn(),
+    });
+    renderWithState(mockCompanion);
+    const weightInput = screen.getByTestId('inline-edit-Current-weight');
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+
+    fireEvent(weightInput, 'onSave', '20');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          // 20 lbs / 2.20462 ≈ 9.0718 kg — not 20.
+          currentWeight: expect.closeTo(9.0718, 3),
+          updatedAt: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('displays the stored kg weight converted into the preferred unit', () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      measurementSystem: 'imperial',
+      weightUnit: 'lbs',
+      distanceUnit: 'mi',
+      currency: 'USD',
+      setWeightUnit: jest.fn(),
+      setDistanceUnit: jest.fn(),
+      setCurrency: jest.fn(),
+    });
+    renderWithState({...mockCompanion, currentWeight: 10});
+
+    // 10 kg -> ~22.0 lbs.
+    expect(screen.getByTestId('inline-edit-Current-weight')).toHaveProp(
+      'value',
+      '22.0 lbs',
     );
   });
 
@@ -952,10 +1010,7 @@ describe('CompanionOverviewScreen', () => {
       profileImage: null,
     } as unknown as Companion;
     renderWithState(minimalCompanion);
-    expect(screen.getByTestId('header')).toHaveProp(
-      'title',
-      "Minimal's Overview",
-    );
+    expect(screen.getByTestId('header')).toHaveProp('title', 'Overview');
     // ... (rest of assertions remain the same)
   });
 
@@ -1187,10 +1242,7 @@ describe('CompanionOverviewScreen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('header')).toHaveProp(
-        'title',
-        "Sparky's Overview",
-      );
+      expect(screen.getByTestId('header')).toHaveProp('title', 'Overview');
     });
 
     store.dispatch(resetCompanionState());
@@ -1416,4 +1468,254 @@ describe('CompanionOverviewScreen', () => {
       expect(sheetRef?.close).toHaveBeenCalledTimes(1);
     },
   );
+
+  it('does not call goBack when navigation cannot go back', () => {
+    (mockNavigation.canGoBack as jest.Mock).mockReturnValueOnce(false);
+    renderWithState(mockCompanion);
+    const header = screen.getByTestId('header');
+    const onBackProp = header.props.onBack;
+    if (typeof onBackProp === 'function') {
+      onBackProp();
+    }
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('clears the profile image when null is selected', async () => {
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+    renderWithState(mockCompanion);
+    const header = screen.getByTestId('companion-profile-header');
+    fireEvent(header, 'onImageSelected', null);
+    await waitFor(() => expect(updateProfileMock).toHaveBeenCalled());
+    const lastArg =
+      updateProfileMock.mock.calls[updateProfileMock.mock.calls.length - 1][0];
+    expect(lastArg.updatedCompanion).toHaveProperty('profileImage', undefined);
+  });
+
+  it('shows the image-specific alert when applyPatch itself rejects', async () => {
+    mockDispatch.mockImplementation(() => ({
+      unwrap: () => Promise.reject(new TypeError('dispatch failure')),
+    }));
+    // Force applyPatch's own catch to throw so the image handler's catch runs.
+    (mockAlert.alert as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('alert boom');
+    });
+    renderWithState(mockCompanion);
+    const header = screen.getByTestId('companion-profile-header');
+    fireEvent(header, 'onImageSelected', 'file://new-image.jpg');
+    await waitFor(() =>
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'Image Update Failed',
+        'Failed to update profile image. Please try again.',
+        [{text: 'OK'}],
+      ),
+    );
+  });
+
+  it('returns the raw age string when ageWhenNeutered is not a number', () => {
+    renderWithState({
+      ...mockCompanion,
+      neuteredStatus: 'neutered' as Companion['neuteredStatus'],
+      ageWhenNeutered: 'abc',
+    } as Companion);
+    expect(
+      screen.getByTestId('inline-edit-Age-when-neutered-(optional)'),
+    ).toHaveProp('value', 'abc');
+  });
+
+  it('renders "Year" (singular) and spayed labels for a female companion', () => {
+    renderWithState({
+      ...mockCompanion,
+      gender: 'female' as Companion['gender'],
+      neuteredStatus: 'neutered' as Companion['neuteredStatus'],
+      ageWhenNeutered: '1',
+    } as Companion);
+    expect(screen.getByTestId('row-button-Spayed-status')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('inline-edit-Age-when-spayed-(optional)'),
+    ).toHaveProp('value', '1 Year');
+  });
+
+  it('renders empty insurance fields when the values are null', () => {
+    renderWithState({
+      ...mockCompanion,
+      insuredStatus: 'insured' as Companion['insuredStatus'],
+      insuranceCompany: null,
+      insurancePolicyNumber: null,
+    } as Companion);
+    expect(screen.getByTestId('inline-edit-Insurance-company')).toHaveProp(
+      'value',
+      '',
+    );
+    expect(screen.getByTestId('inline-edit-Policy-number')).toHaveProp(
+      'value',
+      '',
+    );
+  });
+
+  it('renders an empty name value when name is null', () => {
+    renderWithState({
+      ...mockCompanion,
+      name: null,
+    } as unknown as Companion);
+    expect(screen.getByTestId('inline-edit-Name')).toHaveProp('value', '');
+  });
+
+  it('passes a null selected country when the origin is not in the list', () => {
+    renderWithState({
+      ...mockCompanion,
+      countryOfOrigin: 'Mexico',
+    } as Companion);
+    expect(screen.getByTestId('country-sheet')).toHaveProp(
+      'selectedCountry',
+      null,
+    );
+  });
+
+  it('clears date of birth when the picker reports a null date', async () => {
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+    renderWithState(mockCompanion);
+    fireEvent.press(screen.getByTestId('row-button-Date-of-birth'));
+    fireEvent(screen.getByTestId('dob-picker'), 'onDateChange', null);
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          dateOfBirth: null,
+          updatedAt: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('clears country of origin when the sheet saves a null country', async () => {
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+    renderWithState(mockCompanion);
+    fireEvent(screen.getByTestId('country-sheet'), 'onSave', null);
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          countryOfOrigin: null,
+          updatedAt: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('keeps ageWhenNeutered when the neutered sheet re-selects "neutered"', async () => {
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+    renderWithState({
+      ...mockCompanion,
+      neuteredStatus: 'neutered' as Companion['neuteredStatus'],
+      ageWhenNeutered: '5',
+    } as Companion);
+    fireEvent(
+      screen.getByTestId('neutered-sheet'),
+      'onSave',
+      'neutered' as Companion['neuteredStatus'],
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          neuteredStatus: 'neutered',
+          ageWhenNeutered: '5',
+          updatedAt: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('keeps insurance details when the insured sheet re-selects "insured"', async () => {
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+    renderWithState({
+      ...mockCompanion,
+      insuredStatus: 'insured' as Companion['insuredStatus'],
+      insuranceCompany: 'AcmeIns',
+      insurancePolicyNumber: 'POL1',
+    } as Companion);
+    fireEvent(
+      screen.getByTestId('insured-sheet'),
+      'onSave',
+      'insured' as Companion['insuredStatus'],
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          insuredStatus: 'insured',
+          insuranceCompany: 'AcmeIns',
+          updatedAt: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('falls back to the breed code when a fetched entry has no display', async () => {
+    (
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock
+    ).mockResolvedValue([{code: 'boxer', meta: {speciesCode: 'canine'}}]);
+    renderWithState(mockCompanion);
+    await waitFor(() => {
+      expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', [
+        {
+          speciesId: 0,
+          speciesName: 'canine',
+          breedId: 0,
+          breedName: 'boxer',
+          speciesCode: 'canine',
+          breedCode: 'boxer',
+        },
+      ]);
+    });
+  });
+
+  it('bails out of breed mapping when unmounted before the fetch resolves', async () => {
+    let resolveFetch: (value: unknown) => void = () => {};
+    const pending = new Promise(res => {
+      resolveFetch = res;
+    });
+    const fetchMock =
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock;
+    fetchMock.mockReturnValueOnce(pending);
+
+    const {unmount} = renderWithState(mockCompanion);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    unmount();
+
+    await act(async () => {
+      resolveFetch([{display: 'X', code: 'x', meta: {speciesCode: 'canine'}}]);
+      await pending;
+    });
+  });
+
+  it('does not reset breeds after unmount when the fetch rejects', async () => {
+    let rejectFetch: (reason?: unknown) => void = () => {};
+    const pending = new Promise((_res, rej) => {
+      rejectFetch = rej;
+    });
+    pending.catch(() => {});
+    const fetchMock =
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock;
+    fetchMock.mockReturnValueOnce(pending);
+
+    const {unmount} = renderWithState(mockCompanion);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    unmount();
+
+    await act(async () => {
+      rejectFetch(new Error('late failure'));
+      await pending.catch(() => {});
+    });
+  });
 });

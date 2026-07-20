@@ -25,11 +25,12 @@ export function SearchDropdownWithBackdrop<T = unknown>({
 
   return (
     <>
-      <Pressable style={styles.backdrop} onPress={onDismiss} />
-      <SearchDropdownOverlay
-        {...overlayProps}
-        containerStyle={dropdownStyle}
+      <Pressable
+        style={styles.backdrop}
+        onPress={onDismiss}
+        accessible={false}
       />
+      <SearchDropdownOverlay {...overlayProps} containerStyle={dropdownStyle} />
     </>
   );
 }

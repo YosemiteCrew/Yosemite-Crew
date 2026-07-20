@@ -674,6 +674,9 @@ importers:
       '@react-native-clipboard/clipboard':
         specifier: ^1.16.3
         version: 1.16.3(react-native@0.81.4)(react@19.1.0)
+      '@react-native-community/blur':
+        specifier: ^4.4.1
+        version: 4.4.1(react-native@0.81.4)(react@19.1.0)
       '@react-native-community/datetimepicker':
         specifier: ^8.4.5
         version: 8.6.0(react-native@0.81.4)(react@19.1.0)
@@ -10838,6 +10841,16 @@ packages:
         optional: true
       react-native-windows:
         optional: true
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
+    dev: false
+
+  /@react-native-community/blur@4.4.1(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-XBSsRiYxE/MOEln2ayunShfJtWztHwUxLFcSL20o+HNNRnuUDv+GXkF6FmM2zE8ZUfrnhQ/zeTqvnuDPGw6O8A==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
     dependencies:
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)

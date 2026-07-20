@@ -16,7 +16,9 @@ export const RowButton: React.FC<{
     <PressableOpacity
       style={styles.rowButtonTouchable}
       activeOpacity={0.8}
-      onPress={onPress}>
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${displayValue}`}>
       <Text style={styles.rowButtonLabel}>{label}</Text>
       <Text
         style={styles.rowButtonValue}

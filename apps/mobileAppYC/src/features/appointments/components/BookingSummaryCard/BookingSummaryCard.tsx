@@ -62,7 +62,10 @@ export const BookingSummaryCard: React.FC<Props> = ({
     <PressableOpacity
       activeOpacity={onPress ? 0.85 : 1}
       onPress={onPress}
-      style={styles.inner}>
+      style={styles.inner}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${title} details`}
+      accessibilityState={{disabled: !onPress}}>
       {showAvatar ? (
         <Image
           source={source}

@@ -308,7 +308,16 @@ describe('MedicationFormSection', () => {
           theme={mockTheme}
         />,
       );
-      expect(screen.getByText('Value: 1 Tablet')).toBeTruthy();
+      expect(screen.getByText('1 Tablet')).toBeTruthy();
+    });
+
+    it('renders the "Doses" label and "Add dose" row when dosages exist', () => {
+      renderComponent({
+        formData: {dosages: mockDosages},
+        showDosageDisplay: true,
+      });
+      expect(screen.getByText('Doses')).toBeTruthy();
+      expect(screen.getByText('Add dose')).toBeTruthy();
     });
 
     it('does not render dosage display if showDosageDisplay is false', () => {
@@ -316,12 +325,16 @@ describe('MedicationFormSection', () => {
         formData: {dosages: mockDosages},
         showDosageDisplay: false,
       });
-      expect(screen.queryByText('Value: 1 Tablet')).toBeNull();
+      expect(screen.queryByText('1 Tablet')).toBeNull();
+      expect(screen.queryByText('Doses')).toBeNull();
+      expect(screen.queryByText('Add dose')).toBeNull();
     });
 
     it('does not render dosage display if dosages array is empty', () => {
       renderComponent({formData: {dosages: []}, showDosageDisplay: true});
-      expect(screen.queryByText('Value: 1 Tablet')).toBeNull();
+      expect(screen.queryByText('1 Tablet')).toBeNull();
+      expect(screen.queryByText('Doses')).toBeNull();
+      expect(screen.queryByText('Add dose')).toBeNull();
     });
 
     it('renders dosage display rows when showDosageDisplay is true and dosages exist', () => {
@@ -330,19 +343,19 @@ describe('MedicationFormSection', () => {
         showDosageDisplay: true,
       });
 
-      expect(screen.getByText('Value: 1 Tablet')).toBeTruthy();
+      expect(screen.getByText('1 Tablet')).toBeTruthy();
       const expectedTime1 = new Date(mockDosages[0].time).toLocaleTimeString(
         'en-US',
         {hour: 'numeric', minute: '2-digit', hour12: true},
       );
-      expect(screen.getByText(`Value: ${expectedTime1}`)).toBeTruthy();
+      expect(screen.getByText(expectedTime1)).toBeTruthy();
 
-      expect(screen.getByText('Value: 0.5 Tablet')).toBeTruthy();
+      expect(screen.getByText('0.5 Tablet')).toBeTruthy();
       const expectedTime2 = new Date(mockDosages[1].time).toLocaleTimeString(
         'en-US',
         {hour: 'numeric', minute: '2-digit', hour12: true},
       );
-      expect(screen.getByText(`Value: ${expectedTime2}`)).toBeTruthy();
+      expect(screen.getByText(expectedTime2)).toBeTruthy();
     });
 
     it('calls onOpenDosageSheet when a rendered dosage row is pressed', () => {
@@ -350,7 +363,38 @@ describe('MedicationFormSection', () => {
         formData: {dosages: [mockDosages[0]]},
         showDosageDisplay: true,
       });
-      fireEvent.press(screen.getByText('Value: 1 Tablet'));
+      fireEvent.press(screen.getByText('1 Tablet'));
+      expect(mockOnOpenDosageSheet).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposes button role and a combined label/time accessibility label on dose rows', () => {
+      renderComponent({
+        formData: {dosages: [mockDosages[0]]},
+        showDosageDisplay: true,
+      });
+      const expectedTime1 = new Date(mockDosages[0].time).toLocaleTimeString(
+        'en-US',
+        {hour: 'numeric', minute: '2-digit', hour12: true},
+      );
+      const row = screen.getByLabelText(`1 Tablet, ${expectedTime1}`);
+      expect(row.props.accessibilityRole).toBe('button');
+    });
+
+    it('exposes button role and label on the "Add dose" row', () => {
+      renderComponent({
+        formData: {dosages: [mockDosages[0]]},
+        showDosageDisplay: true,
+      });
+      const addRow = screen.getByLabelText('Add dose');
+      expect(addRow.props.accessibilityRole).toBe('button');
+    });
+
+    it('calls onOpenDosageSheet when the "Add dose" row is pressed', () => {
+      const {mockOnOpenDosageSheet} = renderComponent({
+        formData: {dosages: [mockDosages[0]]},
+        showDosageDisplay: true,
+      });
+      fireEvent.press(screen.getByText('Add dose'));
       expect(mockOnOpenDosageSheet).toHaveBeenCalledTimes(1);
     });
 
@@ -369,7 +413,7 @@ describe('MedicationFormSection', () => {
         minute: '2-digit',
         hour12: true,
       });
-      expect(screen.getByText(`Value: ${expectedText}`)).toBeTruthy();
+      expect(screen.getByText(expectedText)).toBeTruthy();
     });
 
     it('shows "Invalid time" for a time-only string with non-numeric hours/minutes', () => {
@@ -379,7 +423,7 @@ describe('MedicationFormSection', () => {
         },
         showDosageDisplay: true,
       });
-      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+      expect(screen.getByText('Invalid time')).toBeTruthy();
     });
 
     it('shows "Invalid time" for a string with neither "T" nor ":"', () => {
@@ -389,7 +433,7 @@ describe('MedicationFormSection', () => {
         },
         showDosageDisplay: true,
       });
-      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+      expect(screen.getByText('Invalid time')).toBeTruthy();
     });
 
     it('shows "Invalid time" for an unparseable ISO-like string', () => {
@@ -399,7 +443,7 @@ describe('MedicationFormSection', () => {
         },
         showDosageDisplay: true,
       });
-      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+      expect(screen.getByText('Invalid time')).toBeTruthy();
     });
 
     it('shows "Invalid time" when formatting throws (e.g. a non-string time value)', () => {
@@ -409,7 +453,7 @@ describe('MedicationFormSection', () => {
         },
         showDosageDisplay: true,
       });
-      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+      expect(screen.getByText('Invalid time')).toBeTruthy();
     });
   });
 

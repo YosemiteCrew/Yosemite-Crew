@@ -39,6 +39,17 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
+// 2b. Mock react-i18next with the real English defaults.
+const ADDRESS_BOTTOM_SHEET_TRANSLATIONS: Record<string, string> = {
+  'addressFields.bottomSheetTitle': 'Address',
+  'addressFields.close': 'Close',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => ADDRESS_BOTTOM_SHEET_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
 // 3. Mock Utils
 jest.mock('@/shared/utils/bottomSheetHelpers', () => ({
   createBottomSheetStyles: () => ({}),

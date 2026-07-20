@@ -196,7 +196,9 @@ const MerckEntryCard: React.FC<MerckEntryCardProps> = ({
                 ]}
                 onPress={() => {
                   onOpenInReader(link.url, entry.title);
-                }}>
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={link.label}>
                 <Text
                   style={[styles.linkPillText, {color: colors.color}]}
                   numberOfLines={1}>
@@ -645,7 +647,10 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           <Pressable
             key={code}
             onPress={() => onLanguageChange(code)}
-            style={styles.languagePillPressable}>
+            style={styles.languagePillPressable}
+            accessibilityRole="radio"
+            accessibilityState={{selected: active}}
+            accessibilityLabel={code === 'en' ? 'English' : 'Spanish'}>
             <LiquidGlassCard
               glassEffect="clear"
               padding="0"

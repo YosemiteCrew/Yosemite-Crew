@@ -20,35 +20,38 @@ describe('taskValidation', () => {
     jest.useRealTimers();
   });
 
-  const createFormData = (overrides: Partial<TaskFormData> = {}): TaskFormData => ({
-    title: 'Valid Title',
-    category: 'health',
-    assignedTo: 'user-1',
-    date: new Date('2023-10-15T10:00:00Z'), // Today
-    time: new Date(),
-    frequency: 'once',
+  const createFormData = (
+    overrides: Partial<TaskFormData> = {},
+  ): TaskFormData =>
+    ({
+      title: 'Valid Title',
+      category: 'health',
+      assignedTo: 'user-1',
+      date: new Date('2023-10-15T10:00:00Z'), // Today
+      time: new Date(),
+      frequency: 'once',
 
-    // Health/Medication specific
-    healthTaskType: null,
-    medicineName: 'Aspirin',
-    medicineType: 'pill',
-    dosages: [{time: '08:00', amount: '1'}],
-    medicationFrequency: 'daily',
-    startDate: new Date('2023-10-15T10:00:00Z'), // Today
+      // Health/Medication specific
+      healthTaskType: null,
+      medicineName: 'Aspirin',
+      medicineType: 'pill',
+      dosages: [{time: '08:00', amount: '1'}],
+      medicationFrequency: 'daily',
+      startDate: new Date('2023-10-15T10:00:00Z'), // Today
 
-    // Observational
-    observationalTool: 'thermometer',
+      // Observational
+      observationalTool: 'thermometer',
 
-    // Others
-    hygieneTaskType: null,
-    dietaryTaskType: null,
-    reminderEnabled: false,
-    syncWithCalendar: false,
-    attachDocuments: false,
-    attachments: [],
-    description: '',
-    ...overrides,
-  } as TaskFormData);
+      // Others
+      hygieneTaskType: null,
+      dietaryTaskType: null,
+      reminderEnabled: false,
+      syncWithCalendar: false,
+      attachDocuments: false,
+      attachments: [],
+      description: '',
+      ...overrides,
+    }) as TaskFormData;
 
   describe('isBackdatedDate', () => {
     it('returns false if date is null', () => {
@@ -141,17 +144,17 @@ describe('taskValidation', () => {
     });
 
     it('skips backdate validation if disabled', () => {
-        const data = createFormData({ date: new Date('2023-10-14') });
-        const errors: any = {};
-        validateObservationalToolFields(data, errors, false);
-        expect(errors.date).toBeUndefined();
+      const data = createFormData({date: new Date('2023-10-14')});
+      const errors: any = {};
+      validateObservationalToolFields(data, errors, false);
+      expect(errors.date).toBeUndefined();
     });
 
     it('passes valid data', () => {
-        const data = createFormData();
-        const errors: any = {};
-        validateObservationalToolFields(data, errors);
-        expect(Object.keys(errors)).toHaveLength(0);
+      const data = createFormData();
+      const errors: any = {};
+      validateObservationalToolFields(data, errors);
+      expect(Object.keys(errors)).toHaveLength(0);
     });
   });
 
@@ -170,25 +173,25 @@ describe('taskValidation', () => {
     });
 
     it('validates backdated date', () => {
-        const data = createFormData({ date: new Date('2023-10-14') });
-        const errors: any = {};
-        validateStandardTaskFields(data, errors);
-        expect(errors.date).toBe('Date cannot be in the past');
+      const data = createFormData({date: new Date('2023-10-14')});
+      const errors: any = {};
+      validateStandardTaskFields(data, errors);
+      expect(errors.date).toBe('Date cannot be in the past');
     });
 
     it('passes valid data', () => {
-        const data = createFormData();
-        const errors: any = {};
-        validateStandardTaskFields(data, errors);
-        expect(Object.keys(errors)).toHaveLength(0);
+      const data = createFormData();
+      const errors: any = {};
+      validateStandardTaskFields(data, errors);
+      expect(Object.keys(errors)).toHaveLength(0);
     });
   });
 
   describe('validateTaskForm', () => {
     it('validates global fields (title, assignedTo, selection)', () => {
       const data = createFormData({
-          title: '   ', // Empty
-          assignedTo: null,
+        title: '   ', // Empty
+        assignedTo: null,
       });
       const errors = validateTaskForm(data, null); // No selection
 
@@ -198,55 +201,81 @@ describe('taskValidation', () => {
     });
 
     it('skips global checks if options disable them', () => {
-        const data = createFormData({
-            title: 'Valid',
-            assignedTo: null, // Invalid usually
-        });
-        // Edit mode usually passes requireTaskTypeSelection: false
-        const errors = validateTaskForm(data, null, { requireTaskTypeSelection: false });
+      const data = createFormData({
+        title: 'Valid',
+        assignedTo: null, // Invalid usually
+      });
+      // Edit mode usually passes requireTaskTypeSelection: false
+      const errors = validateTaskForm(data, null, {
+        requireTaskTypeSelection: false,
+      });
 
-        expect(errors.category).toBeUndefined();
-        expect(errors.assignedTo).toBeUndefined();
+      expect(errors.category).toBeUndefined();
+      expect(errors.assignedTo).toBeUndefined();
     });
 
     it('routes to Medication validation', () => {
-        const data = createFormData({
-            healthTaskType: 'give-medication',
-            medicineName: '', // Invalid
-        });
-        const errors = validateTaskForm(data, {});
-        expect(errors.medicineName).toBeDefined();
+      const data = createFormData({
+        healthTaskType: 'give-medication',
+        medicineName: '', // Invalid
+      });
+      const errors = validateTaskForm(data, {});
+      expect(errors.medicineName).toBeDefined();
     });
 
     it('routes to Observational Tool validation', () => {
-        const data = createFormData({
-            healthTaskType: 'take-observational-tool',
-            observationalTool: null, // Invalid
-        });
-        const errors = validateTaskForm(data, {});
-        expect(errors.observationalTool).toBeDefined();
+      const data = createFormData({
+        healthTaskType: 'take-observational-tool',
+        observationalTool: null, // Invalid
+      });
+      const errors = validateTaskForm(data, {});
+      expect(errors.observationalTool).toBeDefined();
     });
 
     it('routes to Standard validation (default)', () => {
-        const data = createFormData({
-            healthTaskType: null, // Not medication or observational
-            frequency: null, // Invalid
-        });
-        const errors = validateTaskForm(data, {});
-        expect(errors.frequency).toBeDefined();
+      const data = createFormData({
+        healthTaskType: null, // Not medication or observational
+        frequency: null, // Invalid
+      });
+      const errors = validateTaskForm(data, {});
+      expect(errors.frequency).toBeDefined();
+    });
+
+    it('requires a calendar provider when calendar sync is enabled', () => {
+      const data = createFormData({
+        syncWithCalendar: true,
+        calendarProvider: undefined,
+      });
+      const errors = validateTaskForm(data, {});
+      expect(errors.calendarProvider).toBe('Please select a calendar provider');
+    });
+
+    it('does not require a calendar provider when sync is disabled', () => {
+      const data = createFormData({syncWithCalendar: false});
+      const errors = validateTaskForm(data, {});
+      expect(errors.calendarProvider).toBeUndefined();
+    });
+
+    it('passes when calendar sync is enabled and a provider is selected', () => {
+      const data = createFormData({
+        syncWithCalendar: true,
+        calendarProvider: 'google',
+      });
+      const errors = validateTaskForm(data, {});
+      expect(errors.calendarProvider).toBeUndefined();
     });
 
     it('uses default options values', () => {
-       const data = createFormData({
-           title: '',
-           assignedTo: null
-       });
-       // Call without options object
-       const errors = validateTaskForm(data, {});
+      const data = createFormData({
+        title: '',
+        assignedTo: null,
+      });
+      // Call without options object
+      const errors = validateTaskForm(data, {});
 
-       // Should default requireTaskTypeSelection=true
-       expect(errors.title).toBeDefined();
-       expect(errors.assignedTo).toBeDefined();
+      // Should default requireTaskTypeSelection=true
+      expect(errors.title).toBeDefined();
+      expect(errors.assignedTo).toBeDefined();
     });
   });
 });

@@ -14,7 +14,6 @@ name: 'CodeQL Advanced'
 on:
   push:
     branches: [main, dev]
-    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   schedule:
@@ -67,6 +66,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # This job only reads the tree, so the default GITHUB_TOKEN must not be
+          # left behind in .git/config where a later step or action could read it.
+          persist-credentials: false
 
       # Add any setup steps before running the `github/codeql-action/init` action.
       # This includes steps like installing compilers or runtimes (`actions/setup-node`

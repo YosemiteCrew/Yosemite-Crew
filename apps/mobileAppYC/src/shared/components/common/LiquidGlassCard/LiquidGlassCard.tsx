@@ -1,19 +1,15 @@
 import React from 'react';
 import {Platform, StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
+import {BlurView} from '@react-native-community/blur';
 import {useTheme} from '@/hooks';
 import {UI_FEATURE_FLAGS} from '@/config/variables';
 
-// Crystal clear glass defaults - minimal tint for maximum clarity
-const IOS_LIGHT_CARD_TINT = 'rgba(255, 255, 255, 0.5)';
-const IOS_DARK_CARD_TINT = 'rgba(28, 28, 30, 0.55)';
-const ANDROID_LIGHT_CARD_TINT_CLEAR = 'rgba(255, 255, 255, 0.92)';
-const ANDROID_DARK_CARD_TINT_CLEAR = 'rgba(28, 28, 30, 0.82)';
-const ANDROID_LIGHT_CARD_TINT_REGULAR = 'rgba(255, 255, 255, 0.86)';
-const ANDROID_DARK_CARD_TINT_REGULAR = 'rgba(28, 28, 30, 0.74)';
 // Flip to true to force a consistent outline everywhere.
 const FORCE_CARD_BORDER = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
-const FORCED_BORDER_COLOR = '#EAEAEA';
+// Warm-bone hairline (light value of theme.colors.hairline); this module-level
+// forced outline cannot read useTheme(), so it mirrors the token literal.
+const FORCED_BORDER_COLOR = '#E5DCCF';
 const FORCED_BORDER_WIDTH = 1;
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
@@ -43,42 +39,13 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   shadow = 'base',
   fallbackStyle,
 }) => {
-  const {theme, isDark} = useTheme();
+  const {theme} = useTheme();
   const resolvedColorScheme = React.useMemo(() => {
     if (colorScheme === 'system') {
       return 'light';
     }
     return colorScheme;
   }, [colorScheme]);
-
-  const resolvedTintColor = React.useMemo(() => {
-    if (tintColor) {
-      return tintColor;
-    }
-    if (Platform.OS === 'android') {
-      const wantsClear = glassEffect === 'clear';
-      const isSchemeDark = resolvedColorScheme === 'dark';
-      if (wantsClear) {
-        return isSchemeDark
-          ? ANDROID_DARK_CARD_TINT_CLEAR
-          : ANDROID_LIGHT_CARD_TINT_CLEAR;
-      }
-      return isSchemeDark
-        ? ANDROID_DARK_CARD_TINT_REGULAR
-        : ANDROID_LIGHT_CARD_TINT_REGULAR;
-    }
-    return resolvedColorScheme === 'dark'
-      ? IOS_DARK_CARD_TINT
-      : IOS_LIGHT_CARD_TINT;
-  }, [glassEffect, resolvedColorScheme, tintColor]);
-
-  const defaultBackgroundColor = isDark
-    ? 'rgba(28, 28, 30, 0.72)'
-    : 'rgba(255,255,255,0.9)';
-  const defaultBorderColor = isDark
-    ? 'rgba(255,255,255,0.08)'
-    : 'rgba(0,0,0,0.05)';
-  const defaultBorderWidth = 1;
 
   const baseStyle: ViewStyle = {
     padding: theme.spacing[padding],
@@ -96,18 +63,17 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     [fallbackStyle, style],
   ) as ViewStyle | undefined;
 
-  const overlayBackgroundColor =
-    (mergedStyleOverrides?.backgroundColor as string | undefined) ??
-    tintColor ??
-    resolvedTintColor ??
-    defaultBackgroundColor;
+  // A caller-supplied solid fill (a coloured card) opts out of frosted glass.
+  const explicitFill =
+    (mergedStyleOverrides?.backgroundColor as string | undefined) ?? tintColor;
+
   const overlayBorderColor = FORCE_CARD_BORDER
     ? FORCED_BORDER_COLOR
     : ((mergedStyleOverrides?.borderColor as string | undefined) ??
-      defaultBorderColor);
+      theme.colors.hairline);
   const overlayBorderWidth = FORCE_CARD_BORDER
     ? FORCED_BORDER_WIDTH
-    : (mergedStyleOverrides?.borderWidth ?? defaultBorderWidth);
+    : (mergedStyleOverrides?.borderWidth ?? 1);
 
   const overlayShapeStyle = React.useMemo(() => {
     const shape: ViewStyle = {};
@@ -136,18 +102,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     return shape;
   }, [borderRadius, mergedStyleOverrides, theme.borderRadius]);
 
-  const fallbackViewStyle = StyleSheet.flatten([
-    baseStyle,
-    overlayShapeStyle,
-    {
-      backgroundColor: overlayBackgroundColor,
-      borderColor: overlayBorderColor,
-      borderWidth: overlayBorderWidth,
-    },
-    fallbackStyle,
-    style,
-  ]);
-
+  // iOS 26: genuine liquid glass, warm-tinted.
   const useNativeGlass =
     Platform.OS === 'ios' &&
     isLiquidGlassSupported &&
@@ -172,12 +127,63 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         style={iosGlassStyle}
         interactive={interactive}
         effect={glassEffect}
-        tintColor={resolvedTintColor}
+        tintColor={tintColor ?? theme.colors.glassSurface}
         colorScheme={resolvedColorScheme}>
         {children}
       </LiquidGlassView>
     );
   }
+
+  // Android: real frosted blur + warm tint for default cards (luxurious yet
+  // readable). Coloured / opted-out cards render as a solid warm surface.
+  const useAndroidGlass =
+    Platform.OS === 'android' && glassEffect !== 'none' && !explicitFill;
+
+  if (useAndroidGlass) {
+    const glassContainerStyle = StyleSheet.flatten([
+      baseStyle,
+      overlayShapeStyle,
+      {
+        borderColor: overlayBorderColor,
+        borderWidth: overlayBorderWidth,
+        overflow: 'hidden' as const,
+        backgroundColor: 'transparent',
+      },
+      fallbackStyle,
+      style,
+    ]);
+
+    return (
+      <View style={glassContainerStyle}>
+        <BlurView
+          style={StyleSheet.absoluteFill}
+          blurType={resolvedColorScheme === 'dark' ? 'dark' : 'light'}
+          blurAmount={14}
+          reducedTransparencyFallbackColor={theme.colors.screen2}
+        />
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {backgroundColor: theme.colors.glassSurfaceStrong},
+          ]}
+        />
+        {children}
+      </View>
+    );
+  }
+
+  const fallbackViewStyle = StyleSheet.flatten([
+    baseStyle,
+    overlayShapeStyle,
+    {
+      backgroundColor: explicitFill ?? theme.colors.screen2,
+      borderColor: overlayBorderColor,
+      borderWidth: overlayBorderWidth,
+    },
+    fallbackStyle,
+    style,
+  ]);
 
   return <View style={fallbackViewStyle}>{children}</View>;
 };

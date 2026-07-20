@@ -18,6 +18,7 @@ import {
   type User,
 } from '@/features/auth';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
+import {DEV_MOCK_SESSION, seedDevSession} from '@/config/devSession';
 
 export type {
   AuthProvider as AuthProviderType,
@@ -45,6 +46,12 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({
   const authState = useAppSelector(selectAuthState);
 
   useEffect(() => {
+    if (DEV_MOCK_SESSION) {
+      // DEV-ONLY: seed a mock session so authenticated screens render without a
+      // live backend (design verification). No-op in production / jest.
+      seedDevSession(dispatch);
+      return;
+    }
     dispatch(initializeAuth({force: true}));
   }, [dispatch]);
 

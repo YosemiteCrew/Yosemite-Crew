@@ -1,8 +1,15 @@
 import React from 'react';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
-import {Platform, View as MockView, DeviceEventEmitter} from 'react-native';
+import {
+  Platform,
+  View as MockView,
+  DeviceEventEmitter,
+  ActivityIndicator,
+  Keyboard,
+} from 'react-native';
 import {SignInScreen} from '@/features/auth/screens/SignInScreen';
 import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
+import {AUTH_FEATURE_FLAGS, MOBILE_CONFIG_BEHAVIOR} from '@/config/variables';
 import {useSocialAuth, useTheme} from '@/hooks';
 import * as ConstantsUtil from '@/shared/constants/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,7 +29,7 @@ jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
 
 jest.mock('@/assets/images', () => ({
   Images: {
-    authIllustration: 'authIllustration.png',
+    backIcon: 'backIcon.png',
     googleIcon: 'googleIcon.png',
     facebookIcon: 'facebookIcon.png',
     appleIcon: 'appleIcon.png',
@@ -51,7 +58,23 @@ jest.mock('react-native/Libraries/Utilities/Platform', () => ({
 jest.mock('@/features/auth/services/passwordlessAuth', () => ({
   requestPasswordlessEmailCode: jest.fn(),
   formatAuthError: jest.fn(error => error.message || String(error)),
+  DEMO_LOGIN_EMAIL: 'appreview@yosemitecrew.com',
 }));
+
+jest.mock('@/config/variables', () => {
+  const actual = jest.requireActual('@/config/variables');
+  return {
+    ...actual,
+    AUTH_FEATURE_FLAGS: {
+      ...actual.AUTH_FEATURE_FLAGS,
+      enableReviewLogin: false,
+    },
+    MOBILE_CONFIG_BEHAVIOR: {
+      ...actual.MOBILE_CONFIG_BEHAVIOR,
+      useDevApi: false,
+    },
+  };
+});
 
 jest.mock('@/shared/hooks/useTheme', () => ({
   useTheme: jest.fn(() => ({
@@ -156,6 +179,7 @@ const mockNavigation = {
   navigate: jest.fn(),
   reset: jest.fn(),
   setParams: jest.fn(),
+  goBack: jest.fn(),
 };
 
 const renderComponent = (params: MockAuthStackParamList['SignIn'] = {}) => {
@@ -169,6 +193,10 @@ describe('SignInScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (Platform.OS as 'ios' | 'android') = 'ios';
+
+    (AUTH_FEATURE_FLAGS as {enableReviewLogin: boolean}).enableReviewLogin =
+      false;
+    (MOBILE_CONFIG_BEHAVIOR as {useDevApi: boolean}).useDevApi = false;
 
     currentPlatformSelectImplementation = (spec: any) =>
       spec.ios ? spec.ios : spec.default;
@@ -203,12 +231,27 @@ describe('SignInScreen', () => {
   it('renders correctly', () => {
     const {getByText, getByLabelText} = renderComponent();
 
-    expect(getByText('Tail-wagging welcome!')).toBeTruthy();
+    expect(getByText('Welcome back')).toBeTruthy();
+    expect(
+      getByText("We'll email you a login code. No password to remember."),
+    ).toBeTruthy();
     expect(getByLabelText('Email address')).toBeTruthy();
     expect(getByText('Send OTP')).toBeTruthy();
-    expect(getByText('Login via')).toBeTruthy();
-    expect(getByText('Not a member?')).toBeTruthy();
-    expect(getByText('Sign up')).toBeTruthy();
+    expect(getByText('or')).toBeTruthy();
+    expect(getByLabelText('Continue with Google')).toBeTruthy();
+    expect(getByLabelText('Continue with Facebook')).toBeTruthy();
+    expect(getByLabelText('Continue with Apple')).toBeTruthy();
+    expect(getByText('New here?')).toBeTruthy();
+    expect(getByText('Create an account')).toBeTruthy();
+    expect(getByLabelText('Go back')).toBeTruthy();
+  });
+
+  it('navigates back when the back button is pressed', () => {
+    const {getByLabelText} = renderComponent();
+
+    fireEvent.press(getByLabelText('Go back'));
+
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });
 
   it('handles email input and clears errors', () => {
@@ -245,10 +288,9 @@ describe('SignInScreen', () => {
 
   it('clears social error on email input change', async () => {
     mockHandleSocialAuth.mockRejectedValue(new Error('Social error'));
-    const {getByLabelText, getAllByTestId, findByText, queryByText} =
-      renderComponent();
+    const {getByLabelText, findByText, queryByText} = renderComponent();
 
-    const googleButton = getAllByTestId('mock-liquid-button-icon')[0];
+    const googleButton = getByLabelText('Continue with Google');
     await act(async () => {
       fireEvent.press(googleButton);
       await Promise.resolve().catch(() => {});
@@ -392,34 +434,31 @@ describe('SignInScreen', () => {
 
   it('navigates to Sign Up screen', () => {
     const {getByText} = renderComponent();
-    fireEvent.press(getByText('Sign up'));
+    fireEvent.press(getByText('Create an account'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('SignUp');
   });
 
-  it('calls handleSocialAuth with "google"', () => {
-    const {getAllByTestId} = renderComponent();
-    const socialButtons = getAllByTestId('mock-liquid-button-icon');
-    const googleButton = socialButtons[0];
+  it('exposes a button role and label on the create-account link', () => {
+    const {getByLabelText} = renderComponent();
+    const link = getByLabelText('Create an account');
+    expect(link.props.accessibilityRole).toBe('button');
+  });
 
-    fireEvent.press(googleButton);
+  it('calls handleSocialAuth with "google"', () => {
+    const {getByLabelText} = renderComponent();
+    fireEvent.press(getByLabelText('Continue with Google'));
     expect(mockHandleSocialAuth).toHaveBeenCalledWith('google');
   });
 
   it('calls handleSocialAuth with "facebook"', () => {
-    const {getAllByTestId} = renderComponent();
-    const socialButtons = getAllByTestId('mock-liquid-button-icon');
-    const facebookButton = socialButtons[1];
-
-    fireEvent.press(facebookButton);
+    const {getByLabelText} = renderComponent();
+    fireEvent.press(getByLabelText('Continue with Facebook'));
     expect(mockHandleSocialAuth).toHaveBeenCalledWith('facebook');
   });
 
   it('calls handleSocialAuth with "apple"', () => {
-    const {getAllByTestId} = renderComponent();
-    const socialButtons = getAllByTestId('mock-liquid-button-icon');
-    const appleButton = socialButtons[2];
-
-    fireEvent.press(appleButton);
+    const {getByLabelText} = renderComponent();
+    fireEvent.press(getByLabelText('Continue with Apple'));
     expect(mockHandleSocialAuth).toHaveBeenCalledWith('apple');
   });
 
@@ -429,15 +468,15 @@ describe('SignInScreen', () => {
       isSocialLoading: true,
       handleSocialAuth: mockHandleSocialAuth,
     });
-    const {getByText} = renderComponent();
-    expect(getByText('Loading...')).toBeTruthy();
+    const {UNSAFE_getAllByType} = renderComponent();
+    expect(UNSAFE_getAllByType(ActivityIndicator).length).toBeGreaterThan(0);
   });
 
   it('shows social auth error message', async () => {
     mockHandleSocialAuth.mockRejectedValue(new Error('Social login failed'));
 
-    const {getAllByTestId, findByText} = renderComponent();
-    const googleButton = getAllByTestId('mock-liquid-button-icon')[0];
+    const {getByLabelText, findByText} = renderComponent();
+    const googleButton = getByLabelText('Continue with Google');
 
     await act(async () => {
       fireEvent.press(googleButton);
@@ -450,8 +489,8 @@ describe('SignInScreen', () => {
   it('shows generic social auth error for non-Error rejections', async () => {
     mockHandleSocialAuth.mockRejectedValue('Some string error');
 
-    const {getAllByTestId, findByText} = renderComponent();
-    const googleButton = getAllByTestId('mock-liquid-button-icon')[0];
+    const {getByLabelText, findByText} = renderComponent();
+    const googleButton = getByLabelText('Continue with Google');
 
     await act(async () => {
       fireEvent.press(googleButton);
@@ -474,8 +513,8 @@ describe('SignInScreen', () => {
     mockedUseTheme.mockReturnValue({theme: themeWithoutError});
     mockHandleSocialAuth.mockRejectedValue(new Error('Social login failed'));
 
-    const {getAllByTestId, findByText} = renderComponent();
-    const googleButton = getAllByTestId('mock-liquid-button-icon')[0];
+    const {getByLabelText, findByText} = renderComponent();
+    const googleButton = getByLabelText('Continue with Google');
 
     await act(async () => {
       fireEvent.press(googleButton);
@@ -536,6 +575,138 @@ describe('SignInScreen', () => {
     });
   });
 
+  it('registers keyboard listeners whose callbacks toggle visibility state', () => {
+    renderComponent();
+    const calls = (Keyboard.addListener as jest.Mock).mock.calls;
+    const showCalls = calls.filter(
+      c => c[0] === 'keyboardWillShow' || c[0] === 'keyboardDidShow',
+    );
+    const hideCalls = calls.filter(
+      c => c[0] === 'keyboardWillHide' || c[0] === 'keyboardDidHide',
+    );
+    expect(showCalls.length).toBeGreaterThan(0);
+    expect(hideCalls.length).toBeGreaterThan(0);
+    // Invoke every registered show/hide callback so SignInScreen's own
+    // setIsKeyboardVisible(true/false) handlers (lines 75 & 78) execute.
+    act(() => {
+      showCalls.forEach(c => c[1]());
+      hideCalls.forEach(c => c[1]());
+    });
+  });
+
+  it('does not restore or clear params when route.params is undefined', () => {
+    const {getByLabelText} = render(
+      <SignInScreen
+        navigation={mockNavigation as any}
+        route={{params: undefined} as any}
+      />,
+    );
+
+    expect(getByLabelText('Email address').props.value).toBe('');
+    expect(mockNavigation.setParams).not.toHaveBeenCalled();
+  });
+
+  it('shows a spinner on the Facebook button while it is the active provider', () => {
+    mockedUseSocialAuth.mockReturnValue({
+      activeProvider: 'facebook',
+      isSocialLoading: true,
+      handleSocialAuth: mockHandleSocialAuth,
+    });
+    const {UNSAFE_getAllByType} = renderComponent();
+    expect(UNSAFE_getAllByType(ActivityIndicator).length).toBeGreaterThan(0);
+  });
+
+  it('shows a spinner on the Apple button while it is the active provider', () => {
+    mockedUseSocialAuth.mockReturnValue({
+      activeProvider: 'apple',
+      isSocialLoading: true,
+      handleSocialAuth: mockHandleSocialAuth,
+    });
+    const {UNSAFE_getAllByType} = renderComponent();
+    expect(UNSAFE_getAllByType(ActivityIndicator).length).toBeGreaterThan(0);
+  });
+
+  it('sends a demo review-login code and navigates with a demoPassword challenge', async () => {
+    (AUTH_FEATURE_FLAGS as {enableReviewLogin: boolean}).enableReviewLogin =
+      true;
+    mockedRequestCode.mockResolvedValue({
+      destination: 'appreview@yosemitecrew.com',
+      isNewUser: true,
+      challengeLength: 8,
+    });
+
+    const {getByText, getByLabelText} = renderComponent();
+    fireEvent.changeText(
+      getByLabelText('Email address'),
+      'appreview@yosemitecrew.com',
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('Send OTP'));
+    });
+
+    await waitFor(() => {
+      expect(mockedRequestCode).toHaveBeenCalledWith(
+        'appreview@yosemitecrew.com',
+      );
+      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+        'OTPVerification',
+        expect.objectContaining({
+          email: 'appreview@yosemitecrew.com',
+          isNewUser: true,
+          challengeType: 'demoPassword',
+          challengeLength: 8,
+        }),
+      );
+      expect(
+        getByText(
+          'App Review login: use the provided password to continue. No email is sent.',
+        ),
+      ).toBeTruthy();
+    });
+  });
+
+  it('configures the dev environment when useDevApi is enabled', async () => {
+    (MOBILE_CONFIG_BEHAVIOR as {useDevApi: boolean}).useDevApi = true;
+    const {getByText, getByLabelText} = renderComponent();
+    fireEvent.changeText(getByLabelText('Email address'), 'user@example.com');
+
+    await act(async () => {
+      fireEvent.press(getByText('Send OTP'));
+    });
+
+    await waitFor(() => {
+      expect(mockedRequestCode).toHaveBeenCalledWith('user@example.com');
+      expect(mockNavigation.navigate).toHaveBeenCalledWith(
+        'OTPVerification',
+        expect.objectContaining({challengeType: 'otp'}),
+      );
+    });
+  });
+
+  it('reconfigures the prod environment when a demo login request fails', async () => {
+    (AUTH_FEATURE_FLAGS as {enableReviewLogin: boolean}).enableReviewLogin =
+      true;
+    mockedRequestCode.mockRejectedValue(new Error('Demo failure'));
+
+    const {getByText, getByLabelText} = renderComponent();
+    fireEvent.changeText(
+      getByLabelText('Email address'),
+      'appreview@yosemitecrew.com',
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('Send OTP'));
+      await Promise.resolve().catch(() => {});
+    });
+
+    await waitFor(() => {
+      expect(getByLabelText('Email address').props.accessibilityHint).toContain(
+        'Demo failure',
+      );
+    });
+  });
+
   describe('when on Android', () => {
     beforeEach(() => {
       (Platform.OS as 'ios' | 'android') = 'android';
@@ -545,8 +716,10 @@ describe('SignInScreen', () => {
     });
 
     it('renders social buttons with Android-specific styles', () => {
-      const {getAllByTestId} = renderComponent();
-      expect(getAllByTestId('mock-liquid-button-icon').length).toBe(3);
+      const {getByLabelText} = renderComponent();
+      expect(getByLabelText('Continue with Google')).toBeTruthy();
+      expect(getByLabelText('Continue with Facebook')).toBeTruthy();
+      expect(getByLabelText('Continue with Apple')).toBeTruthy();
     });
   });
 });

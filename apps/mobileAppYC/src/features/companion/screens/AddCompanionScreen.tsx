@@ -58,6 +58,7 @@ import type {AppDispatch} from '@/app/store';
 import {addCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 import {
   fetchBreedCodeEntries,
@@ -96,10 +97,12 @@ interface FormData {
 }
 
 const COMPANION_CATEGORIES = [
-  {value: 'cat', label: 'Cat'},
-  {value: 'dog', label: 'Dog'},
-  {value: 'horse', label: 'Horse'},
+  {value: 'dog', label: 'Dog', subtitle: 'Canine · all breeds'},
+  {value: 'cat', label: 'Cat', subtitle: 'Feline · all breeds'},
+  {value: 'horse', label: 'Horse', subtitle: 'Equine · all breeds'},
 ];
+
+const TOTAL_STEPS = 3;
 
 const CATEGORY_TO_SPECIES_QUERY: Record<CompanionCategory, string> = {
   dog: 'canine',
@@ -618,9 +621,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
     setSubmissionError('');
 
-    let weightInKg = data.currentWeight
+    const enteredWeight = data.currentWeight
       ? Number.parseFloat(data.currentWeight)
       : null;
+    const weightInKg =
+      enteredWeight === null || Number.isNaN(enteredWeight)
+        ? null
+        : convertWeight(enteredWeight, weightUnit, 'kg');
 
     const companionPayload = {
       category: data.category,
@@ -675,61 +682,105 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     }
   });
 
-  const renderStep1 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>
-        Select your companions to begin managing their health profile
-      </Text>
-
-      <View style={styles.categoryGrid}>
-        {COMPANION_CATEGORIES.map(cat => {
-          const isSelected = category === cat.value;
-          const imageSources: Record<string, any> = {
-            cat: Images.cat,
-            dog: Images.dog,
-            horse: Images.horse,
-          };
-
-          return (
-            <PressableOpacity
-              key={cat.value}
-              style={[
-                styles.categoryCard,
-                isSelected && styles.categoryCardSelected,
-              ]}
-              onPress={() => {
-                setValue('category', cat.value as CompanionCategory, {
-                  shouldValidate: true,
-                });
-                clearErrors('category');
-                hasUnsavedChangesRef.current = true;
-              }}
-              activeOpacity={0.8}>
-              <Image
-                source={imageSources[cat.value]}
-                style={styles.categoryIcon}
-              />
-              <Text
-                style={[
-                  styles.categoryLabel,
-                  isSelected && styles.categoryLabelSelected,
-                ]}>
-                {cat.label}
-              </Text>
-              {isSelected && <View style={styles.categoryUnderline} />}
-            </PressableOpacity>
-          );
-        })}
+  const renderStepProgress = () => {
+    const segments = Array.from({length: TOTAL_STEPS}, (_, i) => ({
+      key: `progress-${i}`,
+      filled: i < currentStep,
+    }));
+    return (
+      <View style={styles.progressBar}>
+        {segments.map(segment => (
+          <View
+            key={segment.key}
+            style={[
+              styles.progressSegment,
+              segment.filled
+                ? styles.progressSegmentActive
+                : styles.progressSegmentIdle,
+            ]}
+          />
+        ))}
       </View>
+    );
+  };
 
-      {errors.category?.message && (
-        <Text style={styles.errorText}>{errors.category.message}</Text>
-      )}
-    </View>
-  );
+  const renderStep1 = () => {
+    const imageSources: Record<string, any> = {
+      cat: Images.cat,
+      dog: Images.dog,
+      horse: Images.horse,
+    };
+    const avatarStyles: Record<string, any> = {
+      dog: styles.speciesAvatarAmber,
+      cat: styles.speciesAvatarViolet,
+      horse: styles.speciesAvatarGreen,
+    };
+
+    return (
+      <View style={styles.stepContainer}>
+        {renderStepProgress()}
+
+        <View style={styles.introBlock}>
+          <Text style={styles.introTitle}>Who joins the family?</Text>
+          <Text style={styles.introSubtitle}>
+            Pick a species to start their record. You can add more companions
+            later.
+          </Text>
+        </View>
+
+        <View style={styles.speciesList}>
+          {COMPANION_CATEGORIES.map(cat => {
+            const isSelected = category === cat.value;
+
+            return (
+              <PressableOpacity
+                key={cat.value}
+                style={[
+                  styles.speciesCard,
+                  isSelected && styles.speciesCardSelected,
+                ]}
+                onPress={() => {
+                  setValue('category', cat.value as CompanionCategory, {
+                    shouldValidate: true,
+                  });
+                  clearErrors('category');
+                  hasUnsavedChangesRef.current = true;
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityState={{selected: isSelected}}
+                accessibilityLabel={`${cat.label}, ${cat.subtitle}`}>
+                <View style={[styles.speciesAvatar, avatarStyles[cat.value]]}>
+                  <Image
+                    source={imageSources[cat.value]}
+                    style={styles.speciesImage}
+                  />
+                </View>
+                <View style={styles.speciesTextBlock}>
+                  <Text style={styles.speciesName}>{cat.label}</Text>
+                  <Text style={styles.speciesSubtitle}>{cat.subtitle}</Text>
+                </View>
+                {isSelected && (
+                  <View style={styles.speciesCheck}>
+                    <Text style={styles.speciesCheckText}>✓</Text>
+                  </View>
+                )}
+              </PressableOpacity>
+            );
+          })}
+        </View>
+
+        {errors.category?.message && (
+          <Text style={styles.errorText}>{errors.category.message}</Text>
+        )}
+      </View>
+    );
+  };
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
+      {renderStepProgress()}
+
       <ProfileImagePicker
         imageUri={profileImage}
         onImageSelected={handleProfileImageChange}
@@ -894,6 +945,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
+      {renderStepProgress()}
+
       <ProfileImagePicker
         imageUri={profileImage}
         onImageSelected={handleProfileImageChange}
@@ -1182,47 +1235,104 @@ const createStyles = (theme: any) =>
     stepContainer: {
       flex: 1,
     },
-    stepTitle: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: theme.spacing['30'],
-      marginTop: theme.spacing['6'],
+    progressBar: {
+      flexDirection: 'row',
+      gap: theme.spacing['1.25'],
+      marginBottom: theme.spacing['5'],
+    },
+    progressSegment: {
+      flex: 1,
+      height: 4,
+      borderRadius: theme.borderRadius.full,
+    },
+    progressSegmentActive: {
+      backgroundColor: theme.colors.blue,
+    },
+    progressSegmentIdle: {
+      backgroundColor: theme.colors.inset,
+    },
+    introBlock: {
+      gap: theme.spacing['1.25'],
+      marginBottom: theme.spacing['6'],
+    },
+    introTitle: {
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
+    },
+    introSubtitle: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkMuted,
       lineHeight: 22,
     },
-    categoryGrid: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: theme.spacing['6'],
+    speciesList: {
+      gap: theme.spacing['3'],
       marginBottom: theme.spacing['4'],
     },
-    categoryCard: {
+    speciesCard: {
+      flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing['3'],
-      paddingVertical: theme.spacing['4'],
+      gap: theme.spacing['3.5'],
+      paddingVertical: theme.spacing['4.5'],
+      paddingHorizontal: theme.spacing['4'],
+      backgroundColor: theme.colors.screen,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.card,
     },
-    categoryCardSelected: {},
-    categoryIcon: {
-      width: 110,
-      height: 110,
-      objectFit: 'contain',
-      padding: theme.spacing['4'],
+    speciesCardSelected: {
+      borderWidth: 1.5,
+      borderColor: theme.colors.pink,
+      ...theme.shadows.companion,
     },
-    categoryLabel: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.text,
-      fontWeight: '500',
+    speciesAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.borderRadius.full,
+      overflow: 'hidden',
+      borderWidth: 2,
+      borderColor: theme.colors.screen,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    categoryLabelSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
+    speciesAvatarAmber: {
+      backgroundColor: theme.colors.avatarAmberBg,
     },
-    categoryUnderline: {
+    speciesAvatarViolet: {
+      backgroundColor: theme.colors.avatarVioletBg,
+    },
+    speciesAvatarGreen: {
+      backgroundColor: theme.colors.avatarGreenBg,
+    },
+    speciesImage: {
       width: '100%',
-      height: 3,
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.xs,
-      marginTop: theme.spacing['1'],
+      height: '100%',
+      objectFit: 'cover',
+    },
+    speciesTextBlock: {
+      flex: 1,
+    },
+    speciesName: {
+      ...theme.typography.bodyBold,
+      fontSize: 16.5,
+      color: theme.colors.ink,
+      letterSpacing: -0.3,
+    },
+    speciesSubtitle: {
+      ...theme.typography.body13,
+      color: theme.colors.inkFaint,
+      marginTop: 1,
+    },
+    speciesCheck: {
+      width: 24,
+      height: 24,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.pink,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    speciesCheckText: {
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.ink,
     },
     suffixText: {
       ...theme.typography.input,

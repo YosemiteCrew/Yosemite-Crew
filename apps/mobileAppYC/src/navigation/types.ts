@@ -36,6 +36,7 @@ export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
 export type HomeStackParamList = {
   Home: undefined;
   Account: undefined;
+  Preferences: undefined;
   FAQ: undefined;
   ContactUs: undefined;
   TermsAndConditions: undefined;

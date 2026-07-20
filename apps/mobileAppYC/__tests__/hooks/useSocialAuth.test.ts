@@ -319,6 +319,21 @@ describe('useSocialAuth', () => {
     expect(result.current.isSocialLoading).toBe(false);
   });
 
+  it('should use the default account-exists message when the error has no message', async () => {
+    mockedSignInWithSocialProvider.mockRejectedValue({
+      code: 'auth/account-exists-with-different-credential',
+    });
+    const {result} = renderHook(() => useSocialAuth(defaultProps));
+
+    await expect(
+      act(async () => {
+        await result.current.handleSocialAuth('facebook');
+      }),
+    ).rejects.toThrow(
+      'An account already exists with this email. Sign in with your existing login method and try again.',
+    );
+  });
+
   it('should use default cancelled message if not provided', async () => {
     const error = {code: 'auth/cancelled'};
     mockedSignInWithSocialProvider.mockRejectedValue(error);

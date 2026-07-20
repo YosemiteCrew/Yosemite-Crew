@@ -12,7 +12,10 @@ import {mockTheme} from '../../setup/mockTheme';
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useTheme: () => ({
+    theme: require('../../setup/mockTheme').mockTheme,
+    isDark: false,
+  }),
   useAppDispatch: () => jest.fn(),
   useAppSelector: jest.fn(),
 }));
@@ -76,8 +79,6 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 
 // --- Mock Data ---
 
-
-
 const mockCurrentUser: User = {
   id: 'user-1',
   firstName: 'Current',
@@ -90,19 +91,21 @@ interface TestProps {
   formData?: Partial<TaskFormData>;
   errors?: Partial<TaskFormErrors>;
   currentUser?: User | null;
+  coParents?: any[];
 }
 
 const renderComponent = ({
   formData = {},
   errors = {},
   currentUser = mockCurrentUser,
+  coParents = [],
 }: TestProps = {}) => {
   mockUseSelector.mockImplementation(selector => {
     if (selector === selectAuthUser) {
       return currentUser;
     }
     if (selector === selectAcceptedCoParents) {
-      return [];
+      return coParents;
     }
     return undefined;
   });
@@ -233,6 +236,76 @@ describe('CommonTaskFields', () => {
       renderComponent({errors: {}});
       const errorText = screen.queryByText('Note is too long.');
       expect(errorText).toBeNull();
+    });
+  });
+
+  describe('Co-parent resolution (getAssignedUserName)', () => {
+    it('resolves a co-parent full name when matched by parentId', () => {
+      renderComponent({
+        formData: {assignedTo: 'cp-1'},
+        coParents: [
+          {parentId: 'cp-1', firstName: 'Jane', lastName: 'Doe'} as any,
+        ],
+      });
+      const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
+      expect(assignInput.props.value).toBe('Jane Doe');
+      expect(assignInput.props.label).toBe('Assign to');
+    });
+
+    it('resolves a co-parent by id when parentId is absent', () => {
+      renderComponent({
+        formData: {assignedTo: 'cp-2'},
+        coParents: [{id: 'cp-2', firstName: 'John', lastName: 'Smith'} as any],
+      });
+      const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
+      expect(assignInput.props.value).toBe('John Smith');
+    });
+
+    it('resolves a co-parent by userId when parentId and id are absent', () => {
+      renderComponent({
+        formData: {assignedTo: 'cp-3'},
+        coParents: [{userId: 'cp-3', firstName: 'Bob'} as any],
+      });
+      const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
+      expect(assignInput.props.value).toBe('Bob');
+    });
+
+    it('falls back to the co-parent email when the name is empty', () => {
+      renderComponent({
+        formData: {assignedTo: 'cp-4'},
+        coParents: [{parentId: 'cp-4', email: 'coparent@x.com'} as any],
+      });
+      const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
+      expect(assignInput.props.value).toBe('coparent@x.com');
+    });
+
+    it('falls back to "Co-parent" when name and email are empty', () => {
+      renderComponent({
+        formData: {assignedTo: 'cp-5'},
+        coParents: [{parentId: 'cp-5'} as any],
+      });
+      const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
+      expect(assignInput.props.value).toBe('Co-parent');
+    });
+
+    it('returns the assignedTo id when co-parents exist but their identifiers do not match', () => {
+      renderComponent({
+        formData: {assignedTo: 'different'},
+        coParents: [
+          {parentId: 'px', id: 'ix', userId: 'ux', firstName: 'No'} as any,
+        ],
+      });
+      const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
+      expect(assignInput.props.value).toBe('different');
+    });
+
+    it('returns the assignedTo id when a co-parent has no identifying fields', () => {
+      renderComponent({
+        formData: {assignedTo: 'zzz'},
+        coParents: [{email: 'only@email.com'} as any],
+      });
+      const assignInput = screen.getByTestId('mock-touchable-input-assignedTo');
+      expect(assignInput.props.value).toBe('zzz');
     });
   });
 });

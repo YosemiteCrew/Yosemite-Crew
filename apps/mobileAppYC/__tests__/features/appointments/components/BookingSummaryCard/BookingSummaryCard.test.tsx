@@ -129,6 +129,21 @@ describe('BookingSummaryCard', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes a button role and label derived from the title', () => {
+    const {getByLabelText} = render(
+      <BookingSummaryCard title="Clinic" onPress={jest.fn()} />,
+    );
+    const card = getByLabelText('View Clinic details');
+    expect(card.props.accessibilityRole).toBe('button');
+    expect(card.props.accessibilityState).toEqual({disabled: false});
+  });
+
+  it('marks the card as disabled to screen readers when no onPress is given', () => {
+    const {getByLabelText} = render(<BookingSummaryCard title="Clinic" />);
+    const card = getByLabelText('View Clinic details');
+    expect(card.props.accessibilityState).toEqual({disabled: true});
+  });
+
   it('uses SwipeableGlassCard when interactive (default)', () => {
     const {getByTestId} = render(<BookingSummaryCard title="Clinic" />);
     expect(getByTestId('swipeable-glass-card')).toBeTruthy();

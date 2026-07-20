@@ -1,4 +1,5 @@
 import React from 'react';
+import {Platform} from 'react-native';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {CalendarSyncSection} from '../../../../../../src/features/tasks/screens/AddTaskScreen/components/CalendarSyncSection';
 import {mockTheme} from '../../../../../setup/mockTheme';
@@ -20,6 +21,14 @@ jest.mock('@/shared/components/common', () => {
         </TouchableOpacity>
         {props.rightComponent}
       </View>
+    ),
+    Toggle: (props: any) => (
+      <TouchableOpacity
+        accessibilityRole="switch"
+        accessibilityState={{checked: props.value}}
+        onPress={() => props.onValueChange(!props.value)}>
+        <Text>toggle</Text>
+      </TouchableOpacity>
     ),
   };
 });
@@ -49,7 +58,6 @@ jest.mock('@/shared/utils/formStyles', () => ({
 describe('CalendarSyncSection', () => {
   const mockUpdateField = jest.fn();
   const mockOnOpenSheet = jest.fn();
-  
 
   const defaultProps = {
     formData: {
@@ -72,9 +80,9 @@ describe('CalendarSyncSection', () => {
     // Check static text
     expect(screen.getByText('Sync with Calendar')).toBeTruthy();
 
-    // Switch should be present
+    // Toggle should be present and reflect the disabled state
     const switchElement = screen.getByRole('switch');
-    expect(switchElement.props.value).toBe(false);
+    expect(switchElement.props.accessibilityState.checked).toBe(false);
 
     // TouchableInput should NOT be rendered
     expect(screen.queryByTestId('touchable-input')).toBeNull();
@@ -84,7 +92,7 @@ describe('CalendarSyncSection', () => {
     render(<CalendarSyncSection {...defaultProps} />);
 
     const switchElement = screen.getByRole('switch');
-    fireEvent(switchElement, 'onValueChange', true);
+    fireEvent.press(switchElement);
 
     expect(mockUpdateField).toHaveBeenCalledWith('syncWithCalendar', true);
   });
@@ -177,5 +185,49 @@ describe('CalendarSyncSection', () => {
     expect(screen.getByTestId('input-value').props.children).toBe('No Value');
     // Label should be undefined (mock renders 'No Label') when calendarProviderName is not set
     expect(screen.getByTestId('input-label').props.children).toBe('No Label');
+  });
+
+  describe('default placeholder by platform', () => {
+    const originalPlatformOS = Platform.OS;
+
+    afterEach(() => {
+      Platform.OS = originalPlatformOS;
+    });
+
+    it('uses iCloud Calendar placeholder on iOS', () => {
+      Platform.OS = 'ios';
+      const props = {
+        ...defaultProps,
+        formData: {
+          syncWithCalendar: true,
+          calendarProvider: null,
+          calendarProviderName: null,
+        },
+      };
+
+      render(<CalendarSyncSection {...props} />);
+
+      expect(screen.getByTestId('input-placeholder').props.children).toBe(
+        'iCloud Calendar',
+      );
+    });
+
+    it('uses Google Calendar placeholder on Android', () => {
+      Platform.OS = 'android';
+      const props = {
+        ...defaultProps,
+        formData: {
+          syncWithCalendar: true,
+          calendarProvider: null,
+          calendarProviderName: null,
+        },
+      };
+
+      render(<CalendarSyncSection {...props} />);
+
+      expect(screen.getByTestId('input-placeholder').props.children).toBe(
+        'Google Calendar',
+      );
+    });
   });
 });

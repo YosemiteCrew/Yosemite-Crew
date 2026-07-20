@@ -1,6 +1,8 @@
 import React from 'react';
-import {Image} from 'react-native';
+import {StyleSheet} from 'react-native';
 import {render} from '@testing-library/react-native';
+// Path: 5 levels up to __tests__, then into setup
+import {mockTheme} from '../../../../../setup/mockTheme';
 // Path: 6 levels up to project root, then to src
 import {
   ViewField,
@@ -9,79 +11,83 @@ import {
 
 // --- Mocks ---
 
-// 1. Mock Shared Components
-// We mock the shared components to verify the props passed to them without testing their internal logic.
-const mockInput = jest.fn();
-const mockTouchableInput = jest.fn();
-
-jest.mock('@/shared/components/common', () => ({
-  Input: (props: any) => {
-    mockInput(props);
-    const {View, Text} = require('react-native');
-    return (
-      <View testID="mock-input">
-        <Text>{props.label}</Text>
-        <Text>{props.value}</Text>
-      </View>
-    );
-  },
-  TouchableInput: (props: any) => {
-    mockTouchableInput(props);
-    const {View, Text} = require('react-native');
-    return (
-      <View testID="mock-touchable-input">
-        <Text>{props.label}</Text>
-        <Text>{props.value}</Text>
-        {/* Render rightComponent to verify icon presence */}
-        {props.rightComponent}
-      </View>
-    );
-  },
+// The warm-bone DetailRow reads styling tokens from useTheme(). Provide the
+// shared mock theme so styling never crashes on missing tokens.
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 describe('ViewField Components', () => {
-  beforeEach(() => {
-    mockInput.mockClear();
-    mockTouchableInput.mockClear();
-  });
-
   describe('ViewField', () => {
     const defaultProps = {
       label: 'Test Label',
       value: 'Test Value',
-      fieldGroupStyle: {marginBottom: 10},
-      textAreaStyle: {color: 'red'},
     };
 
-    it('renders correctly and passes props to Input', () => {
-      const {getByTestId, getByText} = render(<ViewField {...defaultProps} />);
+    it('renders the label and value text', () => {
+      const {getByText} = render(<ViewField {...defaultProps} />);
 
-      expect(getByTestId('mock-input')).toBeTruthy();
       expect(getByText('Test Label')).toBeTruthy();
       expect(getByText('Test Value')).toBeTruthy();
-
-      // Verify specific props passed to Input
-      expect(mockInput).toHaveBeenCalledWith(
-        expect.objectContaining({
-          label: 'Test Label',
-          value: 'Test Value',
-          editable: false, // Key requirement: should be read-only
-          inputStyle: defaultProps.textAreaStyle,
-        }),
-      );
     });
 
-    it('passes multiline props correctly', () => {
-      render(
-        <ViewField {...defaultProps} multiline={true} numberOfLines={4} />,
+    it('renders a top hairline divider for non-first rows', () => {
+      const {getByTestId} = render(<ViewField {...defaultProps} />);
+
+      const rowStyle = StyleSheet.flatten(
+        getByTestId('detail-row').props.style,
+      );
+      expect(rowStyle.borderTopWidth).toBe(1);
+      expect(rowStyle.borderTopColor).toBe(mockTheme.colors.hairline);
+    });
+
+    it('drops the top divider for the first row in a group', () => {
+      const {getByTestId} = render(<ViewField {...defaultProps} first />);
+
+      const rowStyle = StyleSheet.flatten(
+        getByTestId('detail-row').props.style,
+      );
+      expect(rowStyle.borderTopWidth).toBeUndefined();
+    });
+
+    it('uses a single-line right-aligned layout by default', () => {
+      const {getByTestId, getByText} = render(<ViewField {...defaultProps} />);
+
+      const rowStyle = StyleSheet.flatten(
+        getByTestId('detail-row').props.style,
+      );
+      expect(rowStyle.flexDirection).toBe('row');
+
+      const valueStyle = StyleSheet.flatten(
+        getByText('Test Value').props.style,
+      );
+      expect(valueStyle.textAlign).toBe('right');
+      expect(valueStyle.color).toBe(mockTheme.colors.inkBody);
+    });
+
+    it('applies a stacked layout when multiline is set', () => {
+      const {getByTestId, getByText} = render(
+        <ViewField {...defaultProps} multiline />,
       );
 
-      expect(mockInput).toHaveBeenCalledWith(
-        expect.objectContaining({
-          multiline: true,
-          numberOfLines: 4,
-        }),
+      const rowStyle = StyleSheet.flatten(
+        getByTestId('detail-row').props.style,
       );
+      expect(rowStyle.flexDirection).toBe('column');
+
+      const valueStyle = StyleSheet.flatten(
+        getByText('Test Value').props.style,
+      );
+      expect(valueStyle.textAlign).toBe('left');
+    });
+
+    it('styles the label with the muted ink token', () => {
+      const {getByText} = render(<ViewField {...defaultProps} />);
+
+      const labelStyle = StyleSheet.flatten(
+        getByText('Test Label').props.style,
+      );
+      expect(labelStyle.color).toBe(mockTheme.colors.inkFaint);
     });
   });
 
@@ -89,58 +95,42 @@ describe('ViewField Components', () => {
     const defaultProps = {
       label: 'Touch Label',
       value: 'Touch Value',
-      fieldGroupStyle: {marginBottom: 10},
-      iconStyle: {width: 20, height: 20},
     };
 
-    it('renders correctly without icon', () => {
-      const {getByTestId, getByText} = render(
-        <ViewTouchField {...defaultProps} />,
-      );
+    it('renders the label and value text', () => {
+      const {getByText} = render(<ViewTouchField {...defaultProps} />);
 
-      expect(getByTestId('mock-touchable-input')).toBeTruthy();
       expect(getByText('Touch Label')).toBeTruthy();
       expect(getByText('Touch Value')).toBeTruthy();
-
-      // Verify props passed to TouchableInput
-      expect(mockTouchableInput).toHaveBeenCalledWith(
-        expect.objectContaining({
-          label: 'Touch Label',
-          value: 'Touch Value',
-          rightComponent: undefined, // No icon provided
-        }),
-      );
     });
 
-    it('renders correctly with icon', () => {
-      const mockIconSource = {uri: 'http://example.com/icon.png'};
+    it('renders a top hairline divider for non-first rows', () => {
+      const {getByTestId} = render(<ViewTouchField {...defaultProps} />);
 
-      const {} = render(
-        <ViewTouchField {...defaultProps} icon={mockIconSource} />,
+      const rowStyle = StyleSheet.flatten(
+        getByTestId('detail-row').props.style,
       );
-
-      // Since we render rightComponent in the mock, we can check if the Image was created correctly.
-      // However, Image inside React Native might not be easily queryable if standard RNTL mocks are active.
-      // We can rely on the mock call arguments instead for precision.
-
-      const lastCall = mockTouchableInput.mock.calls[0][0];
-      const rightComponent = lastCall.rightComponent;
-
-      // Verify rightComponent is a React Element (Image)
-      expect(React.isValidElement(rightComponent)).toBe(true);
-      expect(rightComponent.type).toBe(Image);
-      expect(rightComponent.props.source).toEqual(mockIconSource);
-      expect(rightComponent.props.style).toEqual(defaultProps.iconStyle);
+      expect(rowStyle.borderTopWidth).toBe(1);
+      expect(rowStyle.borderTopColor).toBe(mockTheme.colors.hairline);
     });
 
-    it('provides a no-op onPress handler', () => {
-      render(<ViewTouchField {...defaultProps} />);
+    it('drops the top divider for the first row in a group', () => {
+      const {getByTestId} = render(<ViewTouchField {...defaultProps} first />);
 
-      const lastCall = mockTouchableInput.mock.calls[0][0];
-      expect(typeof lastCall.onPress).toBe('function');
+      const rowStyle = StyleSheet.flatten(
+        getByTestId('detail-row').props.style,
+      );
+      expect(rowStyle.borderTopWidth).toBeUndefined();
+    });
 
-      // execute to ensure it doesn't throw
-      expect(() => lastCall.onPress()).not.toThrow();
+    it('renders identically to a read-only value row (no icon or press affordance)', () => {
+      const {getByText} = render(<ViewTouchField {...defaultProps} />);
+
+      const valueStyle = StyleSheet.flatten(
+        getByText('Touch Value').props.style,
+      );
+      expect(valueStyle.textAlign).toBe('right');
+      expect(valueStyle.color).toBe(mockTheme.colors.inkBody);
     });
   });
 });

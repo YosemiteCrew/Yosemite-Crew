@@ -43,11 +43,31 @@ describe('CustomSplashScreen', () => {
       expect(UNSAFE_root).toBeDefined();
     });
 
-    it('should render the FDA certification alongside the existing splash assets', () => {
+    it('should render the five compliance pills', () => {
       const onAnimationEnd = jest.fn();
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
-      expect(screen.getAllByTestId('certification-logo')).toHaveLength(5);
+      expect(screen.getAllByTestId('compliance-pill')).toHaveLength(5);
+    });
+
+    it('should render each compliance pill with a bundled local logo source', () => {
+      const onAnimationEnd = jest.fn();
+      render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+
+      const pills = screen.getAllByTestId('compliance-pill');
+      expect(pills).toHaveLength(5);
+      pills.forEach(pill => {
+        expect(pill.props.source).toBeDefined();
+      });
+    });
+
+    it('should render the brand lockup and tagline', () => {
+      const onAnimationEnd = jest.fn();
+      render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+
+      expect(screen.getByText('Yosemite Crew')).toBeTruthy();
+      expect(screen.getByText('BETA')).toBeTruthy();
+      expect(screen.getByText('Every companion has a story.')).toBeTruthy();
     });
   });
 
@@ -62,16 +82,11 @@ describe('CustomSplashScreen', () => {
 
       expect(timingSpy).toHaveBeenCalled();
       expect(springSpy).toHaveBeenCalledWith(1, {
-        damping: 12,
+        damping: 13,
         stiffness: 120,
       });
-      expect(repeatSpy).toHaveBeenCalledTimes(2);
-
-      act(() => {
-        jest.advanceTimersByTime(1500);
-      });
-
-      expect(repeatSpy).toHaveBeenCalledTimes(4);
+      // Single infinite loop drives the loading bar.
+      expect(repeatSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -102,8 +117,8 @@ describe('CustomSplashScreen', () => {
 
       unmount();
 
-      expect(clearTimeoutSpy).toHaveBeenCalledTimes(2);
-      expect(cancelAnimationSpy).toHaveBeenCalledTimes(7);
+      expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
+      expect(cancelAnimationSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -128,6 +143,26 @@ describe('CustomSplashScreen', () => {
       });
 
       expect(onAnimationEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not call onAnimationEnd when the fade animation is interrupted', () => {
+      const onAnimationEnd = jest.fn();
+      // Drive the withTiming completion callback with `finished === false`
+      // (the default mock always reports `true`), so the fade never resolves.
+      jest
+        .spyOn(Reanimated, 'withTiming')
+        .mockImplementation((toValue: any, _config?: any, callback?: any) => {
+          callback?.(false);
+          return toValue;
+        });
+
+      render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+
+      act(() => {
+        jest.advanceTimersByTime(4000);
+      });
+
+      expect(onAnimationEnd).not.toHaveBeenCalled();
     });
   });
 });
