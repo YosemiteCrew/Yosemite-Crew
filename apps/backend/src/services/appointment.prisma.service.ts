@@ -251,6 +251,16 @@ type AppointmentListFilters = {
   endDate?: Date;
 };
 
+/**
+ * Read scope for a single appointment. The union makes `organisationId` or
+ * `parentId` mandatory: without one of them the lookup would resolve an
+ * appointment by id alone and hand it to any authenticated caller. `actorId`
+ * only narrows an organisation scope, so it cannot stand in for either.
+ */
+type AppointmentAccessScope =
+  | { organisationId: string; actorId?: string; parentId?: string }
+  | { organisationId?: string; actorId?: string; parentId: string };
+
 const DEFAULT_KIND: AppointmentKind = "OUTPATIENT";
 const UNPAID_INVOICE_STATUSES = new Set([
   "PENDING",
@@ -933,6 +943,42 @@ const resolveEncounterForAdmission = async (args: {
   return encounter;
 };
 
+// Record the encounter's real actual-start when the appointment first moves to
+// IN_PROGRESS. `periodStart` is seeded at check-in with the booked slot start
+// (often in the future), which is not a real start — leaving it would keep the
+// workspace visit timer showing "Not started" even though the visit is running.
+// Stamp it to the transition time and advance the encounter to "in-progress"; a
+// genuine, already-recorded start (in-progress/onleave) is preserved so the timer
+// never resets, and a closed encounter is left untouched.
+const stampEncounterActualStartOnProgress = async (args: {
+  tx: TransactionClient;
+  encounterId: string;
+  startedAt: Date;
+}) => {
+  const encounter = (await args.tx.encounter.findUnique({
+    where: { id: args.encounterId },
+    select: { status: true, periodStart: true },
+  })) as { status: string; periodStart: Date | null } | null;
+
+  if (!encounter) return;
+  if (encounter.status === "finished" || encounter.status === "cancelled") {
+    return;
+  }
+
+  const alreadyStarted =
+    encounter.status === "in-progress" || encounter.status === "onleave";
+
+  await args.tx.encounter.update({
+    where: { id: args.encounterId },
+    data: {
+      status: alreadyStarted ? encounter.status : "in-progress",
+      periodStart: alreadyStarted
+        ? (encounter.periodStart ?? args.startedAt)
+        : args.startedAt,
+    },
+  });
+};
+
 const assertEncounterMatchesAppointmentContext = async (args: {
   tx: TransactionClient;
   encounterId?: string;
@@ -1591,7 +1637,22 @@ const approveRequestedFromPmsInTransaction = async (args: {
 };
 
 export const AppointmentPrismaService = {
-  async createRequestedFromMobile(dto: AppointmentRequestDTO) {
+  async createRequestedFromMobile(
+    dto: AppointmentRequestDTO,
+    authParentId: string,
+  ) {
+    if (!authParentId) {
+      throw new AppointmentPrismaServiceError("authParentId is required", 400);
+    }
+
+    const requestedParentId = fromAppointmentRequestDTO(dto).patient.parent?.id;
+    if (requestedParentId !== authParentId) {
+      throw new AppointmentPrismaServiceError(
+        "You are not allowed to book appointments for this parent.",
+        403,
+      );
+    }
+
     return createAppointment(dto, "REQUESTED");
   },
 
@@ -1633,11 +1694,15 @@ export const AppointmentPrismaService = {
       if (resolvedPaymentCollectionMethod === "PAYMENT_LINK") {
         await InvoiceService.createCheckoutSessionAndEmailParent(invoice.id);
       } else if (resolvedPaymentCollectionMethod === "PAYMENT_INTENT") {
-        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id);
+        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id, {
+          organisationId: invoice.organisationId,
+        });
       }
     }
 
-    return AppointmentPrismaService.getById(appointmentId);
+    return AppointmentPrismaService.getById(appointmentId, {
+      organisationId: fromAppointmentRequestDTO(dto).organisationId,
+    });
   },
 
   async approveRequestedFromPms(
@@ -1761,13 +1826,19 @@ export const AppointmentPrismaService = {
     return toResponse(updated as AppointmentRow);
   },
 
-  async checkInAppointment(appointmentId: string) {
+  async checkInAppointment(appointmentId: string, organisationId: string) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -1797,10 +1868,17 @@ export const AppointmentPrismaService = {
 
   async admitAppointmentToInpatient(
     appointmentId: string,
+    organisationId: string,
     input?: AdmitRequestInput,
   ) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
     }
 
     const admittedAt = input?.admittedAt ?? new Date();
@@ -1826,6 +1904,9 @@ export const AppointmentPrismaService = {
         current as AppointmentRow | null,
         "Appointment not found",
       );
+      if (row.organisationId !== organisationId) {
+        throw new AppointmentPrismaServiceError("Appointment not found", 404);
+      }
 
       const rowEncounterId = normalizeOptionalString(row.encounterId);
       if (!rowEncounterId) {
@@ -1857,14 +1938,20 @@ export const AppointmentPrismaService = {
       const { nextLead, nextSupportStaff, nextRoom } =
         resolveInpatientAdmissionFields(row, input);
 
+      // Admission is the encounter's real actual-start. `periodStart` was seeded
+      // at check-in with the booked slot start (often in the future), so on the
+      // first move into "in-progress" record the real admission time; otherwise
+      // preserve the already-recorded start so the visit timer never resets.
+      const isStartingNow = encounter.status === "arrived";
       await tx.encounter.update({
         where: { id: encounterId },
         data: {
           appointmentKind: "INPATIENT",
           encounterClass: "IMP",
-          periodStart: encounter.periodStart ?? admittedAt,
-          status:
-            encounter.status === "arrived" ? "in-progress" : encounter.status,
+          periodStart: isStartingNow
+            ? admittedAt
+            : (encounter.periodStart ?? admittedAt),
+          status: isStartingNow ? "in-progress" : encounter.status,
         },
       });
 
@@ -2112,6 +2199,21 @@ export const AppointmentPrismaService = {
         });
       }
 
+      // On the transition into IN_PROGRESS, stamp the encounter's real
+      // actual-start so the workspace visit timer runs (bug #1903). Only fires on
+      // the first move into IN_PROGRESS and only when an encounter exists.
+      if (
+        patch.status === "IN_PROGRESS" &&
+        row.status !== "IN_PROGRESS" &&
+        encounterId
+      ) {
+        await stampEncounterActualStartOnProgress({
+          tx,
+          encounterId,
+          startedAt: new Date(),
+        });
+      }
+
       return tx.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -2128,7 +2230,9 @@ export const AppointmentPrismaService = {
     });
 
     if (patch.status === "COMPLETED") {
-      await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+      await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
+        organisationId: row.organisationId,
+      });
     }
 
     return toResponse(updated as AppointmentRow);
@@ -2209,9 +2313,7 @@ export const AppointmentPrismaService = {
 
   async getById(
     appointmentId: string,
-    organisationId?: string,
-    actorId?: string,
-    parentId?: string,
+    scope: AppointmentAccessScope,
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
@@ -2219,6 +2321,8 @@ export const AppointmentPrismaService = {
         400,
       );
     }
+
+    const { organisationId, actorId, parentId } = scope;
 
     const row = organisationId
       ? await prisma.appointment.findFirst({
@@ -2355,21 +2459,44 @@ export const AppointmentPrismaService = {
 
   async attachFormsToAppointment(
     appointmentId: string,
+    organisationId: string,
     formIds: string[],
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
       "Appointment not found",
     );
+
+    const requestedFormIds = Array.from(
+      new Set((formIds ?? []).filter(Boolean)),
+    );
+    if (requestedFormIds.length) {
+      const ownedForms = await prisma.form.findMany({
+        where: { id: { in: requestedFormIds }, orgId: organisationId },
+        select: { id: true },
+      });
+      // 404 rather than 403: confirming a form exists in another organisation
+      // would already leak it.
+      if (ownedForms.length !== requestedFormIds.length) {
+        throw new AppointmentPrismaServiceError("Form not found", 404);
+      }
+    }
+
     const nextFormIds = Array.from(
-      new Set([...(row.formIds ?? []), ...(formIds ?? [])]),
+      new Set([...(row.formIds ?? []), ...requestedFormIds]),
     ).filter(Boolean);
 
     const updated = await prisma.appointment.update({

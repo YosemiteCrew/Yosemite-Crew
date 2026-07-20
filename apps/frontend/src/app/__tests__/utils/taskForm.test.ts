@@ -109,6 +109,21 @@ describe('taskForm utilities', () => {
       expect(errors.endDate).toBe('End date must be on or after the due date');
     });
 
+    it('accepts an end date on the same day as the due date', () => {
+      // The end date is picked as a whole day, so it lands before a same-day
+      // due time on the clock while still being a valid last day.
+      const task = {
+        ...baseTask,
+        dueAt: new Date('2026-05-10T14:00:00Z'),
+        recurrence: {
+          type: 'WEEKLY' as const,
+          isMaster: true,
+          endDate: new Date('2026-05-10T00:00:00Z'),
+        },
+      };
+      expect(validateTaskForm(task).endDate).toBeUndefined();
+    });
+
     it('accepts a one-off task without an end date', () => {
       const task = { ...baseTask, recurrence: { type: 'ONCE' as const, isMaster: false } };
       const errors = validateTaskForm(task);

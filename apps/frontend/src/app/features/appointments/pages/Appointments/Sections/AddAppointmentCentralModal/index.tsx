@@ -24,6 +24,8 @@ import { formatTimeLabel } from '@/app/lib/forms';
 import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import BottomSheet from '@/app/ui/layout/PhoneShell/BottomSheet';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import Datepicker from '@/app/ui/inputs/Datepicker';
@@ -34,8 +36,8 @@ import AppointmentAvatar from '@/app/features/appointments/components/Appointmen
 import AppointmentEstimatePanel from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentEstimatePanel';
 import { hasUnsavedCentralChanges } from '@/app/features/appointments/components/AppointmentCentralModal/appointmentCentralModalUtils';
 import { IoIosWarning } from 'react-icons/io';
-import { IoPaw, IoPerson, IoChevronDown } from 'react-icons/io5';
-import { TiPlus } from 'react-icons/ti';
+import { IoAdd, IoArrowForward, IoChevronDown, IoPaw, IoPerson } from 'react-icons/io5';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import clsx from 'clsx';
 import type { AppointmentKind } from '@yosemite-crew/types';
 
@@ -48,10 +50,10 @@ const INPUT_PLACEHOLDER_ACTIVE = 'var(--color-input-text-placeholder-active)';
 // 16-R: values / selected text / input content
 const text16R: CSSProperties = {
   fontFamily: FONT,
-  fontSize: 16,
+  fontSize: 14,
   fontWeight: 400,
   lineHeight: '120%',
-  color: NEUTRAL_900,
+  color: 'var(--ink-body)',
 };
 // 14-M: labels, checkboxes, emergency
 const text14M: CSSProperties = {
@@ -90,8 +92,6 @@ type AddAppointmentCentralModalProps = {
   initialCompanionId?: string | null;
 };
 
-type NotifyChannel = 'app' | 'sms' | 'email';
-
 type ModalUiState = {
   submitAttempted: boolean;
   addCompanionTarget: 'patient' | 'client' | null;
@@ -101,7 +101,6 @@ type ModalUiState = {
   patientQuery: string;
   clientQuery: string;
   selectedClientId: string | null;
-  notifyChannels: Set<NotifyChannel>;
   prefillDismissed: boolean;
 };
 
@@ -115,7 +114,6 @@ type ModalUiAction =
   | { type: 'setPatientQuery'; value: string }
   | { type: 'setClientQuery'; value: string }
   | { type: 'setSelectedClientId'; value: string | null }
-  | { type: 'toggleNotify'; value: NotifyChannel }
   | { type: 'dismissPrefill' };
 
 const createInitialModalUiState = (): ModalUiState => ({
@@ -127,7 +125,6 @@ const createInitialModalUiState = (): ModalUiState => ({
   patientQuery: '',
   clientQuery: '',
   selectedClientId: null,
-  notifyChannels: new Set(['app']),
   prefillDismissed: false,
 });
 
@@ -151,24 +148,13 @@ const modalUiReducer = (state: ModalUiState, action: ModalUiAction): ModalUiStat
       return { ...state, clientQuery: action.value };
     case 'setSelectedClientId':
       return { ...state, selectedClientId: action.value };
-    case 'toggleNotify': {
-      const next = new Set(state.notifyChannels);
-      if (next.has(action.value)) next.delete(action.value);
-      else next.add(action.value);
-      return { ...state, notifyChannels: next };
-    }
     case 'dismissPrefill':
       return state.prefillDismissed ? state : { ...state, prefillDismissed: true };
+    /* v8 ignore next 2 -- exhaustive ModalUiAction union; the default arm is unreachable */
     default:
       return state;
   }
 };
-
-const NOTIFY_OPTIONS: Array<{ key: NotifyChannel; label: string }> = [
-  { key: 'app', label: 'Notify via App' },
-  { key: 'sms', label: 'Notify via SMS' },
-  { key: 'email', label: 'Notify via Email' },
-];
 
 const VISIT_TYPE_OPTIONS = [
   { label: 'Outpatient', value: 'Outpatient' },
@@ -201,7 +187,7 @@ export const Arrow = ({ open }: { open: boolean }) => (
 // ─── Floating label ─────────────────────────────────────────────────────────────
 export const FloatLabel = ({ floated, children }: { floated: boolean; children: ReactNode }) => (
   <span
-    className="pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-white px-1 transition-all duration-150"
+    className="pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-neutral-0 px-1 transition-all duration-150"
     style={
       floated
         ? { ...floatLabelActive, top: 0, transform: 'translateY(-50%)' }
@@ -225,6 +211,7 @@ export const FieldError = ({ message }: { message?: string }) => {
 
 // ─── Portal position helper ─────────────────────────────────────────────────────
 const getPortalStyle = (el: HTMLElement | null): CSSProperties | null => {
+  /* v8 ignore next -- defensive null guard: el is triggerRef.current, always attached whenever a dropdown opens */
   if (!el) return null;
   const rect = el.getBoundingClientRect();
   const viewportHeight = globalThis.window.innerHeight;
@@ -309,7 +296,7 @@ export const PersonRow = ({
           <div
             data-portal-dropdown
             className={clsx(
-              'bg-white rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
+              'bg-neutral-0 rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
               'border-l border-r border-b border-t',
               error ? 'border-input-border-error' : 'border-input-text-placeholder-active'
             )}
@@ -354,10 +341,10 @@ export const PersonRow = ({
       <div
         ref={triggerRef}
         className={clsx(
-          'relative flex items-center min-h-12 border bg-white transition-colors duration-150 cursor-text',
+          'relative flex items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] transition-colors duration-150 cursor-text',
           visibleOpen
-            ? 'rounded-t-2xl border-input-border-active border-b-0'
-            : 'rounded-2xl border-input-border-default',
+            ? 'rounded-t-[12px] border-input-border-active border-b-0'
+            : 'rounded-[12px] border-[var(--hairline)]',
           error ? 'border-input-border-error!' : ''
         )}
       >
@@ -598,7 +585,7 @@ export const TimeSlotDropdown = ({
           <div
             data-portal-dropdown
             className={clsx(
-              'bg-white rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
+              'bg-neutral-0 rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
               'border-l border-r border-b border-t',
               error ? 'border-input-border-error' : 'border-input-text-placeholder-active'
             )}
@@ -627,10 +614,10 @@ export const TimeSlotDropdown = ({
         type="button"
         ref={triggerRef}
         className={clsx(
-          'relative flex w-full items-center min-h-12 border bg-white text-left transition-colors duration-150 select-none',
+          'relative flex w-full items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] text-left transition-colors duration-150 select-none',
           open
-            ? 'rounded-t-2xl border-input-border-active border-b-0'
-            : 'rounded-2xl border-input-border-default',
+            ? 'rounded-t-[12px] border-input-border-active border-b-0'
+            : 'rounded-[12px] border-[var(--hairline)]',
           error ? 'border-input-border-error!' : ''
         )}
         onClick={() => setOpen((o) => !o)}
@@ -654,7 +641,7 @@ export const TimeSlotDropdown = ({
 
 // ─── SlotBadge — duration display ──────────────────────────────────────────────
 export const SlotBadge = ({ label }: { label: string | null }) => (
-  <div className="relative flex items-center min-h-12 border border-input-border-default rounded-2xl bg-white px-5 py-3">
+  <div className="relative flex items-center min-h-[46px] border-[1.5px] border-[var(--hairline)] rounded-[12px] bg-[var(--field-bg)] px-5 py-3">
     <FloatLabel floated={Boolean(label)}>Slot duration</FloatLabel>
     <span style={label ? text16R : { ...text16R, color: INPUT_PLACEHOLDER }}>{label ?? ''}</span>
   </div>
@@ -714,9 +701,15 @@ type AppointmentFormContentProps = {
   setFormData: Dispatch<SetStateAction<any>>;
   ServiceInfoData: any;
   showError: (field: string) => string | undefined;
-  toggleNotify: (key: NotifyChannel) => void;
-  notifyChannels: Set<NotifyChannel>;
   handleSubmit: () => void;
+  onCancel: () => void;
+  /**
+   * `modal` (default) is the desktop CenterModal layout: a 2-column field grid
+   * with an inline Cancel + Book footer. `sheet` is the phone bottom-sheet
+   * layout: a single full-width stacked column with no inline footer (the
+   * sticky Book button lives in the BottomSheet footer instead).
+   */
+  variant?: 'modal' | 'sheet';
 };
 
 export const AppointmentFormContent = ({
@@ -761,12 +754,18 @@ export const AppointmentFormContent = ({
   setFormData,
   ServiceInfoData,
   showError,
-  toggleNotify,
-  notifyChannels,
   handleSubmit,
+  onCancel,
+  variant = 'modal',
 }: AppointmentFormContentProps) => (
   <div className="relative">
-    <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+    <div
+      className={
+        variant === 'sheet'
+          ? 'grid grid-cols-1 gap-y-4'
+          : 'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2'
+      }
+    >
       <div className="flex flex-col gap-4">
         <PersonRow
           fieldId="central-patient"
@@ -874,7 +873,7 @@ export const AppointmentFormContent = ({
           error={showError('specialityId')}
           searchable
           portal
-          icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+          icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
         />
 
         <LabelDropdown
@@ -885,7 +884,7 @@ export const AppointmentFormContent = ({
           error={showError('serviceId')}
           searchable
           portal
-          icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+          icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
         />
 
         <FormDesc
@@ -902,18 +901,37 @@ export const AppointmentFormContent = ({
           maxDiscount={ServiceInfoData?.maxDiscount}
         />
 
-        <label className="mt-auto ml-auto flex cursor-pointer select-none items-center justify-end gap-2">
-          <input
-            type="checkbox"
-            aria-label="Mark appointment as emergency"
-            checked={formData.isEmergency ?? false}
-            onChange={(e) =>
-              setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
-            }
-            className="size-4 shrink-0 cursor-pointer"
-          />
-          <span style={text14M}>Is this an Emergency?</span>
-        </label>
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+          <label className="flex cursor-pointer select-none items-center gap-2.5">
+            <input
+              type="checkbox"
+              aria-label="Mark appointment as emergency"
+              checked={formData.isEmergency ?? false}
+              onChange={(e) =>
+                setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
+              }
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className="relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-text-brand"
+              style={{
+                backgroundColor: (formData.isEmergency ?? false) ? 'var(--cta)' : 'var(--divider)',
+              }}
+            >
+              <span
+                className="absolute top-[3px] size-[18px] rounded-full bg-[var(--screen)] transition-all duration-150"
+                style={{ left: (formData.isEmergency ?? false) ? '19px' : '3px' }}
+              />
+            </span>
+            <span className="text-[13px] font-semibold text-[var(--ink-body)]">
+              Mark as emergency
+            </span>
+          </label>
+          <span className="text-[12.5px] text-[var(--ink-faint)]">
+            {selectedClientName?.split(' ')[0] ?? 'The client'} will be notified by push + email
+          </span>
+        </div>
       </div>
     </div>
 
@@ -926,43 +944,32 @@ export const AppointmentFormContent = ({
       </div>
     )}
 
-    <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-4">
-        {NOTIFY_OPTIONS.map(({ key, label }) => (
-          <label key={key} className="flex cursor-pointer select-none items-center gap-2">
-            <input
-              type="checkbox"
-              aria-label={`Notify by ${label}`}
-              checked={notifyChannels.has(key)}
-              onChange={() => toggleNotify(key)}
-              className="size-4 shrink-0 cursor-pointer"
-            />
-            <span style={text14M}>{label}</span>
-          </label>
-        ))}
+    {variant === 'sheet' ? null : (
+      <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
+        <Secondary
+          text="Cancel"
+          onClick={onCancel}
+          isDisabled={formState.loading}
+          className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
+        />
+        <Primary
+          text="Book appointment"
+          onClick={handleSubmit}
+          isDisabled={formState.loading}
+          icon={<IoArrowForward aria-hidden="true" />}
+          iconPosition="right"
+          className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
+        />
       </div>
-
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={formState.loading}
-        className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-[11px] whitespace-nowrap font-satoshi text-base font-medium leading-[1.5rem] text-white! disabled:cursor-not-allowed disabled:opacity-60"
-        onPointerDown={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-          e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-        }}
-        onPointerMove={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-          e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-        }}
-      >
-        + Add Appointment
-      </button>
-    </div>
+    )}
   </div>
 );
+
+// ─── Phone sticky footer "Book" button ────────────────────────────────────────
+export const buildBookButtonLabel = (selectedClientName?: string): string => {
+  const firstName = selectedClientName?.split(' ')[0];
+  return firstName ? `Book · ${firstName} gets notified` : 'Book appointment';
+};
 
 export const DiscardConfirmationModal = ({
   showModal,
@@ -995,7 +1002,7 @@ export const DiscardConfirmationModal = ({
         <button
           type="button"
           onClick={onDiscard}
-          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] text-white! disabled:cursor-not-allowed disabled:opacity-60"
+          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] disabled:cursor-not-allowed disabled:opacity-60"
           onPointerDown={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
@@ -1045,6 +1052,7 @@ const useAddAppointmentCentralModalView = ({
 }: AddAppointmentCentralModalProps) => {
   const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
+  const isPhone = useIsPhone();
   const [uiState, dispatchUi] = useReducer(modalUiReducer, undefined, createInitialModalUiState);
   const [visitType, setVisitType] = useState('Outpatient');
   const prefillActive = Boolean(prefill) && !uiState.prefillDismissed;
@@ -1171,6 +1179,7 @@ const useAddAppointmentCentralModalView = ({
   const handlePatientSelect = useCallback(
     (id: string) => {
       const hit = companions.find((c) => c.companion.id === id);
+      /* v8 ignore next -- id always originates from companion-derived options; a miss is unreachable */
       if (!hit) return;
       setFormData((prev) => ({
         ...prev,
@@ -1271,6 +1280,13 @@ const useAddAppointmentCentralModalView = ({
     closeModal();
   }, [closeModal]);
 
+  // Cancel mirrors the header X: honour the unsaved-changes guard (which opens the
+  // discard confirmation) before closing.
+  const handleCancel = useCallback(() => {
+    if (!canCloseModal()) return;
+    closeModal();
+  }, [canCloseModal, closeModal]);
+
   const handleSubmit = async () => {
     dispatchUi({ type: 'setSubmitAttempted', value: true });
     const errors = validateForm(true);
@@ -1286,8 +1302,6 @@ const useAddAppointmentCentralModalView = ({
       loadCompanionsForPrimaryOrg({ force: true, silent: true }).catch(() => undefined);
     }
   };
-
-  const toggleNotify = (key: NotifyChannel) => dispatchUi({ type: 'toggleNotify', value: key });
 
   const handleVisitTypeSelect = useCallback(
     (opt: string | { label: string; value: string }) => {
@@ -1360,8 +1374,13 @@ const useAddAppointmentCentralModalView = ({
       if (mins > 0) return `${mins} mins`;
     }
     if (formData.durationMinutes) return `${formData.durationMinutes} mins`;
+    // Before a time slot is chosen, fall back to the selected service's configured
+    // duration so the badge reflects the picked service instead of staying empty.
+    // Display-only: booking still requires a real slot (durationMinutes validation).
+    const serviceMins = Number(ServiceInfoData?.duration);
+    if (Number.isFinite(serviceMins) && serviceMins > 0) return `${serviceMins} mins`;
     return null;
-  }, [selectedSlot, formData.durationMinutes]);
+  }, [selectedSlot, formData.durationMinutes, ServiceInfoData?.duration]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -1373,73 +1392,92 @@ const useAddAppointmentCentralModalView = ({
   const noSlotsMessage = getNoSlotsMessage(hasService, hasSpeciality);
   const patientLabel = terminologyText('Patient');
 
+  const formContentProps: AppointmentFormContentProps = {
+    patientLabel,
+    selectedPatientName,
+    selectedPatientPhoto,
+    patientQuery: uiState.patientQuery,
+    setPatientQuery: (value) => dispatchUi({ type: 'setPatientQuery', value }),
+    patientOptions,
+    handlePatientSelect,
+    handlePatientClear,
+    selectedClientName,
+    clientQuery: uiState.clientQuery,
+    setClientQuery: (value) => dispatchUi({ type: 'setClientQuery', value }),
+    clientOptions,
+    handleClientSelect,
+    handleClientClear,
+    setAddCompanionTarget: (target) => dispatchUi({ type: 'setAddCompanionTarget', value: target }),
+    selectedDate,
+    handleDateChange,
+    today,
+    timeSlots,
+    selectedSlot,
+    onSlotSelect: (slot) => {
+      dispatchUi({ type: 'dismissPrefill' });
+      setSelectedSlot(slot);
+    },
+    formState: {
+      loadingTimeSlots: uiState.isLoadingTimeSlots,
+      loadingSlotScopedOptions: isLoadingSlotScopedOptions,
+      serviceSelected: hasService,
+      submitted: uiState.submitAttempted,
+      loading: isLoading,
+    },
+    noSlotsMessage,
+    prefillTimeLabel,
+    durationDisplay,
+    visitType,
+    handleVisitTypeSelect,
+    LeadOptions,
+    formData,
+    formDataErrors,
+    handleLeadSelectWithReset,
+    leadEmptyStateMessage,
+    supportOptions,
+    handleSupportStaffChange,
+    SpecialitiesOptions,
+    handleSpecialitySelect,
+    ServicesOptions,
+    handleServiceSelect,
+    setFormData,
+    ServiceInfoData,
+    showError: (field) => showError(field as keyof typeof formDataErrors),
+    handleSubmit,
+    onCancel: handleCancel,
+  };
+
   return (
     <>
-      <AppointmentCentralModalShell
-        showModal={showModal}
-        setShowModal={setShowModal}
-        title="Appointment details"
-        canClose={canCloseModal}
-        isLoading={isLoading}
-      >
-        <AppointmentFormContent
-          patientLabel={patientLabel}
-          selectedPatientName={selectedPatientName}
-          selectedPatientPhoto={selectedPatientPhoto}
-          patientQuery={uiState.patientQuery}
-          setPatientQuery={(value) => dispatchUi({ type: 'setPatientQuery', value })}
-          patientOptions={patientOptions}
-          handlePatientSelect={handlePatientSelect}
-          handlePatientClear={handlePatientClear}
-          selectedClientName={selectedClientName}
-          clientQuery={uiState.clientQuery}
-          setClientQuery={(value) => dispatchUi({ type: 'setClientQuery', value })}
-          clientOptions={clientOptions}
-          handleClientSelect={handleClientSelect}
-          handleClientClear={handleClientClear}
-          setAddCompanionTarget={(target) =>
-            dispatchUi({ type: 'setAddCompanionTarget', value: target })
+      {isPhone ? (
+        <BottomSheet
+          open={showModal}
+          title="New appointment"
+          onClose={handleCancel}
+          className="yc-appointment-sheet"
+          footer={
+            <Primary
+              text={buildBookButtonLabel(selectedClientName)}
+              onClick={handleSubmit}
+              isDisabled={isLoading}
+              size="large"
+              style={{ minHeight: 48, fontSize: 14, fontWeight: 700 }}
+            />
           }
-          selectedDate={selectedDate}
-          handleDateChange={handleDateChange}
-          today={today}
-          timeSlots={timeSlots}
-          selectedSlot={selectedSlot}
-          onSlotSelect={(slot) => {
-            dispatchUi({ type: 'dismissPrefill' });
-            setSelectedSlot(slot);
-          }}
-          formState={{
-            loadingTimeSlots: uiState.isLoadingTimeSlots,
-            loadingSlotScopedOptions: isLoadingSlotScopedOptions,
-            serviceSelected: hasService,
-            submitted: uiState.submitAttempted,
-            loading: isLoading,
-          }}
-          noSlotsMessage={noSlotsMessage}
-          prefillTimeLabel={prefillTimeLabel}
-          durationDisplay={durationDisplay}
-          visitType={visitType}
-          handleVisitTypeSelect={handleVisitTypeSelect}
-          LeadOptions={LeadOptions}
-          formData={formData}
-          formDataErrors={formDataErrors}
-          handleLeadSelectWithReset={handleLeadSelectWithReset}
-          leadEmptyStateMessage={leadEmptyStateMessage}
-          supportOptions={supportOptions}
-          handleSupportStaffChange={handleSupportStaffChange}
-          SpecialitiesOptions={SpecialitiesOptions}
-          handleSpecialitySelect={handleSpecialitySelect}
-          ServicesOptions={ServicesOptions}
-          handleServiceSelect={handleServiceSelect}
-          setFormData={setFormData}
-          ServiceInfoData={ServiceInfoData}
-          showError={(field) => showError(field as keyof typeof formDataErrors)}
-          toggleNotify={toggleNotify}
-          notifyChannels={uiState.notifyChannels}
-          handleSubmit={handleSubmit}
-        />
-      </AppointmentCentralModalShell>
+        >
+          <AppointmentFormContent {...formContentProps} variant="sheet" />
+        </BottomSheet>
+      ) : (
+        <AppointmentCentralModalShell
+          showModal={showModal}
+          setShowModal={setShowModal}
+          title="New appointment"
+          canClose={canCloseModal}
+          isLoading={isLoading}
+        >
+          <AppointmentFormContent {...formContentProps} />
+        </AppointmentCentralModalShell>
+      )}
 
       <AddCompanionCentralModal
         showModal={showAddCompanionModal}

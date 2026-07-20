@@ -97,7 +97,7 @@ export const AddExpenseScreen: React.FC = () => {
       <LiquidGlassHeaderScreen
         header={
           <Header
-            title="Expenses"
+            title="Add expense"
             showBackButton
             onBack={handleGoBack}
             glass={false}
@@ -120,7 +120,7 @@ export const AddExpenseScreen: React.FC = () => {
             loading={loading}
             onSave={handleSave}
             currencyCode={currencyCode}
-            saveButtonText="Save"
+            saveButtonText="Save expense"
             contentContainerStyle={contentPaddingStyle}
             formSheetRefs={formSheets.refs}
             openSheet={formSheets.openSheet}

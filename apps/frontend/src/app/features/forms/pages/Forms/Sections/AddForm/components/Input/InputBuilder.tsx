@@ -29,7 +29,6 @@ const InputBuilder: React.FC<{
           value={field.label || ''}
           inlabel={label}
           readonly={true}
-          className="min-h-12!"
         />
         <FormInput
           intype={field.type === 'number' ? 'number' : 'text'}
@@ -37,7 +36,6 @@ const InputBuilder: React.FC<{
           value={displayValue}
           inlabel={valueLabel}
           readonly={true}
-          className="min-h-12!"
         />
       </div>
     );
@@ -56,7 +54,6 @@ const InputBuilder: React.FC<{
             value={defaultValueText}
             inlabel="Default value (prefilled in workspace)"
             onChange={(e) => onChange({ ...field, defaultValue: e.target.value })}
-            className="min-h-12!"
           />
         </>
       ) : (
@@ -67,7 +64,6 @@ const InputBuilder: React.FC<{
             value={field.label || ''}
             inlabel="Label"
             onChange={(e) => onChange({ ...field, label: e.target.value })}
-            className="min-h-12!"
           />
           <FormInput
             intype={field.type === 'number' ? 'number' : 'text'}
@@ -75,7 +71,6 @@ const InputBuilder: React.FC<{
             value={field.placeholder || ''}
             inlabel="Placeholder"
             onChange={(e) => onChange({ ...field, placeholder: e.target.value })}
-            className="min-h-12!"
           />
         </>
       )}

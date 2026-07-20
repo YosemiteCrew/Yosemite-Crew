@@ -9,12 +9,9 @@
   height: calc(100vh - 80px);
   height: calc(100dvh - 80px);
   min-height: 0;
-  background: linear-gradient(
-    180deg,
-    var(--color-chat-surface) 0%,
-    var(--color-chat-empty-bg) 60%,
-    var(--color-neutral-0) 100%
-  );
+  /* Flat warm-bone page per the design - the previous three-stop vertical
+     gradient produced the washed/banded backdrop behind the chat workspace. */
+  background: var(--screen);
   padding: 12px;
   box-sizing: border-box;
   display: flex;

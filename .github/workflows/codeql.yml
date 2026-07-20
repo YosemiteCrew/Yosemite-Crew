@@ -14,7 +14,6 @@ name: 'CodeQL Advanced'
 on:
   push:
     branches: [main, dev]
-    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   schedule:
@@ -66,7 +65,11 @@ jobs:
         # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # This job only reads the tree, so the default GITHUB_TOKEN must not be
+          # left behind in .git/config where a later step or action could read it.
+          persist-credentials: false
 
       # Add any setup steps before running the `github/codeql-action/init` action.
       # This includes steps like installing compilers or runtimes (`actions/setup-node`
@@ -85,7 +88,7 @@ jobs:
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@b7351df727350dca84cb9d725d57dcf5bc82ba26 # v3.37.1
         with:
           config-file: ./.github/codeql/codeql-config.yml
           languages: ${{ matrix.language }}
@@ -116,6 +119,6 @@ jobs:
       #     xcodebuild -workspace mobileAppYC.xcworkspace -scheme mobileAppYC -configuration Debug -sdk iphonesimulator clean build
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@b7351df727350dca84cb9d725d57dcf5bc82ba26 # v3.37.1
         with:
           category: '/language:${{matrix.language}}'

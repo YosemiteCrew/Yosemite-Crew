@@ -31,6 +31,8 @@ pnpm --filter backend run prisma:migrate    # apply migrations in development
 
 With none of these set, startup fails on an empty connection string. Prefer `READ_FROM_POSTGRES=true`: the legacy datastore is being removed (#1819), and this whole section goes away with it. All new persistence goes through Prisma.
 
+`LOCAL_DEVELOPMENT=true` also switches on local-only behaviour elsewhere: it opens CORS to `localhost:3000` (`src/app.ts`) and mounts the local-only MFA debug endpoint `POST /v1/auth/mfa/totp/debug/create-device`, which creates a TOTP device without the full enrolment flow. Both are keyed on this flag rather than on `NODE_ENV`, so a deployed tier running `NODE_ENV=development` never gets them. Set it only for a local run.
+
 ## Dev server
 
 ```bash

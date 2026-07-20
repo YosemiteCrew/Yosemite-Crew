@@ -11,11 +11,6 @@ import { getPreferredTimeValue } from '@/app/lib/date';
 import { getPreferredTimeZone } from '@/app/lib/timezone';
 import { Task } from '@/app/features/tasks/types/task';
 
-const TaskTypeOptions = [
-  { value: 'EMPLOYEE_TASK', label: 'Employee Task' },
-  { value: 'PARENT_TASK', label: 'Parent Task' },
-];
-
 type AddTaskProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -103,11 +98,17 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
   );
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
-        <ModalHeader title="Add task" onClose={() => setShowModal(false)} />
+    <Modal showModal={showModal} setShowModal={setShowModal} variant="centered" size="md">
+      {/* Three banded sections per the design: a hairline under the header, the
+          scrolling field body, and a hairline over the footer actions. The
+          negative margins cancel the centered panel's 12px inset so both rules
+          run edge to edge; phones keep the sheet's own padding. */}
+      <div className="flex flex-col flex-auto min-h-0">
+        <div className="flex-none pb-4 border-b border-[var(--hairline)] md:-mx-3 md:-mt-3 md:px-[26px] md:pt-5">
+          <ModalHeader title="New task" onClose={() => setShowModal(false)} />
+        </div>
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
+        <div className="flex flex-col gap-6 w-full flex-auto min-h-0 justify-start overflow-y-auto scrollbar-hidden pt-1.5 md:-mx-3 md:px-[26px] md:py-5">
           <TaskFormFields
             formData={formData}
             setFormData={setFormData}
@@ -118,53 +119,47 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
             dueTimeValue={dueTimeValue}
             setDueTimeValue={setDueTimeValue}
             onSelectTemplate={selectTemplate}
-            showAudienceSelect
-            audienceOptions={TaskTypeOptions}
-            onAudienceSelect={(option) =>
+            twoColumn
+            assigneeChips
+            teamOptions={TeamOptions}
+            parentOptions={CompanionOptions}
+            onSelectTeam={(option) =>
               setFormData({
                 ...formData,
-                audience: option.value as any,
-                assignedTo: '',
+                audience: 'EMPLOYEE_TASK',
+                assignedTo: option.value,
                 companionId: undefined,
               })
             }
-            showAssigneeSelect
-            assigneeOptions={formData.audience === 'EMPLOYEE_TASK' ? TeamOptions : CompanionOptions}
-            onAssigneeSelect={(option) => {
-              if (formData.audience === 'EMPLOYEE_TASK') {
-                setFormData({
-                  ...formData,
-                  assignedTo: option.value,
-                });
-                return;
-              }
+            onSelectParent={(option) => {
               const companion = companions?.find((c) => c.parentId === option.value);
-              if (companion) {
-                setFormData({
-                  ...formData,
-                  companionId: companion.id,
-                  assignedTo: option.value,
-                });
-              }
+              setFormData({
+                ...formData,
+                audience: 'PARENT_TASK',
+                assignedTo: option.value,
+                companionId: companion?.id,
+              });
             }}
           />
-          <div className="flex justify-end items-center gap-3 w-full flex-col pb-3">
-            {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-            <div className="flex gap-3 justify-center w-full flex-wrap">
-              <Secondary
-                href="#"
-                text="Save as template"
-                className="hidden"
-                onClick={handleCreateTemplate}
-              />
-              <Primary
-                href="#"
-                text={isLoading ? 'Saving...' : 'Save'}
-                className="w-auto min-w-[140px]"
-                onClick={handleCreate}
-                isDisabled={isLoading}
-              />
-            </div>
+        </div>
+
+        <div className="flex-none flex flex-col items-center gap-3 w-full pt-4 border-t border-[var(--hairline)] md:-mx-3 md:-mb-3 md:px-[26px] md:pb-5">
+          {error && <div className="text-text-error text-sm text-center">{error}</div>}
+          <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <Secondary
+              href="#"
+              text="Save as template"
+              className="hidden"
+              onClick={handleCreateTemplate}
+            />
+            <Secondary href="#" text="Cancel" onClick={() => setShowModal(false)} />
+            <Primary
+              href="#"
+              text={isLoading ? 'Saving...' : 'Create task'}
+              className="w-auto min-w-[140px]"
+              onClick={handleCreate}
+              isDisabled={isLoading}
+            />
           </div>
         </div>
       </div>

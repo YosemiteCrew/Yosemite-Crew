@@ -156,6 +156,8 @@ router.get(
   "/:invoiceId",
   requireWebAuth,
   invoiceActionLimiter,
+  withInvoiceOrgPermissions(),
+  requirePermission("billing:view:any"),
   InvoiceController.getInvoiceById,
 );
 

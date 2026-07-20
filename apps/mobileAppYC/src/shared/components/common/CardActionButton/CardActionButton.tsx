@@ -43,7 +43,9 @@ export const CardActionButton: React.FC<CardActionButtonProps> = ({
     <PressableOpacity
       activeOpacity={0.85}
       style={[styles.button, buttonStyle]}
-      onPress={onPress}>
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}>
       {icon && <Image source={icon} style={[styles.icon, iconStyle]} />}
       <Text style={[styles.label, labelStyle]}>{label}</Text>
     </PressableOpacity>

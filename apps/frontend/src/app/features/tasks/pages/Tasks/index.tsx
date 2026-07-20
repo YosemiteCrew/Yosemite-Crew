@@ -3,6 +3,8 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import type { SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
+import { IoAdd } from 'react-icons/io5';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
@@ -11,15 +13,25 @@ import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { Task, TaskFilters, TaskStatus, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import { useSearchStore } from '@/app/stores/searchStore';
-import Filters from '@/app/ui/filters/Filters';
+import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
+import TaskWeekNav from '@/app/features/tasks/components/TaskWeekNav';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 
 const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
+
+/**
+ * The design's task filter row carries three status pills — Pending, In progress
+ * and Completed. Cancelled is not offered there, so it is trimmed from the
+ * shared status list (which other surfaces still use in full).
+ */
+const TASK_STATUS_PILLS = TaskStatusFilters.filter((option) => option.key !== 'cancelled');
 
 const TaskPlannerSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -32,6 +44,9 @@ const TaskCalendar = dynamic(
   () => import('@/app/features/appointments/components/Calendar/TaskCalendar'),
   { loading: () => <TaskPlannerSkeleton /> }
 );
+const TaskWeekAgenda = dynamic(() => import('@/app/features/tasks/components/TaskWeekAgenda'), {
+  loading: () => <TaskPlannerSkeleton />,
+});
 const TaskBoard = dynamic(() => import('@/app/features/tasks/components/TaskBoard'), {
   loading: () => <TaskPlannerSkeleton />,
 });
@@ -66,6 +81,7 @@ const Tasks = () => {
   const [activeView, setActiveView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
+  const isPhone = useIsPhone();
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
 
   const handleActiveCalendarChange = useCallback(
@@ -154,6 +170,10 @@ const Tasks = () => {
     setAddTaskPrefill(null);
     setAddPopup(true);
   }, []);
+  // The phone FAB is rendered by PhoneShell, outside this page's tree, so it
+  // reaches the same create flow the desktop "New task" button uses via the
+  // primary-action event rather than through props.
+  usePhonePrimaryAction('task', openAddTask);
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView,
     listWrapperClassName:
@@ -162,9 +182,17 @@ const Tasks = () => {
       'w-full h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
   });
 
+  // The design carries the week-range navigator in the title row, beside the
+  // view toggle — so it only exists for the desktop/tablet week agenda, not for
+  // the board, the list, or the phone day list (which brings its own header).
+  const showWeekNav = activeView === 'calendar' && !isPhone;
+
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
-    plannerContent = (
+    // The design's tasks "Calendar" is a 7-day agenda board on tablet/desktop; a
+    // time grid cannot shrink to a phone, so below 768px the planner keeps the
+    // dedicated thumb-checkable day list (PhoneTaskDayList via TaskCalendar).
+    plannerContent = isPhone ? (
       <TaskCalendar
         filteredList={filteredList}
         allTasks={tasks}
@@ -182,19 +210,24 @@ const Tasks = () => {
         canEditTasks={canEditTasks}
         onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
       />
+    ) : (
+      <TaskWeekAgenda
+        filteredList={filteredList}
+        currentDate={currentDate}
+        weekStart={weekStart}
+        canEditTasks={canEditTasks}
+        setActiveTask={setActiveTask}
+        setViewPopup={setViewPopup}
+        onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
+      />
     );
   } else if (activeView === 'board') {
     plannerContent = (
       <TaskBoard
         tasks={filteredList}
-        currentDate={currentDate}
-        setCurrentDate={handleCurrentDateChange}
         canEditTasks={canEditTasks}
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
-        setChangeStatusPopup={setChangeStatusPopup}
-        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-        setReschedulePopup={setReschedulePopup}
         onAddTask={openAddTask}
       />
     );
@@ -216,10 +249,10 @@ const Tasks = () => {
 
   return (
     <div className="flex flex-col relative">
-      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+      <div className="yc-page-content">
         <TitleCalendar
           title="Tasks"
-          description="Track to-dos with calendar views, assign pet parents and due dates, and open each task to review details and update status."
+          description="Track to-dos, assign the team or pet parents, follow through"
           setAddPopup={(next) => {
             setAddTaskPrefill(null);
             setAddPopup(next);
@@ -229,23 +262,41 @@ const Tasks = () => {
           setActiveView={setActiveView}
           showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
+          actionBeforeAdd={
+            <>
+              {showWeekNav && (
+                <TaskWeekNav
+                  currentDate={currentDate}
+                  setCurrentDate={handleCurrentDateChange}
+                  setWeekStart={setWeekStart}
+                />
+              )}
+              {canEditTasks && (
+                <Primary
+                  text="New task"
+                  ariaLabel="New task"
+                  onClick={openAddTask}
+                  icon={<IoAdd size={16} aria-hidden="true" />}
+                  // The design seats the CTA after the view toggle; this slot
+                  // renders before it, so flex order restores that sequence.
+                  className="order-1 gap-[7px] px-[18px] whitespace-nowrap hover:scale-100"
+                />
+              )}
+            </>
+          }
         />
         <MobileSearchBar placeholder="Search tasks" />
 
         <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
           <div className={wrapperClassName}>
             {activeView !== 'board' && (
-              <Filters
+              <TaskFilterBar
                 filterOptions={TaskFilters}
-                statusOptions={TaskStatusFilters}
+                statusOptions={TASK_STATUS_PILLS}
                 activeFilter={activeFilter}
                 activeStatus={activeStatus}
                 setActiveFilter={setActiveFilter}
                 setActiveStatus={setActiveStatus}
-                showAddButton={canEditTasks}
-                onAddButtonClick={openAddTask}
-                addButtonText="Add"
-                compactFilterPills
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

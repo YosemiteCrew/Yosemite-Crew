@@ -28,6 +28,7 @@ export type TaskListFilters = {
   status?: TaskStatusFilter;
   category?: string;
   subcategory?: string;
+  priority?: NonNullable<Task['priority']>;
   kind?: TaskKind;
   includeCompleted?: boolean;
 };
@@ -182,9 +183,9 @@ export const archiveTaskTemplate = async (templateId: string): Promise<void> => 
 /**
  * Update a task. For a task in a recurring series, an optional `scope` selects
  * which occurrences the edit applies to (THIS / THIS_AND_FOLLOWING / ALL); it is
- * sent as a `scope` query param. The backend ignores it until the series-scoped
- * contract ships (handoff), so a scoped edit safely degrades to a single-task
- * update — never an error.
+ * sent as a `scope` query param and resolved by the backend against the
+ * master/child relationship. Omitting it defaults the backend to THIS, so any
+ * caller editing a series task must pass a scope the user chose.
  */
 export const updateTask = async (payload: Task, scope?: RecurrenceScope) => {
   const { upsertTask } = useTaskStore.getState();
@@ -213,9 +214,8 @@ export const updateTask = async (payload: Task, scope?: RecurrenceScope) => {
 
 /**
  * Delete a task. For a recurring series, `scope` selects which occurrences to
- * remove (sent as a `scope` query param). NOTE: the backend task-delete endpoint
- * does not exist yet (handoff) — this call will fail until it ships; callers
- * should surface the error rather than assume success.
+ * remove (sent as a `scope` query param); omitting it defaults the backend to
+ * THIS.
  */
 export const deleteTask = async (taskId: string, scope?: RecurrenceScope) => {
   const { removeTask } = useTaskStore.getState();

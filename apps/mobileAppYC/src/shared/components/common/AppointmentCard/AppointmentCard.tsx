@@ -104,6 +104,7 @@ export const AppointmentCard = ({
       actionIcon={Images.viewIconSlide}
       onAction={handleViewPress}
       onPress={handlePress}
+      actionAccessibilityLabel="View"
       actionBackgroundColor={theme.colors.success}
       containerStyle={styles.container}
       cardProps={{
@@ -126,7 +127,9 @@ export const AppointmentCard = ({
         onPress={handlePress}
         disabled={!onPress}
         style={styles.touchWrapper}
-        testID={testIDs?.container}>
+        testID={testIDs?.container}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={`${doctorName}, ${specialization}, ${dateTime}`}>
         {/* Top Row: Avatar and Text Block */}
         <View style={styles.topRow}>
           <Image

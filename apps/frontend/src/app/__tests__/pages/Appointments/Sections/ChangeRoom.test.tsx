@@ -305,4 +305,234 @@ describe('ChangeRoom', () => {
     expect(screen.getByTestId('center-modal')).toBeInTheDocument();
     expect(screen.getByTestId('dropdown-default')).toHaveTextContent('');
   });
+
+  it('does not reload rooms while the modal is closed', () => {
+    const { loadRoomsForOrgPrimaryOrg } = jest.requireMock(
+      '@/app/features/organization/services/roomService'
+    );
+    render(
+      <ChangeRoom showModal={false} setShowModal={jest.fn()} activeAppointment={baseAppointment} />
+    );
+    expect(loadRoomsForOrgPrimaryOrg).not.toHaveBeenCalled();
+  });
+
+  it('reloads rooms when the modal opens', () => {
+    const { loadRoomsForOrgPrimaryOrg } = jest.requireMock(
+      '@/app/features/organization/services/roomService'
+    );
+    render(
+      <ChangeRoom showModal={true} setShowModal={jest.fn()} activeAppointment={baseAppointment} />
+    );
+    expect(loadRoomsForOrgPrimaryOrg).toHaveBeenCalledWith({ force: true, silent: true });
+  });
+
+  it('resets selection and clears errors when the active appointment changes', async () => {
+    // Seed an error state first, then re-render with a different appointment to
+    // exercise the render-phase reset block (new room id + cleared error).
+    mockUpdateAppointment.mockRejectedValueOnce(new Error('boom'));
+    const setShowModal = jest.fn();
+    const { rerender } = render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={baseAppointment}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Room B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await waitFor(() => {
+      expect(screen.getByText('Unable to update room. Please try again.')).toBeInTheDocument();
+    });
+
+    rerender(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={{ id: 'appt-9', room: { id: 'room-1', name: 'Room A' } } as any}
+      />
+    );
+
+    // The reset block picked up the new room id and cleared the previous error.
+    expect(screen.getByTestId('dropdown-default')).toHaveTextContent('room-1');
+    expect(screen.queryByText('Unable to update room. Please try again.')).not.toBeInTheDocument();
+  });
+
+  it('Cancel restores the encounter unit for an inpatient appointment', () => {
+    mockEncounterById = { 'appt-1': { unitId: 'unit-2a' } };
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-2a': {
+          id: 'unit-2a',
+          roomId: 'room-1',
+          displayName: 'Ward 2A',
+          code: '2A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-1': ['unit-2a'] },
+      setRoomUnitOccupied: jest.fn(),
+    };
+    const setShowModal = jest.fn();
+    render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={{ ...baseAppointment, appointmentKind: 'INPATIENT' }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('clears the selected unit when switching to a non-inpatient room', () => {
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-2a': {
+          id: 'unit-2a',
+          roomId: 'room-2',
+          displayName: 'Ward 2A',
+          code: '2A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-2a'] },
+      setRoomUnitOccupied: jest.fn(),
+    };
+    // Outpatient: selecting a room clears any unit rather than auto-picking one.
+    render(
+      <ChangeRoom showModal={true} setShowModal={jest.fn()} activeAppointment={baseAppointment} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Room B' }));
+    // No unit dropdown for outpatient appointments.
+    expect(screen.queryByRole('button', { name: 'Ward 2A' })).not.toBeInTheDocument();
+  });
+
+  it('does nothing when saving without an appointment id', async () => {
+    const setShowModal = jest.fn();
+    render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={{ room: { id: 'room-1', name: 'Room A' } } as any}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await waitFor(() => {
+      expect(mockUpdateAppointment).not.toHaveBeenCalled();
+    });
+    expect(setShowModal).not.toHaveBeenCalled();
+  });
+
+  it('closes without an API call when an inpatient room and unit are unchanged', async () => {
+    mockEncounterById = { 'appt-1': { unitId: 'unit-1a' } };
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-1a': {
+          id: 'unit-1a',
+          roomId: 'room-1',
+          displayName: 'Ward 1A',
+          code: '1A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-1': ['unit-1a'] },
+      setRoomUnitOccupied: jest.fn(),
+    };
+    const setShowModal = jest.fn();
+    render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={{ ...baseAppointment, appointmentKind: 'INPATIENT' }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await waitFor(() => {
+      expect(setShowModal).toHaveBeenCalledWith(false);
+    });
+    expect(mockUpdateAppointment).not.toHaveBeenCalled();
+  });
+
+  it('initialises an encounter with lead details but skips unit assignment without an encounter id', async () => {
+    mockUpdateAppointment.mockResolvedValue({});
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-2a': {
+          id: 'unit-2a',
+          roomId: 'room-2',
+          displayName: 'Ward 2A',
+          code: '2A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-2a'] },
+      setRoomUnitOccupied: jest.fn(),
+    };
+    const setShowModal = jest.fn();
+    render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={{
+          ...baseAppointment,
+          appointmentKind: 'INPATIENT',
+          // No encounterId → the assignEncounterUnit branch is skipped.
+          lead: { id: 'lead-1', name: 'Dr Lead' },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Room B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await waitFor(() => {
+      expect(mockInitEncounter).toHaveBeenCalledWith('appt-1', 'INPATIENT', {
+        leadId: 'lead-1',
+        leadName: 'Dr Lead',
+      });
+      expect(mockSetRoomUnit).toHaveBeenCalledWith('appt-1', 'room-2', 'unit-2a');
+      expect(setShowModal).toHaveBeenCalledWith(false);
+    });
+    expect(mockAssignEncounterUnit).not.toHaveBeenCalled();
+  });
+
+  it('marks the previous unit free and the new unit occupied after assignment', async () => {
+    mockUpdateAppointment.mockResolvedValue({});
+    mockAssignEncounterUnit.mockResolvedValue({});
+    const setRoomUnitOccupied = jest.fn();
+    mockEncounterById = { 'appt-1': { unitId: 'unit-old' } };
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-2a': {
+          id: 'unit-2a',
+          roomId: 'room-2',
+          displayName: 'Ward 2A',
+          code: '2A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-2a'] },
+      setRoomUnitOccupied,
+    };
+    const setShowModal = jest.fn();
+    render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={setShowModal}
+        activeAppointment={{
+          ...baseAppointment,
+          appointmentKind: 'INPATIENT',
+          encounterId: 'enc-1',
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Room B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ward 2A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await waitFor(() => {
+      expect(mockAssignEncounterUnit).toHaveBeenCalledWith(
+        expect.objectContaining({ encounterId: 'enc-1', unitId: 'unit-2a' })
+      );
+      expect(setRoomUnitOccupied).toHaveBeenCalledWith('unit-old', false);
+      expect(setRoomUnitOccupied).toHaveBeenCalledWith('unit-2a', true);
+    });
+  });
 });

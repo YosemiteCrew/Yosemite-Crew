@@ -298,13 +298,7 @@ export type EmployeeTaskCategory =
 
 /** Restricted parent-task category set (Record => Observation Tool only). */
 export type ParentTaskCategory =
-  | 'Medication'
-  | 'Care'
-  | 'Diet'
-  | 'Communication'
-  | 'Billing'
-  | 'Record'
-  | 'Custom reminders';
+  'Medication' | 'Care' | 'Diet' | 'Communication' | 'Billing' | 'Record' | 'Custom reminders';
 
 export type TaskRepeat = 'None' | 'Daily' | 'Weekly' | 'Monthly';
 
@@ -358,6 +352,11 @@ export type InvoiceLineItem = {
   /** Inventory item of the source prescription, used to resolve the linked treatment-item delete. */
   sourceInventoryItemId?: string;
   /**
+   * Source treatment row this bill line was seeded from. Two rows can share a
+   * name, so settlement matches on this rather than on the display name.
+   */
+  sourceServiceLineId?: string;
+  /**
    * False for lines that must not be removed from the bill — e.g. the appointment's booked
    * service/consultation. Undefined/true means the line can be removed. Display-only.
    */
@@ -402,12 +401,7 @@ export type PastInvoicePayment = {
 };
 
 export type WorkspaceDocumentCategory =
-  | 'SOAP'
-  | 'Diagnostics'
-  | 'Treatment'
-  | 'Invoice'
-  | 'Discharge'
-  | 'Consent';
+  'SOAP' | 'Diagnostics' | 'Treatment' | 'Invoice' | 'Discharge' | 'Consent';
 
 export type WorkspaceDocument = {
   id: string;
@@ -450,6 +444,14 @@ export type AppointmentEncounter = {
   schedule: ScheduleTask[];
   roomId?: string;
   unitId?: string;
+  /**
+   * Real actual-start of the visit (`encounter.periodStart`), stamped by the
+   * backend when the encounter transitions to In Progress. Drives the "In room"
+   * visit timer for both outpatient and inpatient. Distinct from `admittedAt`
+   * (inpatient admission only); preferred over it so the timer starts as soon as
+   * the visit does, not only after an inpatient admission.
+   */
+  startedAt?: string;
   admittedAt?: string;
   dischargedAt?: string;
   invoiceLineItems: InvoiceLineItem[];
@@ -565,10 +567,18 @@ export type WorkspaceFinalizationGate = {
 };
 
 export type SideAction =
-  | 'RECORD'
-  | 'TASKS'
-  | 'DOCUMENTS'
-  | 'CHAT'
-  | 'ACTIVITY'
-  | 'MSD'
-  | 'CALCULATORS';
+  'RECORD' | 'TASKS' | 'DOCUMENTS' | 'CHAT' | 'ACTIVITY' | 'MSD' | 'CALCULATORS';
+
+/**
+ * Autosave lifecycle state for a workspace section. Driven off the existing
+ * explicit-save lifecycle (there is no separate autosave engine): `saving` while a
+ * save is in flight, `saved` after it succeeds, `offline` when it fails on a network
+ * error. `idle` renders nothing.
+ */
+export type WorkspaceSaveStatus = 'idle' | 'saving' | 'saved' | 'offline';
+
+export type WorkspaceSaveState = {
+  status: WorkspaceSaveStatus;
+  /** ISO timestamp of the last successful save, shown as "Autosaved HH:MM". */
+  at?: string;
+};

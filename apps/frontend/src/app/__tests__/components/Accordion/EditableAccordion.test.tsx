@@ -56,6 +56,20 @@ jest.mock('@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown', () => ({
       >
         Select address
       </button>
+      <button
+        type="button"
+        data-testid={`select-partial-${inlabel}`}
+        onClick={() =>
+          onAddressSelect?.({
+            addressLine: undefined,
+            city: 'Partial City',
+            state: 'Partial State',
+            postalCode: '00000',
+          })
+        }
+      >
+        Select partial address
+      </button>
     </label>
   ),
 }));
@@ -147,6 +161,13 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
         onClick={() => setCurrentDate(null)}
       >
         Clear {placeholder}
+      </button>
+      <button
+        type="button"
+        aria-label={`fn-update-${placeholder}`}
+        onClick={() => setCurrentDate((prev: Date | null) => prev ?? new Date('2024-03-03'))}
+      >
+        Fn {placeholder}
       </button>
     </div>
   ),
@@ -1172,6 +1193,500 @@ describe('EditableAccordion Component', () => {
       fireEvent.click(screen.getByText('Toggle Edit'));
       const saveButton = screen.getByText('Save');
       expect(saveButton.closest('.flex.items-center.justify-center.gap-3')).toBeInTheDocument();
+    });
+  });
+
+  describe('field type fallbacks', () => {
+    it('renders a field with no explicit type as a text input in edit mode', () => {
+      render(
+        <EditableAccordion
+          title="Misc"
+          fields={[{ label: 'Note', key: 'note' }]}
+          data={{ note: 'hi' }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      expect(screen.getByLabelText('Note')).toBeInTheDocument();
+    });
+
+    it('falls back to a text input for an unknown field type in edit mode', () => {
+      render(
+        <EditableAccordion
+          title="Misc"
+          fields={[{ label: 'Custom', key: 'custom', type: 'unknownType' }]}
+          data={{ custom: 'hi' }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      expect(screen.getByLabelText('Custom')).toBeInTheDocument();
+    });
+
+    it('renders a field with no explicit type using the default value renderer', () => {
+      render(
+        <EditableAccordion
+          title="Misc"
+          fields={[{ label: 'Note', key: 'note' }]}
+          data={{ note: 'plain' }}
+          defaultOpen
+        />
+      );
+
+      expect(screen.getByText('plain')).toBeInTheDocument();
+    });
+
+    it('falls back to the default value renderer for an unknown field type', () => {
+      render(
+        <EditableAccordion
+          title="Misc"
+          fields={[{ label: 'Custom', key: 'custom', type: 'unknownType' }]}
+          data={{ custom: 'plain' }}
+          defaultOpen
+        />
+      );
+
+      expect(screen.getByText('plain')).toBeInTheDocument();
+    });
+  });
+
+  describe('multiSelect edit-mode fallbacks', () => {
+    it('renders a multiSelect with no configured options in edit mode', () => {
+      render(
+        <EditableAccordion
+          title="Tags"
+          fields={[{ label: 'Tags', key: 'tags', type: 'multiSelect' }]}
+          data={{ tags: ['A'] }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      expect(screen.getByLabelText('Tags')).toBeInTheDocument();
+    });
+
+    it('falls back to an empty array when a multiSelect value is reset to a falsy value', () => {
+      render(
+        <EditableAccordion
+          title="Filters"
+          fields={[
+            { label: 'Group', key: 'group', type: 'select', options: ['X', 'Y'] },
+            { label: 'Tags', key: 'tags', type: 'multiSelect', options: ['A', 'B'] },
+          ]}
+          data={{ group: 'X', tags: ['A'] }}
+          defaultOpen
+          fieldResets={{ group: ['tags'] }}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      fireEvent.change(screen.getByLabelText('Group'), { target: { value: 'Y' } });
+
+      expect(screen.getByLabelText('Tags')).toBeInTheDocument();
+    });
+
+    it('joins a multiSelect array value with commas when there are no options', () => {
+      render(
+        <EditableAccordion
+          title="Tags"
+          fields={[{ label: 'Tags', key: 'tags', type: 'multiSelect' }]}
+          data={{ tags: ['A', 'B'] }}
+          defaultOpen
+        />
+      );
+
+      expect(screen.getByText('A, B')).toBeInTheDocument();
+    });
+
+    it('shows "-" for a non-array multiSelect value with no options and no value', () => {
+      render(
+        <EditableAccordion
+          title="Tags"
+          fields={[{ label: 'Tags', key: 'tags', type: 'multiSelect', editable: false }]}
+          data={{ tags: '' }}
+          defaultOpen
+        />
+      );
+
+      expect(screen.getByText('-')).toBeInTheDocument();
+    });
+
+    it('drops empty segments when splitting a comma-separated multiSelect string', () => {
+      render(
+        <EditableAccordion
+          title="Tags"
+          fields={[{ label: 'Tags', key: 'tags', type: 'multiSelect' }]}
+          data={{ tags: 'A,,B' }}
+          defaultOpen
+        />
+      );
+
+      expect(screen.getByText('A, B')).toBeInTheDocument();
+    });
+  });
+
+  describe('checkbox edit interactions', () => {
+    it('checks an unchecked checkbox and stores "true"', () => {
+      render(
+        <EditableAccordion
+          title="Flags"
+          fields={[{ label: 'Controlled', key: 'controlled', type: 'checkbox' }]}
+          data={{ controlled: false }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+
+      fireEvent.click(checkbox);
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it('shows a validation error on a required checkbox after it is reset', async () => {
+      render(
+        <EditableAccordion
+          title="Flags"
+          fields={[
+            { label: 'Category', key: 'category', type: 'select', options: ['Medicine', 'Food'] },
+            { label: 'Controlled', key: 'controlled', type: 'checkbox', required: true },
+          ]}
+          data={{ category: 'Medicine', controlled: 'true' }}
+          defaultOpen
+          fieldResets={{ category: ['controlled'] }}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Food' } });
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText('Controlled is required')).toBeInTheDocument();
+    });
+  });
+
+  describe('date parsing branches', () => {
+    it('parses an ISO date string for the date picker', () => {
+      render(
+        <EditableAccordion
+          title="Dates"
+          fields={[{ label: 'Birth', key: 'dob', type: 'date' }]}
+          data={{ dob: '2024-02-01' }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      expect(screen.getByText('Birth')).toBeInTheDocument();
+    });
+
+    it('parses an arbitrary date string via the Date fallback', () => {
+      render(
+        <EditableAccordion
+          title="Dates"
+          fields={[{ label: 'Birth', key: 'dob', type: 'date' }]}
+          data={{ dob: 'Feb 1, 2024' }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      expect(screen.getByText('Birth')).toBeInTheDocument();
+    });
+
+    it('treats an unparseable date string as no date', () => {
+      render(
+        <EditableAccordion
+          title="Dates"
+          fields={[{ label: 'Birth', key: 'dob', type: 'date' }]}
+          data={{ dob: 'not-a-real-date' }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      expect(screen.getByText('Birth')).toBeInTheDocument();
+    });
+
+    it('resolves a functional date update using the previous value', () => {
+      render(
+        <EditableAccordion
+          title="Dates"
+          fields={[{ label: 'Birth', key: 'dob', type: 'date' }]}
+          data={{ dob: '2024-02-01' }}
+          defaultOpen
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      fireEvent.click(screen.getByLabelText('fn-update-Birth'));
+      fireEvent.click(screen.getByText('Toggle Edit'));
+
+      expect(screen.getByText('Feb 1, 2024')).toBeInTheDocument();
+    });
+  });
+
+  describe('googleAddress partial selection', () => {
+    it('handles selecting an address with no country or address line', async () => {
+      const onSave = jest.fn().mockResolvedValue(undefined);
+
+      render(
+        <EditableAccordion
+          title="Address"
+          fields={[
+            { label: 'Address line', key: 'addressLine', type: 'googleAddress', editable: true },
+            { label: 'City', key: 'city', type: 'text', editable: true },
+          ]}
+          data={{ addressLine: '123 Main St', city: '' }}
+          defaultOpen
+          onSave={onSave}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      fireEvent.click(screen.getByTestId('select-partial-Address line'));
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
+
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ city: 'Partial City' }));
+      expect(onSave.mock.calls[0][0]).not.toHaveProperty('country');
+    });
+  });
+
+  describe('display value branches', () => {
+    it('joins a non-empty array value with commas in view mode', () => {
+      render(
+        <EditableAccordion
+          title="List"
+          fields={[{ label: 'Items', key: 'items', type: 'text' }]}
+          data={{ items: ['One', 'Two'] }}
+          defaultOpen
+        />
+      );
+
+      expect(screen.getByText('One, Two')).toBeInTheDocument();
+    });
+
+    it('initializes missing date and text fields to empty strings', () => {
+      render(
+        <EditableAccordion
+          title="Empty"
+          fields={[
+            { label: 'Birth', key: 'dob', type: 'date' },
+            { label: 'Name', key: 'name', type: 'text' },
+          ]}
+          data={{}}
+          defaultOpen
+        />
+      );
+
+      expect(screen.getAllByText('-').length).toBe(2);
+    });
+  });
+
+  describe('validation branches', () => {
+    it('skips required validation for non-editable fields', async () => {
+      const onSave = jest.fn().mockResolvedValue(undefined);
+
+      render(
+        <EditableAccordion
+          title="Mix"
+          fields={[
+            { label: 'ReadOnly', key: 'ro', type: 'text', required: true, editable: false },
+            { label: 'Name', key: 'name', type: 'text' },
+          ]}
+          data={{ ro: '', name: 'Rex' }}
+          defaultOpen
+          onSave={onSave}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
+
+      expect(onSave).toHaveBeenCalledWith({ name: 'Rex' });
+    });
+
+    it('passes validation for a required multiSelect that has selections', async () => {
+      const onSave = jest.fn().mockResolvedValue(undefined);
+
+      render(
+        <EditableAccordion
+          title="Tags"
+          fields={[
+            { label: 'Tags', key: 'tags', type: 'multiSelect', options: ['A'], required: true },
+          ]}
+          data={{ tags: ['A'] }}
+          defaultOpen
+          onSave={onSave}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
+
+      expect(onSave).toHaveBeenCalledWith({ tags: ['A'] });
+    });
+  });
+
+  describe('readOnly guards through the ref and footer', () => {
+    it('does not enter edit mode via startEditing when readOnly', () => {
+      const actionsRef = React.createRef<{
+        save: () => Promise<void>;
+        cancel: () => void;
+        startEditing: () => void;
+        isEditing: () => boolean;
+      } | null>();
+
+      render(
+        <EditableAccordion
+          title="Profile"
+          fields={[{ label: 'Name', key: 'name', type: 'text' }]}
+          data={{ name: 'Rex' }}
+          defaultOpen
+          readOnly
+          ref={actionsRef}
+        />
+      );
+
+      act(() => {
+        actionsRef.current!.startEditing();
+      });
+
+      expect(actionsRef.current!.isEditing()).toBe(false);
+      expect(screen.queryByText('Save')).not.toBeInTheDocument();
+    });
+
+    it('reports editing off through onEditingChange when cancelled while readOnly', () => {
+      const onEditingChange = jest.fn();
+      const actionsRef = React.createRef<{
+        save: () => Promise<void>;
+        cancel: () => void;
+        startEditing: () => void;
+        isEditing: () => boolean;
+      } | null>();
+
+      render(
+        <EditableAccordion
+          title="Profile"
+          fields={[{ label: 'Name', key: 'name', type: 'text' }]}
+          data={{ name: 'Rex' }}
+          defaultOpen
+          readOnly
+          onEditingChange={onEditingChange}
+          ref={actionsRef}
+        />
+      );
+
+      act(() => {
+        actionsRef.current!.cancel();
+      });
+
+      expect(onEditingChange).toHaveBeenCalledWith(false);
+    });
+
+    it('does not save through the ref when readOnly', async () => {
+      const onSave = jest.fn().mockResolvedValue(undefined);
+      const actionsRef = React.createRef<{
+        save: () => Promise<void>;
+        cancel: () => void;
+        startEditing: () => void;
+        isEditing: () => boolean;
+      } | null>();
+
+      render(
+        <EditableAccordion
+          title="Profile"
+          fields={[{ label: 'Name', key: 'name', type: 'text' }]}
+          data={{ name: 'Rex' }}
+          defaultOpen
+          readOnly
+          onSave={onSave}
+          ref={actionsRef}
+        />
+      );
+
+      await act(async () => {
+        await actionsRef.current!.save();
+      });
+
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('ignores footer field changes when readOnly', () => {
+      render(
+        <EditableAccordion
+          title="Profile"
+          fields={[{ label: 'Name', key: 'name', type: 'text' }]}
+          data={{ name: 'Rex' }}
+          defaultOpen
+          readOnly
+          footer={({ setFieldValue }) => (
+            <button type="button" onClick={() => setFieldValue('name', 'Changed')}>
+              Footer action
+            </button>
+          )}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Footer action'));
+      expect(screen.queryByText('Save')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('in-flight save guards', () => {
+    it('ignores duplicate save and cancel while a save is in flight', async () => {
+      let resolveSave: () => void = () => {};
+      const onSave = jest.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSave = resolve;
+          })
+      );
+
+      render(
+        <EditableAccordion
+          title="Profile"
+          fields={[{ label: 'Name', key: 'name', type: 'text' }]}
+          data={{ name: 'Rex' }}
+          defaultOpen
+          onSave={onSave}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Toggle Edit'));
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
+
+      // Save is now in flight: the button shows "Saving..." and further actions are ignored.
+      fireEvent.click(screen.getByText('Saving...'));
+      fireEvent.click(screen.getByText('Cancel'));
+      expect(onSave).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveSave();
+        await Promise.resolve();
+      });
+
+      expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
     });
   });
 });

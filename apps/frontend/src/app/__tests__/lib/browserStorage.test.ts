@@ -3,6 +3,7 @@ import {
   getStorage,
   getStorageItem,
   removeStorageItem,
+  removeStorageItemsByPrefix,
   setJsonStorageItem,
   setStorageItem,
 } from '@/app/lib/browserStorage';
@@ -60,5 +61,36 @@ describe('browserStorage', () => {
     });
 
     expect(getStorageItem('local', 'yc:test')).toBeNull();
+  });
+
+  describe('removeStorageItemsByPrefix', () => {
+    it('removes only the keys matching the prefix', () => {
+      setStorageItem('session', 'yc:guard:org-1', '1');
+      setStorageItem('session', 'yc:guard:org-2', '1');
+      setStorageItem('session', 'yc:other', 'keep');
+
+      expect(removeStorageItemsByPrefix('session', 'yc:guard:')).toBe(true);
+
+      expect(getStorageItem('session', 'yc:guard:org-1')).toBeNull();
+      expect(getStorageItem('session', 'yc:guard:org-2')).toBeNull();
+      expect(getStorageItem('session', 'yc:other')).toBe('keep');
+    });
+
+    it('is a no-op when nothing matches the prefix', () => {
+      setStorageItem('session', 'yc:other', 'keep');
+
+      expect(removeStorageItemsByPrefix('session', 'yc:guard:')).toBe(true);
+
+      expect(getStorageItem('session', 'yc:other')).toBe('keep');
+    });
+
+    it('returns false when storage removals throw', () => {
+      setStorageItem('session', 'yc:guard:org-1', '1');
+      jest.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new Error('remove failed');
+      });
+
+      expect(removeStorageItemsByPrefix('session', 'yc:guard:')).toBe(false);
+    });
   });
 });

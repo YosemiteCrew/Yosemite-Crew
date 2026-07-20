@@ -51,6 +51,16 @@ describe('NetworkDirectoryModal', () => {
     expect(screen.getByText('Search for a colleague at another clinic')).toBeInTheDocument();
   });
 
+  it('renders the design subtitle and the privacy footer note', () => {
+    render(
+      <NetworkDirectoryModal organisationId="org-1" onClose={jest.fn()} onStarted={jest.fn()} />
+    );
+
+    expect(screen.getByText('Message across the network')).toBeInTheDocument();
+    expect(screen.getByText('Clinics and specialists on Yosemite Crew')).toBeInTheDocument();
+    expect(screen.getByText(/Network messages share only what you attach/)).toBeInTheDocument();
+  });
+
   it('searches colleagues and lists results with the clinic name', async () => {
     render(
       <NetworkDirectoryModal organisationId="org-1" onClose={jest.fn()} onStarted={jest.fn()} />

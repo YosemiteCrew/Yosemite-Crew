@@ -25,13 +25,15 @@ import Sound from 'react-native-nitro-sound';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {
   pick as pickDocuments,
-  types as DocumentPickerTypes,
   errorCodes as DocumentPickerErrorCodes,
   isErrorWithCode as isDocumentPickerErrorWithCode,
 } from '@react-native-documents/picker';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
+import {ALLOWED_FILE_TYPES} from '@/features/documents/constants';
+import {normalizeMimeType} from '@/shared/utils/mime';
 
 // Request audio recording permission (Android)
 const requestAudioPermission = async () => {
@@ -211,45 +213,53 @@ export const EnhancedMessageInput: React.FC = () => {
 
     try {
       const result = await pickDocuments({
-        type: [DocumentPickerTypes.allFiles],
+        type: ALLOWED_FILE_TYPES,
         allowMultiSelection: true,
       });
 
       if (result && result.length > 0 && channel) {
+        const allowedFiles = result.filter(
+          file =>
+            Boolean(file.uri) &&
+            ALLOWED_FILE_TYPES.includes(normalizeMimeType(file.type)),
+        );
+
+        if (allowedFiles.length === 0) {
+          Alert.alert(
+            'Unsupported file',
+            'That file type is not supported. Please choose a photo or document instead.',
+          );
+          return;
+        }
+
         ReactNativeHapticFeedback.trigger('impactMedium');
 
         await Promise.all(
-          result.flatMap(file => {
-            if (!file.uri) {
-              return [];
-            }
+          allowedFiles.map(file => {
+            const fileUri = file.uri as string;
+            return (async () => {
+              const fileName = file.name ?? 'Document';
+              const mimeType = normalizeMimeType(file.type);
 
-            const fileUri = file.uri;
-            return [
-              (async () => {
-                const fileName = file.name ?? 'Document';
-                const mimeType = file.type ?? 'application/octet-stream';
+              const response = await channel.sendFile(
+                fileUri,
+                fileName,
+                mimeType,
+              );
 
-                const response = await channel.sendFile(
-                  fileUri,
-                  fileName,
-                  mimeType,
-                );
-
-                await channel.sendMessage({
-                  text: `📎 ${fileName}`,
-                  attachments: [
-                    {
-                      type: 'file',
-                      asset_url: response.file,
-                      title: fileName,
-                      mime_type: mimeType,
-                      file_size: file.size ?? undefined,
-                    },
-                  ],
-                });
-              })(),
-            ];
+              await channel.sendMessage({
+                text: `📎 ${fileName}`,
+                attachments: [
+                  {
+                    type: 'file',
+                    asset_url: response.file,
+                    title: fileName,
+                    mime_type: mimeType,
+                    file_size: file.size ?? undefined,
+                  },
+                ],
+              });
+            })();
           }),
         );
 
@@ -306,89 +316,155 @@ export const EnhancedMessageInput: React.FC = () => {
   // Voice recording UI
   if (isRecording) {
     return (
-      <View style={styles.recordingContainer}>
-        <View style={styles.recordingInfo}>
-          <View style={styles.recordingDot} />
-          <Text style={styles.recordingText}>
-            Recording... {Math.floor(recordingDuration / 60)}:
-            {(recordingDuration % 60).toString().padStart(2, '0')}
-          </Text>
-        </View>
-        <View style={styles.recordingActions}>
-          <PressableOpacity
-            onPress={() => {
-              cancelVoiceRecording();
-            }}
-            style={[styles.recordButton, styles.cancelButton]}
-            disabled={isRecordingLoading}>
-            <Icon name="close" size={24} color={theme.colors.white} />
-          </PressableOpacity>
-          <PressableOpacity
-            onPress={() => {
-              stopVoiceRecording();
-            }}
-            style={[styles.recordButton, styles.stopButton]}
-            disabled={isRecordingLoading}>
-            {isRecordingLoading ? (
-              <ActivityIndicator color={theme.colors.white} />
-            ) : (
-              <Icon name="send" size={24} color={theme.colors.white} />
-            )}
-          </PressableOpacity>
-        </View>
-      </View>
+      <RecordingBar
+        styles={styles}
+        theme={theme}
+        recordingDuration={recordingDuration}
+        isRecordingLoading={isRecordingLoading}
+        onCancel={cancelVoiceRecording}
+        onStop={stopVoiceRecording}
+      />
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.actionsRow}>
-        {/* Voice Message Button */}
-        <PressableOpacity
-          onPress={() => {
-            startVoiceRecording();
-          }}
-          style={styles.actionButton}
-          disabled={isRecordingLoading}>
-          {isRecordingLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          ) : (
-            <Icon name="mic" size={24} color={theme.colors.primary} />
-          )}
-        </PressableOpacity>
-
-        {/* Attachment Button */}
-        <PressableOpacity
-          onPress={showAttachmentOptions}
-          style={styles.actionButton}>
-          <Icon name="attach-file" size={24} color={theme.colors.primary} />
-        </PressableOpacity>
-      </View>
-
-      {/* Default Stream Message Input */}
-      <MessageInput />
-    </View>
+    <ComposerBar
+      styles={styles}
+      theme={theme}
+      isRecordingLoading={isRecordingLoading}
+      onStartRecording={startVoiceRecording}
+      onShowAttachmentOptions={showAttachmentOptions}
+    />
   );
 };
+
+interface RecordingBarProps {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  recordingDuration: number;
+  isRecordingLoading: boolean;
+  onCancel: () => void;
+  onStop: () => void;
+}
+
+// Active voice-recording bar: elapsed timer plus cancel/send controls.
+const RecordingBar: React.FC<RecordingBarProps> = ({
+  styles,
+  theme,
+  recordingDuration,
+  isRecordingLoading,
+  onCancel,
+  onStop,
+}) => (
+  <View style={styles.recordingContainer}>
+    <View style={styles.recordingInfo}>
+      <View style={styles.recordingDot} />
+      <Text style={styles.recordingText}>
+        Recording... {Math.floor(recordingDuration / 60)}:
+        {(recordingDuration % 60).toString().padStart(2, '0')}
+      </Text>
+    </View>
+    <View style={styles.recordingActions}>
+      <PressableOpacity
+        onPress={() => {
+          onCancel();
+        }}
+        style={[styles.recordButton, styles.cancelButton]}
+        disabled={isRecordingLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel recording"
+        accessibilityState={{disabled: isRecordingLoading}}>
+        <Icon name="close" size={24} color={theme.colors.inkBody} />
+      </PressableOpacity>
+      <PressableOpacity
+        onPress={() => {
+          onStop();
+        }}
+        style={[styles.recordButton, styles.stopButton]}
+        disabled={isRecordingLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Send voice message"
+        accessibilityState={{disabled: isRecordingLoading}}>
+        {isRecordingLoading ? (
+          <ActivityIndicator color={theme.colors.ctaText} />
+        ) : (
+          <Icon name="send" size={24} color={theme.colors.ctaText} />
+        )}
+      </PressableOpacity>
+    </View>
+  </View>
+);
+
+interface ComposerBarProps {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  isRecordingLoading: boolean;
+  onStartRecording: () => void;
+  onShowAttachmentOptions: () => void;
+}
+
+// Idle composer: voice + attachment actions above the Stream message input.
+const ComposerBar: React.FC<ComposerBarProps> = ({
+  styles,
+  theme,
+  isRecordingLoading,
+  onStartRecording,
+  onShowAttachmentOptions,
+}) => (
+  <View style={styles.container}>
+    <View style={styles.actionsRow}>
+      {/* Voice Message Button */}
+      <PressableOpacity
+        onPress={() => {
+          onStartRecording();
+        }}
+        style={styles.actionButton}
+        disabled={isRecordingLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Record voice message"
+        accessibilityState={{disabled: isRecordingLoading}}>
+        {isRecordingLoading ? (
+          <ActivityIndicator size="small" color={theme.colors.blueText} />
+        ) : (
+          <Icon name="mic" size={24} color={theme.colors.blueText} />
+        )}
+      </PressableOpacity>
+
+      {/* Attachment Button */}
+      <PressableOpacity
+        onPress={onShowAttachmentOptions}
+        style={styles.actionButton}
+        accessibilityRole="button"
+        accessibilityLabel="Add attachment">
+        <Icon name="attach-file" size={24} color={theme.colors.blueText} />
+      </PressableOpacity>
+    </View>
+
+    {/* Default Stream Message Input */}
+    <MessageInput />
+  </View>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     actionsRow: {
       flexDirection: 'row',
       paddingHorizontal: theme.spacing['3'],
       paddingVertical: theme.spacing['2'],
       borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      borderTopColor: theme.colors.hairline,
       gap: theme.spacing['3'],
     },
     actionButton: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primaryTint,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -397,9 +473,9 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: theme.spacing['4'],
-      backgroundColor: theme.colors.backgroundSecondary,
+      backgroundColor: theme.colors.screen2,
       borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      borderTopColor: theme.colors.hairline,
     },
     recordingInfo: {
       flexDirection: 'row',
@@ -409,12 +485,12 @@ const createStyles = (theme: any) =>
     recordingDot: {
       width: theme.spacing['3'],
       height: theme.spacing['3'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.error,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.danger,
     },
     recordingText: {
       ...theme.typography.subtitleBold14,
-      color: theme.colors.text,
+      color: theme.colors.ink,
     },
     recordingActions: {
       flexDirection: 'row',
@@ -423,15 +499,17 @@ const createStyles = (theme: any) =>
     recordButton: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
     },
     cancelButton: {
-      backgroundColor: theme.colors.textSecondary,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
     },
     stopButton: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.cta,
     },
   });
 

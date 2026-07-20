@@ -8,8 +8,8 @@ export const FormSigningController = {
   startSigning: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.submissionId;
-      // The acting user MUST come from the verified Cognito token, never from a
-      // client-supplied header. authorizeCognito sets req.userId from token sub.
+      // The acting user MUST come from the verified session, never from a
+      // client-supplied header. The session middleware sets req.userId.
       const userId = (req as AuthenticatedRequest).userId;
       if (!userId) {
         return res

@@ -1,5 +1,10 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
+import {Pressable} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
+// match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 import {EnhancedMessage} from '@/features/chat/components/EnhancedMessage';
 import {useMessageContext} from 'stream-chat-react-native';
 import {Alert, Platform, ActionSheetIOS} from 'react-native';
@@ -83,6 +88,13 @@ describe('EnhancedMessage', () => {
   it('renders the MessageSimple component', () => {
     const {getByText} = render(<EnhancedMessage />);
     expect(getByText('MessageSimple')).toBeTruthy();
+  });
+
+  it('exposes a button role on the long-pressable message wrapper', () => {
+    const {UNSAFE_getByType} = render(<EnhancedMessage />);
+    expect(UNSAFE_getByType(PressableType).props.accessibilityRole).toBe(
+      'button',
+    );
   });
 
   // --- Interactions (iOS) ---

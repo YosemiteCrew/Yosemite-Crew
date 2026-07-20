@@ -60,6 +60,43 @@ describe('LabelDropdown', () => {
     expect(screen.getByText('Feline')).toBeInTheDocument();
   });
 
+  it('supports Home, End and Space navigation', () => {
+    const onSelect = jest.fn();
+    render(<LabelDropdown placeholder="Species" options={options} onSelect={onSelect} />);
+
+    const trigger = screen.getByRole('button', { name: /Species/i });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // opens
+    fireEvent.keyDown(trigger, { key: 'End' });
+    fireEvent.keyDown(trigger, { key: 'Home' });
+    fireEvent.keyDown(trigger, { key: ' ' }); // confirm first option
+
+    expect(onSelect).toHaveBeenCalledWith({ label: 'Canine', value: 'dog' });
+  });
+
+  it('closes on Escape', () => {
+    render(<LabelDropdown placeholder="Species" options={options} onSelect={jest.fn()} />);
+
+    const trigger = screen.getByRole('button', { name: /Species/i });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('textbox', { name: 'Search Species' })).toBeInTheDocument();
+
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByRole('textbox', { name: 'Search Species' })).not.toBeInTheDocument();
+  });
+
+  it('renders a leading icon inside the top label', () => {
+    render(
+      <LabelDropdown
+        placeholder="Species"
+        options={options}
+        onSelect={jest.fn()}
+        icon={<span data-testid="label-icon" />}
+      />
+    );
+
+    expect(screen.getByTestId('label-icon')).toBeInTheDocument();
+  });
+
   it('preselects default option', () => {
     render(
       <LabelDropdown
@@ -105,6 +142,29 @@ describe('LabelDropdown', () => {
       />
     );
 
+    expect(screen.getByText('Feline')).toBeInTheDocument();
+    expect(screen.queryByText('Canine')).not.toBeInTheDocument();
+  });
+
+  it('updates the display on click even when the controlled default is never fed back', () => {
+    // Regression: a controlled consumer passes defaultOption but does not echo the
+    // chosen value back into it. Before the fix the display stayed pinned to the
+    // initial defaultOption; a user click must always move the label.
+    const onSelect = jest.fn();
+    render(
+      <LabelDropdown
+        placeholder="Species"
+        options={options}
+        defaultOption="dog"
+        onSelect={onSelect}
+      />
+    );
+
+    expect(screen.getByText('Canine')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
+    fireEvent.click(screen.getByText('Feline'));
+
+    expect(onSelect).toHaveBeenCalledWith({ label: 'Feline', value: 'cat' });
     expect(screen.getByText('Feline')).toBeInTheDocument();
     expect(screen.queryByText('Canine')).not.toBeInTheDocument();
   });

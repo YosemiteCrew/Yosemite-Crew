@@ -86,8 +86,13 @@ export const TasksListScreen: React.FC = () => {
 
   const renderTask = ({item}: {item: Task}) => {
     const companion = companions.find(c => c.id === item.companionId);
-    const {isPending, isCompleted, assignedToData, isObservationalToolTask} =
-      getTaskCardMeta(item, authUser);
+    const {
+      isPending,
+      isCompleted,
+      isCancelled,
+      assignedToData,
+      isObservationalToolTask,
+    } = getTaskCardMeta(item, authUser);
 
     if (!companion) return null;
 
@@ -111,7 +116,7 @@ export const TasksListScreen: React.FC = () => {
             ? () => handleStartObservationalTool(item.id)
             : undefined
         }
-        showEditAction={!isCompleted}
+        showEditAction={!isCompleted && !isCancelled}
         showCompleteButton={isPending}
         category={item.category}
         details={item.details}

@@ -1,5 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
+// This spec types a real credential into the sign-in form, and Playwright
+// records input values verbatim. Force trace, screenshot and video off for this
+// file (the config default is trace: 'on-first-retry', which would capture the
+// filled field). This does NOT cover the AI error-context snapshot, which is a
+// separate on-failure sink gated only by PLAYWRIGHT_NO_COPY_PROMPT - that is set
+// in the playwright-auth job env, not here. Together they keep the password off
+// the runner's disk. Defence in depth: the job also uploads no artifacts.
+// Scoped to this file so other specs keep their debugging artefacts.
+test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
 const LOGIN_PATH = '/signin';
 const APP_ROUTE_PATTERN =
   /^\/(dashboard|appointments|organization|organizations|create-org|team-onboarding)(\/|$|\?)/;

@@ -20,12 +20,12 @@ import { getStatusStyle } from '@/app/config/statusConfig';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { getAppointmentPaymentDisplay } from '@/app/lib/paymentStatus';
 import type { Invoice, Organisation, RoomUnit } from '@yosemite-crew/types';
-import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 import { AppointmentModePill } from '@/app/features/appointments/components/AppointmentCardContent';
 import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
+import RowActionMenu, { RowMenuAction } from '@/app/ui/tables/RowActionMenu';
 
 export const normalizeLeadId = (value?: string | null): string => {
   const trimmed = String(value ?? '').trim();
@@ -105,14 +105,17 @@ export const buildAppointmentColumns = ({
     render: (item: Appointment) => (
       <div className="appointment-profile">
         <div className="appointment-profile-two">
-          <button
-            type="button"
-            onClick={() => onViewAppointmentHistory(item)}
-            className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
-            title="Open appointment overview"
-          >
-            {formatCompanionNameWithOwnerLastName(item?.companion?.name, item?.companion?.parent)}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onViewAppointmentHistory(item)}
+              className="appointment-profile-title cell-name cursor-pointer hover:underline underline-offset-2 text-left"
+              title="Open appointment overview"
+            >
+              {formatCompanionNameWithOwnerLastName(item?.companion?.name, item?.companion?.parent)}
+            </button>
+            {item.isEmergency && <div className="appointment-emergency-label">Emergency</div>}
+          </div>
           <div className="appointment-profile-sub">
             {getOwnerFirstName(item?.companion?.parent) || ''}
           </div>
@@ -127,7 +130,6 @@ export const buildAppointmentColumns = ({
     render: (item: Appointment) => (
       <div className="appointment-profile-two">
         <div className="appointment-profile-title">{item.concern || '-'}</div>
-        {item.isEmergency && <div className="appointment-emergency-label">Emergency</div>}
       </div>
     ),
   },
@@ -243,157 +245,99 @@ export const buildAppointmentColumns = ({
     },
   },
   {
-    label: 'Actions',
+    label: '',
     key: 'actions',
-    width: '210px',
+    width: '48px',
     render: (item: Appointment) => {
       const orgType = (item.organisationId && orgsById[item.organisationId]?.type) || 'HOSPITAL';
       const clinicalNotesLabel = getClinicalNotesLabel(orgType);
       const companionName = (item.companion ?? item.patient).name || 'appointment';
 
+      /* Design collapses the row's action rail into a single overflow kebab;
+         every action the rail carried lives on inside the menu. */
+      const actions: RowMenuAction[] = [];
+
       if (isRequestedLikeStatus(item.status)) {
-        return (
-          <div className="action-btn-col">
-            <div className="action-btn-grid action-btn-grid-capped">
-              <GlassTooltip content="Accept request" side="bottom" className="table-action-tooltip">
-                <button
-                  type="button"
-                  className="action-btn"
-                  style={{ background: 'var(--color-success-100)' }}
-                  onClick={() => onChangeStatusAppointment(item)}
-                  aria-label={`Accept request for ${companionName}`}
-                >
-                  <FaCheckCircle size={22} color="var(--color-success-400)" />
-                </button>
-              </GlassTooltip>
-              <GlassTooltip
-                content="Decline request"
-                side="bottom"
-                className="table-action-tooltip"
-              >
-                <button
-                  type="button"
-                  onClick={() => onCancelAppointment(item)}
-                  aria-label={`Decline request for ${companionName}`}
-                  className="action-btn"
-                  style={{ background: 'var(--color-danger-100)' }}
-                >
-                  <IoIosCloseCircle size={24} color="var(--color-danger-600)" />
-                </button>
-              </GlassTooltip>
-            </div>
-          </div>
+        actions.push(
+          {
+            key: 'accept-request',
+            label: 'Accept request',
+            icon: <FaCheckCircle size={15} aria-hidden="true" />,
+            onSelect: () => onChangeStatusAppointment(item),
+            primary: true,
+          },
+          {
+            key: 'decline-request',
+            label: 'Decline request',
+            icon: <IoIosCloseCircle size={16} aria-hidden="true" />,
+            onSelect: () => onCancelAppointment(item),
+          }
         );
+        return <RowActionMenu label={`Actions for ${companionName}`} actions={actions} />;
       }
 
-      return (
-        <div className="action-btn-col">
-          <div className="action-btn-grid action-btn-grid-capped">
-            <GlassTooltip content="View appointment" side="bottom" className="table-action-tooltip">
-              <button
-                type="button"
-                onClick={() => onViewAppointment(item)}
-                aria-label={`View appointment for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-              >
-                <IoEyeOutline size={20} color="var(--color-neutral-900)" />
-              </button>
-            </GlassTooltip>
-            <GlassTooltip content="Overview" side="bottom" className="table-action-tooltip">
-              <button
-                type="button"
-                onClick={() => onViewAppointmentHistory(item)}
-                aria-label={`View overview for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title="Appointment overview"
-              >
-                <RiHistoryLine size={18} color="var(--color-neutral-900)" />
-              </button>
-            </GlassTooltip>
-            {canEditAppointments && canShowStatusChangeAction(item.status) && (
-              <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
-                <button
-                  type="button"
-                  onClick={() => onChangeStatusAppointment(item)}
-                  aria-label={`Change status for ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
-                </button>
-              </GlassTooltip>
-            )}
-            {canEditAppointments && allowCalendarDrag(item.status as any) && (
-              <GlassTooltip content="Reschedule" side="bottom" className="table-action-tooltip">
-                <button
-                  type="button"
-                  onClick={() => onRescheduleAppointment(item)}
-                  aria-label={`Reschedule appointment for ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                >
-                  <IoIosCalendar size={18} color="var(--color-neutral-900)" />
-                </button>
-              </GlassTooltip>
-            )}
-            {canEditAppointments && canAssignAppointmentRoom(item.status) && (
-              <GlassTooltip content="Assign room" side="bottom" className="table-action-tooltip">
-                <button
-                  type="button"
-                  onClick={() => onChangeRoomAppointment(item)}
-                  aria-label={`Assign room for ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                >
-                  <MdMeetingRoom size={18} color="var(--color-neutral-900)" />
-                </button>
-              </GlassTooltip>
-            )}
-            <GlassTooltip
-              content={clinicalNotesLabel}
-              side="bottom"
-              className="table-action-tooltip"
-            >
-              <button
-                type="button"
-                onClick={() => onWorkspaceAppointment(item, getSoapViewIntent(item))}
-                aria-label={`${clinicalNotesLabel} for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title={clinicalNotesLabel}
-              >
-                <IoDocumentTextOutline size={18} color="var(--color-neutral-900)" />
-              </button>
-            </GlassTooltip>
-            <GlassTooltip content="Finance summary" side="bottom" className="table-action-tooltip">
-              <button
-                type="button"
-                onClick={() =>
-                  onWorkspaceAppointment(item, {
-                    label: 'finance',
-                    subLabel: 'summary',
-                  })
-                }
-                aria-label={`Finance summary for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-              >
-                <IoCardOutline size={18} color="var(--color-neutral-900)" />
-              </button>
-            </GlassTooltip>
-            <GlassTooltip content="Lab tests" side="bottom" className="table-action-tooltip">
-              <button
-                type="button"
-                onClick={() =>
-                  onWorkspaceAppointment(item, {
-                    label: 'labs',
-                    subLabel: 'idexx-labs',
-                  })
-                }
-                aria-label={`Lab tests for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-              >
-                <MdScience size={18} color="var(--color-neutral-900)" />
-              </button>
-            </GlassTooltip>
-          </div>
-        </div>
+      actions.push(
+        {
+          key: 'view-appointment',
+          label: 'View appointment',
+          icon: <IoEyeOutline size={15} aria-hidden="true" />,
+          onSelect: () => onViewAppointment(item),
+          primary: true,
+        },
+        {
+          key: 'overview',
+          label: 'Overview',
+          icon: <RiHistoryLine size={15} aria-hidden="true" />,
+          onSelect: () => onViewAppointmentHistory(item),
+        }
       );
+      if (canEditAppointments && canShowStatusChangeAction(item.status)) {
+        actions.push({
+          key: 'change-status',
+          label: 'Change status',
+          icon: <MdOutlineAutorenew size={15} aria-hidden="true" />,
+          onSelect: () => onChangeStatusAppointment(item),
+        });
+      }
+      if (canEditAppointments && allowCalendarDrag(item.status as any)) {
+        actions.push({
+          key: 'reschedule',
+          label: 'Reschedule',
+          icon: <IoIosCalendar size={15} aria-hidden="true" />,
+          onSelect: () => onRescheduleAppointment(item),
+        });
+      }
+      if (canEditAppointments && canAssignAppointmentRoom(item.status)) {
+        actions.push({
+          key: 'assign-room',
+          label: 'Assign room',
+          icon: <MdMeetingRoom size={15} aria-hidden="true" />,
+          onSelect: () => onChangeRoomAppointment(item),
+        });
+      }
+      actions.push(
+        {
+          key: 'clinical-notes',
+          label: clinicalNotesLabel,
+          icon: <IoDocumentTextOutline size={15} aria-hidden="true" />,
+          onSelect: () => onWorkspaceAppointment(item, getSoapViewIntent(item)),
+          dividerBefore: true,
+        },
+        {
+          key: 'finance-summary',
+          label: 'Finance summary',
+          icon: <IoCardOutline size={15} aria-hidden="true" />,
+          onSelect: () => onWorkspaceAppointment(item, { label: 'finance', subLabel: 'summary' }),
+        },
+        {
+          key: 'lab-tests',
+          label: 'Lab tests',
+          icon: <MdScience size={15} aria-hidden="true" />,
+          onSelect: () => onWorkspaceAppointment(item, { label: 'labs', subLabel: 'idexx-labs' }),
+        }
+      );
+
+      return <RowActionMenu label={`Actions for ${companionName}`} actions={actions} />;
     },
   },
 ];

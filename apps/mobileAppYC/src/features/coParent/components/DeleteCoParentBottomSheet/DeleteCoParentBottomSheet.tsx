@@ -45,6 +45,7 @@ export const DeleteCoParentBottomSheet = ({
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
+      destructive
       title="Delete Co-Parent?"
       message={`Are you sure you want to delete ${coParentName} as co-parent?`}
       primaryButton={{

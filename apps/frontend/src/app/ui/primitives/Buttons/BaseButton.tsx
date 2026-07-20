@@ -1,7 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
 
-export type ButtonSize = 'default' | 'large';
+/**
+ * Pill heights measured off the 19 July design frames:
+ * - `compact` 32px / 0 14px / 12px — card and panel footer actions.
+ * - `small`   36px / 0 16px / 12.5px — inline actions inside content cards.
+ * - `default` 40px / 0 18px / 13.5px — the standard page CTA.
+ * - `large`   44px — hero and onboarding CTAs.
+ */
+export type ButtonSize = 'compact' | 'small' | 'default' | 'large';
 
 export type BaseButtonProps = {
   text: string;
@@ -47,7 +54,7 @@ const BaseButton = ({
 }: Readonly<BaseButtonProps>) => {
   const classes = `${sizeClasses[size]} ${baseClasses} ${isDisabled ? 'pointer-events-none opacity-60' : ''} ${className ?? ''}`;
   const iconNode = icon ? (
-    <span className="inline-flex size-5 shrink-0 items-center justify-center text-current [&>svg]:h-[18px] [&>svg]:w-[18px]">
+    <span className="inline-flex size-4 shrink-0 items-center justify-center text-current [&>svg]:h-4 [&>svg]:w-4">
       {icon}
     </span>
   ) : null;

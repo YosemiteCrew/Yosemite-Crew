@@ -1,66 +1,108 @@
-import React from "react";
-import ProfileCard from "@/app/features/organization/pages/Organization/Sections/ProfileCard";
-import { useAuthStore } from "@/app/stores/authStore";
-import { updateUser } from "@/app/features/users/services/userService";
-import { useNotify } from "@/app/hooks/useNotify";
+'use client';
+import React from 'react';
+import Image from 'next/image';
+import { IoTimeOutline } from 'react-icons/io5';
+import { useAuthStore } from '@/app/stores/authStore';
+import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
+import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
+import { usePrimaryAvailability } from '@/app/hooks/useAvailabiities';
 
-const BasicFields = [
-  {
-    label: "First name",
-    key: "given_name",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Last name",
-    key: "family_name",
-    required: true,
-    editable: true,
-    type: "text",
-  },
-  {
-    label: "Email address",
-    key: "email",
-    required: true,
-    editable: false,
-    type: "text",
-  },
-];
+import { summarizeAvailability } from './personal.utils';
+import '@/app/features/settings/styles/Settings.css';
 
+const initialsFrom = (first: string, last: string): string => {
+  const a = first.trim().charAt(0);
+  const b = last.trim().charAt(0);
+  const initials = `${a}${b}`.toUpperCase();
+  return initials || '—';
+};
+
+const isHttpsAvatar = (raw?: string | null): raw is string =>
+  typeof raw === 'string' && raw.trim().startsWith('https://');
+
+const scrollToSection = (id: string) => {
+  globalThis.document?.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+/**
+ * Compact identity card leading the Settings screen: avatar, name, an
+ * "email · role · specialty" meta line, an Edit profile affordance, and a one-line
+ * availability summary. All data is real (auth attributes + org membership + profile);
+ * the affordances scroll to the detailed editors in the section below.
+ */
 const Personal = () => {
   const attributes = useAuthStore((s) => s.attributes);
-  const { notify } = useNotify();
+  const { membership } = usePrimaryOrgWithMembership();
+  const profile = usePrimaryOrgProfile();
+  const { availabilities } = usePrimaryAvailability();
 
   if (!attributes) return null;
 
-  const handleSave = async (values: any) => {
-    try {
-      const firstName = values.given_name;
-      const lastName = values.family_name;
-      await updateUser(firstName, lastName);
-      notify("success", {
-        title: "Personal details updated",
-        text: "Personal details have been updated successfully.",
-      });
-    } catch (error) {
-      console.log(error);
-      notify("error", {
-        title: "Unable to update personal details",
-        text: "Failed to update personal details. Please try again.",
-      });
-    }
-  };
+  const firstName = attributes.given_name ?? '';
+  const lastName = attributes.family_name ?? '';
+  const name = `${firstName} ${lastName}`.trim() || 'Your profile';
+  const avatarUrl = profile?.personalDetails?.profilePictureUrl;
+
+  const meta = [
+    attributes.email,
+    membership?.roleDisplay,
+    profile?.professionalDetails?.specialization,
+  ]
+    .map((part) => (part ?? '').toString().trim())
+    .filter((part) => part.length > 0)
+    .join(' · ');
+
+  const availabilitySummary = summarizeAvailability(availabilities);
 
   return (
-    <div className="flex flex-col gap-4">
-      <ProfileCard
-        title="Personal details"
-        fields={BasicFields}
-        org={attributes}
-        showProfileUser
-        onSave={handleSave}
-      />
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] px-5! py-[18px]! flex flex-col gap-[14px]">
+      <div className="text-[14.5px] font-bold text-[var(--ink)]">Personal</div>
+      <div className="flex items-center gap-[14px]">
+        {isHttpsAvatar(avatarUrl) ? (
+          <Image
+            src={avatarUrl}
+            alt={name}
+            width={54}
+            height={54}
+            className="size-[54px] rounded-full object-cover flex-none"
+          />
+        ) : (
+          <span className="flex size-[54px] flex-none items-center justify-center rounded-full bg-[var(--avatar-violet-bg)] text-[18px] font-bold text-[var(--avatar-violet-ink)]">
+            {initialsFrom(firstName, lastName)}
+          </span>
+        )}
+        <span className="flex-1 min-w-0">
+          <span className="block text-[14.5px] font-bold text-[var(--ink)] truncate">{name}</span>
+          {meta && (
+            <span className="block text-[12.5px] text-[var(--ink-muted)] truncate">{meta}</span>
+          )}
+        </span>
+        <button
+          type="button"
+          onClick={() => scrollToSection('settings-user-profile')}
+          className="flex h-[34px] flex-none items-center rounded-full border border-[var(--divider)] px-[15px] text-[12px] font-semibold text-[var(--ink-body)] hover:border-[var(--blue)] hover:text-[var(--blue-text)] transition-colors cursor-pointer"
+        >
+          Edit profile
+        </button>
+      </div>
+      <div className="flex items-center justify-between gap-3 pt-[12px] border-t border-[var(--hairline)]">
+        <span className="min-w-0">
+          <span className="block text-[13px] font-semibold text-[var(--ink-body)]">
+            Availability &amp; consultation hours
+          </span>
+          <span className="block truncate text-[11.5px] text-[var(--ink-faint)]">
+            {availabilitySummary ?? 'Not set'}
+          </span>
+        </span>
+        <button
+          type="button"
+          onClick={() => scrollToSection('settings-availability')}
+          className="yc-settings-ghost-pill"
+        >
+          <IoTimeOutline size={13} aria-hidden="true" className="yc-settings-ghost-pill-icon" />
+          Edit hours
+        </button>
+      </div>
     </div>
   );
 };

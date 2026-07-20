@@ -1,0 +1,430 @@
+/* PIMS phone shell (< 768px only). Every rule is gated inside the phone media
+   query so the desktop (>= 1280px) and tablet (768-1279px) experiences render
+   exactly as before. The bottom tab bar + FAB + bottom sheets replace the
+   hamburger header on phones. */
+
+@media screen and (max-width: 767px) {
+  /* The desktop/tablet user header is replaced by the fixed phone header. */
+  .yc-user-header-shell {
+    display: none !important;
+  }
+
+  /* Make room for the fixed header and tab bar so content is never covered. */
+  [data-yc-app] #main-content {
+    padding-top: 54px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ---------------------------------------------------------------- header */
+  .yc-phone-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 850;
+    display: flex;
+    height: 54px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--hairline);
+    background: var(--glass-93);
+    box-shadow: inset 0 1px 0 var(--glass-inset-hi);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+  }
+
+  /* Design org trigger is a borderless inline chip + short name + caret — no
+     surrounding pill. Keeps a 44px hit area via height for touch. */
+  .yc-phone-org {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 62vw;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .yc-phone-org-avatar {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 9px;
+    object-fit: cover;
+  }
+
+  .yc-phone-org-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font-family: var(--font-satoshi);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .yc-phone-org-caret {
+    flex: none;
+    color: var(--ink-faint);
+  }
+
+  .yc-phone-brand {
+    display: inline-flex;
+    height: 44px;
+    align-items: center;
+  }
+
+  .yc-phone-brand-logo {
+    width: auto;
+    height: 44px;
+    max-width: 96px;
+    object-fit: contain;
+  }
+
+  .yc-phone-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .yc-phone-iconbtn {
+    position: relative;
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .yc-phone-bell-dot {
+    position: absolute;
+    top: 6px;
+    right: 7px;
+    width: 6px;
+    height: 6px;
+    border: 1.5px solid var(--screen);
+    border-radius: 999px;
+    background: var(--pink);
+  }
+
+  /* -------------------------------------------------------------- tab bar */
+  .yc-phone-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 850;
+    border-top: 1px solid var(--hairline);
+    background: var(--glass-93);
+    box-shadow: inset 0 1px 0 var(--glass-inset-hi);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .yc-phone-tabbar-list {
+    display: flex;
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .yc-phone-tab-item {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+  }
+
+  .yc-phone-tab {
+    display: flex;
+    flex: 1;
+    min-height: 60px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: none;
+    background: transparent;
+    color: var(--ink-faint);
+    font-family: var(--font-satoshi);
+    cursor: pointer;
+    padding: 6px 2px;
+  }
+
+  .yc-phone-tab-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: currentColor;
+  }
+
+  .yc-phone-tab-label {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .yc-phone-tab-active {
+    color: var(--nav-active);
+  }
+
+  .yc-phone-tab-disabled {
+    color: var(--ink-faint2);
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .yc-phone-tab-badge {
+    position: absolute;
+    top: -6px;
+    left: 11px;
+    min-width: 15px;
+    height: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ------------------------------------------------------------------ fab */
+  .yc-phone-fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    z-index: 840;
+    display: inline-flex;
+    width: 52px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    /* CTA fill kept opaque for affordance/contrast; the liquid-glass read comes
+       from a specular top highlight + warm float, matching the primary button. */
+    background: var(--cta);
+    color: var(--cta-text);
+    cursor: pointer;
+    box-shadow:
+      inset 0 1px 0 var(--glass-inset-hi),
+      0 6px 16px var(--sh12),
+      0 14px 34px var(--sh12);
+  }
+
+  .yc-phone-fab:active {
+    background: var(--cta-hover);
+  }
+
+  /* The bottom-sheet chrome (.yc-phone-sheet*) lives in
+     ui/overlays/Sheet/Sheet.css, next to the SheetChrome component that renders
+     it and that overlays/Modal shares for its phone form. Only the More-sheet
+     specific rules stay here. */
+
+  /* ---------------------------------------------------------- more sheet */
+  /* Six secondary areas as a 2-col grid of --inset tiles, each with a boxed
+     --screen icon (--blue-text) + label + context line. */
+  .yc-phone-more-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .yc-phone-more-tile {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    border: none;
+    border-radius: 14px;
+    background: var(--inset);
+    color: var(--ink);
+    font-family: var(--font-satoshi);
+    text-align: left;
+    padding: 13px 14px;
+    cursor: pointer;
+  }
+
+  .yc-phone-more-tile:active {
+    background: var(--nav-active-bg);
+  }
+
+  .yc-phone-more-tile-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .yc-phone-more-tile-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--screen);
+    color: var(--blue-text);
+  }
+
+  .yc-phone-more-tile-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .yc-phone-more-tile-label {
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .yc-phone-more-tile-context {
+    overflow: hidden;
+    color: var(--ink-faint);
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Settings / Developer portal / status as bare-icon list rows. */
+  .yc-phone-more-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .yc-phone-more-row {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    gap: 11px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--ink-body);
+    font-family: var(--font-satoshi);
+    text-align: left;
+    padding: 12px 8px;
+    cursor: pointer;
+  }
+
+  .yc-phone-more-row:active {
+    background: var(--nav-active-bg);
+  }
+
+  .yc-phone-more-row-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-faint);
+  }
+
+  .yc-phone-more-row-icon-developer-portal {
+    color: var(--cyan-text);
+  }
+
+  .yc-phone-more-row-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink-body);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .yc-phone-more-row-chevron {
+    flex: none;
+    color: var(--ink-faint);
+  }
+
+  .yc-phone-more-status-row {
+    cursor: default;
+  }
+
+  .yc-phone-more-status-row:active {
+    background: transparent;
+  }
+
+  .yc-phone-more-status-dot {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    margin: 0 5px;
+    border-radius: 999px;
+    background: var(--success);
+    animation: ycPhonePulseDot 3.4s ease-out infinite;
+  }
+
+  .yc-phone-more-status-url {
+    flex: none;
+    color: var(--ink-faint);
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1;
+  }
+}
+
+@keyframes ycPhonePulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.35);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(0, 143, 93, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-phone-more-status-dot {
+    animation: none;
+  }
+}

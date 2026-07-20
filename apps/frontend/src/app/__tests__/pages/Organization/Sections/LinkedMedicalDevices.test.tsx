@@ -8,6 +8,9 @@ import { useIntegrationStore } from '@/app/stores/integrationStore';
 const useIntegrationByProviderForPrimaryOrgMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
 
+let primaryOrgId: string | null = 'org-1';
+let lastFetchedAt: number | null = null;
+
 jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
@@ -18,12 +21,8 @@ jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Secondary: ({ text }: any) => <button type="button">{text}</button>,
-}));
-
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ primaryOrgId: 'org-1' }),
+  useOrgStore: (selector: any) => selector({ primaryOrgId }),
 }));
 
 jest.mock('@/app/hooks/useIntegrations', () => ({
@@ -34,17 +33,8 @@ jest.mock('@/app/hooks/useIntegrations', () => ({
 
 jest.mock('@/app/stores/integrationStore', () => ({
   useIntegrationStore: Object.assign(
-    jest.fn((selector: any) =>
-      selector({
-        lastFetchedAt: null,
-        getIntegrationByProvider: () => null,
-      })
-    ),
-    {
-      getState: jest.fn(() => ({
-        getIntegrationByProvider: () => null,
-      })),
-    }
+    jest.fn((selector: any) => selector({ lastFetchedAt, getIntegrationByProvider: () => null })),
+    { getState: jest.fn(() => ({ getIntegrationByProvider: () => null })) }
   ),
 }));
 
@@ -52,123 +42,294 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
 }));
 
-jest.mock('next/image', () => ({
-  __esModule: true,
-  default: ({ alt }: any) => <span data-testid="mock-next-image">{alt || ''}</span>,
+jest.mock('@/app/lib/date', () => ({
+  formatDateTimeLocal: () => '09:12',
 }));
+
+jest.mock('react-icons/io5', () => ({
+  IoArrowForward: () => <span data-testid="icon-arrow-forward" />,
+  IoRefreshOutline: () => <span data-testid="icon-refresh" />,
+  IoFlaskOutline: () => <span data-testid="icon-flask" />,
+  IoWaterOutline: () => <span data-testid="icon-water" />,
+  IoBeakerOutline: () => <span data-testid="icon-beaker" />,
+}));
+
+const device = (over: Partial<Record<string, unknown>> = {}) => ({
+  deviceSerialNumber: 'CAT1-4402',
+  displayName: 'Catalyst One',
+  vcpActivatedStatus: 'active',
+  lastPolledCloudTime: '2026-07-10T09:12:00.000Z',
+  ...over,
+});
 
 describe('LinkedMedicalDevices', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    primaryOrgId = 'org-1';
+    lastFetchedAt = null;
     (useIntegrationStore as unknown as jest.Mock).mockImplementation((selector: any) =>
-      selector({
-        lastFetchedAt: null,
-        getIntegrationByProvider: () => null,
-      })
+      selector({ lastFetchedAt, getIntegrationByProvider: () => null })
     );
     (useIntegrationStore as any).getState.mockReturnValue({
       getIntegrationByProvider: () => null,
     });
   });
 
-  it('renders disabled status with zero linked devices', async () => {
-    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({
-      status: 'disabled',
-    });
+  it('renders an empty state and "not yet" poll when integration is disabled', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'disabled' });
 
     render(<LinkedMedicalDevices />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Disabled')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText('0 linked IVLS device(s)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open integrations' })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+    expect(screen.getByText(/Last cloud poll not yet · no devices linked/)).toBeInTheDocument();
+    const integrationsLink = screen.getByRole('link', { name: 'Open integrations' });
+    expect(integrationsLink).toBeInTheDocument();
+    expect(integrationsLink).toHaveAttribute('href', '/integrations');
+    expect(screen.getByTestId('icon-arrow-forward')).toBeInTheDocument();
   });
 
-  it('renders enabled status and linked device count', async () => {
-    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({
-      status: 'enabled',
-    });
+  it('renders online + idle devices with the right icons and health summary', async () => {
+    lastFetchedAt = 1_752_138_720_000;
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
     listIdexxIvlsDevicesMock.mockResolvedValue({
       ivlsDeviceList: [
-        {
-          deviceSerialNumber: 'A1',
-          displayName: 'IVLS 1',
-          vcpActivatedStatus: 'ACTIVE',
-          lastPolledCloudTime: '2026-02-27T09:21:37.000+0000',
-        },
-        {
-          deviceSerialNumber: 'A2',
-          displayName: 'IVLS 2',
-          vcpActivatedStatus: 'ACTIVE',
-          lastPolledCloudTime: '2026-02-27T09:21:37.000+0000',
-        },
+        device(),
+        device({
+          deviceSerialNumber: 'PCD-2210',
+          displayName: 'ProCyte Dx',
+          vcpActivatedStatus: 'active',
+        }),
+        device({
+          deviceSerialNumber: 'VLU-0917',
+          displayName: 'VetLab UA',
+          vcpActivatedStatus: 'idle',
+          lastPolledCloudTime: '2026-07-07T09:12:00.000Z',
+        }),
       ],
     });
 
     render(<LinkedMedicalDevices />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Enabled')).toBeInTheDocument();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/2 linked IVLS device\(s\)/)).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByText('Catalyst One')).toBeInTheDocument());
+    expect(screen.getByText(/Last cloud poll 09:12 · 1 need attention/)).toBeInTheDocument();
+    expect(screen.getAllByText('ONLINE')).toHaveLength(2);
+    expect(screen.getByText(/IDLE · \d+ days/)).toBeInTheDocument();
+    expect(screen.getByTestId('icon-water')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-beaker')).toBeInTheDocument();
+    expect(screen.getAllByTestId('icon-flask').length).toBeGreaterThanOrEqual(1);
     expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1');
   });
 
-  it('falls back gracefully on fetch error', async () => {
-    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({
-      status: 'enabled',
+  it('shows "all healthy" and a fallback device label when every device is online', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [device({ displayName: null })],
     });
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() => expect(screen.getByText('IVLS device')).toBeInTheDocument());
+    expect(screen.getByText(/· all healthy/)).toBeInTheDocument();
+  });
+
+  it('renders idle without a day suffix when poll time is missing or recent', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [
+        device({
+          deviceSerialNumber: 'NO-POLL',
+          displayName: 'No Poll',
+          vcpActivatedStatus: 'idle',
+          lastPolledCloudTime: '',
+        }),
+        device({
+          deviceSerialNumber: 'BAD-DATE',
+          displayName: 'Bad Date',
+          vcpActivatedStatus: 'idle',
+          lastPolledCloudTime: 'not-a-date',
+        }),
+        device({
+          deviceSerialNumber: 'RECENT',
+          displayName: 'Recent',
+          vcpActivatedStatus: 'idle',
+          lastPolledCloudTime: new Date().toISOString(),
+        }),
+      ],
+    });
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() => expect(screen.getByText('No Poll')).toBeInTheDocument());
+    expect(screen.getAllByText('IDLE')).toHaveLength(3);
+  });
+
+  it('surfaces an error and clears the list when the fetch rejects', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
     listIdexxIvlsDevicesMock.mockRejectedValue(new Error('network'));
 
     render(<LinkedMedicalDevices />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Enabled')).toBeInTheDocument();
-    });
-    expect(screen.getByText('0 linked IVLS device(s)')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText('Unable to refresh linked IVLS devices.')).toBeInTheDocument()
+    );
+    expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument();
   });
 
-  it('shows pending status when integration is pending', async () => {
-    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({
-      status: 'pending',
+  it('does nothing on effect or manual refresh when there is no primary org', async () => {
+    primaryOrgId = null;
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+    expect(listIdexxIvlsDevicesMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh linked medical devices' }));
+    expect(loadIntegrationsForPrimaryOrg).not.toHaveBeenCalled();
+  });
+
+  it('renders a singular day label for a device idle for one day', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [
+        device({
+          deviceSerialNumber: 'ONE-DAY',
+          displayName: 'One Day',
+          vcpActivatedStatus: 'idle',
+          lastPolledCloudTime: new Date(Date.now() - 1.4 * 86_400_000).toISOString(),
+        }),
+      ],
     });
 
     render(<LinkedMedicalDevices />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Pending')).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByText('IDLE · 1 day')).toBeInTheDocument());
   });
 
-  it('refreshes linked devices via manual refresh action', async () => {
-    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({
-      status: 'enabled',
-    });
-    listIdexxIvlsDevicesMock.mockResolvedValue({
-      ivlsDeviceList: [{ deviceSerialNumber: 'A1', displayName: 'IVLS 1' }],
-    });
+  it('re-fetches devices on manual refresh when the integration is enabled', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [device()] });
     (loadIntegrationsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
     (useIntegrationStore as any).getState.mockReturnValue({
       getIntegrationByProvider: () => ({ status: 'enabled' }),
     });
 
     render(<LinkedMedicalDevices />);
+    await waitFor(() => expect(screen.getByText('Catalyst One')).toBeInTheDocument());
 
-    await waitFor(() => {
-      expect(screen.getByText('Enabled')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh linked medical devices' }));
+
+    await waitFor(() => expect((useIntegrationStore as any).getState).toHaveBeenCalled());
+    expect(listIdexxIvlsDevicesMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('clears devices on manual refresh when the integration is no longer enabled', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [device()] });
+    (loadIntegrationsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
+    (useIntegrationStore as any).getState.mockReturnValue({
+      getIntegrationByProvider: () => ({ status: 'disabled' }),
     });
 
-    const refreshButton = screen.getByRole('button', { name: 'Refresh linked medical devices' });
-    fireEvent.click(refreshButton);
+    render(<LinkedMedicalDevices />);
+    await waitFor(() => expect(screen.getByText('Catalyst One')).toBeInTheDocument());
 
-    await waitFor(() => {
-      expect((useIntegrationStore as any).getState).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh linked medical devices' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+  });
+
+  it('surfaces an error when manual refresh rejects', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'disabled' });
+    (loadIntegrationsForPrimaryOrg as jest.Mock).mockRejectedValue(new Error('boom'));
+
+    render(<LinkedMedicalDevices />);
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh linked medical devices' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Unable to refresh integration/device status.')).toBeInTheDocument()
+    );
+  });
+
+  it('treats a missing integration as disabled', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(null);
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+    expect(listIdexxIvlsDevicesMock).not.toHaveBeenCalled();
+  });
+
+  it('handles a device response with no device list', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({});
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+  });
+
+  it('treats a device with no activation status as idle', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [device({ vcpActivatedStatus: undefined, lastPolledCloudTime: '' })],
     });
-    expect(listIdexxIvlsDevicesMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+
+    render(<LinkedMedicalDevices />);
+
+    await waitFor(() => expect(screen.getByText('Catalyst One')).toBeInTheDocument());
+    expect(screen.getByText('IDLE')).toBeInTheDocument();
+  });
+
+  it('clears devices on manual refresh when the integration disappears', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [device()] });
+    (loadIntegrationsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
+    (useIntegrationStore as any).getState.mockReturnValue({
+      getIntegrationByProvider: () => null,
+    });
+
+    render(<LinkedMedicalDevices />);
+    await waitFor(() => expect(screen.getByText('Catalyst One')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh linked medical devices' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+  });
+
+  it('handles a manual-refresh device response with no device list', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock
+      .mockResolvedValueOnce({ ivlsDeviceList: [device()] })
+      .mockResolvedValueOnce({});
+    (loadIntegrationsForPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
+    (useIntegrationStore as any).getState.mockReturnValue({
+      getIntegrationByProvider: () => ({ status: 'enabled' }),
+    });
+
+    render(<LinkedMedicalDevices />);
+    await waitFor(() => expect(screen.getByText('Catalyst One')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh linked medical devices' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
   });
 });

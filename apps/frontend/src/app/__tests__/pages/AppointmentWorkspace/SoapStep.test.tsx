@@ -36,6 +36,7 @@ const reset = () =>
     encountersById: {},
     activeStep: 'SOAP',
     activeSideAction: null,
+    saveStatusByAppointmentId: {},
   });
 
 const seedAndGet = () => {
@@ -83,17 +84,17 @@ describe('SoapStep', () => {
   it('renders the four SOAP sections and chief complaint', () => {
     const encounter = seedAndGet();
     renderSoapStep(encounter);
-    expect(screen.getByText('Chief Complaint')).toBeInTheDocument();
+    expect(screen.getByText('Chief complaint')).toBeInTheDocument();
     expect(screen.getByText(APPOINTMENT_REASON)).toBeInTheDocument();
     expect(screen.getByText('Service')).toBeInTheDocument();
     expect(screen.getByText(APPOINTMENT_SERVICE)).toBeInTheDocument();
     expect(screen.getByText('Speciality')).toBeInTheDocument();
     expect(screen.getByText(APPOINTMENT_SPECIALITY)).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Chief complaint' })).not.toBeInTheDocument();
-    expect(screen.getByText('Subjective (History)')).toBeInTheDocument();
-    expect(screen.getByText('Objective (Examination)')).toBeInTheDocument();
-    expect(screen.getByText('Assessment (Differential)')).toBeInTheDocument();
-    expect(screen.getAllByText('Plan').length).toBeGreaterThan(0);
+    expect(screen.getByText('S · Subjective')).toBeInTheDocument();
+    expect(screen.getByText('O · Objective')).toBeInTheDocument();
+    expect(screen.getByText('A · Assessment')).toBeInTheDocument();
+    expect(screen.getAllByText('P · Plan').length).toBeGreaterThan(0);
   });
 
   it('shows an empty state when no SOAP notes have been recorded', () => {
@@ -106,9 +107,9 @@ describe('SoapStep', () => {
   it('keeps SOAP template search between chief complaint and subjective', () => {
     const encounter = seedAndGet();
     renderSoapStep(encounter);
-    const chiefComplaint = screen.getByText('Chief Complaint');
+    const chiefComplaint = screen.getByText('Chief complaint');
     const search = screen.getByLabelText(/search for soap template/i);
-    const subjective = screen.getByText('Subjective (History)');
+    const subjective = screen.getByText('S · Subjective');
     expect(chiefComplaint.compareDocumentPosition(search)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(search.compareDocumentPosition(subjective)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
@@ -163,6 +164,62 @@ describe('SoapStep', () => {
       expect(updated.soap[0]?.assessment).toBe('<p>Resolved assessment</p>');
       expect(updated.soap[0]?.plan).toBe('<p>Resolved plan</p>');
     });
+  });
+
+  it('applies a real SOAP template from the template chip and shows its name', async () => {
+    const encounter = seedAndGet();
+    (getWorkspaceTemplateById as jest.Mock).mockResolvedValue({
+      id: 'tpl-ortho',
+      name: 'Orthopaedic exam',
+      content: { subjective: '<p>Chip subjective</p>' },
+    });
+    renderSoapStep(encounter);
+    fireEvent.click(screen.getByRole('button', { name: /Template: None/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Orthopaedic exam/ }));
+    await waitFor(() => {
+      expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.templateId).toBe(
+        'tpl-ortho'
+      );
+    });
+    expect(
+      await screen.findByRole('button', { name: /Template: Orthopaedic exam/ })
+    ).toBeInTheDocument();
+  });
+
+  it('pre-fills SOAP from a built-in preset when the org has no templates', () => {
+    seedAndGet();
+    useAppointmentWorkspaceStore.setState((state) => ({
+      encountersById: {
+        ...state.encountersById,
+        [APPT]: { ...state.encountersById[APPT], soapTemplates: [] },
+      },
+    }));
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    renderSoapStep(enc);
+    fireEvent.click(screen.getByRole('button', { name: /Template: None/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Wellness/ }));
+    const soap = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0];
+    expect(soap?.subjective).toContain('annual wellness examination');
+    // The preset carries no backend template id.
+    expect(soap?.templateId).toBeUndefined();
+  });
+
+  it('shows the autosave indicator after a save', () => {
+    seedAndGet();
+    useAppointmentWorkspaceStore.getState().upsertSoap(APPT, { subjective: '<p>history</p>' });
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    render(
+      <SoapStep
+        appointmentId={APPT}
+        appointmentReason={APPOINTMENT_REASON}
+        encounter={enc}
+        onRecordVitals={onRecordVitals}
+        onSaveAndNext={onSaveAndNext}
+      />
+    );
+    expect(screen.queryByTestId('autosave-indicator')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
+    expect(screen.getByTestId('autosave-indicator')).toHaveTextContent('Autosaved');
   });
 
   it('records the SOAP note, clears the form, and advances on Save & Next', () => {
@@ -270,7 +327,7 @@ describe('SoapStep', () => {
     const enc = { ...useAppointmentWorkspaceStore.getState().getEncounter(APPT)!, viewOnly: true };
     renderSoapStep(enc);
     expect(screen.queryByLabelText(/search for soap template/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('Subjective (History)')).not.toBeInTheDocument();
+    expect(screen.queryByText('S · Subjective')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save & Next' })).not.toBeInTheDocument();
     expect(screen.getByText('All SOAP notes')).toBeInTheDocument();
     expect(screen.getByText(/By Dr Tim/)).toBeInTheDocument();
@@ -296,10 +353,10 @@ describe('SoapStep', () => {
     expect(screen.getAllByText(APPOINTMENT_REASON).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('invokes the Record Vitals callback from the Objective section', () => {
+  it('invokes the Record Vitals callback from the vitals panel', () => {
     onRecordVitals.mockClear();
     renderSoapStep();
-    fireEvent.click(screen.getByRole('button', { name: /record vitals/i }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Record' }));
     expect(onRecordVitals).toHaveBeenCalledTimes(1);
   });
 
@@ -375,7 +432,7 @@ describe('SoapStep', () => {
     );
 
     // The custom structure REPLACES the four native editors.
-    expect(screen.queryByText('Subjective (History)')).not.toBeInTheDocument();
+    expect(screen.queryByText('S · Subjective')).not.toBeInTheDocument();
     expect(screen.getByText('Gait quality')).toBeInTheDocument();
 
     // A required custom field left empty blocks the save with a validation alert.

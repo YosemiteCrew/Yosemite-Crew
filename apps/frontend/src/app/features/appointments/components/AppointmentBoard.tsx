@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { IoAdd } from 'react-icons/io5';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
-import { BoardColumnHeader, attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
+import { attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
 import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
@@ -111,6 +112,7 @@ const useBoardDropTargets = ({
         scrollElement,
         isDragActive: () => !!draggedAppointmentId && canEditAppointments,
         onDrop: () => {
+          /* v8 ignore next -- defensive: onDrop only fires mid-drag with a live drop handler */
           if (draggedAppointmentId) onDropRef.current?.(draggedAppointmentId, column.key);
         },
         autoScrollBoardOnDrag,
@@ -135,6 +137,8 @@ const BoardColumn = ({
   setScrollRef,
   onWheelBoundary,
   renderCard,
+  canEditAppointments,
+  onAddAppointment,
 }: {
   column: (typeof BOARD_COLUMNS)[number];
   appointments: Appointment[];
@@ -142,25 +146,56 @@ const BoardColumn = ({
   setScrollRef: (element: HTMLDivElement | null) => void;
   onWheelBoundary: React.WheelEventHandler<HTMLElement>;
   renderCard: (appointment: Appointment) => React.ReactNode;
+  canEditAppointments: boolean;
+  onAddAppointment?: () => void;
 }) => {
   const style = getStatusStyle(column.key);
   return (
     <div
       ref={setDropRef}
-      className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
+      // Foundations: below tablet the columns become 300px snap-scroll panes;
+      // from md up they hold the 320px board width.
+      className="w-[300px] min-w-[300px] max-w-[300px] md:w-[320px] md:min-w-[320px] md:max-w-[320px] h-full snap-start rounded-2xl bg-[var(--inset)] overflow-hidden flex flex-col min-h-0"
     >
-      <BoardColumnHeader label={column.label} count={appointments.length} style={style} />
+      <div className="px-3.5 pt-3.5 pb-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="size-[7px] shrink-0 rounded-full"
+              style={{ backgroundColor: style.borderColor }}
+            />
+            <div className="text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              {column.label}
+            </div>
+          </div>
+          <div className="text-[11.5px] font-bold text-[var(--ink-faint)]">
+            {appointments.length}
+          </div>
+        </div>
+      </div>
       <div
         ref={setScrollRef}
-        className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
+        className="flex-1 min-h-0 h-0 flex flex-col gap-2.5 px-2.5 pb-3 overflow-y-auto"
         onWheel={onWheelBoundary}
         data-calendar-scroll="true"
       >
         {appointments.map(renderCard)}
         {appointments.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
+          <div className="rounded-[13px] border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
             No appointments
           </div>
+        )}
+        {canEditAppointments && (
+          <button
+            type="button"
+            aria-label={`Add appointment to ${column.label}`}
+            onClick={onAddAppointment}
+            className="mt-auto flex items-center justify-center gap-[5px] rounded-[11px] border border-dashed border-[var(--divider)] p-[9px] text-[11.5px] font-semibold text-text-tertiary transition-colors hover:border-input-border-active hover:text-text-primary"
+          >
+            <IoAdd size={13} aria-hidden="true" />
+            Add
+          </button>
         )}
       </div>
     </div>
@@ -307,9 +342,11 @@ const AppointmentBoardComponent = ({
   const moveToStatus = useCallback(
     async (appointmentId: string, nextStatus: BoardStatus) => {
       const appointment = todayAppointments.find((item) => item.id === appointmentId);
+      /* v8 ignore next -- defensive: a dragged card id always resolves to a listed appointment */
       if (!appointment?.id) return;
       const currentStatus = normalizeStatus(appointment.status);
       if (currentStatus === nextStatus) return;
+      /* v8 ignore next -- unreachable: drops are gated by canEditAppointments via isDragActive */
       if (!canEditAppointments) return;
       if (!canTransitionAppointmentStatus(appointment.status, nextStatus)) {
         notify('warning', {
@@ -369,7 +406,7 @@ const AppointmentBoardComponent = ({
   });
 
   return (
-    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
+    <div className="h-full min-h-0 rounded-2xl border border-card-border bg-neutral-0 overflow-hidden flex flex-col">
       <AppointmentBoardToolbar
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
@@ -386,7 +423,7 @@ const AppointmentBoardComponent = ({
       />
       <div
         ref={boardRootRef}
-        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3 scrollbar-x-float"
+        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3 scrollbar-x-float snap-x snap-mandatory md:snap-none"
         data-calendar-scroll="true"
         data-board-scroll-root="true"
         onWheel={onWheelHorizontal}
@@ -404,6 +441,8 @@ const AppointmentBoardComponent = ({
                 columnScrollRefs.current[column.key] = element;
               }}
               onWheelBoundary={onWheelBoundary}
+              canEditAppointments={canEditAppointments}
+              onAddAppointment={onAddAppointment}
               renderCard={(appointment) => (
                 <AppointmentBoardCard
                   key={appointment.id}

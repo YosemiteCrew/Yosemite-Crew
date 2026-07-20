@@ -8,16 +8,26 @@ import React, {
 } from 'react';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getMonthYear } from '@/app/features/appointments/components/Calendar/helpers';
+import { getEmergencyPillStyle } from '@/app/features/appointments/components/appointmentBoardHelpers';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import { FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import Datepicker from '@/app/ui/inputs/Datepicker';
-import { IoAdd, IoWarning } from 'react-icons/io5';
+import {
+  IoAdd,
+  IoAddOutline,
+  IoChevronBack,
+  IoChevronDown,
+  IoChevronForward,
+  IoRemoveOutline,
+} from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import { useHasMounted } from '@/app/hooks/useHasMounted';
+import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
+import { useCalendarWeekNavigation } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+import { getStartOfWeek } from '@/app/features/appointments/components/Calendar/weekHelpers';
 
 type FilterOption = { key: string; name: string };
 type StatusOption = {
@@ -31,32 +41,31 @@ type StatusOption = {
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
+// Scope pills follow the planner's filter-row recipe: inactive is a bare
+// --hairline outline with --ink-muted 600 type; the selected pill fills with
+// --inset behind a --divider outline and steps the label to --ink 700.
 const getFilterClassName = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
-  if (filterKey === 'emergencies') return 'text-danger-500!';
-  return 'bg-blue-light text-blue-text!';
+  if (filterKey !== activeFilter)
+    return 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover!';
+  // The active emergency pill draws its fill/label from getEmergencyPillStyle's
+  // inline style (AA-safe white on --color-danger-800); return no colour class so
+  // an `!important` text colour can't override it (the old `text-danger-500!`
+  // failed WCAG AA in dark mode).
+  if (filterKey === 'emergencies') return 'font-bold';
+  return 'bg-[var(--inset)] font-bold text-[var(--ink)]';
 };
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter) return 'var(--color-card-border)';
+  if (filterKey !== activeFilter) return 'var(--hairline)';
+  /* v8 ignore next -- unreachable: only called for non-emergency pills (emergency pills use getEmergencyPillStyle) */
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
-  return 'var(--color-text-brand)';
+  return 'var(--divider)';
 };
 
-const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
-  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  borderRadius: '16px',
-  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
-  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
-});
-
-const CALENDAR_OPTIONS = [
-  { key: 'day', label: 'Day' },
-  { key: 'week', label: 'Week' },
-  { key: 'team', label: 'Team' },
+const CALENDAR_VIEW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'team', label: 'Team' },
 ];
 
 /**
@@ -121,6 +130,7 @@ const StatusFilterDropdown = ({
 }) => {
   const dropdown = useAnchoredDropdown(180);
   const selectedStatus = statusOptions.find((s) => s.key === activeStatus) ?? statusOptions[0];
+  const isDefault = !selectedStatus || selectedStatus.key === 'all';
 
   return (
     <>
@@ -128,12 +138,12 @@ const StatusFilterDropdown = ({
         ref={dropdown.triggerRef}
         type="button"
         onClick={() => dropdown.setOpen((v) => !v)}
-        className="flex h-12 shrink-0 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between whitespace-nowrap"
+        className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-full! transition-colors text-[12px] font-semibold whitespace-nowrap"
         style={
-          selectedStatus?.bg
+          !isDefault && selectedStatus?.bg
             ? {
                 backgroundColor: selectedStatus.bg,
-                color: selectedStatus.text ?? 'var(--color-black-pure)',
+                color: selectedStatus.text ?? 'var(--ink)',
                 borderWidth: '1px',
                 borderStyle: 'solid',
                 borderColor: selectedStatus.border ?? selectedStatus.bg,
@@ -141,14 +151,14 @@ const StatusFilterDropdown = ({
             : {
                 borderWidth: '1px',
                 borderStyle: 'solid',
-                borderColor: 'var(--color-card-border)',
-                color: 'var(--color-text-tertiary)',
+                borderColor: 'var(--hairline)',
+                color: 'var(--ink-muted)',
               }
         }
       >
-        <span>{selectedStatus?.key === 'all' ? 'Status' : (selectedStatus?.name ?? 'Status')}</span>
-        <FaCaretDown
-          size={14}
+        <span>{isDefault ? 'All statuses' : selectedStatus.name}</span>
+        <IoChevronDown
+          size={12}
           className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
         />
       </button>
@@ -158,7 +168,7 @@ const StatusFilterDropdown = ({
         createPortal(
           <div
             ref={dropdown.panelRef}
-            className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
             style={dropdown.style}
           >
             {statusOptions.map((status) => {
@@ -206,73 +216,6 @@ const StatusFilterDropdown = ({
   );
 };
 
-const CalendarViewDropdown = ({
-  activeCalendar,
-  setActiveCalendar,
-  isMounted,
-}: {
-  activeCalendar: string;
-  setActiveCalendar: React.Dispatch<React.SetStateAction<string>>;
-  isMounted: boolean;
-}) => {
-  const dropdown = useAnchoredDropdown();
-
-  const handleSelect = (optionKey: string) => {
-    dropdown.setOpen(false);
-    if (optionKey === activeCalendar) return;
-    startTransition(() => {
-      setActiveCalendar(optionKey);
-    });
-  };
-
-  return (
-    <>
-      <button
-        ref={dropdown.triggerRef}
-        type="button"
-        onClick={() => dropdown.setOpen((v) => !v)}
-        className="flex h-12 shrink-0 items-center gap-2 px-3 rounded-2xl! border border-card-border transition-all duration-300 text-body-4 whitespace-nowrap text-text-secondary"
-      >
-        <span>{CALENDAR_OPTIONS.find((o) => o.key === activeCalendar)?.label ?? 'View'}</span>
-        <FaCaretDown
-          size={14}
-          className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
-        />
-      </button>
-      {isMounted &&
-        dropdown.open &&
-        createPortal(
-          <div
-            ref={dropdown.panelRef}
-            className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
-            style={dropdown.style}
-          >
-            {CALENDAR_OPTIONS.map((option) => {
-              const isActive = option.key === activeCalendar;
-              return (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => handleSelect(option.key)}
-                  className={clsx(
-                    'w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors',
-                    isActive
-                      ? 'font-medium text-text-primary'
-                      : 'text-text-secondary hover:bg-card-hover'
-                  )}
-                >
-                  {option.label}
-                  {isActive && <span className="ml-auto font-semibold">✓</span>}
-                </button>
-              );
-            })}
-          </div>,
-          document.body
-        )}
-    </>
-  );
-};
-
 const FilterPills = ({
   filterOptions,
   activeFilter,
@@ -284,24 +227,17 @@ const FilterPills = ({
   hasEmergency: boolean;
   onToggle: (filterKey: string) => void;
 }) => {
-  const isEmergencyFilterActive = activeFilter === 'emergencies';
   return (
     <>
       {filterOptions.map((filter) => {
         const isEmergencyFilter = filter.key === 'emergencies';
         const isActiveFilter = filter.key === activeFilter;
-        const emergencyTextColor = isEmergencyFilterActive
-          ? 'var(--color-semantic-error-700)'
-          : 'var(--color-neutral-700)';
-        const emergencyIconColor = emergencyTextColor;
-        const emergencyPillStyle = isEmergencyFilter
+        const pillStyle = isEmergencyFilter
           ? getEmergencyPillStyle(isActiveFilter)
           : {
-              borderWidth: isActiveFilter && isEmergencyFilter ? '2px' : '1px',
+              borderWidth: '1px',
               borderStyle: 'solid',
               borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-              backgroundColor:
-                isActiveFilter && isEmergencyFilter ? 'var(--color-danger-soft)' : undefined,
             };
 
         return (
@@ -310,17 +246,16 @@ const FilterPills = ({
             type="button"
             onClick={() => onToggle(filter.key)}
             className={clsx(
-              'relative flex h-12 shrink-0 min-w-32 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
+              'relative flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap px-[13px] py-1.5 rounded-full! text-[12px] transition-colors',
               getFilterClassName(filter.key, activeFilter ?? '')
             )}
-            style={emergencyPillStyle}
+            style={pillStyle}
           >
             {isEmergencyFilter && (
-              <IoWarning
-                size={18}
+              <span
                 aria-hidden="true"
-                className="shrink-0"
-                color={emergencyIconColor}
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: 'var(--danger)' }}
               />
             )}
             <span>{filter.name}</span>
@@ -329,8 +264,8 @@ const FilterPills = ({
                 aria-hidden="true"
                 className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
                 style={{
-                  backgroundColor: 'var(--color-semantic-error-700)',
-                  outline: '2px solid white',
+                  backgroundColor: 'var(--danger)',
+                  outline: '2px solid var(--screen)',
                 }}
               />
             )}
@@ -339,6 +274,27 @@ const FilterPills = ({
       })}
     </>
   );
+};
+
+// Round control inside a segmented/nav pill: the planner sizes these at 30px with
+// a 14px glyph in --ink-faint, raising the selected one onto --screen.
+const PILL_CONTROL_CLASS =
+  'inline-flex size-[30px] shrink-0 cursor-pointer items-center justify-center rounded-full! transition-colors';
+
+/** Zoom-toggle segment: the selected half lifts onto --screen, the other stays faint. */
+const getZoomSegmentClass = (active: boolean): string =>
+  `${PILL_CONTROL_CLASS} ${
+    active
+      ? 'bg-neutral-0 text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
+      : 'text-[var(--ink-faint)] hover:text-[var(--ink)]'
+  }`;
+
+/** Track shared by the date-nav pill and the zoom toggle: 4px pad, --hairline, --field-bg. */
+const PILL_TRACK_STYLE: React.CSSProperties = {
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: 'var(--hairline)',
+  backgroundColor: 'var(--field-bg)',
 };
 
 const ZoomToggle = ({
@@ -350,40 +306,81 @@ const ZoomToggle = ({
 }) => {
   const isZoomIn = zoomMode !== 'out';
   return (
-    <div className="inline-flex shrink-0 items-center rounded-full border border-card-border bg-card-bg p-1">
+    <div
+      className="inline-flex shrink-0 items-center gap-1 rounded-full p-1"
+      style={PILL_TRACK_STYLE}
+    >
       <button
         type="button"
         onClick={() => setZoomMode('in')}
         title="Zoom in timeline"
         aria-label="Zoom in timeline"
-        className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
-          isZoomIn
-            ? 'bg-white text-text-primary border border-card-border'
-            : 'text-text-secondary hover:bg-card-hover border border-transparent'
-        }`}
+        className={getZoomSegmentClass(isZoomIn)}
       >
-        <FiZoomIn size={18} />
+        <IoAddOutline size={16} />
       </button>
       <button
         type="button"
         onClick={() => setZoomMode('out')}
         title="Zoom out timeline"
         aria-label="Zoom out timeline"
-        className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
-          isZoomIn
-            ? 'text-text-secondary hover:bg-card-hover border border-transparent'
-            : 'bg-white text-text-primary border border-card-border'
-        }`}
+        className={getZoomSegmentClass(!isZoomIn)}
       >
-        <FiZoomOut size={18} />
+        <IoRemoveOutline size={16} />
       </button>
     </div>
   );
 };
 
+/**
+ * Date nav pill — prev arrow, current range label, next arrow on one --field-bg
+ * track, per the planner header. The arrows step by week in the week view and by
+ * day everywhere else, reusing the same navigation hooks the grids used before.
+ */
+const CalendarDateNav = ({
+  label,
+  prevLabel,
+  nextLabel,
+  onPrev,
+  onNext,
+}: {
+  label: string;
+  prevLabel: string;
+  nextLabel: string;
+  onPrev: () => void;
+  onNext: () => void;
+}) => (
+  <div className="flex shrink-0 items-center gap-1 rounded-full p-1" style={PILL_TRACK_STYLE}>
+    <button
+      type="button"
+      onClick={onPrev}
+      aria-label={prevLabel}
+      title={prevLabel}
+      className={`${PILL_CONTROL_CLASS} text-[var(--ink-faint)] hover:text-[var(--ink)]`}
+    >
+      <IoChevronBack size={14} aria-hidden="true" />
+    </button>
+    <span className="whitespace-nowrap px-1.5 text-[13px] font-bold text-[var(--ink)]">
+      {label}
+    </span>
+    <button
+      type="button"
+      onClick={onNext}
+      aria-label={nextLabel}
+      title={nextLabel}
+      className={`${PILL_CONTROL_CLASS} text-[var(--ink-faint)] hover:text-[var(--ink)]`}
+    >
+      <IoChevronForward size={14} aria-hidden="true" />
+    </button>
+  </div>
+);
+
 type Headerprops = {
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  /** Supplied by the week view so the header arrows step whole weeks. */
+  weekStart?: Date;
+  setWeekStart?: React.Dispatch<React.SetStateAction<Date>>;
   zoomMode?: CalendarZoomMode;
   setZoomMode?: React.Dispatch<React.SetStateAction<CalendarZoomMode>>;
   activeCalendar?: string;
@@ -402,6 +399,7 @@ type Headerprops = {
 const Header = ({
   setCurrentDate,
   currentDate,
+  setWeekStart,
   zoomMode,
   setZoomMode,
   activeCalendar,
@@ -416,7 +414,6 @@ const Header = ({
   filterOptions,
   statusOptions,
 }: Headerprops) => {
-  const showCalendarTypeSelector = !!activeCalendar && !!setActiveCalendar;
   const onWheelHorizontal = useWheelToHorizontalScroll();
   const isMounted = useHasMounted();
 
@@ -425,9 +422,28 @@ const Header = ({
     setActiveFilter(activeFilter === filterKey ? 'all' : filterKey);
   };
 
+  const { handlePrevDay, handleNextDay } = useCalendarNavigation(setCurrentDate);
+  // Hooks must run unconditionally, so the week navigation is always built; the
+  // no-op dispatch only ever runs when the week view did not hand down its state.
+  const noopSetWeekStart = useCallback<React.Dispatch<React.SetStateAction<Date>>>(() => {}, []);
+  const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
+    setWeekStart ?? noopSetWeekStart,
+    setCurrentDate
+  );
+  const navigatesByWeek = activeCalendar === 'week' && !!setWeekStart;
+
+  const handleToday = useCallback(() => {
+    const today = new Date();
+    setCurrentDate(today);
+    setWeekStart?.(getStartOfWeek(today));
+  }, [setCurrentDate, setWeekStart]);
+
   return (
-    <div className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b border-grey-light bg-white px-3 py-2">
-      <div className="flex shrink-0 items-center gap-3">
+    <div
+      className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b bg-neutral-0 px-4 py-2.5"
+      style={{ borderColor: 'var(--hairline)' }}
+    >
+      <div className="flex shrink-0 items-center gap-2.5">
         <GlassTooltip content="Select date" side="bottom">
           <div className="relative z-150">
             <Datepicker
@@ -437,9 +453,21 @@ const Header = ({
             />
           </div>
         </GlassTooltip>
-        <div className="whitespace-nowrap text-body-3 font-medium text-text-primary">
-          {getMonthYear(currentDate)}
-        </div>
+        <CalendarDateNav
+          label={getMonthYear(currentDate)}
+          prevLabel={navigatesByWeek ? 'Previous week' : 'Previous day'}
+          nextLabel={navigatesByWeek ? 'Next week' : 'Next day'}
+          onPrev={navigatesByWeek ? handlePrevWeek : handlePrevDay}
+          onNext={navigatesByWeek ? handleNextWeek : handleNextDay}
+        />
+        <button
+          type="button"
+          onClick={handleToday}
+          className="shrink-0 rounded-full! px-[13px] py-2 text-[12px] font-bold whitespace-nowrap transition-colors text-[var(--ink-body)] hover:bg-card-hover!"
+          style={{ borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--hairline)' }}
+        >
+          Today
+        </button>
       </div>
 
       <div
@@ -448,6 +476,18 @@ const Header = ({
         onWheel={onWheelHorizontal}
       >
         <div className="flex w-max items-center gap-3 ml-auto">
+          {activeCalendar && setActiveCalendar && (
+            <SegmentedPill
+              options={CALENDAR_VIEW_OPTIONS}
+              value={activeCalendar}
+              onChange={(next) => {
+                if (next === activeCalendar) return;
+                startTransition(() => setActiveCalendar(next));
+              }}
+              ariaLabel="Calendar view"
+            />
+          )}
+
           {statusOptions && statusOptions.length > 0 && (
             <StatusFilterDropdown
               statusOptions={statusOptions}
@@ -468,22 +508,18 @@ const Header = ({
 
           {showAddButton && (
             <>
-              <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
+              <div
+                className="h-6 w-px shrink-0"
+                style={{ backgroundColor: 'var(--hairline)' }}
+                aria-hidden="true"
+              />
               <Primary
-                text="Add Appointment"
+                text="New appointment"
                 onClick={onAddButtonClick}
-                icon={<IoAdd size={18} aria-hidden="true" />}
-                className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+                icon={<IoAdd size={16} aria-hidden="true" />}
+                className="h-10 w-fit shrink-0 justify-center gap-[7px] px-[18px] py-0 text-[13.5px] font-semibold whitespace-nowrap hover:scale-100"
               />
             </>
-          )}
-
-          {showCalendarTypeSelector && (
-            <CalendarViewDropdown
-              activeCalendar={activeCalendar}
-              setActiveCalendar={setActiveCalendar}
-              isMounted={isMounted}
-            />
           )}
 
           {zoomMode && setZoomMode && <ZoomToggle zoomMode={zoomMode} setZoomMode={setZoomMode} />}

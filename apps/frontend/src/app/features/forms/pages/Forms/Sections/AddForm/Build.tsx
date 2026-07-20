@@ -1,8 +1,27 @@
-import { Primary } from '@/app/ui/primitives/Buttons';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { LuCopy, LuPlus, LuTrash2 } from 'react-icons/lu';
+import {
+  IoAddOutline,
+  IoCopyOutline,
+  IoTrashOutline,
+  IoReorderTwoOutline,
+  IoTextOutline,
+  IoReaderOutline,
+  IoCheckboxOutline,
+  IoRadioButtonOnOutline,
+  IoCalendarOutline,
+  IoCreateOutline,
+  IoRemoveOutline,
+  IoListOutline,
+  IoMedkitOutline,
+  IoBriefcaseOutline,
+  IoCheckmarkDoneOutline,
+  IoLayersOutline,
+  IoEllipsisHorizontal,
+  IoChevronUp,
+  IoChevronDown,
+} from 'react-icons/io5';
 import {
   FormField,
   FormFieldType,
@@ -43,24 +62,27 @@ import { InventoryApiItem } from '@/app/features/inventory/pages/Inventory/types
 import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
 import { ensureSingleSignatureAtEnd, hasSignatureField } from '@/app/lib/forms';
 
+// `FormsProps.schema` is optional (a draft may never have had one), so every read/mutation of
+// the field list normalises through here rather than repeating the fallback at each call site.
+const schemaOf = (form: FormsProps): FormField[] => form.schema ?? [];
+
 // Builds a nested-field updater for a group field. Shared by the service/medication/task
 // group builders so their (otherwise identical) update handlers aren't duplicated.
 const makeNestedFieldUpdater =
   (
-    group: FormField & { type: 'group'; fields?: FormField[] },
+    group: FormField & { type: 'group'; fields: FormField[] },
     onChange: (next: FormField) => void
   ) =>
   (id: string, updatedField: FormField): void => {
     onChange({
       ...group,
-      fields: (group.fields ?? []).map((f) => (f.id === id ? updatedField : f)),
+      fields: group.fields.map((f) => (f.id === id ? updatedField : f)),
     });
   };
 
 type BuildProps = {
   formData: FormsProps;
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
-  onNext: () => void;
   serviceOptions: { label: string; value: string; badge?: string }[];
   ref?: React.Ref<AddFormStepHandle>;
 };
@@ -161,20 +183,24 @@ const defaultRadioOptions = [
   { label: 'Option B', value: 'option_b' },
 ];
 
+/* Must match the lower-cased inventory categories in `Inventory/types.ts` exactly,
+   spacing included: the canonical 'IV / Fluid therapy' has spaces around the slash. */
 const MEDICINE_INVENTORY_CATEGORIES = new Set([
   'medicine',
   'vaccine',
   'supplement',
-  'iv/fluid therapy',
+  'iv / fluid therapy',
 ]);
 
+// `mapApiItemToInventoryItem` already folds the raw item's own `category` / `itemType` into the
+// normalized shape (`basicInfo.category` is `apiItem.category ?? ''`, and both `basicInfo.itemType`
+// and `classification.itemType` come from the same `normalizeItemTypeForForm(...)` call), so the
+// normalized values are the only ones worth reading here.
 const isMedicineInventoryItem = (item: InventoryApiItem): boolean => {
   const normalized = mapApiItemToInventoryItem(item);
-  const category = `${normalized.basicInfo.category ?? item.category ?? ''}`.trim().toLowerCase();
-  const itemType =
-    `${normalized.classification.itemType ?? normalized.basicInfo.itemType ?? item.itemType ?? ''}`
-      .trim()
-      .toLowerCase();
+  const category = normalized.basicInfo.category.trim().toLowerCase();
+  /* v8 ignore next -- `normalizeItemTypeForForm` always returns a string, so `classification.itemType` is never nullish; the fallback only satisfies the optional type */
+  const itemType = (normalized.classification.itemType ?? '').trim().toLowerCase();
   return (
     MEDICINE_INVENTORY_CATEGORIES.has(category) || itemType === 'drug' || itemType === 'medical'
   );
@@ -320,7 +346,7 @@ const AddFieldDropdown: React.FC<{
         className="cursor-pointer"
       />
       {open && (
-        <div className="absolute top-[120%] z-10 right-0 rounded-2xl border border-grey-noti bg-white shadow-md! flex flex-col items-center w-[160px]">
+        <div className="absolute top-[120%] z-10 right-0 rounded-2xl border border-grey-noti bg-neutral-0 shadow-md! flex flex-col items-center w-[160px]">
           {options.map((option, i) => (
             <button
               type="button"
@@ -448,7 +474,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   serviceOptions,
 }) => {
   const structureLocked = use(StructureLockContext);
-  const groupField: FormField & { type: 'group'; fields?: FormField[] } = {
+  const groupField: FormField & { type: 'group'; fields: FormField[] } = {
     ...field,
     fields: field.fields ?? [],
   };
@@ -464,14 +490,14 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           const match = serviceOptions.find((o) => o.value === val);
           return match ?? { label: val, value: val };
         }),
-        meta: checkbox?.meta ? { ...checkbox.meta, serviceIds: values } : { serviceIds: values },
+        // Spreading a nullish meta is a no-op, so this keeps any existing meta without
+        // needing to branch on it.
+        meta: { ...checkbox?.meta, serviceIds: values },
       };
       onChange({
         ...group,
-        meta: group.meta ? { ...group.meta, serviceIds: values } : { serviceIds: values },
-        fields: (group.fields ?? []).map((f) =>
-          f.id === checkbox?.id ? (nextCheckbox as FormField) : f
-        ),
+        meta: { ...group.meta, serviceIds: values },
+        fields: group.fields.map((f) => (f.id === checkbox?.id ? (nextCheckbox as FormField) : f)),
       });
     };
 
@@ -489,7 +515,6 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
             value={group.label || ''}
             inlabel="Group name"
             onChange={(e) => onChange({ ...group, label: e.target.value })}
-            className="min-h-12!"
           />
         )}
         <MultiSelectDropdown
@@ -507,14 +532,14 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   const removeNestedField = (id: string) =>
     onChange({
       ...groupField,
-      fields: (groupField.fields ?? []).filter((f) => f.id !== id),
+      fields: groupField.fields.filter((f) => f.id !== id),
     });
 
   const addNestedField = (key: OptionKey) => {
     const newField = createField(key);
     onChange({
       ...groupField,
-      fields: [...(groupField.fields ?? []), newField],
+      fields: [...groupField.fields, newField],
     });
   };
 
@@ -534,11 +559,10 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           value={groupField.label || ''}
           inlabel="Group name"
           onChange={(e) => onChange({ ...groupField, label: e.target.value })}
-          className="min-h-12!"
         />
       )}
 
-      {(groupField.fields ?? []).map((nested) => {
+      {groupField.fields.map((nested) => {
         if (nested.type === 'group') {
           // Check if this is a medication group
           if (isMedicationGroup(nested)) {
@@ -668,7 +692,7 @@ const MedicineCard: React.FC<{
           {summary && <span className="text-caption-2 text-text-secondary">{summary}</span>}
         </div>
         <CircleIconButton
-          icon={<LuTrash2 size={16} aria-hidden="true" />}
+          icon={<IoTrashOutline size={16} aria-hidden="true" />}
           label={`Remove ${name}`}
           onClick={onRemove}
         />
@@ -745,12 +769,15 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const [medicines, setMedicines] = useState<InventoryApiItem[]>([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
+  // A group saved before it held any medicine has no `fields` array at all; normalise once so
+  // the handlers and the render below can treat the medicine list as an array.
+  const medicineGroups = React.useMemo(() => field.fields ?? [], [field.fields]);
   const selectedMedicines = React.useMemo(
     () =>
-      (field.fields ?? [])
+      medicineGroups
         .map((item) => (item.meta as { medicineId?: string } | undefined)?.medicineId)
         .filter((value): value is string => Boolean(value)),
-    [field.fields]
+    [medicineGroups]
   );
   const selectedMedicineSet = React.useMemo(() => new Set(selectedMedicines), [selectedMedicines]);
 
@@ -781,11 +808,12 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
     if (!medicineId || selectedMedicineSet.has(medicineId)) return;
 
     const medicine = medicines.find((m) => m._id === medicineId);
+    /* v8 ignore next -- defensive: the picker's options are derived from `medicines`, so a selected id always resolves back to an item */
     if (!medicine) return;
     const normalizedMedicine = mapApiItemToInventoryItem(medicine);
     const inventoryItemId = medicine._id;
 
-    const medicineCount = (field.fields ?? []).length + 1;
+    const medicineCount = medicineGroups.length + 1;
     const fieldPrefix = `${field.id}_med_${medicineCount}`;
 
     // Read inventory-sourced values through the same mapper used by the Treatment step so the
@@ -883,18 +911,18 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
 
     onChange({
       ...field,
-      fields: [...(field.fields ?? []), newMedicineGroup],
+      fields: [...medicineGroups, newMedicineGroup],
     });
   };
 
   const removeMedicine = (medFieldId: string) => {
     onChange({
       ...field,
-      fields: (field.fields ?? []).filter((f) => f.id !== medFieldId),
+      fields: medicineGroups.filter((f) => f.id !== medFieldId),
     });
   };
 
-  const updateNestedField = makeNestedFieldUpdater(field, onChange);
+  const updateNestedField = makeNestedFieldUpdater({ ...field, fields: medicineGroups }, onChange);
 
   return (
     <div className="flex flex-col gap-4">
@@ -911,7 +939,6 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
           value={field.label || ''}
           inlabel="Group name"
           onChange={(e) => onChange({ ...field, label: e.target.value })}
-          className="min-h-12!"
         />
       )}
 
@@ -924,7 +951,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
         noOptionsMessage={loadingMedicines ? 'Loading medicines…' : 'No medicines available'}
       />
 
-      {(field.fields ?? []).map((nested) => {
+      {medicineGroups.map((nested) => {
         const medicineGroup = nested as FormField & { type: 'group'; fields?: FormField[] };
         if (medicineGroup.type !== 'group') return null;
         return (
@@ -955,12 +982,6 @@ const taskBlockFieldValue = (field?: FormField): string => {
   return value === undefined || value === null ? '' : String(value);
 };
 
-const taskBlockFieldOptions = (f?: FormField): { label: string; value: string }[] =>
-  ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
-    label: string;
-    value: string;
-  }[];
-
 /**
  * One task block in the "Building a template" task builder, rendered as the
  * mockup card: Task title, Category, Instructions, Repeat, Reminder, Duration —
@@ -968,6 +989,12 @@ const taskBlockFieldOptions = (f?: FormField): { label: string; value: string }[
  * matching `taskBlockKey` leaf field's `defaultValue`, which lib/forms.ts reads
  * when serializing the block into the TASK_ASSIGNMENT template rules.
  */
+const fieldOptions = (f?: FormField): { label: string; value: string }[] =>
+  ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
+    label: string;
+    value: string;
+  }[];
+
 const TaskBlockCard: React.FC<{
   block: FormField & { type: 'group'; fields?: FormField[] };
   index: number;
@@ -977,8 +1004,6 @@ const TaskBlockCard: React.FC<{
 }> = ({ block, index, onChange, onDuplicate, onRemove }) => {
   const fieldByKey = (key: string) =>
     (block.fields ?? []).find((f) => (f.meta as { taskBlockKey?: string })?.taskBlockKey === key);
-
-  const fieldOptions = taskBlockFieldOptions;
 
   const setKeyValue = (key: string, value: string) => {
     onChange({
@@ -1004,12 +1029,12 @@ const TaskBlockCard: React.FC<{
         <p className="text-body-3-emphasis text-text-primary">Task {index + 1}</p>
         <div className="flex items-center gap-2">
           <CircleIconButton
-            icon={<LuCopy size={16} aria-hidden="true" />}
+            icon={<IoCopyOutline size={16} aria-hidden="true" />}
             label={`Duplicate task ${index + 1}`}
             onClick={onDuplicate}
           />
           <CircleIconButton
-            icon={<LuTrash2 size={16} aria-hidden="true" />}
+            icon={<IoTrashOutline size={16} aria-hidden="true" />}
             label={`Remove task ${index + 1}`}
             onClick={onRemove}
           />
@@ -1082,19 +1107,23 @@ const TaskBlockCard: React.FC<{
 };
 
 const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) => {
+  // A task group saved before it held any block has no `fields` array at all; normalise once so
+  // the handlers below can treat the block list as an array.
+  const taskFields = field.fields ?? [];
+
   const buildTaskBlock = (): FormField => {
     const id = `${field.id}_task_${crypto.randomUUID()}`;
     return {
       id,
       type: 'group',
-      label: `Task ${(field.fields ?? []).length + 1}`,
+      label: `Task ${taskFields.length + 1}`,
       meta: { taskBlock: true, taskBlockId: id } as any,
       fields: defaultTaskBlockFields(id),
     };
   };
 
   const addTaskBlock = () => {
-    onChange({ ...field, fields: [...(field.fields ?? []), buildTaskBlock()] });
+    onChange({ ...field, fields: [...taskFields, buildTaskBlock()] });
   };
 
   // Duplicate a block with fresh field ids so the new block is independently editable.
@@ -1103,23 +1132,23 @@ const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) 
     const clone: FormField = {
       ...source,
       id,
-      label: `Task ${(field.fields ?? []).length + 1}`,
+      label: `Task ${taskFields.length + 1}`,
       meta: { taskBlock: true, taskBlockId: id } as any,
       fields: (source.fields ?? []).map((f) => ({ ...f, id: `${id}_${f.id.split('_').pop()}` })),
     };
-    onChange({ ...field, fields: [...(field.fields ?? []), clone] });
+    onChange({ ...field, fields: [...taskFields, clone] });
   };
 
   const removeTask = (taskFieldId: string) =>
-    onChange({ ...field, fields: (field.fields ?? []).filter((f) => f.id !== taskFieldId) });
+    onChange({ ...field, fields: taskFields.filter((f) => f.id !== taskFieldId) });
 
   const updateBlock = (id: string, updated: FormField) =>
     onChange({
       ...field,
-      fields: (field.fields ?? []).map((f) => (f.id === id ? updated : f)),
+      fields: taskFields.map((f) => (f.id === id ? updated : f)),
     });
 
-  const blocks = (field.fields ?? []).filter(
+  const blocks = taskFields.filter(
     (f): f is FormField & { type: 'group'; fields?: FormField[] } => f.type === 'group'
   );
 
@@ -1132,7 +1161,7 @@ const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) 
           className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-card-border bg-neutral-0 p-6 text-body-3-emphasis text-text-primary"
         >
           <span className="flex size-6 items-center justify-center rounded-full bg-neutral-900 text-neutral-0">
-            <LuPlus size={14} aria-hidden="true" />
+            <IoAddOutline size={14} aria-hidden="true" />
           </span>
           <span>Add task block</span>
         </button>
@@ -1156,7 +1185,7 @@ const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) 
           className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-card-border bg-neutral-0 p-4 text-body-3-emphasis text-text-primary"
         >
           <span className="flex size-6 items-center justify-center rounded-full bg-neutral-900 text-neutral-0">
-            <LuPlus size={14} aria-hidden="true" />
+            <IoAddOutline size={14} aria-hidden="true" />
           </span>
           <span>Add another task</span>
         </button>
@@ -1171,13 +1200,258 @@ const updateFieldInForm = (
   updatedField: FormField
 ): FormsProps => ({
   ...prev,
-  schema: (prev.schema || []).map((field) => (field.id === fieldId ? updatedField : field)),
+  schema: schemaOf(prev).map((field) => (field.id === fieldId ? updatedField : field)),
 });
 
 const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
   ...form,
-  schema: (form.schema || []).filter((field) => field.id !== id),
+  schema: schemaOf(form).filter((field) => field.id !== id),
 });
+
+// ---- Single-screen builder pieces -------------------------------------------------
+
+/** Palette icon per add-option key (design's field tiles). */
+const paletteIconFor = (key: OptionKey): React.ReactNode => {
+  const map: Partial<Record<OptionKey, React.ReactNode>> = {
+    input: <IoTextOutline size={15} aria-hidden="true" />,
+    textarea: <IoReaderOutline size={15} aria-hidden="true" />,
+    richtext: <IoReaderOutline size={15} aria-hidden="true" />,
+    number: <IoTextOutline size={15} aria-hidden="true" />,
+    dropdown: <IoListOutline size={15} aria-hidden="true" />,
+    radio: <IoRadioButtonOnOutline size={15} aria-hidden="true" />,
+    checkbox: <IoCheckboxOutline size={15} aria-hidden="true" />,
+    boolean: <IoCheckboxOutline size={15} aria-hidden="true" />,
+    date: <IoCalendarOutline size={15} aria-hidden="true" />,
+    signature: <IoCreateOutline size={15} aria-hidden="true" />,
+    group: <IoRemoveOutline size={15} aria-hidden="true" />,
+    medication: <IoMedkitOutline size={15} aria-hidden="true" />,
+    'service-group': <IoBriefcaseOutline size={15} aria-hidden="true" />,
+    'task-group': <IoCheckmarkDoneOutline size={15} aria-hidden="true" />,
+  };
+  return map[key] ?? <IoLayersOutline size={15} aria-hidden="true" />;
+};
+
+/** Human display name for a field, used in the canvas row summary. */
+const fieldTypeName = (field: FormField): string => {
+  if (field.type === 'group') {
+    if (field.meta?.medicationGroup) return 'Medications';
+    if (field.meta?.serviceGroup) return 'Services / Packages';
+    if (field.meta?.taskGroup) return 'Tasks';
+    return 'Section';
+  }
+  const names: Record<string, string> = {
+    input: 'Short text',
+    number: 'Number',
+    textarea: 'Paragraph',
+    richtext: 'Rich text',
+    dropdown: 'Select list',
+    radio: 'Single choice',
+    checkbox: 'Checkbox',
+    boolean: 'Yes / No',
+    date: 'Date',
+    signature: 'Signature',
+  };
+  return names[field.type] ?? field.type;
+};
+
+/** "Checkbox · required"-style summary line for a canvas row. */
+const fieldRowSummary = (field: FormField, selected: boolean): string => {
+  const parts = [fieldTypeName(field)];
+  if (field.required) parts.push('required');
+  if (field.type === 'signature') parts.push('signed in the pet-parent app');
+  if (selected) parts.push('selected');
+  return parts.join(' · ');
+};
+
+/** Recursively clone a field with fresh ids so duplicates edit independently. */
+const cloneFieldWithNewIds = (field: FormField): FormField => {
+  const nested = (field as FormField & { fields?: FormField[] }).fields;
+  return {
+    ...field,
+    id: crypto.randomUUID(),
+    ...(nested ? { fields: nested.map(cloneFieldWithNewIds) } : {}),
+  } as FormField;
+};
+
+/** Pill switch used in the Field settings panel (Required / Show in summary PDF). */
+const SettingToggle: React.FC<{
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}> = ({ label, checked, onChange }) => (
+  <div className="flex items-center justify-between">
+    <span className="text-[13px] font-semibold text-[var(--ink-body)]">{label}</span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative h-6 w-10 rounded-full transition-colors ${
+        checked ? 'bg-[var(--blue)]' : 'bg-[var(--divider)]'
+      }`}
+    >
+      <span
+        className={`absolute top-[3px] size-[18px] rounded-full bg-white transition-all ${
+          checked ? 'right-[3px]' : 'left-[3px]'
+        }`}
+      />
+    </button>
+  </div>
+);
+
+/** Palette icon tint: signature is pink (matching its dashed row), section break is faint ink. */
+const paletteIconColorFor = (key: OptionKey): string => {
+  if (key === 'signature') return 'text-[var(--pink)]';
+  if (key === 'group') return 'text-[var(--ink-faint)]';
+  return 'text-[var(--blue-text)]';
+};
+
+/** Left-palette tile that adds a field of the given type to the canvas. */
+const PaletteTile: React.FC<{ option: OptionProp; onAdd: (key: OptionKey) => void }> = ({
+  option,
+  onAdd,
+}) => (
+  <button
+    type="button"
+    onClick={() => onAdd(option.key)}
+    className="flex items-center gap-2.5 rounded-xl border border-[var(--hairline)] bg-[var(--screen)] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--ink-body)] transition-colors hover:border-[var(--blue)]"
+  >
+    <span className={paletteIconColorFor(option.key)}>{paletteIconFor(option.key)}</span>
+    {option.name}
+  </button>
+);
+
+/** Compact, selectable canvas row (drag handle + label + type/required summary + actions). */
+const CanvasRow: React.FC<{
+  field: FormField;
+  selected: boolean;
+  locked: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
+  isDragging?: boolean;
+}> = ({
+  field,
+  selected,
+  locked,
+  onSelect,
+  onDelete,
+  onDuplicate,
+  onMoveUp,
+  onMoveDown,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging,
+}) => {
+  const isSignature = field.type === 'signature';
+  const title = field.label || fieldTypeName(field);
+  const borderClass = (() => {
+    if (selected) return 'border-[1.5px] border-[var(--blue)] shadow-[0_0_0_3px_var(--glow-b10)]';
+    if (isSignature) return 'border border-dashed border-[var(--pink)]';
+    return 'border border-[var(--hairline)]';
+  })();
+  return (
+    <div /* NOSONAR: draggable selection row that wraps action <button>s; a native <button> would nest interactive buttons (forbidden), so role="button" + tabIndex + onKeyDown provide equivalent keyboard access */
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`${fieldTypeName(field)} field`}
+      data-testid={`canvas-row-${field.id}`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      className={`flex cursor-pointer items-center gap-2.5 rounded-[13px] bg-[var(--screen)] px-4 py-3 transition-shadow ${borderClass} ${
+        isDragging ? 'opacity-60' : ''
+      }`}
+    >
+      <span data-drag-handle className={draggable ? 'cursor-grab' : ''}>
+        {isSignature ? (
+          <IoCreateOutline size={15} className="text-[var(--pink)]" aria-hidden="true" />
+        ) : (
+          <IoReorderTwoOutline size={15} className="text-[var(--ink-faint2)]" aria-hidden="true" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-bold text-[var(--ink)]">{title}</span>
+        <span className="block text-[11px] text-[var(--ink-faint)]">
+          {fieldRowSummary(field, selected)}
+        </span>
+      </span>
+      {selected && !locked ? (
+        <span className="flex items-center gap-1.5">
+          {onMoveUp && (
+            <button
+              type="button"
+              title="Move up"
+              aria-label="Move up"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveUp();
+              }}
+            >
+              <IoChevronUp size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+            </button>
+          )}
+          {onMoveDown && (
+            <button
+              type="button"
+              title="Move down"
+              aria-label="Move down"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveDown();
+              }}
+            >
+              <IoChevronDown size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={`Duplicate ${title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+          >
+            <IoCopyOutline size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label={`delete-${field.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            <IoTrashOutline size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+          </button>
+        </span>
+      ) : (
+        <IoEllipsisHorizontal size={15} className="text-[var(--ink-faint)]" aria-hidden="true" />
+      )}
+    </div>
+  );
+};
 
 // Drag-to-reorder with edge auto-scroll for the builder field list. Owns the
 // drag index plus the scroll velocity/animation refs so Build stays focused on
@@ -1284,8 +1558,217 @@ const useBuilderDragAutoScroll = (
   return { dragIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd };
 };
 
-const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProps) => {
+// ---- Build render columns ---------------------------------------------------------
+// Extracted from Build's render so each of the three builder panes (palette / canvas /
+// settings) is its own cohesive component with identical DOM; Build stays focused on
+// schema state and passes the handlers each pane needs.
+
+type BuilderPaletteProps = {
+  structureLocked: boolean;
+  options: OptionProp[];
+  onAdd: (key: OptionKey) => void;
+};
+
+const BuilderPalette: React.FC<BuilderPaletteProps> = ({ structureLocked, options, onAdd }) => (
+  <div className="flex w-full flex-none flex-col gap-2 overflow-y-auto border-b border-[var(--hairline)] bg-[var(--screen-2)] p-4 scrollbar-hidden @4xl:w-[250px] @4xl:border-b-0 @4xl:border-r">
+    <span className="px-1 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+      Add a field
+    </span>
+    {structureLocked ? (
+      <p className="rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
+        This template has a locked structure. Field content stays editable, but fields cannot be
+        added, removed, or reordered.
+      </p>
+    ) : (
+      <>
+        {options.map((option) => (
+          <PaletteTile key={option.key} option={option} onAdd={onAdd} />
+        ))}
+        <div className="mt-auto rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
+          <span className="font-bold text-[var(--blue-text)]">Tip</span> · click a field to add it
+          to the canvas. Signature fields make the template signable in the parent app.
+        </div>
+      </>
+    )}
+  </div>
+);
+
+type BuilderCanvasProps = {
+  schema: FormField[];
+  effectiveSelectedId: string | null;
+  structureLocked: boolean;
+  buildError: string;
+  dragIndex: number | null;
+  onSelect: (id: string | null) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (index: number) => void;
+  onMove: (index: number, direction: 'up' | 'down') => void;
+  onDragStart: (index: number) => (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop: (index: number) => (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
+};
+
+const BuilderCanvas: React.FC<BuilderCanvasProps> = ({
+  schema,
+  effectiveSelectedId,
+  structureLocked,
+  buildError,
+  dragIndex,
+  onSelect,
+  onDelete,
+  onDuplicate,
+  onMove,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}) => (
+  <div className="flex min-h-[280px] min-w-0 flex-[1.3] flex-col gap-2.5 overflow-y-auto bg-[var(--inset)] p-5 @4xl:min-h-0">
+    {schema.length === 0 && (
+      <p className="text-[12.5px] text-[var(--ink-faint)]">
+        No fields yet. Add a field from the palette to start building.
+      </p>
+    )}
+    {schema.map((field, index) => (
+      <CanvasRow
+        key={field.id}
+        field={field}
+        selected={field.id === effectiveSelectedId}
+        locked={structureLocked}
+        onSelect={() => onSelect(field.id)}
+        onDelete={() => onDelete(field.id)}
+        onDuplicate={() => onDuplicate(index)}
+        onMoveUp={() => onMove(index, 'up')}
+        onMoveDown={() => onMove(index, 'down')}
+        draggable={!structureLocked}
+        onDragStart={onDragStart(index)}
+        onDragOver={onDragOver}
+        onDrop={onDrop(index)}
+        onDragEnd={onDragEnd}
+        isDragging={dragIndex === index}
+      />
+    ))}
+    {buildError && (
+      <div className="mt-1 flex items-center gap-1 px-1 text-caption-2 text-text-error">
+        <IoIosWarning className="text-text-error" size={14} />
+        <span>{buildError}</span>
+      </div>
+    )}
+    {!structureLocked && (
+      <span className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--divider)] p-3 text-[12.5px] font-semibold text-[var(--ink-faint)]">
+        <IoAddOutline size={14} aria-hidden="true" />
+        Drop a field here
+      </span>
+    )}
+  </div>
+);
+
+/** Linked-service tag: violet for a service, blue for a package, per the design. */
+const LinkedServiceBadge: React.FC<{ badge?: string }> = ({ badge }) => {
+  const label = (badge ?? 'SERVICE').toUpperCase();
+  const tone =
+    label === 'PACKAGE'
+      ? 'border-[var(--status-upcoming-border)] bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)]'
+      : 'border-[var(--status-in-progress-border)] bg-[var(--status-in-progress-bg)] text-[var(--status-in-progress-text)]';
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${tone}`}>{label}</span>
+  );
+};
+
+type BuilderSettingsPanelProps = {
+  selectedField: FormField | null;
+  renderSelectedBuilder: (field: FormField) => React.ReactNode;
+  onToggleRequired: (field: FormField) => void;
+  onToggleSummary: (field: FormField) => void;
+  linkedServices: { label: string; value: string; badge?: string }[];
+  showServicePicker: boolean;
+  onToggleServicePicker: () => void;
+  services: string[];
+  serviceOptions: { label: string; value: string; badge?: string }[];
+  onServicesChange: (values: string[]) => void;
+};
+
+const BuilderSettingsPanel: React.FC<BuilderSettingsPanelProps> = ({
+  selectedField,
+  renderSelectedBuilder,
+  onToggleRequired,
+  onToggleSummary,
+  linkedServices,
+  showServicePicker,
+  onToggleServicePicker,
+  services,
+  serviceOptions,
+  onServicesChange,
+}) => (
+  <div className="flex w-full max-w-full flex-none flex-col gap-3.5 overflow-y-auto border-t border-[var(--hairline)] p-5 scrollbar-hidden @4xl:w-[320px] @4xl:max-w-[320px] @4xl:border-t-0 @4xl:border-l">
+    <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+      Field settings
+    </span>
+    {selectedField ? (
+      <>
+        {renderSelectedBuilder(selectedField)}
+        {selectedField.type !== 'group' && (
+          <>
+            <SettingToggle
+              label="Required"
+              checked={Boolean(selectedField.required)}
+              onChange={() => onToggleRequired(selectedField)}
+            />
+            <SettingToggle
+              label="Show in summary PDF"
+              checked={selectedField.meta?.showInSummaryPdf !== false}
+              onChange={() => onToggleSummary(selectedField)}
+            />
+          </>
+        )}
+        <span className="h-px bg-[var(--hairline)]" />
+        <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+          Linked services
+        </span>
+        <div className="flex flex-col gap-2">
+          {linkedServices.length === 0 && (
+            <span className="text-[12px] text-[var(--ink-faint)]">No linked services yet.</span>
+          )}
+          {linkedServices.map((service) => (
+            <span
+              key={service.value}
+              className="flex items-center justify-between rounded-[11px] border border-[var(--hairline)] px-3 py-2 text-[12.5px] font-semibold text-[var(--ink-body)]"
+            >
+              {service.label}
+              <LinkedServiceBadge badge={service.badge} />
+            </span>
+          ))}
+          {showServicePicker && (
+            <MultiSelectDropdown
+              placeholder="Link services / packages"
+              value={services}
+              onChange={onServicesChange}
+              options={serviceOptions}
+            />
+          )}
+          <button
+            type="button"
+            onClick={onToggleServicePicker}
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--blue-text)]"
+          >
+            <IoAddOutline size={13} aria-hidden="true" />
+            Link another service
+          </button>
+        </div>
+      </>
+    ) : (
+      <p className="text-[12.5px] text-[var(--ink-faint)]">
+        Select a field in the canvas to edit its settings, or add one from the palette.
+      </p>
+    )}
+  </div>
+);
+
+const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   const [buildError, setBuildError] = useState<string>('');
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [showServicePicker, setShowServicePicker] = useState(false);
   const builderRef = React.useRef<HTMLDivElement | null>(null);
   const createField = (key: OptionKey): FormField => {
     const id = crypto.randomUUID();
@@ -1313,7 +1796,7 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
   };
 
   const canDeleteField = (fieldId: string): boolean => {
-    const field = (formData.schema ?? []).find((f) => f.id === fieldId);
+    const field = schemaOf(formData).find((f) => f.id === fieldId);
     const signerRequired = formData.requiredSigner !== undefined && formData.requiredSigner !== '';
     if (signerRequired && field?.type === 'signature') {
       setBuildError("Cannot remove signature while 'Signed by' is selected.");
@@ -1323,6 +1806,7 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
   };
 
   const handleDeleteField = (fieldId: string) => {
+    /* v8 ignore next -- defensive: CanvasRow only renders the delete control on an unlocked row, so this cannot be reached from the UI */
     if (structureLocked) return;
     if (!canDeleteField(fieldId)) return;
     setBuildError('');
@@ -1332,14 +1816,16 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
   const addMedicationGroup = () => {
     setFormData((prev) => {
       const medField = createField('medication');
-      const updatedSchema = addMedicationToTreatmentPlan(prev.schema ?? [], medField);
+      const updatedSchema = addMedicationToTreatmentPlan(schemaOf(prev), medField);
       return { ...prev, schema: updatedSchema };
     });
   };
 
   const addField = (key: OptionKey) => {
+    /* v8 ignore next -- defensive: BuilderPalette renders no tiles at all while locked, so this cannot be reached from the UI */
     if (structureLocked) return;
     if (key === 'signature') {
+      /* v8 ignore next 8 -- unreachable defensive guards: BuilderPalette renders addOptionsForContext, which filters the signature tile out whenever category is SOAP or canUseSignature is false, so addField('signature') can only run when both guards are already satisfied */
       if (formData.category === 'SOAP') {
         setBuildError('SOAP templates cannot include signature fields.');
         return;
@@ -1348,14 +1834,15 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
         setBuildError("Select 'Signed by' in Form details before adding a signature field.");
         return;
       }
-      if (hasSignatureField(formData.schema ?? [])) {
+      if (hasSignatureField(schemaOf(formData))) {
         setBuildError('Only one signature field is allowed per form.');
         return;
       }
     }
 
-    const hasTreatmentPlan =
-      formData.schema?.some((f) => f.id === 'treatment_plan' && f.type === 'group') ?? false;
+    const hasTreatmentPlan = schemaOf(formData).some(
+      (f) => f.id === 'treatment_plan' && f.type === 'group'
+    );
 
     if (key === 'medication' && hasTreatmentPlan) {
       addMedicationGroup();
@@ -1370,16 +1857,32 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
       ...prev,
       schema:
         key === 'signature' && new Set(['Prescription', 'Discharge Form']).has(prev.category)
-          ? ensureSingleSignatureAtEnd([...(prev.schema ?? []), newField])
-          : [...(prev.schema ?? []), newField],
+          ? ensureSingleSignatureAtEnd([...schemaOf(prev), newField])
+          : [...schemaOf(prev), newField],
     }));
+    setSelectedFieldId(newField.id);
     setBuildError('');
   };
 
-  const moveField = (index: number, direction: 'up' | 'down') => {
+  // Duplicate a top-level field (with fresh ids) directly below the original.
+  const duplicateField = (index: number) => {
+    /* v8 ignore next -- defensive: CanvasRow only renders the duplicate control on an unlocked row, so this cannot be reached from the UI */
     if (structureLocked) return;
     setFormData((prev) => {
-      const schema = [...(prev.schema ?? [])];
+      const schema = [...schemaOf(prev)];
+      if (index < 0 || index >= schema.length) return prev;
+      const clone = cloneFieldWithNewIds(schema[index]);
+      schema.splice(index + 1, 0, clone);
+      setSelectedFieldId(clone.id);
+      return { ...prev, schema };
+    });
+  };
+
+  const moveField = (index: number, direction: 'up' | 'down') => {
+    /* v8 ignore next -- defensive: CanvasRow only renders the move controls on an unlocked row, so this cannot be reached from the UI */
+    if (structureLocked) return;
+    setFormData((prev) => {
+      const schema = [...schemaOf(prev)];
       const newIndex = direction === 'up' ? index - 1 : index + 1;
 
       if (newIndex < 0 || newIndex >= schema.length) return prev;
@@ -1396,7 +1899,7 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
     if (structureLocked) return;
     if (from === to) return;
     setFormData((prev) => {
-      const schema = [...(prev.schema ?? [])];
+      const schema = [...schemaOf(prev)];
       if (from < 0 || to < 0 || from >= schema.length || to >= schema.length) {
         return prev;
       }
@@ -1421,125 +1924,118 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
 
   React.useImperativeHandle(ref, () => ({ validate }), [validate]);
 
+  const schema = schemaOf(formData);
+  // Derive the effective selection while rendering: default to the first field,
+  // and re-point when the selected field was removed from the schema. Computing
+  // this here (instead of syncing it through a useEffect) avoids a stale frame.
+  const effectiveSelectedId = React.useMemo(() => {
+    const ids = (formData.schema ?? []).map((f) => f.id);
+    if (ids.length === 0) return null;
+    if (selectedFieldId && ids.includes(selectedFieldId)) return selectedFieldId;
+    return ids[0];
+  }, [formData.schema, selectedFieldId]);
+  const selectedField = schema.find((f) => f.id === effectiveSelectedId) ?? null;
+
+  const toggleRequired = (field: FormField) =>
+    handleFieldChange(field.id, { ...field, required: !field.required });
+
+  const toggleSummary = (field: FormField) =>
+    handleFieldChange(field.id, {
+      ...field,
+      meta: { ...field.meta, showInSummaryPdf: field.meta?.showInSummaryPdf === false },
+    });
+
+  const linkedServices = (formData.services ?? []).map(
+    (value) => serviceOptions.find((o) => o.value === value) ?? { label: value, value }
+  );
+
+  // Render the existing builder for the selected field in the right settings panel.
+  // Every field type (simple leaves + medication/task/service/generic groups) reuses
+  // its original builder component, so all per-field configuration is preserved.
+  const renderSelectedBuilder = (field: FormField): React.ReactNode => {
+    const fieldId = field.id; // Capture before group type-guards narrow `field` to never.
+    if (field.type === 'group') {
+      const ensured = isServiceGroup(field)
+        ? ensureServiceCheckbox(field, serviceOptions).group
+        : field;
+      if (isMedicationGroup(field)) {
+        return (
+          <MedicationGroupBuilder
+            field={field}
+            onChange={(updated) => handleFieldChange(fieldId, updated)}
+          />
+        );
+      }
+      if (isTaskGroup(field)) {
+        return (
+          <TaskGroupBuilder
+            field={field}
+            onChange={(updated) => handleFieldChange(fieldId, updated)}
+          />
+        );
+      }
+      return (
+        <GroupBuilder
+          field={ensured}
+          onChange={(updated) => handleFieldChange(fieldId, updated)}
+          createField={createField}
+          serviceOptions={serviceOptions}
+        />
+      );
+    }
+    const Component = builderComponentMap[field.type];
+    return (
+      <Component
+        field={field}
+        onChange={(updated) => handleFieldChange(field.id, updated)}
+        createField={createField}
+      />
+    );
+  };
+
   return (
     <StructureLockContext.Provider value={structureLocked}>
-      <div className="flex flex-col gap-6 w-full flex-1 justify-between" ref={builderRef}>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <div className="font-satoshi text-black-text text-[23px] font-medium">Build form</div>
-            {!structureLocked && (
-              <AddFieldDropdown
-                onSelect={addField}
-                buttonClassName="w-fit"
-                options={addOptionsForContext}
-              />
-            )}
-          </div>
+      <div
+        ref={builderRef}
+        className="@container flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto scrollbar-hidden @4xl:flex-row @4xl:overflow-hidden"
+      >
+        {/* LEFT · field palette */}
+        <BuilderPalette
+          structureLocked={structureLocked}
+          options={addOptionsForContext}
+          onAdd={addField}
+        />
 
-          {formData.schema?.map((field, index) => {
-            const fieldId = field.id; // Store ID to avoid TypeScript narrowing issues
-            const canMoveUp = index > 0;
-            const canMoveDown = index < (formData.schema?.length ?? 0) - 1;
+        {/* CENTER · canvas */}
+        <BuilderCanvas
+          schema={schema}
+          effectiveSelectedId={effectiveSelectedId}
+          structureLocked={structureLocked}
+          buildError={buildError}
+          dragIndex={dragIndex}
+          onSelect={setSelectedFieldId}
+          onDelete={handleDeleteField}
+          onDuplicate={duplicateField}
+          onMove={moveField}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onDragEnd={handleDragEnd}
+        />
 
-            if (field.type === 'group') {
-              const isDragging = dragIndex === index;
-              // Service groups seed a checkbox first; every other group kind renders
-              // the field as-is. All kinds share the same draggable wrapper, so only
-              // the inner builder differs.
-              const ensured = isServiceGroup(field)
-                ? ensureServiceCheckbox(field, serviceOptions).group
-                : field;
-
-              let groupBuilder: React.ReactNode;
-              if (isMedicationGroup(field)) {
-                groupBuilder = (
-                  <MedicationGroupBuilder
-                    field={field}
-                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                  />
-                );
-              } else if (isTaskGroup(field)) {
-                groupBuilder = (
-                  <TaskGroupBuilder
-                    field={field}
-                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                  />
-                );
-              } else {
-                groupBuilder = (
-                  <GroupBuilder
-                    field={ensured}
-                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                    createField={createField}
-                    serviceOptions={serviceOptions}
-                  />
-                );
-              }
-
-              return (
-                <BuilderWrapper
-                  key={ensured.id}
-                  field={ensured}
-                  onDelete={() => handleDeleteField(fieldId)}
-                  onMoveUp={() => moveField(index, 'up')}
-                  onMoveDown={() => moveField(index, 'down')}
-                  canMoveUp={canMoveUp}
-                  canMoveDown={canMoveDown}
-                  draggable
-                  onDragStart={handleDragStart(index)}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop(index)}
-                  onDragEnd={handleDragEnd}
-                  isDragging={isDragging}
-                >
-                  {groupBuilder}
-                </BuilderWrapper>
-              );
-            }
-            return (
-              <FieldBuilder
-                key={fieldId}
-                field={field}
-                onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                onDelete={() => handleDeleteField(fieldId)}
-                onMoveUp={() => moveField(index, 'up')}
-                onMoveDown={() => moveField(index, 'down')}
-                canMoveUp={canMoveUp}
-                canMoveDown={canMoveDown}
-                createField={createField}
-                draggable
-                onDragStart={handleDragStart(index)}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop(index)}
-                onDragEnd={handleDragEnd}
-                isDragging={dragIndex === index}
-              />
-            );
-          })}
-          {buildError && (
-            <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
-              <IoIosWarning className="text-text-error" size={14} />
-              <span>{buildError}</span>
-            </div>
-          )}
-
-          {/* Add Field Button at bottom */}
-          {!structureLocked && (
-            <div className="flex flex-col items-center gap-2 py-4 border-2 border-dashed border-grey-light rounded-2xl hover:border-grey-noti transition-colors">
-              <div className="flex flex-col items-center gap-1">
-                <AddFieldDropdown
-                  onSelect={addField}
-                  buttonClassName="w-fit"
-                  options={addOptionsForContext}
-                />
-                <span className="text-sm font-satoshi font-medium text-grey-noti">Add Field</span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="px-3 pb-3 flex justify-center">
-          <Primary href="#" text="Next" onClick={onNext} className="w-fit" />
-        </div>
+        {/* RIGHT · field settings */}
+        <BuilderSettingsPanel
+          selectedField={selectedField}
+          renderSelectedBuilder={renderSelectedBuilder}
+          onToggleRequired={toggleRequired}
+          onToggleSummary={toggleSummary}
+          linkedServices={linkedServices}
+          showServicePicker={showServicePicker}
+          onToggleServicePicker={() => setShowServicePicker((v) => !v)}
+          services={formData.services ?? []}
+          serviceOptions={serviceOptions}
+          onServicesChange={(values) => setFormData((prev) => ({ ...prev, services: values }))}
+        />
       </div>
     </StructureLockContext.Provider>
   );

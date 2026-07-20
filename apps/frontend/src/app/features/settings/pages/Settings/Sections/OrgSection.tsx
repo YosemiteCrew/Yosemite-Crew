@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, startTransition } from 'react';
+import { IoGlobeOutline } from 'react-icons/io5';
 import ProfileCard from '@/app/features/organization/pages/Organization/Sections/ProfileCard';
 import Availability from '@/app/features/appointments/components/Availability/Availability';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
@@ -17,16 +18,25 @@ import {
 } from '@/app/features/organization/services/availabilityService';
 import { usePrimaryAvailability } from '@/app/hooks/useAvailabiities';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
-import { Gender, UserProfile } from '@/app/features/users/types/profile';
+import {
+  Gender,
+  UserProfile,
+  UserEmploymentTypeOptions,
+  UserGenderOptions,
+} from '@/app/features/users/types/profile';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
 import { updateUser } from '@/app/features/users/services/userService';
-import { GenderOptions } from '@/app/features/companions/types/companion';
-import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
+import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useNotify } from '@/app/hooks/useNotify';
-import { resolveTimezoneFromCountry, setPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  getPreferredTimeZone,
+  resolveTimezoneFromCountry,
+  setPreferredTimeZone,
+} from '@/app/lib/timezone';
 import { useAuthStore } from '@/app/stores/authStore';
 import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
 import { useOrgStore } from '@/app/stores/orgStore';
+import '@/app/features/settings/styles/Settings.css';
 
 const ProfessionalFields = [
   {
@@ -123,7 +133,7 @@ const UserOrgProfileFields = [
     required: false,
     editable: false,
     type: 'select',
-    options: EmploymentTypes,
+    options: UserEmploymentTypeOptions,
   },
   { label: '', key: '_sep1', required: false, editable: false, type: 'separator' },
   {
@@ -132,7 +142,7 @@ const UserOrgProfileFields = [
     required: false,
     editable: true,
     type: 'select',
-    options: GenderOptions,
+    options: UserGenderOptions,
   },
   {
     label: 'Date of birth',
@@ -283,6 +293,14 @@ const OrgSection = () => {
 
   if (!attributes || !org || !membership) return null;
 
+  // Design subtitle for the availability editor: "<practitioner> · drives booking
+  // slots and the team planner", collapsing to the trailing clause when the signed-in
+  // user has no name on their auth attributes.
+  const practitionerName = `${attributes.given_name ?? ''} ${attributes.family_name ?? ''}`.trim();
+  const availabilitySubtitle = [practitionerName, 'drives booking slots and the team planner']
+    .filter((part) => part.length > 0)
+    .join(' · ');
+
   const updateUserOrgProfileFields = async (values: any) => {
     try {
       await updateUser(values.given_name, values.family_name);
@@ -381,31 +399,45 @@ const OrgSection = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProfileCard
-        title="User profile"
-        fields={UserOrgProfileFields}
-        org={userOrgProfileData}
-        showProfileUser
-        onSave={updateUserOrgProfileFields}
-      />
-      <div className="border border-card-border rounded-2xl">
-        <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-          <div className="text-body-3 text-text-primary">Availability</div>
+      <div id="settings-user-profile" className="scroll-mt-24">
+        <ProfileCard
+          title="User profile"
+          fields={UserOrgProfileFields}
+          org={userOrgProfileData}
+          showProfileUser
+          onSave={updateUserOrgProfileFields}
+        />
+      </div>
+      <div
+        id="settings-availability"
+        className="scroll-mt-24 bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+      >
+        <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+              Availability &amp; consultation hours
+            </div>
+            <span className="yc-settings-editor-subtitle">{availabilitySubtitle}</span>
+          </div>
         </div>
-        <div className="flex flex-col px-6! py-6! gap-6">
+        <div className="flex flex-col px-5! py-5!">
           <Availability
             availability={availability}
             setAvailability={setAvailability}
             twoColumnLayout
           />
-          <div className="w-full flex justify-end!">
-            <Primary
-              href="#"
-              text={isSavingAvailability ? 'Saving...' : 'Save'}
-              onClick={handleSaveAvailability}
-              isDisabled={isSavingAvailability}
-            />
-          </div>
+        </div>
+        <div className="yc-settings-editor-footer">
+          <span className="yc-settings-tz-note">
+            <IoGlobeOutline size={14} aria-hidden="true" className="yc-settings-tz-note-icon" />
+            {getPreferredTimeZone()} · booking slots follow each service&apos;s duration
+          </span>
+          <Primary
+            href="#"
+            text={isSavingAvailability ? 'Saving...' : 'Save availability'}
+            onClick={handleSaveAvailability}
+            isDisabled={isSavingAvailability}
+          />
         </div>
       </div>
       <ProfileCard

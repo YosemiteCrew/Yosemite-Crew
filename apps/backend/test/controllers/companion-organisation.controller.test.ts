@@ -5,7 +5,7 @@ import {
 } from "../../src/services/companion-organisation.service";
 import { ParentService } from "src/services/parent.service";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import OrganizationModel from "src/models/organization";
+import { prisma } from "src/config/prisma";
 import logger from "../../src/utils/logger";
 
 // --- Global Mocks Setup (Inline definitions to prevent TDZ issues) ---
@@ -27,6 +27,7 @@ jest.mock("../../src/services/companion-organisation.service", () => {
     CompanionOrganisationService: {
       linkByParent: jest.fn(),
       linkByPmsUser: jest.fn(),
+      assertOrganisationMayLinkCompanion: jest.fn(),
       parentApproveLink: jest.fn(),
       sendInvite: jest.fn(),
       parentRejectLink: jest.fn(),
@@ -54,10 +55,12 @@ jest.mock("src/services/authUserMobile.service", () => ({
   },
 }));
 
-jest.mock("src/models/organization", () => ({
+jest.mock("src/config/prisma", () => ({
   __esModule: true,
-  default: {
-    findById: jest.fn(),
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -244,12 +247,12 @@ describe("CompanionOrganisationController", () => {
 
     it("should return 404 if org not found or invalid type", async () => {
       req.params = { patientId: "c1", organisationId: "o1" };
-      (OrganizationModel.findById as jest.Mock).mockResolvedValue(null);
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue(null);
       await CompanionOrganisationController.linkByPmsUser(req, res);
       expect(res.status).toHaveBeenCalledWith(404);
 
       // Invalid type
-      (OrganizationModel.findById as jest.Mock).mockResolvedValue({
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
         type: "INVALID",
       });
       await CompanionOrganisationController.linkByPmsUser(req, res);
@@ -258,7 +261,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should successfully link by PMS user", async () => {
       req.params = { patientId: "c1", organisationId: "o1" };
-      (OrganizationModel.findById as jest.Mock).mockResolvedValue({
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
         type: "BREEDER",
       });
       (
@@ -277,7 +280,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle errors", async () => {
       req.params = { patientId: "c1", organisationId: "o1" };
-      (OrganizationModel.findById as jest.Mock).mockResolvedValue({
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
         type: "BREEDER",
       });
 

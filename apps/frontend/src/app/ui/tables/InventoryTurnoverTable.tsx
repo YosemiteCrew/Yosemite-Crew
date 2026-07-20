@@ -48,7 +48,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       key: 'Beginning inventory',
       width: '130px',
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-profile-title">{item.beginningInventory}</div>
+        <div className="appointment-profile-title cell-figure">{item.beginningInventory}</div>
       ),
     },
     {
@@ -56,7 +56,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       key: 'Ending inventory',
       width: '120px',
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-profile-title">{item.endingInventory}</div>
+        <div className="appointment-profile-title cell-figure">{item.endingInventory}</div>
       ),
     },
     {
@@ -64,7 +64,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       key: 'Avg inventory',
       width: '100px',
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-profile-title">{getAverageInventory(item)}</div>
+        <div className="appointment-profile-title cell-figure">{getAverageInventory(item)}</div>
       ),
     },
     {
@@ -72,7 +72,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       key: 'Total purchases',
       width: '120px',
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-profile-title">{getTotalPurchased(item)}</div>
+        <div className="appointment-profile-title cell-figure">{getTotalPurchased(item)}</div>
       ),
     },
     {
@@ -80,7 +80,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       key: 'Turns/Year',
       width: '100px',
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-profile-title">{item.turnsPerYear}</div>
+        <div className="appointment-profile-title cell-figure">{item.turnsPerYear}</div>
       ),
     },
     {
@@ -88,7 +88,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       key: 'Days on shelf',
       width: '100px',
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-profile-title">{item.daysOnShelf}</div>
+        <div className="appointment-profile-title cell-figure">{item.daysOnShelf}</div>
       ),
     },
     {

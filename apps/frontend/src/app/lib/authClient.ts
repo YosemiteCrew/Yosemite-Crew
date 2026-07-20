@@ -4,6 +4,7 @@ import EmailVerification from 'supertokens-web-js/recipe/emailverification';
 import MultiFactorAuth from 'supertokens-web-js/recipe/multifactorauth';
 import Passwordless from 'supertokens-web-js/recipe/passwordless';
 import Session from 'supertokens-web-js/recipe/session';
+import ThirdParty from 'supertokens-web-js/recipe/thirdparty';
 import TOTP from 'supertokens-web-js/recipe/totp';
 
 import { logger } from '@/app/lib/logger';
@@ -56,6 +57,7 @@ export const initAuthClient = (): boolean => {
       EmailPassword.init(),
       EmailVerification.init(),
       Passwordless.init(),
+      ThirdParty.init(),
       MultiFactorAuth.init(),
       TOTP.init(),
       Session.init(),

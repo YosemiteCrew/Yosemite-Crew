@@ -91,7 +91,7 @@ describe("appointment.router", () => {
       requireWebAuth,
     );
     expect(admitRoute?.stack.map((layer) => layer.handle)).toContain(
-      orgPermissionsMiddleware,
+      appointmentOrgPermissionsMiddleware,
     );
     expect(admitRoute?.stack.map((layer) => layer.handle)).toContain(
       permissionMiddleware,
@@ -99,6 +99,26 @@ describe("appointment.router", () => {
     expect(AppointmentController.admitFromPMS).toHaveBeenCalledTimes(0);
     expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");
   });
+
+  // Every route addressed by :appointmentId must derive the organisation from
+  // the appointment itself; withOrgPermissions() would trust the URL instead.
+  it.each([
+    ["/pms/:organisationId/:appointmentId/admit", "post"],
+    ["/pms/:organisationId/:appointmentId/forms", "post"],
+    ["/pms/:organisationId/:appointmentId/checkin", "patch"],
+    ["/pms/:organisationId/:appointmentId", "patch"],
+    ["/pms/:organisationId/:appointmentId", "get"],
+  ])(
+    "derives the organisation from the appointment for %s (%s)",
+    (path, method) => {
+      const route = findRoute(path, method);
+      const handles = route?.stack.map((layer) => layer.handle);
+
+      expect(route).toBeDefined();
+      expect(handles).toContain(appointmentOrgPermissionsMiddleware);
+      expect(handles).not.toContain(orgPermissionsMiddleware);
+    },
+  );
 
   it("registers the reverse PMS ready-for-billing route", () => {
     const reverseRoute = findRoute(

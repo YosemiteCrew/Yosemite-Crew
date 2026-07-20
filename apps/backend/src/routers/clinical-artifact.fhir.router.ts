@@ -120,7 +120,7 @@ router.post(
   requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
-  requirePermission(["prescription:edit:any"]),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   (req, res) => ClinicalArtifactFhirController.createPrescription(req, res),
 );
 
@@ -138,7 +138,7 @@ router.post(
   requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
-  requirePermission(["prescription:edit:any"]),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   (req, res) => ClinicalArtifactFhirController.finalizePrescription(req, res),
 );
 
@@ -147,7 +147,7 @@ router.post(
   requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
-  requirePermission(["prescription:edit:any"]),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   (req, res) => ClinicalArtifactFhirController.cancelPrescription(req, res),
 );
 
@@ -156,7 +156,7 @@ router.post(
   requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
-  requirePermission(["prescription:edit:any"]),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   (req, res) => ClinicalArtifactFhirController.reopenPrescription(req, res),
 );
 
@@ -165,7 +165,7 @@ router.post(
   requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
-  requirePermission(["prescription:edit:any"]),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   (req, res) => ClinicalArtifactFhirController.amendPrescription(req, res),
 );
 
@@ -174,7 +174,7 @@ router.patch(
   requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
-  requirePermission(["prescription:edit:any"]),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   (req, res) => ClinicalArtifactFhirController.updatePrescription(req, res),
 );
 
@@ -183,7 +183,7 @@ router.delete(
   requireWebAuth,
   dischargeSummaryLimiter,
   withOrgPermissions(),
-  requirePermission(["prescription:edit:any"]),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   (req, res) => ClinicalArtifactFhirController.deletePrescription(req, res),
 );
 

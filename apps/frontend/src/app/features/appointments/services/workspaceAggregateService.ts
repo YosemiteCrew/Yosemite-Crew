@@ -220,9 +220,12 @@ const medicationTreatmentItemToPrescription = (
   const productSnapshot = isRecord(item.productSnapshot) ? item.productSnapshot : {};
   const priceSnapshot = isRecord(item.priceSnapshot) ? item.priceSnapshot : {};
   const priceCents = Math.round((asNumber(priceSnapshot.unitPrice) ?? 0) * 100);
+  // Treatment items carry `quantity` as a number, while PrescriptionItem.qty is a string.
+  const quantity = asNumber(item.quantity) ?? asString(item.quantity);
   return {
     id: asString(item.id) ?? `prescription-${index + 1}`,
     medicineName: asString(item.name) ?? asString(productSnapshot.name) ?? 'Medication',
+    qty: quantity === undefined ? undefined : String(quantity),
     instructions: asString(productSnapshot.instructions),
     // Package-expanded medications are dispensed in-house by default.
     fulfillment: 'IN_HOUSE',
@@ -646,6 +649,10 @@ export const normalizeWorkspaceBootstrapForEncounter = (
       asOptionalIso(encounter.updatedAt);
     patch.dischargedAt = asOptionalIso(encounter.admission.dischargedAt);
   }
+  // Real actual-start of the visit — set outside the admission block so it also
+  // covers outpatient encounters (which have no admission). The backend stamps
+  // `periodStart` to the status-change time when the encounter goes In Progress.
+  patch.startedAt = asOptionalIso(encounter.periodStart);
   const invoice = isRecord(bootstrap.invoice) ? bootstrap.invoice : {};
   applyEncounterReadiness(patch, bootstrap, encounter, invoice);
   applyBootstrapCollections(patch, bootstrap);
@@ -698,8 +705,8 @@ export const getEncounterWorkspaceBootstrap = async (
 export const listAppointmentWorkspaceDocuments = async (
   organisationId: string,
   appointmentId: string
-) => {
-  const res = await getData<WorkspaceDocumentDTO[]>(
+): Promise<WorkspaceDocumentRow[]> => {
+  const res = await getData<WorkspaceDocumentRow[]>(
     `/v1/workspace/organisations/${organisationId}/appointments/${appointmentId}/documents`
   );
   return res.data ?? [];

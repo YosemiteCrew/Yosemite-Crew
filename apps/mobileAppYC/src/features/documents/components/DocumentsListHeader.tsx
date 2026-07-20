@@ -28,6 +28,7 @@ export const DocumentsListHeader: React.FC<DocumentsListHeaderProps> = ({
     <>
       <Header
         title={title}
+        variant={showBackButton ? 'default' : 'root'}
         showBackButton={showBackButton}
         onBack={onBack}
         rightIcon={rightIcon}

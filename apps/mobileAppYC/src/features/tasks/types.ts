@@ -276,6 +276,7 @@ export interface TaskFormErrors {
   attachments?: string;
   description?: string;
   additionalNote?: string;
+  calendarProvider?: string;
 }
 
 // Task Type Selection for bottom sheet

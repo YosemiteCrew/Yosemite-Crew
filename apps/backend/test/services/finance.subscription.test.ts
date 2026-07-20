@@ -32,6 +32,9 @@ jest.mock("src/config/prisma", () => ({
       upsert: jest.fn(),
       findUnique: jest.fn(),
     },
+    organizationBilling: {
+      findUnique: jest.fn(),
+    },
     userOrganization: {
       count: jest.fn(),
     },
@@ -264,6 +267,7 @@ describe("FinanceSubscriptionService", () => {
       externalCustomerId: "cus_1",
       priceId: "price_month_mock",
       seats: 3,
+      canAcceptPayments: false,
     });
     expect(prisma.userOrganization.count).toHaveBeenCalledWith({
       where: {
@@ -832,5 +836,82 @@ describe("FinanceSubscriptionService", () => {
       subscriptionId: "sub_empty_failed",
       invoiceId: "inv_2",
     });
+  });
+  it("merges provider metadata instead of replacing it when recording an invoice payment", async () => {
+    // subscriptionStatus/seatQuantity must survive: resolveSubscriptionSeatSyncPlan
+    // reads them back and returns no_change if they are gone.
+    (prisma.financeProviderLink.findMany as jest.Mock).mockResolvedValueOnce([
+      { orgId: "org_1" },
+    ]);
+    (prisma.financeProviderLink.findUnique as jest.Mock).mockResolvedValueOnce({
+      metadata: {
+        subscriptionStatus: "active",
+        seatQuantity: 7,
+        lastPaymentStatus: "failed",
+      },
+    });
+    (prisma.financeProviderLink.upsert as jest.Mock).mockResolvedValueOnce({});
+    (prisma.financeEvent.create as jest.Mock).mockResolvedValue({});
+
+    await FinanceSubscriptionService.recordSubscriptionInvoicePaid({
+      subscriptionId: "sub_1",
+      invoiceId: "in_1",
+    });
+
+    expect(prisma.financeProviderLink.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          metadata: expect.objectContaining({
+            subscriptionStatus: "active",
+            seatQuantity: 7,
+            lastInvoiceId: "in_1",
+            lastPaymentStatus: "paid",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("keeps the seat sync plan resolvable after an invoice-paid metadata patch", async () => {
+    (prisma.financeProviderLink.findUnique as jest.Mock).mockResolvedValueOnce({
+      externalSubscriptionItemId: "item_1",
+      metadata: { subscriptionStatus: "active", seatQuantity: 3 },
+    });
+    (prisma.userOrganization.count as jest.Mock).mockResolvedValueOnce(5);
+
+    const plan =
+      await FinanceSubscriptionService.resolveSubscriptionSeatSyncPlan("org_1");
+
+    expect(plan).toEqual({
+      subscriptionItemId: "item_1",
+      oldSeats: 3,
+      newSeats: 5,
+      prorationBehavior: "create_prorations",
+    });
+  });
+
+  it("reports connect readiness in the business checkout context", async () => {
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      name: "Clinic Ready",
+      stripeAccountId: "acct_ready",
+    });
+    (prisma.financeProviderLink.findUnique as jest.Mock).mockResolvedValueOnce({
+      externalCustomerId: "cus_ready",
+    });
+    (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValueOnce({
+      canAcceptPayments: true,
+    });
+    (prisma.userOrganization.count as jest.Mock).mockResolvedValueOnce(2);
+    (prisma.organizationUsageCounter.upsert as jest.Mock).mockResolvedValueOnce(
+      {},
+    );
+
+    const context =
+      await FinanceSubscriptionService.prepareBusinessCheckoutSession(
+        "org_1",
+        "month",
+      );
+
+    expect(context.canAcceptPayments).toBe(true);
   });
 });

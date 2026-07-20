@@ -36,6 +36,12 @@ function getSnapshot(): Coords {
   return _coords;
 }
 
+export function __resetLocationStoreForTesting() {
+  _coords = null;
+  _started = false;
+  _listeners.clear();
+}
+
 export function useLocationStore(enabled = true): Coords {
   const subscribeIfEnabled = useCallback(
     (listener: () => void) => {

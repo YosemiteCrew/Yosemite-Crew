@@ -112,6 +112,21 @@ export const MEDIA_SOURCES = {
     slide1: ycCdn('Images/landingbg1.jpg'),
     slide2: ycCdn('Images/landingbg2.jpg'),
     slide3: ycCdn('Images/landingbg3.jpg'),
+    hero: {
+      home: {
+        video: ycCdn('assets/landing/home-dog-field.mp4'),
+        poster: ycCdn('assets/landing/home-dog-portrait.jpg'),
+      },
+      businesses: {
+        video: ycCdn('assets/landing/businesses-horse-vet.mp4'),
+        poster: ycCdn('assets/landing/businesses-horse-portrait.jpg'),
+        image: ycCdn('assets/landing/businesses-dog-vet.jpg'),
+      },
+      petParents: {
+        video: ycCdn('assets/landing/parents-cat-kid.mp4'),
+        poster: ycCdn('assets/landing/parents-cat-portrait.jpg'),
+      },
+    },
   },
   petOwner: {
     hero: ycCdn('pet-parent/petparent.png'),

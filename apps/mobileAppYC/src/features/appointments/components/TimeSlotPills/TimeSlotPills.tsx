@@ -22,7 +22,10 @@ const TimeSlotColumn = React.memo(
           <PressableOpacity
             key={slot}
             style={[styles.pill, isSelected && styles.active]}
-            onPress={() => onSelect(slot)}>
+            onPress={() => onSelect(slot)}
+            accessibilityRole="radio"
+            accessibilityState={{selected: isSelected}}
+            accessibilityLabel={slot}>
             <Text style={[styles.text, isSelected && styles.activeText]}>
               {slot}
             </Text>
@@ -93,20 +96,20 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'],
       borderRadius: theme.borderRadius.md,
       borderWidth: 1,
-      borderColor: theme.colors.text,
+      borderColor: theme.colors.hairline,
       alignItems: 'center',
       justifyContent: 'center',
     },
     active: {
-      backgroundColor: theme.colors.primaryTint,
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.blue,
+      borderColor: theme.colors.blue,
     },
     text: {
       ...theme.typography.labelSmall,
       color: theme.colors.text,
       textAlign: 'center',
     },
-    activeText: {color: theme.colors.primary},
+    activeText: {color: theme.colors.white},
   });
 
 export default TimeSlotPills;

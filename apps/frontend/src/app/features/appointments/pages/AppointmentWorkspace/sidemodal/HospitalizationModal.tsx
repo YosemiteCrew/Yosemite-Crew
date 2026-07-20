@@ -1,8 +1,6 @@
 'use client';
-import React, { useMemo, useState, type CSSProperties } from 'react';
-import { LuCheck } from 'react-icons/lu';
-import { TiPlus } from 'react-icons/ti';
-import { HiUser } from 'react-icons/hi2';
+import React, { useMemo, useState } from 'react';
+import { IoAdd, IoCheckmarkOutline, IoPerson } from 'react-icons/io5';
 import AppointmentCentralModalShell from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentCentralModalShell';
 import AppointmentEstimatePanel from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentEstimatePanel';
 import StaffField from '@/app/features/appointments/pages/AppointmentWorkspace/components/StaffField';
@@ -14,16 +12,7 @@ import type { DropdownOption } from '@/app/hooks/useDropdown';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import '@/app/ui/primitives/Buttons/ButtonEffects.css';
 
-const FONT = 'var(--font-satoshi), sans-serif';
 const NEUTRAL_900 = 'var(--color-neutral-900)';
-
-const text14M: CSSProperties = {
-  fontFamily: FONT,
-  fontSize: 14,
-  fontWeight: 500,
-  lineHeight: '120%',
-  color: NEUTRAL_900,
-};
 
 type DropdownItem = { label: string; value: string };
 
@@ -55,17 +44,8 @@ type HospitalizationModalProps = {
     unitId?: string;
     supportStaffId?: string;
     servicePackageIds: string[];
-    notifyChannels: string[];
   }) => boolean | Promise<boolean>;
 };
-
-type NotifyChannel = 'app' | 'sms' | 'email';
-
-const NOTIFY_OPTIONS: Array<{ key: NotifyChannel; label: string }> = [
-  { key: 'app', label: 'Notify via App' },
-  { key: 'sms', label: 'Notify via SMS' },
-  { key: 'email', label: 'Notify via Email' },
-];
 
 const addDays = (date: Date, days: number): Date => {
   const next = new Date(date);
@@ -76,8 +56,8 @@ const addDays = (date: Date, days: number): Date => {
 /**
  * Hospitalization central modal — converts an outpatient encounter to inpatient.
  * Reuses the shared Add Appointment modal shell, estimate panel, and field
- * components (Datepicker / Timepicker / LabelDropdown) plus the notify-channel
- * footer pattern, matching the Add Appointment central modal theme.
+ * components (Datepicker / Timepicker / LabelDropdown), matching the Add
+ * Appointment central modal theme.
  */
 const HospitalizationModal = ({
   showModal,
@@ -109,7 +89,6 @@ const HospitalizationModal = ({
   const defaultSupportId = supportOptions.find((option) => option.label === supportName)?.value;
   const [supportStaffId, setSupportStaffId] = useState<string | undefined>(defaultSupportId);
   const [servicePackageIds, setServicePackageIds] = useState<string[]>([]);
-  const [notifyChannels, setNotifyChannels] = useState<Set<NotifyChannel>>(() => new Set(['app']));
   const [isConverting, setIsConverting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -189,16 +168,10 @@ const HospitalizationModal = ({
   // workspace controls (e.g. the meta-bar Room dropdown) in the DOM.
   if (!showModal) return null;
 
-  const toggleNotify = (key: NotifyChannel) => {
-    setNotifyChannels((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
   const handleConvert = async () => {
+    // Re-entrancy guard: the Convert button is disabled while isConverting, so this
+    // early return cannot be reached through the UI.
+    /* v8 ignore next -- unreachable via UI: the convert button is disabled while converting */
     if (isConverting) return;
     setHasSubmitted(true);
     if (hasValidationErrors) return;
@@ -212,7 +185,6 @@ const HospitalizationModal = ({
         unitId,
         supportStaffId,
         servicePackageIds,
-        notifyChannels: [...notifyChannels],
       });
       if (converted) setShowModal(false);
     } finally {
@@ -277,19 +249,19 @@ const HospitalizationModal = ({
 
           {/* Right column: lead/support + service package + estimate */}
           <div className="flex flex-col gap-5">
-            <StaffField label="Assigned Lead" name={leadName} />
+            <StaffField label="Assigned lead" name={leadName} />
             <LabelDropdown
               placeholder="Assigned Support"
               options={supportOptions}
               defaultOption={supportStaffId}
-              icon={<HiUser size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+              icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
               onSelect={(option: DropdownOption) => setSupportStaffId(option.value)}
             />
             <MultiSelectDropdown
               placeholder="Additional Service / Package"
               options={servicePackageOptions}
               value={servicePackageIds}
-              icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+              icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
               onChange={setServicePackageIds}
               searchable
               portal
@@ -301,28 +273,13 @@ const HospitalizationModal = ({
           </div>
         </div>
 
-        {/* Footer: notify channels + convert action */}
-        <div className="flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            {NOTIFY_OPTIONS.map(({ key, label }) => (
-              <label key={key} className="flex cursor-pointer select-none items-center gap-2">
-                <input
-                  type="checkbox"
-                  aria-label={`Notify by ${label}`}
-                  checked={notifyChannels.has(key)}
-                  onChange={() => toggleNotify(key)}
-                  className="size-4 shrink-0 cursor-pointer"
-                />
-                <span style={text14M}>{label}</span>
-              </label>
-            ))}
-          </div>
-
+        {/* Footer: convert action */}
+        <div className="flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={handleConvert}
             disabled={isConverting}
-            className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-2.75 font-satoshi text-base font-medium leading-6 whitespace-nowrap text-white!"
+            className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-2.75 font-satoshi text-base font-medium leading-6 whitespace-nowrap"
             onPointerDown={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
               e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
@@ -334,7 +291,7 @@ const HospitalizationModal = ({
               e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
             }}
           >
-            <LuCheck aria-hidden="true" />
+            <IoCheckmarkOutline aria-hidden="true" />
             {isConverting ? 'Converting' : 'Convert to Inpatient'}
           </button>
         </div>

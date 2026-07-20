@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { IoIosArrowDown, IoIosWarning } from 'react-icons/io';
-import { Secondary } from '@/app/ui/primitives/Buttons';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { getStripeBillingPortal } from '@/app/features/billing/services/billingService';
 import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
@@ -13,6 +13,8 @@ interface AccordionButtonProps {
   children?: React.ReactNode;
   defaultOpen?: boolean;
   buttonTitle?: string;
+  /** Leading icon for the section action, e.g. the design's `+` on an "Add" pill. */
+  buttonIcon?: React.ReactNode;
   buttonClick?: any;
   showButton?: boolean;
   finance?: boolean;
@@ -53,6 +55,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   children,
   defaultOpen = false,
   buttonTitle,
+  buttonIcon,
   buttonClick,
   showButton = true,
   finance = false,
@@ -127,8 +130,14 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
               <span>{error}</span>
             </div>
           )}
+          {/* Design: the section action is a filled --cta pill, not an outlined one. */}
           {showButton && buttonTitle && (
-            <Secondary href="#" onClick={() => buttonClick(true)} text={buttonTitle} />
+            <Primary
+              href="#"
+              onClick={() => buttonClick(true)}
+              text={buttonTitle}
+              icon={buttonIcon}
+            />
           )}
           {actions}
           {canEditSubscription && finance && (

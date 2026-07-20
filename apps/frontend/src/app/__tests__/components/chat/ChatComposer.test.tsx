@@ -41,6 +41,11 @@ describe('ChatComposer', () => {
     expect(screen.getByLabelText('Send message')).toBeInTheDocument();
   });
 
+  it('renders a disabled voice-message affordance', () => {
+    render(<ChatComposer />);
+    expect(screen.getByLabelText('Voice message')).toBeDisabled();
+  });
+
   it('sends on the send button', () => {
     render(<ChatComposer />);
     fireEvent.click(screen.getByLabelText('Send message'));
@@ -73,6 +78,11 @@ describe('ChatComposer', () => {
     render(<ChatComposer />);
     fireEvent.click(screen.getByText('Appointment confirmed'));
     expect(mockSetText).toHaveBeenCalledWith('Your appointment is confirmed.');
+  });
+
+  it('labels the quick-reply row "Quick replies" (design)', () => {
+    render(<ChatComposer />);
+    expect(screen.getByText('Quick replies')).toBeInTheDocument();
   });
 
   it('uploads safe selected files through the attachment manager', () => {

@@ -98,7 +98,7 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
   loadInvoicesForOrgPrimaryOrg: jest.fn(() => Promise.resolve()),
 }));
 
-jest.mock('@/app/features/appointments/pages/Appointments/Sections/AddAppointment', () => ({
+jest.mock('@/app/features/appointments/constants/emptyAppointment', () => ({
   EMPTY_APPOINTMENT: {
     id: undefined,
     companion: { id: '', name: '', species: '', breed: '', parent: { id: '', name: '' } },
@@ -690,6 +690,28 @@ describe('useAppointmentForm', () => {
     const errors = result.current.validateForm(false);
     expect(errors.specialityId).toBeDefined();
     expect(errors.serviceId).toBeDefined();
+  });
+
+  it.each([
+    ['an empty', ''],
+    ['a whitespace-only', '   '],
+  ])('validateForm rejects %s service id', (_label, serviceId) => {
+    // The hook itself assigns id: '' when a slot-scoped service is not bookable, so a blank
+    // id must fail the same check as a missing one rather than reach createAppointment.
+    const { result } = renderHook(() => useAppointmentForm());
+    act(() => {
+      result.current.setFormData((prev) => ({
+        ...prev,
+        appointmentType: {
+          id: serviceId,
+          name: 'Cleaning',
+          speciality: { id: 'spec-dental', name: 'Dental' },
+        } as any,
+      }));
+    });
+
+    const errors = result.current.validateForm(false);
+    expect(errors.serviceId).toBe('Please select a service');
   });
 
   it('validateForm requires concern', () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -12,6 +12,7 @@ const loadIntegrationsForPrimaryOrgMock = jest.fn();
 const getOrgIntegrationsMock = jest.fn();
 const getIntegrationByProviderMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
+const listIdexxOrdersMock = jest.fn();
 const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
 const enableIntegrationMock = jest.fn();
@@ -74,7 +75,8 @@ jest.mock('@/app/stores/integrationStore', () => ({
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
-  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="settings-modal">{children}</div> : null,
 }));
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
@@ -89,15 +91,15 @@ jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
-  default: ({ inname, value, onChange }: any) => (
-    <input data-testid={inname} value={value} onChange={onChange} />
+  default: ({ inname, inlabel, value, onChange }: any) => (
+    <input data-testid={inname} aria-label={inlabel} value={value} onChange={onChange} />
   ),
 }));
 
 jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
   __esModule: true,
-  default: ({ inname, value, onChange }: any) => (
-    <input data-testid={inname} value={value} onChange={onChange} />
+  default: ({ inname, inlabel, value, onChange }: any) => (
+    <input data-testid={inname} aria-label={inlabel} value={value} onChange={onChange} />
   ),
 }));
 
@@ -128,6 +130,7 @@ jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getOrgIntegrations: (...args: any[]) => getOrgIntegrationsMock(...args),
   getIntegrationByProvider: (...args: any[]) => getIntegrationByProviderMock(...args),
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
+  listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
   storeIntegrationCredentials: (...args: any[]) => storeIntegrationCredentialsMock(...args),
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
   enableIntegration: (...args: any[]) => enableIntegrationMock(...args),
@@ -142,9 +145,44 @@ jest.mock('@/app/features/integrations/services/merckService', () => ({
   })),
 }));
 
+const openSettings = () =>
+  fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
+
+// The coming-soon cards each render a "Coming soon" <button>, so scope tab clicks to the
+// filter fieldset rather than matching every button with that label.
+const clickFilterTab = (name: string) => {
+  const tabs = screen.getByRole('group', { name: 'Filter integrations' });
+  fireEvent.click(within(tabs).getByRole('button', { name }));
+};
+
+// jest.config sets clearMocks (not resetMocks), so implementations set with mockReturnValue
+// leak between tests. Any test that depends on the MSD state must set it explicitly.
+const setMerckEnabled = (isEnabled: boolean) => {
+  const useMerckModule = jest.requireMock('@/app/hooks/useMerckIntegration');
+  (useMerckModule.useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({
+    integration: isEnabled
+      ? { provider: 'MERCK_MANUALS', status: 'enabled', source: 'backend' }
+      : null,
+    isEnabled,
+    refresh: refreshMerckIntegrationMock,
+  });
+};
+
+const COMING_SOON_CARD_TITLES = ['RadAnalyzer', 'Vetnio', 'QuickBooks', 'Laika'];
+const CONNECTABLE_CARD_TITLES = ['IDEXX VetConnect PLUS', 'MSD Veterinary Manual'];
+
+const expectCardsHidden = (titles: string[]) => {
+  titles.forEach((title) => {
+    expect(screen.queryByText(title)).not.toBeInTheDocument();
+  });
+};
+
 describe('Integrations settings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearMocks does not restore implementations, so re-assert the default MSD state here
+    // instead of letting a previous test's override leak into the next one.
+    setMerckEnabled(true);
     enableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'enabled' });
     disableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'disabled' });
     const enabledIntegration = {
@@ -161,6 +199,17 @@ describe('Integrations settings', () => {
     useIntegrationsForPrimaryOrgMock.mockReturnValue([enabledIntegration]);
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledIntegration);
     listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        companionId: 'c1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        modality: 'REFERENCE_LAB',
+        status: 'RUNNING',
+      },
+    ]);
     loadIntegrationsForPrimaryOrgMock.mockResolvedValue(undefined);
     storeIntegrationCredentialsMock.mockResolvedValue({
       _id: 'int-1',
@@ -183,14 +232,15 @@ describe('Integrations settings', () => {
     });
   });
 
-  it('stores credentials from settings modal', async () => {
+  it('stores credentials from the settings modal', async () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    // The credentials form lives inside the side settings modal, opened from the IDEXX card.
+    openSettings();
     fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'user-a' } });
     fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'pass-a' } });
     fireEvent.click(screen.getByRole('button', { name: /Store credentials|Update credentials/ }));
@@ -224,10 +274,10 @@ describe('Integrations settings', () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    openSettings();
     fireEvent.click(screen.getByRole('button', { name: 'Disable IDEXX' }));
 
     await waitFor(() => {
@@ -258,7 +308,7 @@ describe('Integrations settings', () => {
       expect(screen.getByRole('button', { name: 'Enable' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    openSettings();
 
     const enableInSettingsButton = await screen.findByRole('button', { name: 'Enable IDEXX' });
     expect(enableInSettingsButton).not.toBeDisabled();
@@ -274,6 +324,7 @@ describe('Integrations settings', () => {
         'IDEXX credentials are missing or invalid. Open settings, fill credentials, validate, and then enable.'
       )
     ).toBeInTheDocument();
+    // The side settings modal is (still) open with its heading.
     expect(screen.getByText('Integration settings')).toBeInTheDocument();
   });
 
@@ -294,14 +345,14 @@ describe('Integrations settings', () => {
 
   it('has no axe violations on initial render', async () => {
     const { container } = render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
   it('filter tabs expose aria-pressed state', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     const allTab = screen.getByRole('button', { name: 'All' });
     expect(allTab).toHaveAttribute('aria-pressed', 'true');
     const connectedTab = screen.getByRole('button', { name: 'Connected' });
@@ -329,7 +380,7 @@ describe('Integrations settings', () => {
     });
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     fireEvent.click(screen.getByRole('button', { name: 'Connected' }));
     await screen.findByText('No connected integrations yet.');
   });
@@ -348,21 +399,20 @@ describe('Integrations settings', () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledIntegration);
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     // When IDEXX is enabled and Available filter active, the IDEXX card should be hidden
     // (showIdexxCard = available && !idexxEnabled = false)
     const availableBtn = screen.getByRole('button', { name: 'Available' });
     fireEvent.click(availableBtn);
     await waitFor(() => {
-      // Disable button should not appear as IDEXX card is hidden
-      expect(screen.queryByRole('button', { name: /Disable IDEXX/i })).not.toBeInTheDocument();
+      expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
     });
   });
 
   it('shows validated successfully message after validate click', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('button', { name: 'Settings' });
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    openSettings();
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await screen.findByText('Credentials validated successfully.');
   });
@@ -378,7 +428,7 @@ describe('Integrations settings', () => {
 
   it('shows the Vetnio integration card with "Coming soon" label', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(screen.getAllByText('Vetnio').length).toBeGreaterThanOrEqual(1);
     const comingSoonLabels = screen.getAllByText('Coming soon');
     expect(comingSoonLabels.length).toBeGreaterThan(0);
@@ -386,16 +436,256 @@ describe('Integrations settings', () => {
 
   it('shows Laika integration card with "Coming soon" label', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(screen.getAllByText('Laika').length).toBeGreaterThanOrEqual(1);
   });
 
   it('hides coming-soon cards when Connected filter is active', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     fireEvent.click(screen.getByRole('button', { name: 'Connected' }));
     await waitFor(() => {
       expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
     });
+  });
+
+  it('hides coming-soon cards when the Available filter is active', async () => {
+    // IDEXX enabled (from beforeEach) + MSD disabled, so the Available tab has one real card.
+    setMerckEnabled(false);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Available');
+
+    await waitFor(() => {
+      expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    });
+    expectCardsHidden(COMING_SOON_CARD_TITLES);
+    // The genuinely available integration is still listed.
+    expect(screen.getByText('MSD Veterinary Manual')).toBeInTheDocument();
+  });
+
+  it('shows the Available empty state with no cards once IDEXX and MSD are both connected', async () => {
+    setMerckEnabled(true);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Available');
+
+    await screen.findByText('No available integrations right now.');
+    // The empty state must never render alongside visible cards.
+    expectCardsHidden([...COMING_SOON_CARD_TITLES, ...CONNECTABLE_CARD_TITLES]);
+  });
+
+  it('shows only coming-soon cards on the Coming soon tab', async () => {
+    setMerckEnabled(true);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Coming soon');
+
+    await screen.findByText('RadAnalyzer');
+    COMING_SOON_CARD_TITLES.forEach((title) => {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    });
+    expectCardsHidden(CONNECTABLE_CARD_TITLES);
+    expect(screen.queryByText('No available integrations right now.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No connected integrations yet.')).not.toBeInTheDocument();
+  });
+
+  it('renders the workspace subtitle under the Integrations heading', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    expect(
+      screen.getByText('Connect labs, references and devices to the workspace')
+    ).toBeInTheDocument();
+  });
+
+  it('renders the live status pill (dot branch) for an enabled integration', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    // Enabled IDEXX reads as CONNECTED (design copy) and exercises the isLive === true
+    // branch that adds the success indicator dot. The status pill is a <span>; the
+    // "Connected" filter tab is a <button>, so scope the assertion to the pill span.
+    const connectedNodes = screen.getAllByText('Connected');
+    expect(connectedNodes.some((el) => el.tagName === 'SPAN')).toBe(true);
+  });
+
+  it('shows the developer-portal plugin hint row', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    expect(
+      screen.getByText(/More integrations ship as plugins\. Browse the developer portal/i)
+    ).toBeInTheDocument();
+  });
+
+  it('renders the status pill without the live dot when the integration is disabled', async () => {
+    const disabledIntegration = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'disabled',
+      credentialsStatus: 'missing',
+      enabledAt: null,
+      lastValidatedAt: null,
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([disabledIntegration]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(disabledIntegration);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    // The disabled IDEXX pill (plus other providers defaulting to disabled) exercises the
+    // isLive === false branch (no indicator dot).
+    expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('opens the side settings modal from the IDEXX card', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    // The credentials surface is gated behind the modal, not an always-visible panel.
+    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument();
+    openSettings();
+    const modal = await screen.findByTestId('settings-modal');
+    expect(within(modal).getByText('Integration settings')).toBeInTheDocument();
+    expect(within(modal).getByTestId('idexx-username')).toBeInTheDocument();
+    expect(within(modal).getByTestId('idexx-password')).toBeInTheDocument();
+  });
+
+  it('renders recent orders in the settings modal when IDEXX is enabled', async () => {
+    // Give sync health a real lastSyncAt so its "Pending" fallback does not collide with
+    // the empty-status order pill, which is the "Pending" this test asserts on.
+    const enabledWithSync = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'enabled',
+      credentialsStatus: 'valid',
+      enabledAt: '2026-01-12T00:00:00.000Z',
+      lastValidatedAt: '2026-01-12T00:00:00.000Z',
+      lastSyncAt: '2026-01-12T00:00:00.000Z',
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([enabledWithSync]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledWithSync);
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        status: 'RUNNING',
+      },
+      {
+        // No patient name: the label falls back to the joined tests.
+        _id: 'o2',
+        idexxOrderId: 'IDX-2',
+        patientName: '',
+        tests: ['pre-surgical CBC'],
+        status: 'RESULTED',
+      },
+      {
+        // No _id, no name, no tests, no status: the key and label fall back to the
+        // order id and the pill reads "Pending".
+        idexxOrderId: 'IDX-3',
+        patientName: '',
+        tests: [],
+        status: '',
+      },
+    ]);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    // Orders load on mount; open the modal to read them.
+    await waitFor(() =>
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1' })
+    );
+    openSettings();
+
+    const modal = await screen.findByTestId('settings-modal');
+    expect(within(modal).getByText('Recent orders')).toBeInTheDocument();
+    expect(within(modal).getByText('Poppy · ear cytology')).toBeInTheDocument();
+    expect(within(modal).getByText('pre-surgical CBC')).toBeInTheDocument();
+    expect(within(modal).getByText('Order IDX-3')).toBeInTheDocument();
+    expect(within(modal).getByText('Running')).toBeInTheDocument();
+    expect(within(modal).getByText('Resulted')).toBeInTheDocument();
+    expect(within(modal).getByText('Pending')).toBeInTheDocument();
+  });
+
+  it('shows the empty recent-orders message in the modal when IDEXX is disabled', async () => {
+    const disabledIntegration = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'disabled',
+      credentialsStatus: 'missing',
+      enabledAt: null,
+      lastValidatedAt: null,
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([disabledIntegration]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(disabledIntegration);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    // Disabled → orders are never fetched.
+    await waitFor(() => expect(listIdexxOrdersMock).not.toHaveBeenCalled());
+    openSettings();
+
+    const modal = await screen.findByTestId('settings-modal');
+    expect(within(modal).getByText('Recent orders')).toBeInTheDocument();
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
+  });
+
+  it('lists linked IVLS devices in the settings modal with their activation status', async () => {
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [
+        {
+          deviceSerialNumber: 'SN-1',
+          displayName: 'Catalyst One',
+          vcpActivatedStatus: 'active',
+          lastPolledCloudTime: '2026-01-12T00:00:00.000Z',
+        },
+        {
+          deviceSerialNumber: 'SN-2',
+          displayName: '',
+          vcpActivatedStatus: 'inactive',
+          lastPolledCloudTime: '',
+        },
+      ],
+    });
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1'));
+    openSettings();
+
+    const modal = await screen.findByTestId('settings-modal');
+    expect(within(modal).getByText('Catalyst One')).toBeInTheDocument();
+    expect(within(modal).getByText('SN-1')).toBeInTheDocument();
+    // Empty display name falls back, and both activation-status pill branches render.
+    expect(within(modal).getByText('IVLS device')).toBeInTheDocument();
+    expect(within(modal).getByText('Active')).toBeInTheDocument();
+    expect(within(modal).getByText('Inactive')).toBeInTheDocument();
+    expect(within(modal).getByText('Not available')).toBeInTheDocument();
+  });
+
+  it('refreshes integrations from the modal refresh control', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    openSettings();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh integrations' }));
+
+    await waitFor(() => {
+      expect(loadIntegrationsForPrimaryOrgMock).toHaveBeenCalledWith({ force: true, silent: true });
+    });
+  });
+
+  it('closes the settings modal via the Close control', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    openSettings();
+
+    const modal = await screen.findByTestId('settings-modal');
+    fireEvent.click(within(modal).getByRole('button', { name: 'close' }));
+    await waitFor(() => expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument());
   });
 });

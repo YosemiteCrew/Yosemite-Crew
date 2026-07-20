@@ -147,6 +147,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         name: values.name,
         description: values.description,
         category: values.category,
+        priority: (values.priority ?? activeTask.priority) as Task['priority'],
         assignedTo: resolveAssigneeId(),
         dueAt: nextDueAt,
         timezone: activeTask.timezone || getPreferredTimeZone(),
@@ -225,9 +226,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
       <Modal showModal={showModal} setShowModal={setShowModal}>
         <div className="flex flex-col h-full gap-6">
           <div className="flex justify-between items-center">
-            <div className="opacity-0">
-              <Close onClick={() => {}} />
-            </div>
+            <div className="size-8" aria-hidden="true" />
             <div className="flex justify-center items-center gap-2">
               <div className="text-body-1 text-text-primary">View task</div>
             </div>

@@ -103,7 +103,7 @@ describe('chatContainerUtils', () => {
         }),
         'me'
       )
-    ).toEqual({ title: "Buddy{' '}(Sam)", image: undefined });
+    ).toEqual({ title: 'Buddy (Sam)', image: undefined });
   });
 
   it('resolves channel scopes from metadata and member counts', () => {

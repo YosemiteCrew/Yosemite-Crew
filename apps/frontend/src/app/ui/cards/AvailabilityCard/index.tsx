@@ -13,7 +13,7 @@ type AvailabilityCardProps = {
 
 const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <div className="size-10">
           <Image
@@ -54,10 +54,7 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           {formatWeeklyWorkingHours(team.weeklyWorkingHours)}
         </div>
       </div>
-      <div
-        style={getAvailabilityStatusStyle(team.status)}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
+      <div style={getAvailabilityStatusStyle(team.status)} className="appointment-status">
         {team.status}
       </div>
       <Secondary href="#" onClick={() => handleViewTeam(team)} text="View" className="w-full" />

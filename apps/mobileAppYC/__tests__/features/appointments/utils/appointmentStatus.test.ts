@@ -167,6 +167,12 @@ describe('isActionableUpcomingStatus', () => {
 });
 
 describe('getAppointmentStatusLabel', () => {
+  it('returns "Booking paid" when bookingPaymentStatus is PAID, regardless of status', () => {
+    expect(getAppointmentStatusLabel('UPCOMING', 'UNPAID', 'PAID')).toBe(
+      'Booking paid',
+    );
+  });
+
   it('returns "Payment failed" when payment failed', () => {
     expect(getAppointmentStatusLabel('PAYMENT_FAILED', null)).toBe(
       'Payment failed',
@@ -204,6 +210,18 @@ describe('getAppointmentStatusLabel', () => {
 });
 
 describe('getAppointmentStatusBadgePalette', () => {
+  it('returns success palette with "Booking paid" label when bookingPaymentStatus is PAID', () => {
+    const result = getAppointmentStatusBadgePalette(
+      mockTheme,
+      'UPCOMING',
+      'UNPAID',
+      'PAID',
+    );
+    expect(result.text).toBe('Booking paid');
+    expect(result.textColor).toBe('#success');
+    expect(result.backgroundColor).toBe('#successSurface');
+  });
+
   it('returns error palette for payment failed', () => {
     const result = getAppointmentStatusBadgePalette(
       mockTheme,

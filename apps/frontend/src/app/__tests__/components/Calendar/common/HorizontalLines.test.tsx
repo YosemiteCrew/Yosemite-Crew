@@ -61,17 +61,22 @@ describe('HorizontalLines Component', () => {
 
     const { container } = render(<HorizontalLines {...defaultProps} />);
 
-    // Check for the red circle and line
-    // Circle class: "bg-red-500"
-    // Line class: "border-t-red-500"
-    const redCircle = container.querySelector('.bg-red-500');
-    const redLine = container.querySelector('.border-t-red-500');
+    // The now-line is the frame's --blue 2px rule with a 7px --blue dot; the old
+    // red-500 treatment was pre-design-system.
+    const nowDot = Array.from(container.querySelectorAll('div')).find((el) =>
+      el.getAttribute('style')?.includes('background-color: var(--blue)')
+    );
+    const nowLine = Array.from(container.querySelectorAll('div')).find((el) =>
+      el.getAttribute('style')?.includes('border-top-color: var(--blue)')
+    );
 
-    expect(redCircle).toBeInTheDocument();
-    expect(redLine).toBeInTheDocument();
+    expect(nowDot).toBeInTheDocument();
+    expect(nowDot).toHaveClass('size-[7px]');
+    expect(nowLine).toBeInTheDocument();
+    expect(nowLine?.getAttribute('style')).toContain('border-top-width: 2px');
 
     // Check position
-    const wrapper = redCircle?.parentElement;
+    const wrapper = nowDot?.parentElement;
     expect(wrapper).toHaveStyle({ top: '500px' });
   });
 
@@ -79,7 +84,9 @@ describe('HorizontalLines Component', () => {
     (getNowTopPxForWindow as jest.Mock).mockReturnValue(null);
 
     const { container } = render(<HorizontalLines {...defaultProps} />);
-    const redCircle = container.querySelector('.bg-red-500');
-    expect(redCircle).not.toBeInTheDocument();
+    const nowDot = Array.from(container.querySelectorAll('div')).find((el) =>
+      el.getAttribute('style')?.includes('background-color: var(--blue)')
+    );
+    expect(nowDot).toBeUndefined();
   });
 });

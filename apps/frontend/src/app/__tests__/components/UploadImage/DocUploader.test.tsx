@@ -15,12 +15,24 @@ jest.mock('@/app/services/axios', () => ({
 jest.mock('axios');
 
 // 2. Mock Icons
-// FIX: Added accessibility attributes to satisfy SonarQube S6848 and S1082
-jest.mock('react-icons/fa', () => ({
-  FaCloudUploadAlt: () => <span data-testid="icon-cloud" />,
-  FaFilePdf: () => <span data-testid="icon-pdf" />,
-  FaTrashAlt: () => <span data-testid="icon-trash" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 expect.extend(toHaveNoViolations);
 
@@ -55,7 +67,7 @@ describe('DocUploader Component', () => {
 
     expect(screen.getByText(mockPlaceholder)).toBeInTheDocument();
     expect(screen.getByText(/Only PDF/)).toBeInTheDocument();
-    expect(screen.getByTestId('icon-cloud')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCloudUploadOutline')).toBeInTheDocument();
   });
 
   it('renders the file preview when a file is selected', () => {
@@ -71,8 +83,8 @@ describe('DocUploader Component', () => {
     );
 
     expect(screen.getByText('preview.pdf')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-pdf')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-trash')).toBeInTheDocument();
+    expect(screen.getByTestId('IoDocumentTextOutline')).toBeInTheDocument();
+    expect(screen.getByTestId('IoTrashOutline')).toBeInTheDocument();
   });
 
   // --- Section 2: Interactions (Click & Drag) ---
@@ -306,7 +318,7 @@ describe('DocUploader Component', () => {
       />
     );
 
-    const trashIcon = screen.getByTestId('icon-trash');
+    const trashIcon = screen.getByTestId('IoTrashOutline');
     fireEvent.click(trashIcon);
 
     expect(mockSetFile).toHaveBeenCalledWith(null);

@@ -1,49 +1,5 @@
 import React from 'react';
 
-type StatusStyle = {
-  backgroundColor?: string;
-  borderColor?: string;
-  color?: string;
-};
-
-/** Column header shared by the appointment and task kanban boards. */
-export const BoardColumnHeader = ({
-  label,
-  count,
-  style,
-}: {
-  label: string;
-  count: number;
-  style: StatusStyle;
-}) => (
-  <div
-    className="rounded-t-2xl border-b px-3 py-2"
-    style={{
-      backgroundColor: style.backgroundColor,
-      borderBottomColor: style.borderColor,
-    }}
-  >
-    <div className="flex items-center justify-between">
-      <div className="text-body-4-emphasis" style={{ color: style.color }}>
-        {label}
-      </div>
-      <div
-        className="text-caption-1 rounded-full px-2 py-0.5"
-        style={{
-          backgroundColor: style.backgroundColor,
-          borderWidth: '1px',
-          borderStyle: 'solid',
-          borderColor: style.borderColor,
-          color: style.color,
-          opacity: 0.85,
-        }}
-      >
-        {count}
-      </div>
-    </div>
-  </div>
-);
-
 /**
  * Attach the dragover/drop listeners a board column needs while a card drag is
  * active: edge auto-scroll on the column and its scroll container, and the drop

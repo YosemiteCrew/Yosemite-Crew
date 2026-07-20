@@ -1,12 +1,12 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import DropdownBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder";
-import { FormField } from "@/app/features/forms/types/forms";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import DropdownBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder';
+import { FormField } from '@/app/features/forms/types/forms';
 
 // --- Mocks ---
 
 // Mock FormInput to isolate builder logic from input implementation
-jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel, readonly }: any) => (
     <input
@@ -20,25 +20,25 @@ jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
 }));
 
 // Mock crypto.randomUUID
-Object.defineProperty(globalThis, "crypto", {
+Object.defineProperty(globalThis, 'crypto', {
   value: {
-    randomUUID: () => "new-uuid-123",
+    randomUUID: () => 'new-uuid-123',
   },
 });
 
-describe("DropdownBuilder Component", () => {
+describe('DropdownBuilder Component', () => {
   const mockOnChange = jest.fn();
 
   // Standard mock field for editable dropdown
   const mockField = {
-    id: "dd-1",
-    type: "dropdown",
-    label: "Select Color",
+    id: 'dd-1',
+    type: 'dropdown',
+    label: 'Select Color',
     options: [
-      { label: "Red", value: "red" },
-      { label: "Blue", value: "blue" },
+      { label: 'Red', value: 'red' },
+      { label: 'Blue', value: 'blue' },
     ],
-  } as FormField & { type: "dropdown" };
+  } as FormField & { type: 'dropdown' };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,151 +46,198 @@ describe("DropdownBuilder Component", () => {
 
   // --- Section 1: Rendering (Standard) ---
 
-  it("renders label input and existing options", () => {
+  it('renders label input and existing options', () => {
     render(<DropdownBuilder field={mockField} onChange={mockOnChange} />);
 
     // Label input
-    expect(screen.getByTestId("input-Label")).toHaveValue("Select Color");
+    expect(screen.getByTestId('input-Label')).toHaveValue('Select Color');
 
     // Option inputs
-    expect(screen.getByTestId("input-Dropdown option 0")).toHaveValue("Red");
-    expect(screen.getByTestId("input-Dropdown option 1")).toHaveValue("Blue");
+    expect(screen.getByTestId('input-Dropdown option 0')).toHaveValue('Red');
+    expect(screen.getByTestId('input-Dropdown option 1')).toHaveValue('Blue');
 
     // Add option button
-    expect(screen.getByText("+ Add option")).toBeInTheDocument();
+    expect(screen.getByText('+ Add option')).toBeInTheDocument();
   });
 
-  it("handles missing options array gracefully", () => {
+  it('handles missing options array gracefully', () => {
     const emptyField = { ...mockField, options: undefined } as any;
     render(<DropdownBuilder field={emptyField} onChange={mockOnChange} />);
 
-    expect(screen.getByTestId("input-Label")).toBeInTheDocument();
+    expect(screen.getByTestId('input-Label')).toBeInTheDocument();
     // No options should be rendered
-    expect(
-      screen.queryByTestId("input-Dropdown option 0")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId('input-Dropdown option 0')).not.toBeInTheDocument();
   });
 
   // --- Section 2: Interactions (Standard) ---
 
-  it("updates field label on change", () => {
+  it('updates field label on change', () => {
     render(<DropdownBuilder field={mockField} onChange={mockOnChange} />);
 
-    const labelInput = screen.getByTestId("input-Label");
-    fireEvent.change(labelInput, { target: { value: "Updated Label" } });
+    const labelInput = screen.getByTestId('input-Label');
+    fireEvent.change(labelInput, { target: { value: 'Updated Label' } });
 
     expect(mockOnChange).toHaveBeenCalledWith({
       ...mockField,
-      label: "Updated Label",
+      label: 'Updated Label',
     });
   });
 
-  it("updates an option label", () => {
+  it('updates an option label', () => {
     render(<DropdownBuilder field={mockField} onChange={mockOnChange} />);
 
-    const option0Input = screen.getByTestId("input-Dropdown option 0");
-    fireEvent.change(option0Input, { target: { value: "Green" } });
+    const option0Input = screen.getByTestId('input-Dropdown option 0');
+    fireEvent.change(option0Input, { target: { value: 'Green' } });
 
     // Expect options array to be updated at index 0
     expect(mockOnChange).toHaveBeenCalledWith({
       ...mockField,
       options: [
-        { label: "Green", value: "red" }, // Value persists if it existed
-        { label: "Blue", value: "blue" },
+        { label: 'Green', value: 'red' }, // Value persists if it existed
+        { label: 'Blue', value: 'blue' },
       ],
     });
   });
 
-  it("adds a new option", () => {
+  it('adds a new option', () => {
     render(<DropdownBuilder field={mockField} onChange={mockOnChange} />);
 
-    const addButton = screen.getByText("+ Add option");
+    const addButton = screen.getByText('+ Add option');
     fireEvent.click(addButton);
 
     // Expect new option with generated UUID and incremented label count
     expect(mockOnChange).toHaveBeenCalledWith({
       ...mockField,
-      options: [
-        ...mockField.options,
-        { label: "Option 3", value: "new-uuid-123" },
-      ],
+      options: [...mockField.options, { label: 'Option 3', value: 'new-uuid-123' }],
     });
   });
 
-  it("removes an option", () => {
+  it('removes an option', () => {
     render(<DropdownBuilder field={mockField} onChange={mockOnChange} />);
 
     // Find remove buttons (✕)
-    const removeButtons = screen.getAllByText("✕");
+    const removeButtons = screen.getAllByText('✕');
     // Click remove on the first option (index 0)
     fireEvent.click(removeButtons[0]);
 
     expect(mockOnChange).toHaveBeenCalledWith({
       ...mockField,
-      options: [{ label: "Blue", value: "blue" }],
+      options: [{ label: 'Blue', value: 'blue' }],
     });
   });
 
   // --- Section 3: Read-Only Rendering (Inventory Integration) ---
 
-  it("renders readonly view when meta.readonly is true", () => {
+  it('renders readonly view when meta.readonly is true', () => {
     const readOnlyField = {
       ...mockField,
       meta: { readonly: true },
-      defaultValue: "Pre-selected Value",
+      defaultValue: 'Pre-selected Value',
     } as any;
 
     render(<DropdownBuilder field={readOnlyField} onChange={mockOnChange} />);
 
     // Should verify specific readonly labels
-    const labelInput = screen.getByTestId("input-Label (from inventory)");
-    const valueInput = screen.getByTestId("input-Value (from inventory)");
+    const labelInput = screen.getByTestId('input-Label (from inventory)');
+    const valueInput = screen.getByTestId('input-Value (from inventory)');
 
-    expect(labelInput).toHaveValue("Select Color");
-    expect(labelInput).toHaveAttribute("readonly");
+    expect(labelInput).toHaveValue('Select Color');
+    expect(labelInput).toHaveAttribute('readonly');
 
-    expect(valueInput).toHaveValue("Pre-selected Value");
-    expect(valueInput).toHaveAttribute("readonly");
+    expect(valueInput).toHaveValue('Pre-selected Value');
+    expect(valueInput).toHaveAttribute('readonly');
 
     // Should NOT show add option button in readonly mode
-    expect(screen.queryByText("+ Add option")).not.toBeInTheDocument();
+    expect(screen.queryByText('+ Add option')).not.toBeInTheDocument();
   });
 
   // --- Section 4: Edge Cases ---
 
-  it("handles missing label/defaultValue in readonly mode", () => {
+  it('handles missing label/defaultValue in readonly mode', () => {
     const emptyReadOnlyField = {
-      id: "dd-ro",
-      type: "dropdown",
+      id: 'dd-ro',
+      type: 'dropdown',
       meta: { readonly: true },
       // missing label and defaultValue
     } as any;
 
-    render(
-      <DropdownBuilder field={emptyReadOnlyField} onChange={mockOnChange} />
-    );
+    render(<DropdownBuilder field={emptyReadOnlyField} onChange={mockOnChange} />);
 
-    expect(screen.getByTestId("input-Label (from inventory)")).toHaveValue("");
-    expect(screen.getByTestId("input-Value (from inventory)")).toHaveValue("");
+    expect(screen.getByTestId('input-Label (from inventory)')).toHaveValue('');
+    expect(screen.getByTestId('input-Value (from inventory)')).toHaveValue('');
   });
 
-  it("handles missing existing value during option update (partial edge case)", () => {
+  // --- Section 5: Task-block fields (meta.taskBlockKey) ---
+
+  it('renders fixed-setting labels for a readonly task-block field', () => {
+    const taskBlockReadOnly = {
+      ...mockField,
+      meta: { readonly: true, taskBlockKey: 'priority' },
+      defaultValue: 'High',
+    } as any;
+
+    render(<DropdownBuilder field={taskBlockReadOnly} onChange={mockOnChange} />);
+
+    expect(screen.getByTestId('input-Fixed setting')).toHaveValue('Select Color');
+    expect(screen.getByTestId('input-Fixed value')).toHaveValue('High');
+    expect(screen.queryByTestId('input-Label (from inventory)')).not.toBeInTheDocument();
+  });
+
+  it('renders and edits the default-value input for an editable task-block field', () => {
+    const taskBlockField = {
+      ...mockField,
+      meta: { taskBlockKey: 'priority' },
+      defaultValue: 'High',
+    } as any;
+
+    render(<DropdownBuilder field={taskBlockField} onChange={mockOnChange} />);
+
+    const defaultInput = screen.getByTestId('input-Default value (prefilled in schedule)');
+    expect(defaultInput).toHaveValue('High');
+
+    fireEvent.change(defaultInput, { target: { value: 'Low' } });
+
+    expect(mockOnChange).toHaveBeenCalledWith({
+      ...taskBlockField,
+      defaultValue: 'Low',
+    });
+  });
+
+  it('falls back to an empty default value when it is not a string', () => {
+    const taskBlockField = {
+      ...mockField,
+      meta: { taskBlockKey: 'priority' },
+      defaultValue: 42,
+    } as any;
+
+    render(<DropdownBuilder field={taskBlockField} onChange={mockOnChange} />);
+
+    expect(screen.getByTestId('input-Default value (prefilled in schedule)')).toHaveValue('');
+  });
+
+  it('does not render the default-value input for a non-task-block field', () => {
+    render(<DropdownBuilder field={mockField} onChange={mockOnChange} />);
+
+    expect(
+      screen.queryByTestId('input-Default value (prefilled in schedule)')
+    ).not.toBeInTheDocument();
+  });
+
+  it('handles missing existing value during option update (partial edge case)', () => {
     // Tests the `options[idx]?.value ?? value` fallback logic
     const sparseOptionsField = {
       ...mockField,
-      options: [{ label: "Old" }], // value is undefined
+      options: [{ label: 'Old' }], // value is undefined
     } as any;
 
-    render(
-      <DropdownBuilder field={sparseOptionsField} onChange={mockOnChange} />
-    );
+    render(<DropdownBuilder field={sparseOptionsField} onChange={mockOnChange} />);
 
-    const input = screen.getByTestId("input-Dropdown option 0");
-    fireEvent.change(input, { target: { value: "New" } });
+    const input = screen.getByTestId('input-Dropdown option 0');
+    fireEvent.change(input, { target: { value: 'New' } });
 
     expect(mockOnChange).toHaveBeenCalledWith({
       ...sparseOptionsField,
-      options: [{ label: "New", value: "New" }], // Fallback to label if value missing
+      options: [{ label: 'New', value: 'New' }], // Fallback to label if value missing
     });
   });
 });

@@ -1,0 +1,41 @@
+/* PIMS outpatient schedule — the design's "Series progress · 1 / 6 done" rail as a
+   native <progress>. The design draws a 6px pill that flexes between the label and
+   the count, filled from the left in --blue over an --inset groove, so the native
+   groove and value are restyled per engine. Colours are token-only so light and
+   dark come for free. */
+
+.yc-series-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  /* Takes the space between the "Series progress" label and the "n / n done"
+     count, both of which are shrink-0 — hence flex-grow with a 0 basis. */
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 6px;
+  border: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  /* Groove colour for engines that paint the element itself (and the `color`
+     fallback some renderers use for the value). */
+  background-color: var(--inset);
+  color: var(--blue);
+}
+
+/* WebKit/Blink paints the groove on ::-webkit-progress-bar. */
+.yc-series-progress::-webkit-progress-bar {
+  background-color: var(--inset);
+  border-radius: 9999px;
+}
+
+/* WebKit/Blink paints the fill on ::-webkit-progress-value. */
+.yc-series-progress::-webkit-progress-value {
+  background-color: var(--blue);
+  border-radius: 9999px;
+}
+
+/* Gecko paints the fill on ::-moz-progress-bar. */
+.yc-series-progress::-moz-progress-bar {
+  background-color: var(--blue);
+  border-radius: 9999px;
+}

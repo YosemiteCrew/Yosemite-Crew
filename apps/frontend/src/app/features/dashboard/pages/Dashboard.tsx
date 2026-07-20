@@ -58,26 +58,33 @@ const IndividualProductTurnoverStat = dynamic(
 
 const Dashboard = () => {
   return (
-    <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="yc-page-content">
       <DashboardProfile />
       <DashboardSteps />
       <VideosCard />
       <PermissionGate allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}>
         <Explorecard />
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
+        {/* Vertical day charts: tablet (>=768) and desktop only. The 390px phone
+            frames omit them and jump from the stat tiles straight to the schedule. */}
+        <div className="hidden md:grid md:grid-cols-2 md:gap-3 xl:gap-3.5">
           <AppointmentStat />
           <RevenueStat />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 mb-2 md:mb-4">
+      </PermissionGate>
+      {/* Schedule follows the charts row, matching the design scroll order
+          (explore -> charts -> schedule -> leaders -> turnover -> availability). */}
+      <AppointmentTask />
+      <PermissionGate allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 xl:gap-3.5">
           <AppointmentLeadersStat />
           <RevenueLeadersStat />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 mb-2 md:mb-4">
+        {/* Inventory turnover: tablet and desktop only; omitted on the phone frames. */}
+        <div className="hidden md:grid md:grid-cols-2 md:gap-3 xl:gap-3.5">
           <AnnualInventoryTurnoverStat />
           <IndividualProductTurnoverStat />
         </div>
       </PermissionGate>
-      <AppointmentTask />
       <Availability />
     </div>
   );

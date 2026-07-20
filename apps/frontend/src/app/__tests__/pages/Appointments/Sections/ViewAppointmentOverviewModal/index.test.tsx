@@ -1,13 +1,21 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import ViewAppointmentOverviewModal from '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal';
 import { Appointment } from '@yosemite-crew/types';
+import {
+  updateAppointment,
+  assignEncounterUnit,
+} from '@/app/features/appointments/services/appointmentService';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
+
+const settle = async () => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+};
 
 jest.mock('next/image', () => {
-  const MockImage = ({ src, alt }: { src: string; alt: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} />
-  );
+  const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
   MockImage.displayName = 'Image';
   return MockImage;
 });
@@ -31,8 +39,9 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
   useCompanionTerminologyText: () => (text: string) => text,
 }));
 
+let mockOrgsById: Record<string, { type: string }> = { 'org-1': { type: 'HOSPITAL' } };
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: jest.fn((selector) => selector({ orgsById: { 'org-1': { type: 'HOSPITAL' } } })),
+  useOrgStore: jest.fn((selector) => selector({ orgsById: mockOrgsById })),
 }));
 
 jest.mock('@/app/stores/parentStore', () => ({
@@ -67,17 +76,13 @@ jest.mock('@/app/hooks/useTeam', () => ({
   ]),
 }));
 
+let mockServices: Array<Record<string, unknown>> = [
+  { id: 'serv-1', name: 'Consultation', cost: '80', maxDiscount: '10' },
+];
 jest.mock('@/app/stores/serviceStore', () => ({
   useServiceStore: {
     getState: () => ({
-      getServicesBySpecialityId: jest.fn(() => [
-        {
-          id: 'serv-1',
-          name: 'Consultation',
-          cost: '80',
-          maxDiscount: '10',
-        },
-      ]),
+      getServicesBySpecialityId: jest.fn(() => mockServices),
     }),
   },
 }));
@@ -90,12 +95,14 @@ jest.mock('@/app/lib/forms', () => ({
   formatTimeLabel: jest.fn(() => '10:00 AM'),
 }));
 
+let mockInvoiceMap: Record<string, { totalAmount?: number; currency?: string }> = {};
 jest.mock('@/app/lib/paymentStatus', () => ({
-  createInvoiceByAppointmentId: jest.fn(() => ({})),
+  createInvoiceByAppointmentId: jest.fn(() => mockInvoiceMap),
 }));
 
+const mockNotify = jest.fn();
 jest.mock('@/app/hooks/useNotify', () => ({
-  useNotify: jest.fn(() => ({ notify: jest.fn() })),
+  useNotify: jest.fn(() => ({ notify: mockNotify })),
 }));
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
@@ -204,6 +211,10 @@ describe('ViewAppointmentOverviewModal', () => {
       roomUnitIdsByRoomId: {},
       setRoomUnitOccupied: jest.fn(),
     };
+    mockServices = [{ id: 'serv-1', name: 'Consultation', cost: '80', maxDiscount: '10' }];
+    mockInvoiceMap = {};
+    mockOrgsById = { 'org-1': { type: 'HOSPITAL' } };
+    (formatDateInPreferredTimeZone as jest.Mock).mockReturnValue('January 15, 2026');
   });
 
   it('renders the modal title', () => {
@@ -363,5 +374,399 @@ describe('ViewAppointmentOverviewModal', () => {
   it('does not render modal content when showModal is false', () => {
     render(<ViewAppointmentOverviewModal {...defaultProps} showModal={false} />);
     expect(screen.queryByTestId('modal-shell')).not.toBeInTheDocument();
+  });
+
+  const inpatientRoomState = () => ({
+    roomUnitsById: {
+      'unit-1a': {
+        id: 'unit-1a',
+        roomId: 'room-1',
+        displayName: 'Ward 1A',
+        code: '1A',
+        isActive: true,
+      },
+    },
+    roomUnitIdsByRoomId: { 'room-1': ['unit-1a'] },
+    setRoomUnitOccupied: jest.fn(),
+  });
+
+  const inpatientAppointment = (overrides: Partial<Appointment> = {}): Appointment => ({
+    ...baseAppointment,
+    appointmentKind: 'INPATIENT',
+    room: { id: 'room-1', name: 'Room A' },
+    ...overrides,
+  });
+
+  it('shows the estimate from a matching invoice when one exists', () => {
+    mockInvoiceMap = { 'appt-1': { totalAmount: 123, currency: 'USD' } };
+    render(<ViewAppointmentOverviewModal {...defaultProps} />);
+    expect(screen.getByText('$123')).toBeInTheDocument();
+  });
+
+  it('falls back to cost when discount cancels the estimate to zero', () => {
+    mockServices = [{ id: 'serv-1', name: 'Consultation', cost: '80', maxDiscount: '100' }];
+    render(<ViewAppointmentOverviewModal {...defaultProps} />);
+    // Estimate cancels to zero, so both the estimate and the cost row show the cost.
+    expect(screen.getAllByText('$ 80.00').length).toBeGreaterThan(0);
+  });
+
+  it('renders "-" for cost, max discount and estimate when the service has no pricing', () => {
+    mockServices = [{ id: 'serv-1', name: 'Consultation', cost: 0, maxDiscount: 0 }];
+    render(<ViewAppointmentOverviewModal {...defaultProps} />);
+    const costRow = screen.getByText('Cost:').closest('div') as HTMLElement;
+    expect(within(costRow).getByText('-')).toBeInTheDocument();
+    const discountRow = screen.getByText('Max discount:').closest('div') as HTMLElement;
+    expect(within(discountRow).getByText('-')).toBeInTheDocument();
+    const estimateRow = screen.getByText('Estimate').closest('div') as HTMLElement;
+    expect(within(estimateRow).getByText('-')).toBeInTheDocument();
+  });
+
+  it('hides the service cost rows and shows "-" estimate when no service is resolved', () => {
+    mockServices = [];
+    render(<ViewAppointmentOverviewModal {...defaultProps} />);
+    expect(screen.queryByText('Cost:')).not.toBeInTheDocument();
+    const estimateRow = screen.getByText('Estimate').closest('div') as HTMLElement;
+    expect(within(estimateRow).getByText('-')).toBeInTheDocument();
+  });
+
+  it('hides the estimate panel for COMPLETED appointments', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, status: 'COMPLETED' }}
+      />
+    );
+    expect(screen.queryByText('Estimate')).not.toBeInTheDocument();
+  });
+
+  it('renders "-" for the date when timezone formatting throws', () => {
+    (formatDateInPreferredTimeZone as jest.Mock).mockImplementation(() => {
+      throw new Error('bad date');
+    });
+    render(<ViewAppointmentOverviewModal {...defaultProps} />);
+    const dateRow = screen.getByText('Date').closest('div') as HTMLElement;
+    expect(within(dateRow).getByText('-')).toBeInTheDocument();
+  });
+
+  it('resolves the lead photo by matching the team member id', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{
+          ...baseAppointment,
+          lead: { id: 'team-1', name: 'Dr. Smith', profileUrl: undefined },
+        }}
+      />
+    );
+    expect(screen.getByRole('img', { name: 'Dr. Smith' })).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/lead.jpg'
+    );
+  });
+
+  it('falls back to the appointment lead profile url over the team image', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{
+          ...baseAppointment,
+          lead: { id: 'lead-1', name: 'Dr. Smith', profileUrl: 'https://cdn.example.com/own.jpg' },
+        }}
+      />
+    );
+    expect(screen.getByRole('img', { name: 'Dr. Smith' })).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/own.jpg'
+    );
+  });
+
+  it('renders support staff names, ignoring entries without a name', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{
+          ...baseAppointment,
+          supportStaff: [
+            { id: 's1', name: 'Nurse A' },
+            { id: 's2', name: '' },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByText('Support')).toBeInTheDocument();
+    expect(screen.getByText('Nurse A')).toBeInTheDocument();
+  });
+
+  it('renders "-" fallbacks when patient and lead names are empty', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{
+          ...baseAppointment,
+          patient: { ...baseAppointment.patient, name: '' },
+          companion: { ...baseAppointment.companion!, name: '' },
+          lead: { id: 'lead-1', name: '', profileUrl: undefined },
+        }}
+      />
+    );
+    const patientRow = screen.getByText('Patient').parentElement as HTMLElement;
+    expect(within(patientRow).getByText('-')).toBeInTheDocument();
+    const leadRow = screen.getByText('Lead').parentElement as HTMLElement;
+    expect(within(leadRow).getByText('-')).toBeInTheDocument();
+  });
+
+  it('renders "-" for duration and time when they are missing', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, durationMinutes: 0 }}
+      />
+    );
+    const durationRow = screen.getByText('Duration').closest('div') as HTMLElement;
+    expect(within(durationRow).getByText('-')).toBeInTheDocument();
+  });
+
+  it('shows the blocked message and disabled action for non-workspace statuses', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, status: 'CANCELLED' }}
+      />
+    );
+    expect(screen.getByText(/cannot be opened in the clinical workspace/i)).toBeInTheDocument();
+  });
+
+  it('saves a room change for an outpatient appointment', async () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, appointmentKind: 'OUTPATIENT' }}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('room-dropdown'));
+    });
+    await settle();
+
+    expect(updateAppointment as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ room: { id: 'room-1', name: 'Room A' } })
+    );
+    expect(mockInitEncounter).not.toHaveBeenCalled();
+  });
+
+  it('keeps the saving state while a room change is in flight', async () => {
+    let resolveUpdate: () => void = () => undefined;
+    (updateAppointment as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUpdate = resolve;
+        })
+    );
+
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, appointmentKind: 'OUTPATIENT' }}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('room-dropdown'));
+    });
+
+    expect(screen.getByTestId('room-dropdown')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveUpdate();
+    });
+    await settle();
+  });
+
+  it('assigns the room and unit for an inpatient appointment with an encounter', async () => {
+    mockRoomState = inpatientRoomState();
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={inpatientAppointment({ encounterId: 'enc-1' })}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('room-dropdown'));
+    });
+    await settle();
+
+    expect(mockInitEncounter).toHaveBeenCalledWith('appt-1', 'INPATIENT', expect.any(Object));
+    expect(mockSetRoomUnit).toHaveBeenCalledWith('appt-1', 'room-1', 'unit-1a');
+    expect(assignEncounterUnit as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ encounterId: 'enc-1', unitId: 'unit-1a' })
+    );
+  });
+
+  it('assigns the room without an encounter unit when the appointment has no encounterId', async () => {
+    mockRoomState = inpatientRoomState();
+    render(
+      <ViewAppointmentOverviewModal {...defaultProps} activeAppointment={inpatientAppointment()} />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('room-dropdown'));
+    });
+    await settle();
+
+    expect(mockInitEncounter).toHaveBeenCalled();
+    expect(mockSetRoomUnit).toHaveBeenCalled();
+    expect(assignEncounterUnit as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it('notifies when a room change fails', async () => {
+    (updateAppointment as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, appointmentKind: 'OUTPATIENT' }}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('room-dropdown'));
+    });
+    await settle();
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ title: 'Room update failed' })
+    );
+  });
+
+  it('assigns a unit for an inpatient appointment with an encounter', async () => {
+    mockRoomState = inpatientRoomState();
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={inpatientAppointment({ encounterId: 'enc-1' })}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('unit-dropdown'));
+    });
+    await settle();
+
+    expect(mockInitEncounter).toHaveBeenCalledWith('appt-1', 'INPATIENT', expect.any(Object));
+    expect(assignEncounterUnit as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ encounterId: 'enc-1', unitId: 'unit-1a' })
+    );
+  });
+
+  it('updates the unit locally without an encounter call when there is no encounterId', async () => {
+    mockRoomState = inpatientRoomState();
+    render(
+      <ViewAppointmentOverviewModal {...defaultProps} activeAppointment={inpatientAppointment()} />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('unit-dropdown'));
+    });
+    await settle();
+
+    expect(mockSetRoomUnit).toHaveBeenCalledWith('appt-1', 'room-1', 'unit-1a');
+    expect(assignEncounterUnit as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it('notifies when a unit change fails', async () => {
+    mockRoomState = inpatientRoomState();
+    (assignEncounterUnit as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={inpatientAppointment({ encounterId: 'enc-1' })}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('unit-dropdown'));
+    });
+    await settle();
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ title: 'Unit update failed' })
+    );
+  });
+
+  it('shows the read-only room name for a COMPLETED appointment', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{
+          ...baseAppointment,
+          status: 'COMPLETED',
+          room: { id: 'room-1', name: 'Room A' },
+        }}
+      />
+    );
+    expect(screen.queryByTestId('room-dropdown')).not.toBeInTheDocument();
+    expect(screen.getByText('Room A')).toBeInTheDocument();
+  });
+
+  it('shows the read-only unit label for a COMPLETED inpatient appointment', () => {
+    mockRoomState = inpatientRoomState();
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={inpatientAppointment({ status: 'COMPLETED' })}
+      />
+    );
+    expect(screen.queryByTestId('unit-dropdown')).not.toBeInTheDocument();
+    expect(screen.getByText('Ward 1A')).toBeInTheDocument();
+  });
+
+  it('opens details without a clinical intent for non-upcoming appointments', () => {
+    const onOpenDetails = jest.fn();
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        onOpenDetails={onOpenDetails}
+        activeAppointment={{ ...baseAppointment, status: 'CHECKED_IN' }}
+      />
+    );
+    fireEvent.click(screen.getByText('View Details'));
+    expect(onOpenDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'appt-1' }),
+      undefined
+    );
+  });
+
+  it('defaults the org type to HOSPITAL when the organisation is unknown', () => {
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        activeAppointment={{ ...baseAppointment, organisationId: 'missing-org' }}
+      />
+    );
+    fireEvent.click(screen.getByText('Start Appointment'));
+    expect(defaultProps.onOpenDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'appt-1' }),
+      expect.objectContaining({ label: 'prescription' })
+    );
+  });
+
+  it('uses the care intent for non-hospital organisations', () => {
+    const onOpenDetails = jest.fn();
+    mockOrgsById = { 'org-1': { type: 'CLINIC' } };
+    render(
+      <ViewAppointmentOverviewModal
+        {...defaultProps}
+        onOpenDetails={onOpenDetails}
+        activeAppointment={baseAppointment}
+      />
+    );
+    fireEvent.click(screen.getByText('Start Appointment'));
+    expect(onOpenDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'appt-1' }),
+      expect.objectContaining({ label: 'care' })
+    );
   });
 });

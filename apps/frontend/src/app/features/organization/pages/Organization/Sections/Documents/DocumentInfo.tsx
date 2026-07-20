@@ -1,16 +1,13 @@
-import EditableAccordion from "@/app/ui/primitives/Accordion/EditableAccordion";
-import Modal from "@/app/ui/overlays/Modal";
-import { OrganizationDocument } from "@/app/features/documents/types/document";
-import React, { useState } from "react";
-import { OrgDocumentCategoryOptions } from "@/app/features/organization/pages/Organization/types";
-import {
-  deleteDocument,
-  updateDocument,
-} from "@/app/features/documents/services/documentService";
-import DocUploader from "@/app/ui/widgets/UploadImage/DocUploader";
-import { Primary, Secondary } from "@/app/ui/primitives/Buttons";
-import Close from "@/app/ui/primitives/Icons/Close";
-import { useNotify } from "@/app/hooks/useNotify";
+import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
+import Modal from '@/app/ui/overlays/Modal';
+import { OrganizationDocument } from '@/app/features/documents/types/document';
+import React, { useState } from 'react';
+import { OrgDocumentCategoryOptions } from '@/app/features/organization/pages/Organization/types';
+import { deleteDocument, updateDocument } from '@/app/features/documents/services/documentService';
+import DocUploader from '@/app/ui/widgets/UploadImage/DocUploader';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import Close from '@/app/ui/primitives/Icons/Close';
+import { useNotify } from '@/app/hooks/useNotify';
 
 type DocumentInfoProps = {
   showModal: boolean;
@@ -20,12 +17,12 @@ type DocumentInfoProps = {
 };
 
 const Fields = [
-  { label: "Title", key: "title", type: "text", required: true },
-  { label: "Description", key: "description", type: "text" },
+  { label: 'Title', key: 'title', type: 'text', required: true },
+  { label: 'Description', key: 'description', type: 'text' },
   {
-    label: "Category",
-    key: "category",
-    type: "dropdown",
+    label: 'Category',
+    key: 'category',
+    type: 'dropdown',
     options: OrgDocumentCategoryOptions,
   },
 ];
@@ -37,7 +34,7 @@ const DocumentInfo = ({
   canEditDocument,
 }: DocumentInfoProps) => {
   const [file, setFile] = useState<File | null>(null);
-  const [fileUrl, setFileUrl] = useState<string>("");
+  const [fileUrl, setFileUrl] = useState<string>('');
   const { notify } = useNotify();
 
   const handleUpdate = async (values: any) => {
@@ -51,16 +48,16 @@ const DocumentInfo = ({
         category: values.category,
       };
       await updateDocument(formData);
-      notify("success", {
-        title: "Document updated",
-        text: "Document details have been updated successfully.",
+      notify('success', {
+        title: 'Document updated',
+        text: 'Document details have been updated successfully.',
       });
       setShowModal(false);
     } catch (error) {
       console.log(error);
-      notify("error", {
-        title: "Unable to update document",
-        text: "Failed to update document. Please try again.",
+      notify('error', {
+        title: 'Unable to update document',
+        text: 'Failed to update document. Please try again.',
       });
     }
   };
@@ -72,17 +69,17 @@ const DocumentInfo = ({
         fileUrl,
       };
       await updateDocument(formData);
-      notify("success", {
-        title: "Document updated",
-        text: "Document details have been updated successfully.",
+      notify('success', {
+        title: 'Document updated',
+        text: 'Document details have been updated successfully.',
       });
       setFile(null);
       setShowModal(false);
     } catch (error) {
       console.log(error);
-      notify("error", {
-        title: "Unable to update document",
-        text: "Failed to update document. Please try again.",
+      notify('error', {
+        title: 'Unable to update document',
+        text: 'Failed to update document. Please try again.',
       });
     }
   };
@@ -90,31 +87,29 @@ const DocumentInfo = ({
   const handleDelete = async () => {
     try {
       await deleteDocument(activeDocument);
-      notify("success", {
-        title: "Document deleted",
-        text: "Document has been deleted successfully.",
+      notify('success', {
+        title: 'Document deleted',
+        text: 'Document has been deleted successfully.',
       });
       setShowModal(false);
     } catch (error) {
       console.log(error);
-      notify("error", {
-        title: "Unable to delete document",
-        text: "Failed to delete document. Please try again.",
+      notify('error', {
+        title: 'Unable to delete document',
+        text: 'Failed to delete document. Please try again.',
       });
     }
   };
 
   const handleDownload = () => {
-    globalThis.open(activeDocument.fileUrl, "_blank");
+    globalThis.open(activeDocument.fileUrl, '_blank');
   };
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
+          <div className="size-8" aria-hidden="true" />
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">View document</div>
           </div>

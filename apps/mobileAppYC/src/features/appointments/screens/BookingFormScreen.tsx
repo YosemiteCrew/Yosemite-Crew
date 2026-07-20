@@ -4,6 +4,7 @@ import {useSelector, useDispatch} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import {useDocumentUpload} from '@/shared/hooks/useDocumentUpload';
 import type {RootState, AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
@@ -386,7 +387,7 @@ export const BookingFormScreen: React.FC = () => {
       <LiquidGlassHeaderScreen
         header={
           <Header
-            title="Book an Appointment"
+            title="Book an appointment"
             showBackButton
             onBack={() => navigation.goBack()}
             glass={false}
@@ -521,10 +522,10 @@ export const BookingFormScreen: React.FC = () => {
                   title="Book appointment"
                   onPress={handleBook}
                   height={56}
-                  borderRadius={16}
+                  borderRadius={theme.borderRadius.button}
                   disabled={appointmentsLoading || submitting}
                   loading={appointmentsLoading || submitting}
-                  tintColor={theme.colors.secondary}
+                  tintColor={theme.colors.cta}
                   shadowIntensity="medium"
                   textStyle={styles.confirmPrimaryButtonText}
                 />
@@ -548,7 +549,7 @@ export const BookingFormScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       paddingHorizontal: theme.spacing['5'],
@@ -557,8 +558,8 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['6'],
     },
     confirmPrimaryButtonText: {
-      ...theme.typography.button,
-      color: theme.colors.white,
+      ...theme.typography.cta,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
   });

@@ -16,7 +16,7 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    size: { control: 'radio', options: ['default', 'large'] },
+    size: { control: 'radio', options: ['compact', 'small', 'default', 'large'] },
     isDisabled: { control: 'boolean' },
     href: { control: 'text' },
   },
@@ -32,6 +32,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+export const Compact: Story = { args: { size: 'compact', text: 'Open workspace' } };
+export const Small: Story = { args: { size: 'small', text: 'Contact support' } };
 export const Large: Story = { args: { size: 'large', text: 'Learn more' } };
 export const Disabled: Story = { args: { isDisabled: true } };
 export const AsLink: Story = {

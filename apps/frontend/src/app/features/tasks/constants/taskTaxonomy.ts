@@ -127,6 +127,65 @@ export const categoryToKind = (category?: string): TaskKind => {
 
 export const DEFAULT_TASK_CATEGORY: TaskCategory = 'CARE';
 
+/* ───────────────────────────── Priority ───────────────────────────── */
+
+/** Task urgency. Mirrors the Prisma `TaskPriority` enum (nullable on the model). */
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+/** Priority options shown in every task picker (label + value). Value === priority. */
+export const TASK_PRIORITY_OPTIONS: Option[] = [
+  { label: 'Low', value: 'LOW' },
+  { label: 'Medium', value: 'MEDIUM' },
+  { label: 'High', value: 'HIGH' },
+  { label: 'Urgent', value: 'URGENT' },
+];
+
+/** Default urgency applied to a newly created task. */
+export const DEFAULT_TASK_PRIORITY: TaskPriority = 'MEDIUM';
+
+const TASK_PRIORITY_LABELS: Record<string, string> = Object.fromEntries(
+  TASK_PRIORITY_OPTIONS.map((option) => [option.value, option.label])
+);
+
+/** Human label for any stored priority value (empty string when unset). */
+export const getTaskPriorityLabel = (priority?: string): string => {
+  if (!priority) return '';
+  return TASK_PRIORITY_LABELS[priority] ?? priority;
+};
+
+/**
+ * Sort weight for a priority (higher === more urgent). Unset priorities rank
+ * below LOW so they sink to the bottom of a priority-sorted list.
+ */
+const TASK_PRIORITY_RANK: Record<string, number> = {
+  URGENT: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
+
+export const getTaskPriorityRank = (priority?: string): number =>
+  TASK_PRIORITY_RANK[priority ?? ''] ?? 0;
+
+type PillStyle = { backgroundColor: string; color: string; borderColor: string };
+
+/** Pill styling (design-system tokens) for a priority badge, keyed by urgency. */
+const TASK_PRIORITY_PILL_FAMILY: Record<TaskPriority, string> = {
+  LOW: 'neutral',
+  MEDIUM: 'info',
+  HIGH: 'progress',
+  URGENT: 'warning',
+};
+
+export const getTaskPriorityPillStyle = (priority?: string): PillStyle => {
+  const family = TASK_PRIORITY_PILL_FAMILY[priority as TaskPriority] ?? 'neutral';
+  return {
+    backgroundColor: `var(--color-pill-${family}-bg)`,
+    color: `var(--color-pill-${family}-text)`,
+    borderColor: `var(--color-pill-${family}-border)`,
+  };
+};
+
 /* ───────────────────────────── Audience ───────────────────────────── */
 
 export const TASK_AUDIENCE_OPTIONS: Option[] = [

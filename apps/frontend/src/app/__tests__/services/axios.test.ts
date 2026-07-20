@@ -5,6 +5,7 @@ import {
   deleteData,
   patchData,
   isAuthRedirectError,
+  clearInFlightGetRequests,
 } from '@/app/services/axios';
 import Session from 'supertokens-web-js/recipe/session';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -202,6 +203,64 @@ describe('Axios Service', () => {
       await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([
         { data: 'org-1' },
         { data: 'org-2' },
+      ]);
+    });
+
+    it('getData does not reuse in-flight GET requests across users', async () => {
+      let resolveFirstRequest: (value: { data: string }) => void = () => {};
+      const firstPromise = new Promise<{ data: string }>((resolve) => {
+        resolveFirstRequest = resolve;
+      });
+      const secondPromise = Promise.resolve({ data: 'user-2' });
+
+      mockAxiosInstance.get.mockReturnValueOnce(firstPromise).mockReturnValueOnce(secondPromise);
+
+      mockGetState.mockReturnValue({ user: { userId: 'user-1' } });
+      const firstRequest = getData('/user-scoped', { id: 1 });
+
+      // Same org, same endpoint, same params — only the signed-in user differs.
+      mockGetState.mockReturnValue({ user: { userId: 'user-2' } });
+      const secondRequest = getData('/user-scoped', { id: 1 });
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+
+      resolveFirstRequest({ data: 'user-1' });
+      await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([
+        { data: 'user-1' },
+        { data: 'user-2' },
+      ]);
+    });
+
+    it('getData falls back to an empty user key when the auth store is unavailable', async () => {
+      mockGetState.mockImplementation(() => {
+        throw new Error('store unavailable');
+      });
+      mockAxiosInstance.get.mockResolvedValueOnce({ data: 'ok' });
+
+      await expect(getData('/no-auth-store', { id: 1 })).resolves.toEqual({ data: 'ok' });
+    });
+
+    it('clearInFlightGetRequests stops a pending GET from being reused', async () => {
+      let resolveFirstRequest: (value: { data: string }) => void = () => {};
+      const firstPromise = new Promise<{ data: string }>((resolve) => {
+        resolveFirstRequest = resolve;
+      });
+
+      mockAxiosInstance.get
+        .mockReturnValueOnce(firstPromise)
+        .mockResolvedValueOnce({ data: 'second' });
+      mockGetState.mockReturnValue({ user: { userId: 'user-1' } });
+
+      const firstRequest = getData('/cleared', { id: 1 });
+      clearInFlightGetRequests();
+      const secondRequest = getData('/cleared', { id: 1 });
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+
+      resolveFirstRequest({ data: 'first' });
+      await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([
+        { data: 'first' },
+        { data: 'second' },
       ]);
     });
 

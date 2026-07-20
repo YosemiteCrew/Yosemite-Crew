@@ -9,7 +9,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StreamChat, Channel, ChannelFilters, ChannelSort } from 'stream-chat';
-import { LuSearch, LuCornerDownLeft, LuCommand } from 'react-icons/lu';
+import { LuCommand } from 'react-icons/lu';
+import { IoReturnDownBackOutline, IoSearchOutline } from 'react-icons/io5';
 import Text from '@/app/ui/Text';
 import { ChatAvatar } from './ChatAvatar';
 
@@ -104,7 +105,7 @@ export function ChatCommandPalette({
       />
       <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-3">
-          <LuSearch className="size-4 shrink-0 text-neutral-400" />
+          <IoSearchOutline className="h-4 w-4 shrink-0 text-[var(--ink-faint)]" />
           <input
             autoFocus
             value={query}
@@ -114,16 +115,16 @@ export function ChatCommandPalette({
             }}
             placeholder="Jump to a conversation…"
             aria-label="Search conversations"
-            className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
+            className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-[var(--ink-faint)]"
           />
-          <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400">
+          <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-[var(--ink-faint)]">
             <LuCommand className="size-3" />K
           </span>
         </div>
         <ul className="max-h-80 overflow-y-auto p-2">
           {results.length === 0 ? (
             <li className="px-3 py-6 text-center">
-              <Text as="span" variant="body-4" className="text-neutral-400">
+              <Text as="span" variant="body-4" className="text-[var(--ink-faint)]">
                 No conversations found
               </Text>
             </li>
@@ -145,7 +146,7 @@ export function ChatCommandPalette({
                     >
                       {title}
                     </Text>
-                    <LuCornerDownLeft className="size-3.5 shrink-0 text-neutral-300" />
+                    <IoReturnDownBackOutline className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
                   </button>
                 </li>
               );

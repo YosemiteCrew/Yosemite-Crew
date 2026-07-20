@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import Slotpicker from '@/app/ui/inputs/Slotpicker';
 import { Slot } from '@/app/features/appointments/types/appointments';
 
@@ -156,8 +156,8 @@ describe('Slotpicker Component', () => {
         timeSlots={mockTimeSlots}
       />
     );
-    expect(screen.getByText('Formatted 10:00')).toHaveClass('text-blue-text');
-    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('text-blue-text');
+    expect(screen.getByText('Formatted 10:00')).toHaveClass('bg-blue-text!', 'text-white');
+    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('bg-blue-text!');
   });
 
   it('calls setSelectedSlot when a slot is clicked', () => {
@@ -305,5 +305,122 @@ describe('Slotpicker Component', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
     expect(screen.getByText('January 2026')).toBeInTheDocument();
+  });
+
+  it('wraps year backwards on previous month from January', () => {
+    const janDate = new Date(2026, 0, 15, 12, 0, 0);
+    render(
+      <Slotpicker
+        selectedDate={janDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    expect(screen.getByText('January 2026')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+    expect(screen.getByText('December 2025')).toBeInTheDocument();
+  });
+
+  it('follows the selected date into a different month and year', () => {
+    const { rerender } = render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+    expect(screen.getByText('April 2025')).toBeInTheDocument();
+
+    rerender(
+      <Slotpicker
+        selectedDate={new Date(2026, 5, 9, 12, 0, 0)}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+
+    expect(screen.getByText('June 2026')).toBeInTheDocument();
+  });
+
+  it('keeps the view put when the selected date changes within the same month', () => {
+    const { rerender } = render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+
+    // A new Date instance in the same month/year: the sync block runs but
+    // neither view-state setter should fire.
+    rerender(
+      <Slotpicker
+        selectedDate={new Date(2025, 3, 20, 12, 0, 0)}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+
+    expect(screen.getByText('April 2025')).toBeInTheDocument();
+    expect(screen.getByText('20').closest('button')).toHaveClass('text-blue-text');
+  });
+
+  it('follows the selected date into a different month of the same year', () => {
+    const { rerender } = render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+
+    rerender(
+      <Slotpicker
+        selectedDate={new Date(2025, 6, 4, 12, 0, 0)}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={[]}
+      />
+    );
+
+    expect(screen.getByText('July 2025')).toBeInTheDocument();
+  });
+
+  it('scrolls the slot list into view shortly after a date is picked', () => {
+    const scrollIntoViewMock = globalThis.HTMLElement.prototype.scrollIntoView as jest.Mock;
+    scrollIntoViewMock.mockClear();
+
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
+      />
+    );
+
+    fireEvent.click(screen.getByText('15').closest('button')!);
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+    act(() => {
+      jest.advanceTimersByTime(80);
+    });
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest' });
   });
 });

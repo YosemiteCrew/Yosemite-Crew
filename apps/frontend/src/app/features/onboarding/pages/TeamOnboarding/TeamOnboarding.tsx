@@ -1,8 +1,7 @@
 'use client';
 import React, { Suspense, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { FaUser, FaCalendar } from 'react-icons/fa';
-import { IoDocument } from 'react-icons/io5';
+import { IoCalendarOutline, IoDocument, IoPersonOutline } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { StepContent } from '@/app/features/onboarding/components/Steps/types';
@@ -22,16 +21,16 @@ import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 const TeamSteps: StepContent[] = [
   {
-    title: 'Personal details',
-    logo: <FaUser color="var(--color-neutral-0)" size={20} />,
+    title: 'Personal',
+    logo: <IoPersonOutline size={17} />,
   },
   {
-    title: 'Professional details',
-    logo: <IoDocument color="var(--color-neutral-0)" size={20} />,
+    title: 'Professional',
+    logo: <IoDocument size={18} />,
   },
   {
-    title: 'Availability and consultation',
-    logo: <FaCalendar color="var(--color-neutral-0)" size={18} />,
+    title: 'Availability & consultation',
+    logo: <IoCalendarOutline size={16} />,
   },
 ];
 
@@ -320,7 +319,7 @@ const TeamOnboarding = () => {
         canSelectStep={canSelectStep}
         onStepSelect={handleStepSelect}
       />
-      <div className="flex flex-col gap-6">
+      <div className="flex w-full flex-col items-center gap-7">
         <h1 className="create-profile-title">Create organization profile</h1>
         <TeamOnboardingStep
           activeStep={activeStep}

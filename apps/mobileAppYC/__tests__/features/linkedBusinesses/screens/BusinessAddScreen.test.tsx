@@ -196,6 +196,9 @@ describe('BusinessAddScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks wipes call data but not implementations; re-assert the
+    // default loading=false so a prior loading=true test cannot leak forward.
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(false);
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Setup default thunk implementations to return promises with .unwrap().
@@ -365,9 +368,25 @@ describe('BusinessAddScreen', () => {
     fireEvent.press(screen.getByTestId('btn-Notify Business'));
 
     await waitFor(() => {
-      expect(LinkedBusinessActions.inviteBusiness).toHaveBeenCalled();
+      expect(LinkedBusinessActions.inviteBusiness).toHaveBeenCalledWith(
+        expect.objectContaining({email: 'contact@vet.com'}),
+      );
       expect(mockNotifySheetOpen).toHaveBeenCalled();
     });
+  });
+
+  it('shows an alert and does not invite when the business has no email on file', () => {
+    const props = createProps({isPMSRecord: false, email: undefined});
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('btn-Notify Business'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Email required',
+      expect.stringContaining('does not have an email on file'),
+    );
+    expect(LinkedBusinessActions.inviteBusiness).not.toHaveBeenCalled();
+    expect(mockNotifySheetOpen).not.toHaveBeenCalled();
   });
 
   it('handles closing the Notify sheet (navigates back)', () => {
@@ -571,5 +590,233 @@ describe('BusinessAddScreen', () => {
     expect(mockParentNavigate).toHaveBeenCalledWith('CareTab', {
       screen: 'CareHome',
     });
+  });
+
+  it('keeps the placeholder icon when the Places image has no photoUrl', async () => {
+    (
+      LinkedBusinessActions.fetchGooglePlacesImage as unknown as jest.Mock
+    ).mockReturnValue({
+      unwrap: () => Promise.resolve({}), // no photoUrl -> SET_PHOTO not dispatched
+    });
+
+    const props = createProps({isPMSRecord: true, placeId: 'place-nophoto'});
+    render(<BusinessAddScreen {...props} />);
+
+    await waitFor(() => {
+      expect(LinkedBusinessActions.fetchGooglePlacesImage).toHaveBeenCalledWith(
+        'place-nophoto',
+      );
+    });
+
+    // photoUri stays undefined -> placeholder Ionicon is rendered.
+    expect(screen.getByTestId('icon-medkit-outline')).toBeTruthy();
+  });
+
+  it('hides optional sections when their fields are absent', () => {
+    const props = createProps({
+      isPMSRecord: false,
+      placeId: undefined,
+      companionName: undefined,
+      rating: undefined,
+      distance: undefined,
+      businessAddress: undefined,
+      email: undefined,
+      phone: undefined,
+      photo: undefined,
+    });
+
+    render(<BusinessAddScreen {...props} />);
+
+    // Business name still renders.
+    expect(screen.getByText('Test Vet Clinic')).toBeTruthy();
+    // No companion -> no "Link for" section.
+    expect(screen.queryByText('Link for')).toBeNull();
+    // No rating -> no star chip.
+    expect(screen.queryByTestId('icon-star')).toBeNull();
+    // No photo -> placeholder icon.
+    expect(screen.getByTestId('icon-medkit-outline')).toBeTruthy();
+  });
+
+  it('renders the placeholder icon when the photo is an empty string', () => {
+    const props = createProps({
+      isPMSRecord: false,
+      placeId: undefined,
+      photo: '', // typeof string but length 0 -> photoUri undefined
+    });
+
+    render(<BusinessAddScreen {...props} />);
+
+    expect(screen.getByTestId('icon-medkit-outline')).toBeTruthy();
+  });
+
+  it('adds a non-PMS business using fetched detail fallbacks', async () => {
+    const mockUnwrap = jest.fn().mockResolvedValue({});
+    (
+      LinkedBusinessActions.addLinkedBusiness as unknown as jest.Mock
+    ).mockReturnValue({
+      unwrap: mockUnwrap,
+    });
+
+    // details.phone / details.website are falsy while details.photo is truthy,
+    // exercising the opposite side of the `details.x || param` fallbacks.
+    const props = createProps({
+      isPMSRecord: true,
+      organisationId: undefined,
+      placeId: undefined,
+      phone: undefined,
+      email: undefined,
+      photo: 'param-photo',
+    });
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('btn-Add'));
+
+    await waitFor(() => {
+      expect(LinkedBusinessActions.addLinkedBusiness).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companionId: 'comp-123',
+          businessName: 'Test Vet Clinic',
+          photo: 'param-photo',
+        }),
+      );
+    });
+  });
+
+  it('shows the loading label on the Add button while adding', () => {
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(true);
+    try {
+      const props = createProps({isPMSRecord: true, placeId: undefined});
+      render(<BusinessAddScreen {...props} />);
+
+      expect(screen.getByText('Adding...')).toBeTruthy();
+    } finally {
+      (Redux.useSelector as unknown as jest.Mock).mockReturnValue(false);
+    }
+  });
+
+  it('sends an invite with a fallback name when businessName is missing', async () => {
+    const props = createProps({isPMSRecord: false, businessName: undefined});
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('btn-Notify Business'));
+
+    await waitFor(() => {
+      expect(LinkedBusinessActions.inviteBusiness).toHaveBeenCalledWith(
+        expect.objectContaining({businessName: 'Unknown Business'}),
+      );
+    });
+  });
+
+  it('navigates to returnTo tab (no screen) when pressing header back', () => {
+    const mockParentNavigate = jest.fn();
+
+    const props = createProps({
+      returnTo: {tab: 'HomeTab', screen: 'LinkedBusinesses'},
+    });
+
+    props.navigation.getParent = jest.fn(() => ({
+      navigate: mockParentNavigate,
+    }));
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('header-back'));
+
+    expect(mockParentNavigate).toHaveBeenCalledWith('HomeTab', {
+      screen: 'LinkedBusinesses',
+    });
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('navigates to returnTo tab without screen when closing Add sheet', () => {
+    const mockParentNavigate = jest.fn();
+
+    const props = createProps({
+      isPMSRecord: true,
+      returnTo: {tab: 'HomeTab'}, // no screen -> params undefined
+    });
+
+    props.navigation.getParent = jest.fn(() => ({
+      navigate: mockParentNavigate,
+    }));
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('add-sheet-confirm'));
+
+    expect(mockAddSheetClose).toHaveBeenCalled();
+    expect(mockParentNavigate).toHaveBeenCalledWith('HomeTab', undefined);
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('navigates to returnTo tab without screen when closing Notify sheet', () => {
+    const mockParentNavigate = jest.fn();
+
+    const props = createProps({
+      isPMSRecord: false,
+      returnTo: {tab: 'CareTab'}, // no screen -> params undefined
+    });
+
+    props.navigation.getParent = jest.fn(() => ({
+      navigate: mockParentNavigate,
+    }));
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('notify-sheet-confirm'));
+
+    expect(mockNotifySheetClose).toHaveBeenCalled();
+    expect(mockParentNavigate).toHaveBeenCalledWith('CareTab', undefined);
+  });
+
+  it('does not navigate when the parent navigator is missing on back', () => {
+    const props = createProps({returnTo: {tab: 'HomeTab'}});
+    props.navigation.getParent = jest.fn(() => undefined);
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('header-back'));
+
+    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate when the parent navigator is missing on Add close', () => {
+    const props = createProps({isPMSRecord: true, returnTo: {tab: 'HomeTab'}});
+    props.navigation.getParent = jest.fn(() => undefined);
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('add-sheet-confirm'));
+
+    expect(mockAddSheetClose).toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate when the parent navigator is missing on Notify close', () => {
+    const props = createProps({isPMSRecord: false, returnTo: {tab: 'CareTab'}});
+    props.navigation.getParent = jest.fn(() => undefined);
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('notify-sheet-confirm'));
+
+    expect(mockNotifySheetClose).toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not go back when closing Add sheet with no navigation history', () => {
+    const props = createProps({isPMSRecord: true}); // no returnTo
+    props.navigation.canGoBack = jest.fn().mockReturnValue(false);
+
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('add-sheet-confirm'));
+
+    expect(mockAddSheetClose).toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 });

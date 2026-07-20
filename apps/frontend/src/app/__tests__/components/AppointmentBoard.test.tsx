@@ -1,15 +1,19 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppointmentBoard from '@/app/features/appointments/components/AppointmentBoard';
 import {
   acceptAppointment,
+  changeAppointmentStatus,
   rejectAppointment,
 } from '@/app/features/appointments/services/appointmentService';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
 
 const pushMock = jest.fn();
+const mockAutoScrollBoardOnDrag = jest.fn();
+const mockNotify = jest.fn();
+const mockStartRouteLoader = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -17,9 +21,14 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+jest.mock('@/app/lib/routeLoader', () => ({
+  startRouteLoader: () => mockStartRouteLoader(),
+  stopRouteLoader: jest.fn(),
+}));
+
 jest.mock('@/app/hooks/useBoardDragScroll', () => ({
   useBoardDragScroll: () => ({
-    autoScrollBoardOnDrag: jest.fn(),
+    autoScrollBoardOnDrag: (...args: unknown[]) => mockAutoScrollBoardOnDrag(...args),
   }),
 }));
 
@@ -38,7 +47,9 @@ jest.mock('@/app/config/statusConfig', () => ({
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   acceptAppointment: jest.fn(),
   changeAppointmentStatus: jest.fn(),
-  rejectAppointment: jest.fn(),
+  // Async in the real service, so it must resolve a promise here — callers
+  // attach a .catch() to surface failures.
+  rejectAppointment: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@/app/lib/timezone', () => ({
@@ -103,7 +114,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 
 jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({
-    notify: jest.fn(),
+    notify: (...args: unknown[]) => mockNotify(...args),
   }),
 }));
 
@@ -186,8 +197,9 @@ describe('AppointmentBoard', () => {
 
     fireEvent.click(screen.getByLabelText('Open appointment Buddy'));
 
-    expect(screen.getByText('Speciality: Wellness')).toBeInTheDocument();
-    expect(screen.getByText('Service: Consultation')).toBeInTheDocument();
+    // Design card anatomy: "Service · Lead" line plus a "Breed · Owner" sub-line.
+    expect(screen.getByText('Consultation · Dr. Lee')).toBeInTheDocument();
+    expect(screen.getByText('dog · Sam')).toBeInTheDocument();
     expect(setActiveAppointment).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-completed' })
     );
@@ -251,7 +263,67 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    expect(screen.getByText('Room / Unit: Ward 1 / Kennel A')).toBeInTheDocument();
+    // Design meta row shows the room value behind a location icon, unprefixed.
+    expect(screen.getByText('Ward 1 / Kennel A')).toBeInTheDocument();
+  });
+
+  // The wait is measured from a real check-in stamp, never from the booked start —
+  // a booked-start derivation reports lateness, not how long the patient has waited.
+  describe('checked-in wait', () => {
+    const checkedInCard = (over: Record<string, unknown>) =>
+      render(
+        <AppointmentBoard
+          appointments={[
+            { ...baseAppointment, id: 'appt-checked-in', status: 'CHECKED_IN', ...over } as any,
+          ]}
+          currentDate={new Date('2026-03-16T00:00:00.000Z')}
+          setCurrentDate={setCurrentDate}
+          canEditAppointments
+        />
+      );
+
+    it('renders the wait from checkedInAt when the backend supplies it', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-03-16T09:30:00.000Z'));
+      checkedInCard({ checkedInAt: '2026-03-16T09:18:00.000Z' });
+
+      expect(screen.getByText('Waiting 12 min')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start visit' })).toBeInTheDocument();
+      jest.useRealTimers();
+    });
+
+    it('omits the wait entirely when no check-in stamp exists', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-03-16T09:30:00.000Z'));
+      // startTime is 09:00 — a booked-start derivation would wrongly print "Waiting 30 min".
+      checkedInCard({});
+
+      expect(screen.queryByText(/Waiting/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start visit' })).toBeInTheDocument();
+      jest.useRealTimers();
+    });
+
+    it('omits the wait for an unparseable or sub-minute check-in stamp', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-03-16T09:30:00.000Z'));
+      const { rerender } = checkedInCard({ checkedInAt: 'not-a-date' });
+      expect(screen.queryByText(/Waiting/)).not.toBeInTheDocument();
+
+      rerender(
+        <AppointmentBoard
+          appointments={[
+            {
+              ...baseAppointment,
+              id: 'appt-checked-in',
+              status: 'CHECKED_IN',
+              checkedInAt: '2026-03-16T09:29:45.000Z',
+            } as any,
+          ]}
+          currentDate={new Date('2026-03-16T00:00:00.000Z')}
+          setCurrentDate={setCurrentDate}
+          canEditAppointments
+        />
+      );
+      expect(screen.queryByText(/Waiting/)).not.toBeInTheDocument();
+      jest.useRealTimers();
+    });
   });
 
   it('triggers add appointment and date navigation callbacks', () => {
@@ -267,12 +339,42 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
     expect(onAddAppointment).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(setCurrentDate).toHaveBeenCalledTimes(2);
+  });
+
+  it('adds an appointment from a status column footer', () => {
+    const onAddAppointment = jest.fn();
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        onAddAppointment={onAddAppointment}
+      />
+    );
+    const columnAdders = screen.getAllByRole('button', { name: /Add appointment to/i });
+    expect(columnAdders.length).toBeGreaterThan(0);
+    fireEvent.click(columnAdders[0]);
+    expect(onAddAppointment).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the column add footers when editing is disabled', () => {
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments={false}
+        onAddAppointment={jest.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: /Add appointment to/i })).not.toBeInTheDocument();
   });
 
   it('toggles the emergencies filter from the board header', () => {
@@ -365,5 +467,392 @@ describe('AppointmentBoard', () => {
     expect(rejectAppointment).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-requested' })
     );
+  });
+
+  it('logs instead of crashing when declining a requested appointment fails', async () => {
+    const error = new Error('Cannot reject appointment: appointment ID missing.');
+    (rejectAppointment as jest.Mock).mockRejectedValueOnce(error);
+    // jest.setup turns an unhandled console.error into a failure, so take it over.
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-requested', status: 'REQUESTED' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        setActiveAppointment={jest.fn()}
+        setViewPopup={jest.fn()}
+        setDetailPopup={jest.fn()}
+        setViewIntent={jest.fn()}
+        setReschedulePopup={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        setChangeStatusPreferredStatus={jest.fn()}
+        canEditAppointments
+      />
+    );
+
+    const card = screen.getByLabelText('Draggable appointment Buddy');
+    fireEvent.click(within(card).getAllByRole('button')[2]);
+
+    // The service rejection is caught, so it never becomes an unhandled rejection.
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to decline appointment request:', error);
+    });
+    consoleSpy.mockRestore();
+  });
+
+  const createDataTransfer = () => ({
+    effectAllowed: '',
+    setData: jest.fn(),
+    setDragImage: jest.fn(),
+    getData: jest.fn(),
+  });
+
+  const getBoardRoot = (container: HTMLElement) =>
+    container.querySelector('[data-board-scroll-root="true"]') as HTMLElement;
+
+  // Column drop elements are the direct children of the horizontal flex track,
+  // in BOARD_COLUMNS order: REQUESTED, UPCOMING, CHECKED_IN, IN_PROGRESS, ...
+  const getColumnDropElement = (container: HTMLElement, index: number) => {
+    const track = getBoardRoot(container).querySelector('.min-w-max') as HTMLElement;
+    return track.children[index] as HTMLElement;
+  };
+
+  const renderUpcomingBoard = (extraProps: Record<string, unknown> = {}) =>
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        setActiveAppointment={setActiveAppointment}
+        {...extraProps}
+      />
+    );
+
+  it('opens reschedule and change-room modals from the board card actions', () => {
+    const setReschedulePopup = jest.fn();
+    const setChangeRoomPopup = jest.fn();
+    renderUpcomingBoard({ setReschedulePopup, setChangeRoomPopup });
+
+    fireEvent.click(screen.getByLabelText('Reschedule'));
+    expect(setActiveAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'appt-upcoming' })
+    );
+    expect(setReschedulePopup).toHaveBeenCalledWith(true);
+
+    fireEvent.click(screen.getByLabelText('Assign room'));
+    expect(setChangeRoomPopup).toHaveBeenCalledWith(true);
+  });
+
+  it('routes into the clinical workspace when the appointment can be entered', () => {
+    renderUpcomingBoard();
+
+    fireEvent.click(screen.getByLabelText('Finance summary'));
+
+    expect(mockStartRouteLoader).toHaveBeenCalledTimes(1);
+    expect(pushMock).toHaveBeenCalledWith('/appointments/appt-upcoming/workspace?step=INVOICE');
+  });
+
+  it('falls back to the detail view when the appointment cannot enter the workspace', () => {
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-cancelled', status: 'CANCELLED' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        setActiveAppointment={setActiveAppointment}
+        setDetailPopup={setDetailPopup}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Finance summary'));
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(setDetailPopup).toHaveBeenCalledWith(true);
+  });
+
+  it('does nothing when opening a workspace for an appointment without an id', () => {
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: '', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        setActiveAppointment={setActiveAppointment}
+        setDetailPopup={setDetailPopup}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Finance summary'));
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(mockStartRouteLoader).not.toHaveBeenCalled();
+  });
+
+  it('renders the emergency filter in its active color and toggles it back to all', () => {
+    const setActiveFilter = jest.fn();
+    renderUpcomingBoard({ activeFilter: 'emergencies', setActiveFilter, hasEmergency: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Emergencies/ }));
+    expect(setActiveFilter).toHaveBeenCalledWith('all');
+  });
+
+  it('resolves the current user lead via a team member id match', () => {
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ attributes: { sub: 'user-1' } })
+    );
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([{ id: 'user-1' }]);
+
+    renderUpcomingBoard();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+  });
+
+  it('resolves the current user lead via a userOrganisation userId match', () => {
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ attributes: { sub: 'user-1' } })
+    );
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { userOrganisation: { userId: 'user-1' } },
+    ]);
+
+    renderUpcomingBoard();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+  });
+
+  it('leaves the current user lead empty when no team member matches', () => {
+    (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ attributes: { sub: 'user-1' } })
+    );
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([{ practionerId: 'someone-else' }]);
+
+    renderUpcomingBoard();
+    expect(screen.getByText('Buddy')).toBeInTheDocument();
+  });
+
+  it('starts a card drag and auto-scrolls the board only while a drag is active', () => {
+    const rafSpy = jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      });
+
+    const { container, rerender } = renderUpcomingBoard();
+    const boardRoot = getBoardRoot(container);
+
+    // No active drag yet: the board dragover handler bails out early.
+    fireEvent.dragOver(boardRoot);
+    expect(mockAutoScrollBoardOnDrag).not.toHaveBeenCalled();
+
+    const dataTransfer = createDataTransfer();
+    fireEvent.dragStart(screen.getByLabelText('Draggable appointment Buddy'), { dataTransfer });
+    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'appt-upcoming');
+    expect(dataTransfer.setDragImage).toHaveBeenCalled();
+
+    // Drag active: the board dragover handler now auto-scrolls.
+    fireEvent.dragOver(boardRoot);
+    expect(mockAutoScrollBoardOnDrag).toHaveBeenCalledTimes(1);
+
+    // Editing disabled mid-drag: the handler bails out on the permission gate.
+    rerender(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments={false}
+        setActiveAppointment={setActiveAppointment}
+      />
+    );
+    fireEvent.dragOver(boardRoot);
+    expect(mockAutoScrollBoardOnDrag).toHaveBeenCalledTimes(1);
+
+    rafSpy.mockRestore();
+  });
+
+  it('moves a card to a new status column on a valid drop', async () => {
+    const { container } = renderUpcomingBoard();
+
+    fireEvent.dragStart(screen.getByLabelText('Draggable appointment Buddy'), {
+      dataTransfer: createDataTransfer(),
+    });
+    // Drop onto the Checked-in column (index 2) — a valid transition from Upcoming.
+    fireEvent.drop(getColumnDropElement(container, 2), { dataTransfer: createDataTransfer() });
+
+    await waitFor(() =>
+      expect(changeAppointmentStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'appt-upcoming' }),
+        'CHECKED_IN'
+      )
+    );
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('warns and blocks the move on an invalid drop transition', async () => {
+    const { container } = renderUpcomingBoard();
+
+    fireEvent.dragStart(screen.getByLabelText('Draggable appointment Buddy'), {
+      dataTransfer: createDataTransfer(),
+    });
+    // Drop onto In progress (index 3) — not allowed directly from Upcoming.
+    fireEvent.drop(getColumnDropElement(container, 3), { dataTransfer: createDataTransfer() });
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'warning',
+        expect.objectContaining({ title: 'Status change blocked' })
+      )
+    );
+    expect(changeAppointmentStatus).not.toHaveBeenCalled();
+  });
+
+  it('ignores a drop back onto the same status column', async () => {
+    const { container } = renderUpcomingBoard();
+
+    fireEvent.dragStart(screen.getByLabelText('Draggable appointment Buddy'), {
+      dataTransfer: createDataTransfer(),
+    });
+    // Drop onto Upcoming (index 1) — the card's own column.
+    await act(async () => {
+      fireEvent.drop(getColumnDropElement(container, 1), { dataTransfer: createDataTransfer() });
+    });
+
+    expect(changeAppointmentStatus).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('flags an emergency card with the danger treatment and badge', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-emergency',
+            status: 'IN_PROGRESS',
+            isEmergency: true,
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByLabelText('Emergency appointment')).toBeInTheDocument();
+    expect(screen.getByLabelText('Draggable appointment Buddy').className).toContain(
+      'border-l-[var(--danger)]'
+    );
+  });
+
+  it('mutes a completed card and keeps a live card at full strength', () => {
+    const { rerender } = render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-done', status: 'COMPLETED' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByLabelText('Appointment Buddy').className).toContain('opacity-[0.72]');
+
+    rerender(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-live', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    const liveCard = screen.getByLabelText('Draggable appointment Buddy');
+    expect(liveCard.className).not.toContain('opacity-[0.72]');
+    expect(liveCard.className).toContain('shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]');
+  });
+
+  it('prefers the breed over the species in the card sub-line', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-breed',
+            status: 'UPCOMING',
+            companion: { ...baseAppointment.companion, breed: 'Beagle' },
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByText('Beagle · Sam')).toBeInTheDocument();
+  });
+
+  it('omits the room chip and falls back to a dash when the card has no service or lead', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-bare',
+            status: 'UPCOMING',
+            room: undefined,
+            lead: undefined,
+            appointmentType: undefined,
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.queryByText('Room 1')).not.toBeInTheDocument();
+  });
+
+  it('opens each workspace intent from the card action rail', () => {
+    const setChangeStatusPopup = jest.fn();
+    const setChangeStatusPreferredStatus = jest.fn();
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-actions', status: 'IN_PROGRESS' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        setChangeStatusPopup={setChangeStatusPopup}
+        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('View appointment'));
+    expect(setViewPopup).toHaveBeenCalledWith(true);
+
+    fireEvent.click(screen.getByLabelText('Change status'));
+    expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
+
+    fireEvent.click(screen.getByLabelText('Finance summary'));
+    expect(pushMock).toHaveBeenCalledWith('/appointments/appt-actions/workspace?step=INVOICE');
+
+    fireEvent.click(screen.getByLabelText('Lab tests'));
+    expect(pushMock).toHaveBeenCalledWith(expect.stringContaining('/workspace?step='));
+  });
+
+  it('renders the empty column panel and the add affordance per column', () => {
+    render(
+      <AppointmentBoard
+        appointments={[]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getAllByText('No appointments')).toHaveLength(7);
+    expect(screen.getByLabelText('Add appointment to Requested')).toBeInTheDocument();
   });
 });

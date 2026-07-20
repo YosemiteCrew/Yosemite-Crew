@@ -6,10 +6,6 @@ import { ChatServiceError } from "./chat.service";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import UserOrganizationModel from "src/models/user-organization";
-import ChatSessionModel from "src/models/chatSession";
-import { shouldDualWrite, handleDualWriteError } from "src/utils/dual-write";
 
 const STREAM_KEY = process.env.STREAM_API_KEY!;
 const STREAM_SECRET = process.env.STREAM_API_SECRET!;
@@ -34,33 +30,21 @@ const extractReferenceId = (value: string): string =>
 
 /**
  * Active membership probe mirroring rbac.ts `userOrganization` lookup:
- * honours isReadFromPostgres + the bare/Organization-prefixed reference forms.
+ * honours the bare/Organization-prefixed reference forms.
  */
 const isActiveMemberOfOrg = async (
   userId: string,
   organisationId: string,
 ): Promise<boolean> => {
-  if (isReadFromPostgres()) {
-    const mapping = await prisma.userOrganization.findFirst({
-      where: {
-        practitionerReference: userId,
-        active: true,
-        OR: [
-          { organizationReference: organisationId },
-          { organizationReference: `Organization/${organisationId}` },
-        ],
-      },
-    });
-    return Boolean(mapping);
-  }
-
-  const mapping = await UserOrganizationModel.findOne({
-    practitionerReference: userId,
-    active: true,
-    $or: [
-      { organizationReference: organisationId },
-      { organizationReference: `Organization/${organisationId}` },
-    ],
+  const mapping = await prisma.userOrganization.findFirst({
+    where: {
+      practitionerReference: userId,
+      active: true,
+      OR: [
+        { organizationReference: organisationId },
+        { organizationReference: `Organization/${organisationId}` },
+      ],
+    },
   });
   return Boolean(mapping);
 };
@@ -70,47 +54,6 @@ const loadOrganisation = async (organisationId: string) => {
     where: { id: organisationId },
     select: { id: true, name: true, crossOrgMessagingEnabled: true },
   });
-};
-
-const syncSessionToPostgres = async (doc: {
-  toObject(): Record<string, unknown>;
-}) => {
-  if (!shouldDualWrite) return;
-  try {
-    const obj = doc.toObject() as {
-      _id: { toString(): string };
-      type: string;
-      channelId: string;
-      organisationId: string;
-      counterpartOrganisationId?: string;
-      createdBy?: string;
-      isPrivate?: boolean;
-      members: string[];
-      status: string;
-      createdAt?: Date;
-      updatedAt?: Date;
-    };
-    const data = {
-      id: obj._id.toString(),
-      type: obj.type as never,
-      channelId: obj.channelId,
-      organisationId: obj.organisationId,
-      counterpartOrganisationId: obj.counterpartOrganisationId ?? undefined,
-      createdBy: obj.createdBy ?? undefined,
-      isPrivate: obj.isPrivate ?? true,
-      members: obj.members ?? [],
-      status: obj.status as never,
-      createdAt: obj.createdAt ?? undefined,
-      updatedAt: obj.updatedAt ?? undefined,
-    };
-    await prisma.chatSession.upsert({
-      where: { id: data.id },
-      create: data,
-      update: data,
-    });
-  } catch (err) {
-    handleDualWriteError("ChatSession", err);
-  }
 };
 
 export type NetworkColleague = {
@@ -286,9 +229,26 @@ export const NetworkChatService = {
       a.localeCompare(b),
     );
 
-    const existing = await ChatSessionModel.findOne({
-      type: "ORG_DIRECT",
-      members: { $all: members, $size: 2 },
+    // Scope the lookup to this org pair: matching on members alone also matches
+    // the same-org ORG_DIRECT sessions created by chat.service, which would hand
+    // a within-clinic session back to a cross-clinic request. Either side may
+    // have opened the conversation, so both orderings of the pair count as the
+    // same session.
+    const existing = await prisma.chatSession.findFirst({
+      where: {
+        type: "ORG_DIRECT",
+        members: { equals: members },
+        OR: [
+          {
+            organisationId: requesterOrgId,
+            counterpartOrganisationId: otherOrgId,
+          },
+          {
+            organisationId: otherOrgId,
+            counterpartOrganisationId: requesterOrgId,
+          },
+        ],
+      },
     });
 
     if (existing) return existing;
@@ -324,17 +284,18 @@ export const NetworkChatService = {
       })
       .create();
 
-    const session = await ChatSessionModel.create({
-      type: "ORG_DIRECT",
-      organisationId: requesterOrgId,
-      counterpartOrganisationId: otherOrgId,
-      channelId,
-      members,
-      createdBy: requesterUserId,
-      isPrivate: true,
-      status: "ACTIVE",
+    const session = await prisma.chatSession.create({
+      data: {
+        type: "ORG_DIRECT",
+        organisationId: requesterOrgId,
+        counterpartOrganisationId: otherOrgId,
+        channelId,
+        members,
+        createdBy: requesterUserId,
+        isPrivate: true,
+        status: "ACTIVE",
+      },
     });
-    await syncSessionToPostgres(session);
     return session;
   },
 };

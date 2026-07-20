@@ -26,8 +26,6 @@ type SignPacketInput = {
   packetId: string;
   signerId: string;
   signerName?: string;
-  /** Optional explicit signer email; resolved from the user record otherwise. */
-  signerEmail?: string;
 };
 
 const ensureRequiredId = (value: string, fieldName: string): string => {
@@ -120,6 +118,19 @@ const mapPacket = (row: PacketRecord): WorkspaceDocumentPacketRow => ({
 });
 
 /**
+ * `signing.signingUrl` carries the Documenso recipient token: anyone holding the
+ * URL can sign the packet. Read paths are open to `document:view:any`, which is
+ * a far wider audience than the signer, so they project the signing state down
+ * to its non-bearer fields.
+ */
+const toReadOnlyPacket = (
+  packet: WorkspaceDocumentPacketRow,
+): WorkspaceDocumentPacketRow =>
+  packet.signing
+    ? { ...packet, signing: { ...packet.signing, signingUrl: null } }
+    : packet;
+
+/**
  * Only rendered documents can be merged into the signing PDF — the merge loader
  * resolves bytes from the rendered-document pipeline. Direct uploads
  * (`sourceKind: "DOCUMENT"`) have no rendered source (their content lives in
@@ -170,7 +181,11 @@ const isAllClinicalArtifacts = (docs: WorkspaceDocumentRow[]): boolean =>
   docs.length > 0 &&
   docs.every(
     (doc) =>
-      doc.sourceKind === "CLINICAL_ARTIFACT" && CLINICAL_KINDS.has(doc.kind),
+      doc.sourceKind === "CLINICAL_ARTIFACT" &&
+      CLINICAL_KINDS.has(doc.kind) &&
+      // A templated artifact's fields only exist in its own rendered PDF; the
+      // combined renderer would re-render it from the artifact and drop them.
+      !doc.templateId,
   );
 
 const mergeOrderRank = (kind: string): number =>
@@ -239,13 +254,12 @@ const ensurePacket = async (
   return packet;
 };
 
-const resolveSignerEmail = async (
-  signerId: string,
-  explicit?: string,
-): Promise<string | null> => {
-  if (explicit?.trim()) {
-    return explicit.trim();
-  }
+/**
+ * The signing packet is always sent to the authenticated signer's own address.
+ * The recipient decides who can sign a clinical record, so it must never be
+ * taken from the request.
+ */
+const resolveSignerEmail = async (signerId: string): Promise<string | null> => {
   const user = await prisma.user.findFirst({
     where: { userId: signerId },
     select: { email: true },
@@ -296,7 +310,8 @@ export const WorkspaceDocumentPacketService = {
         organisationId: input.organisationId,
         encounterId: input.encounterId,
       },
-      [],
+      undefined,
+      { systemAccess: true },
     );
 
     if (existingPacket) {
@@ -331,7 +346,9 @@ export const WorkspaceDocumentPacketService = {
     organisationId: string,
     packetId: string,
   ): Promise<WorkspaceDocumentPacketRow> {
-    return mapPacket(await ensurePacket(organisationId, packetId));
+    return toReadOnlyPacket(
+      mapPacket(await ensurePacket(organisationId, packetId)),
+    );
   },
 
   /**
@@ -362,10 +379,7 @@ export const WorkspaceDocumentPacketService = {
       );
     }
 
-    const signerEmail = await resolveSignerEmail(
-      input.signerId,
-      input.signerEmail,
-    );
+    const signerEmail = await resolveSignerEmail(input.signerId);
     if (!signerEmail) {
       throw new WorkspaceServiceError(
         "Unable to resolve signer email for packet signing",
@@ -480,9 +494,11 @@ export const WorkspaceDocumentPacketService = {
   },
 
   /**
-   * Complete packet signing once Documenso reports the document signed.
-   * Downloads the signed packet, marks the packet FINAL, and marks every
-   * bundled document SIGNED against the single signed packet PDF.
+   * Complete packet signing once Documenso reports the document COMPLETED.
+   * Confirms that state with Documenso first, then downloads the signed packet,
+   * marks the packet FINAL, and marks every bundled document SIGNED against the
+   * single signed packet PDF. A document Documenso does not report as COMPLETED
+   * is returned unchanged and nothing is stamped.
    */
   async completeSigning(
     packetId: string,
@@ -516,8 +532,30 @@ export const WorkspaceDocumentPacketService = {
       );
     }
 
+    const documensoDocumentId = Number.parseInt(signing.documentId, 10);
+
+    // Documenso is the only authority on whether this document was actually
+    // signed. A downloadable PDF is NOT that evidence — Documenso serves the
+    // unsigned copy for a still-PENDING document, so finalising on a successful
+    // download alone stamped packets as legally signed that nobody had signed.
+    // Ask for the document's state and require COMPLETED before writing.
+    const documensoStatus = await DocumensoService.getDocumentStatus({
+      documentId: documensoDocumentId,
+      apiKey,
+    });
+    if (documensoStatus !== "COMPLETED") {
+      // Not an error: "not signed yet" is a normal state (the signer closed the
+      // frame without finishing). Return the packet as it stands — DRAFT, with
+      // signing still IN_PROGRESS — so callers read the truth rather than a
+      // failure, and a later reconcile/webhook can still finalise it.
+      logger.info(
+        `[WorkspaceDocumentPacket] Not finalising packet ${packet.id}: Documenso reports document ${signing.documentId} as ${documensoStatus}, not COMPLETED.`,
+      );
+      return mapPacket(packet);
+    }
+
     const signedPdf = await DocumensoService.downloadSignedDocument({
-      documentId: Number.parseInt(signing.documentId, 10),
+      documentId: documensoDocumentId,
       apiKey,
     });
     if (!signedPdf) {
@@ -587,12 +625,13 @@ export const WorkspaceDocumentPacketService = {
    * On-demand reconciliation of a packet's signing state, org-scoped for the API.
    * The Documenso completion webhook can't reach the backend in local/dev (and can
    * lag in prod), so the frontend calls this when the signing overlay closes: we
-   * pull the signed copy straight from Documenso and, if signed, finalize the
-   * packet + mark every bundled document SIGNED, returning the updated packet.
+   * ask Documenso for the document's state and, only if it is COMPLETED, finalize
+   * the packet + mark every bundled document SIGNED, returning the updated packet.
    *
-   * When Documenso has no signed copy yet (the user closed the frame without
-   * completing), `completeSigning` throws 502 — callers treat that as "not
-   * reconciled yet" and leave the packet DRAFT.
+   * When the signature is still outstanding (the user closed the frame without
+   * completing), the packet is returned unchanged — still DRAFT, signing still
+   * IN_PROGRESS. That is a truthful answer, not an error, and it is exactly what
+   * the frontend already reads (it checks `signing.status === 'SIGNED'`).
    */
   async reconcile(
     organisationId: string,
@@ -706,7 +745,8 @@ export const WorkspaceDocumentPacketService = {
 
     const bootstrap = await WorkspaceService.getEncounterBootstrap(
       { organisationId, encounterId },
-      [],
+      undefined,
+      { systemAccess: true },
     );
 
     const documents = orderDocumentsForMerge(

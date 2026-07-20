@@ -3,7 +3,6 @@ import {mockTheme} from '../../../../setup/mockTheme';
 import {
   getInputContainerBaseStyle,
   getValueTextStyle,
-  useFloatingLabelAnimatedStyle,
 } from '@/shared/components/common/shared/floatingLabelStyles';
 
 describe('floatingLabelStyles', () => {
@@ -11,77 +10,17 @@ describe('floatingLabelStyles', () => {
     Platform.OS = 'ios';
   });
 
-  it('builds the focused iOS floating label style with fallback typography values', () => {
-    const theme = {
-      ...mockTheme,
-      typography: {
-        ...mockTheme.typography,
-        input: {
-          ...mockTheme.typography.input,
-          lineHeight: undefined,
-          fontSize: undefined,
-        },
-        inputLabel: {
-          ...mockTheme.typography.inputLabel,
-          lineHeight: undefined,
-          fontSize: undefined,
-        },
-      },
-      colors: {
-        ...mockTheme.colors,
-        surface: '',
-      },
-    } as typeof mockTheme;
-
-    const style = useFloatingLabelAnimatedStyle({
-      animatedValue: {value: 1},
-      theme,
-      focused: true,
-      placeholderOffset: 6,
-    });
-
-    expect(style).toEqual(
-      expect.objectContaining({
-        includeFontPadding: false,
-        textAlignVertical: 'center',
-        left: mockTheme.spacing['5'],
-        color: mockTheme.colors.primary,
-        backgroundColor: mockTheme.colors.background,
-        paddingHorizontal: mockTheme.spacing['1'],
-        pointerEvents: 'none',
-      }),
-    );
-  });
-
-  it('builds the unfocused Android floating label style', () => {
-    Platform.OS = 'android';
-
-    const style = useFloatingLabelAnimatedStyle({
-      animatedValue: {value: 0},
-      theme: mockTheme,
-    });
-
-    expect(style).toEqual(
-      expect.objectContaining({
-        left: mockTheme.spacing['5'],
-        color: mockTheme.colors.textSecondary,
-        fontSize: mockTheme.typography.input.fontSize,
-      }),
-    );
-    expect(style).not.toHaveProperty('includeFontPadding');
-  });
-
   it('uses error and default border colors for input containers', () => {
     expect(getInputContainerBaseStyle(mockTheme, 'Required')).toEqual(
       expect.objectContaining({
         borderColor: mockTheme.colors.error,
-        backgroundColor: mockTheme.colors.surface,
+        backgroundColor: mockTheme.colors.fieldBg,
       }),
     );
 
     expect(getInputContainerBaseStyle(mockTheme)).toEqual(
       expect.objectContaining({
-        borderColor: mockTheme.colors.border,
+        borderColor: mockTheme.colors.hairline,
       }),
     );
   });

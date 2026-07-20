@@ -9,7 +9,7 @@ router.get(
   "/organisations/:organisationId/medications",
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission(["inventory:view:any", "prescription:view:any"]),
+  requirePermission("inventory:view:any"),
   (req, res) => SearchController.searchMedications(req, res),
 );
 

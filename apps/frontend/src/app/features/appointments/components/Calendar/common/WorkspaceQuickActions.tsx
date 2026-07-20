@@ -42,7 +42,7 @@ const WorkspaceQuickActions = ({
         type="button"
         title="Appointment overview"
         aria-label="Appointment overview"
-        className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+        className="flex size-12 shrink-0 items-center justify-center rounded-full! border border-neutral-200 p-3 text-neutral-800 hover:bg-card-bg"
         onClick={onOpenCompanionHistory}
       >
         <RiHistoryLine size={20} aria-hidden="true" />
@@ -53,7 +53,7 @@ const WorkspaceQuickActions = ({
         type="button"
         title="Finance summary"
         aria-label="Finance summary"
-        className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+        className="flex size-12 shrink-0 items-center justify-center rounded-full! border border-neutral-200 p-3 text-neutral-800 hover:bg-card-bg"
         onClick={() => onOpenWorkspace({ label: 'finance', subLabel: 'summary' })}
       >
         <IoCardOutline size={20} aria-hidden="true" />
@@ -64,7 +64,7 @@ const WorkspaceQuickActions = ({
         type="button"
         title="Lab tests"
         aria-label="Lab tests"
-        className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+        className="flex size-12 shrink-0 items-center justify-center rounded-full! border border-neutral-200 p-3 text-neutral-800 hover:bg-card-bg"
         onClick={() => onOpenWorkspace({ label: 'labs', subLabel: 'idexx-labs' })}
       >
         <IoFlaskOutline size={20} aria-hidden="true" />
@@ -76,7 +76,7 @@ const WorkspaceQuickActions = ({
           type="button"
           title="Reschedule"
           aria-label="Reschedule appointment"
-          className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+          className="flex size-12 shrink-0 items-center justify-center rounded-full! border border-neutral-200 p-3 text-neutral-800 hover:bg-card-bg"
           onClick={onReschedule}
         >
           <IoCalendarOutline size={20} aria-hidden="true" />
@@ -89,7 +89,7 @@ const WorkspaceQuickActions = ({
           type="button"
           title="Assign room"
           aria-label="Assign room"
-          className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+          className="flex size-12 shrink-0 items-center justify-center rounded-full! border border-neutral-200 p-3 text-neutral-800 hover:bg-card-bg"
           onClick={onChangeRoom}
         >
           <MdMeetingRoom size={20} aria-hidden="true" />
@@ -101,7 +101,7 @@ const WorkspaceQuickActions = ({
         type="button"
         title={clinicalNotesLabel}
         aria-label={clinicalNotesLabel}
-        className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+        className="flex size-12 shrink-0 items-center justify-center rounded-full! border border-neutral-200 p-3 text-neutral-800 hover:bg-card-bg"
         onClick={() => onOpenWorkspace()}
       >
         <IoDocumentTextOutline size={20} aria-hidden="true" />

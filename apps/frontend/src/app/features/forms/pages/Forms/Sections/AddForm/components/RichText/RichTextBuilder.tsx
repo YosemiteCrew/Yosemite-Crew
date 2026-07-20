@@ -31,7 +31,6 @@ const RichTextBuilder: React.FC<{
           value={field.label || ''}
           inlabel="Label"
           onChange={(e) => onChange({ ...field, label: e.target.value })}
-          className="min-h-12!"
         />
       )}
       <p className="text-caption-2 text-text-secondary">
@@ -42,7 +41,6 @@ const RichTextBuilder: React.FC<{
         value={typeof field.defaultValue === 'string' ? field.defaultValue : ''}
         onChange={(html) => onChange({ ...field, defaultValue: html })}
         placeholder="Default content shown when the form loads…"
-        toolbarPlacement="inline"
       />
     </div>
   );

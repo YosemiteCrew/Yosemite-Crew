@@ -195,6 +195,50 @@ describe('passwordlessAuth', () => {
         requestPasswordlessEmailCode('test@example.com'),
       ).rejects.toThrow('Unexpected authentication error. Please retry.');
     });
+
+    it('falls back to the generic SIGN_IN_UP_NOT_ALLOWED message when no reason is given', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({status: 'SIGN_IN_UP_NOT_ALLOWED'}),
+      );
+
+      await expect(
+        requestPasswordlessEmailCode('test@example.com'),
+      ).rejects.toThrow(
+        'Sign in is not allowed for this account. Please contact support.',
+      );
+    });
+
+    it('treats a non-object JSON body as an empty payload', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse('just a string', false, 500),
+      );
+
+      await expect(
+        requestPasswordlessEmailCode('test@example.com'),
+      ).rejects.toThrow('Unexpected authentication error. Please retry.');
+    });
+
+    it('falls back to empty device identifiers when the response omits them', async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({status: 'OK', flowType: 'USER_INPUT_CODE'}),
+      );
+
+      await requestPasswordlessEmailCode('test@example.com');
+
+      mockFetch.mockResolvedValueOnce(makeResponse(okConsumeBody));
+      await completePasswordlessSignIn('123456');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test/auth/signinup/code/consume',
+        expect.objectContaining({
+          body: JSON.stringify({
+            preAuthSessionId: '',
+            deviceId: '',
+            userInputCode: '123456',
+          }),
+        }),
+      );
+    });
   });
 
   describe('completePasswordlessSignIn', () => {
@@ -372,6 +416,19 @@ describe('passwordlessAuth', () => {
       expect(result.userId).toBe('sdk-user-9');
     });
 
+    it('falls back to the SDK user id and requested email when the response user field is not an object', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(
+        makeResponse({status: 'OK', user: 'not-an-object'}),
+      );
+      mockSuperTokens.getUserId.mockResolvedValueOnce('sdk-user-9');
+
+      const result = await completePasswordlessSignIn('123456');
+
+      expect(result.userId).toBe('sdk-user-9');
+      expect(result.email).toBe('test@example.com');
+    });
+
     it('completes with a default profile when auth sync fails', async () => {
       await requestCode();
       mockFetch.mockResolvedValueOnce(makeResponse(okConsumeBody));
@@ -453,6 +510,27 @@ describe('passwordlessAuth', () => {
       expect(formatAuthError(null)).toBe(
         'Unexpected authentication error. Please retry.',
       );
+    });
+  });
+
+  describe('DEMO_LOGIN_EMAIL fallback', () => {
+    it('defaults to an empty string when DEMO_LOGIN_CONFIG.email is missing', () => {
+      jest.resetModules();
+      jest.doMock('@/config/variables', () => ({
+        API_CONFIG: {baseUrl: 'https://api.test', timeoutMs: 15000},
+        AUTH_FEATURE_FLAGS: {enableReviewLogin: true},
+        DEMO_LOGIN_CONFIG: {email: undefined, password: undefined},
+        DEVELOPMENT_API_BASE_URL: 'https://devapi.test',
+      }));
+
+      const {
+        DEMO_LOGIN_EMAIL: fallbackDemoEmail,
+      } = require('@/features/auth/services/passwordlessAuth');
+
+      expect(fallbackDemoEmail).toBe('');
+
+      jest.dontMock('@/config/variables');
+      jest.resetModules();
     });
   });
 });

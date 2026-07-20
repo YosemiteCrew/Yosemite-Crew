@@ -29,27 +29,31 @@ const NativeSoapFields = ({
   onRecordVitals,
 }: NativeSoapFieldsProps) => (
   <>
-    <SectionContainer titleClassName="text-yc-20-b-primary" title="Subjective (History)" compactTop>
+    <SectionContainer
+      titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
+      title="S · Subjective"
+      compactTop
+      disableFocusBorder
+    >
       <RichTextEditor
         ariaLabel="Subjective history"
         value={subjective}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onSubjectiveChange}
         placeholder={terminologyText('Patient history and owner-reported information')}
       />
     </SectionContainer>
 
     <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Objective (Examination)"
+      titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
+      title="O · Objective"
       compactTop
+      disableFocusBorder
     >
       <RichTextEditor
         ariaLabel="Objective examination"
         value={objective}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onObjectiveChange}
         placeholder="Examination findings and recorded vitals"
       />
@@ -63,26 +67,30 @@ const NativeSoapFields = ({
     </SectionContainer>
 
     <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Assessment (Differential)"
+      titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
+      title="A · Assessment"
       compactTop
+      disableFocusBorder
     >
       <RichTextEditor
         ariaLabel="Assessment differential"
         value={assessment}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onAssessmentChange}
         placeholder="Diagnosis and differentials"
       />
     </SectionContainer>
 
-    <SectionContainer titleClassName="text-yc-20-b-primary" title="Plan" compactTop>
+    <SectionContainer
+      titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
+      title="P · Plan"
+      compactTop
+      disableFocusBorder
+    >
       <RichTextEditor
         ariaLabel="Plan"
         value={plan}
         readOnly={false}
-        toolbarPlacement="inset"
         onChange={onPlanChange}
         placeholder="Treatment plan and next steps"
       />

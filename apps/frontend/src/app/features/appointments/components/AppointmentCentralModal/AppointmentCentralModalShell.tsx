@@ -46,22 +46,25 @@ const AppointmentCentralModalShell = ({
       overlayClassName={`fixed inset-0 z-[1100] backdrop-blur-[2px] transition-opacity duration-200 ease-in-out ${
         showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
-      overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
+      overlayStyle={{ backgroundColor: 'var(--sh55)' }}
       containerClassName={[
         'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1200]',
-        'w-[calc(100vw-24px)] sm:w-[80vw] max-w-[1100px]',
+        'w-[calc(100vw-24px)] sm:w-[80vw] max-w-[860px]',
         'modal-max-h bg-transparent flex flex-col',
         showModal ? 'opacity-100' : 'opacity-0 pointer-events-none',
       ].join(' ')}
     >
       <div
-        className="modal-max-h relative flex flex-col flex-1 min-h-0 overflow-hidden rounded-3xl border border-card-border shadow-2xl"
-        style={{ background: 'var(--color-neutral-0)' }}
+        className="modal-max-h relative flex flex-col flex-1 min-h-0 overflow-hidden rounded-[22px]"
+        style={{
+          background: 'var(--color-neutral-0)',
+          boxShadow: '0 40px 110px rgba(0, 0, 0, 0.42)',
+        }}
       >
         {/* Full-panel loading overlay — sits above header + body */}
         {isLoading && (
           <div
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 rounded-3xl"
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 rounded-[22px]"
             style={{ background: 'var(--color-neutral-0)' }}
           >
             <YosemiteLoader label={loadingLabel} />
@@ -77,37 +80,33 @@ const AppointmentCentralModalShell = ({
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3 sm:px-6 shrink-0 border-b border-card-border"
-          style={{ background: 'var(--Neutrals-Neutral-100, #FAF8F6)' }}
+          style={{ background: 'var(--screen)' }}
         >
-          <div className="flex-1" />
           <h2
             id={titleId}
-            className="flex-1 text-center"
             style={{
               fontFamily: 'var(--font-satoshi), sans-serif',
-              fontSize: 24,
-              fontWeight: 500,
+              fontSize: 18,
+              fontWeight: 700,
               lineHeight: '120%',
-              letterSpacing: '-0.48px',
-              color: 'var(--color-neutral-900)',
+              letterSpacing: '-0.02em',
+              color: 'var(--ink)',
             }}
           >
             {title}
           </h2>
-          <div className="flex-1 flex justify-end">
-            <button
-              type="button"
-              aria-label="Close"
-              className="flex items-center justify-center size-8 rounded-full hover:bg-card-hover transition-colors"
-              onClick={() => {
-                if (canClose && !canClose()) return;
-                setShowModal(false);
-                onClose?.();
-              }}
-            >
-              <IoClose size={20} aria-hidden="true" />
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="Close"
+            className="flex items-center justify-center size-8 shrink-0 rounded-full border border-[var(--hairline)] hover:border-[var(--hairline-hover)] transition-colors"
+            onClick={() => {
+              if (canClose && !canClose()) return;
+              setShowModal(false);
+              onClose?.();
+            }}
+          >
+            <IoClose size={16} color="var(--ink-faint)" aria-hidden="true" />
+          </button>
         </div>
 
         {/* Body */}
