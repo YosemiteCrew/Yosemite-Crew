@@ -156,7 +156,7 @@ const Sidebar = () => {
           className={`logo ${isCollapsed ? 'logo-collapsed' : ''}`}
           aria-label="Yosemite Crew dashboard"
         >
-          <Image src="/icon.svg" alt="Yosemite Crew" width={30} height={30} priority />
+          <Image src="/icon.svg" alt="Yosemite Crew" width={40} height={40} priority />
           {/* The mark alone carries the brand here; the link keeps its aria-label
               so the accessible name survives dropping the wordmark. */}
           {!isCollapsed && isDevPortal && (

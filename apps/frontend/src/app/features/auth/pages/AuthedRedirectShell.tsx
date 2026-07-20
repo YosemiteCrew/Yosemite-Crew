@@ -16,6 +16,15 @@ export default function AuthedRedirectShell({ children }: Readonly<{ children: R
   const isAuthenticated = status === 'authenticated';
   const [route, setRoute] = useState<string | null>(null);
 
+  // Public route pages don't otherwise bootstrap the SuperTokens session check, so an
+  // already-authenticated visitor would sit at `idle` forever and never get forwarded.
+  // Kick off the check once so `status` resolves and the redirect logic below can run.
+  useEffect(() => {
+    if (status === 'idle') {
+      void useAuthStore.getState().checkSession();
+    }
+  }, [status]);
+
   // The destination depends on client-only session state, so it cannot be resolved on
   // the server. Resolve it in an effect and navigate with `redirect()` during render so
   // the auth screen is never painted for a visitor who is on their way somewhere else.

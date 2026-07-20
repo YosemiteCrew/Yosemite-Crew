@@ -37,7 +37,7 @@
   padding: 18px 0 14px;
 }
 
-/* Design rail: 18px gap between the 32px logo and the first icon. */
+/* 18px gap between the brand logo and the first icon on the collapsed rail. */
 .sidebar-collapsed .sidebar-routes {
   margin-top: 18px;
 }
@@ -75,14 +75,14 @@
 }
 
 .logo img {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
 .logo-collapsed img {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
 }
 
 .sidebar-wordmark-group {

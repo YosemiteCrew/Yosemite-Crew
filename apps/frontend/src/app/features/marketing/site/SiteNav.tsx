@@ -11,6 +11,8 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { IoLogoGithub, IoMenuOutline, IoCloseOutline } from 'react-icons/io5';
+import { useAuthStore, type AuthUser } from '@/app/stores/authStore';
+import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { GITHUB_REPO_URL, MARKETING_LOGO } from './assets';
 import { useGithubStats } from './useGithubStats';
 import { useScrolled } from './motion';
@@ -167,7 +169,11 @@ function NavLinks({ active }: Readonly<Pick<SiteNavProps, 'active'>>) {
   );
 }
 
-function DesktopActions({ starsLabel }: Readonly<{ starsLabel: string }>) {
+function DesktopActions({
+  starsLabel,
+  user,
+  defaultAppRoute,
+}: Readonly<{ starsLabel: string; user: AuthUser | null; defaultAppRoute: string }>) {
   return (
     <div className="yc-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <ThemeToggle style={{ width: 40, height: 40 }} />
@@ -189,9 +195,15 @@ function DesktopActions({ starsLabel }: Readonly<{ starsLabel: string }>) {
           {starsLabel}
         </span>
       </a>
-      <Link href="/signup" style={GET_STARTED_LINK_STYLE}>
-        Get started
-      </Link>
+      {user ? (
+        <Link href={defaultAppRoute} style={GET_STARTED_LINK_STYLE}>
+          Go to app
+        </Link>
+      ) : (
+        <Link href="/signup" style={GET_STARTED_LINK_STYLE}>
+          Get started
+        </Link>
+      )}
     </div>
   );
 }
@@ -223,9 +235,18 @@ interface MobilePanelProps {
   menuOpen: boolean;
   panelRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
+  user: AuthUser | null;
+  defaultAppRoute: string;
 }
 
-function MobilePanel({ active, menuOpen, panelRef, onClose }: Readonly<MobilePanelProps>) {
+function MobilePanel({
+  active,
+  menuOpen,
+  panelRef,
+  onClose,
+  user,
+  defaultAppRoute,
+}: Readonly<MobilePanelProps>) {
   return (
     <div
       ref={panelRef}
@@ -271,9 +292,15 @@ function MobilePanel({ active, menuOpen, panelRef, onClose }: Readonly<MobilePan
         <IoLogoGithub style={{ fontSize: 16 }} aria-hidden="true" /> Star on GitHub
       </a>
       <div style={{ display: 'flex', gap: 8, margin: '4px 0' }}>
-        <Link href="/signup" onClick={onClose} style={PANEL_GET_STARTED_STYLE}>
-          Get started
-        </Link>
+        {user ? (
+          <Link href={defaultAppRoute} onClick={onClose} style={PANEL_GET_STARTED_STYLE}>
+            Go to app
+          </Link>
+        ) : (
+          <Link href="/signup" onClick={onClose} style={PANEL_GET_STARTED_STYLE}>
+            Get started
+          </Link>
+        )}
         <ThemeToggle />
       </div>
     </div>
@@ -351,18 +378,39 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
   const starsLabel = stars ? `★ ${stars}` : '★';
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
+  const status = useAuthStore((s) => s.status);
+  const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
+  const defaultAppRoute =
+    role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
 
   useEscapeToClose(menuOpen, closeMenu);
+
+  // Public marketing pages don't otherwise bootstrap the SuperTokens session check, so
+  // an authenticated visitor would keep seeing "Get started". Kick it off once on idle
+  // so `user` resolves and the "Go to app" affordance is shown instead.
+  useEffect(() => {
+    if (status === 'idle') {
+      void useAuthStore.getState().checkSession();
+    }
+  }, [status]);
 
   return (
     <header data-nav="true" style={navHeaderStyle(scrolled)}>
       <div style={NAV_INNER_STYLE}>
         <NavLogo />
         <NavLinks active={active} />
-        <DesktopActions starsLabel={starsLabel} />
+        <DesktopActions starsLabel={starsLabel} user={user} defaultAppRoute={defaultAppRoute} />
         <BurgerButton menuOpen={menuOpen} onToggle={toggleMenu} />
       </div>
-      <MobilePanel active={active} menuOpen={menuOpen} panelRef={panelRef} onClose={closeMenu} />
+      <MobilePanel
+        active={active}
+        menuOpen={menuOpen}
+        panelRef={panelRef}
+        onClose={closeMenu}
+        user={user}
+        defaultAppRoute={defaultAppRoute}
+      />
     </header>
   );
 }

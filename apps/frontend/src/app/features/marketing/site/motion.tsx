@@ -19,7 +19,7 @@ const HERO_VIDEO_STYLE: CSSProperties = {
   top: 0,
   left: 0,
   width: '100%',
-  height: '100vh',
+  height: '100%',
   objectFit: 'cover',
   opacity: 0.3,
   filter: 'blur(1px) saturate(200%) brightness(0.8)',
@@ -33,11 +33,11 @@ const HERO_SCRIM_STYLE: CSSProperties = {
   top: 0,
   left: 0,
   right: 0,
-  height: '100vh',
+  height: '100%',
   zIndex: 1,
   pointerEvents: 'none',
   background:
-    'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0) 86%)',
+    'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0.04) 92%, rgba(239,232,220,0) 100%)',
 };
 
 /** Static base for the scroll-progress bar; width is applied inline from scroll state. */
