@@ -6,6 +6,7 @@ import type { AuthenticatedRequest } from "../middlewares/auth";
 import { requireAnyAuth } from "../middlewares/auth";
 import { MfaController } from "../controllers/web/mfa.controller";
 import { MfaDebugController } from "../controllers/web/mfa-debug.controller";
+import { isLocalDevEnvironment } from "../utils/local-dev";
 
 const router = Router();
 
@@ -83,11 +84,12 @@ router.post(
   (req: SessionRequest, res: Response) => MfaController.disableTotp(req, res),
 );
 // Local-development helper for creating a TOTP device without the full
-// enrollment flow. Gated at registration so the route is structurally absent in
-// production rather than relying only on the controller's runtime NODE_ENV
-// check: a misconfigured NODE_ENV cannot expose a route that was never mounted.
-// The controller keeps its own assertLocalDev guard as defense in depth.
-if (process.env.NODE_ENV !== "production") {
+// enrollment flow. Gated at registration so the route is structurally absent
+// anywhere that is not a recognised local environment, and gated again at
+// runtime by the controller's assertLocalDev. Both use the same allowlist, so an
+// unset, empty or misspelled NODE_ENV fails closed at both layers rather than
+// mounting and serving the endpoint.
+if (isLocalDevEnvironment()) {
   router.post(
     "/mfa/totp/debug/create-device",
     requireAuth(),
