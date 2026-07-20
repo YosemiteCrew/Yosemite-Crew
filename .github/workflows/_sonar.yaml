@@ -17,13 +17,13 @@ on:
   workflow_call:
     inputs:
       apps-with-coverage:
-        description: JSON array of {app_key, dir, sonar_token} produced by the test stage.
+        description: JSON array of {app_key, dir} produced by the test stage.
         required: true
         type: string
-    # Declared one by one rather than taking `secrets: inherit` from the caller.
-    # inherit hands every organisation and repository secret to this workflow,
-    # so the scan step's dynamic secrets[...] lookup had the whole secret store
-    # in scope. Naming them bounds that context to the four Sonar tokens.
+    # Declared one by one rather than taking `secrets: inherit` from the caller,
+    # which would hand every organisation and repository secret to this
+    # workflow. Naming them bounds this workflow's secrets context to the four
+    # Sonar tokens it actually uses.
     secrets:
       SONAR_TOKEN_FRONTEND:
         required: false
@@ -95,6 +95,26 @@ jobs:
             sonar-${{ runner.os }}-${{ matrix.app_key }}-
             sonar-${{ runner.os }}-
 
+      # The scan step below names each secret statically instead of indexing the
+      # secrets context with secrets[matrix.sonar_token]. A dynamic index makes
+      # the entire context reachable from that one expression, which CodeQL
+      # reports as excessive secret exposure; naming them means only this leg's
+      # token is ever bound. The selection falls through to an empty string for
+      # an unrecognised app, so this step checks the app key up front and fails
+      # loudly rather than letting the scan run against the wrong project. It
+      # inspects the key, never a secret value, so nothing lands in the log.
+      - name: Verify a Sonar token is mapped for this app
+        run: |
+          set -euo pipefail
+          case "${{ matrix.app_key }}" in
+            frontend | backend | mobile | desktop) ;;
+            *)
+              echo "No Sonar token is mapped for app '${{ matrix.app_key }}'."
+              echo "Add it to the selection in _sonar.yaml and to the caller's secrets block."
+              exit 1
+              ;;
+          esac
+
       - name: Sonar scan
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
         with:
@@ -105,4 +125,4 @@ jobs:
           # group ref, so without this the queue would have no Sonar signal.
           args: -Dsonar.qualitygate.wait=true
         env:
-          SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}
+          SONAR_TOKEN: ${{ (matrix.app_key == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app_key == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app_key == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app_key == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}

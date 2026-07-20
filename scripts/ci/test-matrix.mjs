@@ -6,7 +6,7 @@
 //
 // Emits key=value lines on stdout for the caller to append to $GITHUB_OUTPUT:
 //   matrix={"include":[{workspace,dir,app_key,shard,shards,coverage,uses_jest}]}
-//   apps_with_coverage=[{"app_key":"frontend","dir":"apps/frontend","sonar_token":"..."},...]
+//   apps_with_coverage=[{"app_key":"frontend","dir":"apps/frontend"},...]
 //   has_any=<bool>
 //
 // apps_with_coverage is derived here, from the same entries that produce the
@@ -70,7 +70,6 @@ for (const entry of core.include) {
     appsWithCoverage.push({
       app_key: entry.app_key,
       dir: entry.dir,
-      sonar_token: entry.sonar_token,
     });
   }
 

@@ -99,19 +99,15 @@ jobs:
             case "$app" in
               frontend)
                 dir="apps/frontend"
-                token="SONAR_TOKEN_FRONTEND"
                 ;;
               backend)
                 dir="apps/backend"
-                token="SONAR_TOKEN_API"
                 ;;
               mobile)
                 dir="apps/mobileAppYC"
-                token="SONAR_TOKEN_MOBILE"
                 ;;
               desktop)
                 dir="apps/desktop"
-                token="SONAR_TOKEN_DESKTOP"
                 ;;
               *)
                 echo "Unknown app: $app" >&2
@@ -124,7 +120,7 @@ jobs:
             else
               first=0
             fi
-            json+="{\"app\":\"$app\",\"dir\":\"$dir\",\"sonar_token\":\"$token\"}"
+            json+="{\"app\":\"$app\",\"dir\":\"$dir\"}"
           done
           json+=']}'
 
@@ -202,4 +198,7 @@ jobs:
         with:
           projectBaseDir: ${{ matrix.dir }}
         env:
-          SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}
+          # Named statically rather than indexed with secrets[matrix.sonar_token]:
+          # a dynamic index exposes the whole secrets context to the expression,
+          # which CodeQL reports as excessive secret exposure.
+          SONAR_TOKEN: ${{ (matrix.app == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}
