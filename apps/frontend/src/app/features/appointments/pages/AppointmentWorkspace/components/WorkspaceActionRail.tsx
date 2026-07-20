@@ -5,8 +5,9 @@ import {
   IoCalculatorOutline,
   IoChatboxOutline,
   IoClipboardOutline,
-  IoDocumentTextOutline,
+  IoFolderOpenOutline,
   IoPulseOutline,
+  IoReaderOutline,
 } from 'react-icons/io5';
 import type { SideAction } from '@/app/features/appointments/types/workspace';
 
@@ -18,9 +19,9 @@ type WorkspaceActionRailProps = {
 const RAIL_ITEMS: { key: SideAction; label: string; icon: IconType }[] = [
   { key: 'RECORD', label: 'Record vitals', icon: IoPulseOutline },
   { key: 'TASKS', label: 'Tasks', icon: IoClipboardOutline },
-  { key: 'DOCUMENTS', label: 'Documents', icon: IoDocumentTextOutline },
+  { key: 'DOCUMENTS', label: 'Documents', icon: IoFolderOpenOutline },
   { key: 'CHAT', label: 'Chat', icon: IoChatboxOutline },
-  { key: 'ACTIVITY', label: 'Activity', icon: IoPulseOutline },
+  { key: 'ACTIVITY', label: 'Activity', icon: IoReaderOutline },
   { key: 'MSD', label: 'MSD Manual', icon: IoBookOutline },
   { key: 'CALCULATORS', label: 'Calculators', icon: IoCalculatorOutline },
 ];
@@ -46,11 +47,12 @@ const WorkspaceActionRail = ({ activeAction, onSelect }: WorkspaceActionRailProp
           aria-label={label}
           aria-pressed={isActive}
           onClick={() => onSelect(key)}
-          className={`flex size-10 items-center justify-center rounded-xl transition-colors ${
+          className="flex size-10 items-center justify-center rounded-xl transition-colors hover:bg-neutral-0"
+          style={
             isActive
-              ? 'bg-primary-100 text-text-brand'
-              : 'text-text-tertiary hover:bg-neutral-0 hover:text-text-primary'
-          }`}
+              ? { background: 'var(--blue-soft)', color: 'var(--blue-text)' }
+              : { color: 'var(--ink-faint)' }
+          }
         >
           <Icon size={17} aria-hidden="true" />
         </button>

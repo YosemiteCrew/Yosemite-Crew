@@ -35,7 +35,9 @@ const ZoomInMarker = ({
   const companionDisplayName = getCompanionDisplayName(ev);
   const markerTitle = [companionDisplayName, serviceName, concern].filter(Boolean).join(' • ');
   const buttonProps = getMarkerButtonProps(ev, interaction, markerTitle);
-  const laneGapPx = 3;
+  // 2px lane gap on top of the slot's own 4px inset lands the block on the frame's
+  // `left: 6px; right: 6px` inset.
+  const laneGapPx = 2;
   const widthPercent = 100 / laneCount;
   const leftPercent = widthPercent * laneIndex;
 
@@ -53,8 +55,9 @@ const ZoomInMarker = ({
     ? 'cursor-grab active:cursor-grabbing'
     : 'cursor-pointer';
 
+  // Frame subtitle: 11px in the status text colour at 0.75 opacity.
   const subtitleClass =
-    'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px]';
+    'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] opacity-75';
   let subtitleNode: React.ReactNode = null;
   if (tall) {
     subtitleNode = (
@@ -83,10 +86,16 @@ const ZoomInMarker = ({
     subtitleNode = <div className={`${subtitleClass} mt-1`}>{serviceName}</div>;
   }
 
+  // Frame appointment card: 12px radius over a 1px status outline, thickened to a
+  // 3px status spine on the leading edge. A requested (not yet confirmed) booking
+  // draws that outline dashed, keeping the spine solid.
+  const isRequested = String(ev.status ?? '').toUpperCase() === 'REQUESTED';
   const appointmentBlockStyle: React.CSSProperties = {
     ...statusStyle,
     borderWidth: '1px',
-    borderStyle: 'solid',
+    borderLeftWidth: '3px',
+    borderStyle: isRequested ? 'dashed' : 'solid',
+    borderLeftStyle: 'solid',
     borderColor: statusStyle.borderColor,
     top: topPx,
     left: `calc(${leftPercent}% + ${laneGapPx}px)`,
@@ -96,7 +105,7 @@ const ZoomInMarker = ({
   };
 
   return (
-    <div className="absolute z-20 overflow-hidden rounded-2xl!" style={appointmentBlockStyle}>
+    <div className="absolute z-20 overflow-hidden rounded-[12px]!" style={appointmentBlockStyle}>
       <button
         type="button"
         {...buttonProps}
@@ -118,7 +127,7 @@ const ZoomInMarker = ({
           </div>
         )}
         <div className="min-w-0 flex-1 overflow-hidden">
-          <div className="truncate text-caption-1 font-bold leading-[1.2]">
+          <div className="truncate text-[12.5px] font-bold leading-[1.2] tracking-[-0.25px]">
             {companionDisplayName}
           </div>
           {subtitleNode}

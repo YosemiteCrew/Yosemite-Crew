@@ -22,6 +22,7 @@ import {
 import {
   CategoryTemplates,
   FormsCategory,
+  FormsCategoryOptions,
   FormsProps,
   FormsStatus,
   FormsUsage,
@@ -61,10 +62,12 @@ const templateKindToCategoryMap: Record<TemplateKind, FormsCategory> = {
   INPATIENT_SCHEDULE: 'Inpatient Schedule',
 };
 
+// YC_LIBRARY is deliberately absent: the library is global, seeded out of band,
+// and the API rejects it on every write. A library template used as a starting
+// point is saved into the caller's own organisation.
 const templateSourceToOwnership = (
   source?: FormsProps['templateSource']
 ): TemplateOwnershipType => {
-  if (source === 'YC_LIBRARY') return 'YC_LIBRARY';
   if (source === 'USER_TEMPLATE') return 'USER_TEMPLATE';
   return 'ORG_TEMPLATE';
 };
@@ -93,10 +96,17 @@ const templateServicesFromLinks = (template: TemplateLike): string[] => {
       }
     | null
     | undefined;
-  return [
-    ...toStringList(rules?.appliesTo?.serviceIds),
-    ...toStringList(rules?.appliesTo?.packageIds),
-  ];
+  // buildTemplatePayload intentionally writes the SAME linked-id list into both
+  // serviceIds and packageIds, so concatenating them here would return every id
+  // twice — and re-saving that doubled list compounds it on every edit. Dedupe at
+  // the read boundary; Set preserves insertion order so distinct-id callers are
+  // unaffected and stale doubled data self-heals on next read.
+  return Array.from(
+    new Set([
+      ...toStringList(rules?.appliesTo?.serviceIds),
+      ...toStringList(rules?.appliesTo?.packageIds),
+    ])
+  );
 };
 
 const asDate = (value: unknown): Date => {
@@ -389,6 +399,21 @@ const taskAssignmentSchemaToFormFields = (snapshot: TemplateSchemaSnapshot): For
   ];
 };
 
+// Lift the placeholder that toTemplateField stashed in `rules` back onto the
+// field. On reload fieldToFormField surfaces the persisted rules object at
+// `meta.rules`, so read it from there. Recurses into groups. Mutates in place so
+// both the questionnaire and plan-definition return paths share one restored
+// schema, and it is idempotent (only fills a still-undefined placeholder).
+const restoreFieldPlaceholders = (fields: FormField[]): void => {
+  fields.forEach((field) => {
+    const rules = (field.meta as { rules?: { placeholder?: unknown } } | undefined)?.rules;
+    if (field.placeholder === undefined && typeof rules?.placeholder === 'string') {
+      field.placeholder = rules.placeholder;
+    }
+    if (field.type === 'group') restoreFieldPlaceholders(field.fields ?? []);
+  });
+};
+
 const templateToForm = (template: TemplateLike): Form => {
   const sanitizePrescriptionSchema = (snapshot: TemplateSchemaSnapshot): TemplateSchemaSnapshot => {
     // The backend persists the canonical medications section plus generic
@@ -419,6 +444,7 @@ const templateToForm = (template: TemplateLike): Form => {
     template.kind === 'TASK_ASSIGNMENT'
       ? taskAssignmentSchemaToFormFields(schema)
       : templateSchemaToFormFields(schema);
+  restoreFieldPlaceholders(uiSchema);
 
   if (templateMapper.isPlanDefinitionResourceKind(template.kind)) {
     const resource = templateMapper.templateToPlanDefinition(template);
@@ -477,13 +503,28 @@ const templateToForm = (template: TemplateLike): Form => {
   };
 };
 
+const VALID_FORM_CATEGORIES = new Set<string>(FormsCategoryOptions);
+
+// The TemplateKind enum is coarse (8 values) while there are ~40 granular
+// FormsCategory values, so every category without a distinct kind collapses to
+// kind FORM -> 'Custom'. buildTemplatePayload persists the user's real category
+// in rules.category, so prefer that and only fall back to the kind mapping for
+// library/legacy templates that predate it.
+const resolveTemplateCategory = (template: TemplateLike): FormsCategory => {
+  const persisted = (template.rules as { category?: unknown } | null)?.category;
+  if (typeof persisted === 'string' && VALID_FORM_CATEGORIES.has(persisted)) {
+    return persisted as FormsCategory;
+  }
+  return templateKindToCategory(template.kind);
+};
+
 export const mapTemplateToUI = (template: TemplateLike): FormsProps => ({
   ...mapFormToUI(templateToForm(template)),
   species: normalizeSpeciesList(
     (template.rules as { appliesTo?: { species?: unknown }; species?: unknown } | null)?.appliesTo
       ?.species ?? (template.rules as { species?: unknown } | null)?.species
   ),
-  category: templateKindToCategory(template.kind),
+  category: resolveTemplateCategory(template),
   status: templateStatusToLabel(template.status),
   templateId: template.id,
   templateKind: template.kind,
@@ -534,7 +575,14 @@ const toTemplateField = (
     order: field.order ?? index + 1,
     options: options?.length ? options : undefined,
     defaultValue: persistedDefault,
-    rules: field.meta,
+    // `placeholder` is a top-level FormField prop with no first-class column on
+    // the template snapshot, so carry it inside `rules` (restored on reload by
+    // restoreFieldPlaceholders). Without this the authored placeholder is dropped
+    // on save and is gone by the time the Form preview renders.
+    rules:
+      field.placeholder !== undefined
+        ? { ...field.meta, placeholder: field.placeholder }
+        : field.meta,
     source: 'USER',
   };
 };
@@ -1106,7 +1154,7 @@ export const buildTemplatePayload = (
   // the encounter mode so resolution never surfaces them in an out-patient workspace.
   const linkedCatalogIds = form.services ?? [];
   return {
-    organisationId: ownership === 'YC_LIBRARY' ? undefined : orgId,
+    organisationId: orgId,
     ownership,
     kind,
     name: form.name,

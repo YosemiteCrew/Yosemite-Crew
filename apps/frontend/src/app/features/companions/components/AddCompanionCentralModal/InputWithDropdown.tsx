@@ -104,7 +104,7 @@ const InputWithDropdown = ({
     <div
       data-iwd-panel
       aria-label={inlabel}
-      className="border-input-text-placeholder-active overflow-y-auto scrollbar-hidden rounded-b-2xl border border-t bg-white flex flex-col items-stretch px-3 py-2.5"
+      className="border-input-text-placeholder-active overflow-y-auto scrollbar-hidden rounded-b-2xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch px-3 py-2.5"
       style={portalStyle ?? undefined}
     >
       {filtered.map((opt) => (
@@ -123,6 +123,12 @@ const InputWithDropdown = ({
 
   return (
     <div className="flex flex-col w-full">
+      <label
+        htmlFor={uid}
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
+      >
+        {inlabel}
+      </label>
       <div className="w-full relative" ref={wrapRef}>
         <input
           id={uid}
@@ -131,7 +137,6 @@ const InputWithDropdown = ({
           aria-label={inlabel}
           value={value}
           autoComplete="off"
-          placeholder=" "
           onChange={(e) => {
             userHasTypedRef.current = true;
             onChange(e.target.value);
@@ -141,29 +146,11 @@ const InputWithDropdown = ({
           }}
           aria-invalid={Boolean(error)}
           className={`
-            peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
+            w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
             text-body-4 text-text-primary outline-none border
             ${open ? 'border-input-border-active! rounded-b-none! border-b-0!' : getInputBorderClass(error)}
           `}
         />
-        <label
-          htmlFor={uid}
-          className={`
-            pointer-events-none absolute left-4
-            top-1/2 -translate-y-1/2
-            max-w-[calc(100%-2rem)] truncate
-            text-body-4 text-input-text-placeholder
-            transition-all duration-200
-            peer-focus:-top-2.75 peer-focus:translate-y-0
-            peer-focus:text-xs! peer-focus:text-input-text-placeholder-active
-            peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none
-            peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:max-w-none
-            peer-not-placeholder-shown:-top-2.75 peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-xs! peer-not-placeholder-shown:bg-(--whitebg)
-          `}
-        >
-          {inlabel}
-        </label>
         {open &&
           portalStyle &&
           typeof document !== 'undefined' &&

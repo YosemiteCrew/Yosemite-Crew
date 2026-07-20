@@ -200,7 +200,7 @@ describe('DispensaryTable', () => {
     const pager = () => tableBranch(container);
 
     expect(pager().getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
-    expect(pager().getByText('1 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 1')).toHaveAttribute('aria-current', 'page');
 
     const prev = pager().getByRole('button', { name: 'Previous' });
     const next = pager().getByRole('button', { name: 'Next' });
@@ -209,7 +209,7 @@ describe('DispensaryTable', () => {
 
     fireEvent.click(next);
     expect(pager().getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
-    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
     expect(pager().getByRole('button', { name: 'Next' })).toBeDisabled();
     // The card branch is the only one visible below 1023 — it must page in step.
     expect(cardBranch(container).getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
@@ -227,7 +227,7 @@ describe('DispensaryTable', () => {
 
     const { rerender, container } = render(<DispensaryTable filteredList={many} />);
     fireEvent.click(tableBranch(container).getByRole('button', { name: 'Next' }));
-    expect(tableBranch(container).getByText('2 / 2')).toBeInTheDocument();
+    expect(tableBranch(container).getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
 
     rerender(<DispensaryTable filteredList={[baseRecord]} />);
     expect(tableBranch(container).getByText('Showing 1–1 of 1 requests')).toBeInTheDocument();

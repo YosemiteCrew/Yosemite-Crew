@@ -22,6 +22,7 @@ import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { getInvoiceItemNames, getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
+import { getAvatarPalette } from '@/app/features/companions/pages/Companions/companionsDirectory';
 
 const buildAppointmentSubtitle = (
   typeName: string | undefined,
@@ -59,7 +60,7 @@ const STATUS_COLUMN_WIDTH = '160px';
 
 const renderInvoiceNumber = (item: Invoice) => (
   <div
-    className="appointment-profile-title tabular-nums"
+    className="appointment-profile-title tabular-nums cell-strong"
     title={getInvoiceNumberLabel(item) || undefined}
   >
     {getInvoiceNumberLabel(item) || '-'}
@@ -67,7 +68,7 @@ const renderInvoiceNumber = (item: Invoice) => (
 );
 
 const renderServices = (item: Invoice) => (
-  <div className="appointment-profile-title">{getInvoiceItemNames(item.items)}</div>
+  <div className="appointment-profile-title cell-muted">{getInvoiceItemNames(item.items)}</div>
 );
 
 const renderStatus = (item: Invoice) => (
@@ -77,7 +78,7 @@ const renderStatus = (item: Invoice) => (
 );
 
 const renderPayment = (item: Invoice) => (
-  <div className="appointment-profile-title">{getInvoicePaymentMethodLabel(item)}</div>
+  <div className="appointment-profile-title cell-muted">{getInvoicePaymentMethodLabel(item)}</div>
 );
 
 type Column<T> = {
@@ -160,19 +161,25 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     const subtitle = foldMeta
       ? joinMeta(appointmentSubtitle, getInvoiceItemNames(item.items))
       : appointmentSubtitle;
+    // Design rings the row avatar in the companion's species tint, not a flat
+    // neutral disc — the tint is what shows through an initials fallback.
+    const avatarPalette = getAvatarPalette(companion?.id || companionName);
     return (
       <div className="appointment-profile flex items-center gap-2.5">
-        <span className="flex size-8 shrink-0 overflow-hidden rounded-full bg-card-hover">
+        <span
+          className="flex size-[30px] shrink-0 overflow-hidden rounded-full"
+          style={{ background: avatarPalette.bg }}
+        >
           <Image
             src={avatarSrc}
             alt=""
-            width={32}
-            height={32}
-            className="size-8 rounded-full object-cover"
+            width={30}
+            height={30}
+            className="size-[30px] rounded-full object-cover"
           />
         </span>
         <div className="appointment-profile-two min-w-0">
-          <div className="appointment-profile-title truncate" title={ownerAndCompanion}>
+          <div className="appointment-profile-title cell-name truncate" title={ownerAndCompanion}>
             {ownerAndCompanion}
           </div>
           {subtitle && (
@@ -185,6 +192,9 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     );
   };
 
+  /* Design draws the date as one muted line with a small inline open-outline —
+     no bordered box, no second time line (the time already rides the identity
+     sub-line one column to the left). */
   const renderDate = (item: Invoice) => {
     const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
     const companionName = getCompanionName(item.appointmentId);
@@ -195,20 +205,17 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
             type="button"
             onClick={() => goToAppointmentFinance(item.appointmentId)}
             aria-label={`Open finance details for ${companionName}`}
-            className="mt-1 w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
+            className="flex items-center gap-[5px] text-left text-[12px] underline-offset-2 hover:underline"
+            style={{ color: 'var(--ink-muted)' }}
             title="Open appointment finance"
           >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <div className="appointment-profile-sub">
-                  {formatDateLabel(appointment.appointmentDate)}
-                </div>
-                <div className="appointment-profile-sub">
-                  {formatTimeLabel(appointment.startTime ?? appointment.appointmentDate)}
-                </div>
-              </div>
-              <IoOpenOutline size={15} color="var(--color-neutral-900)" />
-            </div>
+            {formatDateLabel(appointment.appointmentDate)}
+            <IoOpenOutline
+              size={12}
+              style={{ color: 'var(--ink-faint)' }}
+              className="shrink-0"
+              aria-hidden="true"
+            />
           </button>
         )}
       </div>
@@ -216,17 +223,15 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
   };
 
   const renderSubtotal = (item: Invoice) => (
-    <div className="appointment-profile-title">{formatMoney(item.subtotal, currency)}</div>
-  );
-
-  const renderDiscount = (item: Invoice) => (
-    <div className="appointment-profile-title">
-      {formatMoney(item.discountTotal ?? 0, currency)}
+    <div className="appointment-profile-title cell-figure">
+      {formatMoney(item.subtotal, currency)}
     </div>
   );
 
   const renderTax = (item: Invoice) => (
-    <div className="appointment-profile-title">{formatMoney(item.taxTotal ?? 0, currency)}</div>
+    <div className="appointment-profile-title cell-figure">
+      {formatMoney(item.taxTotal ?? 0, currency)}
+    </div>
   );
 
   const renderTotal = (item: Invoice, foldBreakdown: boolean) => {
@@ -240,7 +245,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       : '';
     return (
       <div className="appointment-profile-two min-w-0">
-        <div className="appointment-profile-title">
+        <div className="appointment-profile-title cell-figure-strong">
           {formatMoney(item.totalAmount ?? 0, currency)}
         </div>
         {breakdown && (
@@ -258,14 +263,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
         type="button"
         onClick={() => handleViewInvoice(item)}
         aria-label={`View invoice ${item.id ?? ''}`.trim()}
-        className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+        className="grid-row-action size-[30px] rounded-full! border flex items-center justify-center cursor-pointer transition-colors hover:bg-card-hover"
       >
-        <IoEye size={20} color="var(--color-neutral-900)" />
+        <IoEye size={14} style={{ color: 'var(--ink-soft)' }} />
       </button>
     </div>
   );
 
-  // Desktop (>= 1280): the full ledger — every money component is its own column.
+  /* Desktop (>= 1280): the design's ledger — Subtotal, Tax and Total each get a
+     column. Discount is deliberately NOT one of them: it only appears in the
+     invoice detail Summary, where the line-level breakdown lives. */
   const columns: Column<Invoice>[] = [
     { label: 'Invoice', key: 'invoice-number', width: '96px', render: renderInvoiceNumber },
     {
@@ -277,7 +284,6 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     { label: 'Services', key: 'service', width: '180px', render: renderServices },
     { label: 'Date', key: 'date', width: '150px', render: renderDate },
     { label: 'Subtotal', key: 'sub-total', width: '90px', render: renderSubtotal },
-    { label: 'Discount', key: 'discount', width: '80px', render: renderDiscount },
     { label: 'Tax', key: 'tax', width: '70px', render: renderTax },
     {
       label: 'Total',
@@ -338,7 +344,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           bordered={false}
           pagination
           pageSize={10}
-          tableClassName="table-fixed min-w-[540px]"
+          tableClassName="invoice-compact-fixed table-fixed min-w-[540px]"
           caption="Invoices with parent and patient, totals, statuses, payment methods, and actions"
         />
       </div>

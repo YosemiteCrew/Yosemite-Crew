@@ -1,7 +1,11 @@
 import {
   categoryFromLabel,
   categoryToKind,
+  DEFAULT_TASK_PRIORITY,
   getTaskCategoryLabel,
+  getTaskPriorityLabel,
+  getTaskPriorityPillStyle,
+  getTaskPriorityRank,
   isSeriesTask,
   NO_REMINDER_VALUE,
   offsetToReminderValue,
@@ -9,6 +13,7 @@ import {
   reminderValueToOffset,
   repeatValueToRecurrence,
   TASK_CATEGORY_OPTIONS,
+  TASK_PRIORITY_OPTIONS,
   TASK_REMINDER_OPTIONS,
   TASK_REPEAT_OPTIONS,
 } from '@/app/features/tasks/constants/taskTaxonomy';
@@ -42,6 +47,50 @@ describe('taskTaxonomy', () => {
       expect(categoryFromLabel('CARE')).toBe('CARE'); // already a code
       expect(categoryFromLabel('')).toBe('CARE'); // default
       expect(categoryFromLabel('Mystery')).toBe('Mystery'); // unknown passes through
+    });
+  });
+
+  describe('priority', () => {
+    it('exposes the four priority options with value === code', () => {
+      expect(TASK_PRIORITY_OPTIONS.map((o) => o.value)).toEqual([
+        'LOW',
+        'MEDIUM',
+        'HIGH',
+        'URGENT',
+      ]);
+    });
+
+    it('defaults new tasks to MEDIUM', () => {
+      expect(DEFAULT_TASK_PRIORITY).toBe('MEDIUM');
+    });
+
+    it('getTaskPriorityLabel maps codes to labels and falls back to the raw value', () => {
+      expect(getTaskPriorityLabel('URGENT')).toBe('Urgent');
+      expect(getTaskPriorityLabel('LOW')).toBe('Low');
+      expect(getTaskPriorityLabel('mystery')).toBe('mystery');
+      expect(getTaskPriorityLabel(undefined)).toBe('');
+    });
+
+    it('getTaskPriorityRank orders urgent highest and unset lowest', () => {
+      expect(getTaskPriorityRank('URGENT')).toBeGreaterThan(getTaskPriorityRank('HIGH'));
+      expect(getTaskPriorityRank('HIGH')).toBeGreaterThan(getTaskPriorityRank('MEDIUM'));
+      expect(getTaskPriorityRank('MEDIUM')).toBeGreaterThan(getTaskPriorityRank('LOW'));
+      expect(getTaskPriorityRank('LOW')).toBeGreaterThan(getTaskPriorityRank(undefined));
+      expect(getTaskPriorityRank(undefined)).toBe(0);
+    });
+
+    it('getTaskPriorityPillStyle returns design-token vars per priority and neutral fallback', () => {
+      expect(getTaskPriorityPillStyle('URGENT')).toEqual({
+        backgroundColor: 'var(--color-pill-warning-bg)',
+        color: 'var(--color-pill-warning-text)',
+        borderColor: 'var(--color-pill-warning-border)',
+      });
+      expect(getTaskPriorityPillStyle('MEDIUM').color).toBe('var(--color-pill-info-text)');
+      expect(getTaskPriorityPillStyle(undefined)).toEqual({
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        color: 'var(--color-pill-neutral-text)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      });
     });
   });
 

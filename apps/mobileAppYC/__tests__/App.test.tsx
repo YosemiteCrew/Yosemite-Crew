@@ -59,6 +59,17 @@ jest.mock('../src/navigation', () => ({
   AppNavigator: () => null,
 }));
 
+jest.mock('@/shared/services/mobileConfig', () => {
+  const actual = jest.requireActual('@/shared/services/mobileConfig');
+  return {
+    ...actual,
+    fetchMobileConfig: jest.fn().mockResolvedValue({
+      env: 'production',
+      enablePayments: false,
+    }),
+  };
+});
+
 // SuperTokens.init runs at module scope in App.tsx (globally mocked in jest.setup)
 const mockSuperTokensInit = SuperTokens.init as jest.Mock;
 
@@ -111,4 +122,74 @@ test('selects the API domain matching the runtime environment', () => {
       ? DEVELOPMENT_API_BASE_URL
       : PRODUCTION_API_BASE_URL);
   expect(configArg.apiDomain).toBe(expectedDomain);
+});
+
+describe('review login flag resolution', () => {
+  const {fetchMobileConfig} = require('@/shared/services/mobileConfig');
+  const {AUTH_FEATURE_FLAGS} = require('@/config/variables');
+
+  const renderApp = async () => {
+    let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(<App />);
+    });
+    await ReactTestRenderer.act(async () => {});
+    await ReactTestRenderer.act(async () => {
+      tree?.unmount();
+    });
+  };
+
+  afterEach(() => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = false;
+  });
+
+  it('forces review login off in a production env even when config enables it', async () => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = true;
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'production',
+      enablePayments: false,
+      enableReviewLogin: true,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
+  });
+
+  it('forces review login off in a production env when config omits the flag', async () => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = true;
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'prod',
+      enablePayments: false,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
+  });
+
+  it('honors the config flag outside a production env', async () => {
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'staging',
+      enablePayments: false,
+      enableReviewLogin: true,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(true);
+  });
+
+  it('disables review login outside a production env when config turns it off', async () => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = true;
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'dev',
+      enablePayments: false,
+      enableReviewLogin: false,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
+  });
 });

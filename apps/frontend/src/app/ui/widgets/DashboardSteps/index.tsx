@@ -100,36 +100,40 @@ const DashboardSteps = () => {
     >
       <div className="flex flex-col gap-3">
         <div className="flex w-full items-center justify-between">
-          <div className="text-body-1 text-text-primary">Get started</div>
-          <div className="text-body-4 text-text-primary">
+          <div className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+            Get started
+          </div>
+          <div className="text-body-4 text-text-tertiary">
             {completedCount} of {steps.length} done
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {steps.map((step: Step) => (
             <div
               key={step.title}
               className={clsx(
-                'flex flex-col items-start justify-between gap-3 p-3 rounded-2xl border border-card-border bg-neutral-0',
-                step.isCompleted && 'opacity-50'
+                'flex flex-col items-start justify-between gap-3 px-5 py-[18px] rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]',
+                step.isCompleted && 'opacity-[0.55]'
               )}
             >
               <div className="flex w-full flex-col items-start gap-2">
                 <div className="flex w-full items-center justify-between gap-2">
-                  <div className="text-body-4 text-text-primary">{step.title}</div>
+                  <div className="text-[13.5px] font-bold text-[var(--ink)]">{step.title}</div>
                   {step.isCompleted ? (
                     <IoCheckmarkCircle
                       title="Step complete"
-                      className="size-[19px] shrink-0 text-[var(--success)]"
+                      className="size-5 shrink-0 text-[var(--success)]"
                     />
                   ) : (
                     <span
                       title="Step incomplete"
-                      className="size-[18px] shrink-0 rounded-full border-[1.5px] border-[var(--divider)]"
+                      className="size-5 shrink-0 rounded-full border-[1.5px] border-[var(--divider)]"
                     />
                   )}
                 </div>
-                <div className="text-caption-1 text-text-tertiary">{step.description}</div>
+                <div className="text-[12.5px] leading-[1.55] text-[var(--ink-muted)]">
+                  {step.description}
+                </div>
               </div>
               <Secondary
                 href={step.buttonSrc}

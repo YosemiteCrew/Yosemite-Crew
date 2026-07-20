@@ -279,7 +279,7 @@ const HospitalizationModal = ({
             type="button"
             onClick={handleConvert}
             disabled={isConverting}
-            className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-2.75 font-satoshi text-base font-medium leading-6 whitespace-nowrap text-white!"
+            className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-2.75 font-satoshi text-base font-medium leading-6 whitespace-nowrap"
             onPointerDown={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
               e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);

@@ -99,4 +99,63 @@ describe('ModalBase', () => {
 
     ignored.remove();
   });
+
+  describe('body scroll lock', () => {
+    const renderLockable = (showModal: boolean) =>
+      render(
+        <ModalBase
+          showModal={showModal}
+          setShowModal={jest.fn()}
+          overlayClassName="overlay"
+          containerClassName="container"
+          aria-label="Test modal"
+        >
+          <div>Modal content</div>
+        </ModalBase>
+      );
+
+    afterEach(() => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      document.documentElement.style.overflow = '';
+    });
+
+    it('locks body scroll while open', () => {
+      renderLockable(true);
+
+      expect(document.body.style.overflow).toBe('hidden');
+      expect(document.documentElement.style.overflow).toBe('hidden');
+    });
+
+    it('releases the lock when closed', () => {
+      const { rerender } = renderLockable(true);
+
+      rerender(
+        <ModalBase
+          showModal={false}
+          setShowModal={jest.fn()}
+          overlayClassName="overlay"
+          containerClassName="container"
+          aria-label="Test modal"
+        >
+          <div>Modal content</div>
+        </ModalBase>
+      );
+
+      expect(document.body.style.overflow).toBe('');
+      expect(document.documentElement.style.overflow).toBe('');
+    });
+
+    it('releases the lock when unmounted while still open', () => {
+      const { unmount } = renderLockable(true);
+      expect(document.body.style.overflow).toBe('hidden');
+
+      unmount();
+
+      // Without cleanup the page stays unscrollable with no modal to close.
+      expect(document.body.style.overflow).toBe('');
+      expect(document.body.style.paddingRight).toBe('');
+      expect(document.documentElement.style.overflow).toBe('');
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import UserCalendar from '@/app/features/appointments/components/Calendar/common/UserCalendar';
@@ -137,7 +137,10 @@ describe('UserCalendar (Appointments)', () => {
     );
   });
 
-  it('updates current date on navigation', () => {
+  it('renders the team day header with no in-grid day arrows', () => {
+    // The planner frame's team header is a plain date band over the practitioner
+    // columns; day navigation is owned by the header toolbar's date-nav pill
+    // (covered in Header.test.tsx). The task calendar still passes its own arrows.
     render(
       <UserCalendar
         events={events}
@@ -149,14 +152,9 @@ describe('UserCalendar (Appointments)', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('PrevDay'));
-    fireEvent.click(screen.getByText('NextDay'));
-
-    const prevFn = setCurrentDate.mock.calls[0][0];
-    const nextFn = setCurrentDate.mock.calls[1][0];
-
-    expect(prevFn(new Date(2025, 0, 6)).getDate()).toBe(5);
-    expect(nextFn(new Date(2025, 0, 6)).getDate()).toBe(7);
+    expect(screen.queryByText('PrevDay')).not.toBeInTheDocument();
+    expect(screen.queryByText('NextDay')).not.toBeInTheDocument();
+    expect(setCurrentDate).not.toHaveBeenCalled();
   });
 
   it('renders zoom-out layout with availability, unavailable segments and the now indicator', () => {

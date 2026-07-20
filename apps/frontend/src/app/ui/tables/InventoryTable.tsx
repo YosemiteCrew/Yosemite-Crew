@@ -17,6 +17,7 @@ import {
 import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { getSafeOrgImageUrl } from '@/app/lib/urls';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 import './DataTable.css';
 
@@ -45,7 +46,7 @@ const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Unit cost', align: 'right' },
   { label: 'Selling', align: 'right' },
   { label: 'Margin', align: 'right' },
-  { label: 'Location' },
+  { label: 'Location', className: 'pl-3' },
   { label: '' },
 ];
 
@@ -72,12 +73,19 @@ const getImageFallback = (item: InventoryItem) => {
   return '💊';
 };
 
-const getInventoryImageSrc = (item: InventoryItem) =>
-  getSafeOrgImageUrl(item.basicInfo.imageUrl || item.imageUrl);
+// next/image throws when the host is outside next.config's allowlist. Inventory
+// images are org uploads stored as S3 keys, so anything that does not resolve to
+// the org CDN falls back to the category emoji instead of taking the page down.
+const ORG_IMAGE_URL_PREFIX = MEDIA_SOURCES.organization.fromS3Key('');
+
+const getInventoryImageSrc = (item: InventoryItem) => {
+  const src = getSafeOrgImageUrl(item.basicInfo.imageUrl || item.imageUrl);
+  return src.startsWith(ORG_IMAGE_URL_PREFIX) ? src : '';
+};
 
 const StatusPill = ({ label }: { label: string }) => (
   <span
-    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] whitespace-nowrap"
+    className="inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] whitespace-nowrap"
     style={getInventoryStatusStyle(label)}
   >
     {label}
@@ -96,7 +104,7 @@ const ProductCell = ({ item }: { item: InventoryItem }) => {
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-[13px] font-bold leading-tight text-text-primary">
+        <div className="truncate text-[13px] font-bold leading-tight text-[var(--ink)]">
           {item.basicInfo.name}
         </div>
         <div className="text-[11px] tabular-nums text-text-tertiary">{getSku(item)}</div>
@@ -125,12 +133,10 @@ const InventoryRow = ({
 
   return (
     <div
-      className="grid items-center gap-2.5 border-t border-card-border px-5 py-2.5 text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
+      className="grid items-center gap-2.5 border-t border-card-border px-5 py-[11px] text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
       style={{
         gridTemplateColumns: GRID_COLUMNS,
-        backgroundColor: expired
-          ? 'color-mix(in srgb, var(--color-danger-500) 9%, transparent)'
-          : undefined,
+        backgroundColor: expired ? 'var(--danger-bg-faint)' : undefined,
       }}
     >
       <ProductCell item={item} />
@@ -144,9 +150,7 @@ const InventoryRow = ({
       <div className="font-bold">{(item.stock.abcClass || '').replace('Class ', '') || '—'}</div>
       <div
         className={`text-[12.5px] tabular-nums ${
-          expired
-            ? 'font-bold text-[var(--color-danger-600)]'
-            : 'text-[var(--color-pill-success-text)]'
+          expired ? 'cell-ink-danger font-bold' : 'cell-ink-success'
         }`}
       >
         {expiryLabel}
@@ -154,9 +158,7 @@ const InventoryRow = ({
       <div className="text-right tabular-nums">
         {displayValue(item.stock.current || '') === '—' ? '—' : `${item.stock.current} ${unit}`}
       </div>
-      <div
-        className={`text-right tabular-nums ${low ? 'font-bold text-[var(--color-pill-warning-text)]' : ''}`}
-      >
+      <div className={`text-right tabular-nums ${low ? 'cell-ink-warn font-bold' : ''}`}>
         {available === undefined ? '—' : `${available} ${unit}`}
       </div>
       <div className="text-right tabular-nums">
@@ -167,14 +169,12 @@ const InventoryRow = ({
       </div>
       <div
         className={`text-right tabular-nums ${
-          margin === undefined
-            ? 'text-text-tertiary'
-            : 'font-bold text-[var(--color-pill-success-text)]'
+          margin === undefined ? 'text-text-tertiary' : 'cell-ink-success font-bold'
         }`}
       >
         {formatPercentValue(margin)}
       </div>
-      <div className="truncate text-[12.5px] text-blue-text">
+      <div className="cell-ink-link truncate pl-3 text-[12.5px]">
         {displayValue(item.stock.stockLocation)}
       </div>
       <div className="flex items-center justify-center gap-1.5">
@@ -188,10 +188,10 @@ const InventoryRow = ({
                 'flex size-[30px] items-center justify-center rounded-full! transition-colors',
                 low
                   ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]'
-                  : 'border border-card-border text-text-secondary hover:bg-card-hover'
+                  : 'grid-row-action border text-text-secondary hover:bg-card-hover'
               )}
             >
-              <IoAddCircleOutline size={16} />
+              <IoAddCircleOutline size={15} />
             </button>
           </GlassTooltip>
         )}
@@ -200,9 +200,9 @@ const InventoryRow = ({
             type="button"
             onClick={() => onView(item)}
             aria-label={`View ${item.basicInfo.name}`}
-            className="flex size-[30px] items-center justify-center rounded-full! border border-card-border text-text-secondary transition-colors hover:bg-card-hover"
+            className="grid-row-action flex size-[30px] items-center justify-center rounded-full! border text-text-secondary transition-colors hover:bg-card-hover"
           >
-            <IoEye size={15} />
+            <IoEye size={14} />
           </button>
         </GlassTooltip>
       </div>

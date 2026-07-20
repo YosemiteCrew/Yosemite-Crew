@@ -308,6 +308,33 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
     expect(mockedPrisma.chatSession.create).not.toHaveBeenCalled();
   });
 
+  it("scopes the dedupe lookup to the requested org pair, both orderings", async () => {
+    // Matching on members alone would also return the same-org ORG_DIRECT
+    // sessions created by chat.service. The lookup must be bound to this org
+    // pair, and either clinic may have opened the conversation.
+    bothOrgsEnabled();
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
+
+    await NetworkChatService.createNetworkDirectChat({
+      requesterUserId: "userA",
+      requesterOrgId: "org1",
+      otherUserId: "userB",
+      otherOrgId: "org2",
+    });
+
+    expect(mockedPrisma.chatSession.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: "ORG_DIRECT",
+          OR: [
+            { organisationId: "org1", counterpartOrganisationId: "org2" },
+            { organisationId: "org2", counterpartOrganisationId: "org1" },
+          ],
+        }),
+      }),
+    );
+  });
+
   it("creates a Stream channel and a cross-org session when both flags are true", async () => {
     bothOrgsEnabled();
     mockedPrisma.chatSession.findFirst.mockResolvedValue(null);

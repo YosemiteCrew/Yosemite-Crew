@@ -23,6 +23,7 @@ type FormsFiltersProps = {
   categoryAction?: React.ReactNode;
 };
 
+// Design filter-chip recipe: pill, 6px 13px, 12px text.
 const chipClassName = (isActive: boolean): string =>
   clsx(
     'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
@@ -120,6 +121,12 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
       </div>
       <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
         {categoryAction}
+        {/* Design separates the pill row from the trailing dropdown with an 18px hairline. */}
+        <span
+          aria-hidden="true"
+          className="mx-1 shrink-0"
+          style={{ width: '1px', height: '18px', backgroundColor: 'var(--hairline)' }}
+        />
         <button
           ref={triggerRef}
           type="button"

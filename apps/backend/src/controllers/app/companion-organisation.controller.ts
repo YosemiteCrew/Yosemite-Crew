@@ -185,6 +185,11 @@ export const CompanionOrganisationController = {
           .json({ message: "Organisation not found or invalid." });
       }
 
+      await CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+        patientId,
+        organisationId,
+      );
+
       const link = await CompanionOrganisationService.linkByPmsUser({
         pmsUserId: pmsUser,
         patientId,

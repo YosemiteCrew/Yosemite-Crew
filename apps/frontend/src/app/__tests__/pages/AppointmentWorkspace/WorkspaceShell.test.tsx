@@ -46,7 +46,7 @@ describe('ReadyToggle', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By Dr Tim')).toBeInTheDocument();
+    expect(screen.getByText(/Ready for Discharge · Dr Tim/)).toBeInTheDocument();
     expect(screen.getByText(/Today,/)).toBeInTheDocument();
   });
 
@@ -58,7 +58,7 @@ describe('ReadyToggle', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By Clinical team')).toBeInTheDocument();
+    expect(screen.getByText(/Ready for Billing · Clinical team/)).toBeInTheDocument();
     expect(screen.getByText(/Jun 18,/)).toBeInTheDocument();
   });
 
@@ -113,8 +113,8 @@ describe('WorkspaceHeader', () => {
         onQuickActions={onQuickActions}
       />
     );
-    // Title uses the companion's first name only.
-    expect(screen.getByText(/Gigi’s Appointment/)).toBeInTheDocument();
+    // Title is the bare companion first name (design's compact identity row).
+    expect(screen.getByRole('heading', { name: 'Gigi' })).toBeInTheDocument();
     expect(screen.getByText('Needs muzzle')).toBeInTheDocument();
     expect(screen.getByTestId('workspace-alert-strip')).toHaveClass('overflow-x-auto');
     fireEvent.click(screen.getByRole('button', { name: /go back/i }));
@@ -281,7 +281,8 @@ describe('ReadyToggle stamp formatting', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By A')).toBeInTheDocument();
+    // The stamp is appended inline after the label.
+    expect(screen.getByText(/Ready for Billing · A/)).toBeInTheDocument();
     // A past date is rendered as "<Mon> <day>, <time>" — not the "Today," form.
     expect(screen.getByText(/Jun 15,/)).toBeInTheDocument();
     expect(screen.queryByText(/Today,/)).not.toBeInTheDocument();
@@ -295,7 +296,7 @@ describe('ReadyToggle stamp formatting', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By A')).toBeInTheDocument();
+    expect(screen.getByText('Ready for Billing · A')).toBeInTheDocument();
   });
 });
 

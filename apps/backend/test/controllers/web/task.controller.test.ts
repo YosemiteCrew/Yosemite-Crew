@@ -235,6 +235,26 @@ describe("TaskController", () => {
         }),
       );
     });
+
+    it("passes a valid priority filter through and drops an invalid one", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.query = { priority: "URGENT" } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ priority: "URGENT" }),
+      );
+
+      mockedTaskService.listForEmployee.mockClear();
+      req.query = { priority: "SOMETHING" } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ priority: undefined }),
+      );
+    });
   });
 
   describe("updateTaskPMS", () => {
@@ -273,17 +293,21 @@ describe("TaskController", () => {
   });
 
   describe("deleteTaskPMS", () => {
-    it("invokes deleteTask with the selected recurrence scope", async () => {
+    it("invokes deleteTask with the selected recurrence scope and org scope", async () => {
       req.userId = "auth-user-id";
+      (req as unknown as { organisationId?: string }).organisationId = "org-1";
       req.query = { scope: "ALL" } as any;
       mockedTaskService.deleteTask.mockResolvedValue(undefined as any);
 
       await TaskController.deleteTaskPMS(req as Request, res);
 
+      // The org scope must reach the service: without it the initial task
+      // lookup is unscoped.
       expect(mockedTaskService.deleteTask).toHaveBeenCalledWith(
         "task-1",
         "auth-user-id",
         "ALL",
+        "org-1",
       );
       expect(statusMock).toHaveBeenCalledWith(204);
     });

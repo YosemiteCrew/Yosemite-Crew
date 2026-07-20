@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync } from "node:fs";
 import admin from "firebase-admin";
 import { NotificationType } from "@prisma/client";
 import logger from "src/utils/logger";

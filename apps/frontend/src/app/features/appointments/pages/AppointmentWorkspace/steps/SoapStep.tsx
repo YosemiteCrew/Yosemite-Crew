@@ -107,16 +107,24 @@ const SoapContextHeader = ({
   appointmentSpeciality?: string;
   appointmentService?: string;
 }) => (
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-    <div className="w-full lg:max-w-125 lg:flex-1">
-      <ChiefComplaintField value={appointmentReason} />
-    </div>
-    <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center lg:w-auto lg:shrink-0 lg:justify-end lg:gap-3">
-      <div className="w-full sm:w-52">
-        <SoapContextField label="Speciality" value={appointmentSpeciality} />
+  <div className="flex flex-col gap-4">
+    <h2
+      className="text-[15px] font-bold leading-[120%] tracking-[-0.02em]"
+      style={{ color: 'var(--ink)' }}
+    >
+      SOAP note
+    </h2>
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+      <div className="w-full lg:max-w-125 lg:flex-1">
+        <ChiefComplaintField value={appointmentReason} />
       </div>
-      <div className="w-full sm:w-52">
-        <SoapContextField label="Service" value={appointmentService} />
+      <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center lg:w-auto lg:shrink-0 lg:justify-end lg:gap-3">
+        <div className="w-full sm:w-52">
+          <SoapContextField label="Speciality" value={appointmentSpeciality} />
+        </div>
+        <div className="w-full sm:w-52">
+          <SoapContextField label="Service" value={appointmentService} />
+        </div>
       </div>
     </div>
   </div>
@@ -135,7 +143,7 @@ const CustomSoapFields = ({
   onAnswerChange: (fieldId: string, value: unknown) => void;
   onRecordVitals: () => void;
 }) => (
-  <SectionContainer titleClassName="text-yc-20-b-primary" title="Clinical note" compactTop>
+  <SectionContainer title="Clinical note" compactTop>
     <FormRenderer
       fields={note.customSchema ?? []}
       values={note.customAnswers ?? {}}

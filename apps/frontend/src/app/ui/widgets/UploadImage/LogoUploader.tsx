@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useState } from 'react';
 import Image from 'next/image';
-import { IoCamera, IoRemoveCircleOutline } from 'react-icons/io5';
+import { IoCameraOutline, IoRemoveCircleOutline } from 'react-icons/io5';
 import { postData } from '@/app/services/axios';
 import axios from 'axios';
 import { sanitizeUrl } from '@braintree/sanitize-url';
@@ -113,8 +113,9 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               onChange={handleImageChange}
               style={{ display: 'none' }}
             />
-            <label htmlFor={inputId} style={{ cursor: 'pointer' }} aria-label={title}>
-              <IoCamera color="var(--color-neutral-700)" size={32} aria-hidden="true" />
+            <label htmlFor={inputId} className="step-logo-upload-trigger" aria-label={title}>
+              <IoCameraOutline size={19} aria-hidden="true" />
+              <span className="step-logo-upload-caption">LOGO</span>
             </label>
           </>
         )}

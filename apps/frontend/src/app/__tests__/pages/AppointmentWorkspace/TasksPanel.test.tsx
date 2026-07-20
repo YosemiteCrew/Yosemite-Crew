@@ -469,6 +469,26 @@ describe('TasksPanel — new/edit form', () => {
     );
   });
 
+  // #1904: employee (non-parent) tasks created from Quick Actions must carry the
+  // appointment's pet id as `patientId` — otherwise medication/observation-tool
+  // tasks 400 on the backend (companionId IS the patient id in this system).
+  // patientId is forwarded whenever companionId is present, NOT gated on the parent tab.
+  it('seeds a new employee task with patientId from the companion id', async () => {
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Task' }));
+    expect(screen.getByText('New task')).toBeInTheDocument();
+    await settle();
+
+    const call = (useTaskForm as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(call.isCompanionTask).toBe(false);
+    expect(call.initialTask).toEqual(
+      expect.objectContaining({ audience: 'EMPLOYEE_TASK', patientId: 'comp-1' })
+    );
+    // It stays an employee task — no companionId is added for the non-parent tab.
+    expect(call.initialTask.companionId).toBeUndefined();
+  });
+
   it('opens a new parent task form seeded with the companion id', async () => {
     renderPanel();
 

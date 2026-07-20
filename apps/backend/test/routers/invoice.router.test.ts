@@ -208,8 +208,30 @@ describe("invoice.router", () => {
     expect(withAppointmentOrgPermissions).toHaveBeenCalledTimes(3);
     expect(withPaymentIntentOrgPermissions).toHaveBeenCalledTimes(1);
     expect(withOrgPermissions).toHaveBeenCalledTimes(1);
-    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(5);
+    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(6);
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
+    expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
+  it("derives the organisation from the invoice on the invoice read route so a member of another organisation cannot read it by id", () => {
+    const invoiceReadRoute = findRoute("/:invoiceId", "get");
+    const handles = invoiceReadRoute?.stack.map((layer) => layer.handle);
+
+    expect(handles).toContain(requireWebAuth);
+
+    const orgScopingMiddlewares = withInvoiceOrgPermissions.mock.results.map(
+      (result) => result.value,
+    );
+    const permissionMiddlewares = requirePermission.mock.results.map(
+      (result) => result.value,
+    );
+
+    expect(orgScopingMiddlewares.some((mw) => handles?.includes(mw))).toBe(
+      true,
+    );
+    expect(permissionMiddlewares.some((mw) => handles?.includes(mw))).toBe(
+      true,
+    );
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
   });
 

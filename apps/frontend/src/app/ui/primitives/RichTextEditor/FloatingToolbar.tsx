@@ -15,10 +15,26 @@ type ToolButton = {
   run: () => void;
 };
 
+const renderButton = (btn: ToolButton) => (
+  <button
+    key={btn.key}
+    type="button"
+    aria-label={btn.label}
+    aria-pressed={btn.isActive()}
+    onMouseDown={(e) => e.preventDefault()}
+    onClick={btn.run}
+    className="yc-rte-tool-btn"
+  >
+    {btn.icon}
+  </button>
+);
+
 /**
- * Floating B / I / U / bulleted-list / indent toolbar for the rich text editor.
- * "Indent" sinks list items when possible; otherwise it inserts visible
- * indentation into the current text block so the control always has an effect.
+ * Docked B / I / U | bulleted-list / indent toolbar for the rich text editor.
+ * Rendered as a top bar inside the field (see RichTextEditor.css `.yc-rte-toolbar`,
+ * which reveals it on focus) — the design's active-SOAP-field treatment. "Indent"
+ * sinks list items when possible; otherwise it inserts visible indentation into
+ * the current text block so the control always has an effect.
  */
 const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
   const buttons: ToolButton[] = [
@@ -78,27 +94,18 @@ const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
     },
   ];
 
+  // B / I / U, a hairline divider, then the list + indent controls — the design's
+  // grouping. The trailing "editing" hint mirrors the active-field affordance.
+  const [bold, italic, underline, ...blockButtons] = buttons;
+
   return (
-    <div
-      role="toolbar"
-      aria-label="Text formatting"
-      className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-neutral-100 px-5 shadow-[0_1px_3px_1px_rgba(0,0,0,0.15)]"
-    >
-      {buttons.map((btn) => (
-        <button
-          key={btn.key}
-          type="button"
-          aria-label={btn.label}
-          aria-pressed={btn.isActive()}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={btn.run}
-          className={`flex size-6 items-center justify-center rounded-md transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
-            btn.isActive() ? 'text-text-brand' : 'text-neutral-700 hover:text-text-primary'
-          }`}
-        >
-          {btn.icon}
-        </button>
-      ))}
+    <div role="toolbar" aria-label="Text formatting" className="yc-rte-toolbar">
+      {[bold, italic, underline].map(renderButton)}
+      <span className="yc-rte-toolbar-divider" aria-hidden="true" />
+      {blockButtons.map(renderButton)}
+      <span className="yc-rte-toolbar-hint" aria-hidden="true">
+        editing
+      </span>
     </div>
   );
 };

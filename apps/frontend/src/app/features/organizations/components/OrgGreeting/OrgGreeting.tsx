@@ -18,12 +18,12 @@ const OrgGreeting = ({ orgCount }: OrgGreetingProps) => {
   const orgWord = orgCount === 1 ? 'organization' : 'organizations';
 
   return (
-    <div className="flex flex-col items-center gap-1 text-center">
-      <span className="font-newsreader text-body-2 italic text-text-brand">{greeting}</span>
-      <h1 className="font-newsreader text-heading-2 text-text-primary">
+    <div className="flex flex-col items-center gap-2 text-center">
+      <span className="font-newsreader text-[17px] italic text-[var(--pink)]">{greeting}</span>
+      <h1 className="font-newsreader text-[30px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink)]">
         Where are you working today?
       </h1>
-      <span className="text-body-4 text-text-tertiary">
+      <span className="mb-[18px] font-satoshi text-[13.5px] text-[var(--ink-muted)]">
         You belong to {orgCount} {orgWord}
       </span>
     </div>

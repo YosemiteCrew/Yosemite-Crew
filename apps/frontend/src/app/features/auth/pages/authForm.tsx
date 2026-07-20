@@ -56,7 +56,7 @@ const errorTextStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   fontSize: 14,
-  color: '#d53225',
+  color: 'var(--danger-text)',
   letterSpacing: '-0.01em',
 };
 

@@ -207,7 +207,7 @@ const InstructionsField = ({
       type="button"
       aria-label="Copy instructions"
       onClick={() => copyValue(value)}
-      className="absolute top-1/2 right-3 -translate-y-1/2 text-text-secondary hover:text-text-brand focus-visible:outline-none"
+      className="absolute top-1/2 right-3 -translate-y-1/2 text-text-secondary hover:text-blue-text focus-visible:outline-none"
     >
       <IoCopyOutline size={16} aria-hidden="true" />
     </button>
@@ -249,7 +249,7 @@ const PrescriptionRow = ({
             {index + 1}. {item.medicineName}
           </span>
           {item.brand && (
-            <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
+            <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-blue-text">
               {item.brand}
             </span>
           )}
@@ -464,7 +464,7 @@ const PrescriptionEditor = ({
                       item.medicineName
                     }
                     badge={
-                      <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
+                      <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-blue-text">
                         Medication
                       </span>
                     }
@@ -481,7 +481,6 @@ const PrescriptionEditor = ({
       </div>
 
       <SectionContainer
-        titleClassName="text-yc-20-b-primary"
         title="Prescription"
         titleIcon={<TitleAddIcon />}
         className="flex flex-col gap-5"

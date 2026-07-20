@@ -64,10 +64,10 @@ export const getMarkerSizing = (laneCount: number, blockHeightPx: number): Marke
   } else {
     imgSize = 24;
   }
+  // The frame pads every full-size appointment card at 8px 12px; only the short
+  // single-lane tier tightens vertically so a 5-minute block still fits its name.
   let verticalPadding: string;
-  if (tall) {
-    verticalPadding = 'py-2.5';
-  } else if (medium) {
+  if (tall || medium) {
     verticalPadding = 'py-2';
   } else {
     verticalPadding = 'py-0.5';

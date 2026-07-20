@@ -186,9 +186,9 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
       };
     case 'expired':
       return {
-        color: 'var(--color-danger-600)',
-        backgroundColor: 'var(--color-danger-100)',
-        borderColor: 'var(--color-danger-400)',
+        color: 'var(--danger-text)',
+        backgroundColor: 'var(--danger-bg)',
+        borderColor: 'var(--danger-border)',
       };
     case 'out of stock':
     case 'hidden':

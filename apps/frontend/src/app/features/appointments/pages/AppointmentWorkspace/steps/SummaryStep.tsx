@@ -240,8 +240,8 @@ const SigningStatusPill = ({ signingStatus }: { signingStatus?: string | null })
 /** Shared column template (mirrors the Invoice table) so the heading and row
  *  grids resolve to identical track widths. The Actions track is fixed. */
 const DOCUMENT_COLS =
-  'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_92px]';
-const DOCUMENT_ROW_GRID = `grid gap-3 ${DOCUMENT_COLS} sm:items-center`;
+  '@2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_92px]';
+const DOCUMENT_ROW_GRID = `grid gap-3 ${DOCUMENT_COLS} @2xl:items-center`;
 
 const downloadDocumentUrl = (url: string) => {
   const link = globalThis.document.createElement('a');
@@ -290,11 +290,7 @@ export const AllDocumentsTable = ({
   };
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="All Documents"
-      className="flex flex-col gap-4"
-    >
+    <SectionContainer title="All Documents" className="flex flex-col gap-4">
       {error && (
         <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-danger-700">
           {error}
@@ -306,9 +302,9 @@ export const AllDocumentsTable = ({
         </p>
       )}
       {!error && documents.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="@container flex flex-col gap-3">
           <div
-            className={`${DOCUMENT_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
+            className={`${DOCUMENT_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate @2xl:grid`}
           >
             <span>Created</span>
             <span>Source</span>
@@ -557,6 +553,7 @@ const useSummaryStepContent = ({
       if (!followUpInDays || encounter.followUpAt) return;
       const next = new Date();
       next.setDate(next.getDate() + followUpInDays);
+      if (Number.isNaN(next.getTime())) return;
       setFollowUp(appointmentId, next.toISOString());
     },
     [appointmentId, encounter.followUpAt, setFollowUp]
@@ -842,11 +839,7 @@ const useSummaryStepContent = ({
           {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
           Once saved, the editor is replaced by a read-only render of the summary
           with a fixed follow-up date and a "Saved on … by …" stamp. */}
-          <SectionContainer
-            titleClassName="text-yc-20-b-primary"
-            title="Discharge Summary"
-            compactTop
-          >
+          <SectionContainer title="Discharge Summary" compactTop disableFocusBorder>
             {dischargeSaved ? (
               <div className="relative">
                 {/* Editable until the encounter is locked (window closed / completed /
@@ -885,7 +878,7 @@ const useSummaryStepContent = ({
                     <span className="text-[12px] font-bold text-neutral-900">
                       Saved by {encounter.dischargeSavedByName}
                     </span>
-                    <span className="text-[12px] font-medium text-text-brand">
+                    <span className="text-[12px] font-medium text-blue-text">
                       {formatDateTime(encounter.dischargeSavedAt ?? '')}
                     </span>
                   </div>
@@ -897,7 +890,6 @@ const useSummaryStepContent = ({
                   ariaLabel="Discharge summary"
                   value={encounter.dischargeSummary}
                   readOnly={readOnly}
-                  toolbarPlacement="inset"
                   onChange={(html) => setDischargeSummary(appointmentId, html)}
                   placeholder="Discharge instructions and follow-up care"
                 />

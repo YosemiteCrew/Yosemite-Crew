@@ -364,7 +364,7 @@ const GoogleSearchDropDown = ({
     <div className="w-full relative" ref={dropdownRef}>
       <label
         htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800"
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
       >
         {inlabel}
       </label>
@@ -390,22 +390,22 @@ const GoogleSearchDropDown = ({
             setOpen(false);
           }}
           className={`
-            h-[42px] w-full border-[1.5px] bg-[var(--field-bg)] px-3.5
-            text-[14px] text-text-primary outline-none transition-colors
-            placeholder:text-input-text-placeholder
+            h-[44px] w-full border-[1.5px] bg-[var(--field-bg)] px-[14px]
+            text-[14px] text-[var(--ink-body)] outline-none transition-colors
+            placeholder:text-[var(--ink-faint)]
             disabled:cursor-not-allowed disabled:opacity-60
-            focus:border-input-border-active! focus:shadow-[0_0_0_3px_var(--glow-b10)]
+            focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
             ${(() => {
-              if (isDropdownOpen) return 'border-input-border-active! rounded-t-xl!';
-              if (error) return 'border-input-border-error! rounded-xl!';
-              return 'border-input-border-default! rounded-xl!';
+              if (isDropdownOpen) return 'border-[var(--blue)]! rounded-t-[12px]!';
+              if (error) return 'border-[var(--danger)]! rounded-[12px]!';
+              return 'border-[var(--hairline)]! rounded-[12px]!';
             })()}
           `}
         />
       </div>
       {isDropdownOpen && (
         <div
-          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-xl border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
+          className="border-[var(--blue)] max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-[12px] border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
           onPointerDown={(e) => e.preventDefault()}
         >
           {predictions?.map((pred, index: number) => (

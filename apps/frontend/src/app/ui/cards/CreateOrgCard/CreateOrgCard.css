@@ -1,0 +1,25 @@
+.create-org-card {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1.5px dashed var(--divider);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.create-org-card:hover {
+  border-color: var(--blue);
+  color: var(--ink);
+}
+
+.create-org-card-icon {
+  color: var(--blue-text);
+}

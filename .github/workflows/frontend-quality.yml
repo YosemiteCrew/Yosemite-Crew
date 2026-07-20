@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -52,13 +52,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup
         uses: ./.github/actions/setup
 
       - name: Cache Jest transform cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: apps/frontend/.jest-cache
           key: jest-frontend-${{ runner.os }}-${{ hashFiles('apps/frontend/jest.config.ts', 'apps/frontend/package.json', 'pnpm-lock.yaml') }}
@@ -66,7 +66,7 @@ jobs:
             jest-frontend-${{ runner.os }}-
 
       - name: Cache Turborepo
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .turbo
           key: turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.sha }}
@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: frontend-coverage
           path: apps/frontend/coverage/
@@ -103,13 +103,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup
         uses: ./.github/actions/setup
 
       - name: Cache Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: apps/frontend/.next/cache
           key: next-build-${{ runner.os }}-${{ hashFiles('apps/frontend/package.json', 'apps/frontend/next.config.*', 'pnpm-lock.yaml') }}
@@ -117,7 +117,7 @@ jobs:
             next-build-${{ runner.os }}-
 
       - name: Cache Turborepo
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .turbo
           key: turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.sha }}
@@ -141,7 +141,7 @@ jobs:
         run: pnpm run report:build-routes
 
       - name: Upload route build report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: frontend-build-route-report
           path: |

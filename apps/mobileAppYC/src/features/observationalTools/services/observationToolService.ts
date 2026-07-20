@@ -195,19 +195,17 @@ export const observationToolApi = {
       headers,
     });
     const data = Array.isArray(response.data) ? response.data : [];
-    const mapped = data.map(
-      (item: any): ObservationToolDefinitionRemote => ({
-        id: item._id ?? item.id ?? item.toolId ?? item.key ?? item.name,
-        name: item.name,
-        description: item.description,
-        category: item.category,
-        fields: item.fields ?? [],
-        scoringRules: item.scoringRules,
-        isActive: item.isActive,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-      }),
-    );
+    const mapped = data.map((item: any): ObservationToolDefinitionRemote => ({
+      id: item._id ?? item.id ?? item.toolId ?? item.key ?? item.name,
+      name: item.name,
+      description: item.description,
+      category: item.category,
+      fields: item.fields ?? [],
+      scoringRules: item.scoringRules,
+      isActive: item.isActive,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
     cacheTools(mapped);
     return mapped;
   },
@@ -309,61 +307,6 @@ export const observationToolApi = {
       createdAt: payload?.createdAt,
       updatedAt: payload?.updatedAt,
     };
-  },
-
-  async getSubmission(
-    submissionId: string,
-  ): Promise<ObservationToolSubmission> {
-    const [headers, {userId}] = await Promise.all([
-      createAuthHeaders(),
-      ensureAccessToken(),
-    ]);
-    const response = await apiClient.get(
-      `/v1/observation-tools/mobile/submissions/${submissionId}`,
-      {headers},
-    );
-    const payload = response.data;
-    return {
-      id: payload?._id ?? payload?.id ?? submissionId,
-      toolId: payload?.toolId ?? '',
-      taskId: payload?.taskId,
-      companionId: payload?.companionId ?? '',
-      filledBy: payload?.filledBy ?? userId ?? '',
-      answers: payload?.answers ?? {},
-      score: payload?.score,
-      summary: payload?.summary,
-      evaluationAppointmentId: payload?.evaluationAppointmentId,
-      createdAt: payload?.createdAt,
-      updatedAt: payload?.updatedAt,
-    };
-  },
-
-  async listAppointmentSubmissions(
-    appointmentId: string,
-  ): Promise<ObservationToolSubmission[]> {
-    const [headers, {userId}] = await Promise.all([
-      createAuthHeaders(),
-      ensureAccessToken(),
-    ]);
-    const response = await apiClient.get(
-      `/v1/observation-tools/mobile/appointments/${appointmentId}/submissions`,
-      {headers},
-    );
-    const data = Array.isArray(response.data) ? response.data : [];
-    return data.map((payload: any) => ({
-      id: payload?._id ?? payload?.id,
-      toolId: payload?.toolId ?? '',
-      taskId: payload?.taskId,
-      companionId: payload?.companionId ?? '',
-      filledBy: payload?.filledBy ?? userId ?? '',
-      answers: payload?.answers ?? {},
-      score: payload?.score,
-      summary: payload?.summary,
-      evaluationAppointmentId:
-        payload?.evaluationAppointmentId ?? appointmentId,
-      createdAt: payload?.createdAt,
-      updatedAt: payload?.updatedAt,
-    }));
   },
 
   async previewTaskSubmission(

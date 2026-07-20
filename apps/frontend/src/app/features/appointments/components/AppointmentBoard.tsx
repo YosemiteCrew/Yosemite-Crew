@@ -162,17 +162,16 @@ const BoardColumn = ({
           <div className="flex items-center gap-2">
             <span
               aria-hidden="true"
-              className="size-2 shrink-0 rounded-full"
+              className="size-[7px] shrink-0 rounded-full"
               style={{ backgroundColor: style.borderColor }}
             />
-            <div
-              className="text-[12px] font-bold uppercase tracking-[0.06em]"
-              style={{ color: style.color }}
-            >
+            <div className="text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--ink-muted)]">
               {column.label}
             </div>
           </div>
-          <div className="text-[11.5px] font-bold text-text-tertiary">{appointments.length}</div>
+          <div className="text-[11.5px] font-bold text-[var(--ink-faint)]">
+            {appointments.length}
+          </div>
         </div>
       </div>
       <div
@@ -192,9 +191,9 @@ const BoardColumn = ({
             type="button"
             aria-label={`Add appointment to ${column.label}`}
             onClick={onAddAppointment}
-            className="mt-auto flex items-center justify-center gap-1.5 rounded-[11px] border border-dashed border-[var(--divider)] px-3 py-2.5 text-[12px] font-semibold text-text-tertiary transition-colors hover:border-input-border-active hover:text-text-primary"
+            className="mt-auto flex items-center justify-center gap-[5px] rounded-[11px] border border-dashed border-[var(--divider)] p-[9px] text-[11.5px] font-semibold text-text-tertiary transition-colors hover:border-input-border-active hover:text-text-primary"
           >
-            <IoAdd size={14} aria-hidden="true" />
+            <IoAdd size={13} aria-hidden="true" />
             Add
           </button>
         )}

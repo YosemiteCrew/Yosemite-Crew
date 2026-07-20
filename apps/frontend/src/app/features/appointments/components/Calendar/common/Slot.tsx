@@ -421,7 +421,9 @@ const SlotComponent: React.FC<SlotProps> = ({
             onDropPreviewClear={() => setDropPreviewMinute(null)}
           />
         ) : (
-          <div className="relative h-full bg-neutral-0 overflow-visible px-1">
+          // Transparent so the week grid's today-column tint reads through; the
+          // calendar container already supplies the --screen surface underneath.
+          <div className="relative h-full overflow-visible px-1">
             {laidOutZoomInEvents.map(
               ({ ev, startMinute, visibleDurationMinutes, laneIndex, laneCount }) => {
                 const itemKey = getSlotEventKey(ev);

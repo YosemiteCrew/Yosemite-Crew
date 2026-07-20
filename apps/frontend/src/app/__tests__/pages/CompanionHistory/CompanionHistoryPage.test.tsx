@@ -80,6 +80,7 @@ const replaceCompanionTextMock = jest.fn((text: string) => text);
 const mockUpdateCompanion = jest.fn();
 const mockUpdateParent = jest.fn();
 const mockNotify = jest.fn();
+let mockIsPhone = false;
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -114,6 +115,31 @@ jest.mock('@/app/features/companionHistory/components/CompanionHistoryTimeline',
   __esModule: true,
   default: ({ companionId, showDocumentUpload }: any) => (
     <div data-testid="timeline">{`${companionId}-${String(showDocumentUpload)}`}</div>
+  ),
+}));
+
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  useIsPhone: () => mockIsPhone,
+  PHONE_MEDIA_QUERY: '(max-width: 767px)',
+}));
+
+jest.mock('@/app/features/companionHistory/pages/phone/PhoneCompanionRecord', () => ({
+  __esModule: true,
+  default: ({ title, canEdit, onAddAppointment, onEdit, onAddCompanionAlert }: any) => (
+    <div data-testid="phone-record" data-can-edit={String(canEdit)}>
+      {title}
+      <button type="button" onClick={onAddAppointment}>
+        book
+      </button>
+      {onEdit ? (
+        <button type="button" onClick={onEdit}>
+          edit
+        </button>
+      ) : null}
+      <button type="button" onClick={onAddCompanionAlert}>
+        add-alert
+      </button>
+    </div>
   ),
 }));
 
@@ -199,6 +225,7 @@ jest.mock('@/app/ui/layout/PageSkeleton', () => ({
 describe('CompanionHistoryPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsPhone = false;
     searchGetMock.mockImplementation((key: string) => {
       if (key === 'companionId') return null;
       if (key === 'source') return null;
@@ -287,6 +314,48 @@ describe('CompanionHistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
     expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('renders the bespoke phone record below the phone breakpoint', () => {
+    mockIsPhone = true;
+    searchGetMock.mockImplementation(withCompanionId);
+    useCompanionsParentsForPrimaryOrgMock.mockReturnValue([buildRecord()]);
+
+    render(<CompanionHistoryPage />);
+
+    const phoneRecord = screen.getByTestId('phone-record');
+    expect(phoneRecord).toHaveTextContent("Buddy's overview");
+    expect(phoneRecord).toHaveAttribute('data-can-edit', 'true');
+    // The desktop overview (its h1 heading and profile regions) is not rendered.
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Companion profile' })).not.toBeInTheDocument();
+
+    // Shared modals still mount, so the phone Book-appointment CTA reaches them.
+    fireEvent.click(screen.getByRole('button', { name: 'book' }));
+    expect(screen.getByTestId('add-appointment-modal')).toHaveTextContent('c-1');
+
+    // The phone edit affordance opens the shared companion editor.
+    fireEvent.click(screen.getByRole('button', { name: 'edit' }));
+    expect(screen.getByTestId('legacy-companion-modal')).toHaveTextContent('c-1');
+
+    // The phone add-alert affordance opens the shared alert modal.
+    fireEvent.click(screen.getByRole('button', { name: 'add-alert' }));
+    expect(screen.getByLabelText(/needs muzzle/i)).toBeInTheDocument();
+  });
+
+  it('falls back to the desktop layout on phone when no companion id is present', () => {
+    mockIsPhone = true;
+
+    render(<CompanionHistoryPage />);
+
+    // Without a companion id the phone record is gated off and the desktop
+    // missing-companion notice is shown instead.
+    expect(screen.queryByTestId('phone-record')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Companion id is missing. Please open overview from Appointments or Companions.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('shows patient and client alert tooltips on hover', async () => {
@@ -735,6 +804,108 @@ describe('CompanionHistoryPage', () => {
 
       const row = screen.getByText('Last visit:').parentElement as HTMLElement;
       expect(within(row).getByText('-')).toBeInTheDocument();
+    });
+  });
+
+  describe('insurance row', () => {
+    const readValue = (label: string) =>
+      screen.getByText(label).parentElement?.querySelector('span:last-child');
+
+    it('reads "<company> · active" for a live policy', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+        buildRecord({
+          companion: {
+            isInsured: true,
+            insurance: { isInsured: true, companyName: 'PetSecure' },
+          },
+        }),
+      ]);
+
+      render(<CompanionHistoryPage />);
+
+      expect(readValue('Insurance:')).toHaveTextContent('PetSecure · active');
+    });
+
+    it('drops the active suffix when the policy is no longer live', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+        buildRecord({
+          companion: { isInsured: true, insurance: { isInsured: false, companyName: 'PetSecure' } },
+        }),
+      ]);
+
+      render(<CompanionHistoryPage />);
+
+      expect(readValue('Insurance:')).toHaveTextContent('PetSecure');
+      expect(readValue('Insurance:')).not.toHaveTextContent('active');
+    });
+
+    it('states cover without a named insurer, and dashes when uninsured', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+        buildRecord({ companion: { isInsured: true } }),
+      ]);
+
+      const view = render(<CompanionHistoryPage />);
+      expect(readValue('Insurance:')).toHaveTextContent('Active');
+      view.unmount();
+
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([buildRecord()]);
+      render(<CompanionHistoryPage />);
+      expect(readValue('Insurance:')).toHaveTextContent('-');
+    });
+
+    it('paints a recorded allergy in the danger ink', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+        buildRecord({ companion: { allergy: 'Penicillin' } }),
+      ]);
+
+      render(<CompanionHistoryPage />);
+
+      expect(readValue('Allergies:')).toHaveStyle({ color: 'var(--danger-text)' });
+      expect(readValue('Insurance:')).toHaveStyle({ color: 'var(--ink)' });
+    });
+  });
+
+  describe('co-parent row', () => {
+    it('surfaces a live co-parent link with the shared-care suffix', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+        buildRecord({
+          companion: {
+            parentLinks: [
+              { role: 'PRIMARY', status: 'ACTIVE', parent: { firstName: 'Sam' } },
+              {
+                role: 'CO_PARENT',
+                status: 'ACTIVE',
+                parent: { firstName: 'Jonas', lastName: 'Hartmann' },
+              },
+            ],
+          },
+        }),
+      ]);
+
+      render(<CompanionHistoryPage />);
+
+      const value = screen.getByText('Co-parent:').parentElement?.querySelector('span:last-child');
+      expect(value).toHaveTextContent('Jonas Hartmann · shared care');
+    });
+
+    it.each([
+      ['there are no links at all', undefined],
+      ['the only co-parent link was revoked', [{ role: 'CO_PARENT', status: 'REVOKED' }]],
+      ['the co-parent link carries no name', [{ role: 'CO_PARENT', status: 'ACTIVE' }]],
+    ])('hides the row when %s', (_case, parentLinks) => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+        buildRecord({ companion: { parentLinks } }),
+      ]);
+
+      render(<CompanionHistoryPage />);
+
+      expect(screen.queryByText('Co-parent:')).not.toBeInTheDocument();
     });
   });
 });

@@ -253,6 +253,98 @@ describe("DocumentService", () => {
     expect(result).toHaveLength(1);
   });
 
+  describe("listForAppointmentPms tenant scope", () => {
+    const victimOrganisationId = "9f1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d";
+
+    it("refuses an appointment owned by another organisation", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        organisationId: victimOrganisationId,
+        patient: { id: uuidPatientId },
+      } as any);
+
+      await expect(
+        DocumentService.listForAppointmentPms({
+          appointmentId: uuidAppointmentId,
+          organisationId: uuidOrganisationId,
+        }),
+      ).rejects.toMatchObject({ statusCode: 404 });
+
+      // The leak was loading the victim's rendered documents off the org read
+      // from the attacker-supplied appointment.
+      expect(mockedPrisma.renderedDocument.findMany).not.toHaveBeenCalled();
+      expect(mockedPrisma.document.findMany).not.toHaveBeenCalled();
+    });
+
+    it("reads rendered documents for the caller's own organisation, never the appointment's", async () => {
+      await DocumentService.listForAppointmentPms({
+        appointmentId: uuidAppointmentId,
+        organisationId: uuidOrganisationId,
+      });
+
+      expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organisationId: uuidOrganisationId,
+          }),
+        }),
+      );
+    });
+
+    it("scopes documents through patientOrganisation and hides parent-private uploads", async () => {
+      await DocumentService.listForAppointmentPms({
+        appointmentId: uuidAppointmentId,
+        organisationId: uuidOrganisationId,
+      });
+
+      expect(mockedPrisma.document.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            appointmentId: uuidAppointmentId,
+            pmsVisible: true,
+            patient: {
+              organisations: {
+                some: {
+                  organisationId: uuidOrganisationId,
+                  status: { in: ["ACTIVE", "PENDING"] },
+                },
+              },
+            },
+          }),
+        }),
+      );
+    });
+
+    it("returns nothing when the appointment has no resolvable patient for a parent", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        organisationId: uuidOrganisationId,
+        patient: null,
+      } as any);
+
+      const result = await DocumentService.listForAppointmentParent({
+        appointmentId: uuidAppointmentId,
+        parentId: uuidParentId,
+      });
+
+      expect(result).toEqual([]);
+      expect(mockedPrisma.renderedDocument.findMany).not.toHaveBeenCalled();
+    });
+
+    it("returns nothing when the appointment's patient is not the parent's", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue({
+        organisationId: uuidOrganisationId,
+        patient: { id: "11112222-3333-4444-5555-666677778888" },
+      } as any);
+
+      const result = await DocumentService.listForAppointmentParent({
+        appointmentId: uuidAppointmentId,
+        parentId: uuidParentId,
+      });
+
+      expect(result).toEqual([]);
+      expect(mockedPrisma.renderedDocument.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   it("loads appointment documents from postgres only", async () => {
     mockedPrisma.document.findMany.mockResolvedValueOnce([
       {

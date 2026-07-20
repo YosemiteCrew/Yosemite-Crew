@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import Dropdown from '@/app/ui/inputs/Dropdown';
 
 jest.mock('react-icons/io5', () => ({
-  IoCaretDown: () => <span data-testid="caret" />,
+  IoChevronDown: () => <span data-testid="caret" />,
 }));
 
 jest.mock('react-icons/io', () => ({
@@ -13,8 +13,12 @@ jest.mock('react-icons/io', () => ({
 }));
 
 /** The active option is the only one carrying the exact `bg-card-hover` class token. */
+// The active row carries the design's warm --nav-active-bg wash; every other row
+// is transparent, so this identifies exactly one option.
+const ACTIVE_OPTION_CLASS = 'bg-[var(--nav-active-bg)]';
+
 const activeOptionLabel = () =>
-  screen.getAllByRole('button').find((button) => button.classList.contains('bg-card-hover'))
+  screen.getAllByRole('button').find((button) => button.classList.contains(ACTIVE_OPTION_CLASS))
     ?.textContent;
 
 describe('Dropdown (index)', () => {

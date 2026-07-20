@@ -68,6 +68,7 @@ import {
   serviceToLineItem,
   taskToScheduleTask,
 } from './treatmentStepUtils';
+import { getInvoiceErrorMessage } from './invoiceStepUtils';
 
 type TreatmentStepProps = {
   appointmentId: string;
@@ -666,7 +667,7 @@ const usePrescriptionActions = ({
 const getTreatmentSaveErrorMessage = (error: unknown): string =>
   (error as { response?: { status?: number } })?.response?.status === 409
     ? 'This prescription is already finalized and can no longer be edited.'
-    : 'Unable to save treatment items. Please try again.';
+    : getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.');
 
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.
@@ -705,17 +706,21 @@ const TreatmentStep = ({
   // appointments already in the store (there is no dedicated outpatient "series" data
   // model). It degrades to an empty state when no future visits are available — e.g. on
   // a direct deep-link where the appointment list has not been loaded.
-  const outpatientCompanionId = useMemo(() => {
-    const current = appointmentsById[appointmentId];
-    return current ? getAppointmentCompanion(current).id : undefined;
-  }, [appointmentsById, appointmentId]);
+  const currentAppointment = appointmentsById[appointmentId];
+  const outpatientCompanionId = useMemo(
+    () => (currentAppointment ? getAppointmentCompanion(currentAppointment).id : undefined),
+    [currentAppointment]
+  );
   const outpatientSchedule = useMemo(
     () =>
       buildOutpatientSchedule(Object.values(appointmentsById), {
         companionId: outpatientCompanionId,
         excludeAppointmentId: appointmentId,
+        // Carries the (still backend-unpopulated) series note + delivered count so
+        // the design's series rail lights up the moment they are supplied.
+        currentAppointment,
       }),
-    [appointmentsById, outpatientCompanionId, appointmentId]
+    [appointmentsById, outpatientCompanionId, appointmentId, currentAppointment]
   );
 
   const {

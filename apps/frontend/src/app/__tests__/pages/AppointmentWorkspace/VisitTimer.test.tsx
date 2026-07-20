@@ -70,4 +70,40 @@ describe('VisitTimer', () => {
     render(<VisitTimer startAt={new Date(NOW - 60_000)} bookedEndAt={new Date(NOW + 3600_000)} />);
     expect(screen.getByTestId('visit-timer')).toHaveAttribute('data-state', 'running');
   });
+
+  describe('phone variant', () => {
+    it('rests with a compact "Not started" pill when no start is available', () => {
+      render(<VisitTimer variant="phone" />);
+      const pill = screen.getByTestId('visit-timer');
+      expect(pill).toHaveAttribute('data-state', 'idle');
+      expect(pill).toHaveTextContent('Not started');
+    });
+
+    it('shows the running elapsed as MM:SS under an hour, without the "In room" prefix', () => {
+      render(<VisitTimer variant="phone" startAt={new Date(NOW - 62_000)} />);
+      const pill = screen.getByTestId('visit-timer');
+      expect(pill).toHaveAttribute('data-state', 'running');
+      expect(pill).toHaveTextContent('01:02');
+      expect(pill).not.toHaveTextContent('In room');
+    });
+
+    it('keeps the HH:MM:SS form once the elapsed passes an hour', () => {
+      render(<VisitTimer variant="phone" startAt={new Date(NOW - (3600 + 62) * 1000)} />);
+      expect(screen.getByTestId('visit-timer')).toHaveTextContent('01:01:02');
+    });
+
+    it('renders a compact over-booked pill past the booked slot', () => {
+      render(
+        <VisitTimer
+          variant="phone"
+          startAt={new Date(NOW - 3600_000)}
+          bookedEndAt={new Date(NOW - 60_000)}
+        />
+      );
+      const pill = screen.getByTestId('visit-timer');
+      expect(pill).toHaveAttribute('data-state', 'over');
+      expect(pill).toHaveTextContent('01:00:00');
+      expect(pill).not.toHaveTextContent('Over booked slot');
+    });
+  });
 });

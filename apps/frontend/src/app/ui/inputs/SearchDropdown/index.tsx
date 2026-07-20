@@ -157,8 +157,9 @@ const SearchDropdown = ({
         {accessibleLabel}
       </label>
       <div
-        className={`h-12 border px-4 py-2.5 flex items-center justify-center w-full focus-within:border-input-border-active! ${canSearch ? 'border-input-border-active! border-b-0! rounded-t-2xl!' : 'border-input-border-default! rounded-2xl!'}`}
+        className={`h-[40px] border-[1.5px] bg-[var(--field-bg)] px-[13px] flex items-center gap-[9px] w-full focus-within:border-[var(--blue)]! ${canSearch ? 'border-[var(--blue)]! border-b-0! rounded-t-[12px]!' : 'border-[var(--hairline)]! rounded-[12px]!'}`}
       >
+        <IoIosSearch size={15} color="var(--ink-faint)" className="shrink-0" aria-hidden="true" />
         <input
           id={inputId}
           type="text"
@@ -174,15 +175,9 @@ const SearchDropdown = ({
           aria-describedby={error ? errorId : undefined}
           aria-controls={canSearch ? listboxId : undefined}
           aria-activedescendant={activeOptionId}
-          className="border-0 text-body-4 text-text-primary w-full placeholder:text-input-text-placeholder placeholder:text-body-4 focus-visible:outline-none"
+          className="border-0 text-[13px] text-[var(--ink-body)] w-full placeholder:text-[var(--ink-faint)] focus-visible:outline-none"
           placeholder={placeholder}
           autoComplete="off"
-        />
-        <IoIosSearch
-          size={22}
-          color="var(--color-neutral-900)"
-          className="cursor-pointer"
-          aria-hidden="true"
         />
       </div>
 
@@ -190,7 +185,7 @@ const SearchDropdown = ({
         <div
           id={listboxId}
           aria-label={accessibleLabel}
-          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
+          className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[12px] border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
           onScroll={handleScroll}
         >
           {filtered.map((option) => (

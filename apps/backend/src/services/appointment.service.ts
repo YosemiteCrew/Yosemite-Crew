@@ -1610,7 +1610,9 @@ export const AppointmentService = {
     }
 
     const paymentIntent = invoiceId
-      ? await StripeService.createPaymentIntentForInvoice(invoiceId)
+      ? await StripeService.createPaymentIntentForInvoice(invoiceId, {
+          organisationId: appointment.organisationId,
+        })
       : undefined;
 
     if (service) {

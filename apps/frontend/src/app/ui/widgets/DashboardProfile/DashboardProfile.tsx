@@ -28,11 +28,11 @@ const DashboardProfile = () => {
   return (
     <div className="flex w-full flex-col gap-3">
       <div className="flex w-full flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           <span className="font-newsreader text-[16px] italic" style={{ color: 'var(--pink)' }}>
             Welcome back,
           </span>
-          <span className="flex items-center gap-2.5">
+          <span className="flex items-center gap-[9px]">
             <Image
               src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
               alt=""
@@ -40,16 +40,16 @@ const DashboardProfile = () => {
               width={38}
               className="max-h-[38px] min-w-[38px] rounded-full object-cover"
             />
-            <span className="font-newsreader text-[27px] tracking-[-0.015em] text-text-primary">
+            <span className="font-newsreader text-[27px] tracking-[-0.015em] text-[var(--ink)]">
               {fullName}
             </span>
           </span>
-          <span className="mt-0.5 text-[13.5px] text-text-tertiary">
+          <span className="mt-0.5 text-[13.5px] text-[var(--ink-muted)]">
             Your central hub for insights, performance tracking and quick access to essential tools
           </span>
         </div>
         {primaryOrg.isVerified && (
-          <span className="flex items-center gap-2 rounded-full border border-card-border bg-[var(--pill-raised)] px-3.5 py-2 text-[12.5px] font-semibold text-text-primary">
+          <span className="flex items-center gap-1.5 rounded-full border border-card-border bg-[var(--pill-raised)] px-[14px] py-2 text-[12.5px] font-semibold text-text-primary">
             <span
               className="h-[7px] w-[7px] rounded-full"
               style={{ background: 'var(--success)' }}
@@ -64,18 +64,18 @@ const DashboardProfile = () => {
         {!primaryOrg.isVerified && (
           <div className="flex w-full flex-col gap-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center justify-center gap-2 rounded-2xl bg-card-warning px-6 py-3">
-                <IoTimeOutline color="var(--color-warning-600)" size={16} />
-                <span className="text-body-4-emphasis text-pending-text">
+              <div className="flex items-center justify-center gap-2 rounded-[14px] border border-[var(--warn-border)] bg-[var(--warn-bg)] px-[18px] py-[11px]">
+                <IoTimeOutline color="var(--warn-text)" size={15} />
+                <span className="text-[13px] font-semibold text-[var(--warn-text)]">
                   Verification in progress. Limited access enabled
                 </span>
               </div>
               <Primary text="Verify business profile" href="#" onClick={() => setCalOpen(true)} />
             </div>
-            <div className="text-caption-1 text-text-primary w-full sm:max-w-125">
-              <span className="text-text-brand">Note: </span>This short chat helps us confirm your
-              business and add you to our trusted network of verified pet professionals, so you can
-              start connecting with clients faster.
+            <div className="w-full text-[12.5px] leading-[1.55] text-[var(--ink-muted)] sm:max-w-[560px]">
+              <span className="font-semibold text-[var(--blue-text)]">Note: </span>This short chat
+              helps us confirm your business and add you to our trusted network of verified pet
+              professionals, so you can start connecting with clients faster.
             </div>
           </div>
         )}

@@ -10,9 +10,9 @@ jest.mock('@/app/features/auth/lib/githubOAuth', () => ({
   completeGithubSignIn: () => completeGithubSignIn(),
 }));
 
-const replace = jest.fn();
+const redirect = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace }),
+  redirect: (url: string) => redirect(url),
 }));
 
 jest.mock('@/app/ui/overlays/Loader', () => ({
@@ -33,7 +33,7 @@ import AuthCallback from '@/app/features/auth/pages/AuthCallback/AuthCallback';
 describe('AuthCallback', () => {
   beforeEach(() => {
     completeGithubSignIn.mockReset();
-    replace.mockReset();
+    redirect.mockReset();
   });
 
   it('shows the loader, completes the handshake, and redirects to the resolved target', async () => {
@@ -42,7 +42,7 @@ describe('AuthCallback', () => {
     render(<AuthCallback />);
     expect(screen.getByTestId('github-callback-loader')).toBeInTheDocument();
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/developers/home'));
+    await waitFor(() => expect(redirect).toHaveBeenCalledWith('/developers/home'));
     expect(completeGithubSignIn).toHaveBeenCalledTimes(1);
   });
 
@@ -52,7 +52,7 @@ describe('AuthCallback', () => {
     const { rerender } = render(<AuthCallback />);
     rerender(<AuthCallback />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/developers/home'));
+    await waitFor(() => expect(redirect).toHaveBeenCalledWith('/developers/home'));
     expect(completeGithubSignIn).toHaveBeenCalledTimes(1);
   });
 
@@ -69,7 +69,7 @@ describe('AuthCallback', () => {
       'href',
       '/signin'
     );
-    expect(replace).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('falls back to a generic message for a non-Error rejection', async () => {
@@ -80,7 +80,7 @@ describe('AuthCallback', () => {
     await waitFor(() =>
       expect(screen.getByText(/could not complete github sign in/i)).toBeInTheDocument()
     );
-    expect(replace).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('has no accessibility violations on the error screen', async () => {

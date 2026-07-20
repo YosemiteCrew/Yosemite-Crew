@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { requireWebAuth } from "src/middlewares/auth";
-import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  withOrgPermissions,
+  withRoomUnitGroupOrgPermissions,
+} from "src/middlewares/rbac";
 import { RoomUnitGroupController } from "src/controllers/web/room-unit-group.controller";
 
 const router = Router();
@@ -16,7 +20,7 @@ router.post(
 router.put(
   "/:id",
   requireWebAuth,
-  withOrgPermissions(),
+  withRoomUnitGroupOrgPermissions(),
   requirePermission("room:edit:any"),
   RoomUnitGroupController.update,
 );
@@ -32,7 +36,7 @@ router.get(
 router.delete(
   "/:id",
   requireWebAuth,
-  withOrgPermissions(),
+  withRoomUnitGroupOrgPermissions(),
   requirePermission("room:edit:any"),
   RoomUnitGroupController.delete,
 );

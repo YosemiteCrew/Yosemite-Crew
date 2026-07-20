@@ -198,6 +198,48 @@ describe('UniversalSearchPalette', () => {
     expect(screen.getByText('G A')).toBeInTheDocument();
   });
 
+  it("renders empty-state rows in the design's light treatment (no icon tile)", () => {
+    globalThis.window.localStorage.clear();
+    render(<UniversalSearchPalette />);
+
+    const jumpRow = screen.getByText('Dashboard').closest('button') as HTMLButtonElement;
+    expect(jumpRow).toHaveClass('yc-usp-row--plain');
+    expect(jumpRow.querySelector('.yc-usp-icon')).toBeNull();
+    expect(jumpRow.querySelector('.yc-usp-row-plain-label')).toBeInTheDocument();
+  });
+
+  it('lists opened records under "Recent" and leaves jump shortcuts out of it', async () => {
+    globalThis.window.localStorage.clear();
+    const first = render(<UniversalSearchPalette />);
+
+    // A nav shortcut is not a record — it must never enter the recents list.
+    fireEvent.click(screen.getByText('Dashboard').closest('button') as HTMLButtonElement);
+    fireEvent.change(screen.getByLabelText('Universal search input'), {
+      target: { value: 'Give meds' },
+    });
+    fireEvent.click((await screen.findByText('Give meds')).closest('button') as HTMLButtonElement);
+    first.unmount();
+
+    // Reopening the palette reads the persisted list back.
+    render(<UniversalSearchPalette />);
+
+    expect(screen.getByText('Recent')).toBeInTheDocument();
+    const recentRow = screen
+      .getAllByText('Give meds')
+      .map((node) => node.closest('button'))
+      .find((button) => button?.classList.contains('yc-usp-row--plain'));
+    expect(recentRow).toBeDefined();
+    expect(screen.queryByText('Recent')?.nextElementSibling).toBe(recentRow);
+
+    // Selecting the recent row again re-records it rather than duplicating it.
+    fireEvent.click(recentRow as HTMLButtonElement);
+    expect(
+      JSON.parse(globalThis.window.localStorage.getItem('yc_universal_search_recents') ?? '[]')
+    ).toEqual([{ title: 'Give meds', href: '/tasks?taskId=task-1' }]);
+
+    globalThis.window.localStorage.clear();
+  });
+
   it('navigates from a jump-to shortcut', async () => {
     render(<UniversalSearchPalette />);
 

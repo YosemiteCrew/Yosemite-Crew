@@ -74,10 +74,10 @@ const BandMedia = ({ card }: { card: BandCard }) => {
     >
       <IoPawOutline
         aria-hidden="true"
-        className="absolute -bottom-5 -right-4 rotate-[-12deg] text-[108px] opacity-[0.14]"
+        className="absolute -bottom-[14px] -right-3 rotate-[-12deg] text-[72px] opacity-[0.14] md:-bottom-5 md:-right-4 md:text-[108px]"
         style={{ color: palette.ink }}
       />
-      <span className="font-newsreader text-[44px] md:text-[54px]" style={{ color: palette.ink }}>
+      <span className="font-newsreader text-[34px] md:text-[54px]" style={{ color: palette.ink }}>
         {getMonogram(card.name)}
       </span>
     </span>
@@ -85,16 +85,16 @@ const BandMedia = ({ card }: { card: BandCard }) => {
 };
 
 const BandCardView = ({ card }: { card: BandCard }) => (
-  <article className="w-[220px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)] md:w-auto">
-    <div className="relative h-[92px] md:h-[138px]">
+  <article className="w-[146px] shrink-0 snap-start overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)] md:w-auto md:rounded-[18px] md:shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)]">
+    <div className="relative h-[84px] md:h-[138px]">
       <BandMedia card={card} />
-      <span className="absolute left-2.5 top-2.5 z-[2] rounded-full bg-[rgba(29,28,27,0.55)] px-2.5 py-1 text-[11px] font-bold tracking-[0.04em] text-[#f7f3ec] tabular-nums backdrop-blur-md">
+      <span className="absolute left-2 top-2 z-[2] rounded-full bg-[rgba(29,28,27,0.55)] px-2 py-[3px] text-[10px] font-bold text-[#f7f3ec] tabular-nums backdrop-blur-[10px] md:left-2.5 md:top-2.5 md:px-2.5 md:py-1 md:text-[11px] md:tracking-[0.04em]">
         {card.time}
       </span>
     </div>
-    <div className="flex items-center justify-between gap-2 px-3.5 pb-3 pt-2.5">
+    <div className="flex items-center justify-between gap-2 px-[11px] pb-2.5 pt-2 md:px-3.5 md:pb-3 md:pt-2.5">
       <span className="min-w-0">
-        <span className="block truncate font-newsreader text-[17px] tracking-[-0.01em] text-[var(--ink)]">
+        <span className="block truncate font-newsreader text-[15px] tracking-[-0.01em] text-[var(--ink)] md:text-[17px]">
           {card.name}
         </span>
         {card.subtitle ? (
@@ -104,10 +104,10 @@ const BandCardView = ({ card }: { card: BandCard }) => (
         ) : null}
       </span>
       <span
-        className="inline-flex shrink-0 items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.09em]"
+        className="inline-flex shrink-0 items-center gap-[5px] text-[8.5px] font-bold uppercase tracking-[0.08em] md:gap-1.5 md:text-[9.5px] md:tracking-[0.09em]"
         style={{ color: card.statusColor }}
       >
-        <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+        <span className="size-[5px] rounded-full bg-current md:size-1.5" aria-hidden="true" />
         {card.statusLabel}
       </span>
     </div>
@@ -129,10 +129,13 @@ const InClinicTodayBand = ({ companions }: InClinicTodayBandProps) => {
   if (cards.length === 0) return null;
 
   return (
-    <section aria-label="In the clinic today" className="flex flex-col gap-2.5">
+    <section aria-label="In the clinic today" className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[var(--ink-faint)]">
-          <span className="size-[7px] rounded-full bg-[var(--success)]" aria-hidden="true" />
+        <span className="flex items-center gap-[7px] text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-faint)] md:text-[10.5px]">
+          <span
+            className="size-1.5 rounded-full bg-[var(--success)] md:size-[7px]"
+            aria-hidden="true"
+          />
           {terminologyText('In the clinic today')}
         </span>
         <button
@@ -144,7 +147,7 @@ const InClinicTodayBand = ({ companions }: InClinicTodayBandProps) => {
           <IoArrowForward size={12} aria-hidden="true" />
         </button>
       </div>
-      <div className="flex snap-x gap-3.5 overflow-x-auto scrollbar-hidden md:grid md:grid-cols-4 md:overflow-visible">
+      <div className="flex snap-x gap-2.5 overflow-x-auto scrollbar-hidden md:grid md:grid-cols-4 md:gap-3.5 md:overflow-visible">
         {cards.map((card) => (
           <BandCardView key={card.key} card={card} />
         ))}

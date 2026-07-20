@@ -2,10 +2,11 @@
   display: flex;
   flex-direction: column;
 }
+/* Design: label above field is 12px / 600 / --ink-soft with a 6px gap. */
 .select-top-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 120%;
   font-family: var(--satoshi-font);
@@ -15,11 +16,13 @@
   width: 100%;
   position: relative;
 }
+/* Design select trigger: 46px tall, 0 13px padding, 13px radius,
+   1.5px --hairline, warm --field-bg. Identical to the text-field spec. */
 .select-input-container {
   width: 100%;
-  height: 42px;
-  padding: 0 14px;
-  border-radius: 12px;
+  height: 46px;
+  padding: 0 13px;
+  border-radius: 13px;
   border: 1.5px solid var(--hairline) !important;
   background-color: var(--field-bg);
   outline: none;
@@ -32,6 +35,7 @@
     border-color 0.15s,
     box-shadow 0.15s;
 }
+/* Design value text: 13px / 400 / --ink-body. */
 .select-input-selected {
   min-width: 0;
   flex: 1;
@@ -39,11 +43,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink-body);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 120%;
   font-family: var(--satoshi-font);
   text-align: left;
+}
+.select-input-selected.select-input-placeholder {
+  color: var(--ink-faint);
 }
 .select-container.select-open .select-input-container {
   border-color: var(--blue) !important;
@@ -62,18 +69,26 @@
   color: var(--ink-faint);
   pointer-events: none;
 }
+/* Design chevron: 13px, --ink-faint. react-icons writes the colour as an inline
+   style and the size as width/height attributes, so the colour needs a bump to
+   land while the box size does not. */
+.select-input-drop-icon svg {
+  width: 13px;
+  height: 13px;
+  color: var(--ink-faint) !important;
+}
+/* Design floating menu: detached from the trigger by 4px, 13px radius,
+   1px --hairline-soft, 6px padding, 1px row gap, 0 24px 60px --sh28. */
 .select-input-dropdown {
-  height: 200px;
+  max-height: 200px;
   width: 100%;
   position: absolute;
-  top: 110%;
-  border-radius: 12px;
+  top: calc(100% + 4px);
+  border-radius: 13px;
   border: 1px solid var(--hairline-soft) !important;
   /* Warm liquid-glass floating menu: cream frost in light, espresso in dark. */
   background: var(--glass-93);
-  box-shadow:
-    0 12px 34px var(--sh12),
-    inset 0 1px 0 var(--glass-inset-hi);
+  box-shadow: 0 24px 60px var(--sh28);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   backdrop-filter: blur(24px) saturate(1.4);
   outline: none;
@@ -81,7 +96,8 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  padding: 8px;
+  gap: 1px;
+  padding: 6px;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -89,21 +105,60 @@
     background: var(--screen);
   }
 }
+/* The portal path positions the panel flush under the trigger (rect.bottom - 1),
+   so recover the design's 4px detachment here. */
 .select-input-dropdown-portal {
   position: absolute;
   top: auto;
+  margin-top: 5px;
 }
+/* Design menu row: 7px 11px padding, 8px radius, 12.5px / 600 / --ink-body. */
 .select-input-dropdown-item {
   cursor: pointer;
-  padding: 12px 8px;
+  padding: 7px 11px;
   border-radius: 8px;
   background: transparent;
   text-align: start;
   color: var(--ink-body);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 120%;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 130%;
   font-family: var(--satoshi-font);
+  transition:
+    background-color 0.12s,
+    color 0.12s;
+}
+.select-input-dropdown-item:hover,
+.select-input-dropdown-item.select-input-dropdown-item-active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active);
+}
+/* Compact in-menu search field: design's 36px / 11px-radius field. */
+.select-input-dropdown-search {
+  height: 36px;
+  padding: 0 11px;
+  margin-bottom: 4px;
+  border-radius: 11px;
+  border: 1.5px solid var(--hairline);
+  background: var(--field-bg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.select-input-dropdown-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink-body);
+  font-size: 12.5px;
+  font-family: var(--satoshi-font);
+}
+.select-input-dropdown-search input:focus-visible {
+  outline: none;
+}
+.select-input-dropdown-search input::placeholder {
+  color: var(--ink-faint);
 }
 
 .Errors {

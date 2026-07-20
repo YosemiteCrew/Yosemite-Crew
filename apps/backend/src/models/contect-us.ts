@@ -1,8 +1,5 @@
 export type ContactType =
-  | "GENERAL_ENQUIRY"
-  | "FEATURE_REQUEST"
-  | "DSAR"
-  | "COMPLAINT";
+  "GENERAL_ENQUIRY" | "FEATURE_REQUEST" | "DSAR" | "COMPLAINT";
 
 export type ContactSource = "MOBILE_APP" | "PMS_WEB" | "MARKETING_SITE";
 

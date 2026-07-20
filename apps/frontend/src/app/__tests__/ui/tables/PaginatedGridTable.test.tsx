@@ -136,20 +136,48 @@ describe('PaginatedGridTable', () => {
   it('pages forward and back, updating the indicator and the summary', () => {
     const { container } = renderTable(makeRows(7));
     const pager = () => tableBranch(container);
+    const expectActivePage = (page: number) =>
+      expect(pager().getByLabelText(`Page ${page}`)).toHaveAttribute('aria-current', 'page');
 
-    expect(pager().getByText('1 / 3')).toBeInTheDocument();
+    expectActivePage(1);
 
     fireEvent.click(pager().getByLabelText('Next'));
-    expect(pager().getByText('2 / 3')).toBeInTheDocument();
+    expectActivePage(2);
     expect(pager().getByText('Showing 4–6 of 7 items')).toBeInTheDocument();
 
     fireEvent.click(pager().getByLabelText('Next'));
-    expect(pager().getByText('3 / 3')).toBeInTheDocument();
+    expectActivePage(3);
     // Last page is short — the summary clamps to the total.
     expect(pager().getByText('Showing 7–7 of 7 items')).toBeInTheDocument();
 
     fireEvent.click(pager().getByLabelText('Previous'));
-    expect(pager().getByText('2 / 3')).toBeInTheDocument();
+    expectActivePage(2);
+  });
+
+  it('jumps straight to a page from its numbered pill', () => {
+    const { container } = renderTable(makeRows(7));
+    const pager = () => tableBranch(container);
+
+    fireEvent.click(pager().getByLabelText('Page 3'));
+
+    expect(pager().getByLabelText('Page 3')).toHaveAttribute('aria-current', 'page');
+    expect(pager().getByText('Showing 7–7 of 7 items')).toBeInTheDocument();
+  });
+
+  it('collapses a long page run behind an ellipsis', () => {
+    const { container } = renderTable(makeRows(60));
+    const pager = () => tableBranch(container);
+
+    // 20 pages: first, a window around the current page, and the last — never all 20.
+    expect(pager().getByLabelText('Page 1')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 20')).toBeInTheDocument();
+    expect(pager().queryByLabelText('Page 10')).not.toBeInTheDocument();
+    expect(pager().getAllByText('…').length).toBeGreaterThan(0);
+
+    fireEvent.click(pager().getByLabelText('Page 20'));
+    // At the far end the window sits on the last pages, with a leading ellipsis.
+    expect(pager().getByLabelText('Page 19')).toBeInTheDocument();
+    expect(pager().getAllByText('…')).toHaveLength(1);
   });
 
   it('disables Back on the first page and Next on the last page', () => {
@@ -181,12 +209,12 @@ describe('PaginatedGridTable', () => {
     fireEvent.click(pager().getByLabelText('Next'));
     fireEvent.click(pager().getByLabelText('Next'));
     fireEvent.click(pager().getByLabelText('Next'));
-    expect(pager().getByText('3 / 3')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 3')).toHaveAttribute('aria-current', 'page');
 
     fireEvent.click(pager().getByLabelText('Previous'));
     fireEvent.click(pager().getByLabelText('Previous'));
     fireEvent.click(pager().getByLabelText('Previous'));
-    expect(pager().getByText('1 / 3')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 1')).toHaveAttribute('aria-current', 'page');
   });
 
   it('clamps the current page when the row set shrinks under it', () => {
@@ -195,7 +223,7 @@ describe('PaginatedGridTable', () => {
 
     fireEvent.click(pager().getByLabelText('Next'));
     fireEvent.click(pager().getByLabelText('Next'));
-    expect(pager().getByText('3 / 3')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 3')).toHaveAttribute('aria-current', 'page');
 
     const shrunk = (rows: Row[]) => (
       <PaginatedGridTable
@@ -211,7 +239,8 @@ describe('PaginatedGridTable', () => {
 
     // 4 rows -> 2 pages: page 3 must clamp to 2.
     rerender(shrunk(makeRows(4)));
-    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
+    expect(pager().queryByLabelText('Page 3')).not.toBeInTheDocument();
     expect(pager().getByText('Showing 4–4 of 4 items')).toBeInTheDocument();
     // The clamp must reach the cards too, not just the rows.
     expect(cardBranch(container).getAllByTestId('card')).toHaveLength(1);

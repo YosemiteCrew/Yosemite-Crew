@@ -27,7 +27,9 @@ jest.mock("src/config/prisma", () => ({
     },
     parentPatient: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
+      upsert: jest.fn(),
     },
   },
 }));
@@ -315,8 +317,9 @@ describe("CoParentInviteService", () => {
       (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
         id: "parent-2",
       });
-      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.parentPatient.findUnique as jest.Mock).mockResolvedValue({
         id: "link-1",
+        status: "ACTIVE",
       });
 
       await expect(
@@ -342,28 +345,85 @@ describe("CoParentInviteService", () => {
       (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
         id: "parent-2",
       });
-      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.parentPatient.findUnique as jest.Mock).mockResolvedValue(null);
 
       const result = await CoParentInviteService.acceptInvite(
         "token",
         "user-1",
       );
 
-      expect(prisma.parentPatient.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          parentId: "parent-2",
-          patientId: validCompanionId,
-          role: "CO_PARENT",
-          status: "ACTIVE",
-          invitedByParentId: validParentId,
+      expect(prisma.parentPatient.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            parentId_patientId: {
+              parentId: "parent-2",
+              patientId: validCompanionId,
+            },
+          },
+          create: expect.objectContaining({
+            parentId: "parent-2",
+            patientId: validCompanionId,
+            role: "CO_PARENT",
+            status: "ACTIVE",
+            invitedByParentId: validParentId,
+          }),
         }),
-      });
+      );
       expect(prisma.coParentInvite.update).toHaveBeenCalledWith({
         where: { id: "invite-1" },
         data: expect.objectContaining({
           consumed: true,
         }),
       });
+      expect(result.message).toBe("Invite accepted successfully.");
+    });
+
+    it("reactivates a pending link instead of inserting a duplicate", async () => {
+      jest.spyOn(CoParentInviteService, "validateInvite").mockResolvedValue({
+        id: "invite-1",
+        email: "test@test.com",
+        inviteeName: null,
+        expiresAt: new Date(Date.now() + 10000),
+        invitedBy: {
+          id: validParentId,
+          firstName: "John",
+          lastName: null,
+          profileImageUrl: null,
+        },
+        companion: { id: validCompanionId, name: "Child", photoUrl: null },
+        patient: { id: validCompanionId, name: "Child", photoUrl: null },
+      } as any);
+      (ParentService.findByLinkedUserId as jest.Mock).mockResolvedValue({
+        id: "parent-2",
+      });
+      // (parentId, patientId) is unique: a PENDING row already occupies it, so
+      // a plain create would violate the constraint and fail the acceptance.
+      (prisma.parentPatient.findUnique as jest.Mock).mockResolvedValue({
+        id: "link-1",
+        status: "PENDING",
+      });
+
+      const result = await CoParentInviteService.acceptInvite(
+        "token",
+        "user-1",
+      );
+
+      expect(prisma.parentPatient.create).not.toHaveBeenCalled();
+      expect(prisma.parentPatient.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            parentId_patientId: {
+              parentId: "parent-2",
+              patientId: validCompanionId,
+            },
+          },
+          update: expect.objectContaining({
+            role: "CO_PARENT",
+            status: "ACTIVE",
+            invitedByParentId: validParentId,
+          }),
+        }),
+      );
       expect(result.message).toBe("Invite accepted successfully.");
     });
   });

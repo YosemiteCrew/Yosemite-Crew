@@ -95,7 +95,7 @@ const ProviderContent = ({ provider }: { provider: ProviderOption }) => {
 
 const getIntegrationPillClass = (disabled: boolean, active: boolean): string => {
   if (disabled) return 'cursor-not-allowed border-neutral-300 text-text-secondary opacity-60';
-  if (active) return 'border-text-brand bg-primary-100 text-text-brand';
+  if (active) return 'border-text-brand bg-primary-100 text-blue-text';
   /* v8 ignore next 2 -- IDEXX is the only selectable provider and is always active, so an available-but-inactive pill (neither disabled nor active) never renders */
   return 'border-neutral-300 text-text-primary hover:bg-neutral-100';
 };
@@ -256,14 +256,14 @@ const TestQueueCard = ({
       )}
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <span className="rounded-sm bg-primary-100 px-2 py-1 text-heading-4 text-text-brand">
+      <span className="rounded-sm bg-primary-100 px-2 py-1 text-heading-4 text-blue-text">
         {formatTestPrice(test)}
       </span>
       <span className="text-body-4 text-text-primary">Code: {test.code}</span>
     </div>
     <div className="mt-auto flex flex-col gap-2 text-caption-1 text-text-primary">
       <p className="flex gap-2">
-        <IoTimeOutline className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
+        <IoTimeOutline className="mt-0.5 shrink-0 text-blue-text" aria-hidden="true" />
         <span>
           <strong>Turnaround time:</strong>
           <br />
@@ -271,7 +271,7 @@ const TestQueueCard = ({
         </span>
       </p>
       <p className="flex gap-2">
-        <IoFlaskOutline className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
+        <IoFlaskOutline className="mt-0.5 shrink-0 text-blue-text" aria-hidden="true" />
         <span>
           <strong>Specimen:</strong>
           <br />
@@ -320,7 +320,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
             <div className="flex flex-col gap-1">
               <div className="flex items-start justify-between gap-2">
                 <span className="pr-2 text-body-4 text-text-primary">{test.display}</span>
-                <span className="whitespace-nowrap rounded bg-primary-100 px-2 py-1 text-label-xsmall text-text-brand">
+                <span className="whitespace-nowrap rounded bg-primary-100 px-2 py-1 text-label-xsmall text-blue-text">
                   {formatTestPrice(test)}
                 </span>
               </div>
@@ -422,11 +422,7 @@ const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => {
 const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boolean }) => {
   const isInHouse = s.modality === 'INHOUSE';
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Order Builder"
-      className="flex flex-col gap-5"
-    >
+    <SectionContainer title="Order Builder" className="flex flex-col gap-5">
       {isInHouse ? <InhouseOrderBuilder s={s} /> : <ReferenceOrderBuilder s={s} />}
       {isInHouse && !readOnly && (
         <div className="flex flex-wrap justify-end gap-3">
@@ -460,11 +456,7 @@ const ORIGIN_LABELS: Record<string, string> = {
 const PreloadedDiagnosticsSection = ({ items }: { items: DiagnosticOrder[] }) => {
   if (items.length === 0) return null;
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Preloaded from Services & Packages"
-      className="flex flex-col gap-3"
-    >
+    <SectionContainer title="Preloaded from Services & Packages" className="flex flex-col gap-3">
       <p className="text-body-4 text-text-secondary">
         Diagnostics included in this appointment&apos;s services and packages. Order them with the
         provider when ready.
@@ -496,11 +488,7 @@ const TestQueueSection = ({
   readOnly: boolean;
   onCreateOrder: () => void;
 }) => (
-  <SectionContainer
-    titleClassName="text-yc-20-b-primary"
-    title="Test Queue"
-    className="flex flex-col gap-5"
-  >
+  <SectionContainer title="Test Queue" className="flex flex-col gap-5">
     {s.selectedTests.length === 0 ? (
       <p className="rounded-2xl bg-neutral-100 p-5 text-body-4 text-text-secondary">
         {readOnly
@@ -535,11 +523,7 @@ const TestQueueSection = ({
 );
 
 const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
-  <SectionContainer
-    titleClassName="text-yc-20-b-primary"
-    title="Order Status"
-    className="flex flex-col gap-4"
-  >
+  <SectionContainer title="Order Status" className="flex flex-col gap-4">
     {s.appointmentOrders.length === 0 ? (
       <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
         {s.ordersLoading
@@ -625,11 +609,7 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
   const toggle = (id: string) => setExpandedId((current) => (current === id ? null : id));
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Results"
-      className="flex flex-col gap-4"
-    >
+    <SectionContainer title="Results" className="flex flex-col gap-4">
       {s.results.length === 0 ? (
         <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
           {s.refreshingResults ? 'Refreshing results…' : 'No results available yet.'}
@@ -780,11 +760,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
 };
 
 const IdexxNotEnabled = () => (
-  <SectionContainer
-    titleClassName="text-yc-20-b-primary"
-    title="IDEXX Diagnostics"
-    className="flex flex-col gap-3"
-  >
+  <SectionContainer title="IDEXX Diagnostics" className="flex flex-col gap-3">
     <p className="text-body-3 text-text-primary">
       IDEXX integration is not enabled for this organization.
     </p>

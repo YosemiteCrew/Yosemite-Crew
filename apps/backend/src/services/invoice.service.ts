@@ -143,9 +143,7 @@ type CreateInvoiceInput = {
   notes?: string;
   invoiceDiscount?: PricingInvoiceDiscountInput;
   paymentCollectionMethod:
-    | "PAYMENT_INTENT"
-    | "PAYMENT_LINK"
-    | "PAYMENT_AT_CLINIC";
+    "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC";
 };
 
 type IssueCreditNoteInput = {
@@ -672,6 +670,30 @@ const getAppointmentParentIdOrThrow = (appointment: {
   return parentId;
 };
 
+// PMS callers bind an invoice by organisation, mobile callers by pet parent.
+// A caller that knows neither must not reach a Prisma filter.
+export type InvoiceScope = {
+  organisationId?: string | null;
+  parentId?: string | null;
+};
+
+const assertInvoiceInScope = (
+  invoice: { organisationId: string | null; parentId: string | null },
+  scope: InvoiceScope,
+) => {
+  if (!scope.organisationId && !scope.parentId) {
+    throw new InvoiceServiceError("Invoice scope is required.", 403);
+  }
+
+  if (scope.organisationId && invoice.organisationId !== scope.organisationId) {
+    throw new InvoiceServiceError("Invoice not found.", 404);
+  }
+
+  if (scope.parentId && invoice.parentId !== scope.parentId) {
+    throw new InvoiceServiceError("Invoice not found.", 404);
+  }
+};
+
 const assertAppointmentInOrganisation = async (
   appointmentId: string,
   organisationId: string,
@@ -837,8 +859,7 @@ const buildBootstrapInvoiceItems = async (params: {
     typeof (appointment.appointmentType as Record<string, unknown>).name ===
       "string"
       ? ((appointment.appointmentType as Record<string, unknown>).name as
-          | string
-          | undefined)
+          string | undefined)
       : undefined;
 
   return [
@@ -1141,6 +1162,11 @@ const computeInvoiceTaxTotals = async (
 
 export const InvoiceService = {
   async createDraftForAppointment(input: CreateInvoiceInput) {
+    await assertAppointmentInOrganisation(
+      input.appointmentId,
+      input.organisationId,
+    );
+
     const appointment = await prisma.appointment.findUnique({
       where: { id: input.appointmentId },
       select: { id: true, organisationId: true, patient: true },
@@ -1303,6 +1329,12 @@ export const InvoiceService = {
       throw new InvoiceServiceError("Invoice cannot be marked paid.", 409);
     }
 
+    // Invoices settled before the Payment backfill carry no Payment rows, so
+    // the outstanding balance would recompute as the full total.
+    if (doc.status === "PAID") {
+      throw new InvoiceServiceError("Invoice is already paid.", 409);
+    }
+
     const result = await FinancePaymentService.recordManualPayment(doc.id, {
       settlementChannel: "CASH",
     });
@@ -1314,11 +1346,7 @@ export const InvoiceService = {
     organisationId: string,
     input: {
       settlementChannel?:
-        | "CASH"
-        | "BANK_TRANSFER"
-        | "CARD_PRESENT"
-        | "DEPOSIT"
-        | "OTHER";
+        "CASH" | "BANK_TRANSFER" | "CARD_PRESENT" | "DEPOSIT" | "OTHER";
       reference?: string;
       receivedAt?: Date;
     } = {},
@@ -1574,11 +1602,15 @@ export const InvoiceService = {
 
   async markAppointmentReadyForBilling(
     appointmentId: string,
-    actorUserId?: string,
+    scope: { organisationId: string; actorUserId?: string },
   ) {
+    const { organisationId, actorUserId } = scope;
+    assertSafeString(organisationId, "organisationId");
+
     const invoice = await prisma.invoice.findFirst({
       where: {
         appointmentId,
+        organisationId,
         status: { in: ["AWAITING_PAYMENT", "PENDING"] },
       },
       orderBy: { createdAt: "desc" },
@@ -1626,11 +1658,15 @@ export const InvoiceService = {
 
   async reverseAppointmentReadyForBilling(
     appointmentId: string,
-    actorUserId?: string,
+    scope: { organisationId: string; actorUserId?: string },
   ) {
+    const { organisationId, actorUserId } = scope;
+    assertSafeString(organisationId, "organisationId");
+
     const readyInvoice = await prisma.invoice.findFirst({
       where: {
         appointmentId,
+        organisationId,
         status: { in: ["AWAITING_PAYMENT", "PENDING"] },
         visitBillingStage: "READY_FOR_BILLING",
       },
@@ -1696,11 +1732,18 @@ export const InvoiceService = {
     return toInvoiceRecord(updated);
   },
 
-  async getByAppointmentId(appId: string, organisationId?: string) {
+  async getByAppointmentId(appId: string, scope: InvoiceScope) {
+    if (!scope.organisationId && !scope.parentId) {
+      throw new InvoiceServiceError("Invoice scope is required.", 403);
+    }
+
     const docs = await prisma.invoice.findMany({
       where: {
         appointmentId: appId,
-        ...(organisationId ? { organisationId } : {}),
+        ...(scope.organisationId
+          ? { organisationId: scope.organisationId }
+          : {}),
+        ...(scope.parentId ? { parentId: scope.parentId } : {}),
       },
       include: invoiceCreditNotesInclude,
       orderBy: { createdAt: "desc" },
@@ -1792,7 +1835,7 @@ export const InvoiceService = {
     });
   },
 
-  async getById(id: string) {
+  async getById(id: string, scope: InvoiceScope) {
     const doc = await prisma.invoice.findUnique({
       where: { id },
       include: invoiceCreditNotesInclude,
@@ -1800,6 +1843,8 @@ export const InvoiceService = {
     if (!doc) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
+
+    assertInvoiceInScope(doc, scope);
 
     const org = doc.organisationId
       ? await prisma.organization.findUnique({
@@ -1834,18 +1879,24 @@ export const InvoiceService = {
     return docs.map((d) => toInvoiceRecord(d));
   },
 
-  async listForParent(parentId: string) {
+  async listForParent(parentId: string, organisationId: string | null) {
     const docs = await prisma.invoice.findMany({
-      where: { parentId },
+      where: {
+        parentId,
+        ...(organisationId ? { organisationId } : {}),
+      },
       include: invoiceCreditNotesInclude,
       orderBy: { createdAt: "desc" },
     });
     return docs.map((d) => toInvoiceRecord(d));
   },
 
-  async listForCompanion(patientId: string) {
+  async listForCompanion(patientId: string, organisationId: string | null) {
     const docs = await prisma.invoice.findMany({
-      where: { patientId },
+      where: {
+        patientId,
+        ...(organisationId ? { organisationId } : {}),
+      },
       include: invoiceCreditNotesInclude,
       orderBy: { createdAt: "desc" },
     });
@@ -2228,7 +2279,12 @@ export const InvoiceService = {
     return { action: "NO_ACTION", status: invoice.status };
   },
 
-  async getByPaymentIntentId(paymentIntentId: string, organisationId?: string) {
+  async getByPaymentIntentId(paymentIntentId: string, scope: InvoiceScope) {
+    if (!scope.organisationId && !scope.parentId) {
+      throw new InvoiceServiceError("Invoice scope is required.", 403);
+    }
+
+    const organisationId = scope.organisationId ?? undefined;
     const paymentAttempt = await prisma.paymentAttempt.findFirst({
       where: {
         providerPaymentIntentId: paymentIntentId,
@@ -2270,6 +2326,9 @@ export const InvoiceService = {
       return null;
     }
     if (organisationId && doc.organisationId !== organisationId) {
+      return null;
+    }
+    if (scope.parentId && doc.parentId !== scope.parentId) {
       return null;
     }
 

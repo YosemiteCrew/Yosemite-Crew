@@ -53,7 +53,6 @@ jest.mock(
   () => ({
     observationToolApi: {
       get: jest.fn(),
-      getSubmission: jest.fn(),
       previewTaskSubmission: jest.fn(),
     },
     getCachedObservationTool: jest.fn(),
@@ -151,10 +150,10 @@ describe('ObservationalToolPreviewScreen', () => {
       goBack: mockGoBack,
     });
     (useRoute as jest.Mock).mockReturnValue({
-      params: {submissionId: 'sub-1'},
+      params: {taskId: 'task-1', submissionId: 'sub-1'},
     });
 
-    (observationToolApi.getSubmission as jest.Mock).mockResolvedValue(
+    (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
       mockSubmission,
     );
     (observationToolApi.get as jest.Mock).mockResolvedValue(mockDefinition);
@@ -166,28 +165,32 @@ describe('ObservationalToolPreviewScreen', () => {
 
   describe('Initialization & Loading', () => {
     it('shows loading state initially', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockImplementation(
-        () => new Promise(() => {}),
-      );
+      (
+        observationToolApi.previewTaskSubmission as jest.Mock
+      ).mockImplementation(() => new Promise(() => {}));
 
       const {getByText} = renderScreen();
       expect(getByText('Loading submission...')).toBeTruthy();
     });
 
-    it('fetches submission by ID if provided', async () => {
+    // The submission-by-id route exists only under /pms, so loading the preview
+    // must always go through the task route even when otSubmissionId is known.
+    it('fetches via the task preview route even when submissionId is present', async () => {
       renderScreen();
       await waitFor(() => {
-        expect(observationToolApi.getSubmission).toHaveBeenCalledWith('sub-1');
+        expect(observationToolApi.previewTaskSubmission).toHaveBeenCalledWith(
+          'task-1',
+        );
       });
+      expect(
+        (observationToolApi as Record<string, unknown>).getSubmission,
+      ).toBeUndefined();
     });
 
     it('fetches submission by Task ID if submissionId missing', async () => {
       (useRoute as jest.Mock).mockReturnValue({
         params: {taskId: 'task-1'},
       });
-      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
-        mockSubmission,
-      );
 
       renderScreen();
 
@@ -253,10 +256,12 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('renders "No responses available" if answers empty', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
-        ...mockSubmission,
-        answers: {},
-      });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        {
+          ...mockSubmission,
+          answers: {},
+        },
+      );
 
       const {findByText} = renderScreen();
       expect(await findByText('No responses available.')).toBeTruthy();
@@ -265,7 +270,7 @@ describe('ObservationalToolPreviewScreen', () => {
 
   describe('Error Handling', () => {
     it('shows error message on submission fetch failure', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockRejectedValue(
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockRejectedValue(
         new Error('Network Error'),
       );
 
@@ -274,7 +279,7 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('shows fallback error message if error is not an Error object', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockRejectedValue(
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockRejectedValue(
         'String Error',
       );
 
@@ -300,8 +305,10 @@ describe('ObservationalToolPreviewScreen', () => {
     });
 
     it('shows "No submission found" if load returns null', async () => {
-      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue(null);
-        });
+      (observationToolApi.previewTaskSubmission as jest.Mock).mockResolvedValue(
+        null,
+      );
+    });
   });
 
   describe('Navigation', () => {

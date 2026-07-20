@@ -34,7 +34,7 @@ const getConnectorFill = (index: number, activeStep: number): string => {
 
 const Progress: React.FC<ProgressProps> = ({ activeStep, canSelectStep, onStepSelect, steps }) => {
   return (
-    <div className="yc-steps">
+    <div className={classNames('yc-steps', { 'is-two-step': steps.length === 2 })}>
       {steps.map((step, index) => {
         const state = getStepState(index, activeStep);
         const clickable = canSelectStep ? canSelectStep(index) : false;

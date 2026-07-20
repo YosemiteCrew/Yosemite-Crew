@@ -1,8 +1,14 @@
 // test/services/stripe.service.test.ts
 import { StripeService } from "../../src/services/stripe.service";
-import { FinancePaymentService } from "../../src/services/finance/payment";
+import {
+  FinancePaymentService,
+  FinancePaymentError,
+  assertInvoiceInScope,
+  resolveStripeConnectedAccountId,
+} from "../../src/services/finance/payment";
 import { FinanceSubscriptionService } from "../../src/services/finance/subscription";
 import { NotificationService } from "../../src/services/notification.service";
+import logger from "../../src/utils/logger";
 import { prisma } from "src/config/prisma";
 
 // --- MOCKING SETUP ---
@@ -38,6 +44,17 @@ jest.mock("../../src/services/invoice.service", () => ({
 
 jest.mock("../../src/services/finance/payment", () => ({
   __esModule: true,
+  resolveStripeConnectedAccountId: jest.fn().mockResolvedValue(null),
+  assertInvoiceInScope: jest.fn(),
+  FinancePaymentError: class FinancePaymentError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "FinancePaymentError";
+    }
+  },
   FinancePaymentService: {
     createPaymentIntentForInvoice: jest.fn(),
     createCheckoutSessionForInvoice: jest.fn(),
@@ -476,11 +493,16 @@ describe("StripeService", () => {
         currency: "usd",
       });
 
-      const result = await StripeService.createPaymentIntentForInvoice("inv_1");
+      const result = await StripeService.createPaymentIntentForInvoice(
+        "inv_1",
+        {
+          organisationId: "org_1",
+        },
+      );
 
       expect(
         FinancePaymentService.createPaymentIntentForInvoice,
-      ).toHaveBeenCalledWith("inv_1");
+      ).toHaveBeenCalledWith("inv_1", { organisationId: "org_1" });
 
       expect(result).toEqual({
         paymentIntentId: "pi_inv",
@@ -495,7 +517,9 @@ describe("StripeService", () => {
         FinancePaymentService.createPaymentIntentForInvoice as jest.Mock
       ).mockRejectedValueOnce(new Error("Invoice is not payable"));
       await expect(
-        StripeService.createPaymentIntentForInvoice("inv_1"),
+        StripeService.createPaymentIntentForInvoice("inv_1", {
+          organisationId: "org_1",
+        }),
       ).rejects.toThrow("Invoice is not payable");
     });
   });
@@ -561,6 +585,114 @@ describe("StripeService", () => {
 
       const result = await StripeService.retrieveCheckoutSession("sess_1");
       expect(result).toEqual({ status: "paid", total: 123 });
+    });
+
+    it("retrieves the session on the connected account it was created on", async () => {
+      (resolveStripeConnectedAccountId as jest.Mock).mockResolvedValueOnce(
+        "acct_session",
+      );
+      mStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
+        payment_status: "paid",
+        amount_total: 5000,
+      });
+
+      await StripeService.retrieveCheckoutSession("sess_2");
+
+      expect(mStripe.checkout.sessions.retrieve).toHaveBeenCalledWith(
+        "sess_2",
+        {},
+        { stripeAccount: "acct_session" },
+      );
+    });
+
+    it("projects only status and total, never the raw session", async () => {
+      // This route is public for the success/cancel pages.
+      mStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
+        payment_status: "paid",
+        amount_total: 999,
+        customer_details: { email: "owner@example.com" },
+        payment_intent: { id: "pi_secret", client_secret: "cs_secret" },
+        metadata: { invoiceId: "inv_1" },
+      });
+
+      const result = await StripeService.retrieveCheckoutSession("sess_3");
+
+      expect(Object.keys(result).sort()).toEqual(["status", "total"]);
+    });
+  });
+
+  describe("retrievePaymentIntent scoping", () => {
+    it("hides a payment intent belonging to another parent", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+        invoice: {
+          id: "inv_1",
+          organisationId: "org_1",
+          parentId: "parent_owner",
+        },
+      });
+      (assertInvoiceInScope as jest.Mock).mockImplementationOnce(() => {
+        throw new FinancePaymentError("Invoice not found", 404);
+      });
+
+      await expect(
+        StripeService.retrievePaymentIntent("pi_1", {
+          parentId: "parent_attacker",
+        }),
+      ).rejects.toThrow("Invoice not found");
+      expect(mStripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+    });
+
+    it("throws when no local attempt binds the payment intent", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await expect(
+        StripeService.retrievePaymentIntent("pi_unknown", {
+          organisationId: "org_1",
+        }),
+      ).rejects.toThrow("Payment intent not found");
+      expect(mStripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+    });
+
+    it("retrieves the payment intent on its connected account", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+        invoice: { id: "inv_1", organisationId: "org_1", parentId: "parent_1" },
+      });
+      (resolveStripeConnectedAccountId as jest.Mock).mockResolvedValueOnce(
+        "acct_pi",
+      );
+      mStripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: "pi_1" });
+
+      await StripeService.retrievePaymentIntent("pi_1", {
+        organisationId: "org_1",
+      });
+
+      expect(mStripe.paymentIntents.retrieve).toHaveBeenCalledWith(
+        "pi_1",
+        {},
+        { stripeAccount: "acct_pi" },
+      );
+    });
+  });
+
+  describe("createBusinessCheckoutSession readiness gate", () => {
+    it("refuses checkout while the connected account cannot accept payments", async () => {
+      (
+        FinanceSubscriptionService.prepareBusinessCheckoutSession as jest.Mock
+      ).mockResolvedValueOnce({
+        orgName: "Test Org",
+        connectAccountId: "acct_1",
+        externalCustomerId: "cus_1",
+        priceId: "price_month_mock",
+        seats: 2,
+        canAcceptPayments: false,
+      });
+
+      await expect(
+        StripeService.createBusinessCheckoutSession("org_1", "month"),
+      ).rejects.toThrow("Organisation cannot accept payments yet");
+      expect(mStripe.checkout.sessions.create).not.toHaveBeenCalled();
     });
   });
 
@@ -635,6 +767,7 @@ describe("StripeService", () => {
         externalCustomerId: null,
         priceId: "price_month_mock",
         seats: 3,
+        canAcceptPayments: true,
       });
       mStripe.customers.create.mockResolvedValueOnce({ id: "cus_1" });
       mStripe.checkout.sessions.create.mockResolvedValueOnce({
@@ -693,6 +826,7 @@ describe("StripeService", () => {
         externalCustomerId: "cus_existing",
         priceId: "price_year_mock",
         seats: 4,
+        canAcceptPayments: true,
       });
       mStripe.checkout.sessions.create.mockResolvedValueOnce({
         url: "http://checkout.url",
@@ -722,6 +856,43 @@ describe("StripeService", () => {
           },
         }),
       );
+    });
+
+    it("omits the customer field when the created customer has no id", async () => {
+      (
+        FinanceSubscriptionService.prepareBusinessCheckoutSession as jest.Mock
+      ).mockResolvedValueOnce({
+        orgName: "Test Org",
+        connectAccountId: "acct_1",
+        externalCustomerId: null,
+        priceId: "price_month_mock",
+        seats: 2,
+        canAcceptPayments: true,
+      });
+      // Stripe returns a customer object with no usable id: the `?? undefined`
+      // fallback must keep `customer` off the checkout payload (never null).
+      mStripe.customers.create.mockResolvedValueOnce({ id: null });
+      mStripe.checkout.sessions.create.mockResolvedValueOnce({
+        url: "http://checkout.url",
+      });
+
+      const result = await StripeService.createBusinessCheckoutSession(
+        "org_1",
+        "month",
+      );
+
+      expect(result).toEqual({ url: "http://checkout.url" });
+      expect(mStripe.customers.create).toHaveBeenCalled();
+      expect(
+        FinanceSubscriptionService.recordBusinessCheckoutCustomer,
+      ).toHaveBeenCalledWith({
+        orgId: "org_1",
+        externalCustomerId: null,
+      });
+
+      const checkoutArgs = mStripe.checkout.sessions.create.mock.calls[0][0];
+      expect(checkoutArgs.customer).toBeUndefined();
+      expect("customer" in checkoutArgs).toBe(true);
     });
   });
 
@@ -1219,6 +1390,1106 @@ describe("StripeService", () => {
         }),
       );
       expect(NotificationService.sendToUser).toHaveBeenCalled();
+    });
+  });
+
+  describe("getAccountStatus missing organisation", () => {
+    it("throws when the organisation row is missing", async () => {
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        StripeService.getAccountStatus("org_missing"),
+      ).rejects.toThrow("Organistaion not found");
+    });
+  });
+
+  describe("createPaymentIntentForAppointment guards", () => {
+    it("throws when the appointment status does not allow payment", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        status: "CANCELLED",
+        organisationId: "org_1",
+        appointmentType: { id: "service_1" },
+        patient: { id: "comp_1" },
+      });
+
+      await expect(
+        StripeService.createPaymentIntentForAppointment("appt_1"),
+      ).rejects.toThrow("Appointment does not allow payment");
+    });
+
+    it("throws when the service row is missing", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        status: "REQUESTED",
+        organisationId: "org_1",
+        appointmentType: { id: "service_1" },
+        patient: { id: "comp_1" },
+      });
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(
+        StripeService.createPaymentIntentForAppointment("appt_1"),
+      ).rejects.toThrow("Service not found");
+    });
+
+    it("throws when the organisation has no Stripe account (UPCOMING status)", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        status: "UPCOMING",
+        organisationId: "org_1",
+        appointmentType: { id: "service_1" },
+        patient: { id: "comp_1" },
+      });
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "service_1",
+        cost: 50,
+      });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+        stripeAccountId: null,
+      });
+
+      await expect(
+        StripeService.createPaymentIntentForAppointment("appt_1"),
+      ).rejects.toThrow("Organisation has no Stripe account");
+    });
+  });
+
+  describe("handleWebhookEvent dispatch", () => {
+    it("routes payment_intent.payment_failed to the failure handler", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentFailed as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED" });
+
+      await StripeService.handleWebhookEvent({
+        type: "payment_intent.payment_failed",
+        data: { object: { id: "pi_x", metadata: {} } },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoicePaymentFailed,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ paymentIntentId: "pi_x" }),
+      );
+    });
+
+    it("routes charge.refunded to the refund handler", async () => {
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED", invoice: {} });
+
+      await StripeService.handleWebhookEvent({
+        type: "charge.refunded",
+        data: {
+          object: {
+            id: "ch_x",
+            amount: 500,
+            currency: "usd",
+            payment_intent: "pi_x",
+            metadata: { invoiceId: "inv_x" },
+          },
+        },
+      } as any);
+
+      expect(
+        FinancePaymentService.markInvoiceRefundedFromWebhook,
+      ).toHaveBeenCalled();
+    });
+
+    it("routes account.updated to the connect handler", async () => {
+      (
+        prisma.organizationBilling.updateMany as jest.Mock
+      ).mockResolvedValueOnce({});
+
+      await StripeService.handleWebhookEvent({
+        type: "account.updated",
+        data: {
+          object: {
+            id: "acct_x",
+            charges_enabled: false,
+            payouts_enabled: false,
+          },
+        },
+      } as any);
+
+      expect(prisma.organizationBilling.updateMany).toHaveBeenCalled();
+    });
+
+    it("routes checkout.session.completed in subscription mode", async () => {
+      mStripe.subscriptions.retrieve.mockResolvedValueOnce({ id: "sub_x" });
+
+      await StripeService.handleWebhookEvent({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            mode: "subscription",
+            customer: "cus_x",
+            subscription: "sub_x",
+          },
+        },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordStripeSubscriptionCheckoutCompleted,
+      ).toHaveBeenCalled();
+    });
+
+    it("routes checkout.session.completed in payment mode with connected account", async () => {
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED", invoice: {} });
+
+      await StripeService.handleWebhookEvent({
+        type: "checkout.session.completed",
+        account: "acct_conn",
+        data: {
+          object: {
+            id: "cs_x",
+            mode: "payment",
+            metadata: { invoiceId: "inv_x" },
+          },
+        },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          invoiceId: "inv_x",
+          connectedAccountId: "acct_conn",
+        }),
+      );
+    });
+
+    it("ignores checkout.session.completed with an unhandled mode", async () => {
+      await StripeService.handleWebhookEvent({
+        type: "checkout.session.completed",
+        data: { object: { mode: "setup" } },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordStripeSubscriptionCheckoutCompleted,
+      ).not.toHaveBeenCalled();
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("routes customer.subscription.updated", async () => {
+      await StripeService.handleWebhookEvent({
+        type: "customer.subscription.updated",
+        data: { object: { id: "sub_x" } },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordStripeSubscriptionUpdated,
+      ).toHaveBeenCalledWith(expect.objectContaining({ id: "sub_x" }));
+    });
+
+    it("routes customer.subscription.deleted and ignores non-string account fields", async () => {
+      await StripeService.handleWebhookEvent({
+        type: "customer.subscription.deleted",
+        account: 123,
+        data: { object: { id: "sub_x" } },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionDeleted,
+      ).toHaveBeenCalledWith("sub_x");
+    });
+
+    it("routes invoice.paid", async () => {
+      await StripeService.handleWebhookEvent({
+        type: "invoice.paid",
+        data: {
+          object: { id: "in_x", lines: { data: [{ subscription: "sub_x" }] } },
+        },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionInvoicePaid,
+      ).toHaveBeenCalledWith({ subscriptionId: "sub_x", invoiceId: "in_x" });
+    });
+
+    it("routes invoice.payment_failed", async () => {
+      await StripeService.handleWebhookEvent({
+        type: "invoice.payment_failed",
+        data: {
+          object: { id: "in_x", lines: { data: [{ subscription: "sub_x" }] } },
+        },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionInvoiceFailed,
+      ).toHaveBeenCalledWith({ subscriptionId: "sub_x", invoiceId: "in_x" });
+    });
+
+    it("logs unhandled Stripe event types without throwing", async () => {
+      await StripeService.handleWebhookEvent({
+        type: "customer.created",
+        data: { object: {} },
+      } as any);
+
+      expect(logger.info).toHaveBeenCalledWith(
+        "Unhandled Stripe event: customer.created",
+      );
+    });
+  });
+
+  describe("_handlePaymentSucceeded routing", () => {
+    it("ignores events missing metadata.type", async () => {
+      await StripeService._handlePaymentSucceeded({
+        id: "pi_1",
+        metadata: {},
+      } as any);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        "payment_intent.succeeded missing metadata.type",
+      );
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("logs unknown payment types", async () => {
+      await StripeService._handlePaymentSucceeded({
+        id: "pi_1",
+        metadata: { type: "MYSTERY" },
+      } as any);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        "Unknown payment type in metadata",
+      );
+    });
+
+    it("routes INVOICE_PAYMENT to the invoice handler", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED", invoice: {} });
+
+      await StripeService._handlePaymentSucceeded({
+        id: "pi_1",
+        latest_charge: null,
+        metadata: { type: "INVOICE_PAYMENT", invoiceId: "inv_1" },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(expect.objectContaining({ invoiceId: "inv_1" }));
+    });
+  });
+
+  describe("_handleInvoicePayment captured amount and result branches", () => {
+    it("ignores payment intents without an invoiceId", async () => {
+      await StripeService._handleInvoicePayment({
+        id: "pi_1",
+        metadata: {},
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("resolves the captured amount from the charge (positive path)", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "PAID",
+        invoice: {
+          id: "inv_1",
+          parentId: "p",
+          totalAmount: 50,
+          currency: "usd",
+        },
+      });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: "r",
+        amount_captured: 5000,
+      });
+
+      await StripeService._handleInvoicePayment({
+        id: "pi_1",
+        currency: "usd",
+        latest_charge: "ch_1",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 50, chargeId: "ch_1" }),
+      );
+      expect(logger.info).toHaveBeenCalledWith("Invoice inv_1 marked PAID");
+    });
+
+    it("falls back to amount_received when there is no charge", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "PAID",
+        invoice: {
+          id: "inv_1",
+          parentId: "p",
+          totalAmount: 30,
+          currency: "usd",
+        },
+      });
+
+      await StripeService._handleInvoicePayment({
+        id: "pi_1",
+        currency: "usd",
+        latest_charge: null,
+        amount_received: 3000,
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 30, chargeId: null }),
+      );
+    });
+
+    it("reports a null captured amount when a charge captured nothing", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "MISSING_AMOUNT",
+        invoice: { id: "inv_1" },
+      });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: null,
+        amount_captured: 0,
+      });
+
+      await StripeService._handleInvoicePayment({
+        id: "pi_1",
+        latest_charge: "ch_1",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(expect.objectContaining({ amount: null }));
+      expect(logger.error).toHaveBeenCalledWith(
+        "Invoice inv_1 payment rejected: no captured amount reported",
+      );
+    });
+
+    it("logs when the invoice was already refunded", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({ action: "REFUNDED", invoice: { id: "inv_1" } });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: null,
+      });
+
+      await StripeService._handleInvoicePayment({
+        id: "pi_1",
+        latest_charge: "ch_1",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Invoice inv_1 refunded from payment-intent webhook",
+      );
+    });
+
+    it("logs when the event account does not match the invoice organisation", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({ action: "ACCOUNT_MISMATCH" });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: null,
+      });
+
+      await StripeService._handleInvoicePayment({
+        id: "pi_1",
+        latest_charge: "ch_1",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        "Invoice inv_1 payment rejected: event account does not match the invoice organisation",
+      );
+    });
+  });
+
+  describe("_handlePaymentFailed", () => {
+    it("does not warn when the failure was not applied", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentFailed as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED" });
+
+      await StripeService._handlePaymentFailed({
+        id: "pi_1",
+        metadata: { invoiceId: "inv_1", appointmentId: "appt_1" },
+      } as any);
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("_handleRefund guards", () => {
+    it("returns without notifying when the refund was not applied", async () => {
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "IGNORED",
+        invoice: { id: "inv_1", parentId: "par_1" },
+      });
+
+      await StripeService._handleRefund({
+        id: "ch_1",
+        payment_intent: "pi_1",
+        amount: 500,
+        currency: "usd",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it("returns without notifying when the refunded invoice has no parent", async () => {
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "REFUNDED",
+        invoice: { id: "inv_1", parentId: null },
+      });
+
+      await StripeService._handleRefund({
+        id: "ch_1",
+        payment_intent: null,
+        amount: 500,
+        currency: "usd",
+        refunded: true,
+        metadata: {},
+      } as any);
+
+      expect(
+        FinancePaymentService.markInvoiceRefundedFromWebhook,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentIntentId: null,
+          reason: "Refunded via Stripe",
+        }),
+      );
+      expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("_handleInvoicePaid / _handleInvoicePaymentFailed subscription resolution", () => {
+    it("resolves the subscription id from an object and a null invoice id", async () => {
+      await StripeService._handleInvoicePaid({
+        id: null,
+        lines: { data: [{ subscription: { id: "sub_obj" } }] },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionInvoicePaid,
+      ).toHaveBeenCalledWith({ subscriptionId: "sub_obj", invoiceId: null });
+    });
+
+    it("ignores paid invoices with no subscription", async () => {
+      await StripeService._handleInvoicePaid({
+        id: "in_1",
+        lines: { data: [{}] },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionInvoicePaid,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("resolves the subscription id from an object for failed invoices", async () => {
+      await StripeService._handleInvoicePaymentFailed({
+        id: "in_1",
+        lines: { data: [{ subscription: { id: "sub_obj" } }] },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionInvoiceFailed,
+      ).toHaveBeenCalledWith({ subscriptionId: "sub_obj", invoiceId: "in_1" });
+    });
+
+    it("ignores failed invoices with no subscription", async () => {
+      await StripeService._handleInvoicePaymentFailed({
+        id: "in_1",
+        lines: { data: [] },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionInvoiceFailed,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("_handleAccountUpdated fallbacks", () => {
+    it("defaults enablement fields when the account omits them", async () => {
+      (
+        prisma.organizationBilling.updateMany as jest.Mock
+      ).mockResolvedValueOnce({});
+
+      await StripeService._handleAccountUpdated({ id: "acct_x" } as any);
+
+      expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { connectAccountId: "acct_x" },
+          data: expect.objectContaining({
+            canAcceptPayments: false,
+            connectChargesEnabled: false,
+            connectPayoutsEnabled: false,
+          }),
+        }),
+      );
+    });
+
+    it("stores the disabled reason and requirements when present", async () => {
+      (
+        prisma.organizationBilling.updateMany as jest.Mock
+      ).mockResolvedValueOnce({});
+
+      await StripeService._handleAccountUpdated({
+        id: "acct_y",
+        charges_enabled: true,
+        payouts_enabled: false,
+        default_currency: "eur",
+        requirements: {
+          disabled_reason: "requirements.past_due",
+          currently_due: ["x"],
+          eventually_due: ["y"],
+          past_due: ["z"],
+          pending_verification: ["w"],
+          errors: [{ reason: "r" }],
+        },
+      } as any);
+
+      expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            canAcceptPayments: false,
+            connectDisabledReason: "requirements.past_due",
+            currency: "eur",
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("_handleCheckoutCompleted subscription guard", () => {
+    it("ignores subscription checkouts missing the customer or subscription", async () => {
+      await StripeService._handleSubscriptionCheckout({
+        customer: null,
+        subscription: "sub_1",
+      } as any);
+
+      expect(mStripe.subscriptions.retrieve).not.toHaveBeenCalled();
+      expect(
+        FinanceSubscriptionService.recordStripeSubscriptionCheckoutCompleted,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("_handleInvoiceCheckout result branches", () => {
+    it("ignores sessions without an invoiceId", async () => {
+      await StripeService._handleInvoiceCheckout({
+        id: "cs_1",
+        metadata: {},
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("returns on a REFUNDED checkout result", async () => {
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "REFUNDED",
+        invoice: { id: "inv_1", parentId: "par_1" },
+      });
+
+      await StripeService._handleInvoiceCheckout({
+        id: "cs_1",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it("returns when a paid checkout invoice has no parent", async () => {
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "PAID",
+        invoice: {
+          id: "inv_1",
+          parentId: null,
+          totalAmount: 10,
+          currency: "usd",
+        },
+      });
+
+      await StripeService._handleInvoiceCheckout({
+        id: "cs_1",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it("forwards computed amounts and notifies on a paid checkout", async () => {
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "PAID",
+        invoice: {
+          id: "inv_1",
+          parentId: "par_1",
+          totalAmount: 100,
+          currency: "usd",
+        },
+      });
+
+      await StripeService._handleInvoiceCheckout(
+        {
+          id: "cs_1",
+          payment_intent: "pi_1",
+          currency: "usd",
+          amount_subtotal: 9000,
+          amount_total: 10000,
+          total_details: { amount_tax: 1000 },
+          automatic_tax: { status: "complete" },
+          metadata: { invoiceId: "inv_1" },
+        } as any,
+        "acct_conn",
+      );
+
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          invoiceId: "inv_1",
+          sessionId: "cs_1",
+          connectedAccountId: "acct_conn",
+          paymentIntentId: "pi_1",
+          amountSubtotal: 90,
+          amountTotal: 100,
+          amountTax: 10,
+          automaticTaxStatus: "complete",
+        }),
+      );
+      expect(NotificationService.sendToUser).toHaveBeenCalledWith(
+        "par_1",
+        "mock-success-payload",
+      );
+    });
+  });
+
+  describe("_handleAppointmentBookingPayment guards", () => {
+    it("ignores events without an appointmentId", async () => {
+      await StripeService._handleAppointmentBookingPayment({
+        id: "pi_1",
+        metadata: {},
+      } as any);
+
+      expect(prisma.appointment.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("ignores events when the appointment is gone", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await StripeService._handleAppointmentBookingPayment({
+        id: "pi_1",
+        metadata: { appointmentId: "appt_1" },
+      } as any);
+
+      expect(prisma.invoice.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("skips when a paid invoice already exists", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        appointmentType: { id: "svc_1" },
+        organisationId: "org_1",
+        patient: { id: "c" },
+      });
+      (prisma.invoice.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "inv_paid", status: "PAID" });
+
+      await StripeService._handleAppointmentBookingPayment({
+        id: "pi_1",
+        currency: "usd",
+        latest_charge: "ch_1",
+        metadata: { appointmentId: "appt_1" },
+      } as any);
+
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+      expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
+    });
+
+    it("stops when the appointment service ref is unusable", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        appointmentType: null,
+        organisationId: "org_1",
+        patient: { id: "c" },
+      });
+      (prisma.invoice.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: null,
+      });
+
+      await StripeService._handleAppointmentBookingPayment({
+        id: "pi_1",
+        currency: "usd",
+        latest_charge: "ch_1",
+        metadata: { appointmentId: "appt_1" },
+      } as any);
+
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("stops when the service row is missing", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        appointmentType: { id: "svc_1" },
+        organisationId: "org_1",
+        patient: { id: "c" },
+      });
+      (prisma.invoice.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: null,
+      });
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await StripeService._handleAppointmentBookingPayment({
+        id: "pi_1",
+        currency: "usd",
+        latest_charge: "ch_1",
+        metadata: { appointmentId: "appt_1" },
+      } as any);
+
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("_refundByPaymentIntentId", () => {
+    it("delegates to the finance refund helper", async () => {
+      (
+        FinancePaymentService.refundPaymentIntent as jest.Mock
+      ).mockResolvedValueOnce(undefined);
+
+      await StripeService._refundByPaymentIntentId("pi_1");
+
+      expect(FinancePaymentService.refundPaymentIntent).toHaveBeenCalledWith(
+        "pi_1",
+      );
+    });
+
+    it("swallows and logs errors from the refund helper", async () => {
+      const boom = new Error("boom");
+      (
+        FinancePaymentService.refundPaymentIntent as jest.Mock
+      ).mockRejectedValueOnce(boom);
+
+      await expect(
+        StripeService._refundByPaymentIntentId("pi_1"),
+      ).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        "Failed to auto-refund payment intent",
+        "pi_1",
+        boom,
+      );
+    });
+  });
+
+  describe("verifyWebhookWithSecret guards", () => {
+    it("throws when the signature header is missing", () => {
+      expect(() =>
+        StripeService.verifyWebhookWithSecret(
+          Buffer.from("p"),
+          undefined,
+          "whsec",
+        ),
+      ).toThrow("Missing Stripe signature header");
+    });
+
+    it("rejects array signature headers", () => {
+      expect(() =>
+        StripeService.verifyWebhookWithSecret(
+          Buffer.from("p"),
+          ["a", "b"],
+          "whsec",
+        ),
+      ).toThrow("Invalid Stripe signature header format");
+    });
+
+    it("throws when the webhook secret is not configured", () => {
+      expect(() =>
+        StripeService.verifyWebhookWithSecret(
+          Buffer.from("p"),
+          "sig",
+          undefined,
+        ),
+      ).toThrow("Stripe webhook secret is not configured");
+    });
+  });
+
+  describe("refundPaymentIntent guard", () => {
+    it("throws when no attempt binds the payment intent", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockReset();
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await expect(StripeService.refundPaymentIntent("pi_x")).rejects.toThrow(
+        "Invoice not found",
+      );
+    });
+  });
+
+  describe("connected-account and fallback branches", () => {
+    it("retrieves a payment intent without a connected account", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockReset();
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+        invoice: { id: "inv_1", organisationId: "org_1", parentId: "p" },
+      });
+      (resolveStripeConnectedAccountId as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      mStripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: "pi_1" });
+
+      await StripeService.retrievePaymentIntent("pi_1", {
+        organisationId: "org_1",
+      });
+
+      expect(mStripe.paymentIntents.retrieve).toHaveBeenCalledWith(
+        "pi_1",
+        {},
+        {},
+      );
+    });
+
+    it("returns a zero total when the checkout session has no amount", async () => {
+      mStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
+        payment_status: "unpaid",
+        amount_total: null,
+      });
+
+      const result = await StripeService.retrieveCheckoutSession("sess_z");
+      expect(result).toEqual({ status: "unpaid", total: 0 });
+    });
+
+    it("defaults the connect account id to empty string when it is null", async () => {
+      (
+        FinanceSubscriptionService.prepareBusinessCheckoutSession as jest.Mock
+      ).mockResolvedValueOnce({
+        orgName: "Org",
+        connectAccountId: null,
+        externalCustomerId: null,
+        priceId: "price_month_mock",
+        seats: 1,
+        canAcceptPayments: true,
+      });
+      mStripe.customers.create.mockResolvedValueOnce({ id: "cus_null" });
+      mStripe.checkout.sessions.create.mockResolvedValueOnce({
+        url: "http://x",
+      });
+
+      const result = await StripeService.createBusinessCheckoutSession(
+        "org_1",
+        "month",
+      );
+
+      expect(result).toEqual({ url: "http://x" });
+      expect(mStripe.customers.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ connectAccountId: "" }),
+        }),
+      );
+      expect(mStripe.checkout.sessions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subscription_data: expect.objectContaining({
+            metadata: expect.objectContaining({ connectAccountId: "" }),
+          }),
+        }),
+      );
+    });
+
+    it("creates a payment intent when the appointment has no patient refs", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        status: "REQUESTED",
+        organisationId: "org_1",
+        appointmentType: { id: "service_1" },
+        patient: null,
+      });
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "service_1",
+        cost: 100,
+      });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+        stripeAccountId: "acct_1",
+      });
+      mStripe.paymentIntents.create.mockResolvedValueOnce({
+        id: "pi_np",
+        client_secret: "cs_np",
+      });
+
+      await StripeService.createPaymentIntentForAppointment("appt_1");
+
+      expect(mStripe.paymentIntents.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ parentId: "", patientId: "" }),
+        }),
+        { stripeAccount: "acct_1" },
+      );
+    });
+
+    it("retrieves the invoice charge on the connected account", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED", invoice: {} });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: "r",
+        amount_captured: 100,
+      });
+
+      await StripeService._handleInvoicePayment(
+        {
+          id: "pi_1",
+          currency: "usd",
+          latest_charge: "ch_1",
+          metadata: { invoiceId: "inv_1" },
+        } as any,
+        "acct_conn",
+      );
+
+      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", {
+        stripeAccount: "acct_conn",
+      });
+    });
+
+    it("passes a null invoice id when a failed subscription invoice has none", async () => {
+      await StripeService._handleInvoicePaymentFailed({
+        id: null,
+        lines: { data: [{ subscription: "sub_x" }] },
+      } as any);
+
+      expect(
+        FinanceSubscriptionService.recordSubscriptionInvoiceFailed,
+      ).toHaveBeenCalledWith({ subscriptionId: "sub_x", invoiceId: null });
+    });
+
+    it("settles an open appointment invoice with null fallbacks on a connected account", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        appointmentType: { id: "svc_1" },
+        organisationId: "org_1",
+        companion: {},
+      });
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "inv_open",
+        status: "PENDING",
+      });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: null,
+      });
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({ action: "PAID", invoice: { id: "inv_open" } });
+
+      await StripeService._handleAppointmentBookingPayment(
+        {
+          id: "pi_1",
+          latest_charge: "ch_1",
+          metadata: { appointmentId: "appt_1" },
+        } as any,
+        "acct_conn",
+      );
+
+      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", {
+        stripeAccount: "acct_conn",
+      });
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ receiptUrl: null, currency: null }),
+      );
+    });
+
+    it("creates a paid appointment invoice with fallback fields on a connected account", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        appointmentType: { id: "svc_1" },
+        organisationId: "org_1",
+        companion: {},
+      });
+      (prisma.invoice.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: null,
+      });
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "svc_1",
+        name: "Checkup",
+        description: null,
+        cost: 25,
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValueOnce({
+        id: "inv_new",
+      });
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({ action: "PAID", invoice: { id: "inv_new" } });
+
+      await StripeService._handleAppointmentBookingPayment(
+        {
+          id: "pi_1",
+          latest_charge: "ch_1",
+          metadata: { appointmentId: "appt_1" },
+        } as any,
+        "acct_conn",
+      );
+
+      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", {
+        stripeAccount: "acct_conn",
+      });
+      expect(prisma.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            currency: "usd",
+            parentId: undefined,
+            patientId: undefined,
+          }),
+        }),
+      );
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ receiptUrl: null, currency: null }),
+      );
     });
   });
 });

@@ -43,6 +43,7 @@ import {
 } from '@/shared/services/firebaseNotifications';
 import {
   fetchMobileConfig,
+  isProductionMobileEnv,
   type MobileConfig,
 } from '@/shared/services/mobileConfig';
 import {
@@ -366,9 +367,12 @@ function App(): React.JSX.Element {
             useDevApi: MOBILE_CONFIG_BEHAVIOR.useDevApi,
           });
 
-          // enableReviewLogin: remote config wins; local variables.local.ts override applies via
-          // MOBILE_CONFIG_BEHAVIOR.overrides.enableReviewLogin (set above). Never silently kill it.
-          if (config.enableReviewLogin !== undefined) {
+          // A production env always wins over remote config, the variables.ts default, and
+          // MOBILE_CONFIG_BEHAVIOR.overrides.enableReviewLogin: opting in requires the effective
+          // config to declare a non-production env.
+          if (isProductionMobileEnv(config.env)) {
+            AUTH_FEATURE_FLAGS.enableReviewLogin = false;
+          } else if (config.enableReviewLogin !== undefined) {
             AUTH_FEATURE_FLAGS.enableReviewLogin = coerceBooleanFlag(
               config.enableReviewLogin,
             );

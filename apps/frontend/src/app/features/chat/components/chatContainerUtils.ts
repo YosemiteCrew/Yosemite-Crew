@@ -101,7 +101,7 @@ export const getChannelDisplayInfo = (
 
   const title =
     explicitTitle ||
-    (petName && petOwnerName ? `${petName}{' '}(${petOwnerName})` : undefined) ||
+    (petName && petOwnerName ? `${petName} (${petOwnerName})` : undefined) ||
     petOwnerName ||
     petName ||
     counterpartName ||
@@ -201,6 +201,14 @@ export const isCounterpartOnline = (
   const members = channel?.state?.members ? Object.values(channel.state.members) : [];
   const counterpart = members.find((member) => member.user?.id !== currentUserId);
   return Boolean(counterpart?.user?.online);
+};
+
+export const isChannelMuted = (channel: StreamChannel | null | undefined): boolean => {
+  try {
+    return Boolean(channel?.muteStatus?.().muted);
+  } catch {
+    return false;
+  }
 };
 
 export const formatClosedTime = (timestamp?: string) => {

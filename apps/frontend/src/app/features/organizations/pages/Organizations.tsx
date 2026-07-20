@@ -56,7 +56,7 @@ const Organizations = () => {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-8 pl-3! pr-3! pt-6! pb-6! md:pl-5! md:pr-5! md:pt-8! md:pb-8!">
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-2 pl-3! pr-3! pt-6! pb-6! md:pl-5! md:pr-5! md:pt-8! md:pb-8!">
       <OrgGreeting orgCount={orgs.length} />
 
       <div className="flex flex-col gap-3">

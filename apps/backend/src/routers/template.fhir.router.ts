@@ -5,8 +5,12 @@ import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
-router.get("/questionnaire/library", requireWebAuth, (req, res) =>
-  TemplateFhirController.listQuestionnaires(req, res),
+router.get(
+  "/questionnaire/library",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) => TemplateFhirController.listQuestionnaires(req, res),
 );
 
 router.get(
@@ -89,8 +93,12 @@ router.post(
   (req, res) => TemplateFhirController.submitQuestionnaireInstance(req, res),
 );
 
-router.get("/plan-definition/library", requireWebAuth, (req, res) =>
-  TemplateFhirController.listPlanDefinitions(req, res),
+router.get(
+  "/plan-definition/library",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["tasks:view:any"]),
+  (req, res) => TemplateFhirController.listPlanDefinitions(req, res),
 );
 
 router.get(

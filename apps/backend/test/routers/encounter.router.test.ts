@@ -2,6 +2,9 @@ import type { Router } from "express";
 
 const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
+const withEncounterOrgPermissions = jest.fn(() =>
+  jest.fn((_req, _res, next) => next()),
+);
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const EncounterController = {
@@ -25,6 +28,7 @@ jest.mock("src/middlewares/auth", () => ({
 
 jest.mock("src/middlewares/rbac", () => ({
   withOrgPermissions,
+  withEncounterOrgPermissions,
   requirePermission,
 }));
 
@@ -76,5 +80,50 @@ describe("encounter.router", () => {
     expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(3);
     expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");
+  });
+
+  it("derives the organisation from the encounter on every :id addressed route", () => {
+    const derivedOrgHandlers = withEncounterOrgPermissions.mock.results.map(
+      (result) => result.value,
+    );
+    const idRoutes: Array<[string, string]> = [
+      ["/:id", "patch"],
+      ["/:id", "get"],
+      [String.raw`/:id/\$discharge`, "post"],
+      [String.raw`/:id/\$assign-unit`, "post"],
+      [String.raw`/:id/\$unit-assignments`, "get"],
+      [String.raw`/:id/\$admission-unit-assignments`, "get"],
+      [String.raw`/:id/\$start`, "post"],
+      [String.raw`/:id/\$ready-for-discharge`, "post"],
+      [String.raw`/:id/\$undo-ready-for-discharge`, "post"],
+    ];
+
+    expect(idRoutes).toHaveLength(
+      withEncounterOrgPermissions.mock.calls.length,
+    );
+
+    for (const [path, method] of idRoutes) {
+      const route = findRoute(path, method);
+
+      expect(route).toBeDefined();
+      expect(derivedOrgHandlers).toContain(route?.stack[1]?.handle);
+    }
+  });
+
+  it("scopes the collection routes to the requested organisation", () => {
+    const requestedOrgHandlers = withOrgPermissions.mock.results.map(
+      (result) => result.value,
+    );
+
+    for (const [path, method] of [
+      ["/", "post"],
+      ["/", "get"],
+      [String.raw`/\$active-inpatients`, "get"],
+    ] as Array<[string, string]>) {
+      const route = findRoute(path, method);
+
+      expect(route).toBeDefined();
+      expect(requestedOrgHandlers).toContain(route?.stack[1]?.handle);
+    }
   });
 });

@@ -21,7 +21,6 @@ import Image from 'next/image';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import Search from '@/app/ui/inputs/Search';
 import { useSearchStore } from '@/app/stores/searchStore';
-import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
@@ -30,6 +29,19 @@ import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminology
 import { ThemeToggle } from '@/app/ui/theme';
 import NotificationsBell from '@/app/ui/layout/Notifications/NotificationsBell';
 import './UserHeader.css';
+
+/**
+ * RouteLoaderOverlay releases the org-switch loader when the pathname or query
+ * changes. Pushing the route we are already on fires neither, so callers have to
+ * release it themselves.
+ */
+const isCurrentRoute = (route: string) => {
+  const next = new URL(route, globalThis.window.location.origin);
+  return (
+    next.pathname === globalThis.window.location.pathname &&
+    next.search === globalThis.window.location.search
+  );
+};
 
 const shouldHideSearch = (pathname: string): boolean =>
   pathname.startsWith('/chat') ||
@@ -92,7 +104,6 @@ const useUserHeaderContent = () => {
   const query = useSearchStore((s) => s.query);
   const setQuery = useSearchStore((s) => s.setQuery);
   const clear = useSearchStore((s) => s.clear);
-  const openUniversalSearch = useUniversalSearchStore((s) => s.open);
   const desktopOrgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const orgMenuId = 'user-header-org-menu';
@@ -135,6 +146,10 @@ const useUserHeaderContent = () => {
       const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
       const nextRoute = await resolveOrgScopedRedirect({ orgId, fallbackRole: role });
       router.push(nextRoute);
+      if (isCurrentRoute(nextRoute)) {
+        hide('org-switch');
+        stopRouteLoader();
+      }
     } catch {
       hide('org-switch');
       stopRouteLoader();
@@ -191,18 +206,26 @@ const useUserHeaderContent = () => {
               aria-controls={orgMenuId}
               aria-haspopup="menu"
             >
-              <Image
-                src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
-                alt=""
-                height={34}
-                width={34}
-                className="yc-header-avatar"
-              />
+              {/* The design's org chip is a --blue-soft monogram; the logo image
+                  is only used when the organization actually carries one. */}
+              {primaryOrg.imageURL ? (
+                <Image
+                  src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
+                  alt=""
+                  height={32}
+                  width={32}
+                  className="yc-header-avatar"
+                />
+              ) : (
+                <span className="yc-header-org-chip" aria-hidden>
+                  {primaryOrg.name.trim().charAt(0) || 'O'}
+                </span>
+              )}
               <span className="yc-header-trigger-copy">
                 <span className="yc-header-kicker">Organization</span>
                 <span className="yc-header-primary-text">{primaryOrg?.name}</span>
               </span>
-              <IoCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={15} />
+              <IoCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={11} />
             </button>
             {selectOrg && (
               <div
@@ -251,16 +274,6 @@ const useUserHeaderContent = () => {
             placeholder={searchPlaceholder}
           />
         )}
-        <button
-          type="button"
-          onClick={openUniversalSearch}
-          className="yc-command-button"
-          aria-label="Open universal search"
-        >
-          <span className="yc-command-key">⌘K</span>
-          <span className="yc-command-label">Universal search</span>
-        </button>
-
         <ThemeToggle />
 
         <NotificationsBell />
@@ -277,12 +290,12 @@ const useUserHeaderContent = () => {
             <Image
               src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
               alt=""
-              height={34}
-              width={34}
+              height={30}
+              width={30}
               className="yc-header-avatar"
             />
             <span className="yc-profile-name">{displayName}</span>
-            <IoCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={15} />
+            <IoCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={10} />
           </button>
           {selectProfile && (
             <div

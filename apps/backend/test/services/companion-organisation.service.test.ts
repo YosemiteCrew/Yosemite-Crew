@@ -771,5 +771,124 @@ describe("CompanionOrganisationService", () => {
         },
       });
     });
+
+    it("withholds the parent address while the organisation link is PENDING", async () => {
+      (prisma.patientOrganisation.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: linkId,
+          patientId,
+          organisationId,
+          organisationType: "HOSPITAL",
+          status: "PENDING",
+        },
+      ]);
+      (prisma.patient.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: patientId, name: "Buddy" },
+      ]);
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValueOnce([
+        { parentId, patientId },
+      ]);
+      (prisma.parent.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: parentId,
+          firstName: "Jane",
+          lastName: "Doe",
+          email: "jane@example.com",
+          phoneNumber: "123",
+          address: {
+            addressLine: "123 Parent Lane",
+            country: "US",
+            city: "San Francisco",
+            state: "CA",
+            postalCode: "94105",
+            latitude: 37.77,
+            longitude: -122.41,
+          },
+        },
+      ]);
+
+      const orgView =
+        await CompanionOrganisationService.getLinksForOrganisation(
+          organisationId,
+        );
+
+      expect(orgView).toHaveLength(1);
+      expect(orgView[0]?.status).toBe("PENDING");
+      expect(orgView[0]?.parent?.address).toBeNull();
+      expect(JSON.stringify(orgView)).not.toContain("123 Parent Lane");
+      expect(JSON.stringify(orgView)).not.toContain("94105");
+      expect(JSON.stringify(orgView)).not.toContain("37.77");
+    });
+  });
+
+  describe("assertOrganisationMayLinkCompanion", () => {
+    it("allows a companion the organisation already has a link row for", async () => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        {
+          id: linkId,
+        },
+      );
+
+      await expect(
+        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+          patientId,
+          organisationId,
+        ),
+      ).resolves.toBeUndefined();
+    });
+
+    it("allows a companion whose parent already has another companion active here", async () => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.parentPatient.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ parentId }])
+        .mockResolvedValueOnce([{ patientId: "sibling-companion" }]);
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        {
+          id: "existing-sibling-link",
+        },
+      );
+
+      await expect(
+        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+          patientId,
+          organisationId,
+        ),
+      ).resolves.toBeUndefined();
+    });
+
+    it("rejects an arbitrary companion the organisation has no relationship with", async () => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.parentPatient.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ parentId }])
+        .mockResolvedValueOnce([{ patientId }]);
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await expect(
+        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+          patientId,
+          organisationId,
+        ),
+      ).rejects.toThrow("Companion not found.");
+    });
+
+    it("rejects a companion with no active parent", async () => {
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.parentPatient.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await expect(
+        CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+          patientId,
+          organisationId,
+        ),
+      ).rejects.toThrow("Companion not found.");
+    });
   });
 });

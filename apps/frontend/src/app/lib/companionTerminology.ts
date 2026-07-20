@@ -32,10 +32,11 @@ const TERM_FORMS: Record<CompanionTerminologyOption, CompanionTermForms> = {
 };
 
 // "Pet parent" / "pet parents" is the fixed term for the owner and must never be
-// rewritten (e.g. it must not become "patient parent"). The negative lookahead
-// excludes any noun immediately followed by "parent"/"parents" from the rewrite.
-const SINGULAR_PATTERN = /\b(pet|animal|companion|patient)\b(?!\s+parents?\b)/gi;
-const PLURAL_PATTERN = /\b(pets|animals|companions|patients)\b(?!\s+parents?\b)/gi;
+// rewritten (e.g. it must not become "patient parent"), so only "pet" is exempt
+// before "parent"/"parents". The other nouns still rewrite there, otherwise
+// authored copy such as "companion parent chat" would never track the org's term.
+const SINGULAR_PATTERN = /\b(?:pet\b(?!\s+parents?\b)|(?:animal|companion|patient)\b)/gi;
+const PLURAL_PATTERN = /\b(?:pets\b(?!\s+parents?\b)|(?:animals|companions|patients)\b)/gi;
 
 const normalizeOrgId = (orgId?: string | null) => String(orgId ?? '').trim();
 const normalizeOrgType = (orgType?: string | null) =>

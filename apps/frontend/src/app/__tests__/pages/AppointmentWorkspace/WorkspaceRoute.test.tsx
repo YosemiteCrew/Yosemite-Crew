@@ -38,6 +38,20 @@ jest.mock('@/app/ui/overlays/Loader', () => ({
   YosemiteLoader: ({ testId }: { testId: string }) => <div data-testid={testId}>Loading</div>,
 }));
 
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="protected-route">{children}</div>
+  ),
+}));
+
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="org-guard">{children}</div>
+  ),
+}));
+
 const makeAppointment = (id = 'appt-1'): Appointment => ({
   id,
   patient: {
@@ -90,6 +104,18 @@ describe('WorkspaceRoute', () => {
     expect(useLoadAppointmentsForPrimaryOrg).toHaveBeenCalled();
   });
 
+  it('mounts the workspace behind both the auth and org guards', () => {
+    mockAppointments([makeAppointment()]);
+
+    render(<WorkspaceRoute appointmentId="appt-1" />);
+
+    const protectedRoute = screen.getByTestId('protected-route');
+    const orgGuard = screen.getByTestId('org-guard');
+
+    expect(protectedRoute).toContainElement(orgGuard);
+    expect(orgGuard).toContainElement(screen.getByTestId('workspace'));
+  });
+
   it('blocks workspace entry for cancelled appointments', () => {
     mockAppointments([{ ...makeAppointment(), status: 'CANCELLED' }]);
 
@@ -99,6 +125,16 @@ describe('WorkspaceRoute', () => {
     expect(
       screen.getByText('Cancelled appointments cannot be opened in the clinical workspace.')
     ).toBeInTheDocument();
+  });
+
+  it('navigates back to appointments from the blocked state', () => {
+    mockAppointments([{ ...makeAppointment(), status: 'CANCELLED' }]);
+
+    render(<WorkspaceRoute appointmentId="appt-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to appointments' }));
+
+    expect(mockStartRouteLoader).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
   });
 
   it('shows the loader while appointments are still loading', () => {

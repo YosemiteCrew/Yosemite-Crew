@@ -11,6 +11,11 @@ import Primary from '@/app/ui/primitives/Buttons/Primary';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useSearchStore } from '@/app/stores/searchStore';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+
+const SPECIALITIES_SKELETON = <PageSkeleton variant="settings" />;
 
 const getSpecialitiesEmptyMessage = (status: string, searchQuery: string): string => {
   if (status === 'loading') return 'Loading specialities...';
@@ -45,7 +50,7 @@ const SpecialitiesRevamp = () => {
   if (!primaryOrgId) {
     return (
       <div className="flex flex-col w-full gap-3 px-4 md:px-8 py-6 max-w-350 mx-auto">
-        <h1 className="text-page-title text-text-primary">Specialities</h1>
+        <h1 className="text-page-title">Specialities</h1>
         <p className="text-body-4 text-text-secondary">
           Select an organisation before managing specialities.
         </p>
@@ -65,7 +70,7 @@ const SpecialitiesRevamp = () => {
           >
             <IoChevronBack size={18} color="var(--color-neutral-900)" aria-hidden="true" />
           </Link>
-          <h1 className="text-page-title text-text-primary">Specialities</h1>
+          <h1 className="text-page-title">Specialities</h1>
         </div>
 
         <Primary
@@ -91,7 +96,7 @@ const SpecialitiesRevamp = () => {
           />
         ))}
         {filteredSpecialities.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-[18px] border border-[var(--hairline)] text-text-secondary">
+          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border border-[var(--hairline)] text-text-secondary">
             <p className="text-body-3">{getSpecialitiesEmptyMessage(status, searchQuery)}</p>
             {!searchQuery && status !== 'loading' && (
               <Primary
@@ -117,4 +122,14 @@ const SpecialitiesRevamp = () => {
   );
 };
 
-export default SpecialitiesRevamp;
+const ProtectedSpecialities = () => {
+  return (
+    <ProtectedRoute skeleton={SPECIALITIES_SKELETON}>
+      <OrgGuard skeleton={SPECIALITIES_SKELETON}>
+        <SpecialitiesRevamp />
+      </OrgGuard>
+    </ProtectedRoute>
+  );
+};
+
+export default ProtectedSpecialities;

@@ -7,6 +7,8 @@ export type PhoneTabItem = {
   key: string;
   label: string;
   icon: IconType;
+  /** Filled icon used while the tab is active; falls back to `icon` when absent. */
+  activeIcon?: IconType;
   href?: string;
   active: boolean;
   disabled: boolean;
@@ -35,7 +37,7 @@ const PhoneTabBar = ({ items, moreOpen, onNavigate, onOpenMore }: PhoneTabBarPro
   <nav className="yc-phone-tabbar" aria-label="Primary">
     <ul className="yc-phone-tabbar-list">
       {items.map((item) => {
-        const Icon = item.icon;
+        const Icon = item.active && item.activeIcon ? item.activeIcon : item.icon;
         const showBadge = !item.isMore && (item.badgeCount ?? 0) > 0;
         const badgeCount = item.badgeCount ?? 0;
 
@@ -49,7 +51,7 @@ const PhoneTabBar = ({ items, moreOpen, onNavigate, onOpenMore }: PhoneTabBarPro
 
         const iconWrap = (
           <span className="yc-phone-tab-icon" aria-hidden>
-            <Icon size={22} />
+            <Icon size={20} />
             {showBadge ? (
               <output className="yc-phone-tab-badge" aria-label={`${badgeCount} unread`}>
                 {formatBadge(badgeCount)}

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { redirect } from 'next/navigation';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 type PostAuthRedirectProps = {
@@ -9,20 +9,25 @@ type PostAuthRedirectProps = {
 };
 
 const PostAuthRedirect = ({ fallbackRole }: PostAuthRedirectProps) => {
-  const router = useRouter();
+  const [route, setRoute] = useState<string | null>(null);
 
-  // Resolve and navigate from an effect. Suspending on a promise created during
-  // render is uncached in Client Components and can blank the page or re-suspend;
-  // an effect runs exactly once after commit and drives a reliable redirect.
+  // The destination depends on client-only session state (org/profile stores hydrated
+  // from the authenticated session), so it cannot be resolved on the server. Resolve it
+  // in an effect, then hand the navigation to `redirect()` during render: Next's redirect
+  // boundary performs the replace, and nothing is ever rendered at the wrong route.
   useEffect(() => {
     let cancelled = false;
     resolvePostAuthRedirect({ fallbackRole }).then((nextRoute) => {
-      if (!cancelled) router.replace(nextRoute);
+      if (!cancelled) setRoute(nextRoute);
     });
     return () => {
       cancelled = true;
     };
-  }, [fallbackRole, router]);
+  }, [fallbackRole]);
+
+  if (route) {
+    redirect(route);
+  }
 
   return null;
 };

@@ -26,6 +26,12 @@ export type SessionMiddlewareOptions = {
   // Which product profile this route group belongs to. Sessions stamped with a
   // different profile are rejected (403). Omit to accept any profile.
   profile?: AuthProfile;
+  // When true the guard never rejects: a missing (or wrong-profile) session
+  // lets the request proceed unauthenticated, with no session fields set on
+  // the request. Public routes that only *enrich* their response for signed-in
+  // callers use this so a valid session is attached when present without
+  // turning the route into an authenticated-only surface.
+  optional?: boolean;
 };
 
 function applySession(req: Request, session: AuthSession): void {
@@ -69,11 +75,19 @@ export function createSessionMiddleware(options: SessionMiddlewareOptions = {}):
       session ??= await tryLegacyGrace(req);
 
       if (!session) {
+        if (options.optional) {
+          next();
+          return;
+        }
         res.status(401).json({ message: 'Authentication required' });
         return;
       }
 
       if (options.profile && session.authProfile !== options.profile) {
+        if (options.optional) {
+          next();
+          return;
+        }
         res.status(403).json({ message: 'Session not valid for this resource' });
         return;
       }

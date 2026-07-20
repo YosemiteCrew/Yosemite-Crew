@@ -45,8 +45,8 @@ const BADGE_STYLE: CSSProperties = {
   borderRadius: 9999,
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#fdebea',
-  color: '#d53225',
+  background: 'var(--danger-bg)',
+  color: 'var(--danger-text)',
   marginBottom: 18,
 };
 

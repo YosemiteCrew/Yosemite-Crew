@@ -8,9 +8,10 @@ import {
   rerenderPersistedClinicalRenderedDocumentPdf,
   type RenderedDocumentSigning,
   signPersistedRenderedDocument,
+  toRenderedDocumentReadDto,
 } from "src/services/rendered-document.service";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import type { OrgRequest } from "src/middlewares/rbac";
 
 const signRenderedDocumentSchema = z.object({
   signatureText: z.string().trim().min(1).optional(),
@@ -23,6 +24,18 @@ const handleError = createFhirErrorHandler({
   invalidPayloadMessage: "Invalid rendered document payload.",
   logMessage: "Unexpected rendered document error",
 });
+
+/**
+ * The routes admit any holder of a clinical view permission, but `INVOICE` is a
+ * valid rendered-document kind and is financial rather than clinical, so it
+ * carries its own gate.
+ */
+const isPermittedKind = (req: Request, kind: string): boolean =>
+  kind !== "INVOICE" ||
+  ((req as OrgRequest).userPermissions ?? []).includes("billing:view:any");
+
+const forbidden = (res: Response) =>
+  res.status(403).json({ message: "Forbidden – insufficient permissions" });
 
 const resolveSignerProfile = async (userId: string) => {
   const user = (await prisma.user.findUnique({
@@ -53,7 +66,11 @@ export const RenderedDocumentFhirController = {
         req.params.organisationId,
       );
 
-      return res.status(200).json(document);
+      if (!isPermittedKind(req, document.kind)) {
+        return forbidden(res);
+      }
+
+      return res.status(200).json(toRenderedDocumentReadDto(document));
     } catch (error) {
       return handleError(error, res);
     }
@@ -61,6 +78,15 @@ export const RenderedDocumentFhirController = {
 
   async getRenderedDocumentPdf(req: Request, res: Response) {
     try {
+      const document = await getPersistedRenderedDocument(
+        req.params.renderedDocumentId,
+        req.params.organisationId,
+      );
+
+      if (!isPermittedKind(req, document.kind)) {
+        return forbidden(res);
+      }
+
       const { pdf, filename, contentType } =
         await getPersistedRenderedDocumentPdf(
           req.params.renderedDocumentId,
@@ -94,7 +120,7 @@ export const RenderedDocumentFhirController = {
   async signRenderedDocument(req: Request, res: Response) {
     try {
       const body = signRenderedDocumentSchema.parse(req.body);
-      const userId = resolveUserIdFromRequest(req) ?? "";
+      const userId = (req as OrgRequest).userId ?? "";
 
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated." });

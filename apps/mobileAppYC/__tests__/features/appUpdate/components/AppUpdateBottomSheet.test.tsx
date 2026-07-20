@@ -200,6 +200,24 @@ describe('AppUpdateBottomSheet', () => {
       alertSpy.mockRestore();
     });
 
+    it('keeps the primary button actionable for a required prompt with no store url', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const noUrlRequiredPrompt = {...requiredPrompt, storeUrl: null};
+
+      render(<AppUpdateBottomSheet prompt={noUrlRequiredPrompt} />);
+
+      const props = mockConfirmActionBottomSheet.mock.calls[0][0];
+      expect(props.primaryButton.disabled).toBeFalsy();
+
+      await props.primaryButton.onPress();
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        'common.error',
+        'appUpdate.missingStoreUrl',
+      );
+      alertSpy.mockRestore();
+    });
+
     it('shows alert when Linking.openURL throws', async () => {
       const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
       jest

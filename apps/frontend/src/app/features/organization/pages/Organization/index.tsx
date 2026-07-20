@@ -6,6 +6,7 @@ import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 const OrganizationSectionSkeleton = () => (
   <div className="min-h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -52,6 +53,10 @@ const DeleteOrg = dynamic(
   () => import('@/app/features/organization/pages/Organization/Sections/DeleteOrg'),
   { loading: () => <OrganizationSectionSkeleton /> }
 );
+const PhoneOrganization = dynamic(
+  () => import('@/app/features/organization/pages/Organization/Sections/PhoneOrganization'),
+  { loading: () => <OrganizationSectionSkeleton /> }
+);
 
 const OrgPageSkeleton = () => (
   <div className="yc-page-content">
@@ -72,26 +77,39 @@ const OrgPageSkeleton = () => (
 export const Organization = () => {
   const primaryorg = usePrimaryOrg();
   const orgStatus = useOrgStore((s) => s.status);
+  const isPhone = useIsPhone();
 
   if (orgStatus === 'loading' || orgStatus === 'idle') return <OrgPageSkeleton />;
   if (!primaryorg) return <OrgPageSkeleton />;
 
+  if (isPhone) {
+    return <PhoneOrganization primaryOrg={primaryorg} />;
+  }
+
   return (
-    <div className="yc-page-content">
+    <div className="yc-page-content flex flex-col gap-[14px]">
       <Profile primaryOrg={primaryorg} />
+      {primaryorg.isVerified ? (
+        <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-start">
+          <Team isVerified={primaryorg.isVerified} />
+          <div className="flex flex-col gap-[14px]">
+            <Rooms />
+            <Payment />
+            <DeleteOrg />
+          </div>
+        </div>
+      ) : (
+        <DeleteOrg />
+      )}
       <Specialities />
       {primaryorg.isVerified && (
         <>
-          <Team isVerified={primaryorg.isVerified} />
-          <Rooms />
-          <Payment />
           <LinkedMedicalDevices />
           <Documents />
           <DocumentESigning />
           <OnlineBooking />
         </>
       )}
-      <DeleteOrg />
     </div>
   );
 };

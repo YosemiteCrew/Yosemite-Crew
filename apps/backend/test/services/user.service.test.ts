@@ -46,6 +46,14 @@ jest.mock("src/services/organization.service", () => ({
   },
 }));
 
+const mockUserOrganizationDeleteById = jest.fn();
+
+jest.mock("src/services/user-organization.service", () => ({
+  UserOrganizationService: {
+    deleteById: mockUserOrganizationDeleteById,
+  },
+}));
+
 import { UserService, UserServiceError } from "src/services/user.service";
 
 describe("UserService", () => {
@@ -54,6 +62,7 @@ describe("UserService", () => {
     mockGetAuthService.mockReset();
     mockAuthUpdateUserName.mockReset();
     mockOrganizationDeleteById.mockReset();
+    mockUserOrganizationDeleteById.mockReset();
   });
 
   it("creates users through postgres only", async () => {
@@ -330,18 +339,34 @@ describe("UserService", () => {
 
     const result = await UserService.deleteById("user-123");
 
-    expect(mockPrisma.userOrganization.delete).toHaveBeenCalledWith({
-      where: { id: "mapping-1" },
-    });
-    expect(mockPrisma.userOrganization.delete).toHaveBeenCalledWith({
-      where: { id: "mapping-2" },
-    });
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledWith("mapping-1");
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledWith("mapping-2");
     expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-123" },
       data: { isActive: false },
     });
     expect(mockOrganizationDeleteById).toHaveBeenCalledWith("org-1");
     expect(result).toBe(true);
+  });
+
+  it("releases seats through UserOrganizationService rather than deleting mappings directly", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
+    mockPrisma.userOrganization.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        roleCode: "MEMBER",
+        organizationReference: "Organization/org-1",
+      },
+    ]);
+    mockPrisma.user.updateMany.mockResolvedValue({ count: 1 });
+
+    await UserService.deleteById("user-123");
+
+    // deleteById is what releases the member slot and re-syncs Stripe seats; a raw
+    // prisma delete would drop the mapping while leaving both counts overstated.
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledTimes(1);
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledWith("mapping-1");
+    expect(mockPrisma.userOrganization.delete).not.toHaveBeenCalled();
   });
 
   it("returns false when the user is missing during delete", async () => {

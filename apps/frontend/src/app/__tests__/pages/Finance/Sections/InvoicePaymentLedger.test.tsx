@@ -19,6 +19,7 @@ jest.mock('@/app/lib/invoicePaymentMethod', () => ({
 jest.mock('react-icons/io5', () => ({
   IoCardOutline: () => <span data-testid="card-icon" />,
   IoCheckmarkCircle: () => <span data-testid="check-icon" />,
+  IoPhonePortraitOutline: () => <span data-testid="phone-icon" />,
 }));
 
 const makeInvoice = (overrides: Partial<Invoice>): Invoice =>
@@ -53,7 +54,7 @@ describe('InvoicePaymentLedger', () => {
       />
     );
 
-    expect(screen.getByText('Payment recorded')).toBeInTheDocument();
+    expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
     expect(
       screen.getByText('Online payment · 12 Jun, 10:31 · by Lena Hartmann')
     ).toBeInTheDocument();
@@ -72,7 +73,36 @@ describe('InvoicePaymentLedger', () => {
         currency="USD"
       />
     );
+    expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
+  });
+
+  it('labels the row by the channel the payment came through', () => {
+    const { rerender } = render(
+      <InvoicePaymentLedger
+        invoice={makeInvoice({ paymentCollectionMethod: 'PAYMENT_LINK' })}
+        currency="USD"
+      />
+    );
+    expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
+    expect(screen.getByTestId('phone-icon')).toBeInTheDocument();
+
+    rerender(
+      <InvoicePaymentLedger
+        invoice={makeInvoice({ paymentCollectionMethod: 'PAYMENT_AT_CLINIC' })}
+        currency="USD"
+      />
+    );
+    expect(screen.getByText('Paid at the clinic')).toBeInTheDocument();
+    expect(screen.getByTestId('card-icon')).toBeInTheDocument();
+
+    rerender(
+      <InvoicePaymentLedger
+        invoice={makeInvoice({ paymentCollectionMethod: undefined })}
+        currency="USD"
+      />
+    );
     expect(screen.getByText('Payment recorded')).toBeInTheDocument();
+    expect(screen.getByTestId('card-icon')).toBeInTheDocument();
   });
 
   it('omits the receipt link and receipt-sent strip when data is missing', () => {
@@ -91,7 +121,7 @@ describe('InvoicePaymentLedger', () => {
     render(
       <InvoicePaymentLedger invoice={makeInvoice({ totalAmount: undefined })} currency="USD" />
     );
-    expect(screen.getByText('Payment recorded')).toBeInTheDocument();
+    expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
     expect(screen.getByText('$0')).toBeInTheDocument();
   });
 

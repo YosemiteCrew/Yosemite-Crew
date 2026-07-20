@@ -57,7 +57,9 @@ import {
 import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
+import InventoryPhoneCatalog from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog';
 import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -288,7 +290,7 @@ const LOW_STOCK_STATUS = 'LOW_STOCK';
 
 const chipClass = (active: boolean) =>
   clsx(
-    'inline-flex items-center rounded-full! border px-3 py-1.5 text-[12px] transition-colors',
+    'inline-flex items-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
     active
       ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)] font-bold'
       : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
@@ -380,11 +382,11 @@ export const InventoryFilterBar = ({
             }))
           }
           className={clsx(
-            'inline-flex items-center gap-1.5 rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-3 py-1.5 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
+            'inline-flex items-center gap-1.5 rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-[13px] py-1.5 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
             lowStockActive && 'shadow-[0_1px_3px_var(--sh08)]'
           )}
         >
-          <IoAlertCircleOutline size={13} aria-hidden="true" />
+          <IoAlertCircleOutline size={12} aria-hidden="true" />
           Low stock ({lowStockCount})
         </button>
       </div>
@@ -409,7 +411,7 @@ export const InventoryFilterBar = ({
           <button
             type="button"
             onClick={() => setFilterOpen(true)}
-            className="inline-flex h-[38px] items-center gap-2 rounded-full! border border-[var(--hairline)] bg-transparent px-4 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+            className="inline-flex h-[38px] items-center gap-2 rounded-full! border border-[var(--hairline)] bg-transparent px-[14px] text-[12.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
           >
             <IoOptionsOutline size={16} aria-hidden="true" />
             <span>Filter</span>
@@ -425,7 +427,7 @@ export const InventoryFilterBar = ({
             ref={triggerRef}
             type="button"
             onClick={() => setSortOpen((v) => !v)}
-            className="inline-flex h-[38px] items-center gap-1.5 rounded-full! border border-[var(--hairline)] bg-transparent px-4 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full! border border-[var(--hairline)] bg-transparent px-[14px] text-[12.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
           >
             <span>Sort: {SORT_OPTIONS.find((option) => option.key === sortMode)?.label}</span>
             <IoChevronDownOutline
@@ -648,6 +650,7 @@ type InventoryTableContentProps = {
   setActiveDispensaryRecord: React.Dispatch<React.SetStateAction<DispensaryRecord | null>>;
   setDispensaryModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   onRestock: (item: InventoryItem) => void;
+  onViewHistory: (item: InventoryItem) => void;
   onDispense?: (record: DispensaryRecord) => Promise<void>;
 };
 
@@ -668,21 +671,23 @@ export const InventoryTableContent = ({
   setActiveDispensaryRecord,
   setDispensaryModalOpen,
   onRestock,
+  onViewHistory,
   onDispense,
 }: InventoryTableContentProps) => {
   if (activeView === 'analytics') {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pt-3 pr-1">
+        <InventoryTurnoverFilters
+          filters={turnoverFilters}
+          setFilters={setTurnoverFilters}
+          categories={turnoverCategoryOptions}
+        />
         <TurnoverAnalytics
           turnover={turnover}
           inventory={inventory}
           setActiveView={setActiveView}
           onReorder={onRestock}
-        />
-        <InventoryTurnoverFilters
-          filters={turnoverFilters}
-          setFilters={setTurnoverFilters}
-          categories={turnoverCategoryOptions}
+          onViewHistory={onViewHistory}
         />
         <InventoryTurnoverTable filteredList={filteredTurnoverList} />
       </div>
@@ -805,7 +810,7 @@ const useInventoryContent = () => {
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
   const fetchDispensaryRecords = useCallback(async () => {
-    if (!primaryOrgId) return;
+    if (!primaryOrgId || !canViewPrescription) return;
     const orgAtCallTime = primaryOrgId;
     try {
       const data = await listDispenseRequests(orgAtCallTime);
@@ -819,7 +824,7 @@ const useInventoryContent = () => {
     } catch {
       // silently fail — table shows empty state
     }
-  }, [primaryOrgId]);
+  }, [primaryOrgId, canViewPrescription]);
 
   useEffect(() => {
     setDispensaryRecords([]);
@@ -853,6 +858,10 @@ const useInventoryContent = () => {
   const [activeView, setActiveView] = useState<InventoryView>('inventory');
   const [sortMode, setSortMode] = useState<'name' | 'expiry' | 'stock'>('name');
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
+  const isPhone = useIsPhone();
+  // The catalog is the only inventory view with a bespoke phone screen; dispensary
+  // and turnover keep their shared card lists on phone.
+  const showPhoneCatalog = isPhone && activeView === 'inventory';
 
   // The phone shell's FAB has no reference to this page's create flow; opt in so
   // "New product" opens the same modal the desktop "Add product" button does,
@@ -1078,6 +1087,22 @@ const useInventoryContent = () => {
     setViewInventory(true);
   }, []);
 
+  // "History" on the turnover product panel opens the same record sheet on the
+  // batch and expiry section, which carries the item's stock movement history.
+  const handleViewHistory = useCallback((item: InventoryItem) => {
+    setActiveInventory(item);
+    setInfoInitialSection('batch');
+    setViewInventory(true);
+  }, []);
+
+  // The phone catalog opens the same record sheet the desktop table's "view"
+  // action does (InventoryInfo), with no forced section.
+  const handleViewInventoryItem = useCallback((item: InventoryItem) => {
+    setActiveInventory(item);
+    setInfoInitialSection(undefined);
+    setViewInventory(true);
+  }, []);
+
   const toggleCategoryFilter = useCallback(
     (category: string) => {
       setFilters((prev) => {
@@ -1223,9 +1248,9 @@ const useInventoryContent = () => {
     <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-center w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-page-title flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>{pageTitle}</span>
-            <span className="text-[17px] text-[var(--ink-faint)]">({titleCount})</span>
+            <span className="text-page-title-count">({titleCount})</span>
             {activeView === 'inventory' && (
               <GlassTooltip
                 content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
@@ -1250,7 +1275,7 @@ const useInventoryContent = () => {
             value={activeView}
             onChange={setActiveView}
           />
-          {canEditInventory && activeView !== 'turnover' && (
+          {canEditInventory && activeView !== 'turnover' && !isPhone && (
             <Primary
               href="#"
               text={savingItem ? 'Saving...' : 'Add product'}
@@ -1266,52 +1291,70 @@ const useInventoryContent = () => {
       {error && <div className="text-text-error text-sm font-satoshi font-semibold">{error}</div>}
 
       <PermissionGate allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]} fallback={<Fallback />}>
-        <div className={wrapperClassName}>
-          <div className="flex w-full shrink-0 flex-col gap-4">
-            <ActiveFilterBar
-              activeView={activeView}
+        {showPhoneCatalog ? (
+          <div className="flex w-full flex-col gap-4 pt-1">
+            <InventoryPhoneCatalog
+              filteredInventory={filteredInventory}
               filters={filters}
-              selectedFilterChips={selectedFilterChips}
-              sortMode={sortMode}
-              setFilterOpen={setFilterOpen}
               setFilters={setFilters}
-              setSortMode={setSortMode}
-              dispensarySearch={dispensarySearch}
-              dispensaryStatusFilter={dispensaryStatusFilter}
-              setDispensaryStatusFilter={setDispensaryStatusFilter}
-              setDispensarySearch={setDispensarySearch}
               categoryOptions={categoryOptions}
               toggleCategoryFilter={toggleCategoryFilter}
               lowStockCount={lowStockCount}
-            />
-          </div>
-
-          {loadingList && activeView === 'inventory' && (
-            <div className="text-grey-noti text-sm font-satoshi">Loading inventory…</div>
-          )}
-
-          <div ref={plannerSectionRef} className={plannerSectionClassName}>
-            <InventoryTableContent
-              activeView={activeView}
-              turnover={turnover}
-              inventory={inventory}
-              setActiveView={setActiveView}
-              turnoverFilters={turnoverFilters}
-              setTurnoverFilters={setTurnoverFilters}
-              turnoverCategoryOptions={turnoverCategoryOptions}
-              filteredTurnoverList={filteredTurnoverList}
-              filteredInventory={filteredInventory}
-              setActiveInventory={setActiveInventory}
-              setViewInventory={setViewInventory}
-              setInfoInitialSection={setInfoInitialSection}
-              filteredDispensaryRecords={filteredDispensaryRecords}
-              setActiveDispensaryRecord={setActiveDispensaryRecord}
-              setDispensaryModalOpen={setDispensaryModalOpen}
+              loading={loadingList}
+              onView={handleViewInventoryItem}
               onRestock={handleRestock}
-              onDispense={canEditPrescription ? handleDispense : undefined}
+              canRestock={canEditInventory}
             />
           </div>
-        </div>
+        ) : (
+          <div className={wrapperClassName}>
+            <div className="flex w-full shrink-0 flex-col gap-4">
+              <ActiveFilterBar
+                activeView={activeView}
+                filters={filters}
+                selectedFilterChips={selectedFilterChips}
+                sortMode={sortMode}
+                setFilterOpen={setFilterOpen}
+                setFilters={setFilters}
+                setSortMode={setSortMode}
+                dispensarySearch={dispensarySearch}
+                dispensaryStatusFilter={dispensaryStatusFilter}
+                setDispensaryStatusFilter={setDispensaryStatusFilter}
+                setDispensarySearch={setDispensarySearch}
+                categoryOptions={categoryOptions}
+                toggleCategoryFilter={toggleCategoryFilter}
+                lowStockCount={lowStockCount}
+              />
+            </div>
+
+            {loadingList && activeView === 'inventory' && (
+              <div className="text-grey-noti text-sm font-satoshi">Loading inventory…</div>
+            )}
+
+            <div ref={plannerSectionRef} className={plannerSectionClassName}>
+              <InventoryTableContent
+                activeView={activeView}
+                turnover={turnover}
+                inventory={inventory}
+                setActiveView={setActiveView}
+                turnoverFilters={turnoverFilters}
+                setTurnoverFilters={setTurnoverFilters}
+                turnoverCategoryOptions={turnoverCategoryOptions}
+                filteredTurnoverList={filteredTurnoverList}
+                filteredInventory={filteredInventory}
+                setActiveInventory={setActiveInventory}
+                setViewInventory={setViewInventory}
+                setInfoInitialSection={setInfoInitialSection}
+                filteredDispensaryRecords={filteredDispensaryRecords}
+                setActiveDispensaryRecord={setActiveDispensaryRecord}
+                setDispensaryModalOpen={setDispensaryModalOpen}
+                onRestock={handleRestock}
+                onViewHistory={handleViewHistory}
+                onDispense={canEditPrescription ? handleDispense : undefined}
+              />
+            </div>
+          </div>
+        )}
 
         <DispensaryDetailModal
           record={activeDispensaryRecord}

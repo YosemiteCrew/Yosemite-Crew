@@ -113,7 +113,7 @@ const AppointmentBoardToolbar = ({
                 text="New appointment"
                 onClick={onAddAppointment}
                 icon={<IoAdd size={18} aria-hidden="true" />}
-                className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+                className="h-10 w-fit shrink-0 justify-center gap-[7px] px-[18px] py-0 text-[13.5px] font-semibold whitespace-nowrap hover:scale-100"
               />
             </>
           )}

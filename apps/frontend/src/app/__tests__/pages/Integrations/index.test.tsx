@@ -34,7 +34,9 @@ const disableMerckMock = jest.fn();
 // ---------------------------------------------------------------------------
 jest.mock('next/image', () => ({
   __esModule: true,
-  // Keep the mock accessible without triggering Next's <img> lint rule.
+  // Render as a <span> whose text is empty (alt is not rendered as content) so
+  // card titles that match their logo alt (e.g. "MSD Veterinary Manual") stay
+  // uniquely queryable by text.
   default: ({ alt }: any) => <span aria-label={alt || ''} data-testid="mock-next-image" />,
 }));
 
@@ -225,6 +227,13 @@ const openSettings = async () => {
   return screen.findByTestId('settings-modal');
 };
 
+// Each coming-soon card renders its own "Coming soon" <button>, so scope tab clicks to the
+// filter fieldset instead of matching every button carrying that label.
+const clickFilterTab = (name: string) => {
+  const tabs = screen.getByRole('group', { name: 'Filter integrations' });
+  fireEvent.click(within(tabs).getByRole('button', { name }));
+};
+
 // Resolve an integration card root from its (unique) title text.
 const getCard = (title: string): HTMLElement => {
   const heading = screen.getByText(title);
@@ -289,7 +298,7 @@ describe('IntegrationsPage — default disabled render', () => {
 
     expect(screen.getByRole('heading', { name: /Integrations/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Integrations info' })).toBeInTheDocument();
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 0');
+    expect(screen.getByText('0 active')).toBeInTheDocument();
 
     // Every card is visible under the default "All" filter.
     expect(screen.getByText('IDEXX VetConnect PLUS')).toBeInTheDocument();
@@ -314,6 +323,9 @@ describe('IntegrationsPage — default disabled render', () => {
     // Disabled status pill (no live dot branch).
     expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // The credentials surface is behind the modal, closed on first render.
+    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument();
 
     // "All" tab is active; the others are not.
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
@@ -344,6 +356,9 @@ describe('IntegrationsPage — default disabled render', () => {
     expect(
       within(modal).getByText('No linked IVLS devices found for this organization.')
     ).toBeInTheDocument();
+    // Recent orders section renders its empty message while IDEXX is disabled.
+    expect(within(modal).getByText('Recent orders')).toBeInTheDocument();
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
   });
 
   it('closes the settings modal via the Close control', async () => {
@@ -377,7 +392,7 @@ describe('IntegrationsPage — enabled render', () => {
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1'));
 
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 2');
+    expect(screen.getByText('2 active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disable IDEXX quick action' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Disable MSD Veterinary Manual' })
@@ -450,6 +465,59 @@ describe('IntegrationsPage — enabled render', () => {
     expect(within(modal).getByText('SN-2')).toBeInTheDocument();
     expect(within(modal).getByText('Unknown')).toBeInTheDocument(); // '' vcpActivatedStatus fallback
     expect(within(modal).getAllByText('Not available').length).toBeGreaterThanOrEqual(1);
+    await flush();
+  });
+
+  it('renders recent orders in the modal with label and pill branches', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        status: 'RUNNING',
+      },
+      {
+        _id: 'o2',
+        idexxOrderId: 'IDX-2',
+        patientName: '',
+        tests: ['pre-surgical CBC'],
+        status: 'RESULTED',
+      },
+      { idexxOrderId: 'IDX-3', patientName: '', tests: [], status: '' },
+    ]);
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() =>
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1' })
+    );
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    // name + tests, tests-only, and id-fallback label branches.
+    expect(within(modal).getByText('Poppy · ear cytology')).toBeInTheDocument();
+    expect(within(modal).getByText('pre-surgical CBC')).toBeInTheDocument();
+    expect(within(modal).getByText('Order IDX-3')).toBeInTheDocument();
+    // running / resulted / neutral(empty→Pending) pill branches.
+    expect(within(modal).getByText('Running')).toBeInTheDocument();
+    expect(within(modal).getByText('Resulted')).toBeInTheDocument();
+    expect(within(modal).getByText('Pending')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('swallows recent-orders load failures without surfacing an error', async () => {
+    listIdexxOrdersMock.mockRejectedValue(new Error('orders down'));
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() => expect(listIdexxOrdersMock).toHaveBeenCalled());
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
+    // The orders failure is intentionally swallowed — no page alert.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await flush();
   });
 
@@ -950,18 +1018,22 @@ describe('IntegrationsPage — filters and empty states', () => {
     await flush();
   });
 
-  it('shows IDEXX + coming-soon cards under Available when providers are not enabled', async () => {
+  it('shows only IDEXX under Available and hides coming-soon cards', async () => {
     // IDEXX disabled, Merck enabled → IDEXX available, Merck hidden.
     useResolvedMerckMock.mockReturnValue(merckEnabled());
 
     renderPage();
     await waitForPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+    clickFilterTab('Available');
 
     await waitFor(() => expect(screen.getByText('IDEXX VetConnect PLUS')).toBeInTheDocument());
     expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
-    expect(screen.getByText('RadAnalyzer')).toBeInTheDocument();
+    // Coming-soon integrations are not connectable, so Available must not list them.
+    expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vetnio')).not.toBeInTheDocument();
+    expect(screen.queryByText('QuickBooks')).not.toBeInTheDocument();
+    expect(screen.queryByText('Laika')).not.toBeInTheDocument();
     await flush();
   });
 
@@ -973,13 +1045,36 @@ describe('IntegrationsPage — filters and empty states', () => {
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+    clickFilterTab('Available');
     await screen.findByText('No available integrations right now.');
 
-    // enabled provider cards hidden; coming-soon still visible under Available.
+    // The empty state must stand alone - no provider cards and no coming-soon cards.
     expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
     expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
-    expect(screen.getByText('RadAnalyzer')).toBeInTheDocument();
+    expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vetnio')).not.toBeInTheDocument();
+    expect(screen.queryByText('QuickBooks')).not.toBeInTheDocument();
+    expect(screen.queryByText('Laika')).not.toBeInTheDocument();
+    await flush();
+  });
+
+  it('shows every coming-soon card and no provider cards under Coming soon', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
+    useResolvedMerckMock.mockReturnValue(merckEnabled());
+
+    renderPage();
+    await waitForPage();
+
+    clickFilterTab('Coming soon');
+
+    await waitFor(() => expect(screen.getByText('RadAnalyzer')).toBeInTheDocument());
+    expect(screen.getByText('Vetnio')).toBeInTheDocument();
+    expect(screen.getByText('QuickBooks')).toBeInTheDocument();
+    expect(screen.getByText('Laika')).toBeInTheDocument();
+    expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
+    expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
+    expect(screen.queryByText('No available integrations right now.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No connected integrations yet.')).not.toBeInTheDocument();
     await flush();
   });
 

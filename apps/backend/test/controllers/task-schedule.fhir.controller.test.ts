@@ -64,7 +64,9 @@ describe("TaskScheduleFhirController", () => {
       },
       headers: {},
       query: {},
-    };
+      userId: "actor-1",
+      userPermissions: ["tasks:edit:any"],
+    } as unknown as Partial<Request>;
     mockedMapper.getBooleanParameter.mockReturnValue(false);
     mockedMapper.getDateParameter.mockReturnValue(undefined);
     mockedMapper.toTask.mockReturnValue({ resourceType: "Task" } as never);
@@ -139,21 +141,22 @@ describe("TaskScheduleFhirController", () => {
       res as Response,
     );
 
+    const actor = { actorId: "actor-1", canEditAny: true };
     expect(mockedService.launchFromTemplateInstance).toHaveBeenCalledWith(
       "instance-1",
       "org-1",
-      "",
+      actor,
       expect.objectContaining({ force: false }),
     );
     expect(mockedService.pauseSchedule).toHaveBeenCalledWith(
       "instance-1",
-      "",
+      actor,
       "org-1",
     );
     expect(mockedService.regenerateSchedule).toHaveBeenCalledWith(
       "instance-1",
       "org-1",
-      "",
+      actor,
       expect.objectContaining({ force: true }),
     );
     expect(mockedMapper.toTask).toHaveBeenCalledTimes(5);
@@ -178,5 +181,30 @@ describe("TaskScheduleFhirController", () => {
       res as Response,
     );
     expect(statusMock).toHaveBeenCalledWith(500);
+  });
+
+  // The permission set decides whether the service enforces schedule ownership,
+  // so it must be read from the verified session, not from the request payload.
+  it("threads the actor's permissions from the session, not the client", async () => {
+    mockedService.pauseSchedule.mockResolvedValueOnce({
+      id: "schedule-1",
+      status: "PAUSED",
+    } as never);
+
+    const ownOnlyReq = {
+      ...req,
+      userId: "actor-2",
+      userPermissions: ["tasks:edit:own"],
+      query: { userId: "spoofed" },
+      headers: { "x-user-id": "spoofed" },
+    } as unknown as Request;
+
+    await TaskScheduleFhirController.pause(ownOnlyReq, res as Response);
+
+    expect(mockedService.pauseSchedule).toHaveBeenCalledWith(
+      "instance-1",
+      { actorId: "actor-2", canEditAny: false },
+      "org-1",
+    );
   });
 });

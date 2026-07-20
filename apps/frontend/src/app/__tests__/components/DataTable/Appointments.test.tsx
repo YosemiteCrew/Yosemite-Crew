@@ -140,6 +140,12 @@ jest.mock(
     )
 );
 
+/* The row's action rail is a single overflow kebab now, so every row action has
+   to be reached through its menu. The menu closes on select, hence the reopen
+   before each subsequent action. */
+const openRowMenu = (companionName: string) =>
+  fireEvent.click(screen.getByLabelText(`Actions for ${companionName}`));
+
 describe('Appointments table', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -171,7 +177,9 @@ describe('Appointments table', () => {
       />
     );
 
+    openRowMenu('Buddy');
     fireEvent.click(screen.getByTestId('FaCheckCircle').closest('button')!);
+    openRowMenu('Buddy');
     fireEvent.click(screen.getByTestId('IoIosCloseCircle').closest('button')!);
 
     // Accept now opens the change-status modal so a lead/support can be assigned.
@@ -212,7 +220,9 @@ describe('Appointments table', () => {
     );
 
     fireEvent.click(screen.getByTitle('Open appointment overview'));
+    openRowMenu('Buddy');
     fireEvent.click(screen.getByTestId('IoEyeOutline').closest('button')!);
+    openRowMenu('Buddy');
     fireEvent.click(screen.getByTestId('IoIosCalendar').closest('button')!);
 
     expect(pushMock).toHaveBeenCalledWith(
@@ -239,8 +249,11 @@ describe('Appointments table', () => {
 
     render(<Appointments filteredList={[appointment]} canEditAppointments />);
 
+    openRowMenu('Milo');
     fireEvent.click(screen.getByTestId('IoDocumentTextOutline').closest('button')!);
+    openRowMenu('Milo');
     fireEvent.click(screen.getByTestId('IoCardOutline').closest('button')!);
+    openRowMenu('Milo');
     fireEvent.click(screen.getByTestId('MdScience').closest('button')!);
 
     expect(pushMock).toHaveBeenCalledWith('/appointments/a4/workspace?step=SOAP');

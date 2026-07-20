@@ -13,7 +13,7 @@ const FileInput = () => {
         aria-label="Upload documents (optional)"
       />
       <label htmlFor="file-professioal-upload" className="file-input-label">
-        <IoCloudUpload color="var(--color-black-pure)" size={40} />
+        <IoCloudUpload color="var(--ink-faint)" size={32} />
         <div className="upload-title">Upload documents (optional)</div>
         <div className="upload-desc">
           Only DOC, PDF, PNG, and JPEG formats, with maximum size of 5 MB.

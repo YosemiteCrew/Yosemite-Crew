@@ -15,7 +15,7 @@ import {
   saveTemplateFormDraft,
 } from '@/app/features/forms/services/templateFormsService';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
@@ -217,10 +217,10 @@ const AddForm = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
       <div className="flex h-full flex-col gap-4">
-        {/* Header: title + details summary + preview / MSD / close actions */}
+        {/* Header: title + details summary + preview / MSD / save / close actions */}
         <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
-          <div className="flex flex-col gap-0.5">
-            <div className="text-body-1 text-text-primary">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <div className="text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]">
               {isEditing ? 'Edit template' : 'Add template'}
               {formData.name ? ` · ${formData.name}` : ''}
             </div>
@@ -231,7 +231,7 @@ const AddForm = ({
               type="button"
               aria-pressed={view === 'preview'}
               onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'preview' })}
-              className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
+              className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
                 view === 'preview'
                   ? 'border-[var(--blue)] text-[var(--blue-text)]'
                   : 'border-[var(--divider)] text-text-secondary'
@@ -245,7 +245,7 @@ const AddForm = ({
                 type="button"
                 aria-pressed={view === 'merck'}
                 onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'merck' })}
-                className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
+                className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
                   view === 'merck'
                     ? 'border-[var(--blue)] text-[var(--blue-text)]'
                     : 'border-[var(--divider)] text-text-secondary'
@@ -259,6 +259,18 @@ const AddForm = ({
                   className="object-contain"
                 />
                 MSD Veterinary Manual
+              </button>
+            )}
+            {/* Design places the primary save as a compact cta pill in the header, beside
+                the preview toggle; the preview view supplies its own actions via Review. */}
+            {effectiveView !== 'preview' && (
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={isSaving}
+                className="flex h-9 shrink-0 items-center whitespace-nowrap rounded-full bg-[var(--cta)] px-4 text-[12.5px] font-semibold text-[var(--cta-text)] transition-colors disabled:opacity-60"
+              >
+                {isEditing ? 'Update & publish' : 'Save template'}
               </button>
             )}
             <Close onClick={closeModal} />
@@ -337,20 +349,13 @@ const AddForm = ({
           )}
         </div>
 
-        {/* Footer: Save / Cancel (preview view uses Review's own action buttons). */}
+        {/* Footer: draft-only (publish lives in the header cta; preview uses Review's own actions). */}
         {effectiveView !== 'preview' && (
-          <div className="grid grid-cols-2 gap-3 border-t border-[var(--hairline)] pt-3">
-            <Primary
-              href="#"
-              text={isEditing ? 'Update & publish' : 'Save template'}
-              className="w-full max-h-12! text-lg! tracking-[-0.36px]!"
-              onClick={handlePublish}
-              isDisabled={isSaving}
-            />
+          <div className="flex justify-end border-t border-[var(--hairline)] pt-3">
             <Secondary
               href="#"
               text={isEditing ? 'Update draft' : 'Save as draft'}
-              className="w-full max-h-12! text-lg! tracking-[-0.36px]!"
+              className="max-h-12! text-lg! tracking-[-0.36px]!"
               onClick={handleSaveDraft}
               isDisabled={isSaving}
             />

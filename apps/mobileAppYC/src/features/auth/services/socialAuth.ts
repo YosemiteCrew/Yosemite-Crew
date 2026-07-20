@@ -665,12 +665,10 @@ const resolveAppleMetadata = async (
   });
 
   console.log('[SocialAuth][Apple] Resolved profile metadata', {
-    cached,
-    mergedMetadata: {
-      firstName: merged.firstName,
-      lastName: merged.lastName,
-      email: merged.email,
-    },
+    hasCachedProfile: cached != null,
+    hasFirstName: merged.firstName != null,
+    hasLastName: merged.lastName != null,
+    hasEmail: merged.email != null,
   });
 
   return merged;

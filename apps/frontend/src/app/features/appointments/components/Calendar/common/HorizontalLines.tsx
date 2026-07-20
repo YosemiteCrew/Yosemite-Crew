@@ -6,6 +6,10 @@ import {
 } from '@/app/features/appointments/components/Calendar/helpers';
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 
+// Warm grid rules, matching SlotGridLines and the frame's `1px solid var(--hairline)`.
+const HOUR_LINE_COLOR = 'var(--hairline)';
+const SLOT_LINE_COLOR = 'color-mix(in srgb, var(--hairline) 55%, transparent)';
+
 type HorizontalLinesProps = {
   date: Date;
   now?: Date;
@@ -55,8 +59,8 @@ const HorizontalLines = ({
       return (
         <div
           key={hour}
-          className="absolute left-0 right-0 border-t border-[var(--color-calendar-line-strong)]"
-          style={{ top }}
+          className="absolute left-0 right-0 border-t"
+          style={{ top, borderColor: HOUR_LINE_COLOR }}
         />
       );
     }).filter(Boolean);
@@ -74,8 +78,8 @@ const HorizontalLines = ({
       lines.push(
         <div
           key={`slot-${minute}`}
-          className="absolute left-0 right-0 border-t border-[var(--color-calendar-line-soft)]"
-          style={{ top }}
+          className="absolute left-0 right-0 border-t"
+          style={{ top, borderColor: SLOT_LINE_COLOR }}
         />
       );
     }
@@ -85,22 +89,39 @@ const HorizontalLines = ({
 
   return (
     <>
-      <div className="absolute left-0 right-0 top-0 border-t border-[var(--color-calendar-line-strong)]" />
+      <div
+        className="absolute left-0 right-0 top-0 border-t"
+        style={{ borderColor: HOUR_LINE_COLOR }}
+      />
       {slotLines}
       {hourLines}
       <div
-        className="absolute left-0 right-0 border-t border-[var(--color-calendar-line-strong)]"
-        style={{ top: totalHeightPx }}
+        className="absolute left-0 right-0 border-t"
+        style={{ top: totalHeightPx, borderColor: HOUR_LINE_COLOR }}
       />
       {nowTopPx != null && (
         <div className="absolute left-0 right-0 z-10" style={{ top: nowTopPx }}>
           {nowTimeLabel && (
-            <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
+            <div
+              className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
+              style={{ color: 'var(--blue-text)' }}
+            >
               {nowTimeLabel}
             </div>
           )}
-          <div className="absolute left-[-5px] size-3 rounded-full bg-red-500 translate-y-[-50%]" />
-          <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+          <div
+            className="absolute left-[-5px] size-[7px] rounded-full translate-y-[-50%]"
+            style={{ backgroundColor: 'var(--blue)' }}
+          />
+          <div
+            className="translate-y-[-50%]"
+            style={{
+              borderTopWidth: '2px',
+              borderTopStyle: 'solid',
+              borderTopColor: 'var(--blue)',
+              opacity: 0.75,
+            }}
+          />
         </div>
       )}
     </>

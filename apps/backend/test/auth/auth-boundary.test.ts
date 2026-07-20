@@ -221,6 +221,45 @@ describe("createSessionMiddleware", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  it("proceeds unauthenticated when optional and no session is present", async () => {
+    setAuthService(null);
+    const { req, res } = makeReqRes();
+    const next = jest.fn();
+
+    await createSessionMiddleware({ optional: true })(req, res as never, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(0);
+    expect((req as { userId?: string }).userId).toBeUndefined();
+  });
+
+  it("attaches the session when optional and one is present", async () => {
+    stubService(session("pims_web"));
+    const { req, res } = makeReqRes();
+    const next = jest.fn();
+
+    await createSessionMiddleware({ optional: true })(req, res as never, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect((req as { userId?: string }).userId).toBe("user-1");
+  });
+
+  it("does not reject a wrong-profile session when optional, just skips it", async () => {
+    stubService(session("pet_parent_mobile"));
+    const { req, res } = makeReqRes();
+    const next = jest.fn();
+
+    await createSessionMiddleware({ profile: "pims_web", optional: true })(
+      req,
+      res as never,
+      next,
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBe(0);
+    expect((req as { userId?: string }).userId).toBeUndefined();
+  });
+
   it("maps neutral auth errors to their status code", async () => {
     stubService(null, new AuthRequiredError());
     const { req, res } = makeReqRes();

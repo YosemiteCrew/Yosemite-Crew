@@ -13,6 +13,7 @@ import {
   IoPaw,
   IoReceiptOutline,
   IoSearchOutline,
+  IoTimeOutline,
   IoWalletOutline,
 } from 'react-icons/io5';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
@@ -28,15 +29,25 @@ import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
+import { getJsonStorageItem, setJsonStorageItem } from '@/app/lib/browserStorage';
 import './UniversalSearch.css';
 
 type SearchModule =
   'appointments' | 'tasks' | 'companions' | 'forms' | 'inventory' | 'finance' | 'idexx';
 
-type SearchGroupKey = SearchModule | 'jump';
+type SearchGroupKey = SearchModule | 'jump' | 'recent';
 
 type IconKey =
-  'paw' | 'calendar' | 'tasks' | 'receipt' | 'form' | 'cube' | 'add' | 'dashboard' | 'wallet';
+  | 'paw'
+  | 'calendar'
+  | 'tasks'
+  | 'receipt'
+  | 'form'
+  | 'cube'
+  | 'add'
+  | 'dashboard'
+  | 'wallet'
+  | 'time';
 
 type SearchItem = {
   id: string;
@@ -51,7 +62,9 @@ type SearchItem = {
   onSelect?: () => void;
 };
 
-const ICONS: Record<IconKey, React.ComponentType<{ size?: number }>> = {
+type RowIconProps = { size?: number; className?: string; 'aria-hidden'?: boolean };
+
+const ICONS: Record<IconKey, React.ComponentType<RowIconProps>> = {
   paw: IoPaw,
   calendar: IoCalendarOutline,
   tasks: IoCheckmarkDoneOutline,
@@ -61,6 +74,7 @@ const ICONS: Record<IconKey, React.ComponentType<{ size?: number }>> = {
   add: IoAdd,
   dashboard: IoGridOutline,
   wallet: IoWalletOutline,
+  time: IoTimeOutline,
 };
 
 const MODULE_ICON: Record<SearchModule, IconKey> = {
@@ -94,11 +108,31 @@ const GROUP_LABELS: Record<SearchGroupKey, string> = {
   inventory: 'Inventory',
   idexx: 'Actions',
   jump: 'Jump to',
+  recent: 'Recent',
 };
 
-// Empty-query state. Real recent searches are not tracked, so the design's
-// "Recent" list is omitted rather than faked; these "Jump to" entries are all
-// real routes. Dashboard + Appointments carry the spec's G-D / G-A keycaps.
+// Empty-query state. "Recent" lists the last few records actually opened from
+// the palette (persisted locally); the "Jump to" entries below it are all real
+// routes. Dashboard + Appointments carry the spec's G-D / G-A keycaps.
+const RECENTS_STORAGE_KEY = 'yc_universal_search_recents';
+const RECENTS_LIMIT = 3;
+
+type RecentEntry = { title: string; href: string };
+
+const readRecents = (): RecentEntry[] => {
+  const stored = getJsonStorageItem<RecentEntry[]>('local', RECENTS_STORAGE_KEY);
+  return Array.isArray(stored) ? stored.slice(0, RECENTS_LIMIT) : [];
+};
+
+const writeRecent = (entry: RecentEntry): RecentEntry[] => {
+  const next = [entry, ...readRecents().filter((item) => item.href !== entry.href)].slice(
+    0,
+    RECENTS_LIMIT
+  );
+  setJsonStorageItem('local', RECENTS_STORAGE_KEY, next);
+  return next;
+};
+
 const JUMP_LINKS: Array<{ title: string; href: string; iconKey: IconKey; keycap?: string }> = [
   { title: 'Dashboard', href: '/dashboard', iconKey: 'dashboard', keycap: 'G D' },
   { title: 'Appointments', href: '/appointments', iconKey: 'calendar', keycap: 'G A' },
@@ -230,6 +264,10 @@ const buildSearchItems = (
   return moduleItems;
 };
 
+// The design's empty-query rows ("Recent" / "Jump to") are a lighter treatment
+// than a result row: a bare glyph and plain copy, no icon tile.
+const isPlainRow = (groupKey: SearchGroupKey) => groupKey === 'jump' || groupKey === 'recent';
+
 const RowIcon = ({ item }: { item: SearchItem }) => {
   const Icon = ICONS[item.iconKey];
   const isPatient = item.groupKey === 'companions';
@@ -240,6 +278,27 @@ const RowIcon = ({ item }: { item: SearchItem }) => {
     <span className={`yc-usp-icon ${shapeClass} ${toneClass}`} aria-hidden>
       <Icon size={16} />
     </span>
+  );
+};
+
+const RowBody = ({ item }: { item: SearchItem }) => {
+  const Icon = ICONS[item.iconKey];
+  if (isPlainRow(item.groupKey)) {
+    return (
+      <>
+        <Icon size={14} className="yc-usp-row-plain-icon" aria-hidden />
+        <span className="yc-usp-row-plain-label">{item.title}</span>
+      </>
+    );
+  }
+  return (
+    <>
+      <RowIcon item={item} />
+      <span className="yc-usp-row-body">
+        <span className="yc-usp-row-title">{item.title}</span>
+        {item.subtitle ? <span className="yc-usp-row-sub">{item.subtitle}</span> : null}
+      </span>
+    </>
   );
 };
 
@@ -283,15 +342,17 @@ const SearchInput = ({
   onClose: () => void;
 }) => (
   <div className="yc-usp-input-row">
-    <IoSearchOutline className="yc-usp-search-icon" size={18} aria-hidden />
-    <input
-      ref={inputRef}
-      value={query}
-      onChange={(e) => onQueryChange(e.target.value)}
-      placeholder="Search anything…"
-      className="yc-usp-input"
-      aria-label="Universal search input"
-    />
+    <span className="yc-usp-field">
+      <IoSearchOutline className="yc-usp-search-icon" size={18} aria-hidden />
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        placeholder="Search anything…"
+        className="yc-usp-input"
+        aria-label="Universal search input"
+      />
+    </span>
     {isPhone ? (
       <button type="button" className="yc-usp-cancel" onClick={onClose}>
         Cancel
@@ -331,13 +392,11 @@ const SearchResults = ({
               type="button"
               onMouseEnter={() => onActivate(index)}
               onClick={() => onSelect(item)}
-              className={`yc-usp-row ${isActive ? 'yc-usp-row--active' : ''}`}
+              className={`yc-usp-row ${isPlainRow(item.groupKey) ? 'yc-usp-row--plain' : ''} ${
+                isActive ? 'yc-usp-row--active' : ''
+              }`}
             >
-              <RowIcon item={item} />
-              <span className="yc-usp-row-body">
-                <span className="yc-usp-row-title">{item.title}</span>
-                {item.subtitle ? <span className="yc-usp-row-sub">{item.subtitle}</span> : null}
-              </span>
+              <RowBody item={item} />
               {keycap ? <span className="yc-usp-keycap">{keycap}</span> : null}
             </button>
           );
@@ -406,6 +465,7 @@ const UniversalSearchPalette = () => {
 
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [recents, setRecents] = useState<RecentEntry[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
@@ -437,7 +497,17 @@ const UniversalSearchPalette = () => {
   const resultItems = useMemo<SearchItem[]>(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
-      return JUMP_LINKS.map((link): SearchItem => ({
+      const recentRows = recents.map((entry): SearchItem => ({
+        id: `recent:${entry.href}`,
+        module: 'appointments',
+        groupKey: 'recent',
+        iconKey: 'time',
+        title: entry.title,
+        subtitle: '',
+        keywords: entry.title,
+        href: entry.href,
+      }));
+      const jumpRows = JUMP_LINKS.map((link): SearchItem => ({
         id: `jump:${link.href}`,
         module: 'appointments',
         groupKey: 'jump',
@@ -448,6 +518,7 @@ const UniversalSearchPalette = () => {
         href: link.href,
         keycap: link.keycap,
       }));
+      return [...recentRows, ...jumpRows];
     }
 
     const tokens = q.split(/\s+/).filter(Boolean);
@@ -483,12 +554,16 @@ const UniversalSearchPalette = () => {
     // visual order; the IDEXX action lands last in "Actions".
     const combined = [...scored, idexxAction];
     return GROUP_ORDER.flatMap((mod) => combined.filter((item) => item.groupKey === mod));
-  }, [items, query, setHeaderSearchQuery]);
+  }, [items, query, recents, setHeaderSearchQuery]);
 
   const renderGroups = useMemo(() => {
     const indexed = resultItems.map((item, index) => ({ item, index }));
     if (!hasQuery) {
-      return [{ key: 'jump' as SearchGroupKey, label: GROUP_LABELS.jump, rows: indexed }];
+      const emptyStateGroups: SearchGroupKey[] = ['recent', 'jump'];
+      return emptyStateGroups.flatMap((key) => {
+        const rows = indexed.filter((entry) => entry.item.groupKey === key);
+        return rows.length > 0 ? [{ key, label: GROUP_LABELS[key], rows }] : [];
+      });
     }
     return GROUP_ORDER.reduce<Array<{ key: SearchGroupKey; label: string; rows: typeof indexed }>>(
       (groups, mod) => {
@@ -507,6 +582,11 @@ const UniversalSearchPalette = () => {
       /* v8 ignore next -- selectItem is only ever invoked with a defined row */
       if (!item) return;
       item.onSelect?.();
+      // "Jump to" rows are nav shortcuts, not records — only opened records (and
+      // re-opened recents) feed the design's "Recent" list.
+      if (item.groupKey !== 'jump') {
+        setRecents(writeRecent({ title: item.title, href: item.href }));
+      }
       close();
       setQuery('');
       startRouteLoader();
@@ -577,6 +657,7 @@ const UniversalSearchPalette = () => {
   useEffect(() => {
     if (!isOpen) return;
     setActiveIndex(0);
+    setRecents(readRecents());
     const timeout = globalThis.window?.setTimeout(() => {
       inputRef.current?.focus();
       inputRef.current?.select();

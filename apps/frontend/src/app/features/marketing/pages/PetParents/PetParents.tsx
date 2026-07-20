@@ -101,7 +101,7 @@ const HERO_FLOAT_AVATAR_BLUE_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 700,
 };
 
@@ -148,7 +148,7 @@ const HERO_PARAGRAPH_STYLE: CSSProperties = {
   lineHeight: 1.6,
   letterSpacing: '-0.025em',
   color: 'var(--ink-soft)',
-  textShadow: '0 1px 16px rgba(239,232,220,0.94), 0 1px 3px rgba(239,232,220,0.85)',
+  textShadow: '0 1px 16px var(--hero-halo1), 0 1px 3px var(--hero-halo2)',
   opacity: 0,
   animation: `ycHeroUp 1s ${EASE} 0.5s both`,
   textWrap: 'pretty',
@@ -666,7 +666,7 @@ function Hero() {
             >
               <IoLogoGooglePlaystore style={{ fontSize: 23 }} aria-hidden="true" />
               <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.05 }}>
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
+                <span style={{ fontSize: 12, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
                   Get it on
                 </span>
                 <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em' }}>
