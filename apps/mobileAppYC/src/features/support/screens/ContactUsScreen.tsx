@@ -207,14 +207,22 @@ const SelectionList: React.FC<{
 }> = ({options, selectedId, onSelect, styles, error}) => (
   <View>
     <View style={styles.optionsBox}>
-      {options.map(option => {
+      {options.map((option, index) => {
         const isSelected = selectedId === option.id;
+        const isLast = index === options.length - 1;
         return (
           <PressableOpacity
             key={option.id}
-            style={styles.optionRow}
+            style={[
+              styles.optionRow,
+              isLast && styles.optionRowLast,
+              isSelected && styles.optionRowSelected,
+            ]}
             onPress={() => onSelect(option.id)}
-            activeOpacity={0.8}>
+            activeOpacity={0.8}
+            accessibilityRole="radio"
+            accessibilityState={{selected: isSelected}}
+            accessibilityLabel={option.label}>
             <Text
               style={
                 isSelected ? styles.optionTextSelected : styles.optionText
@@ -768,12 +776,11 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           }}
           glassEffect="regular"
           interactive
-          tintColor={theme.colors.secondary}
-          borderColor={theme.colors.borderMuted}
+          tintColor={theme.colors.cta}
           style={styles.button}
           textStyle={styles.buttonText}
           height={56}
-          borderRadius={16}
+          borderRadius={theme.borderRadius.button}
           loading={submitting[tabId]}
           disabled={submitting[tabId]}
         />
@@ -925,12 +932,11 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           }}
           glassEffect="regular"
           interactive
-          tintColor={theme.colors.secondary}
-          borderColor={theme.colors.borderMuted}
+          tintColor={theme.colors.cta}
           style={styles.button}
           textStyle={styles.buttonText}
           height={56}
-          borderRadius={16}
+          borderRadius={theme.borderRadius.button}
           loading={submitting.dsar}
           disabled={submitting.dsar}
         />
@@ -1046,12 +1052,11 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           }}
           glassEffect="regular"
           interactive
-          tintColor={theme.colors.secondary}
-          borderColor={theme.colors.borderMuted}
+          tintColor={theme.colors.cta}
           style={styles.button}
           textStyle={styles.buttonText}
           height={56}
-          borderRadius={16}
+          borderRadius={theme.borderRadius.button}
           loading={submitting.complaint}
           disabled={submitting.complaint}
         />
@@ -1179,7 +1184,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     flex: {
       flex: 1,
@@ -1211,8 +1216,8 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
     },
     heroTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
     },
     heroSubtitle: {
@@ -1223,14 +1228,14 @@ const createStyles = (theme: any) =>
       width: theme.spacing['5'],
       height: theme.spacing['5'],
       resizeMode: 'contain',
-      tintColor: theme.colors.textSecondary,
+      tintColor: theme.colors.inkFaint,
     },
     pillContainer: {
       marginBottom: theme.spacing['1'],
     },
     surfaceCard: {
       gap: theme.spacing['4'],
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
       paddingVertical: theme.spacing['2'],
       paddingHorizontal: theme.spacing['0'],
     },
@@ -1245,32 +1250,38 @@ const createStyles = (theme: any) =>
     },
     sectionLabel: {
       ...theme.typography.titleSmall,
-      color: theme.colors.text,
+      color: theme.colors.ink,
     },
     optionsBox: {
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1.5,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.field,
       overflow: 'hidden',
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.fieldBg,
     },
     optionRow: {
-      paddingVertical: theme.spacing['3'],
+      paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['4'],
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
+      borderBottomColor: theme.colors.hairline,
+    },
+    optionRowSelected: {
+      backgroundColor: theme.colors.blueSoft,
+    },
+    optionRowLast: {
+      borderBottomWidth: 0,
     },
     optionText: {
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
       ...theme.typography.paragraph,
     },
     optionTextSelected: {
-      color: theme.colors.text,
+      color: theme.colors.blueText,
       ...theme.typography.paragraphBold,
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.danger,
       marginTop: 3,
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
@@ -1280,12 +1291,12 @@ const createStyles = (theme: any) =>
     },
     checkboxLabel: {
       ...theme.typography.subtitleRegular14,
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
       letterSpacing: -0.3,
     },
     checkboxLabelChecked: {
       ...theme.typography.subtitleBold14,
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
       letterSpacing: -0.3,
     },
     uploadArea: {
@@ -1311,15 +1322,13 @@ const createStyles = (theme: any) =>
     },
     button: {
       width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      boxShadow: `0px ${theme.spacing['2']}px ${theme.spacing['3']}px ${theme.colors.black}`,
+      backgroundColor: theme.colors.cta,
+      borderRadius: theme.borderRadius.button,
+      ...theme.shadows.cta,
     },
     buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+      ...theme.typography.button,
+      color: theme.colors.ctaText,
     },
     glassButtonDark: {
       backgroundColor: theme.colors.primary,

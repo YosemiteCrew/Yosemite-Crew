@@ -1,33 +1,15 @@
 import React, {useState, useMemo, useCallback} from 'react';
-import {StyleSheet, Text, FlatList} from 'react-native';
-import type {ListRenderItemInfo} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
-import {LinkedBusinessCard} from '@/features/linkedBusinesses/components/LinkedBusinessCard';
+import {AERBusinessSelectCard} from '@/features/adverseEventReporting/components/AERBusinessSelectCard';
 import type {AdverseEventStackParamList} from '@/navigation/types';
 import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step3'>;
-
-type BusinessRowProps = {
-  item: React.ComponentProps<typeof LinkedBusinessCard>['business'];
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-};
-
-const BusinessRow = React.memo(
-  ({item, isSelected, onSelect}: BusinessRowProps) => (
-    <LinkedBusinessCard
-      business={item}
-      onPress={() => onSelect(item.id)}
-      showActionButtons={false}
-      showBorder={isSelected}
-    />
-  ),
-);
 
 export const Step3Screen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
@@ -60,35 +42,27 @@ export const Step3Screen: React.FC<Props> = ({navigation}) => {
     [updateDraft],
   );
 
-  const renderBusinessRow = useCallback(
-    ({item}: ListRenderItemInfo<BusinessRowProps['item']>) => (
-      <BusinessRow
-        item={item}
-        isSelected={selectedBusinessId === item.id}
-        onSelect={handleBusinessSelect}
-      />
-    ),
-    [selectedBusinessId, handleBusinessSelect],
-  );
-
   return (
     <AERLayout
-      stepLabel="Step 3 of 5"
+      currentStep={3}
+      totalSteps={5}
       onBack={() => navigation.goBack()}
       bottomButton={{
         title: 'Next',
         onPress: handleNext,
-        textStyleOverride: styles.buttonText,
       }}>
       <Text style={styles.title}>Select Linked Hospital</Text>
 
-      <FlatList
-        data={linkedBusinesses}
-        scrollEnabled={false}
-        keyExtractor={item => item.id}
-        renderItem={renderBusinessRow}
-        contentContainerStyle={styles.listContent}
-      />
+      <View style={styles.list}>
+        {linkedBusinesses.map(business => (
+          <AERBusinessSelectCard
+            key={business.id}
+            business={business}
+            isSelected={selectedBusinessId === business.id}
+            onSelect={handleBusinessSelect}
+          />
+        ))}
+      </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </AERLayout>
   );
@@ -97,20 +71,16 @@ export const Step3Screen: React.FC<Props> = ({navigation}) => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     title: {
-      ...theme.typography.h6Clash,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['4'],
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
+      marginBottom: theme.spacing['5'],
     },
-    listContent: {
-      marginBottom: theme.spacing['6'],
-    },
-    buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.paragraphBold,
+    list: {
+      marginBottom: theme.spacing['2'],
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.danger,
       marginTop: theme.spacing['1'],
       marginLeft: theme.spacing['1'],
     },

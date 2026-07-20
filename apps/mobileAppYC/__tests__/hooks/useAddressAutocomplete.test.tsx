@@ -5,7 +5,10 @@ import {
   fetchPlaceSuggestions,
   MissingApiKeyError,
 } from '@/shared/services/maps/googlePlaces'; // CORRECTED IMPORT PATH
-import type {PlaceDetails, PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
+import type {
+  PlaceDetails,
+  PlaceSuggestion,
+} from '@/shared/services/maps/googlePlaces';
 
 // --- Mocks ---
 
@@ -389,9 +392,102 @@ describe('useAddressAutocomplete', () => {
 
   // [FAILING TESTS REMOVED]
   // it('should fetch details, update query, and clear suggestions on selectSuggestion', async () => { ... });
-  // it('should use suggestion primaryText as fallback for query if details addressLine is null or undefined', async () => { ... });
-  // it('should handle error during selectSuggestion', async () => { ... });
-  // it('should handle MissingApiKeyError during selectSuggestion', async () => { ... });
+
+  it('should use suggestion primaryText as fallback for query if details addressLine is null or undefined', async () => {
+    const detailsWithoutAddressLine = {
+      ...mockDetails1,
+      addressLine: undefined,
+    } as unknown as PlaceDetails;
+    mockedFetchDetails.mockResolvedValueOnce(detailsWithoutAddressLine);
+    const {result} = renderHook(() => useAddressAutocomplete());
+
+    let details: PlaceDetails | null = null;
+    await act(async () => {
+      details = await result.current.selectSuggestion(mockSuggestion1);
+      await Promise.resolve();
+    });
+    await act(async () => {});
+
+    expect(result.current.query).toBe(mockSuggestion1.primaryText);
+    // The returned details object's addressLine is backfilled with the same
+    // primaryText fallback, not left undefined.
+    expect(details?.addressLine).toBe(mockSuggestion1.primaryText);
+  });
+
+  it('falls back to an empty query and undefined addressLine when both addressLine and primaryText are missing', async () => {
+    const detailsWithoutAddressLine = {
+      ...mockDetails1,
+      addressLine: undefined,
+    } as unknown as PlaceDetails;
+    mockedFetchDetails.mockResolvedValueOnce(detailsWithoutAddressLine);
+    // primaryText must be genuinely nullish (not just an empty string) so the
+    // local `addressLine` variable itself resolves to undefined -- only then
+    // do the downstream `?? ''` / `?? undefined` fallbacks actually trigger.
+    const suggestionWithoutPrimaryText = {
+      ...mockSuggestion1,
+      primaryText: undefined as unknown as string,
+    };
+    const {result} = renderHook(() => useAddressAutocomplete());
+
+    let details: PlaceDetails | null = null;
+    await act(async () => {
+      details = await result.current.selectSuggestion(
+        suggestionWithoutPrimaryText,
+      );
+      await Promise.resolve();
+    });
+    await act(async () => {});
+
+    expect(result.current.query).toBe('');
+    expect(details?.addressLine).toBeUndefined();
+  });
+
+  it('should handle error during selectSuggestion', async () => {
+    mockedFetchDetails.mockReset();
+    mockedFetchDetails.mockRejectedValueOnce(new Error('Network down'));
+    // The public `error` value is masked to null while the query is below
+    // minQueryLength (see the hook's `isBelowMinLength ? null : error`
+    // return), so an initialQuery long enough to clear that threshold is
+    // required to actually observe the internal error state here.
+    const {result} = renderHook(() =>
+      useAddressAutocomplete({initialQuery: '123 Main St'}),
+    );
+
+    let details: PlaceDetails | null = null;
+    await act(async () => {
+      details = await result.current.selectSuggestion(mockSuggestion1);
+      await Promise.resolve(); // Flush microtasks from the catch block's state updates
+    });
+    // Extra act to let React flush the render from the state updates above
+    // (mirrors advanceTimersAndFlush's trailing empty act()).
+    await act(async () => {});
+
+    expect(details).toBeNull();
+    expect(result.current.error).toBe(
+      'Unable to fetch the selected address details.',
+    );
+    expect(result.current.isFetching).toBe(false);
+  });
+
+  it('should handle MissingApiKeyError during selectSuggestion', async () => {
+    mockedFetchDetails.mockRejectedValueOnce(new MissingApiKeyError());
+    const {result} = renderHook(() =>
+      useAddressAutocomplete({initialQuery: '123 Main St'}),
+    );
+
+    let details: PlaceDetails | null = null;
+    await act(async () => {
+      details = await result.current.selectSuggestion(mockSuggestion1);
+      await Promise.resolve(); // Flush microtasks from the catch block's state updates
+    });
+    await act(async () => {});
+
+    expect(details).toBeNull();
+    expect(result.current.error).toBe(
+      'Address autocomplete is unavailable. Please enter your address manually.',
+    );
+    expect(result.current.isFetching).toBe(false);
+  });
 
   it('selectSuggestion should prevent subsequent suggestion lookup triggered by its own setQuery', async () => {
     mockedFetchDetails.mockResolvedValueOnce(mockDetails1);
@@ -471,6 +567,35 @@ describe('useAddressAutocomplete', () => {
       await Promise.resolve(); // Flush microtasks
     });
     // No errors should occur
+  });
+
+  it('should not update state if the debounced fetch rejects after unmount', async () => {
+    let rejectFetch: (reason: unknown) => void = () => {};
+    const fetchPromise = new Promise<PlaceSuggestion[]>((_resolve, reject) => {
+      rejectFetch = reject;
+    });
+    mockedFetchSuggestions.mockReturnValue(fetchPromise);
+    const {result, unmount} = renderHook(() => useAddressAutocomplete());
+
+    act(() => {
+      result.current.setQuery('UnmountFetchReject');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+    expect(mockedFetchSuggestions).toHaveBeenCalledTimes(1);
+
+    unmount(); // Cleanup sets isActive = false
+
+    // Reject the in-flight fetch AFTER unmount; the catch block's own
+    // `if (!isActive) return;` guard should skip the setError/setSuggestions
+    // calls without throwing.
+    await act(async () => {
+      rejectFetch(new Error('Network down'));
+      await Promise.resolve().catch(() => {});
+    });
+    // No errors should occur (no "state update on unmounted component"
+    // warnings, no unhandled rejection).
   });
 
   it('should not update state if query changes during fetch (isActive=false)', async () => {

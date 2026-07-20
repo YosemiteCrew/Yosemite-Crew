@@ -9,7 +9,6 @@ import {
   ViewStyle,
   StyleProp,
   useColorScheme,
-  Platform,
 } from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -51,11 +50,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     <PressableOpacity
       activeOpacity={0.85}
       style={styles.touchable}
-      onPress={onPress}>
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={placeholder}>
       <View style={styles.content}>
-        <Text style={styles.placeholder} numberOfLines={1} ellipsizeMode="tail">
-          {placeholder}
-        </Text>
         <PressableOpacity
           activeOpacity={0.85}
           onPress={onIconPress ?? onPress}
@@ -64,9 +62,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             bottom: theme.spacing['2'],
             left: theme.spacing['2'],
             right: theme.spacing['2'],
-          }}>
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Search">
           <Image source={Images.searchIcon} style={styles.icon} />
         </PressableOpacity>
+        <Text style={styles.placeholder} numberOfLines={1} ellipsizeMode="tail">
+          {placeholder}
+        </Text>
       </View>
       {rightElement}
     </PressableOpacity>
@@ -74,19 +77,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   const renderInput = () => (
     <View style={styles.inputWrapper}>
-      <TextInput
-        autoFocus={autoFocus}
-        style={styles.input}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.textSecondary}
-        value={value}
-        onChangeText={onChangeText}
-        onSubmitEditing={onSubmitEditing}
-        returnKeyType="done"
-        keyboardAppearance={keyboardAppearance}
-        multiline={false}
-        numberOfLines={1}
-      />
       <PressableOpacity
         activeOpacity={0.85}
         onPress={() => {
@@ -101,9 +91,24 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           bottom: theme.spacing['2'],
           left: theme.spacing['2'],
           right: theme.spacing['2'],
-        }}>
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Search">
         <Image source={Images.searchIcon} style={styles.icon} />
       </PressableOpacity>
+      <TextInput
+        autoFocus={autoFocus}
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor={theme.colors.textSecondary}
+        value={value}
+        onChangeText={onChangeText}
+        onSubmitEditing={onSubmitEditing}
+        returnKeyType="done"
+        keyboardAppearance={keyboardAppearance}
+        multiline={false}
+        numberOfLines={1}
+      />
       {rightElement}
     </View>
   );
@@ -125,20 +130,18 @@ const createStyles = (theme: any) =>
       height: 48,
       paddingHorizontal: 20,
       paddingVertical: 13,
-      borderRadius: 16,
-      borderWidth: Platform.OS === 'ios' ? 0 : 0.5,
-      borderColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.text,
-      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.pill,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
       overflow: 'hidden',
-      boxShadow: `0px 1px 6px ${theme.colors.neutralShadow}`,
     },
     fallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.text,
-      borderWidth: Platform.OS === 'ios' ? 0 : 0.5,
-      borderRadius: 16,
+      backgroundColor: theme.colors.screen2,
+      borderColor: theme.colors.hairline,
+      borderWidth: 1,
+      borderRadius: theme.borderRadius.pill,
       overflow: 'hidden',
-      boxShadow: `0px 1px 6px ${theme.colors.neutralShadow}`,
     },
     touchable: {
       flexDirection: 'row',
@@ -156,7 +159,7 @@ const createStyles = (theme: any) =>
       width: theme.spacing['5'],
       height: theme.spacing['5'],
       resizeMode: 'contain',
-      tintColor: theme.colors.textSecondary,
+      tintColor: theme.colors.inkFaint,
     },
     placeholder: {
       flex: 1,
@@ -164,7 +167,7 @@ const createStyles = (theme: any) =>
       fontSize: 17,
       lineHeight: 22,
       fontWeight: '400',
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
       includeFontPadding: false,
     },
     inputWrapper: {

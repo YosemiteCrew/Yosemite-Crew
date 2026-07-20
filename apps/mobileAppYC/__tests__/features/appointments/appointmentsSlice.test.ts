@@ -19,6 +19,7 @@ import {
   isTokenExpired,
 } from '../../../src/features/auth/sessionManager';
 import {toFHIRAppointment} from '@yosemite-crew/types';
+import {deleteCompanion} from '../../../src/features/companion/thunks';
 
 jest.mock(
   '../../../src/features/appointments/services/appointmentsService',
@@ -1708,6 +1709,35 @@ describe('appointmentsSlice', () => {
 
       const inv = (store.getState() as any).appointments.invoices[0];
       expect(inv.paymentIntent).toBeNull();
+    });
+  });
+
+  describe('deleteCompanion.fulfilled', () => {
+    it('removes appointments and invoices belonging to the deleted companion', () => {
+      const store = createTestStore({
+        items: [
+          {...mockAppointment, id: 'appt-1', companionId: 'comp-1'},
+          {...mockAppointment, id: 'appt-2', companionId: 'comp-2'},
+        ],
+        invoices: [
+          {...mockInvoice, id: 'inv-1', appointmentId: 'appt-1'},
+          {...mockInvoice, id: 'inv-2', appointmentId: 'appt-2'},
+        ],
+        hydratedCompanions: {'comp-1': true, 'comp-2': true},
+      });
+
+      store.dispatch(
+        deleteCompanion.fulfilled('comp-1', 'request-id', 'comp-1'),
+      );
+
+      const state = (store.getState() as any).appointments;
+      expect(state.items).toEqual([
+        expect.objectContaining({id: 'appt-2', companionId: 'comp-2'}),
+      ]);
+      expect(state.invoices).toEqual([
+        expect.objectContaining({id: 'inv-2', appointmentId: 'appt-2'}),
+      ]);
+      expect(state.hydratedCompanions).toEqual({'comp-2': true});
     });
   });
 });

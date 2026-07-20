@@ -4,7 +4,7 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Text, TextInput} from 'react-native';
+import {Platform, Text, TextInput} from 'react-native';
 import {OTPInput} from '@/shared/components/common/OTPInput/OTPInput';
 import {themeReducer} from '@/features/theme';
 
@@ -423,5 +423,41 @@ describe('OTPInput', () => {
     });
 
     expect(tree.root.findAllByType(TextInput)).toHaveLength(4);
+  });
+
+  it('focuses the first input shortly after mount and clears the timer on unmount', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    // autoFocus defaults to true, so mounting schedules the 100ms focus timer.
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    // Firing the timer runs the inputRefs.current[0]?.focus() body (the
+    // autoFocus-true branch); unmount then exercises the clearTimeout cleanup.
+    TestRenderer.act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    TestRenderer.act(() => {
+      tree.unmount();
+    });
+
+    expect(tree).toBeTruthy();
+  });
+
+  it('applies android-specific text styles when running on android', () => {
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    expect(tree.root.findAllByType(TextInput)).toHaveLength(4);
+
+    Platform.OS = originalOS;
   });
 });

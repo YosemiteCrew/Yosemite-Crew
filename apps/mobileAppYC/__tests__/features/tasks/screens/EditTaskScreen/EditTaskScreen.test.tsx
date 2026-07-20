@@ -185,9 +185,15 @@ jest.mock(
 );
 
 jest.mock('@/shared/components/common', () => ({
-  Input: ({label, value}: any) => {
-    const {Text} = require('react-native');
-    return <Text>{`${label}:${value}`}</Text>;
+  Input: ({label, value, onChangeText}: any) => {
+    const {Text, TouchableOpacity} = require('react-native');
+    return (
+      <TouchableOpacity
+        testID={`input-${label}`}
+        onPress={() => onChangeText?.('changed')}>
+        <Text>{`${label}:${value}`}</Text>
+      </TouchableOpacity>
+    );
   },
 }));
 
@@ -1215,6 +1221,30 @@ describe('EditTaskScreen — additional coverage', () => {
     it('uses the provided numeric paddingTop when available', () => {
       renderScreen();
       expect(() => lastContentPaddingChildren({paddingTop: 25})).not.toThrow();
+    });
+
+    it('falls back to the default paddingTop when none is provided', () => {
+      renderScreen();
+      expect(() => lastContentPaddingChildren(undefined)).not.toThrow();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Locked category input — no-op onChangeText
+  // -------------------------------------------------------------------------
+
+  describe('locked category input', () => {
+    it('renders the resolved category label for the read-only Task type field', () => {
+      const {getByText} = renderScreen();
+      expect(getByText('Task type:HEALTH')).toBeTruthy();
+    });
+
+    it('invokes the read-only onChangeText no-op without side effects', () => {
+      const {getByTestId} = renderScreen();
+      expect(() =>
+        fireEvent.press(getByTestId('input-Task type')),
+      ).not.toThrow();
+      expect(mockUpdateTask).not.toHaveBeenCalled();
     });
   });
 });

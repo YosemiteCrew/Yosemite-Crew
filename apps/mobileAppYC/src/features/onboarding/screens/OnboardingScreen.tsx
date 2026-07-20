@@ -1,235 +1,305 @@
-/* eslint-disable react-native/no-inline-styles */
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useCallback, useMemo} from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   useWindowDimensions,
   FlatList,
   Image,
+  ScrollView,
   ViewToken,
+  type ListRenderItem,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
+import Video from 'react-native-video';
+import {useTranslation} from 'react-i18next';
 import {useTheme} from '@/hooks';
-import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-
-interface OnboardingItem {
-  id: string;
-  textImage: any;
-  bottomImage: any;
-  textImageWidth: number; // Custom width for text image
-  bottomImageHeight: number; // Custom height for bottom image
-}
+import {InkAnnotation} from '@/shared/components/common/InkAnnotation';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {useReducedMotion} from '@/shared/components/common/Skeleton/useReducedMotion';
+import {MEDIA_SOURCES} from '@/shared/constants/mediaSources';
+import type {Theme} from '@/theme';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
 }
 
-const onboardingData: OnboardingItem[] = [
+type VideoSource = React.ComponentProps<typeof Video>['source'];
+
+interface Slide {
+  id: string;
+  video: VideoSource;
+  lead: string;
+  accent: string;
+  accentDelay: number;
+  subtitle: string;
+  cta: string;
+}
+
+// Served from the curated media CDN instead of bundled locally to keep the
+// app binary smaller and allow the source video to be updated without a
+// release.
+const VIDEO_CAT = {uri: MEDIA_SOURCES.onboarding.slide1.video};
+const VIDEO_DOG = {uri: MEDIA_SOURCES.onboarding.slide2.video};
+const VIDEO_CARE = {uri: MEDIA_SOURCES.onboarding.slide3.video};
+
+const SLIDE_META = [
+  {id: '1', video: VIDEO_CAT, accentDelay: 1000},
+  {id: '2', video: VIDEO_DOG, accentDelay: 600},
+  {id: '3', video: VIDEO_CARE, accentDelay: 600},
+] as const;
+
+const CLUSTER = [
   {
-    id: '1',
-    textImage: require('../../../assets/images/onboarding/text-image-1.png'),
-    bottomImage: require('../../../assets/images/onboarding/bottom-image-1.png'),
-    textImageWidth: 0.55, // 60% of screen width for slide 1
-    bottomImageHeight: 0.5, // 60% of screen height for slide 1
+    key: 'cat',
+    source: require('../../../assets/images/addCompanion/cat.png'),
+    variant: 'avatarCat',
   },
   {
-    id: '2',
-    textImage: require('../../../assets/images/onboarding/text-image-2.png'),
-    bottomImage: require('../../../assets/images/onboarding/bottom-image-2.png'),
-    textImageWidth: 0.85, // 70% of screen width for slide 2
-    bottomImageHeight: 0.55, // 55% of screen height for slide 2
+    key: 'dog',
+    source: require('../../../assets/images/addCompanion/dog.png'),
+    variant: 'avatarDog',
   },
   {
-    id: '3',
-    textImage: require('../../../assets/images/onboarding/text-image-3.png'),
-    bottomImage: require('../../../assets/images/onboarding/bottom-image-3.png'),
-    textImageWidth: 0.8, // 65% of screen width for slide 3
-    bottomImageHeight: 0.6, // 65% of screen height for slide 3
+    key: 'equine',
+    source: require('../../../assets/images/addCompanion/equine.png'),
+    variant: 'avatarEquine',
   },
-  {
-    id: '4',
-    textImage: require('../../../assets/images/onboarding/text-image-4.png'),
-    bottomImage: require('../../../assets/images/onboarding/bottom-image-4.png'),
-    textImageWidth: 0.7, // 75% of screen width for slide 4
-    bottomImageHeight: 0.6, // 50% of screen height for slide 4
-  },
-];
+] as const;
+
+const LOGO = require('../../../assets/images/yosemite-logo-1024.png');
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   onComplete,
 }) => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const {width, height} = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<Slide>>(null);
+  const reduceMotion = useReducedMotion();
+
+  const SLIDES: Slide[] = useMemo(
+    () => [
+      {
+        ...SLIDE_META[0],
+        lead: t('onboarding.slide1_lead'),
+        accent: t('onboarding.slide1_accent'),
+        subtitle: t('onboarding.slide1_subtitle'),
+        cta: t('onboarding.continue'),
+      },
+      {
+        ...SLIDE_META[1],
+        lead: t('onboarding.slide2_lead'),
+        accent: t('onboarding.slide2_accent'),
+        subtitle: t('onboarding.slide2_subtitle'),
+        cta: t('onboarding.continue'),
+      },
+      {
+        ...SLIDE_META[2],
+        lead: t('onboarding.slide3_lead'),
+        accent: t('onboarding.slide3_accent'),
+        subtitle: t('onboarding.slide3_subtitle'),
+        cta: t('onboarding.getStarted'),
+      },
+    ],
+    [t],
+  );
 
   const onViewableItemsChanged = useRef(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
-      if (viewableItems.length > 0) {
-        setCurrentIndex(viewableItems[0].index || 0);
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setCurrentIndex(viewableItems[0].index);
       }
     },
   ).current;
 
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
-  }).current;
+  const viewabilityConfig = useRef({itemVisiblePercentThreshold: 60}).current;
 
-  const buildDots = () => {
-    return (
-      <View style={styles.dotsContainer}>
-        {onboardingData.map((item, index) => (
-          <View
-            key={`onboarding-dot-${item.id}`}
-            style={[
-              styles.dot,
-              {
-                backgroundColor:
-                  index === currentIndex
-                    ? theme.colors.black
-                    : theme.colors.textSecondary,
-                opacity: index === currentIndex ? 1 : 0.3,
-              },
-            ]}
-          />
-        ))}
-      </View>
-    );
-  };
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const accentTextStyle = useMemo(
+    () => [
+      theme.typography.onboardingHeadline,
+      {fontFamily: theme.typography.NEWSREADER_ITALIC},
+    ],
+    [theme],
+  );
 
-  const renderOnboardingItem = ({
-    item,
-    index,
-  }: {
-    item: OnboardingItem;
-    index: number;
-  }) => {
-    const isLastSlide = index === onboardingData.length - 1;
+  const goNext = useCallback(
+    (index: number) => {
+      if (index >= SLIDES.length - 1) {
+        onComplete();
+        return;
+      }
+      flatListRef.current?.scrollToIndex({index: index + 1, animated: true});
+    },
+    [SLIDES.length, onComplete],
+  );
 
-    return (
-      <View style={styles.slideContainer}>
-        {/* Text Image */}
-        <View style={styles.textImageContainer}>
-          <Image
-            source={item.textImage}
-            style={[styles.textImage, {width: width * item.textImageWidth}]}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* Dots Indicator */}
-        {buildDots()}
-
-        {/* Bottom Image */}
-        <View
-          style={[
-            styles.bottomImageContainer,
-            {height: height * item.bottomImageHeight},
-          ]}>
-          <Image
-            source={item.bottomImage}
-            style={styles.bottomImage}
-            resizeMode="cover"
-          />
-        </View>
-
-        {/* Get Started Button (only on last slide) */}
-        {isLastSlide && (
-          <View style={styles.getStartedContainer}>
-            <LiquidGlassButton
-              title="Get Started"
-              glassEffect="clear"
-              style={styles.getStartedButton}
-              borderRadius="lg"
-              height={theme.spacing['14']}
-              tintColor={theme.colors.text}
-              width={width * 0.45}
-              textStyle={styles.getStartedText}
-              onPress={() => onComplete()}
+  const renderSlide = useCallback<ListRenderItem<Slide>>(
+    ({item, index}) => {
+      const isActive = index === currentIndex;
+      return (
+        <View style={[styles.slide, {width, height}]}>
+          {/* Looping video + scrim (top media band) */}
+          <View style={[styles.media, {height: height * 0.6}]}>
+            <Video
+              source={item.video}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              repeat
+              muted
+              paused={!isActive || reduceMotion}
+              playInBackground={false}
+              disableFocus
+              ignoreSilentSwitch="obey"
+            />
+            <LinearGradient
+              colors={[
+                'rgba(29,28,27,0.22)',
+                'rgba(29,28,27,0.0)',
+                'rgba(29,28,27,0.0)',
+                theme.colors.screen,
+              ]}
+              locations={[0, 0.22, 0.42, 0.99]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
             />
           </View>
-        )}
-      </View>
-    );
-  };
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
+          {/* Top bar over the video */}
+          <SafeAreaView edges={['top']} style={styles.topBarWrap}>
+            <View style={styles.topBar}>
+              {index === 0 ? (
+                <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+              ) : (
+                <PressableOpacity
+                  style={styles.glassCircle}
+                  onPress={() =>
+                    flatListRef.current?.scrollToIndex({
+                      index: index - 1,
+                      animated: true,
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={t('onboarding.back')}>
+                  <Text style={styles.chevron}>‹</Text>
+                </PressableOpacity>
+              )}
+              {index < SLIDES.length - 1 ? (
+                <PressableOpacity
+                  style={styles.skipPill}
+                  onPress={onComplete}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('onboarding.skipOnboarding')}>
+                  <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
+                </PressableOpacity>
+              ) : (
+                <View style={styles.glassCircle} />
+              )}
+            </View>
+          </SafeAreaView>
+
+          {/* Content */}
+          <View style={styles.content}>
+            <ScrollView
+              testID="onboarding-content-scroll"
+              style={styles.contentScroll}
+              contentContainerStyle={styles.contentScrollInner}
+              showsVerticalScrollIndicator={false}
+              bounces={false}>
+              <View style={styles.contentTop}>
+                {index === 0 ? (
+                  <View style={styles.cluster}>
+                    {CLUSTER.map(avatar => (
+                      <View
+                        key={avatar.key}
+                        style={[styles.avatar, styles[avatar.variant]]}>
+                        <Image
+                          source={avatar.source}
+                          style={styles.avatarImg}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
+                <View style={styles.headline}>
+                  <Text style={styles.lead}>{item.lead}</Text>
+                  <InkAnnotation
+                    color={theme.colors.pink}
+                    type="circle"
+                    italic
+                    delay={item.accentDelay}
+                    active={isActive}
+                    textStyle={accentTextStyle}>
+                    {item.accent}
+                  </InkAnnotation>
+                </View>
+
+                <Text style={styles.subtitle}>{item.subtitle}</Text>
+
+                <View style={styles.dots}>
+                  {SLIDES.map((slide, dotIndex) => (
+                    <View
+                      key={slide.id}
+                      style={[
+                        styles.dot,
+                        dotIndex === currentIndex
+                          ? styles.dotActive
+                          : styles.dotIdle,
+                      ]}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.contentBottom}>
+                <PressableOpacity
+                  style={styles.ctaButton}
+                  onPress={() => goNext(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.cta}>
+                  <Text style={styles.ctaText}>{item.cta}</Text>
+                </PressableOpacity>
+
+                <View style={styles.signInRow}>
+                  <Text style={styles.signInMuted}>
+                    {t('onboarding.alreadyHaveAccount')}
+                  </Text>
+                  <Text style={styles.signInLink} onPress={onComplete}>
+                    {t('onboarding.signIn')}
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      );
     },
-    slideContainer: {
-      width,
+    [
+      SLIDES,
+      accentTextStyle,
+      currentIndex,
+      goNext,
       height,
-      backgroundColor: theme.colors.background,
-      position: 'relative',
-    },
-    textImageContainer: {
-      position: 'absolute',
-      top: height * 0.1,
-      left: 0,
-      right: 0,
-      height: height * 0.15,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing['6'],
-    },
-    textImage: {
-      // Width is now set dynamically in renderOnboardingItem
-      height: '100%',
-    },
-    dotsContainer: {
-      position: 'absolute',
-      top: height * 0.3,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['4'],
-    },
-    dot: {
-      width: theme.spacing['2'],
-      height: theme.spacing['2'],
-      borderRadius: theme.borderRadius.full,
-      marginHorizontal: theme.spacing['1'],
-    },
-    bottomImageContainer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      width: '100%',
-      // Height is now set dynamically in renderOnboardingItem
-      justifyContent: 'flex-end',
-    },
-    bottomImage: {
-      width: '100%',
-      height: '100%',
-    },
-    getStartedContainer: {
-      position: 'absolute',
-      bottom: height * 0.48,
-      left: 0,
-      right: 0,
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing['6'],
-    },
-    getStartedButton: {
-      ...theme.shadows.md,
-    },
-    getStartedText: {
-      ...theme.typography.button,
-      color: theme.colors.white,
-    },
-  });
+      onComplete,
+      reduceMotion,
+      styles,
+      t,
+      theme.colors.pink,
+      theme.colors.screen,
+      width,
+    ],
+  );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <View style={styles.container}>
       <FlatList
         ref={flatListRef}
-        data={onboardingData}
-        renderItem={renderOnboardingItem}
+        data={SLIDES}
+        renderItem={renderSlide}
         keyExtractor={item => item.id}
         horizontal
         pagingEnabled
@@ -238,7 +308,149 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         viewabilityConfig={viewabilityConfig}
         bounces={false}
         scrollEventThrottle={16}
+        getItemLayout={(_, index) => ({
+          length: width,
+          offset: width * index,
+          index,
+        })}
       />
-    </SafeAreaView>
+    </View>
   );
 };
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {flex: 1, backgroundColor: theme.colors.screen},
+    slide: {flex: 1, backgroundColor: theme.colors.screen},
+    media: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: theme.colors.inset,
+    },
+    topBarWrap: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['2'],
+    },
+    logo: {width: 44, height: 44},
+    glassCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.glassPill,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.glassPillBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chevron: {
+      fontSize: 26,
+      lineHeight: 28,
+      color: theme.colors.inkBody,
+      marginTop: -2,
+    },
+    skipPill: {
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['2'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.glassPill,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.glassPillBorder,
+    },
+    skipText: {...theme.typography.labelSmall, color: theme.colors.inkBody},
+    content: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      top: '52%',
+    },
+    contentScroll: {
+      flex: 1,
+    },
+    contentScrollInner: {
+      flexGrow: 1,
+      paddingHorizontal: theme.spacing['6'],
+      paddingBottom: theme.spacing['8'],
+      justifyContent: 'space-between',
+    },
+    contentTop: {alignItems: 'center'},
+    contentBottom: {alignItems: 'center'},
+    cluster: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      marginBottom: theme.spacing['4'],
+    },
+    avatar: {
+      overflow: 'hidden',
+      borderWidth: 3,
+      borderColor: theme.colors.screen,
+      backgroundColor: theme.colors.inset,
+      ...theme.shadows.lg,
+    },
+    avatarCat: {width: 60, height: 60, borderRadius: 30, zIndex: 1},
+    avatarDog: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      marginLeft: -14,
+      zIndex: 2,
+    },
+    avatarEquine: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      marginLeft: -14,
+      zIndex: 1,
+    },
+    avatarImg: {width: '100%', height: '100%', resizeMode: 'cover'},
+    headline: {alignItems: 'center', gap: theme.spacing['1']},
+    lead: {
+      ...theme.typography.onboardingHeadline,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
+      textAlign: 'center',
+      marginTop: theme.spacing['3'],
+      maxWidth: 300,
+    },
+    dots: {
+      flexDirection: 'row',
+      gap: theme.spacing['2'],
+      marginTop: theme.spacing['5'],
+    },
+    dot: {height: 7, borderRadius: theme.borderRadius.full},
+    dotActive: {width: 22, backgroundColor: theme.colors.blue},
+    dotIdle: {width: 7, backgroundColor: theme.colors.divider},
+    ctaButton: {
+      width: '100%',
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: theme.colors.cta,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...theme.shadows.md,
+    },
+    ctaText: {...theme.typography.buttonLarge, color: theme.colors.ctaText},
+    signInRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: theme.spacing['4'],
+    },
+    signInMuted: {...theme.typography.body, color: theme.colors.inkMuted},
+    signInLink: {...theme.typography.bodyMedium, color: theme.colors.blueText},
+  });

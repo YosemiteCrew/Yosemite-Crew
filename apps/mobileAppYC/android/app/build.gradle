@@ -190,3 +190,11 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Bundle the react-native-vector-icons glyph fonts used by the warm-bone UI
+// (Ionicons for the redesigned screens, MaterialIcons for chat) so icons render
+// on Android instead of tofu boxes.
+project.ext.vectoricons = [
+    iconFontNames: ['Ionicons.ttf', 'MaterialIcons.ttf']
+]
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")

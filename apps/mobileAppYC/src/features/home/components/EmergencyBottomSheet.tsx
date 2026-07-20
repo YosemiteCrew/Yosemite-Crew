@@ -125,7 +125,9 @@ export const EmergencyBottomSheet = ({
           <PressableOpacity
             key={option.id}
             onPress={() => handleOptionPress(option.id)}
-            activeOpacity={0.85}>
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={option.title}>
             <LiquidGlassCard
               glassEffect="clear"
               interactive
@@ -180,7 +182,8 @@ export const EmergencyBottomSheet = ({
         <LiquidGlassIconButton
           onPress={handleClose}
           size={closeButtonSize}
-          style={styles.closeButton}>
+          style={styles.closeButton}
+          accessibilityLabel="Close">
           <Image
             source={Images.crossIcon}
             style={styles.closeIcon}

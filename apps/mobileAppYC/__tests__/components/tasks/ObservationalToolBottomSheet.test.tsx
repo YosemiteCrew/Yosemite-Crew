@@ -260,6 +260,24 @@ describe('ObservationalToolBottomSheet', () => {
     expect(screen.getByText('Items: Label for unnamed-tool-id')).toBeTruthy();
   });
 
+  it('warns and still resolves loading state when the tools API rejects', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.list.mockImplementationOnce(() =>
+      Promise.reject(new Error('Network down')),
+    );
+
+    await renderComponent({companionType: 'cat'});
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[ObservationalToolBottomSheet] Failed to fetch tools',
+      expect.any(Error),
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
   it('passes null as selectedItem when no tool is selected', async () => {
     await renderComponent({companionType: 'cat', selectedTool: null});
     expect(screen.getByText('Selected: null')).toBeTruthy();

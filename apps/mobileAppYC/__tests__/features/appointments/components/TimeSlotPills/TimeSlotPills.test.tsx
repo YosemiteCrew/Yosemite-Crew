@@ -110,6 +110,19 @@ describe('TimeSlotPills', () => {
     ).not.toThrow();
   });
 
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    render(
+      <TimeSlotPills slots={baseSlots} selected="10:00" onSelect={onSelect} />,
+    );
+
+    const selected = screen.getByLabelText('10:00');
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = screen.getByLabelText('09:00');
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
+  });
+
   it('accepts a numeric resetKey prop', () => {
     expect(() =>
       render(

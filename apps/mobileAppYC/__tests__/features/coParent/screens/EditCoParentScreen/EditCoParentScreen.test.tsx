@@ -467,6 +467,49 @@ describe('EditCoParentScreen', () => {
     expect(mockReset).toHaveBeenCalled();
   });
 
+  it('ignores a second ownership transfer confirmation while one is already in flight', async () => {
+    let resolveUnwrap: () => void = () => {};
+    mockActions.promoteCoParentToPrimary.mockImplementation(() => {
+      const p: any = new Promise(resolve => {
+        resolveUnwrap = resolve;
+      });
+      p.unwrap = jest.fn(() => p);
+      return p;
+    });
+
+    const {getAllByRole} = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    const switches = getAllByRole('switch');
+    fireEvent(switches[0], 'valueChange', true);
+    // @ts-ignore
+    const firstConfirm = Alert.alert.mock.calls[0][2][1].onPress;
+
+    // Start the transfer without awaiting completion, leaving isPromoting true.
+    act(() => {
+      firstConfirm();
+    });
+
+    // Re-open the dialog; this closure now sees isPromoting === true.
+    fireEvent(switches[0], 'valueChange', true);
+    // @ts-ignore
+    const secondConfirm = Alert.alert.mock.calls[1][2][1].onPress;
+    await act(async () => {
+      await secondConfirm();
+    });
+
+    expect(mockActions.promoteCoParentToPrimary).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveUnwrap();
+      await Promise.resolve();
+    });
+  });
+
   it('handles Ownership Transfer where companion refresh fails', async () => {
     // Mock promote success
     mockActions.promoteCoParentToPrimary.mockImplementation(() => {

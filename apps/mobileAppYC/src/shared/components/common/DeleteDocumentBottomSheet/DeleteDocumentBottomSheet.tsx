@@ -71,6 +71,7 @@ export const DeleteDocumentBottomSheet = ({
     <ConfirmActionBottomSheet
       ref={sheetRef}
       snapPoints={['35%']}
+      destructive
       title={title ?? 'Delete file'}
       message={
         message ?? `Are you sure you want to delete the file ${documentTitle}?`
@@ -78,7 +79,7 @@ export const DeleteDocumentBottomSheet = ({
       primaryButton={{
         label: isDeleting ? 'Deleting...' : (primaryLabel ?? 'Delete'),
         onPress: handleDelete,
-        tintColor: theme.colors.secondary,
+        tintColor: theme.colors.danger,
         textStyle: styles.deleteText,
         style: styles.deleteButton,
         disabled: isDeleting,
