@@ -2,7 +2,7 @@ import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {YearlySpendCard} from '../../../src/shared/components/common/YearlySpendCard/YearlySpendCard';
-import {Image, Pressable} from 'react-native';
+import {Image, Pressable, StyleSheet} from 'react-native';
 
 // react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
 // match against the memoized inner component, not the memo wrapper.
@@ -91,6 +91,21 @@ describe('YearlySpendCard Component', () => {
     expect(getByTestId('swipeable-glass-card')).toBeTruthy();
   });
 
+  it('renders a smaller serif amount in compact mode', () => {
+    const {getByText, rerender} = render(
+      <YearlySpendCard amount={1000} currencyCode="EUR" />,
+    );
+    const heroSize = StyleSheet.flatten(getByText('EUR 1000').props.style)
+      .fontSize as number;
+
+    rerender(<YearlySpendCard amount={1000} currencyCode="EUR" compact />);
+    const compactSize = StyleSheet.flatten(getByText('EUR 1000').props.style)
+      .fontSize as number;
+
+    expect(compactSize).toBe(24);
+    expect(heroSize).toBeGreaterThan(compactSize);
+  });
+
   it('renders companion avatar when provided', () => {
     const mockAvatar = {uri: 'avatar.png'};
     const {UNSAFE_getAllByType} = render(
@@ -135,6 +150,18 @@ describe('YearlySpendCard Component', () => {
     // resolveCurrencySymbol('FAIL', '$') -> returns '$'
     // catch block -> '$ 123'
     expect(getByText('$ 123')).toBeTruthy();
+  });
+
+  it('falls back to resolveCurrencySymbol when currencySymbol is empty', () => {
+    // Passing an empty string keeps `currencySymbol` falsy so the default '$'
+    // never applies, forcing the right-hand side of `currencySymbol ||
+    // resolveCurrencySymbol(...)` (line 36 branch) to execute.
+    const {getByText} = render(
+      <YearlySpendCard amount={99} currencyCode="FAIL" currencySymbol="" />,
+    );
+
+    // resolveCurrencySymbol('FAIL', '$') -> '$', catch block -> '$ 99'
+    expect(getByText('$ 99')).toBeTruthy();
   });
 
   // ===========================================================================

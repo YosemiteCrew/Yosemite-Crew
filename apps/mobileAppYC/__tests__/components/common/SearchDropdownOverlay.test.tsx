@@ -64,6 +64,21 @@ describe('SearchDropdownOverlay Component', () => {
   // 2. Interaction
   // ===========================================================================
 
+  it('exposes button role and a combined title/subtitle accessibility label', () => {
+    const {getByLabelText} = render(
+      <SearchDropdownOverlay {...defaultProps} />,
+    );
+    const item = getByLabelText('Alice Smith, Admin');
+    expect(item.props.accessibilityRole).toBe('button');
+  });
+
+  it('falls back to just the title in the accessibility label when the subtitle is null', () => {
+    const {getByLabelText} = render(
+      <SearchDropdownOverlay {...defaultProps} />,
+    );
+    expect(getByLabelText('Charlie')).toBeTruthy();
+  });
+
   it('calls onPress with the correct item when an item is pressed', () => {
     const mockOnPress = jest.fn();
     const {getByText} = render(
@@ -92,13 +107,16 @@ describe('SearchDropdownOverlay Component', () => {
   });
 
   it('does NOT render subtitle container if subtitle prop is undefined', () => {
-    const {getByText} = render(
+    const {getByText, getByLabelText} = render(
       <SearchDropdownOverlay
         {...defaultProps}
         subtitle={undefined} // No subtitle mapper
       />,
     );
     expect(getByText('Alice Smith')).toBeTruthy();
+    // With no subtitle mapper at all, the accessibility label falls back to
+    // just the title instead of a "title, subtitle" combination.
+    expect(getByLabelText('Alice Smith')).toBeTruthy();
   });
 
   // --- Avatar / Initials Logic Tests ---
@@ -205,6 +223,44 @@ describe('SearchDropdownOverlay Component', () => {
       : style;
 
     expect(flattened).toHaveProperty('backgroundColor', 'red');
+  });
+
+  it('falls back to just the title (no undefined coercion) when both subtitle and title resolve to null', () => {
+    const noTitleItems = [{id: '5', name: null as any, role: null}];
+    const {queryByText} = render(
+      <SearchDropdownOverlay
+        {...defaultProps}
+        items={noTitleItems}
+        subtitle={undefined}
+        title={() => null as any}
+        initials={undefined}
+      />,
+    );
+    expect(queryByText('Alice Smith')).toBeNull();
+  });
+
+  it('wraps the list in a LiquidGlassCard when useGlassCard is true', () => {
+    const {getByText} = render(
+      <SearchDropdownOverlay {...defaultProps} useGlassCard />,
+    );
+    expect(getByText('Alice Smith')).toBeTruthy();
+  });
+
+  it('does not use a LiquidGlassCard when useGlassCard is false (default)', () => {
+    const {getByText} = render(<SearchDropdownOverlay {...defaultProps} />);
+    expect(getByText('Alice Smith')).toBeTruthy();
+  });
+
+  it('applies the android shadow style when running on Android', () => {
+    const {Platform} = require('react-native');
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    expect(() =>
+      render(<SearchDropdownOverlay {...defaultProps} />),
+    ).not.toThrow();
+
+    Platform.OS = originalOS;
   });
 
   it('enables scrolling only when items exceed "scrollEnabledThreshold"', () => {

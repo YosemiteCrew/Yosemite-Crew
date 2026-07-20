@@ -1,10 +1,12 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, act} from '@testing-library/react-native';
 import {Step1Screen} from '@/features/adverseEventReporting/screens/Step1Screen';
 import * as reactRedux from 'react-redux';
 import * as AdverseEventContext from '@/features/adverseEventReporting/state/AdverseEventReportContext';
 import {setSelectedCompanion} from '@/features/companion';
+import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
+import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 
 // --- Mocks ---
 
@@ -27,7 +29,7 @@ jest.mock('@/assets/images', () => ({
 // FIX: Handle Default Import for AERLayout
 jest.mock('@/features/adverseEventReporting/components/AERLayout', () => {
   const {View, Text, TouchableOpacity} = require('react-native');
-  const AERLayout = ({children, stepLabel, onBack, bottomButton}: any) => (
+  const MockAERLayout = ({children, stepLabel, onBack, bottomButton}: any) => (
     <View testID="AERLayout">
       <Text>{stepLabel}</Text>
       <TouchableOpacity onPress={onBack} testID="aer-back-btn">
@@ -45,7 +47,7 @@ jest.mock('@/features/adverseEventReporting/components/AERLayout', () => {
   // Important: return default export structure
   return {
     __esModule: true,
-    default: AERLayout,
+    default: MockAERLayout,
   };
 });
 
@@ -54,7 +56,7 @@ jest.mock(
   '@/shared/components/common/CompanionSelector/CompanionSelector',
   () => {
     const {TouchableOpacity, Text} = require('react-native');
-    const CompanionSelector = ({onSelect, selectedCompanionId}: any) => (
+    const MockCompanionSelector = ({onSelect, selectedCompanionId}: any) => (
       <TouchableOpacity
         testID="companion-selector"
         onPress={() => onSelect('comp-123')}>
@@ -64,7 +66,7 @@ jest.mock(
       </TouchableOpacity>
     );
     return {
-      CompanionSelector,
+      CompanionSelector: MockCompanionSelector,
     };
   },
 );
@@ -210,6 +212,24 @@ describe('Step1Screen', () => {
       expect(mockSetReporterType).toHaveBeenCalledWith('guardian');
     });
 
+    it('updates reporter type when The parent option is selected', () => {
+      const {getByText} = renderScreen();
+      fireEvent.press(getByText('The parent'));
+      expect(mockSetReporterType).toHaveBeenCalledWith('parent');
+    });
+
+    it('handles companion deselection (null id) without dispatching', () => {
+      const {UNSAFE_getByType} = renderScreen();
+      const selector = UNSAFE_getByType(CompanionSelector);
+
+      act(() => {
+        selector.props.onSelect(null);
+      });
+
+      expect(mockUpdateDraft).toHaveBeenCalledWith({companionId: null});
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
     it('handles companion selection via selector', () => {
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('companion-selector'));
@@ -266,6 +286,20 @@ describe('Step1Screen', () => {
       fireEvent.press(nextBtn);
 
       expect(mockNavigation.navigate).not.toHaveBeenCalled();
+    });
+
+    it('returns early from handleNext when no companion is selected', () => {
+      const {UNSAFE_getByType} = renderScreen();
+      const layout = UNSAFE_getByType(AERLayout);
+
+      // Invoke the Next handler directly, bypassing the disabled guard, to
+      // exercise the `!selectedCompanionId` early-return branch in handleNext.
+      act(() => {
+        layout.props.bottomButton.onPress();
+      });
+
+      expect(mockNavigation.navigate).not.toHaveBeenCalled();
+      expect(mockUpdateDraft).not.toHaveBeenCalled();
     });
 
     it('shows error if terms are not accepted', () => {

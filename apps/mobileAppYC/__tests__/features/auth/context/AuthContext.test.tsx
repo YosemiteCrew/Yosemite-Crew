@@ -32,6 +32,16 @@ jest.mock('@/features/auth', () => ({
   selectAuthState: (state: any) => state.auth,
 }));
 
+let mockDevMockSession = false;
+const mockSeedDevSession = jest.fn();
+
+jest.mock('@/config/devSession', () => ({
+  get DEV_MOCK_SESSION() {
+    return mockDevMockSession;
+  },
+  seedDevSession: (...args: any[]) => mockSeedDevSession(...args),
+}));
+
 const resolvedAction = () => {
   const action: any = {type: 'mock-action'};
   action.unwrap = jest.fn(() => Promise.resolve());
@@ -54,6 +64,8 @@ describe('AuthContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    mockDevMockSession = false;
 
     mockInitializeAuth.mockImplementation(() => resolvedAction());
     mockEstablishSession.mockImplementation(() => resolvedAction());
@@ -87,6 +99,19 @@ describe('AuthContext', () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it('seeds a dev mock session and skips initializeAuth when DEV_MOCK_SESSION is enabled', () => {
+    mockDevMockSession = true;
+
+    render(
+      <AuthProvider>
+        <AuthConsumer />
+      </AuthProvider>,
+    );
+
+    expect(mockSeedDevSession).toHaveBeenCalledWith(mockDispatch);
+    expect(mockInitializeAuth).not.toHaveBeenCalled();
   });
 
   it('dispatches initializeAuth on mount', () => {

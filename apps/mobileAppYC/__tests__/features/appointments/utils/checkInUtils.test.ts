@@ -8,6 +8,10 @@ jest.mock('@/features/appointments/utils/timeFormatting', () => ({
   normalizeTimeString: time => {
     if (time === '09:00') return '09:00:00';
     if (time === '14:30') return '14:30:00';
+    // Simulates normalizeTimeString's passthrough for strings that aren't
+    // exactly 5 chars (e.g. a single-digit-hour "9:00"): no seconds segment
+    // gets appended, so downstream splitting on ':' yields only 2 parts.
+    if (time === '9:00') return '9:00';
     return '00:00:00';
   },
 }));
@@ -65,6 +69,24 @@ describe('checkInUtils', () => {
 
     it('treats out-of-range calendar dates as invalid instead of normalizing them', () => {
       const result = isWithinCheckInWindow('2024-02-31', '09:00');
+      expect(result).toBe(true);
+    });
+
+    it('defaults seconds to 0 when the time string has no seconds segment and is not exactly 5 chars', () => {
+      // normalizeTimeString only appends ":00" for exactly-5-char "H:MM"-ish
+      // strings; a single-digit-hour string like "9:00" (4 chars) passes
+      // through unchanged, so splitting on ':' yields only 2 parts and the
+      // `secondRaw = '0'` destructuring default kicks in.
+      const result = isWithinCheckInWindow('2024-12-20', '9:00');
+      expect(typeof result).toBe('boolean');
+    });
+
+    it('treats a year so large the Date engine cannot represent it as invalid', () => {
+      // Passes every range check (month/day/hour/minute/second all valid),
+      // but the resulting Date is outside JS's representable range
+      // (~ +/-273,790 years from the epoch), so it's the getTime() NaN check
+      // -- not the earlier range checks -- that catches it.
+      const result = isWithinCheckInWindow('999999999-01-01', '09:00');
       expect(result).toBe(true);
     });
 

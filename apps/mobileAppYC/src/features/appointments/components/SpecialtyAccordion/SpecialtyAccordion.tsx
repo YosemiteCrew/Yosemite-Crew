@@ -97,7 +97,9 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
       <PressableOpacity
         style={styles.specialtyHeader}
         onPress={toggleExpanded}
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{expanded}}>
         <View style={styles.specialtyHeaderContent}>
           <Text style={styles.specialtyName}>{specialty.name}</Text>
           <Text style={styles.doctorCount}>
@@ -256,12 +258,17 @@ const createStyles = (theme: any) =>
     },
     specialtyName: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.textSecondary,
+      color: theme.colors.secondary,
     },
     doctorCount: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      textAlign: 'right',
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.blueText,
+      backgroundColor: theme.colors.blueSoft,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: 2,
+      borderRadius: theme.borderRadius.pill,
+      overflow: 'hidden',
+      alignSelf: 'center',
     },
     chevronIcon: {
       width: theme.spacing['5'],

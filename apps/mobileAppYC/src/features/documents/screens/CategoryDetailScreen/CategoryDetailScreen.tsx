@@ -38,6 +38,16 @@ export const CategoryDetailScreen: React.FC = () => {
     contentContainer: {
       paddingHorizontal: themeArg.spacing['6'],
     },
+    emptyContainer: {
+      paddingVertical: themeArg.spacing['5'],
+      paddingHorizontal: themeArg.spacing['4'],
+      alignItems: 'center' as const,
+    },
+    emptyText: {
+      ...themeArg.typography.bodySmall,
+      color: themeArg.colors.inkFaint,
+      textAlign: 'center' as const,
+    },
   }));
   const navigation = useNavigation<CategoryDetailNavigationProp>();
   const route = useRoute<CategoryDetailRouteProp>();

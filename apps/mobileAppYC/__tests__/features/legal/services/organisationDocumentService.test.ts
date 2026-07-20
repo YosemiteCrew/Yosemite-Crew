@@ -1,6 +1,11 @@
 import organisationDocumentService from '../../../../src/features/legal/services/organisationDocumentService';
-import apiClient, {withAuthHeaders} from '../../../../src/shared/services/apiClient';
-import {ensureAccessContext, toErrorMessage} from '../../../../src/shared/utils/serviceHelpers';
+import apiClient, {
+  withAuthHeaders,
+} from '../../../../src/shared/services/apiClient';
+import {
+  ensureAccessContext,
+  toErrorMessage,
+} from '../../../../src/shared/utils/serviceHelpers';
 
 // --- Mocks ---
 
@@ -8,8 +13,11 @@ jest.mock('@/shared/services/apiClient', () => ({
   __esModule: true,
   default: {
     get: jest.fn(),
+    post: jest.fn(),
   },
-  withAuthHeaders: jest.fn().mockReturnValue({Authorization: 'Bearer mock-token'}),
+  withAuthHeaders: jest
+    .fn()
+    .mockReturnValue({Authorization: 'Bearer mock-token'}),
 }));
 
 jest.mock('@/shared/utils/serviceHelpers', () => ({
@@ -25,7 +33,9 @@ describe('organisationDocumentService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (ensureAccessContext as jest.Mock).mockResolvedValue({accessToken: mockAccessToken});
+    (ensureAccessContext as jest.Mock).mockResolvedValue({
+      accessToken: mockAccessToken,
+    });
   });
 
   // --- 1. Validation & Setup ---
@@ -83,6 +93,7 @@ describe('organisationDocumentService', () => {
         version: 1,
         createdAt: '2023-01-01',
         updatedAt: '2023-01-02',
+        pdfUrl: 'https://cdn.example/org-docs/org-1/privacy-policy-v1.pdf',
       },
     ];
     (apiClient.get as jest.Mock).mockResolvedValue({data: rawData});
@@ -103,6 +114,7 @@ describe('organisationDocumentService', () => {
       version: 1,
       createdAt: '2023-01-01',
       updatedAt: '2023-01-02',
+      pdfUrl: 'https://cdn.example/org-docs/org-1/privacy-policy-v1.pdf',
     });
   });
 
@@ -134,6 +146,7 @@ describe('organisationDocumentService', () => {
       version: null,
       createdAt: null,
       updatedAt: null,
+      pdfUrl: null,
     });
   });
 
@@ -148,7 +161,7 @@ describe('organisationDocumentService', () => {
         // No ID fields at all -> should fallback to generated ID
         category: 'PRIVACY_POLICY',
         organisationId: 'org-99',
-      }
+      },
     ];
     (apiClient.get as jest.Mock).mockResolvedValue({data: rawData});
 
@@ -170,7 +183,7 @@ describe('organisationDocumentService', () => {
     const rawData = [
       {
         category: 'INVALID_CAT', // Should fallback to TERMS_AND_CONDITIONS
-        visibility: 'HIDDEN',    // Should fallback to null
+        visibility: 'HIDDEN', // Should fallback to null
       },
     ];
     (apiClient.get as jest.Mock).mockResolvedValue({data: rawData});
@@ -189,15 +202,17 @@ describe('organisationDocumentService', () => {
     (apiClient.get as jest.Mock).mockResolvedValue({data: [null]});
 
     const result = await organisationDocumentService.fetchDocuments({
-        organisationId: mockOrgId,
-        category: mockCategory,
+      organisationId: mockOrgId,
+      category: mockCategory,
     });
 
     // It should map to a default object without crashing
-    expect(result[0]).toEqual(expect.objectContaining({
+    expect(result[0]).toEqual(
+      expect.objectContaining({
         title: 'Document',
         id: 'doc-', // generated from undefined category + undefined orgId
-    }));
+      }),
+    );
   });
 
   // --- 4. Response Handling Edge Cases ---
@@ -215,15 +230,15 @@ describe('organisationDocumentService', () => {
   });
 
   it('handles non-array payload', async () => {
-     // API returns object instead of array
-     (apiClient.get as jest.Mock).mockResolvedValue({data: {some: 'object'}});
+    // API returns object instead of array
+    (apiClient.get as jest.Mock).mockResolvedValue({data: {some: 'object'}});
 
-     const result = await organisationDocumentService.fetchDocuments({
-       organisationId: mockOrgId,
-       category: mockCategory,
-     });
+    const result = await organisationDocumentService.fetchDocuments({
+      organisationId: mockOrgId,
+      category: mockCategory,
+    });
 
-     expect(result).toEqual([]);
+    expect(result).toEqual([]);
   });
 
   // --- 5. Error Handling ---
@@ -240,6 +255,149 @@ describe('organisationDocumentService', () => {
       }),
     ).rejects.toThrow('Unable to load documents');
 
-    expect(toErrorMessage).toHaveBeenCalledWith(apiError, 'Unable to load documents');
+    expect(toErrorMessage).toHaveBeenCalledWith(
+      apiError,
+      'Unable to load documents',
+    );
+  });
+
+  // --- 6. acknowledgeDocument ---
+
+  describe('acknowledgeDocument', () => {
+    const mockDocumentId = 'doc-1';
+
+    it('throws if organisationId or documentId is missing', async () => {
+      await expect(
+        organisationDocumentService.acknowledgeDocument({
+          organisationId: '',
+          documentId: mockDocumentId,
+          category: mockCategory,
+          version: 1,
+        }),
+      ).rejects.toThrow('Missing organisation or document identifier');
+
+      await expect(
+        organisationDocumentService.acknowledgeDocument({
+          organisationId: mockOrgId,
+          documentId: '',
+          category: mockCategory,
+          version: 1,
+        }),
+      ).rejects.toThrow('Missing organisation or document identifier');
+    });
+
+    it('posts the category and version to the acknowledge endpoint', async () => {
+      (apiClient.post as jest.Mock).mockResolvedValue({status: 204});
+
+      await organisationDocumentService.acknowledgeDocument({
+        organisationId: mockOrgId,
+        documentId: mockDocumentId,
+        category: mockCategory,
+        version: 3,
+      });
+
+      const expectedUrl = `/v1/organisation-document/mobile/${encodeURIComponent(mockOrgId)}/documents/${encodeURIComponent(mockDocumentId)}/acknowledge`;
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        expectedUrl,
+        {category: mockCategory, version: 3},
+        {headers: {Authorization: 'Bearer mock-token'}},
+      );
+    });
+
+    it('catches API errors and rethrows with a formatted message', async () => {
+      const apiError = new Error('Network Fail');
+      (apiClient.post as jest.Mock).mockRejectedValue(apiError);
+      (toErrorMessage as jest.Mock).mockReturnValue(
+        'Unable to save your acknowledgment',
+      );
+
+      await expect(
+        organisationDocumentService.acknowledgeDocument({
+          organisationId: mockOrgId,
+          documentId: mockDocumentId,
+          category: mockCategory,
+          version: 1,
+        }),
+      ).rejects.toThrow('Unable to save your acknowledgment');
+
+      expect(toErrorMessage).toHaveBeenCalledWith(
+        apiError,
+        'Unable to save your acknowledgment',
+      );
+    });
+  });
+
+  // --- 7. getAcknowledgeStatus ---
+
+  describe('getAcknowledgeStatus', () => {
+    const mockDocumentId = 'doc-1';
+
+    it('throws if organisationId or documentId is missing', async () => {
+      await expect(
+        organisationDocumentService.getAcknowledgeStatus({
+          organisationId: '',
+          documentId: mockDocumentId,
+        }),
+      ).rejects.toThrow('Missing organisation or document identifier');
+    });
+
+    it('calls the status endpoint and unwraps the nested data payload', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            acknowledged: true,
+            version: 3,
+            acknowledgedAt: '2026-06-01T10:00:00.000Z',
+          },
+        },
+      });
+
+      const result = await organisationDocumentService.getAcknowledgeStatus({
+        organisationId: mockOrgId,
+        documentId: mockDocumentId,
+      });
+
+      const expectedUrl = `/v1/organisation-document/mobile/${encodeURIComponent(mockOrgId)}/documents/${encodeURIComponent(mockDocumentId)}/acknowledge-status`;
+
+      expect(apiClient.get).toHaveBeenCalledWith(expectedUrl, {
+        headers: {Authorization: 'Bearer mock-token'},
+      });
+      expect(result).toEqual({
+        acknowledged: true,
+        version: 3,
+        acknowledgedAt: '2026-06-01T10:00:00.000Z',
+      });
+    });
+
+    it('defaults to a not-acknowledged shape when the payload is empty', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({data: null});
+
+      const result = await organisationDocumentService.getAcknowledgeStatus({
+        organisationId: mockOrgId,
+        documentId: mockDocumentId,
+      });
+
+      expect(result).toEqual({
+        acknowledged: false,
+        version: null,
+        acknowledgedAt: null,
+      });
+    });
+
+    it('catches API errors and rethrows with a formatted message', async () => {
+      const apiError = new Error('Network Fail');
+      (apiClient.get as jest.Mock).mockRejectedValue(apiError);
+      (toErrorMessage as jest.Mock).mockReturnValue(
+        'Unable to load acknowledgment status',
+      );
+
+      await expect(
+        organisationDocumentService.getAcknowledgeStatus({
+          organisationId: mockOrgId,
+          documentId: mockDocumentId,
+        }),
+      ).rejects.toThrow('Unable to load acknowledgment status');
+    });
   });
 });

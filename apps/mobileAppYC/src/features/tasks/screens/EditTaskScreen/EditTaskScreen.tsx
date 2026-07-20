@@ -106,6 +106,7 @@ export const EditTaskScreen: React.FC = () => {
   }, [navigation, source]);
 
   const performSave = async () => {
+    /* istanbul ignore next -- unreachable: screen renders the not-found UI when task is null, so this defensive guard is never hit */
     if (!task) return;
 
     let preparedAttachments = formData.attachments;
@@ -189,6 +190,7 @@ export const EditTaskScreen: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm(formData)) return;
+    /* istanbul ignore next -- unreachable: save action only renders when task is present */
     if (!task) return;
     if (isRecurring) {
       taskSaveSheetRef.current?.open();
@@ -200,6 +202,7 @@ export const EditTaskScreen: React.FC = () => {
   };
 
   const handleDeletePress = () => {
+    /* istanbul ignore next -- unreachable: delete control only renders when task is present */
     if (!task) return;
     if (isRecurring) {
       taskDeleteSheetRef.current?.open();
@@ -209,6 +212,7 @@ export const EditTaskScreen: React.FC = () => {
   };
 
   const handleDeleteTask = async () => {
+    /* istanbul ignore next -- unreachable: confirm sheet only renders when task is present */
     if (!task) return;
     if (task.calendarEventId) {
       await removeCalendarEvents(task.calendarEventId);

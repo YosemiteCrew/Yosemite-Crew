@@ -5,6 +5,20 @@ import {mockTheme} from '../../../../../setup/mockTheme';
 
 // --- Mocks ---
 
+jest.mock('@/shared/components/common', () => {
+  const {Text, TouchableOpacity} = require('react-native');
+  return {
+    Toggle: (props: any) => (
+      <TouchableOpacity
+        accessibilityRole="switch"
+        accessibilityState={{checked: props.value}}
+        onPress={() => props.onValueChange(!props.value)}>
+        <Text>toggle</Text>
+      </TouchableOpacity>
+    ),
+  };
+});
+
 // Mock style utils to return predictable style objects for testing
 jest.mock('@/shared/utils/formStyles', () => ({
   createFormStyles: jest.fn(() => ({
@@ -20,7 +34,7 @@ jest.mock('@/shared/utils/formStyles', () => ({
 
 describe('ReminderSection', () => {
   const mockUpdateField = jest.fn();
-  
+
   const mockOptions = ['5-mins-prior', '1-hour-prior'];
 
   const defaultProps = {
@@ -42,7 +56,7 @@ describe('ReminderSection', () => {
 
     expect(screen.getByText('Reminder')).toBeTruthy();
     const switchElement = screen.getByRole('switch');
-    expect(switchElement.props.value).toBe(false);
+    expect(switchElement.props.accessibilityState.checked).toBe(false);
 
     // Should NOT render options container
     // Note: createFormStyles mock returns 'reminderPillsContainer' as a key,
@@ -54,7 +68,7 @@ describe('ReminderSection', () => {
     render(<ReminderSection {...defaultProps} />);
 
     const switchElement = screen.getByRole('switch');
-    fireEvent(switchElement, 'onValueChange', true);
+    fireEvent.press(switchElement);
 
     expect(mockUpdateField).toHaveBeenCalledWith('reminderEnabled', true);
   });
@@ -112,6 +126,26 @@ describe('ReminderSection', () => {
 
     // Branch: if (isSelected) updateField(..., null)
     expect(mockUpdateField).toHaveBeenCalledWith('reminderOptions', null);
+  });
+
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    const props = {
+      ...defaultProps,
+      formData: {
+        ...defaultProps.formData,
+        reminderEnabled: true,
+        reminderOptions: '5-mins-prior',
+      },
+    };
+
+    render(<ReminderSection {...props} />);
+
+    const selected = screen.getByLabelText('5-mins-prior');
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = screen.getByLabelText('1-hour-prior');
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
   });
 
   it('applies correct styles for selected vs unselected options', () => {

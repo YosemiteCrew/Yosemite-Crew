@@ -22,6 +22,18 @@ jest.mock('@/shared/components/common', () => ({
       </TouchableOpacity>
     );
   }),
+  Toggle: jest.fn(({value, onValueChange, accessibilityLabel}) => {
+    // FIX: Require dependencies inside the mock
+    const {Switch} = require('react-native');
+    return (
+      <Switch
+        testID="mock-Toggle"
+        accessibilityLabel={accessibilityLabel}
+        value={value}
+        onValueChange={onValueChange}
+      />
+    );
+  }),
 }));
 
 jest.mock('@/features/documents/components/DocumentAttachmentsSection', () => ({

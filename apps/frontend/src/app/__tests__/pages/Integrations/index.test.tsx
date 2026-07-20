@@ -34,10 +34,10 @@ const disableMerckMock = jest.fn();
 // ---------------------------------------------------------------------------
 jest.mock('next/image', () => ({
   __esModule: true,
-  // Render as a <span> whose text is empty (alt is not rendered as content) so
-  // card titles that match their logo alt (e.g. "MSD Veterinary Manual") stay
-  // uniquely queryable by text.
-  default: ({ alt }: any) => <span aria-label={alt || ''} data-testid="mock-next-image" />,
+  // Render as <img> (alt is an attribute, not text content) so card titles that
+  // match their logo alt (e.g. "MSD Veterinary Manual") stay uniquely queryable.
+
+  default: ({ alt }: any) => <img alt={alt || ''} data-testid="mock-next-image" />,
 }));
 
 jest.mock('next/link', () => ({

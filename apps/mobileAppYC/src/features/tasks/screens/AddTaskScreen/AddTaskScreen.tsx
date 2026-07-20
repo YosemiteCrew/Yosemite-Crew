@@ -1,5 +1,5 @@
 import React, {useMemo, useEffect, useRef} from 'react';
-import {ScrollView} from 'react-native';
+import {ScrollView, Text} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -363,6 +363,7 @@ export const AddTaskScreen: React.FC = () => {
                 resolvedContentPadding,
               ]}
               showsVerticalScrollIndicator={false}>
+              <Text style={styles.companionLabel}>Companion</Text>
               <CompanionSelector
                 companions={companions}
                 selectedCompanionId={selectedCompanionId}

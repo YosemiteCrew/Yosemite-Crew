@@ -4,7 +4,7 @@ import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {NotificationCard} from '../../../../src/features/notifications/components/NotificationCard/NotificationCard';
 // FIX 1 & 2: Removed the unused 'Images' import which was causing the module error.
 // FIX 3: Added 'Image' to imports so we can use it in getAllByType
-import {Image, Pressable} from 'react-native';
+import {Image, Pressable, StyleSheet} from 'react-native';
 
 // react-native's Pressable is wrapped in React.memo; UNSAFE_getAllByType
 // must match against the memoized inner component, not the memo wrapper.
@@ -203,6 +203,41 @@ describe('NotificationCard', () => {
       const images = screen.UNSAFE_getAllByType(Image);
       expect(images[0].props.source.uri).toBe('default-icon-uri');
     });
+
+    it.each([
+      ['health', mockTheme.colors.successSurface],
+      ['appointments', mockTheme.colors.indigoSurface],
+      ['messages', mockTheme.colors.blueSoft],
+      ['dietary', mockTheme.colors.warningSurface],
+    ] as const)('tints the icon tile for the %s category', (category, bg) => {
+      render(
+        <NotificationCard
+          notification={{...baseNotification, category} as any}
+        />,
+      );
+      const iconTile = screen.UNSAFE_getAllByType(Image)[0].parent;
+      const tileStyle = StyleSheet.flatten(iconTile?.props.style);
+      expect(tileStyle.backgroundColor).toBe(bg);
+    });
+
+    it('falls back to the neutral tile when the category is unknown', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+      const iconTile = screen.UNSAFE_getAllByType(Image)[0].parent;
+      const tileStyle = StyleSheet.flatten(iconTile?.props.style);
+      expect(tileStyle.backgroundColor).toBe(mockTheme.colors.screen2);
+    });
+
+    it('applies the read title style when the notification is already read', () => {
+      const readNotif = {...baseNotification, status: 'read' as const};
+      render(<NotificationCard notification={readNotif as any} />);
+      const titleStyle = StyleSheet.flatten(
+        screen.getByText('Test Notification').props.style,
+      );
+      // Read notifications use titleRead (fontWeight 600), not the bold
+      // titleUnread variant (Satoshi-Bold / fontWeight 700).
+      expect(titleStyle.fontWeight).toBe('600');
+      expect(titleStyle.fontFamily).not.toBe('Satoshi-Bold');
+    });
   });
 
   describe('Time Formatting Logic', () => {
@@ -250,9 +285,16 @@ describe('NotificationCard', () => {
         />,
       );
 
-      const card = screen.getByTestId('liquid-glass-card');
-      fireEvent.press(card.parent!);
+      const [touchable] = screen.UNSAFE_getAllByType(PressableType);
+      fireEvent.press(touchable);
       expect(onPress).toHaveBeenCalled();
+    });
+
+    it('exposes a button role and title-based label on the card body', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+      const card = screen.getByLabelText('Test Notification');
+      expect(card.props.accessibilityRole).toBe('button');
+      expect(card.props.accessibilityState).toEqual({disabled: false});
     });
 
     it('swipeEnabled prop defaults to true if not provided', () => {
@@ -359,6 +401,84 @@ describe('NotificationCard', () => {
       );
 
       expect(getPanGesture().enabled).toBe(false);
+    });
+
+    it('swipes left past threshold without an onArchive handler and does not throw', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(() =>
+        triggerGestureHandler('onEnd', {
+          translationX: -(SWIPE_THRESHOLD + 10),
+        }),
+      ).not.toThrow();
+    });
+
+    it('swipes right past threshold without an onDismiss handler and does not throw', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(() =>
+        triggerGestureHandler('onEnd', {translationX: SWIPE_THRESHOLD + 10}),
+      ).not.toThrow();
+    });
+  });
+
+  describe('Visible action row (non-swipe alternative)', () => {
+    it('renders "Mark as read" and "Archive" buttons for an unread notification when swipe is enabled', () => {
+      const onDismiss = jest.fn();
+      const onArchive = jest.fn();
+      render(
+        <NotificationCard
+          notification={baseNotification as any}
+          onDismiss={onDismiss}
+          onArchive={onArchive}
+        />,
+      );
+
+      const markAsRead = screen.getByLabelText('Mark as read');
+      const archive = screen.getByLabelText('Archive notification');
+      expect(markAsRead.props.accessibilityRole).toBe('button');
+      expect(archive.props.accessibilityRole).toBe('button');
+
+      fireEvent.press(markAsRead);
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+
+      fireEvent.press(archive);
+      expect(onArchive).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits "Mark as read" for an already-read notification but keeps Archive', () => {
+      const readNotif = {...baseNotification, status: 'read' as const};
+      render(
+        <NotificationCard
+          notification={readNotif as any}
+          onDismiss={jest.fn()}
+          onArchive={jest.fn()}
+        />,
+      );
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.getByLabelText('Archive notification')).toBeTruthy();
+    });
+
+    it('hides the action row entirely when swipeEnabled is false', () => {
+      render(
+        <NotificationCard
+          notification={baseNotification as any}
+          onDismiss={jest.fn()}
+          onArchive={jest.fn()}
+          swipeEnabled={false}
+        />,
+      );
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.queryByLabelText('Archive notification')).toBeNull();
+    });
+
+    it('hides the action row when neither onDismiss nor onArchive is provided', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.queryByLabelText('Archive notification')).toBeNull();
     });
   });
 });

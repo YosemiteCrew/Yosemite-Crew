@@ -152,6 +152,47 @@ describe('TermsAndConditionsScreen', () => {
     expect(emailInput.props.value).toBe('john.doe@example.com');
   });
 
+  it('prefills an empty email and skips account-match when the user has no email', async () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: {...defaultUser, email: undefined},
+      logout: mockLogout,
+    });
+    const {getByTestId} = setup();
+
+    // Prefill falls through `prev.email || user.email || ''` to '' (line 52).
+    expect(getByTestId('Email Address').props.value).toBe('');
+
+    fireEvent.changeText(getByTestId('Email Address'), 'someone@example.com');
+    fireEvent.changeText(getByTestId('User Address'), '123 Main St');
+    fireEvent.changeText(getByTestId('Signature (Type Full Name)'), 'John Doe');
+    fireEvent.press(getByTestId('ConsentCheckbox'));
+
+    await act(async () => {
+      fireEvent.press(getByTestId('SubmitButton'));
+    });
+
+    // With no account email, the account-match check is skipped and the
+    // withdrawal submits.
+    expect(withdrawalService.submitWithdrawal).toHaveBeenCalled();
+  });
+
+  it('submits when there is no device token to unregister', async () => {
+    (getCurrentFcmToken as jest.Mock).mockResolvedValue(null);
+    const {getByTestId} = setup();
+
+    fireEvent.changeText(getByTestId('User Address'), '123 Main St');
+    fireEvent.changeText(getByTestId('Signature (Type Full Name)'), 'John Doe');
+    fireEvent.press(getByTestId('ConsentCheckbox'));
+
+    await act(async () => {
+      fireEvent.press(getByTestId('SubmitButton'));
+    });
+
+    expect(withdrawalService.submitWithdrawal).toHaveBeenCalled();
+    // Token was null, so the unregister call is skipped (line 175 false branch).
+    expect(unregisterDeviceToken).not.toHaveBeenCalled();
+  });
+
   it('handles user with missing last name', () => {
     (useAuth as jest.Mock).mockReturnValue({
       user: {...defaultUser, lastName: undefined},
@@ -277,6 +318,29 @@ describe('TermsAndConditionsScreen', () => {
     });
 
     expect(mockLogout).toHaveBeenCalled();
+  });
+
+  it('completes submission even if device-token cleanup fails', async () => {
+    (unregisterDeviceToken as jest.Mock).mockRejectedValue(
+      new Error('token fail'),
+    );
+    const {getByTestId} = setup();
+
+    fireEvent.changeText(getByTestId('User Address'), '123 Main St');
+    fireEvent.changeText(getByTestId('Signature (Type Full Name)'), 'John Doe');
+    fireEvent.press(getByTestId('ConsentCheckbox'));
+
+    await act(async () => {
+      fireEvent.press(getByTestId('SubmitButton'));
+    });
+
+    // The token-cleanup catch ran, but the withdrawal still succeeded.
+    expect(withdrawalService.submitWithdrawal).toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Withdrawal submitted',
+      expect.any(String),
+      expect.any(Array),
+    );
   });
 
   it('handles submission error', async () => {

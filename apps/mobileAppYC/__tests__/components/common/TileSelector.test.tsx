@@ -118,6 +118,24 @@ describe('TileSelector Component', () => {
     );
   });
 
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    const {getByLabelText} = render(
+      <TileSelector
+        options={options}
+        selectedValue="opt1"
+        onSelect={mockOnSelect}
+      />,
+    );
+
+    const selected = getByLabelText('Option 1');
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = getByLabelText('Option 2');
+    expect(unselected.props.accessibilityRole).toBe('radio');
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
+  });
+
   it('applies custom style props if provided', () => {
     // This covers lines passing style, tileStyle, labelStyle, etc.
     const customStyle = {backgroundColor: 'red'};

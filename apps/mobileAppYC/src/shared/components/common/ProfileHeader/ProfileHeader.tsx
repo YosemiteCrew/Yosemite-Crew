@@ -50,7 +50,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         {showCameraButton ? (
           <PressableOpacity
             style={styles.cameraIconContainer}
-            onPress={() => pickerRef.current?.triggerPicker()}>
+            onPress={() => pickerRef.current?.triggerPicker()}
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo">
             <Image source={Images.cameraIcon} style={styles.cameraIcon} />
           </PressableOpacity>
         ) : null}
@@ -91,10 +93,7 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.white,
     },
     profileName: {
-      fontFamily: theme.typography.titleMedium.fontFamily,
-      fontSize: 22,
-      lineHeight: 28,
-      fontWeight: '500',
+      ...theme.typography.serifTitleSmall,
       color: theme.colors.secondary,
       marginTop: theme.spacing['4'],
       textAlign: 'center',

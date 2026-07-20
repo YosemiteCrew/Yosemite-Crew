@@ -7,7 +7,7 @@ import {
 } from '@/features/tasks/components/CalendarSyncBottomSheet/CalendarSyncBottomSheet';
 // FIX 3: Update type import path
 import type {SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
-import {View} from 'react-native';
+import {View, Platform} from 'react-native';
 
 // --- Mocks ---
 
@@ -22,7 +22,10 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 
 // FIX 4: Update hook mock path
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useTheme: () => ({
+    theme: require('../../setup/mockTheme').mockTheme,
+    isDark: false,
+  }),
   useAppDispatch: () => jest.fn(),
   useAppSelector: jest.fn(),
 }));
@@ -44,10 +47,12 @@ jest.mock('@/assets/images', () => ({
 // Mock react-native-calendar-events
 const mockCheckPermissions = jest.fn();
 const mockFindCalendars = jest.fn();
+const mockRequestPermissions = jest.fn();
 
 jest.mock('react-native-calendar-events', () => ({
   checkPermissions: () => mockCheckPermissions(),
   findCalendars: () => mockFindCalendars(),
+  requestPermissions: () => mockRequestPermissions(),
 }));
 
 const mockSheetRef = {
@@ -121,9 +126,7 @@ const renderComponent = (
     onSelect,
     ...props,
   };
-  const renderResult = render(
-    <CalendarSyncBottomSheet {...defaultProps} />,
-  );
+  const renderResult = render(<CalendarSyncBottomSheet {...defaultProps} />);
   return {ref, onSelect, ...renderResult};
 };
 
@@ -143,6 +146,11 @@ describe('CalendarSyncBottomSheet', () => {
     // Default: return unauthorized to use default providers
     mockCheckPermissions.mockResolvedValue('denied');
     mockFindCalendars.mockResolvedValue([]);
+    mockRequestPermissions.mockResolvedValue('denied');
+  });
+
+  afterEach(() => {
+    Platform.OS = 'ios';
   });
 
   it('exposes open and close methods via ref', async () => {
@@ -296,6 +304,24 @@ describe('CalendarSyncBottomSheet', () => {
     expect(onSelect).toHaveBeenCalledWith('cal-icloud-1', 'My iCloud Calendar');
   });
 
+  it('falls back to the item label when onSave is given an id not present in availableCalendars', async () => {
+    mockCheckPermissions.mockResolvedValue('authorized');
+    mockFindCalendars.mockResolvedValue(mockDeviceCalendars);
+
+    const {onSelect} = renderComponent();
+
+    await waitFor(() => {
+      const sheet = screen.getByTestId('mock-generic-sheet');
+      expect(sheet.props.items[0]?.id).not.toBe('loading');
+    });
+
+    const sheet = screen.getByTestId('mock-generic-sheet');
+    act(() => {
+      sheet.props.onSave({id: 'not-in-list', label: 'Custom Label'});
+    });
+    expect(onSelect).toHaveBeenCalledWith('not-in-list', 'Custom Label');
+  });
+
   it('does not call onSelect when onSave is triggered with null', async () => {
     const {onSelect} = renderComponent();
 
@@ -317,7 +343,9 @@ describe('CalendarSyncBottomSheet', () => {
 
     // Get the loading state
     const sheet = screen.getByTestId('mock-generic-sheet');
-    const loadingItem = sheet.props.items.find((item: SelectItem) => item.id === 'loading');
+    const loadingItem = sheet.props.items.find(
+      (item: SelectItem) => item.id === 'loading',
+    );
 
     if (loadingItem) {
       act(() => {
@@ -427,7 +455,7 @@ describe('CalendarSyncBottomSheet', () => {
             id: 'cal-icloud-1',
             name: 'My iCloud Calendar',
           }),
-        ])
+        ]),
       );
     });
 
@@ -451,6 +479,158 @@ describe('CalendarSyncBottomSheet', () => {
       expect(onCalendarsLoaded).toHaveBeenCalledWith([]);
 
       consoleSpy.mockRestore();
+    });
+
+    it('requests permission when the initial check is not authorized, then loads calendars once granted', async () => {
+      mockCheckPermissions.mockResolvedValue('denied');
+      mockRequestPermissions.mockResolvedValue('authorized');
+      mockFindCalendars.mockResolvedValue(mockDeviceCalendars);
+
+      renderComponent();
+
+      await waitFor(() => {
+        const sheet = screen.getByTestId('mock-generic-sheet');
+        expect(sheet.props.items[0]?.id).not.toBe('loading');
+      });
+
+      expect(mockRequestPermissions).toHaveBeenCalled();
+      const sheet = screen.getByTestId('mock-generic-sheet');
+      expect(sheet.props.items).toEqual(expectedDeviceCalendarItems);
+    });
+
+    it('treats a rejected requestPermissions call as remaining denied', async () => {
+      mockCheckPermissions.mockResolvedValue('denied');
+      mockRequestPermissions.mockRejectedValue(new Error('permission error'));
+
+      renderComponent();
+
+      await waitFor(() => {
+        const sheet = screen.getByTestId('mock-generic-sheet');
+        expect(sheet.props.items[0]?.id).not.toBe('loading');
+      });
+
+      const sheet = screen.getByTestId('mock-generic-sheet');
+      expect(sheet.props.items).toEqual([]);
+      expect(mockFindCalendars).not.toHaveBeenCalled();
+    });
+
+    it('includes Google calendars with the Google icon and excludes iCloud on Android', async () => {
+      Platform.OS = 'android';
+      mockCheckPermissions.mockResolvedValue('authorized');
+      mockFindCalendars.mockResolvedValue(mockDeviceCalendars);
+
+      renderComponent();
+
+      await waitFor(() => {
+        const sheet = screen.getByTestId('mock-generic-sheet');
+        expect(sheet.props.items[0]?.id).not.toBe('loading');
+      });
+
+      const sheet = screen.getByTestId('mock-generic-sheet');
+      expect(sheet.props.items).toEqual([
+        {
+          id: 'cal-google-1',
+          label: 'My Google Calendar',
+          icon: 'google.png',
+          status: 'available',
+        },
+      ]);
+    });
+
+    it('falls back to the default calendar icon for an unrecognized source', async () => {
+      Platform.OS = 'android';
+      mockCheckPermissions.mockResolvedValue('authorized');
+      mockFindCalendars.mockResolvedValue([
+        {
+          id: 'cal-unknown',
+          title: 'Work Calendar',
+          source: 'com.exchange',
+          allowsModifications: true,
+        },
+      ]);
+
+      renderComponent();
+
+      await waitFor(() => {
+        const sheet = screen.getByTestId('mock-generic-sheet');
+        expect(sheet.props.items[0]?.id).not.toBe('loading');
+      });
+
+      const sheet = screen.getByTestId('mock-generic-sheet');
+      expect(sheet.props.items).toEqual([
+        {
+          id: 'cal-unknown',
+          label: 'Work Calendar',
+          icon: 'calendar.png',
+          status: 'available',
+        },
+      ]);
+    });
+
+    it('treats a missing source/title as empty strings when checking calendar support and icon', async () => {
+      Platform.OS = 'android';
+      mockCheckPermissions.mockResolvedValue('authorized');
+      mockFindCalendars.mockResolvedValue([
+        {
+          id: 'cal-no-source',
+          title: 'No Source Calendar',
+          source: undefined,
+          allowsModifications: true,
+        },
+        {
+          id: 'cal-no-title',
+          title: undefined,
+          source: 'com.other',
+          allowsModifications: true,
+        },
+      ]);
+
+      renderComponent();
+
+      await waitFor(() => {
+        const sheet = screen.getByTestId('mock-generic-sheet');
+        expect(sheet.props.items[0]?.id).not.toBe('loading');
+      });
+
+      const sheet = screen.getByTestId('mock-generic-sheet');
+      expect(sheet.props.items).toEqual([
+        {
+          id: 'cal-no-source',
+          label: 'No Source Calendar',
+          icon: 'calendar.png',
+          status: 'available',
+        },
+        {
+          id: 'cal-no-title',
+          label: undefined,
+          icon: 'calendar.png',
+          status: 'available',
+        },
+      ]);
+    });
+
+    it('falls back to the default icon on Android when the Google icon asset is unavailable', async () => {
+      Platform.OS = 'android';
+      mockGoogleCalendarIcon = undefined;
+      mockCheckPermissions.mockResolvedValue('authorized');
+      mockFindCalendars.mockResolvedValue([mockDeviceCalendars[0]]);
+
+      renderComponent();
+
+      await waitFor(() => {
+        const sheet = screen.getByTestId('mock-generic-sheet');
+        expect(sheet.props.items[0]?.id).not.toBe('loading');
+      });
+
+      const sheet = screen.getByTestId('mock-generic-sheet');
+      expect(sheet.props.items).toEqual([
+        {
+          id: 'cal-google-1',
+          label: 'My Google Calendar',
+          icon: 'calendar.png',
+          status: 'available',
+        },
+      ]);
     });
   });
 
@@ -503,9 +683,7 @@ describe('CalendarSyncBottomSheet', () => {
         status: 'connecting',
       };
       const element = renderItem(connectingItem, false);
-      const {getByText} = render(
-        <RenderItemWrapper element={element} />,
-      );
+      const {getByText} = render(<RenderItemWrapper element={element} />);
 
       expect(getByText('Test Calendar')).toBeTruthy();
       expect(getByText('Connecting...')).toBeTruthy();
@@ -519,9 +697,7 @@ describe('CalendarSyncBottomSheet', () => {
         status: 'available',
       };
       const element = renderItem(item, true);
-      const {getByText} = render(
-        <RenderItemWrapper element={element} />,
-      );
+      const {getByText} = render(<RenderItemWrapper element={element} />);
 
       expect(getByText('Test Calendar')).toBeTruthy();
       expect(getByText('✓')).toBeTruthy();

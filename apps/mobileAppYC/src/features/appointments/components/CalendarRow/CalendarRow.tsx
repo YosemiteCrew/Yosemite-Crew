@@ -22,7 +22,10 @@ const CalendarDay = React.memo(({item, onChange, styles}: CalendarDayProps) => (
       item.isSelected && styles.dayActive,
       item.isToday && styles.dayToday,
     ]}
-    onPress={() => onChange(item.date)}>
+    onPress={() => onChange(item.date)}
+    accessibilityRole="radio"
+    accessibilityState={{selected: item.isSelected}}
+    accessibilityLabel={`${item.dayName} ${item.dayNumber}`}>
     <Text style={[styles.dayText, item.isSelected && styles.dayTextActive]}>
       {item.dayName}
     </Text>
@@ -56,11 +59,17 @@ export const CalendarRow: React.FC<{
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <PressableOpacity onPress={() => shift(-7)}>
+        <PressableOpacity
+          onPress={() => shift(-7)}
+          accessibilityRole="button"
+          accessibilityLabel="Previous week">
           <Text style={styles.nav}>{'<'}</Text>
         </PressableOpacity>
         <Text style={styles.month}>{formatMonthYear(selectedDate)}</Text>
-        <PressableOpacity onPress={() => shift(7)}>
+        <PressableOpacity
+          onPress={() => shift(7)}
+          accessibilityRole="button"
+          accessibilityLabel="Next week">
           <Text style={styles.nav}>{'>'}</Text>
         </PressableOpacity>
       </View>

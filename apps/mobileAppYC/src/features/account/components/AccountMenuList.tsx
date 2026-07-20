@@ -2,11 +2,17 @@ import {useTheme} from '@/hooks';
 import React from 'react';
 import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {
+  IconTile,
+  type IconTileTone,
+} from '@/shared/components/common/IconTile/IconTile';
 
 export interface AccountMenuItem {
   id: string;
   label: string;
   icon: ImageSourcePropType;
+  /** Warm-bone tile tint. Falls back to danger/neutral when omitted. */
+  tone?: IconTileTone;
   danger?: boolean;
 }
 
@@ -33,10 +39,12 @@ export const AccountMenuList: React.FC<AccountMenuListProps> = ({
           onPress={() => onItemPress(item.id)}
           accessibilityRole="button"
           accessibilityLabel={item.label}>
-          <View
-            style={[styles.iconCircle, item.danger && styles.iconCircleDanger]}>
-            <Image source={item.icon} style={styles.icon} />
-          </View>
+          <IconTile
+            icon={item.icon}
+            tone={item.tone ?? (item.danger ? 'danger' : 'neutral')}
+            size={theme.spacing['10']}
+            style={styles.iconTile}
+          />
           <Text style={[styles.label, item.danger && styles.labelDanger]}>
             {item.label}
           </Text>
@@ -60,34 +68,20 @@ const createStyles = (theme: any) =>
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['4'],
     },
     divider: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
+      borderBottomColor: theme.colors.hairline,
     },
-    iconCircle: {
-      width: theme.spacing['10'],
-      height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: 'rgba(48, 47, 46, 0.12)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: theme.spacing['4'],
-    },
-    iconCircleDanger: {
-      backgroundColor: theme.colors.errorSurface,
-    },
-    icon: {
-      width: theme.spacing['5'],
-      height: theme.spacing['5'],
-      resizeMode: 'contain',
+    iconTile: {
+      marginRight: theme.spacing['3'],
     },
     label: {
       flex: 1,
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
+      ...theme.typography.titleSmall,
+      color: theme.colors.inkBody,
     },
     labelDanger: {
       color: theme.colors.error,
@@ -95,7 +89,7 @@ const createStyles = (theme: any) =>
     arrow: {
       width: theme.spacing['4'],
       height: theme.spacing['4'],
-      tintColor: theme.colors.secondary,
+      tintColor: theme.colors.inkFaint2,
       resizeMode: 'contain',
     },
     arrowDanger: {

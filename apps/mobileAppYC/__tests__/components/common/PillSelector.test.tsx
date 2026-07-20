@@ -83,6 +83,22 @@ describe('PillSelector Component', () => {
   });
 
   // ===========================================================================
+  // 3b. Accessibility
+  // ===========================================================================
+
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    const {getByLabelText} = render(<PillSelector {...defaultProps} />);
+
+    const selected = getByLabelText('Option 1');
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = getByLabelText('Option 2');
+    expect(unselected.props.accessibilityRole).toBe('radio');
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
+  });
+
+  // ===========================================================================
   // 4. Scroll vs Static Layout (Branch Coverage)
   // ===========================================================================
 

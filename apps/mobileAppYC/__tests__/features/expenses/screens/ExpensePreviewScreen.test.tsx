@@ -1,4 +1,5 @@
 import React from 'react';
+import {ActivityIndicator} from 'react-native';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 // Fix: Correct import path based on coverage report structure
@@ -215,7 +216,9 @@ describe('ExpensePreviewScreen', () => {
   it('renders basic expense details correctly', () => {
     const {getByText} = render(<ExpensePreviewScreen />);
 
-    expect(getByText('Expense Details')).toBeTruthy();
+    // Warm-bone preview: hero (amount + title + date) then a DetailsCard with
+    // Provider/Companion/Category/Sub category/Visit type/Description rows.
+    // The "Expense Details" heading was replaced by the hero block.
     expect(getByText('Vaccination')).toBeTruthy();
     expect(getByText('Vet Clinic')).toBeTruthy();
     expect(getByText('Cat-medical')).toBeTruthy();
@@ -511,5 +514,126 @@ describe('ExpensePreviewScreen', () => {
 
     // Ensure fetchBusinessDetails was NOT called
     expect(fetchBusinessDetails).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite the fallback photo when business details lack a photoUrl', async () => {
+    (isDummyPhoto as jest.Mock).mockReturnValue(true);
+
+    // 1. Invoice resolves an org with a dummy image + placesId, 2. business
+    // details resolves nothing usable -> the `res?.photoUrl` guard is false.
+    mockDispatch
+      .mockReturnValueOnce({
+        unwrap: () =>
+          Promise.resolve({
+            invoice: {},
+            organisation: {placesId: 'place-123', image: 'dummy.jpg'},
+          }),
+      })
+      .mockReturnValueOnce({
+        unwrap: () => Promise.resolve(undefined),
+      });
+
+    render(<ExpensePreviewScreen />);
+
+    await waitFor(() => {
+      expect(fetchBusinessDetails).toHaveBeenCalledWith('place-123');
+    });
+  });
+
+  // ==============================================================================
+  // 5. Category Hero Visuals (getCategoryVisual switch)
+  // ==============================================================================
+
+  const renderWithExpense = (overrides: Record<string, unknown>) => {
+    const expense = {...baseExpense, ...overrides};
+    (useSelector as unknown as jest.Mock).mockImplementation(callback => {
+      if (callback === mockExpenseSelectorFn) return expense;
+      return callback(selectorState);
+    });
+    return render(<ExpensePreviewScreen />);
+  };
+
+  it('renders the hygiene-maintenance category icon', () => {
+    const {getByTestId} = renderWithExpense({category: 'hygiene-maintenance'});
+    expect(getByTestId('icon-cut-outline')).toBeTruthy();
+  });
+
+  it('renders the dietary-plans category icon', () => {
+    const {getByTestId} = renderWithExpense({category: 'dietary-plans'});
+    expect(getByTestId('icon-nutrition-outline')).toBeTruthy();
+  });
+
+  it('renders the admin category icon', () => {
+    const {getByTestId} = renderWithExpense({category: 'admin'});
+    expect(getByTestId('icon-document-text-outline')).toBeTruthy();
+  });
+
+  it('renders the others category icon', () => {
+    const {getByTestId} = renderWithExpense({category: 'others'});
+    expect(getByTestId('icon-pricetag-outline')).toBeTruthy();
+  });
+
+  // ==============================================================================
+  // 6. Additional Branch Coverage
+  // ==============================================================================
+
+  it('shows a loading spinner while the payment intent is still resolving', async () => {
+    (isExpensePaymentPending as jest.Mock).mockReturnValue(true);
+
+    // Invoice resolves with an intent id (so loadingPayment flips true), then the
+    // by-invoice intent lookup never settles -> loadingPayment stays true.
+    mockDispatch
+      .mockReturnValueOnce({
+        unwrap: () => Promise.resolve({invoice: {}, paymentIntentId: 'pi-1'}),
+      })
+      .mockReturnValueOnce({
+        unwrap: () => new Promise(() => {}),
+      });
+
+    const {UNSAFE_getByType, queryByTestId} = render(<ExpensePreviewScreen />);
+
+    await waitFor(() => {
+      expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    });
+    // While loading, the pressable button is replaced by the spinner.
+    expect(queryByTestId('payment-button')).toBeNull();
+  });
+
+  it('falls back to an empty expenseId when the route param is missing', () => {
+    (useRoute as jest.Mock).mockReturnValue({params: undefined});
+
+    const {getByText} = render(<ExpensePreviewScreen />);
+
+    // Still renders the (selector-provided) expense; the fetch-by-id effect is
+    // skipped because expenseId resolved to ''.
+    expect(getByText('Vaccination')).toBeTruthy();
+    expect(fetchExpenseById).not.toHaveBeenCalled();
+  });
+
+  it('hides the companion row when the expense has no companion', () => {
+    const {queryByText} = renderWithExpense({companionId: undefined});
+    // companion selector returns null -> companion?.name ?? '' -> row hidden.
+    expect(queryByText('Buddy')).toBeNull();
+  });
+
+  it('hides the description row when the expense has no description', () => {
+    const {queryByText} = renderWithExpense({description: ''});
+    // expense.description || '' -> '' and the row is hidden.
+    expect(queryByText('Annual shot')).toBeNull();
+  });
+
+  it('does not open the payment screen while a payment is processing', () => {
+    (useExpensePayment as jest.Mock).mockReturnValue({
+      openPaymentScreen: mockOpenPaymentScreen,
+      processingPayment: true,
+    });
+
+    const {getByTestId} = render(<ExpensePreviewScreen />);
+    const btn = getByTestId('payment-button');
+    expect(btn.props.disabled).toBe(true);
+
+    fireEvent.press(btn);
+    // handleOpenInvoice guards on !processingPayment, so nothing happens.
+    expect(mockOpenPaymentScreen).not.toHaveBeenCalled();
   });
 });
