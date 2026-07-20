@@ -17,6 +17,7 @@ export interface OrganizationDocumentMongo {
   fileName?: string;
   fileType?: string;
   fileSize?: number;
+  pdfUrl?: string;
 
   visibility: "INTERNAL" | "PUBLIC";
 

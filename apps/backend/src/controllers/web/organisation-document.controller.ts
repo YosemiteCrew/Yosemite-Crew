@@ -6,6 +6,7 @@ import {
   CreateOrgDocumentInput,
   OrganizationDocumentService,
   OrgDocumentServiceError,
+  LegalDocumentType,
   UpdateOrgDocumentInput,
 } from "src/services/organisation-document.service";
 import logger from "src/utils/logger";
@@ -37,6 +38,9 @@ const isVisibilityFilter = (
   value: string,
 ): value is "INTERNAL" | "PUBLIC" | "ALL" =>
   value === "INTERNAL" || value === "PUBLIC" || value === "ALL";
+
+const isLegalDocumentType = (value: string): value is LegalDocumentType =>
+  value === "terms" || value === "privacy";
 
 export const OrganizationDocumentController = {
   /** PMS: Create a document */
@@ -188,6 +192,27 @@ export const OrganizationDocumentController = {
     } catch (err) {
       if (err instanceof OrgDocumentServiceError)
         return res.status(err.statusCode).json({ message: err.message });
+
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  getLegalDocument: (req: Request<{ type: string }>, res: Response) => {
+    try {
+      const type = req.params.type;
+
+      if (!isLegalDocumentType(type)) {
+        res.status(400).json({ message: "Invalid legal document type" });
+        return;
+      }
+
+      const document = OrganizationDocumentService.getFixedLegalDocument(type);
+
+      res.status(200).json({ data: document });
+    } catch (err) {
+      if (err instanceof OrgDocumentServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
 
       res.status(500).json({ message: "Internal Server Error" });
     }

@@ -17,7 +17,7 @@ jest.mock("src/config/prisma", () => ({
 }));
 
 jest.mock("../../src/middlewares/upload", () => ({
-  getURLForKey: jest.fn((value: string) => value),
+  getURLForKey: jest.fn((value: string) => `https://cdn.example/${value}`),
 }));
 
 const mockedPrisma = prisma as any;
@@ -63,6 +63,8 @@ describe("OrganizationDocumentService", () => {
       expect.objectContaining({
         _id: "doc-1",
         organisationId: "org-1",
+        pdfUrl:
+          "https://cdn.example/org-docs/org-1/terms-and-conditions-v1.pdf",
       }),
     );
   });
@@ -108,6 +110,7 @@ describe("OrganizationDocumentService", () => {
       expect.objectContaining({
         _id: "doc-2",
         title: "Privacy updated",
+        pdfUrl: "https://cdn.example/org-docs/org-1/privacy-policy-v1.pdf",
       }),
     );
   });
@@ -165,19 +168,32 @@ describe("OrganizationDocumentService", () => {
 
     await expect(
       OrganizationDocumentService.getDocumentById("doc-3"),
-    ).resolves.toMatchObject({ _id: "doc-3" });
+    ).resolves.toMatchObject({
+      _id: "doc-3",
+      pdfUrl: "https://cdn.example/org-docs/org-1/cancellation-policy-v1.pdf",
+    });
 
     await expect(
       OrganizationDocumentService.listDocumentsForOrganisation({
         organisationId: "org-1",
       }),
-    ).resolves.toEqual([expect.objectContaining({ _id: "doc-4" })]);
+    ).resolves.toEqual([
+      expect.objectContaining({
+        _id: "doc-4",
+        pdfUrl: "https://cdn.example/org-docs/org-1/general-v1.pdf",
+      }),
+    ]);
 
     await expect(
       OrganizationDocumentService.listPublicDocumentsForOrganisation({
         organisationId: "org-1",
       }),
-    ).resolves.toEqual([expect.objectContaining({ _id: "doc-5" })]);
+    ).resolves.toEqual([
+      expect.objectContaining({
+        _id: "doc-5",
+        pdfUrl: "https://cdn.example/org-docs/org-1/general-v1.pdf",
+      }),
+    ]);
   });
 
   it("uses the upload helper when replacing file urls", async () => {
@@ -217,5 +233,27 @@ describe("OrganizationDocumentService", () => {
     });
 
     expect(mockedGetURLForKey).toHaveBeenCalledWith("key-1");
+  });
+
+  it("returns fixed legal document metadata with CDN URLs", async () => {
+    expect(OrganizationDocumentService.getFixedLegalDocument("terms")).toEqual({
+      pdfUrl: "https://cdn.example/legal/terms-v1.pdf",
+      version: "v1",
+      lastUpdated: "2026-03-01",
+    });
+
+    expect(
+      OrganizationDocumentService.getFixedLegalDocument("privacy"),
+    ).toEqual({
+      pdfUrl: "https://cdn.example/legal/privacy-v1.pdf",
+      version: "v1",
+      lastUpdated: "2026-03-01",
+    });
+  });
+
+  it("rejects invalid legal document types", async () => {
+    expect(() =>
+      OrganizationDocumentService.getFixedLegalDocument("unknown" as "terms"),
+    ).toThrow("Invalid legal document type");
   });
 });
