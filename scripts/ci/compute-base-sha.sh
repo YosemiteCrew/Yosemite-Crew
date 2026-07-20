@@ -46,6 +46,27 @@ if [ -n "$force_push_base" ]; then
   exit 0
 fi
 
+# Branch creation is the one case with legitimately no previous tip: the push
+# carries the zero SHA, so HEAD~1 is the only sensible base. It under-reports a
+# multi-commit first push, which is accepted because it fires once, at branch
+# creation, off the steady-state path.
+#
+# Everything else that cannot be resolved runs all workspaces. In particular a
+# push whose `before` is a real SHA that is absent from this checkout means the
+# history was rewritten by a force push: falling back to HEAD~1 there would
+# narrow the diff to the final commit and silently skip every workspace touched
+# earlier in the pushed range.
+if [ "$event_name" = "push" ] && { [ -z "$event_before" ] || [ "$event_before" = "$ZERO_SHA" ]; }; then
+  parent="$(git rev-parse --verify --quiet 'HEAD~1' 2>/dev/null || true)"
+  if is_commit "$parent"; then
+    emit "$parent" false
+    exit 0
+  fi
+  echo "branch creation with no parent commit; running all workspaces" >&2
+  emit '' true
+  exit 0
+fi
+
 case "$event_name" in
   pull_request | pull_request_target)
     candidate="$pr_base_sha"
@@ -66,17 +87,6 @@ esac
 
 if is_commit "$candidate"; then
   emit "$candidate" false
-  exit 0
-fi
-
-# Branch-creation pushes carry the zero SHA and workflow_dispatch carries no
-# base at all. HEAD~1 keeps the common single-commit case cheap; it under-reports
-# a multi-commit first push, which is accepted because it fires only on branch
-# creation, off the steady-state path. When even HEAD~1 is absent (root commit,
-# shallow clone) there is nothing to diff against, so run everything.
-parent="$(git rev-parse --verify --quiet 'HEAD~1' 2>/dev/null || true)"
-if is_commit "$parent"; then
-  emit "$parent" false
   exit 0
 fi
 

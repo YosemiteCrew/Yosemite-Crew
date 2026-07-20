@@ -10,9 +10,13 @@ name: Frontend Quality
 # and Lighthouse pass, and it consumes the build _core already produced rather
 # than building the frontend a second time.
 
+# workflow_call only. This stage consumes the dist-packages and next-build
+# artifacts that _core produces in the same run and deliberately does not build
+# them itself, so a standalone dispatch would have nothing to download and would
+# fail at that step. To run it on demand, dispatch ci.yaml, which runs the whole
+# pipeline including this stage.
 on:
   workflow_call: {}
-  workflow_dispatch: {}
 
 permissions:
   contents: read

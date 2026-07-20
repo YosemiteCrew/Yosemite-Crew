@@ -55,11 +55,14 @@ teardown() {
   [[ "$output" == *'run_all=false'* ]]
 }
 
-@test "push with a base missing from the checkout falls back to HEAD~1" {
+@test "push with a base missing from the checkout runs everything" {
+  # A non-zero base that is not in the checkout means the history was rewritten
+  # by a force push. Falling back to HEAD~1 would narrow the diff to the final
+  # commit and silently skip workspaces changed earlier in the pushed range.
   GITHUB_EVENT_NAME=push EVENT_BEFORE="$ABSENT" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"sha=$SECOND"* ]]
-  [[ "$output" == *'run_all=false'* ]]
+  [[ "$output" == *'run_all=true'* ]]
+  [[ "$output" != *"sha=$SECOND"* ]]
 }
 
 @test "merge_group uses the merge group base sha" {
@@ -83,11 +86,31 @@ teardown() {
 }
 
 @test "an unknown event with no base runs everything" {
+  # HEAD~1 is reserved for branch creation. A dispatch with no base has no
+  # trustworthy diff point, so it runs everything; an operator who wants to
+  # narrow it passes force_push_base.
   GITHUB_EVENT_NAME=workflow_dispatch run bash "$SCRIPT"
   [ "$status" -eq 0 ]
-  [[ "$output" == *'run_all=false'* ]]
-  # workflow_dispatch has no event base, so it lands on the HEAD~1 fallback.
+  [[ "$output" == *'run_all=true'* ]]
+}
+
+@test "a pull_request with an unresolvable base runs everything" {
+  GITHUB_EVENT_NAME=pull_request PR_BASE_SHA="$ABSENT" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'run_all=true'* ]]
+}
+
+@test "a merge_group with an unresolvable base runs everything" {
+  GITHUB_EVENT_NAME=merge_group MERGE_GROUP_BASE_SHA="$ABSENT" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'run_all=true'* ]]
+}
+
+@test "an empty push base is treated as branch creation" {
+  GITHUB_EVENT_NAME=push EVENT_BEFORE="" run bash "$SCRIPT"
+  [ "$status" -eq 0 ]
   [[ "$output" == *"sha=$SECOND"* ]]
+  [[ "$output" == *'run_all=false'* ]]
 }
 
 @test "a root commit with no parent runs everything" {
