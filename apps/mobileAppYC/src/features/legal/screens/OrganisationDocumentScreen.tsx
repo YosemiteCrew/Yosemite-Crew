@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +15,8 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {LegalContentRenderer} from '../components/LegalContentRenderer';
-import {exportLegalDocument} from '../services/legalExportService';
+import {downloadDocumentToAppStorage} from '@/shared/utils/documentDownload';
+import {buildLegalFileName} from '../utils/legalFileName';
 import type {LegalSection, LegalContentBlock} from '../data/legalContentTypes';
 import {
   organisationDocumentService,
@@ -96,8 +98,16 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [error, setError] = React.useState<string | null>(null);
   const [sections, setSections] = React.useState<LegalSection[] | null>(null);
+  const documentsRef = React.useRef<OrganisationDocument[]>([]);
   const [retryCount, setRetryCount] = React.useState(0);
+  const [acknowledged, setAcknowledged] = React.useState(false);
+  const [acknowledging, setAcknowledging] = React.useState(false);
+  const [acknowledgeError, setAcknowledgeError] = React.useState<string | null>(
+    null,
+  );
+  const [downloading, setDownloading] = React.useState(false);
   const loading = sections === null && error === null;
+  const primaryDocument = documentsRef.current[0] ?? null;
 
   const baseTitle = CATEGORY_TITLES[category] ?? 'Document';
   const screenTitle = organisationName
@@ -113,24 +123,94 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
     setRetryCount(n => n + 1);
   }, []);
 
-  const handleDownload = React.useCallback(() => {
-    exportLegalDocument(screenTitle, sections ?? []);
-  }, [screenTitle, sections]);
+  const handleDownload = React.useCallback(async () => {
+    if (!primaryDocument?.pdfUrl || downloading) {
+      Alert.alert(
+        'Unavailable',
+        'We could not find a download link for this document. Please try again later.',
+      );
+      return;
+    }
+    setDownloading(true);
+    try {
+      const fileName = buildLegalFileName([
+        orgLabel,
+        baseTitle,
+        primaryDocument.version ? `v${primaryDocument.version}` : null,
+      ]);
+      const downloadPath = await downloadDocumentToAppStorage(
+        primaryDocument.pdfUrl,
+        fileName,
+      );
+      Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
+    } catch (err) {
+      const message =
+        (err as any)?.message ??
+        'Unable to download the file. Please check your connection and try again.';
+      Alert.alert('Download failed', message);
+    } finally {
+      setDownloading(false);
+    }
+  }, [baseTitle, downloading, orgLabel, primaryDocument]);
 
-  const handleAcknowledge = React.useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
+  const handleAcknowledge = React.useCallback(async () => {
+    if (!primaryDocument || acknowledging) {
+      return;
+    }
+    setAcknowledging(true);
+    setAcknowledgeError(null);
+    try {
+      await organisationDocumentService.acknowledgeDocument({
+        organisationId,
+        documentId: primaryDocument.id,
+        category,
+        version: primaryDocument.version ?? 1,
+      });
+      setAcknowledged(true);
+      navigation.goBack();
+    } catch (err) {
+      const message =
+        (err as any)?.message ??
+        'Unable to save your acknowledgment. Please try again.';
+      setAcknowledgeError(message);
+    } finally {
+      setAcknowledging(false);
+    }
+  }, [acknowledging, category, navigation, organisationId, primaryDocument]);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const docs = await organisationDocumentService.fetchDocuments({
+        const result = await organisationDocumentService.fetchDocuments({
           organisationId,
           category,
         });
-        if (!cancelled) {
-          setSections(mapDocumentsToSections(docs, baseTitle));
+        if (cancelled) {
+          return;
+        }
+        const docs = Array.isArray(result) ? result : [];
+        documentsRef.current = docs;
+        setSections(mapDocumentsToSections(docs, baseTitle));
+
+        const primary = docs[0];
+        if (primary) {
+          try {
+            const status =
+              await organisationDocumentService.getAcknowledgeStatus({
+                organisationId,
+                documentId: primary.id,
+              });
+            if (!cancelled) {
+              setAcknowledged(
+                status.acknowledged &&
+                  status.version === (primary.version ?? 1),
+              );
+            }
+          } catch {
+            // Acknowledgment status is a nice-to-have for this render pass;
+            // the user can still acknowledge even if the check fails.
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -246,30 +326,63 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
                 testID="organisation-document-download"
                 accessibilityRole="button"
                 accessibilityLabel="Download"
+                accessibilityState={{disabled: downloading}}
+                disabled={downloading}
                 onPress={handleDownload}
                 style={styles.downloadAction}>
-                <Ionicons
-                  name="download-outline"
-                  size={18}
-                  color={theme.colors.inkBody}
-                />
+                {downloading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.inkBody}
+                  />
+                ) : (
+                  <Ionicons
+                    name="download-outline"
+                    size={18}
+                    color={theme.colors.inkBody}
+                  />
+                )}
                 <Text style={styles.downloadActionText}>Download</Text>
               </PressableOpacity>
 
               <PressableOpacity
                 testID="organisation-document-acknowledge"
                 accessibilityRole="button"
-                accessibilityLabel="Acknowledge"
+                accessibilityLabel={
+                  acknowledged ? 'Acknowledged' : 'Acknowledge'
+                }
+                accessibilityState={{
+                  disabled: acknowledged || acknowledging,
+                }}
+                disabled={acknowledged || acknowledging}
                 onPress={handleAcknowledge}
-                style={styles.acknowledgeAction}>
-                <Ionicons
-                  name="checkmark"
-                  size={18}
-                  color={theme.colors.ctaText}
-                />
-                <Text style={styles.acknowledgeActionText}>Acknowledge</Text>
+                style={[
+                  styles.acknowledgeAction,
+                  (acknowledged || acknowledging) &&
+                    styles.acknowledgeActionDisabled,
+                ]}>
+                {acknowledging ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.ctaText}
+                  />
+                ) : (
+                  <Ionicons
+                    name="checkmark"
+                    size={18}
+                    color={theme.colors.ctaText}
+                  />
+                )}
+                <Text style={styles.acknowledgeActionText}>
+                  {acknowledged ? 'Acknowledged' : 'Acknowledge'}
+                </Text>
               </PressableOpacity>
             </View>
+            {acknowledgeError ? (
+              <Text style={styles.acknowledgeErrorText}>
+                {acknowledgeError}
+              </Text>
+            ) : null}
           </View>
         ) : (
           <ScrollView
@@ -444,6 +557,17 @@ const createStyles = (theme: any) =>
       fontSize: 15.5,
       fontWeight: '500',
       color: theme.colors.ctaText,
+    },
+    acknowledgeActionDisabled: {
+      opacity: 0.6,
+    },
+    acknowledgeErrorText: {
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.danger,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing['5'],
+      marginTop: -theme.spacing['3'],
+      paddingBottom: theme.spacing['3'],
     },
   });
 

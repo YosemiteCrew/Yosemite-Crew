@@ -1,8 +1,9 @@
 import React from 'react';
+import {Alert} from 'react-native';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import OrganisationDocumentScreen from '../../../../src/features/legal/screens/OrganisationDocumentScreen';
 import {organisationDocumentService} from '../../../../src/features/legal/services/organisationDocumentService';
-import {exportLegalDocument} from '../../../../src/features/legal/services/legalExportService';
+import {downloadDocumentToAppStorage} from '../../../../src/shared/utils/documentDownload';
 import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
@@ -28,13 +29,15 @@ jest.mock(
   () => ({
     organisationDocumentService: {
       fetchDocuments: jest.fn(),
+      acknowledgeDocument: jest.fn(),
+      getAcknowledgeStatus: jest.fn(),
     },
   }),
 );
 
-// 3b. Mock the export service (invoked by the Download action)
-jest.mock('../../../../src/features/legal/services/legalExportService', () => ({
-  exportLegalDocument: jest.fn(),
+// 3b. Mock the shared download util (invoked by the Download action)
+jest.mock('../../../../src/shared/utils/documentDownload', () => ({
+  downloadDocumentToAppStorage: jest.fn(),
 }));
 
 // 4. Mock Child Components
@@ -119,6 +122,13 @@ jest.mock('react-native-safe-area-context', () => ({
 describe('OrganisationDocumentScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (
+      organisationDocumentService.getAcknowledgeStatus as jest.Mock
+    ).mockResolvedValue({
+      acknowledged: false,
+      version: null,
+      acknowledgedAt: null,
+    });
   });
 
   // ===========================================================================
@@ -177,7 +187,7 @@ describe('OrganisationDocumentScreen', () => {
     unmount2();
 
     // 3. Fallback Title (No Organisation Name)
-    const {getByText: getByText3} = render(
+    const {getByText: getByText3, unmount: unmount3} = render(
       <OrganisationDocumentScreen
         navigation={{goBack: mockGoBack} as any}
         route={
@@ -186,6 +196,10 @@ describe('OrganisationDocumentScreen', () => {
       />,
     );
     await waitFor(() => expect(getByText3('Terms & Conditions')).toBeTruthy());
+    await waitFor(() =>
+      expect(getByText3('No content available')).toBeTruthy(),
+    );
+    unmount3();
   });
 
   // ===========================================================================
@@ -212,6 +226,11 @@ describe('OrganisationDocumentScreen', () => {
     );
 
     await findByText('Section 1');
+    await waitFor(() =>
+      expect(
+        organisationDocumentService.getAcknowledgeStatus,
+      ).toHaveBeenCalled(),
+    );
 
     // Check that description was split into 2 blocks
     expect(getByTestId('block-doc-1-0')).toHaveTextContent('Paragraph One.');
@@ -239,6 +258,11 @@ describe('OrganisationDocumentScreen', () => {
     );
     // One for null, one for whitespace string
     expect(fallbacks).toHaveLength(2);
+    await waitFor(() =>
+      expect(
+        organisationDocumentService.getAcknowledgeStatus,
+      ).toHaveBeenCalled(),
+    );
   });
 
   it('uses fallback title if document title is missing', async () => {
@@ -260,6 +284,11 @@ describe('OrganisationDocumentScreen', () => {
     expect((await findAllByText('Terms & Conditions')).length).toBeGreaterThan(
       0,
     );
+    await waitFor(() =>
+      expect(
+        organisationDocumentService.getAcknowledgeStatus,
+      ).toHaveBeenCalled(),
+    );
   });
 
   it('generates ID if document ID is missing', async () => {
@@ -276,6 +305,11 @@ describe('OrganisationDocumentScreen', () => {
     );
 
     await findByText('Generated ID');
+    await waitFor(() =>
+      expect(
+        organisationDocumentService.getAcknowledgeStatus,
+      ).toHaveBeenCalled(),
+    );
   });
 
   // ===========================================================================
@@ -337,6 +371,11 @@ describe('OrganisationDocumentScreen', () => {
     fireEvent.press(getByTestId('retry-button'));
 
     await findByText('Success');
+    await waitFor(() =>
+      expect(
+        organisationDocumentService.getAcknowledgeStatus,
+      ).toHaveBeenCalled(),
+    );
   });
 
   it('renders default error message if error object is malformed', async () => {
@@ -364,12 +403,14 @@ describe('OrganisationDocumentScreen', () => {
     (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
       [],
     );
-    const {getByTestId} = render(
+    const {getByTestId, findByText} = render(
       <OrganisationDocumentScreen
         navigation={{goBack: mockGoBack} as any}
         route={mockRoute as any}
       />,
     );
+
+    await findByText('No content available');
 
     fireEvent.press(getByTestId('header-back'));
     expect(mockGoBack).toHaveBeenCalled();
@@ -379,13 +420,64 @@ describe('OrganisationDocumentScreen', () => {
   // 5. Document actions (Download & Acknowledge)
   // ===========================================================================
 
-  it('exports the document when the download action is pressed', async () => {
+  it('downloads the real PDF when the download action is pressed', async () => {
+    const mockDocs = [
+      {
+        id: 'doc-1',
+        title: 'Section 1',
+        description: 'Body text.',
+        version: 3,
+        pdfUrl: 'https://cdn.example/org-docs/org-123/terms-v3.pdf',
+      },
+    ];
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
+      mockDocs,
+    );
+    (downloadDocumentToAppStorage as jest.Mock).mockResolvedValue(
+      '/app/Downloads/Test-Clinic-Terms-Conditions-v3.pdf',
+    );
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    const {getByTestId, findByTestId} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={mockRoute as any}
+      />,
+    );
+
+    await findByTestId('organisation-document-download');
+    await waitFor(() =>
+      expect(
+        organisationDocumentService.getAcknowledgeStatus,
+      ).toHaveBeenCalled(),
+    );
+
+    fireEvent.press(getByTestId('organisation-document-download'));
+
+    await waitFor(() =>
+      expect(downloadDocumentToAppStorage).toHaveBeenCalledWith(
+        'https://cdn.example/org-docs/org-123/terms-v3.pdf',
+        expect.stringContaining('.pdf'),
+      ),
+    );
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Download complete',
+        expect.stringContaining(
+          '/app/Downloads/Test-Clinic-Terms-Conditions-v3.pdf',
+        ),
+      ),
+    );
+  });
+
+  it('shows an unavailable alert when the document has no pdfUrl yet', async () => {
     const mockDocs = [
       {id: 'doc-1', title: 'Section 1', description: 'Body text.'},
     ];
     (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
       mockDocs,
     );
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
     const {getByTestId, findByTestId} = render(
       <OrganisationDocumentScreen
@@ -398,22 +490,25 @@ describe('OrganisationDocumentScreen', () => {
 
     fireEvent.press(getByTestId('organisation-document-download'));
 
-    expect(exportLegalDocument).toHaveBeenCalledTimes(1);
-    expect(exportLegalDocument).toHaveBeenCalledWith(
-      'Test Clinic Terms & Conditions',
-      expect.arrayContaining([
-        expect.objectContaining({id: 'doc-1', title: 'Section 1'}),
-      ]),
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Unavailable',
+        expect.stringContaining('download link'),
+      ),
     );
+    expect(downloadDocumentToAppStorage).not.toHaveBeenCalled();
   });
 
-  it('navigates back when the acknowledge action is pressed', async () => {
+  it('records acknowledgment via the API and navigates back on success', async () => {
     const mockDocs = [
-      {id: 'doc-1', title: 'Section 1', description: 'Body text.'},
+      {id: 'doc-1', title: 'Section 1', description: 'Body text.', version: 3},
     ];
     (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
       mockDocs,
     );
+    (
+      organisationDocumentService.acknowledgeDocument as jest.Mock
+    ).mockResolvedValue(undefined);
 
     const {getByTestId, findByTestId} = render(
       <OrganisationDocumentScreen
@@ -424,9 +519,76 @@ describe('OrganisationDocumentScreen', () => {
 
     await findByTestId('organisation-document-acknowledge');
 
-    fireEvent.press(getByTestId('organisation-document-acknowledge'));
+    await act(async () => {
+      fireEvent.press(getByTestId('organisation-document-acknowledge'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
+    expect(
+      organisationDocumentService.acknowledgeDocument,
+    ).toHaveBeenCalledWith({
+      organisationId: 'org-123',
+      documentId: 'doc-1',
+      category: 'TERMS_AND_CONDITIONS',
+      version: 3,
+    });
     expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an inline error and stays on screen if acknowledging fails', async () => {
+    const mockDocs = [
+      {id: 'doc-1', title: 'Section 1', description: 'Body text.', version: 1},
+    ];
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
+      mockDocs,
+    );
+    (
+      organisationDocumentService.acknowledgeDocument as jest.Mock
+    ).mockRejectedValue(new Error('Network down'));
+
+    const {getByTestId, findByTestId, findByText} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={mockRoute as any}
+      />,
+    );
+
+    await findByTestId('organisation-document-acknowledge');
+
+    await act(async () => {
+      fireEvent.press(getByTestId('organisation-document-acknowledge'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await findByText('Network down');
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('shows the already-acknowledged state when the current version was already accepted', async () => {
+    const mockDocs = [
+      {id: 'doc-1', title: 'Section 1', description: 'Body text.', version: 2},
+    ];
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
+      mockDocs,
+    );
+    (
+      organisationDocumentService.getAcknowledgeStatus as jest.Mock
+    ).mockResolvedValue({
+      acknowledged: true,
+      version: 2,
+      acknowledgedAt: '2026-01-01',
+    });
+
+    const {findByText} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={mockRoute as any}
+      />,
+    );
+
+    await findByText('Acknowledged');
   });
 
   // ===========================================================================
