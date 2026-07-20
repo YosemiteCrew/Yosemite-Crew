@@ -6,8 +6,10 @@ name: React Doctor
 
 permissions:
   contents: read
+  # Commenting on a pull request uses the pull-requests scope, and the status
+  # check uses the statuses scope. The workflow creates no issues, so issues:
+  # write was an unused grant and is dropped.
   pull-requests: write
-  issues: write
   statuses: write
 
 concurrency:
@@ -22,6 +24,9 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          # Runs a third-party action against PR-controlled code; do not leave
+          # the default token in git config for it to read.
+          persist-credentials: false
 
       - name: Run React Doctor
         id: react-doctor
@@ -69,6 +74,9 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          # Runs a third-party action against PR-controlled code; do not leave
+          # the default token in git config for it to read.
+          persist-credentials: false
 
       - name: Run React Doctor
         id: react-doctor
