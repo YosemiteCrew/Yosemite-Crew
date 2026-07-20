@@ -102,14 +102,21 @@ jobs:
             run_all "no trustworthy base SHA"
           fi
 
-          # A lockfile, root manifest, workspace definition or turbo config
-          # change can alter any workspace's dependency graph in ways turbo's
-          # file-level filter does not model. pnpm-workspace.yaml matters most
-          # here: a diff that only adds, removes or renames a workspace glob
-          # leaves turbo's affected dry run returning zero tasks, so without
-          # this the matrix would come back empty and the aggregate check would
-          # go green having linted, built and tested nothing.
-          if git diff --name-only "$BASE_SHA" HEAD | grep -qE '^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json)$'; then
+          # Two families of change that turbo's file-level filter cannot see, and
+          # that therefore have to widen the matrix by hand or the aggregate
+          # check goes green having linted, built and tested nothing.
+          #
+          # Root configuration: a lockfile, root manifest, workspace definition
+          # or turbo config change can alter any workspace's dependency graph.
+          # pnpm-workspace.yaml matters most, since a diff that only adds,
+          # removes or renames a workspace glob leaves the dry run empty.
+          #
+          # The pipeline itself: none of .github or scripts/ci belongs to a
+          # workspace, so a change confined to them reports zero affected tasks.
+          # Without this a pull request that only edits the pipeline would pass
+          # without ever exercising the pipeline code it changed, which is the
+          # one diff where running everything matters most.
+          if git diff --name-only "$BASE_SHA" HEAD | grep -qE '^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json)$|^\.github/(workflows|actions)/|^scripts/ci/'; then
             run_all "lockfile or root configuration changed"
           fi
 
