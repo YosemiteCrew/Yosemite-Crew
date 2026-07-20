@@ -1121,6 +1121,21 @@ model OrganizationDocument {
   @@index([organisationId])
 }
 
+model OrganizationDocumentAcknowledgement {
+  id             String               @id @default(uuid())
+  organisationId String
+  documentId     String
+  category       OrgDocumentCategory
+  version        Int
+  userId         String
+  acknowledgedAt DateTime             @default(now())
+
+  @@unique([userId, organisationId, documentId, category, version])
+  @@index([organisationId, documentId, category])
+  @@index([userId, organisationId])
+  @@map("OrganizationDocumentAcknowledgements")
+}
+
 model OrganisationRoom {
   id                    String                @id @default(uuid())
   organisationId        String

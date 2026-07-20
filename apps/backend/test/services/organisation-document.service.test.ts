@@ -13,6 +13,10 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
       deleteMany: jest.fn(),
     },
+    organizationDocumentAcknowledgement: {
+      upsert: jest.fn(),
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -255,5 +259,134 @@ describe("OrganizationDocumentService", () => {
     expect(() =>
       OrganizationDocumentService.getFixedLegalDocument("unknown" as "terms"),
     ).toThrow("Invalid legal document type");
+  });
+
+  it("persists document acknowledgements for the shown version", async () => {
+    mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce({
+      id: "doc-7",
+      organisationId: "org-1",
+      title: "Terms",
+      description: "",
+      category: "TERMS_AND_CONDITIONS",
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      fileSize: null,
+      visibility: "PUBLIC",
+      version: 2,
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    });
+    mockedPrisma.organizationDocumentAcknowledgement.upsert.mockResolvedValueOnce(
+      {
+        id: "ack-1",
+      },
+    );
+
+    await expect(
+      OrganizationDocumentService.acknowledgeDocument({
+        organisationId: "org-1",
+        documentId: "doc-7",
+        userId: "user-1",
+        category: "TERMS_AND_CONDITIONS",
+        version: 1,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(
+      mockedPrisma.organizationDocumentAcknowledgement.upsert,
+    ).toHaveBeenCalledWith({
+      where: {
+        userId_organisationId_documentId_category_version: {
+          userId: "user-1",
+          organisationId: "org-1",
+          documentId: "doc-7",
+          category: "TERMS_AND_CONDITIONS",
+          version: 1,
+        },
+      },
+      create: {
+        userId: "user-1",
+        organisationId: "org-1",
+        documentId: "doc-7",
+        category: "TERMS_AND_CONDITIONS",
+        version: 1,
+      },
+      update: {},
+    });
+  });
+
+  it("returns the current acknowledgement status for the document version", async () => {
+    mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce({
+      id: "doc-8",
+      organisationId: "org-1",
+      title: "Privacy",
+      description: "",
+      category: "PRIVACY_POLICY",
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      fileSize: null,
+      visibility: "PUBLIC",
+      version: 3,
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    });
+    mockedPrisma.organizationDocumentAcknowledgement.findFirst.mockResolvedValueOnce(
+      {
+        id: "ack-2",
+        organisationId: "org-1",
+        documentId: "doc-8",
+        category: "PRIVACY_POLICY",
+        version: 3,
+        userId: "user-2",
+        acknowledgedAt: new Date("2026-06-01T10:00:00Z"),
+      },
+    );
+
+    await expect(
+      OrganizationDocumentService.getAcknowledgementStatus({
+        organisationId: "org-1",
+        documentId: "doc-8",
+        userId: "user-2",
+      }),
+    ).resolves.toEqual({
+      acknowledged: true,
+      version: 3,
+      acknowledgedAt: new Date("2026-06-01T10:00:00Z"),
+    });
+  });
+
+  it("returns false when the stored acknowledgement is for an older version", async () => {
+    mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce({
+      id: "doc-9",
+      organisationId: "org-1",
+      title: "Cancellation",
+      description: "",
+      category: "CANCELLATION_POLICY",
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      fileSize: null,
+      visibility: "PUBLIC",
+      version: 4,
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    });
+    mockedPrisma.organizationDocumentAcknowledgement.findFirst.mockResolvedValueOnce(
+      null,
+    );
+
+    await expect(
+      OrganizationDocumentService.getAcknowledgementStatus({
+        organisationId: "org-1",
+        documentId: "doc-9",
+        userId: "user-3",
+      }),
+    ).resolves.toEqual({
+      acknowledged: false,
+      version: 4,
+      acknowledgedAt: undefined,
+    });
   });
 });

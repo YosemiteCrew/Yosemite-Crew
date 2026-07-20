@@ -82,4 +82,16 @@ router.get(
   OrganizationDocumentController.listPublic,
 );
 
+router.post(
+  "/mobile/:orgId/documents/:documentId/acknowledge",
+  requireMobileAuth,
+  OrganizationDocumentController.acknowledgeDocument,
+);
+
+router.get(
+  "/mobile/:orgId/documents/:documentId/acknowledge-status",
+  requireMobileAuth,
+  OrganizationDocumentController.acknowledgeStatus,
+);
+
 export default router;

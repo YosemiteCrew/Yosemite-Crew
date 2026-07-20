@@ -27,6 +27,20 @@ export interface LegalDocumentResponse {
   lastUpdated: string;
 }
 
+export interface AcknowledgeOrgDocumentInput {
+  organisationId: string;
+  documentId: string;
+  userId: string;
+  category: OrgDocumentCategory;
+  version: number;
+}
+
+export interface DocumentAcknowledgementStatus {
+  acknowledged: boolean;
+  version: number;
+  acknowledgedAt?: Date;
+}
+
 const FIXED_LEGAL_DOCUMENTS: Record<
   LegalDocumentType,
   {
@@ -413,6 +427,100 @@ export const OrganizationDocumentService = {
       pdfUrl: getURLForKey(document.pdfKey),
       version: document.version,
       lastUpdated: document.lastUpdated,
+    };
+  },
+
+  /**
+   * Persist a user acknowledgment for a specific document version.
+   */
+  async acknowledgeDocument(input: AcknowledgeOrgDocumentInput): Promise<void> {
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
+    const documentId = requireSafeString(input.documentId, "documentId");
+    const userId = requireSafeString(input.userId, "userId");
+
+    if (!Number.isInteger(input.version) || input.version < 1) {
+      throw new OrgDocumentServiceError("Invalid version", 400);
+    }
+
+    const document = await prisma.organizationDocument.findFirst({
+      where: {
+        id: documentId,
+        organisationId,
+      },
+    });
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Document not found", 404);
+    }
+
+    await prisma.organizationDocumentAcknowledgement.upsert({
+      where: {
+        userId_organisationId_documentId_category_version: {
+          userId,
+          organisationId,
+          documentId,
+          category: input.category as PrismaOrgDocumentCategory,
+          version: input.version,
+        },
+      },
+      create: {
+        userId,
+        organisationId,
+        documentId,
+        category: input.category as PrismaOrgDocumentCategory,
+        version: input.version,
+      },
+      update: {},
+    });
+  },
+
+  /**
+   * Return whether the current document version has already been acknowledged.
+   */
+  async getAcknowledgementStatus(input: {
+    organisationId: string;
+    documentId: string;
+    userId: string;
+  }): Promise<DocumentAcknowledgementStatus> {
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
+    const documentId = requireSafeString(input.documentId, "documentId");
+    const userId = requireSafeString(input.userId, "userId");
+
+    const document = await prisma.organizationDocument.findFirst({
+      where: {
+        id: documentId,
+        organisationId,
+      },
+    });
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Document not found", 404);
+    }
+
+    const acknowledgement =
+      await prisma.organizationDocumentAcknowledgement.findFirst({
+        where: {
+          userId,
+          organisationId,
+          documentId,
+          category: document.category,
+          version: document.version,
+        },
+        orderBy: {
+          acknowledgedAt: "desc",
+        },
+      });
+
+    return {
+      acknowledged: Boolean(acknowledgement),
+      version: document.version,
+      acknowledgedAt: acknowledgement?.acknowledgedAt,
     };
   },
 };
