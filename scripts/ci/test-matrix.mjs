@@ -84,6 +84,7 @@ for (const entry of core.include) {
       shards,
       coverage: collectsCoverage,
       uses_jest: usesJest,
+      needs_prisma: Boolean(entry.needs_prisma),
     });
   }
 }

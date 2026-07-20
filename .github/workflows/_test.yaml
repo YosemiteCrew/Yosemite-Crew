@@ -108,8 +108,13 @@ jobs:
       - name: Unpack shared package dist output
         run: tar -xzf dist-packages.tar.gz
 
+      # Both the backend and the database package's suites import the generated
+      # Prisma client, which lives in node_modules and is not part of the
+      # dist-packages artifact, so it has to be generated here. Gating only on
+      # 'backend' left the database leg with the ungenerated stub, which failed
+      # its node --test with "PrismaClient not found".
       - name: Generate Prisma client
-        if: matrix.workspace == 'backend'
+        if: matrix.needs_prisma
         run: pnpm --filter @yosemite-crew/database run prisma:generate
 
       # jest is invoked through `pnpm exec` rather than the package's test
