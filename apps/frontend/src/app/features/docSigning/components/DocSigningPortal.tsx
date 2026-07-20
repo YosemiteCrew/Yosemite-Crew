@@ -72,6 +72,10 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
         embedded ? 'h-[75vh] min-h-[560px]' : 'h-[calc(100vh-140px)]'
       }`}
     >
+      {/* The third-party Documenso portal requires allow-same-origin to function, and
+          being cross-origin it cannot reach back into this site. Removing it breaks
+          signing, so this is a deliberate exception rather than a missing control. */}
+      {/* react-doctor-disable-next-line react-doctor/iframe-missing-sandbox */}
       <iframe
         src={portalUrl}
         className="size-full"

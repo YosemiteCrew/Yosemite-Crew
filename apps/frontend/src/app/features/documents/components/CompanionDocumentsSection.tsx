@@ -27,6 +27,12 @@ import {
   groupRecordsByMonth,
   sortRecords,
 } from '@/app/features/documents/components/recordDisplay';
+import {
+  RECORD_LIFECYCLE_FILTERS,
+  RECORD_LIFECYCLE_LABELS,
+  getAvailableLifecycleTabs,
+  getLifecycleForFilter,
+} from '@/app/features/documents/components/recordLifecycle';
 
 const handleDownload = async (id: string | undefined) => {
   try {
@@ -40,6 +46,9 @@ const handleDownload = async (id: string | undefined) => {
   }
 };
 
+// Source tabs, always available because every record carries the dimension.
+// The design's lifecycle tabs (Requested / Generated / Signed) are appended at
+// render time, and only for lifecycles the loaded records resolve to.
 const FILTER_TABS: { value: RecordFilter; label: string }[] = [
   { value: 'ALL', label: 'All' },
   { value: 'UPLOADED', label: 'Uploaded' },
@@ -149,9 +158,20 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
     };
   }, [companionId]);
 
+  const lifecycleTabs = useMemo(() => getAvailableLifecycleTabs(records), [records]);
+
+  // A lifecycle tab only exists while some loaded record resolves to it. If a
+  // reload empties the active one, fall back to All rather than stranding the
+  // list on a filter whose pill is no longer on screen. Derived during render
+  // rather than corrected in an effect, so there is no extra render and no
+  // frame where the list is empty before the reset lands.
+  const activeLifecycle = getLifecycleForFilter(filter);
+  const effectiveFilter: RecordFilter =
+    activeLifecycle && !lifecycleTabs.includes(activeLifecycle) ? 'ALL' : filter;
+
   const groups = useMemo(
-    () => groupRecordsByMonth(sortRecords(filterRecords(records, filter), sortDirection)),
-    [records, filter, sortDirection]
+    () => groupRecordsByMonth(sortRecords(filterRecords(records, effectiveFilter), sortDirection)),
+    [records, effectiveFilter, sortDirection]
   );
 
   const handleSave = async () => {
@@ -182,14 +202,28 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
   const closeUpload = () => setUploadOpen(false);
   const toggleSort = () => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
 
+  const uploadButton = (
+    <Primary href="#" text="Upload record" onClick={openUpload} className="w-auto min-w-[150px]" />
+  );
+
   const uploadCta = (
+    <PermissionGate allOf={[PERMISSIONS.COMPANIONS_EDIT_ANY]}>{uploadButton}</PermissionGate>
+  );
+
+  // The design's empty state pairs the upload CTA with a secondary outline
+  // "Request from pet parent" pill. There is no request flow behind it yet, so
+  // the control ships in its unavailable state rather than inventing one.
+  const emptyStateActions = (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_EDIT_ANY]}>
-      <Primary
-        href="#"
-        text="Upload record"
-        onClick={openUpload}
-        className="w-auto min-w-[150px]"
-      />
+      {uploadButton}
+      <button
+        type="button"
+        disabled
+        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-body)' }}
+        className="flex h-[42px] items-center gap-1.5 rounded-full border px-[18px] text-[13px] font-semibold disabled:cursor-not-allowed"
+      >
+        Request from pet parent
+      </button>
     </PermissionGate>
   );
 
@@ -197,7 +231,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div className="flex w-full flex-1 flex-col gap-6 overflow-y-auto scrollbar-hidden">
         {records.length === 0 ? (
-          <CompanionRecordsEmptyState action={uploadCta} />
+          <CompanionRecordsEmptyState action={emptyStateActions} />
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -205,10 +239,19 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                 {FILTER_TABS.map((tab) => (
                   <FilterPill
                     key={tab.value}
-                    active={filter === tab.value}
+                    active={effectiveFilter === tab.value}
                     onClick={() => setFilter(tab.value)}
                   >
                     {tab.value === 'ALL' ? `${tab.label} · ${records.length}` : tab.label}
+                  </FilterPill>
+                ))}
+                {lifecycleTabs.map((lifecycle) => (
+                  <FilterPill
+                    key={lifecycle}
+                    active={effectiveFilter === RECORD_LIFECYCLE_FILTERS[lifecycle]}
+                    onClick={() => setFilter(RECORD_LIFECYCLE_FILTERS[lifecycle])}
+                  >
+                    {RECORD_LIFECYCLE_LABELS[lifecycle]}
                   </FilterPill>
                 ))}
               </div>

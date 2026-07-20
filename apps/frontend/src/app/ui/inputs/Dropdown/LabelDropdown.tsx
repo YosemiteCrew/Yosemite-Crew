@@ -52,7 +52,7 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
 // chevron), 13px radius, 1.5px --hairline, warm --field-bg, 13px value text.
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
   const base =
-    'relative w-full flex h-[46px] items-center px-[13px] pr-9 min-w-30 rounded-[13px]! border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+    'relative w-full flex h-[44px] items-center px-[13px] pr-9 min-w-30 rounded-[12px]! border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
   if (open) return `${base} border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)] z-20`;
   const border = hasErrorState ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!';
   return `${base} ${border}`;

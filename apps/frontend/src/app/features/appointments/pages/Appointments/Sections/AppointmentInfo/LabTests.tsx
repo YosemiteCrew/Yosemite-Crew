@@ -1180,7 +1180,7 @@ const LabResultsList = ({ s }: { s: UseLabTestsReturn }) => (
           <Link
             href="/appointments/idexx-workspace"
             aria-label="Open IDEXX Hub"
-            className="size-8 rounded-full border border-card-border bg-neutral-0 text-text-secondary hover:text-text-brand hover:border-text-brand transition-colors inline-flex items-center justify-center"
+            className="size-8 rounded-full border border-card-border bg-neutral-0 text-text-secondary hover:text-blue-text hover:border-text-brand transition-colors inline-flex items-center justify-center"
           >
             <IoOpenOutline size={16} />
           </Link>
@@ -1307,7 +1307,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
         </div>
         <Link
           href="/integrations"
-          className="text-body-4 text-text-brand underline underline-offset-2"
+          className="text-body-4 text-blue-text underline underline-offset-2"
         >
           Enable IDEXX in Integrations
         </Link>

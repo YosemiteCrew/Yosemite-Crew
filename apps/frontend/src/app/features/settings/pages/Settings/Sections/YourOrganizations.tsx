@@ -1,7 +1,10 @@
 'use client';
 import React from 'react';
+import Link from 'next/link';
+import { IoAdd } from 'react-icons/io5';
 import { useOrgWithMemberships } from '@/app/hooks/useOrgSelectors';
 import { useOrgStore } from '@/app/stores/orgStore';
+import '@/app/features/settings/styles/Settings.css';
 
 // Avatar palette for the non-primary organizations, mirroring the design's
 // rotating violet/green/amber tokens. The primary org always uses the blue tile.
@@ -31,7 +34,13 @@ const YourOrganizations = () => {
 
   return (
     <section className="flex flex-col gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-[18px]! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <h3 className="text-[14.5px] font-bold text-[var(--ink)]">Your organizations</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="min-w-0 text-[14.5px] font-bold text-[var(--ink)]">Your organizations</h3>
+        <Link href="/create-org" className="yc-settings-card-action">
+          <IoAdd size={13} aria-hidden="true" />
+          New organization
+        </Link>
+      </div>
       {orgs.map(({ org, membership }, index) => {
         const orgId = String(org._id ?? org.name);
         const isPrimary = primaryOrgId != null && orgId === primaryOrgId;

@@ -50,10 +50,10 @@ const INPUT_PLACEHOLDER_ACTIVE = 'var(--color-input-text-placeholder-active)';
 // 16-R: values / selected text / input content
 const text16R: CSSProperties = {
   fontFamily: FONT,
-  fontSize: 16,
+  fontSize: 14,
   fontWeight: 400,
   lineHeight: '120%',
-  color: NEUTRAL_900,
+  color: 'var(--ink-body)',
 };
 // 14-M: labels, checkboxes, emergency
 const text14M: CSSProperties = {
@@ -341,10 +341,10 @@ export const PersonRow = ({
       <div
         ref={triggerRef}
         className={clsx(
-          'relative flex items-center min-h-12 border bg-neutral-0 transition-colors duration-150 cursor-text',
+          'relative flex items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] transition-colors duration-150 cursor-text',
           visibleOpen
-            ? 'rounded-t-2xl border-input-border-active border-b-0'
-            : 'rounded-2xl border-input-border-default',
+            ? 'rounded-t-[12px] border-input-border-active border-b-0'
+            : 'rounded-[12px] border-[var(--hairline)]',
           error ? 'border-input-border-error!' : ''
         )}
       >
@@ -614,10 +614,10 @@ export const TimeSlotDropdown = ({
         type="button"
         ref={triggerRef}
         className={clsx(
-          'relative flex w-full items-center min-h-12 border bg-neutral-0 text-left transition-colors duration-150 select-none',
+          'relative flex w-full items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] text-left transition-colors duration-150 select-none',
           open
-            ? 'rounded-t-2xl border-input-border-active border-b-0'
-            : 'rounded-2xl border-input-border-default',
+            ? 'rounded-t-[12px] border-input-border-active border-b-0'
+            : 'rounded-[12px] border-[var(--hairline)]',
           error ? 'border-input-border-error!' : ''
         )}
         onClick={() => setOpen((o) => !o)}
@@ -641,7 +641,7 @@ export const TimeSlotDropdown = ({
 
 // ─── SlotBadge — duration display ──────────────────────────────────────────────
 export const SlotBadge = ({ label }: { label: string | null }) => (
-  <div className="relative flex items-center min-h-12 border border-input-border-default rounded-2xl bg-neutral-0 px-5 py-3">
+  <div className="relative flex items-center min-h-[46px] border-[1.5px] border-[var(--hairline)] rounded-[12px] bg-[var(--field-bg)] px-5 py-3">
     <FloatLabel floated={Boolean(label)}>Slot duration</FloatLabel>
     <span style={label ? text16R : { ...text16R, color: INPUT_PLACEHOLDER }}>{label ?? ''}</span>
   </div>
@@ -946,13 +946,19 @@ export const AppointmentFormContent = ({
 
     {variant === 'sheet' ? null : (
       <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
-        <Secondary text="Cancel" onClick={onCancel} isDisabled={formState.loading} />
+        <Secondary
+          text="Cancel"
+          onClick={onCancel}
+          isDisabled={formState.loading}
+          className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
+        />
         <Primary
           text="Book appointment"
           onClick={handleSubmit}
           isDisabled={formState.loading}
           icon={<IoArrowForward aria-hidden="true" />}
           iconPosition="right"
+          className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
         />
       </div>
     )}

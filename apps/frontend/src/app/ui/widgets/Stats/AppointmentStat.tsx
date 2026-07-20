@@ -34,10 +34,9 @@ const AppointmentStat = () => {
           { name: 'Completed', color: 'var(--cta)' },
           { name: 'Cancelled', color: 'var(--divider)' },
         ]}
-        yAxisWidth={32}
-        barSize={16}
-        xAxisLabel="Time"
-        yAxisLabel="Appointments"
+        chartHeight={150}
+        hideYAxis
+        barSize={14}
         compactMonthAxis={selectedDuration === 'Last month'}
       />
     </div>

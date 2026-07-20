@@ -10,13 +10,7 @@ import type { AppointmentKind } from './catalog';
 import { normalizeTemplateKind, type TemplateKind } from './template';
 
 export type AppointmentStatus =
-  | 'REQUESTED'
-  | 'UPCOMING'
-  | 'CHECKED_IN'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW';
+  'REQUESTED' | 'UPCOMING' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export type AppointmentPaymentStatus = 'PAID' | 'UNPAID';
 export type AppointmentBookingPaymentStatus = 'PAID' | 'UNPAID';
@@ -83,6 +77,29 @@ export type Appointment = {
   durationMinutes: number; // Duration in minutes
   endTime: Date; // Booking end timestamp
   status: AppointmentStatus;
+  /**
+   * BACKEND WORK REQUIRED — not persisted today. The moment the patient was
+   * actually checked in at the clinic desk, which is the only honest basis for a
+   * "waiting N min" figure. It is deliberately NOT the booked `startTime`:
+   * measuring from the booking measures lateness, not wait. Until the backend
+   * stamps this (an appointment-status-history / `checkedInAt` column plus its
+   * FHIR mapping), consumers must render nothing rather than a derived number.
+   */
+  checkedInAt?: Date | string;
+  /**
+   * BACKEND WORK REQUIRED — there is no treatment-series / package model today.
+   * When a visit belongs to a booked course of sessions (the design's "Laser
+   * therapy · session 2 of 6"), the backend supplies this occurrence's 1-based
+   * position and the course length; `seriesCompletedCount` is the number of
+   * sessions already delivered, and is NOT inferred from `seriesIndex` (a
+   * scheduled session 2 does not imply session 1 was completed). Every consumer
+   * renders series UI only when the values it needs are present.
+   */
+  seriesIndex?: number;
+  seriesTotal?: number;
+  seriesCompletedCount?: number;
+  /** BACKEND WORK REQUIRED — free-text note on the booked series (design's "Series note"). */
+  seriesNote?: string;
   paymentStatus?: AppointmentPaymentStatus;
   bookingPaymentStatus?: AppointmentBookingPaymentStatus;
   isEmergency?: boolean;

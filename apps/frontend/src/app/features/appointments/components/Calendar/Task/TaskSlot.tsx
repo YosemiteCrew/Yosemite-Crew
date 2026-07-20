@@ -145,7 +145,7 @@ const TaskDropOverlays = ({
             height: Math.max(12, (Math.max(5, draggedTaskDurationMinutes) / 60) * height),
           }}
         >
-          <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
+          <div className="size-full flex items-center justify-center px-2 text-caption-1 text-blue-text truncate">
             {draggedTaskLabel || 'Task'}
           </div>
         </div>

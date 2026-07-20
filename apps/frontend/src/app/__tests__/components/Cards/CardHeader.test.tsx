@@ -24,7 +24,20 @@ describe('CardHeader', () => {
       name: /Filter Explore by time period: Last week/i,
     });
     expect(toggle).toHaveClass('rounded-full', 'border', 'border-[var(--hairline)]');
-    expect(toggle).toHaveClass('text-[12px]', 'font-semibold', 'text-[var(--ink-muted)]');
+    // Default 'card' variant: the compact in-card pill.
+    expect(toggle).toHaveClass('text-[11.5px]', 'font-semibold', 'text-[var(--ink-muted)]');
+    expect(toggle).toHaveClass('px-2.5', 'py-[5px]');
+    expect(screen.getByText('Explore')).toHaveClass('text-[15px]');
+  });
+
+  test('the section variant renders the larger heading and pill', () => {
+    render(<CardHeader title="Explore" options={options} variant="section" />);
+
+    const toggle = screen.getByRole('button', {
+      name: /Filter Explore by time period: Last week/i,
+    });
+    expect(toggle).toHaveClass('text-[12px]', 'px-3', 'py-1.5');
+    expect(screen.getByText('Explore')).toHaveClass('text-[16px]');
   });
 
   test('uses controlled selection and calls onSelect', () => {

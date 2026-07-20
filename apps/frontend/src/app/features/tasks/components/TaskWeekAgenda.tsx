@@ -180,7 +180,7 @@ const TaskWeekAgenda = ({
               )}
             >
               {weekday}{' '}
-              <span className={clsx('text-[12px]', !isToday && 'text-text-primary')}>
+              <span className="text-[12px]" style={isToday ? undefined : { color: 'var(--ink)' }}>
                 {dayNumber}
                 {isToday && ' · today'}
               </span>
@@ -192,6 +192,7 @@ const TaskWeekAgenda = ({
       <div className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto scrollbar-hidden">
         {days.map((day, index) => {
           const isFutureDay = day.getTime() > todayStartMs;
+          const isTodayColumn = isOnPreferredTimeZoneCalendarDay(today, day);
           const dayTasks = tasksByDay[index] ?? [];
           return (
             <div
@@ -200,6 +201,8 @@ const TaskWeekAgenda = ({
                 'group/col flex flex-col gap-2 px-2 py-2.5',
                 index > 0 && 'border-l border-card-border'
               )}
+              // The design tints the whole current-day column, not just its header cell.
+              style={isTodayColumn ? { backgroundColor: 'var(--surface-soft)' } : undefined}
             >
               {dayTasks.map((task) => (
                 <AgendaCard

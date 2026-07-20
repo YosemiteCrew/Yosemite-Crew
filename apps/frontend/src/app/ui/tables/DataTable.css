@@ -17,7 +17,7 @@
    empty. Each class carries its own min-width = sum of its column px widths. */
 .appointments-table-fixed {
   table-layout: fixed;
-  min-width: 1236px; /* 56+140+120+110+130+110+120+110+130+210 */
+  min-width: 1074px; /* 56+140+120+110+130+110+120+110+130+48 */
 }
 .tasks-table-fixed {
   table-layout: fixed;
@@ -25,11 +25,14 @@
 }
 .forms-table-fixed {
   table-layout: fixed;
-  min-width: 914px; /* 200+130+130+140+140+110+64 */
+  /* 200+130+190+90+150+110+64 — includes the conditional "Linked services"
+     column (190px). It must cover the widest colgroup, or with that column
+     rendered the trailing Actions column sits past the reachable scroll extent. */
+  min-width: 934px;
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1094px; /* 160+180+150+90+80+70+80+110+110+64 */
+  min-width: 1200px; /* 96+200+180+150+90+70+80+160+110+64 */
 }
 .companions-table-fixed {
   table-layout: fixed;
@@ -49,13 +52,12 @@
 /* Right-align the money / metric column HEADERS so they sit over their figures,
    matching the design (GenericTable's <th> is left by default). Body figures are
    right-aligned via the .cell-figure* classes on the rendered cell.
-   Desktop invoice ledger: Subtotal(5) Discount(6) Tax(7) Total(8).
+   Desktop invoice ledger: Subtotal(5) Tax(6) Total(7).
    Compact (tablet) invoice: Total(3).
    Turnover metrics: Beginning(3) Ending(4) Avg(5) Purchases(6) Turns(7) Days(8). */
 .invoice-table-fixed thead th:nth-child(5),
 .invoice-table-fixed thead th:nth-child(6),
 .invoice-table-fixed thead th:nth-child(7),
-.invoice-table-fixed thead th:nth-child(8),
 .invoice-compact-fixed thead th:nth-child(3),
 .inventory-turnover-table-fixed thead th:nth-child(n + 3):nth-child(-n + 8) {
   text-align: right;
@@ -133,6 +135,28 @@
     gap: 24px;
   }
 }
+/* Inline figure inks for the grid tables (inventory catalog, dispensary).
+   The design uses the raw semantic inks here — --success / --warn-text /
+   --danger-text / --blue-text — not the pill *-text ramps, which are a darker,
+   badge-only ramp. Declared unlayered so they beat Tailwind's utility layer and
+   stay theme-live in both light and dark. */
+.cell-ink-success {
+  color: var(--success);
+}
+.cell-ink-warn {
+  color: var(--warn-text);
+}
+.cell-ink-danger {
+  color: var(--danger-text);
+}
+.cell-ink-link {
+  color: var(--blue-text);
+}
+/* Design's row action button outline is the stronger --divider, not --hairline. */
+.grid-row-action {
+  border-color: var(--divider);
+}
+
 .InviteDetails {
   color: var(--color-primary-500);
   font-size: 16px;
@@ -293,6 +317,44 @@
 .appointment-profile-title.cell-muted {
   color: var(--ink-muted);
 }
+/* Identity line: the design sets every row's leading name in bold headline ink
+   (--ink), one step darker than the row's --ink-body. */
+.appointment-profile-title.cell-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Per-table body scale. The shared 16px base predates the design system and
+   renders every ledger cell 2-3px oversize; each frame in the 19 July designs
+   carries its own row size, so the scale lives with the table, not the class. */
+.appointments-table-fixed .appointment-profile-title {
+  font-size: 14px;
+}
+.appointments-table-fixed .appointment-profile-sub {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+.invoice-table-fixed .appointment-profile-title,
+.invoice-compact-fixed .appointment-profile-title {
+  font-size: 13.5px;
+}
+/* Services / Payment are the secondary finance columns — one step down again. */
+.invoice-table-fixed .appointment-profile-title.cell-muted,
+.invoice-compact-fixed .appointment-profile-title.cell-muted {
+  font-size: 12.5px;
+}
+.invoice-table-fixed .appointment-profile-title.cell-name,
+.invoice-compact-fixed .appointment-profile-title.cell-name {
+  font-size: 13px;
+}
+.invoice-table-fixed .appointment-profile-sub,
+.invoice-compact-fixed .appointment-profile-sub {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.forms-table-fixed .appointment-profile-title {
+  font-size: 13.5px;
+}
 /* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 3px 10px, fully round.
    Per-status bg/text/border are supplied inline via getStatusStyle(...). */
 .appointment-status {
@@ -319,25 +381,33 @@
   white-space: nowrap;
   font-family: var(--font-satoshi);
 }
+/* Emergency: the design flags it inline beside the patient name as a micro-badge
+   in the same 8.5px/700/0.08em vocabulary as the other row chips. */
 .appointment-emergency-label {
-  display: flex;
-  height: 25px;
-  width: 72px;
-  padding: 8px;
-  justify-content: center;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 3px;
   flex-shrink: 0;
-  border-radius: 8px;
+  padding: 2px 7px;
+  border-radius: 9999px;
   border-width: 1px;
   border-style: solid;
-  border-color: var(--error-color);
-  background: var(--color-danger-100);
-  color: var(--error-color);
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
   font-family: var(--font-satoshi);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* …and at the row level with a danger rule down the leading edge plus a faint
+   wash, so an emergency reads before you get to the name. */
+.appointment-row-emergency > td {
+  background: var(--danger-bg-faint);
+}
+.appointment-row-emergency > td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--danger);
 }

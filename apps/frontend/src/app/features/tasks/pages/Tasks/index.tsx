@@ -3,6 +3,8 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import type { SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
+import { IoAdd } from 'react-icons/io5';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
@@ -23,6 +25,13 @@ import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 
 const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
+
+/**
+ * The design's task filter row carries three status pills — Pending, In progress
+ * and Completed. Cancelled is not offered there, so it is trimmed from the
+ * shared status list (which other surfaces still use in full).
+ */
+const TASK_STATUS_PILLS = TaskStatusFilters.filter((option) => option.key !== 'cancelled');
 
 const TaskPlannerSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -254,13 +263,26 @@ const Tasks = () => {
           showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
           actionBeforeAdd={
-            showWeekNav ? (
-              <TaskWeekNav
-                currentDate={currentDate}
-                setCurrentDate={handleCurrentDateChange}
-                setWeekStart={setWeekStart}
-              />
-            ) : undefined
+            <>
+              {showWeekNav && (
+                <TaskWeekNav
+                  currentDate={currentDate}
+                  setCurrentDate={handleCurrentDateChange}
+                  setWeekStart={setWeekStart}
+                />
+              )}
+              {canEditTasks && (
+                <Primary
+                  text="New task"
+                  ariaLabel="New task"
+                  onClick={openAddTask}
+                  icon={<IoAdd size={16} aria-hidden="true" />}
+                  // The design seats the CTA after the view toggle; this slot
+                  // renders before it, so flex order restores that sequence.
+                  className="order-1 gap-[7px] px-[18px] whitespace-nowrap hover:scale-100"
+                />
+              )}
+            </>
           }
         />
         <MobileSearchBar placeholder="Search tasks" />
@@ -270,14 +292,11 @@ const Tasks = () => {
             {activeView !== 'board' && (
               <TaskFilterBar
                 filterOptions={TaskFilters}
-                statusOptions={TaskStatusFilters}
+                statusOptions={TASK_STATUS_PILLS}
                 activeFilter={activeFilter}
                 activeStatus={activeStatus}
                 setActiveFilter={setActiveFilter}
                 setActiveStatus={setActiveStatus}
-                showAddButton={canEditTasks}
-                onAddButtonClick={openAddTask}
-                addButtonText="New task"
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

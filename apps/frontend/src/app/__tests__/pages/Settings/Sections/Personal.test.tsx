@@ -117,7 +117,7 @@ describe('Settings Personal identity card', () => {
     expect(screen.getByText('SW')).toBeInTheDocument();
     expect(screen.getByText('Mon–Fri · 08:00–17:00')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit profile' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'edit' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit hours' })).toBeInTheDocument();
   });
 
   it('renders the real avatar image when a https picture url is present', () => {
@@ -147,7 +147,7 @@ describe('Settings Personal identity card', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
     expect(getById).toHaveBeenCalledWith('settings-user-profile');
 
-    fireEvent.click(screen.getByRole('button', { name: 'edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit hours' }));
     expect(getById).toHaveBeenCalledWith('settings-availability');
 
     expect(scrollIntoView).toHaveBeenCalledTimes(2);

@@ -60,7 +60,7 @@ const STATUS_BADGE_STYLE: CSSProperties = {
   height: 20,
   padding: '0 9px',
   borderRadius: 9999,
-  fontSize: 10.5,
+  fontSize: 12,
   fontWeight: 700,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
@@ -728,7 +728,7 @@ function HeroWindowBar() {
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          fontSize: 11.5,
+          fontSize: 12,
           color: 'var(--success)',
           fontWeight: 700,
         }}
@@ -797,7 +797,7 @@ function HeroSidebar() {
       />
       <span
         style={{
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.1em',
           color: 'var(--ink-faint2)',
@@ -962,7 +962,7 @@ function HeroFloatCards() {
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-body)' }}>
             Wifi dropped, still typing
           </div>
-          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Nothing lost · syncs later</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Nothing lost · syncs later</div>
         </div>
       </div>
       <div data-hero-float="true" style={HERO_FLOAT_CARD_B_STYLE}>
@@ -973,7 +973,7 @@ function HeroFloatCards() {
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-body)' }}>
             Export everything
           </div>
-          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Leaving is free</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Leaving is free</div>
         </div>
       </div>
     </>
@@ -1164,7 +1164,7 @@ function RecordsTimeline() {
     <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <span
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.1em',
           color: 'var(--ink-faint2)',
@@ -1204,7 +1204,7 @@ function RecordsTimeline() {
       >
         <div
           style={{
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 700,
             letterSpacing: '0.08em',
             color: 'var(--ink-faint2)',
@@ -1774,7 +1774,7 @@ function CalculatorsSection() {
                 <span
                   style={{
                     fontFamily: 'ui-monospace, Menlo, monospace',
-                    fontSize: 11,
+                    fontSize: 12,
                     color: 'var(--ink-faint)',
                   }}
                 >

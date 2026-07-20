@@ -11,10 +11,8 @@
 import { type FC } from 'react';
 import type { Channel as StreamChannel } from 'stream-chat';
 import { IoIosAddCircleOutline } from 'react-icons/io';
-import { IoTrash } from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
-import { Badge } from '@/app/ui';
 import Modal from '@/app/ui/overlays/Modal';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -216,19 +214,26 @@ export const GroupModal: FC<GroupModalProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {mode === 'edit' && m.id === ownerId && <Badge tone="brand">Owner</Badge>}
+                        {/* Design (group chat modal): the owner marker is a soft-blue
+                            pill, not the solid brand badge. */}
+                        {mode === 'edit' && m.id === ownerId && (
+                          <span className="inline-flex items-center rounded-full border border-[var(--hairline)] bg-[var(--blue-soft)] px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[var(--blue-text)]">
+                            Owner
+                          </span>
+                        )}
+                        {/* Design: an inline "Remove" text link, not a trash icon. */}
                         {isCreator && m.id !== ownerId && (
                           <button
                             type="button"
                             aria-label={`Remove ${m.name} from group`}
                             onClick={() => handleRemoveMemberClick(m.id)}
                             disabled={busy}
-                            className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${
+                            className={`rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-[var(--danger-text)] transition-all duration-200 hover:bg-chat-surface-soft ${
                               busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                             }`}
                             title="Remove member"
                           >
-                            <IoTrash size={20} color="var(--danger-text)" />
+                            Remove
                           </button>
                         )}
                       </div>

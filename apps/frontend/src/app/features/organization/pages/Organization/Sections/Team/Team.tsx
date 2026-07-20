@@ -16,7 +16,7 @@ import {
   teamStatusPill,
 } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 
-const GRID_COLS = 'grid-cols-[1.6fr_1fr_1fr_92px_40px]';
+const GRID_COLS = 'grid-cols-[1.6fr_1fr_1fr_110px_44px]';
 
 const specialityLabel = (team: TeamProp): string => {
   if (!Array.isArray(team.speciality) || team.speciality.length === 0) return '';

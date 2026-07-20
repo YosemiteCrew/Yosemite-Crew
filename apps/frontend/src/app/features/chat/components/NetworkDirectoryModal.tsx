@@ -118,21 +118,25 @@ export function NetworkDirectoryModal({
           </button>
         </div>
 
-        <div className="flex items-center gap-2 border-b border-[var(--hairline)] px-5 py-3">
-          <IoSearchOutline className="h-4 w-4 shrink-0 text-[var(--ink-faint)]" />
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search colleagues…"
-            aria-label="Search colleagues"
-            className="w-full bg-transparent font-satoshi text-sm text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
-          />
-          {hasQuery && (
-            <button type="button" aria-label="Clear search" onClick={() => setQuery('')}>
-              <IoClose className="h-4 w-4 text-[var(--ink-faint)]" />
-            </button>
-          )}
+        {/* Design (network directory): the search is a 38px --field-bg pill, not
+            an underlined row — focus swaps the hairline for a --blue edge + ring. */}
+        <div className="px-5 py-3.5">
+          <div className="flex min-h-[38px] items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] px-[13px] transition-shadow focus-within:border-[var(--blue)] focus-within:shadow-[0_0_0_3px_rgba(37,123,237,0.12)]">
+            <IoSearchOutline className="h-3.5 w-3.5 shrink-0 text-[var(--ink-faint)]" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search colleagues…"
+              aria-label="Search colleagues"
+              className="w-full bg-transparent font-satoshi text-[12.5px] font-semibold text-[var(--ink)] outline-none placeholder:font-normal placeholder:text-[var(--ink-faint)]"
+            />
+            {hasQuery && (
+              <button type="button" aria-label="Clear search" onClick={() => setQuery('')}>
+                <IoClose className="h-3.5 w-3.5 text-[var(--ink-faint)]" />
+              </button>
+            )}
+          </div>
         </div>
 
         {error && (

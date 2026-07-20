@@ -192,9 +192,9 @@ describe('Inventory Utils', () => {
       });
       // expired / out of stock
       expect(getStatusBadgeStyle('Expired')).toEqual({
-        color: 'var(--color-danger-600)',
-        backgroundColor: 'var(--color-danger-100)',
-        borderColor: 'var(--color-danger-400)',
+        color: 'var(--danger-text)',
+        backgroundColor: 'var(--danger-bg)',
+        borderColor: 'var(--danger-border)',
       });
       expect(getStatusBadgeStyle('Out of Stock')).toEqual({
         color: 'var(--color-pill-neutral-text)',

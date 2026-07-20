@@ -1,7 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
 
-export type ButtonSize = 'default' | 'large';
+/**
+ * Pill heights measured off the 19 July design frames:
+ * - `compact` 32px / 0 14px / 12px — card and panel footer actions.
+ * - `small`   36px / 0 16px / 12.5px — inline actions inside content cards.
+ * - `default` 40px / 0 18px / 13.5px — the standard page CTA.
+ * - `large`   44px — hero and onboarding CTAs.
+ */
+export type ButtonSize = 'compact' | 'small' | 'default' | 'large';
 
 export type BaseButtonProps = {
   text: string;

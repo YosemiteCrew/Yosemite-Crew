@@ -144,6 +144,36 @@ describe('recordDisplay', () => {
     it('returns only synced records for SYNCED', () => {
       expect(filterRecords([synced, manual], 'SYNCED')).toEqual([synced]);
     });
+
+    describe('lifecycle filters', () => {
+      const requested = rec({ id: 'req', lifecycle: 'requested' });
+      const generated = rec({ id: 'gen', sourceKind: 'TEMPLATE_INSTANCE' });
+      const signedRecord = rec({ id: 'sig', signedAt: '2026-07-01T00:00:00Z' });
+      const uploaded = rec({ id: 'up', uploadedByParentId: 'p1' });
+      const all = [requested, generated, signedRecord, uploaded, synced, manual];
+
+      it.each([
+        ['LIFECYCLE_REQUESTED', requested],
+        ['LIFECYCLE_GENERATED', generated],
+        ['LIFECYCLE_SIGNED', signedRecord],
+        ['LIFECYCLE_UPLOADED', uploaded],
+      ] as const)('narrows the list for %s', (filter, expected) => {
+        expect(filterRecords(all, filter)).toEqual([expected]);
+      });
+
+      // A source filter and a lifecycle filter are separate dimensions: the
+      // source tabs must keep their existing meaning.
+      it('leaves the source filters untouched', () => {
+        expect(filterRecords(all, 'SYNCED')).toEqual([synced]);
+        expect(filterRecords(all, 'UPLOADED')).toEqual([
+          requested,
+          generated,
+          signedRecord,
+          uploaded,
+          manual,
+        ]);
+      });
+    });
   });
 
   describe('sortRecords', () => {

@@ -50,14 +50,24 @@ const ROLE_LABEL_MAP: Record<string, string> = {
 
 // Per-type spine icon. Appointments/vaccines reuse the medical kit glyph, records
 // use the document glyph, diagnostics the flask, billing the receipt.
+const TYPE_ICON_SIZE = 15;
+
 const getTypeIcon = (type: HistoryEntryType): React.ReactNode => {
-  if (type === 'LAB_RESULT') return <IoFlaskOutline size={13} aria-hidden="true" />;
-  if (type === 'INVOICE') return <IoReceiptOutline size={13} aria-hidden="true" />;
-  if (type === 'TASK') return <IoClipboardOutline size={13} aria-hidden="true" />;
+  if (type === 'LAB_RESULT') return <IoFlaskOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
+  if (type === 'INVOICE') return <IoReceiptOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
+  if (type === 'TASK') return <IoClipboardOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
   if (type === 'DOCUMENT' || type === 'FORM_SUBMISSION') {
-    return <IoDocumentTextOutline size={13} aria-hidden="true" />;
+    return <IoDocumentTextOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
   }
-  return <IoMedkitOutline size={13} aria-hidden="true" />;
+  return <IoMedkitOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
+};
+
+// The record open in the detail drawer takes the design's selected-row chrome:
+// the soft surface plus a blue hairline and a 3px blue focus ring.
+const ACTIVE_ROW_STYLE: React.CSSProperties = {
+  background: 'var(--surface-soft)',
+  borderColor: 'var(--blue)',
+  boxShadow: '0 0 0 3px rgba(37,123,237,0.10)',
 };
 
 const formatStatusLabel = (status?: string): string => {
@@ -205,8 +215,9 @@ const HistoryEntryCard = ({
   return (
     <li
       className={`flex gap-[11px] font-satoshi md:gap-[14px] ${
-        active ? 'rounded-[14px] bg-[var(--surface-soft)] px-2 py-1.5' : ''
+        active ? 'rounded-[14px] border px-2 py-1.5' : ''
       }`}
+      style={active ? ACTIVE_ROW_STYLE : undefined}
     >
       <span className="flex flex-none flex-col items-center">
         <span

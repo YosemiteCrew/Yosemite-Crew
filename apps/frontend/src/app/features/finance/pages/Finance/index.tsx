@@ -159,11 +159,11 @@ const Finance = () => {
                       aria-label="Finance info"
                       className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
                     >
-                      <IoInformationCircleOutline size={20} />
+                      <IoInformationCircleOutline size={17} />
                     </button>
                   </GlassTooltip>
                 </div>
-                <p className="text-body-4 text-text-tertiary">
+                <p className="text-[13.5px] text-text-secondary">
                   {`${formatMoney(financeMetrics.collectedThisWeek, currency)} collected this week · ${formatMoney(
                     financeMetrics.outstanding,
                     currency

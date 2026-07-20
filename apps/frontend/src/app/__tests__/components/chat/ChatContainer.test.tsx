@@ -1719,6 +1719,114 @@ describe('ChatContainer', () => {
     await waitFor(() => expect(screen.getByText('Close session')).toBeInTheDocument());
   });
 
+  const makeMutableClientChannel = (id: string) => ({
+    ...defaultMockChannel,
+    id,
+    cid: `messaging:${id}`,
+    data: { appointmentId: '123', chatCategory: 'clients' },
+    muteStatus: () => ({ muted: false }),
+    mute: jest.fn().mockResolvedValue({}),
+    unmute: jest.fn().mockResolvedValue({}),
+  });
+
+  const openInfoDrawer = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation info' }));
+    return screen.getByRole('switch', { name: 'Mute notifications' });
+  };
+
+  it('mutes and unmutes the conversation from the info drawer', async () => {
+    const clientChannel = makeMutableClientChannel('client-a');
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    const toggle = await openInfoDrawer();
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+    expect(clientChannel.mute).toHaveBeenCalled();
+    expect(screen.getByRole('switch', { name: 'Mute notifications' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('switch', { name: 'Mute notifications' }));
+    });
+    expect(clientChannel.unmute).toHaveBeenCalled();
+    expect(screen.getByRole('switch', { name: 'Mute notifications' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+  });
+
+  // Regression: the <Channel> wrapper is unkeyed, so the header instance survives a
+  // conversation switch. An untagged mute override used to carry the previous
+  // channel's state over and make the next toggle call unmute() on a channel that
+  // was never muted.
+  it('does not carry the info-drawer mute override to another conversation', async () => {
+    const channelA = makeMutableClientChannel('client-a');
+    const channelB = makeMutableClientChannel('client-b');
+    mockUseChannelStateContext.mockReturnValue({ channel: channelA });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(channelA);
+
+    const { rerender } = render(<ChatContainer appointmentId="123" />);
+
+    const toggle = await openInfoDrawer();
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+    expect(channelA.mute).toHaveBeenCalled();
+
+    // Select another client conversation — same header instance, new channel.
+    mockUseChannelStateContext.mockReturnValue({ channel: channelB });
+    await act(async () => {
+      rerender(<ChatContainer appointmentId="123" />);
+    });
+
+    const nextToggle = screen.getByRole('switch', { name: 'Mute notifications' });
+    expect(nextToggle).toHaveAttribute('aria-checked', 'false');
+
+    await act(async () => {
+      fireEvent.click(nextToggle);
+    });
+    expect(channelB.mute).toHaveBeenCalled();
+    expect(channelB.unmute).not.toHaveBeenCalled();
+
+    // Switching back reads the original channel's own status again.
+    mockUseChannelStateContext.mockReturnValue({ channel: channelA });
+    await act(async () => {
+      rerender(<ChatContainer appointmentId="123" />);
+    });
+    expect(screen.getByRole('switch', { name: 'Mute notifications' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+  });
+
+  it('archives the conversation and closes the info drawer', async () => {
+    const clientChannel = makeMutableClientChannel('client-a');
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await openInfoDrawer();
+    await act(async () => {
+      fireEvent.click(screen.getByText('Archive conversation'));
+    });
+
+    expect(clientChannel.hide).toHaveBeenCalled();
+    expect(screen.queryByRole('switch', { name: 'Mute notifications' })).not.toBeInTheDocument();
+  });
+
   it('toggles the archived filter and marks the button pressed', async () => {
     await act(async () => {
       render(<ChatContainer scope="colleagues" />);

@@ -112,7 +112,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
 
           <div className="flex overflow-y-auto flex-auto min-h-0 flex-col gap-6 scrollbar-hidden">
             {activeInvoice && (
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.7fr_1fr] lg:items-start">
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr] lg:items-start">
                 <div className="flex flex-col gap-5">
                   <InvoiceBilledItems items={activeInvoice.items ?? []} currency={currency} />
                   <InvoicePaymentLedger

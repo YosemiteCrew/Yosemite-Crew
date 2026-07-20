@@ -26,6 +26,12 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: notifyMock }),
 }));
 
+jest.mock('next/image', () => {
+  const MockImage = ({ alt }: any) => <span data-testid="next-image">{alt}</span>;
+  MockImage.displayName = 'MockNextImage';
+  return { __esModule: true, default: MockImage };
+});
+
 jest.mock('react-icons/io5', () => ({
   IoAlertCircleOutline: () => <span data-testid="i-alert" />,
   IoArrowBack: () => <span data-testid="i-back" />,
@@ -95,6 +101,21 @@ describe('PublicBookingSetup', () => {
     expect(screen.queryByText('Archived one')).not.toBeInTheDocument();
     expect(screen.queryByText('Not bookable')).not.toBeInTheDocument();
     expect(screen.getByText('FIELDS ASSUMED · confirm with product')).toBeInTheDocument();
+    // The wizard header carries the Yosemite Crew product mark, not an org initial.
+    expect(screen.getAllByTestId('next-image')[0]).toHaveTextContent('Yosemite Crew');
+  });
+
+  it('gives the selected service row the blue border and focus-glow ring', () => {
+    render(<PublicBookingSetup />);
+
+    const first = screen.getByRole('button', { name: /Wellness & vaccination/ });
+    expect(first).toHaveStyle({
+      borderColor: 'var(--blue)',
+      boxShadow: '0 0 0 3px var(--glow-b10)',
+    });
+
+    fireEvent.click(first);
+    expect(first).toHaveStyle({ borderColor: 'var(--hairline)' });
   });
 
   it('seeds every service as selected and toggles selection', () => {

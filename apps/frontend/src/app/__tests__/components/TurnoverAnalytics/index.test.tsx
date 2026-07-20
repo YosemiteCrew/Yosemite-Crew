@@ -103,15 +103,17 @@ const analyticsValue = (over: Partial<{ turnsPerYear: number; trend: unknown[] }
 const renderComponent = (props: Partial<React.ComponentProps<typeof TurnoverAnalytics>> = {}) => {
   const setActiveView = jest.fn();
   const onReorder = jest.fn();
+  const onViewHistory = jest.fn();
   render(
     <TurnoverAnalytics
       turnover={props.turnover ?? turnover}
       inventory={props.inventory ?? [carprofen, swabs]}
       setActiveView={props.setActiveView ?? setActiveView}
       onReorder={props.onReorder ?? onReorder}
+      onViewHistory={props.onViewHistory ?? onViewHistory}
     />
   );
-  return { setActiveView, onReorder };
+  return { setActiveView, onReorder, onViewHistory };
 };
 
 beforeEach(() => {
@@ -178,6 +180,19 @@ describe('TurnoverAnalytics', () => {
     const { onReorder } = renderComponent();
     fireEvent.click(screen.getByRole('button', { name: /Reorder 68/ }));
     expect(onReorder).toHaveBeenCalledWith(carprofen);
+  });
+
+  it('opens the history of the selected product from the panel footer', () => {
+    const { onViewHistory } = renderComponent();
+    const panel = screen.getByTestId('product-panel');
+    fireEvent.click(within(panel).getByRole('button', { name: 'History' }));
+    expect(onViewHistory).toHaveBeenCalledWith(carprofen);
+  });
+
+  it('renders the ABC column header row', () => {
+    renderComponent();
+    expect(screen.getByText('Share of value')).toBeInTheDocument();
+    expect(screen.getByText('Policy')).toBeInTheDocument();
   });
 
   it('renders a compact product card on phone instead of the panel', () => {

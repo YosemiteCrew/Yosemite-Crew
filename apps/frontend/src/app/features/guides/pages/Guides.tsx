@@ -1,6 +1,6 @@
 'use client';
 import React, { useMemo, useState } from 'react';
-import { IoArrowForward, IoPlay } from 'react-icons/io5';
+import { IoArrowForward, IoInformationCircleOutline, IoPlay } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -89,17 +89,25 @@ const Guides = () => {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-[3px]">
           <h1
-            className="text-[var(--ink)] text-[28px] leading-tight tracking-[-0.015em]"
+            className="flex items-center gap-2 text-[var(--ink)] text-[26px] leading-tight tracking-[-0.015em]"
             style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 400 }}
           >
-            Learn the crew&apos;s way
+            {'Guides'}
+            <span className="text-[17px]" style={{ color: 'var(--ink-faint)' }}>
+              ({guidesData.length})
+            </span>
+            <IoInformationCircleOutline
+              size={17}
+              aria-hidden="true"
+              style={{ color: 'var(--ink-faint)' }}
+            />
           </h1>
           <span className="text-[13.5px] text-[var(--ink-muted)]">
             Short, practical walkthroughs · 2-6 minutes each
           </span>
         </div>
         <span className="text-[12.5px] text-[var(--ink-faint)]">
-          12 guides · updated with each release
+          Short, practical walkthroughs · updated with each release
         </span>
       </div>
 

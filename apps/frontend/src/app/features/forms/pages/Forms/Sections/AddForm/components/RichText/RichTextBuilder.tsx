@@ -41,7 +41,6 @@ const RichTextBuilder: React.FC<{
         value={typeof field.defaultValue === 'string' ? field.defaultValue : ''}
         onChange={(html) => onChange({ ...field, defaultValue: html })}
         placeholder="Default content shown when the form loads…"
-        toolbarPlacement="inline"
       />
     </div>
   );

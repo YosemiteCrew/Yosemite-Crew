@@ -8,11 +8,7 @@ import {
 } from '@/app/features/appointments/components/Availability/utils';
 
 jest.mock('react-icons/io5', () => ({
-  IoCopy: ({ onClick, ...rest }: any) => (
-    <button type="button" onClick={onClick} {...rest}>
-      copy
-    </button>
-  ),
+  IoCopyOutline: (props: any) => <span data-testid="copy-icon" {...props} />,
 }));
 
 const buildAvailability = (): AvailabilityState =>
@@ -42,7 +38,7 @@ describe('Dublicate', () => {
   it('copies intervals to selected days', () => {
     render(<Wrapper />);
 
-    fireEvent.click(screen.getByText('copy'));
+    fireEvent.click(screen.getByLabelText('dublicate-button'));
     const checkbox = screen.getByLabelText('Copy availability to Tuesday') as HTMLInputElement;
     fireEvent.click(checkbox);
 
@@ -57,7 +53,7 @@ describe('Dublicate', () => {
   it('selects a day when its name is clicked, not just the checkbox', () => {
     render(<Wrapper />);
 
-    fireEvent.click(screen.getByText('copy'));
+    fireEvent.click(screen.getByLabelText('dublicate-button'));
     fireEvent.click(screen.getByText('Tuesday'));
 
     expect(screen.getByLabelText('Copy availability to Tuesday')).toBeChecked();
@@ -70,7 +66,7 @@ describe('Dublicate', () => {
 
   it('gives each day row a label bound to a unique checkbox id', () => {
     render(<Wrapper />);
-    fireEvent.click(screen.getByText('copy'));
+    fireEvent.click(screen.getByLabelText('dublicate-button'));
 
     const ids = daysOfWeek.map(
       (day) => (screen.getByLabelText(`Copy availability to ${day}`) as HTMLInputElement).id
@@ -83,7 +79,7 @@ describe('Dublicate', () => {
   it('does not select the source day, whose row is disabled', () => {
     render(<Wrapper />);
 
-    fireEvent.click(screen.getByText('copy'));
+    fireEvent.click(screen.getByLabelText('dublicate-button'));
     const monday = screen.getByLabelText('Copy availability to Monday') as HTMLInputElement;
     expect(monday).toBeDisabled();
 
@@ -94,7 +90,7 @@ describe('Dublicate', () => {
   it('closes without changes when no target selected', () => {
     render(<Wrapper />);
 
-    fireEvent.click(screen.getByText('copy'));
+    fireEvent.click(screen.getByLabelText('dublicate-button'));
     fireEvent.click(screen.getByText('Apply'));
 
     expect(screen.getByTestId('tuesday-enabled')).toHaveTextContent('false');

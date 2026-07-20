@@ -100,6 +100,14 @@ jest.mock('@/app/features/settings/pages/Settings/Sections/CompanionTerminologyP
 }));
 
 describe('Settings page', () => {
+  it('renders the header with the subtitle and auto-save indicator', () => {
+    render(<Settings />);
+
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByText('Personal and workspace preferences')).toBeInTheDocument();
+    expect(screen.getByText('Changes save automatically')).toBeInTheDocument();
+  });
+
   it('renders settings sections inside protected route', () => {
     render(<Settings />);
 

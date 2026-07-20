@@ -156,7 +156,7 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        className={`w-full flex items-center justify-between gap-2 h-[46px] px-[13px] min-w-[120px] rounded-[13px]! bg-[var(--field-bg)] border-[1.5px] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
+        className={`w-full flex items-center justify-between gap-2 h-[44px] px-[13px] min-w-[120px] rounded-[12px]! bg-[var(--field-bg)] border-[1.5px] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
           error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'
         } ${open ? 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]' : ''}`}
         onClick={() => setOpen((e) => !e)}

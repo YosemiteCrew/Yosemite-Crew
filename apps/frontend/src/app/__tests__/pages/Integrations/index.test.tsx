@@ -227,6 +227,13 @@ const openSettings = async () => {
   return screen.findByTestId('settings-modal');
 };
 
+// Each coming-soon card renders its own "Coming soon" <button>, so scope tab clicks to the
+// filter fieldset instead of matching every button carrying that label.
+const clickFilterTab = (name: string) => {
+  const tabs = screen.getByRole('group', { name: 'Filter integrations' });
+  fireEvent.click(within(tabs).getByRole('button', { name }));
+};
+
 // Resolve an integration card root from its (unique) title text.
 const getCard = (title: string): HTMLElement => {
   const heading = screen.getByText(title);
@@ -291,7 +298,7 @@ describe('IntegrationsPage — default disabled render', () => {
 
     expect(screen.getByRole('heading', { name: /Integrations/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Integrations info' })).toBeInTheDocument();
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 0');
+    expect(screen.getByText('0 active')).toBeInTheDocument();
 
     // Every card is visible under the default "All" filter.
     expect(screen.getByText('IDEXX VetConnect PLUS')).toBeInTheDocument();
@@ -385,7 +392,7 @@ describe('IntegrationsPage — enabled render', () => {
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1'));
 
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 2');
+    expect(screen.getByText('2 active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disable IDEXX quick action' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Disable MSD Veterinary Manual' })
@@ -1011,18 +1018,22 @@ describe('IntegrationsPage — filters and empty states', () => {
     await flush();
   });
 
-  it('shows IDEXX + coming-soon cards under Available when providers are not enabled', async () => {
+  it('shows only IDEXX under Available and hides coming-soon cards', async () => {
     // IDEXX disabled, Merck enabled → IDEXX available, Merck hidden.
     useResolvedMerckMock.mockReturnValue(merckEnabled());
 
     renderPage();
     await waitForPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+    clickFilterTab('Available');
 
     await waitFor(() => expect(screen.getByText('IDEXX VetConnect PLUS')).toBeInTheDocument());
     expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
-    expect(screen.getByText('RadAnalyzer')).toBeInTheDocument();
+    // Coming-soon integrations are not connectable, so Available must not list them.
+    expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vetnio')).not.toBeInTheDocument();
+    expect(screen.queryByText('QuickBooks')).not.toBeInTheDocument();
+    expect(screen.queryByText('Laika')).not.toBeInTheDocument();
     await flush();
   });
 
@@ -1034,13 +1045,36 @@ describe('IntegrationsPage — filters and empty states', () => {
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+    clickFilterTab('Available');
     await screen.findByText('No available integrations right now.');
 
-    // enabled provider cards hidden; coming-soon still visible under Available.
+    // The empty state must stand alone - no provider cards and no coming-soon cards.
     expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
     expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
-    expect(screen.getByText('RadAnalyzer')).toBeInTheDocument();
+    expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vetnio')).not.toBeInTheDocument();
+    expect(screen.queryByText('QuickBooks')).not.toBeInTheDocument();
+    expect(screen.queryByText('Laika')).not.toBeInTheDocument();
+    await flush();
+  });
+
+  it('shows every coming-soon card and no provider cards under Coming soon', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
+    useResolvedMerckMock.mockReturnValue(merckEnabled());
+
+    renderPage();
+    await waitForPage();
+
+    clickFilterTab('Coming soon');
+
+    await waitFor(() => expect(screen.getByText('RadAnalyzer')).toBeInTheDocument());
+    expect(screen.getByText('Vetnio')).toBeInTheDocument();
+    expect(screen.getByText('QuickBooks')).toBeInTheDocument();
+    expect(screen.getByText('Laika')).toBeInTheDocument();
+    expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
+    expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
+    expect(screen.queryByText('No available integrations right now.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No connected integrations yet.')).not.toBeInTheDocument();
     await flush();
   });
 

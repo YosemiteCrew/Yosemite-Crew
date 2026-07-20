@@ -67,16 +67,22 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
 
   return (
     <div className="relative w-[100px] sm:w-[110px]" ref={availabilityContainerRef}>
+      {/* 32px value chip: warm field fill, 1.5px hairline, 9px radius, tabular
+          figures, and a blue ring while the picker is open/focused. */}
       <button
         type="button"
-        className="bg-neutral-0 rounded-2xl! border border-text-primary justify-center w-full outline-none py-[11px]"
+        className={`flex h-8 w-full items-center justify-center rounded-[9px]! border-[1.5px] bg-[var(--field-bg)] px-3 outline-none transition-shadow focus-visible:border-[var(--blue)] focus-visible:shadow-[0_0_0_3px_var(--glow-b10)] ${
+          open
+            ? 'border-[var(--blue)] shadow-[0_0_0_3px_var(--glow-b10)]'
+            : 'border-[var(--hairline)]'
+        }`}
         onClick={() => {
           if (disabled) return;
           setOpen((e: boolean) => !e);
         }}
         disabled={disabled}
       >
-        <span className="text-body-4 text-text-primary ">
+        <span className="text-[13px] font-semibold tabular-nums text-[var(--ink-body)]">
           {getTimeLabelFromValue(interval[field]) || 'Select'}
         </span>
       </button>

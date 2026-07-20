@@ -74,6 +74,17 @@ describe('Steps Progress', () => {
     ];
     const { container } = render(<Progress activeStep={0} steps={steps} />);
     expect(container.querySelectorAll('.yc-step-connector')).toHaveLength(2);
+    // Longer tracks keep the default connector width.
+    expect(container.querySelector('.yc-steps')).not.toHaveClass('is-two-step');
+  });
+
+  test('flags the two-step track so it gets the wider design connector', () => {
+    const steps = [
+      { title: 'One', logo: '1' },
+      { title: 'Two', logo: '2' },
+    ];
+    const { container } = render(<Progress activeStep={0} steps={steps} />);
+    expect(container.querySelector('.yc-steps')).toHaveClass('is-two-step');
   });
 
   test('disables and marks non-clickable steps when canSelectStep returns false', () => {

@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { IoReaderOutline } from 'react-icons/io5';
+import { IoChatbubbleEllipsesOutline, IoFlaskOutline, IoLogInOutline } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import type { AuditTrail } from '@/app/features/audit/types/audit';
 import { useAppointmentAuditTrail } from '@/app/features/audit/hooks/useAppointmentAuditTrail';
@@ -47,6 +47,79 @@ const getEntityLabel = (entityType?: string | null): string => {
   return ENTITY_TYPE_LABELS[normalized] || toTitle(normalized);
 };
 
+/** Warm avatar palettes rotated per team member so each actor keeps a stable colour. */
+const AVATAR_PALETTES = [
+  { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
+  { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+  { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+];
+
+/** Stable palette index from the actor's name — the same person always reads the same colour. */
+const paletteFor = (name: string) => {
+  let hash = 0;
+  for (const character of name) hash = (hash + character.codePointAt(0)!) % 997;
+  return AVATAR_PALETTES[hash % AVATAR_PALETTES.length];
+};
+
+/** Up to two initials for a person chip ("Dr. Sarah Weber" → "SW"). */
+const initialsOf = (name: string): string =>
+  name
+    .split(/\s+/)
+    .filter((part) => /[a-z]/i.test(part[0] ?? ''))
+    .slice(-2)
+    .map((part) => part[0].toUpperCase())
+    .join('') || '?';
+
+/**
+ * 26px actor chip: team members get initials on a rotating warm avatar colour,
+ * pet parents a pink chat glyph, system events a blue flask, and anything else a
+ * neutral bordered login glyph — mirroring the design's per-actor timeline chips.
+ */
+const ActorChip = ({ entry }: { entry: AuditTrail }) => {
+  const actorType = String(entry.actorType ?? '')
+    .trim()
+    .toUpperCase();
+  const name = getActorName(entry);
+  const baseClass =
+    'flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-[10px] font-bold';
+
+  if (actorType === 'PARENT') {
+    return (
+      <span
+        className={baseClass}
+        style={{ background: 'var(--pink-soft)', color: 'var(--pink-text)' }}
+      >
+        <IoChatbubbleEllipsesOutline size={12} aria-hidden />
+      </span>
+    );
+  }
+  if (actorType === 'SYSTEM') {
+    return (
+      <span
+        className={baseClass}
+        style={{ background: 'var(--blue-soft)', color: 'var(--blue-text)' }}
+      >
+        <IoFlaskOutline size={12} aria-hidden />
+      </span>
+    );
+  }
+  if (actorType === 'PMS_USER') {
+    return (
+      <span className={baseClass} style={paletteFor(name)}>
+        {initialsOf(name)}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`${baseClass} border`}
+      style={{ borderColor: 'var(--divider)', color: 'var(--ink-faint)' }}
+    >
+      <IoLogInOutline size={12} aria-hidden />
+    </span>
+  );
+};
+
 /**
  * Activity panel — a vertical timeline of the appointment's audit trail.
  * Hosted inside the QuickActions modal, which already renders the header/close
@@ -75,10 +148,10 @@ const ActivityPanel = ({ appointment }: ActivityPanelProps) => {
                   className="flex gap-3 font-satoshi"
                 >
                   <div className="flex flex-col items-center">
-                    <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-primary-100 text-text-brand">
-                      <IoReaderOutline size={12} aria-hidden />
-                    </span>
-                    {!isLast ? <span className="w-px flex-1 bg-card-border" /> : null}
+                    <ActorChip entry={entry} />
+                    {!isLast ? (
+                      <span className="w-[1.5px] flex-1" style={{ background: 'var(--divider)' }} />
+                    ) : null}
                   </div>
                   <div className={isLast ? 'min-w-0' : 'min-w-0 pb-3.5'}>
                     <p className="text-body-4 text-text-secondary">

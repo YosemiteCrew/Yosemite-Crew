@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
+import { IoAlertCircleOutline, IoRefreshOutline } from 'react-icons/io5';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import './ui/layout/states/states.css';
 
 type GlobalErrorProps = Readonly<{
   error: Error & { digest?: string };
@@ -12,21 +15,23 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
     console.error('Unhandled application error:', error);
   }, [error]);
 
+  // Uses the warm-bone state-card language shared with NotFoundState and
+  // PermissionDeniedState rather than the generic Tailwind panel it used to be.
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
-      <div className="font-satoshi font-medium text-4xl text-input-border-error">
-        Something went wrong
+    <div className="yc-state-wrap">
+      <div className="yc-state-card">
+        <span className="yc-state-icon yc-state-icon--warn" aria-hidden>
+          <IoAlertCircleOutline />
+        </span>
+        <div className="yc-state-title">Something went wrong</div>
+        <p className="yc-state-text">
+          An unexpected error occurred. If this keeps happening, please contact support.
+        </p>
+        <div className="yc-state-actions">
+          <Primary text="Try again" onClick={reset} icon={<IoRefreshOutline aria-hidden />} />
+          <Secondary href="/dashboard" text="Go to Dashboard" />
+        </div>
       </div>
-      <p className="text-body-4 text-text-secondary max-w-md">
-        An unexpected error occurred. If this keeps happening, please contact support.
-      </p>
-      <button
-        type="button"
-        onClick={reset}
-        className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white hover:opacity-90"
-      >
-        Try again
-      </button>
     </div>
   );
 }

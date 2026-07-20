@@ -159,6 +159,58 @@ describe('UserHeader Component', () => {
     });
   });
 
+  it('renders a blue-soft monogram chip when the organization has no logo', () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore
+      .getState()
+      .setOrgs([{ _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL' } as Organisation], {
+        keepPrimaryIfPresent: false,
+      });
+
+    const { container } = render(<UserHeader />);
+
+    const chip = container.querySelector('.yc-header-org-chip');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveTextContent('A');
+    expect(container.querySelector('.yc-header-org-trigger .yc-header-avatar')).toBeNull();
+  });
+
+  it('falls back to "O" on the monogram chip when the organization name is blank', () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore
+      .getState()
+      .setOrgs([{ _id: 'org-1', name: '  ', type: 'HOSPITAL' } as Organisation], {
+        keepPrimaryIfPresent: false,
+      });
+
+    const { container } = render(<UserHeader />);
+
+    expect(container.querySelector('.yc-header-org-chip')).toHaveTextContent('O');
+  });
+
+  it('renders the organization logo when one is set', () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore.getState().setOrgs(
+      [
+        {
+          _id: 'org-1',
+          name: 'Alpha Vet',
+          type: 'HOSPITAL',
+          imageURL: 'https://example.com/org.png',
+        } as Organisation,
+      ],
+      { keepPrimaryIfPresent: false }
+    );
+
+    const { container } = render(<UserHeader />);
+
+    expect(container.querySelector('.yc-header-org-chip')).toBeNull();
+    expect(screen.getAllByTestId('next-image')[0]).toHaveAttribute(
+      'data-src',
+      'https://example.com/org.png'
+    );
+  });
+
   // --- 3. Sign Out Logic ---
 
   it('handles Sign out correctly for App users', async () => {

@@ -168,12 +168,12 @@ describe('AddForm single-screen builder', () => {
     // Details is always mounted (hidden) so its validator is registered; it is passed hideNext.
     expect(screen.getByText('Details Step')).toBeInTheDocument();
     expect(screen.getByText('hideNext:true')).toBeInTheDocument();
-    // Footer save actions.
+    // Header publish cta + footer draft action.
     expect(screen.getByText('Save template')).toBeInTheDocument();
     expect(screen.getByText('Save as draft')).toBeInTheDocument();
   });
 
-  it('publishes from the footer once details and schema validate', async () => {
+  it('publishes from the header cta once details and schema validate', async () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
     fireEvent.click(screen.getByText('Save template'));
@@ -256,7 +256,7 @@ describe('AddForm single-screen builder', () => {
 
     fireEvent.click(screen.getByText('Preview as parent'));
     expect(screen.getByText('Review Step')).toBeInTheDocument();
-    // Footer is hidden in preview; Review supplies its own actions.
+    // Header cta + footer are hidden in preview; Review supplies its own actions.
     expect(screen.queryByText('Save template')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Back to builder'));

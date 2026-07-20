@@ -221,6 +221,18 @@ describe('SpecialityAccordionRevamp', () => {
     expect(screen.getByTestId('services-tab')).toBeInTheDocument();
   });
 
+  it('shows an ACTIVE status pill on the collapsed card and hides the tabs', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} />);
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+    expect(screen.queryByTestId('segmented-pill')).not.toBeInTheDocument();
+  });
+
+  it('moves the catalog tabs into the header and drops the pill once open', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
+    expect(screen.getByTestId('segmented-pill')).toBeInTheDocument();
+    expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
+  });
+
   // --- Section 2: Toggle open/close ---
 
   it('toggles open when chevron button is clicked', () => {

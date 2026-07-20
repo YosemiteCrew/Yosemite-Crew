@@ -47,20 +47,42 @@ describe('RichTextEditor', () => {
     );
   });
 
-  it('renders the inset toolbar with the pill surface and a padded placeholder', () => {
+  it('docks the toolbar inside the field and shows the placeholder', () => {
     render(
       <RichTextEditor
         value=""
         onChange={jest.fn()}
         ariaLabel="Subjective"
         placeholder="Type here"
-        toolbarPlacement="inset"
       />
     );
-    // Placeholder reserves right-hand room so it never runs under the toolbar.
-    expect(screen.getByText('Type here')).toHaveClass('pr-52');
-    // The inset toolbar keeps the design's pill surface (neutral-100 background).
-    expect(screen.getByRole('toolbar', { name: /text formatting/i })).toHaveClass('bg-neutral-100');
+    // The toolbar is a docked bar inside the field (revealed on focus via CSS),
+    // not a floating pill.
+    const toolbar = screen.getByRole('toolbar', { name: /text formatting/i });
+    expect(toolbar).toHaveClass('yc-rte-toolbar');
+    const field = toolbar.closest('.yc-rte-field');
+    expect(field).not.toBeNull();
+    expect(field).toContainElement(screen.getByRole('textbox', { name: 'Subjective' }));
+    // Placeholder sits over the content area.
+    expect(screen.getByText('Type here')).toHaveClass('yc-rte-placeholder');
+  });
+
+  it('wraps the editable field in the .yc-rte-field surface, and read-only in none', () => {
+    const { unmount } = render(
+      <RichTextEditor value="" onChange={jest.fn()} ariaLabel="Subjective" />
+    );
+    // The `.yc-rte-field` wrapper owns the recessed --field-bg surface + border
+    // (styled in RichTextEditor.css). Without it the editor is indistinguishable
+    // from the card behind it (the reported bug).
+    const editable = screen.getByRole('textbox', { name: 'Subjective' });
+    expect(editable.closest('.yc-rte-field')).not.toBeNull();
+    unmount();
+
+    // Read-only history keeps the bare surface so it never reads as editable.
+    render(<RichTextEditor value="" onChange={jest.fn()} ariaLabel="Plan" readOnly />);
+    const readOnlyEditable = screen.getByRole('textbox', { name: 'Plan' });
+    expect(readOnlyEditable.closest('.yc-rte-field')).toBeNull();
+    expect(readOnlyEditable.closest('.yc-rte-readonly')).not.toBeNull();
   });
 
   it('applies formatting via the toolbar and emits sanitized HTML', () => {

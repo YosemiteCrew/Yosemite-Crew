@@ -194,23 +194,27 @@ const VitalsField = ({
   value: string;
   onChange: (value: string) => void;
 }) => (
-  <label className="flex flex-col gap-1">
-    <span className="text-[12px] font-medium text-neutral-700">{field.label}</span>
-    <span className="flex items-stretch overflow-hidden rounded-2xl border border-input-border-default focus-within:border-input-border-active">
-      <input
-        type="text"
-        inputMode={field.inputMode ?? 'text'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={field.label}
-        className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-body-4 text-text-primary outline-none"
-      />
-      {field.unit ? (
-        <span className="flex items-center bg-neutral-100 px-3 text-body-4 text-neutral-700">
-          {field.unit}
-        </span>
-      ) : null}
+  <label className="relative flex h-12 items-center gap-2 rounded-[14px] border-[1.5px] border-[var(--hairline)] px-3.5 transition-shadow focus-within:border-[var(--blue)] focus-within:shadow-[0_0_0_3px_var(--glow-b12)]">
+    <span
+      className="absolute -top-[7px] left-3 truncate px-[5px] text-[10.5px] font-semibold leading-[120%]"
+      style={{ background: 'var(--screen)', color: 'var(--ink-faint)' }}
+    >
+      {field.label}
     </span>
+    <input
+      type="text"
+      inputMode={field.inputMode ?? 'text'}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={field.label}
+      className="min-w-0 flex-1 bg-transparent text-[13.5px] font-semibold outline-none"
+      style={{ color: 'var(--ink-body)' }}
+    />
+    {field.unit ? (
+      <span className="shrink-0 text-[11.5px]" style={{ color: 'var(--ink-faint)' }}>
+        {field.unit}
+      </span>
+    ) : null}
   </label>
 );
 
@@ -610,12 +614,21 @@ const VitalsForm = ({
         )}
       </div>
       {weightTrend ? (
-        <div className="flex items-center gap-2 rounded-2xl bg-primary-100 px-3 py-2 text-caption-1 text-text-brand">
-          {weightTrend.delta >= 0 ? (
-            <IoTrendingUpOutline size={14} aria-hidden="true" />
-          ) : (
-            <IoTrendingDownOutline size={14} aria-hidden="true" />
-          )}
+        <div
+          className="flex items-center gap-2 rounded-xl border px-3 py-2 text-[12px]"
+          style={{
+            background: 'var(--inset)',
+            borderColor: 'var(--divider)',
+            color: 'var(--ink-muted)',
+          }}
+        >
+          <span className="shrink-0" style={{ color: 'var(--success)' }}>
+            {weightTrend.delta >= 0 ? (
+              <IoTrendingUpOutline size={14} aria-hidden="true" />
+            ) : (
+              <IoTrendingDownOutline size={14} aria-hidden="true" />
+            )}
+          </span>
           <span>
             {formatWeightDelta(weightTrend.delta)} since {weightTrend.sinceDate}
           </span>

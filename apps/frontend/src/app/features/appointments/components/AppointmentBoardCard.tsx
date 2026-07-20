@@ -72,6 +72,25 @@ const iconButtonClass =
 const buildCompanionSubtitle = (companion: BoardCardCompanion) =>
   [companion.breed || companion.species, companion.parent?.name].filter(Boolean).join(' · ');
 
+/**
+ * "Waiting 12 min" — how long a checked-in patient has actually been waiting,
+ * measured from the moment they were checked in at the desk.
+ *
+ * BACKEND WORK REQUIRED: this reads `Appointment.checkedInAt`, which nothing
+ * persists yet. It is deliberately NOT derived from the booked `startTime` —
+ * that measures how late the appointment is running, not how long the patient
+ * has waited, and a patient who checks in early would show a wait of zero while
+ * a late-running clinic would show a wait for a patient who just arrived.
+ * Without a real check-in stamp the label is omitted entirely.
+ */
+const buildWaitingLabel = (checkedInAt?: string | Date | null): string => {
+  if (!checkedInAt) return '';
+  const checkedIn = new Date(checkedInAt).getTime();
+  if (Number.isNaN(checkedIn)) return '';
+  const minutes = Math.floor((Date.now() - checkedIn) / 60000);
+  return minutes >= 1 ? `Waiting ${minutes} min` : '';
+};
+
 /** "Annual check-up · Dr. Weber" — the design's service line under the companion. */
 const buildServiceLine = (appointment: Appointment) =>
   [appointment.appointmentType?.name, appointment.lead?.name].filter(Boolean).join(' · ') || '-';
@@ -129,9 +148,9 @@ const BoardCardHeader = ({
           getAppointmentCompanionPhotoUrl(companion),
           companion.species.toLowerCase() as ImageType
         )}
-        height={30}
-        width={30}
-        className="size-[30px] shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
+        height={28}
+        width={28}
+        className="size-[28px] shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
         alt=""
       />
       <div className="min-w-0">
@@ -147,7 +166,7 @@ const BoardCardHeader = ({
         >
           {companionDisplayName}
         </button>
-        <div className="truncate text-[10.5px] leading-4 text-text-tertiary">
+        <div className="truncate text-[11px] leading-4 text-[var(--ink-faint)]">
           {buildCompanionSubtitle(companion)}
         </div>
       </div>
@@ -380,6 +399,22 @@ const AppointmentBoardCard = ({
   // removes the lift shadow so live work stays dominant in the column.
   const isMuted = isMutedBoardStatus(normalizeStatus(appointment.status));
   const isRequested = isRequestedLikeStatus(appointment.status);
+  // Checked-in patients are the ones actually waiting in the clinic, so the design
+  // lifts their card with a 1.5px status outline, a deeper shadow, the wait so far
+  // and a direct "Start visit" action. The wait needs a real check-in stamp, so it
+  // is absent until the backend supplies one — the rest of the emphasis still applies.
+  const isCheckedIn = normalizeStatus(appointment.status) === 'CHECKED_IN';
+  const waitingLabel = buildWaitingLabel(appointment.checkedInAt);
+
+  let emphasisClass = 'border-card-border';
+  if (isEmergency) {
+    emphasisClass = 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]';
+  } else if (isCheckedIn) {
+    emphasisClass = 'border-[1.5px] border-[var(--status-checked-in-border)]';
+  }
+  const emphasisShadowClass = isCheckedIn
+    ? 'shadow-[0_4px_14px_var(--sh08)]'
+    : 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]';
 
   return (
     <article
@@ -389,13 +424,9 @@ const AppointmentBoardCard = ({
           : `Appointment ${companionDisplayName}`
       }
       className={clsx(
-        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[13px] py-[11px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
-        isEmergency
-          ? 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]'
-          : 'border-card-border',
-        isMuted
-          ? 'opacity-[0.72] shadow-none'
-          : 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
+        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[14px] py-[12px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
+        emphasisClass,
+        isMuted ? 'opacity-[0.72] shadow-none' : emphasisShadowClass,
         isDragging
           ? 'opacity-60 shadow-none'
           : 'hover:border-input-border-active! hover:bg-card-hover!',
@@ -421,9 +452,31 @@ const AppointmentBoardCard = ({
         onOpenHistory={() => openAppointmentHistory(appointment)}
       />
 
-      <div className="relative z-10 line-clamp-2 text-[11.5px] leading-4 text-text-secondary">
+      <div className="relative z-10 line-clamp-2 text-[12px] leading-4 text-[var(--ink-muted)]">
         {buildServiceLine(appointment)}
       </div>
+
+      {isCheckedIn && (
+        <div className="relative z-10 flex items-center justify-between gap-2">
+          {waitingLabel && (
+            <span className="text-[10.5px] font-semibold" style={{ color: 'var(--ink-faint)' }}>
+              {waitingLabel}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              openAppointmentWorkspace(appointment);
+            }}
+            className="ml-auto rounded-full px-2.5 py-1 text-[10.5px] font-bold text-white"
+            style={{ background: 'var(--blue)' }}
+          >
+            Start visit
+          </button>
+        </div>
+      )}
 
       <BoardCardMetaRow
         appointment={appointment}

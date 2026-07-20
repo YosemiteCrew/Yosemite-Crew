@@ -183,11 +183,30 @@ describe('Settings OrgSection', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('renders the availability editor chrome from the design', () => {
+    render(<OrgSection />);
+
+    expect(screen.getByText('Availability & consultation hours')).toBeInTheDocument();
+    expect(
+      screen.getByText('Taylor Fox · drives booking slots and the team planner')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/booking slots follow each service's duration/)).toBeInTheDocument();
+  });
+
+  // Auth attributes without a name -> the subtitle collapses to the trailing clause.
+  it('drops the practitioner prefix from the subtitle when the user has no name', () => {
+    useAuthStoreMock.mockReturnValue({ attributes: { email: 'tf@example.com' } });
+
+    render(<OrgSection />);
+
+    expect(screen.getByText('drives booking slots and the team planner')).toBeInTheDocument();
+  });
+
   it('saves availability for a non-practitioner via upsertAvailability', async () => {
     render(<OrgSection />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     });
     await waitFor(() => {
       expect(mockUpsertAvailability).toHaveBeenCalled();
@@ -203,7 +222,7 @@ describe('Settings OrgSection', () => {
 
     render(<OrgSection />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     });
 
     expect(mockUpsertAvailability).not.toHaveBeenCalled();
@@ -215,7 +234,7 @@ describe('Settings OrgSection', () => {
 
     render(<OrgSection />);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     });
 
     await waitFor(() => {
@@ -239,7 +258,7 @@ describe('Settings OrgSection', () => {
     await waitFor(() => expect(mockGetProfileForUser).toHaveBeenCalledWith('pr-1'));
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     });
 
     await waitFor(() => {
@@ -266,7 +285,7 @@ describe('Settings OrgSection', () => {
     await waitFor(() => expect(mockGetProfileForUser).toHaveBeenCalledWith('pr-2'));
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     });
 
     await waitFor(() => {

@@ -203,6 +203,14 @@ export const isCounterpartOnline = (
   return Boolean(counterpart?.user?.online);
 };
 
+export const isChannelMuted = (channel: StreamChannel | null | undefined): boolean => {
+  try {
+    return Boolean(channel?.muteStatus?.().muted);
+  } catch {
+    return false;
+  }
+};
+
 export const formatClosedTime = (timestamp?: string) => {
   if (!timestamp) return '';
 

@@ -32,6 +32,8 @@ type ChartProps = {
   layout?: LayoutType;
   barSize?: number;
   hideKeys?: boolean;
+  /** Renders the compact, axis-less bar sparkline the dashboard design uses. */
+  hideYAxis?: boolean;
   xAxisLabel?: string;
   yAxisLabel?: string;
   compactMonthAxis?: boolean;
@@ -46,8 +48,10 @@ type ChartProps = {
   footerContent?: ReactNode;
 };
 
+/* The design keeps the legend right-aligned alongside the card title rather than
+   centred above the chart. */
 const ChartLegend = ({ keys }: { keys: ChartKey[] }) => (
-  <div className="flex items-center justify-center w-full gap-4">
+  <div className="flex items-center justify-end w-full gap-3">
     {keys.map((key) => (
       <span key={key.name} className="flex items-center gap-1.5">
         <span
@@ -90,6 +94,7 @@ const DynamicChartCard: FC<ChartProps> = ({
   layout,
   barSize,
   hideKeys = false,
+  hideYAxis = false,
   xAxisLabel,
   yAxisLabel,
   compactMonthAxis = false,
@@ -132,6 +137,7 @@ const DynamicChartCard: FC<ChartProps> = ({
           layout={layout}
           yTickFormatter={yTickFormatter}
           yAxisWidth={yAxisWidth}
+          hideYAxis={hideYAxis}
           barSize={barSize}
           xAxisLabel={effectiveXAxisLabel}
           yAxisLabel={yAxisLabel}

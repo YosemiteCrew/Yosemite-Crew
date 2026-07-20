@@ -45,6 +45,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import type {
   CompanionParent,
+  StoredCompanion,
   StoredParent,
 } from '@/app/features/companions/pages/Companions/types';
 
@@ -106,17 +107,59 @@ const formatAgeDob = (value?: Date | string): string => {
   return `${ageLabel} / ${dob}`;
 };
 
+const DASH = '-';
+
+/**
+ * Insurance reads "PetSecure · active" in the design. The cover status comes
+ * from the nested policy when present and falls back to the companion flag, so
+ * the row only ever states what the record actually holds.
+ */
+const formatInsurance = (companion: StoredCompanion): string => {
+  const company = String(companion.insurance?.companyName ?? '').trim();
+  const isInsured = companion.insurance?.isInsured ?? companion.isInsured;
+  if (!company) return isInsured ? 'Active' : DASH;
+  return isInsured ? `${company} · active` : company;
+};
+
+type CompanionParentLinkLike = {
+  role?: string;
+  status?: string;
+  parent?: { firstName?: string; lastName?: string };
+};
+
+/**
+ * The co-parent's name from the companion's live parent links. Empty when no
+ * link exists, so the design's "Co-parent" row stays hidden rather than
+ * inventing a shared-care relationship.
+ */
+const getCoParentName = (companion: StoredCompanion): string => {
+  const links = (companion as { parentLinks?: CompanionParentLinkLike[] }).parentLinks;
+  if (!Array.isArray(links)) return '';
+  const coParent = links.find(
+    (link) =>
+      String(link.role ?? '').toUpperCase() === 'CO_PARENT' &&
+      String(link.status ?? '').toUpperCase() !== 'REVOKED'
+  );
+  return [coParent?.parent?.firstName, coParent?.parent?.lastName].filter(Boolean).join(' ').trim();
+};
+
 const ProfileDetail = ({
   label,
   value,
   wrapValue = false,
   labelWidth = 88,
+  tone = 'default',
+  suffix,
 }: {
   label: string;
   value: string;
   wrapValue?: boolean;
   /** Design label-column width: 88px on the companion panel, 74px on the parent panel. */
   labelWidth?: 74 | 88;
+  /** `danger` paints the value in --danger-text, matching the design's red allergy emphasis. */
+  tone?: 'default' | 'danger';
+  /** Trailing qualifier rendered in --pink (the co-parent row's "· shared care"). */
+  suffix?: string;
 }) => (
   <div
     className={`grid min-w-0 items-start gap-2 ${
@@ -125,11 +168,11 @@ const ProfileDetail = ({
   >
     <span className="font-satoshi text-[12.5px] text-[var(--ink-faint)]">{label}:</span>
     <span
-      className={`font-satoshi text-[12.5px] font-bold text-[var(--ink)] ${
-        wrapValue ? 'break-words' : 'truncate'
-      }`}
+      className={`font-satoshi text-[12.5px] font-bold ${wrapValue ? 'break-words' : 'truncate'}`}
+      style={{ color: tone === 'danger' ? 'var(--danger-text)' : 'var(--ink)' }}
     >
       {value}
+      {suffix ? <span style={{ color: 'var(--pink)' }}> {suffix}</span> : null}
     </span>
   </div>
 );
@@ -172,7 +215,8 @@ const CompanionProfilePanel = ({
     details.find((detail) => detail.label === 'Blood Group'),
     details.find((detail) => detail.label === 'Microchip ID'),
     details.find((detail) => detail.label === 'Allergies'),
-    { label: 'Last visit', value: formatDisplayDate(lastVisitStart ?? undefined, '-') },
+    { label: 'Insurance', value: formatInsurance(record.companion) },
+    { label: 'Last visit', value: formatDisplayDate(lastVisitStart ?? undefined, DASH) },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
@@ -190,9 +234,14 @@ const CompanionProfilePanel = ({
         height={64}
         width={64}
       />
-      <div className="grid flex-1 grid-cols-1 gap-x-10 gap-y-3 lg:grid-cols-2">
+      <div className="grid flex-1 grid-cols-1 gap-x-7 gap-y-2 lg:grid-cols-2">
         {selectedDetails.map((detail) => (
-          <ProfileDetail key={detail.label} label={detail.label} value={detail.value} />
+          <ProfileDetail
+            key={detail.label}
+            label={detail.label}
+            value={detail.value}
+            tone={detail.label === 'Allergies' && detail.value !== DASH ? 'danger' : 'default'}
+          />
         ))}
       </div>
       {onEdit ? (
@@ -214,12 +263,14 @@ const CompanionProfilePanel = ({
 const ParentProfilePanel = ({
   parent,
   companionId,
+  coParentName,
   alerts,
   onAddAlert,
   onRemoveAlert,
 }: {
   parent: StoredParent;
   companionId: string;
+  coParentName: string;
   alerts: CompanionAlert[];
   onAddAlert: () => void;
   onRemoveAlert: (id: string) => void;
@@ -247,7 +298,7 @@ const ParentProfilePanel = ({
         />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="grid min-w-0 flex-1 grid-cols-1 gap-x-10 gap-y-3">
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-x-7 gap-y-2">
           {details.map((detail) => (
             <ProfileDetail
               key={detail.label}
@@ -257,6 +308,15 @@ const ParentProfilePanel = ({
               labelWidth={74}
             />
           ))}
+          {coParentName ? (
+            <ProfileDetail
+              label="Co-parent"
+              value={coParentName}
+              suffix="· shared care"
+              wrapValue
+              labelWidth={74}
+            />
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
           <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[11px] py-1 text-[11px] font-bold text-[var(--status-completed-text)]">
@@ -525,6 +585,7 @@ const CompanionHistoryDesktopBody = ({
           <ParentProfilePanel
             parent={activeCompanion.parent}
             companionId={activeCompanion.companion.id}
+            coParentName={getCoParentName(activeCompanion.companion)}
             alerts={clientAlerts}
             onAddAlert={onAddClientAlert}
             onRemoveAlert={onRemoveClientAlert}

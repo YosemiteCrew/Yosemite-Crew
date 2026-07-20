@@ -55,8 +55,8 @@ const FormInputPass = ({
           aria-describedby={errorId}
           aria-label={inlabel}
           className={`
-            h-[46px] w-full rounded-[13px] border-[1.5px] bg-[var(--field-bg)]
-            pl-[14px] pr-11 text-[13.5px] text-[var(--ink-body)] outline-none transition-colors
+            h-[44px] w-full rounded-[12px] border-[1.5px] bg-[var(--field-bg)]
+            pl-[14px] pr-11 text-[14px] text-[var(--ink-body)] outline-none transition-colors
             placeholder:text-[var(--ink-faint)]
             disabled:cursor-not-allowed disabled:opacity-60
             ${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'}
