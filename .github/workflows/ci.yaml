@@ -65,7 +65,14 @@ jobs:
     uses: ./.github/workflows/_sonar.yaml
     with:
       apps-with-coverage: ${{ needs.test.outputs.apps-with-coverage }}
-    secrets: inherit
+    # Only the Sonar tokens, never `secrets: inherit`, which would put the whole
+    # organisation and repository secret store in scope for a workflow whose
+    # scan step selects its token dynamically.
+    secrets:
+      SONAR_TOKEN_FRONTEND: ${{ secrets.SONAR_TOKEN_FRONTEND }}
+      SONAR_TOKEN_API: ${{ secrets.SONAR_TOKEN_API }}
+      SONAR_TOKEN_MOBILE: ${{ secrets.SONAR_TOKEN_MOBILE }}
+      SONAR_TOKEN_DESKTOP: ${{ secrets.SONAR_TOKEN_DESKTOP }}
 
   frontend-quality:
     needs: core

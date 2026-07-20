@@ -20,6 +20,19 @@ on:
         description: JSON array of {app_key, dir, sonar_token} produced by the test stage.
         required: true
         type: string
+    # Declared one by one rather than taking `secrets: inherit` from the caller.
+    # inherit hands every organisation and repository secret to this workflow,
+    # so the scan step's dynamic secrets[...] lookup had the whole secret store
+    # in scope. Naming them bounds that context to the four Sonar tokens.
+    secrets:
+      SONAR_TOKEN_FRONTEND:
+        required: false
+      SONAR_TOKEN_API:
+        required: false
+      SONAR_TOKEN_MOBILE:
+        required: false
+      SONAR_TOKEN_DESKTOP:
+        required: false
 
 permissions:
   contents: read

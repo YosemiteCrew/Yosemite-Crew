@@ -21,6 +21,7 @@
 
 import { readdirSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { resolveWithin } from './safe-path.mjs';
 import libCoverage from 'istanbul-lib-coverage';
 import libReport from 'istanbul-lib-report';
 import reports from 'istanbul-reports';
@@ -47,9 +48,13 @@ function parseArgs(argv) {
 
 function findCoverageFiles(dir) {
   const found = [];
+  const root = path.resolve(dir);
   const walk = (current) => {
     for (const entry of readdirSync(current)) {
-      const full = path.join(current, entry);
+      // readdirSync yields bare names, so this cannot escape today; asserting it
+      // keeps that true if the traversal ever reads names from elsewhere.
+      const full = resolveWithin(root, path.relative(root, path.join(current, entry)));
+      if (full === null) continue;
       if (statSync(full).isDirectory()) walk(full);
       else if (entry === 'coverage-final.json') found.push(full);
     }

@@ -13,7 +13,7 @@
 // merged istanbul map, where a true statements count is available.
 
 import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { resolveWithin } from './safe-path.mjs';
 
 // Below this share of resolvable SF: paths the report is treated as
 // systematically mis-rooted rather than merely stale. A few paths can
@@ -41,7 +41,13 @@ const files = raw
 
 if (files.length === 0) fail(`${lcov} records no SF: entries, so it measures nothing`);
 
-const unresolved = files.filter((entry) => !existsSync(path.resolve(dir, entry)));
+// An entry that escapes the app directory is mis-rooted by definition, so it
+// counts as unresolved rather than being probed on disk - otherwise a report
+// full of ../ paths that happen to exist would read as healthy coverage.
+const unresolved = files.filter((entry) => {
+  const target = resolveWithin(dir, entry);
+  return target === null || !existsSync(target);
+});
 const resolved = files.length - unresolved.length;
 const share = resolved / files.length;
 

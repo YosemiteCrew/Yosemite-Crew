@@ -23,6 +23,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { resolveWithin } from './safe-path.mjs';
 
 // Single source of truth for the workspace -> Sonar app mapping: the key used
 // for coverage artifacts and the name of the secret holding that project's Sonar
@@ -110,7 +111,12 @@ function readAffected(file) {
 }
 
 function scriptsFor(dir) {
-  const pkg = readJson(path.join(dir, 'package.json'));
+  // Workspace directories come from the pnpm inventory and are always inside the
+  // repo; assert it so a manifest outside the tree can never be read as a
+  // workspace's package.json.
+  const manifest = resolveWithin(process.cwd(), path.join(dir, 'package.json'));
+  if (manifest === null) fail(`workspace directory '${dir}' resolves outside the repository`);
+  const pkg = readJson(manifest);
   return pkg.scripts ?? {};
 }
 
