@@ -153,11 +153,13 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     // The Date column already carries the appointment date, so the desktop
     // sub-line pairs the appointment type with the time only — no duplicated
     // date. On tablet the Date column is dropped, so the date folds back in.
+    const foldedDate =
+      foldMeta && appointment ? formatDateLabel(appointment.appointmentDate) : undefined;
     const appointmentSubtitle = appointment
       ? buildAppointmentSubtitle(
           appointment.appointmentType?.name,
           formatTimeLabel(appointment.startTime ?? appointment.appointmentDate),
-          foldMeta ? formatDateLabel(appointment.appointmentDate) : undefined
+          foldedDate
         )
       : '';
     // Tablet drops the Services and Date columns, so their content folds here.

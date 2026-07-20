@@ -11,6 +11,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { IoLogoGithub, IoMenuOutline, IoCloseOutline } from 'react-icons/io5';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, type AuthUser } from '@/app/stores/authStore';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { GITHUB_REPO_URL, MARKETING_LOGO } from './assets';
@@ -378,9 +379,9 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
   const starsLabel = stars ? `★ ${stars}` : '★';
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
-  const status = useAuthStore((s) => s.status);
-  const user = useAuthStore((s) => s.user);
-  const role = useAuthStore((s) => s.role);
+  const { status, user, role } = useAuthStore(
+    useShallow((s) => ({ status: s.status, user: s.user, role: s.role }))
+  );
   const defaultAppRoute =
     role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
 

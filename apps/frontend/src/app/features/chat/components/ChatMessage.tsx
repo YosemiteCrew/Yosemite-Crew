@@ -139,30 +139,18 @@ const POPOVER_MEASURE_STYLE: CSSProperties = {
 };
 
 /**
- * Popover anchored to a trigger button and rendered through a portal to
- * document.body, so Stream's overflow:auto message list never clips it. It opens
- * below the trigger (matching the design) and flips above only when there is no
- * room before the viewport bottom — the last-message case that used to crop the
- * reaction picker. Dismisses on outside click, scroll, resize, or Escape.
+ * Fixed-position style anchored to a trigger: opens below it, flipping above only
+ * when there is no room before the viewport bottom (the last-message case that
+ * used to crop the reaction picker). Null until measured, so the panel first
+ * renders hidden (POPOVER_MEASURE_STYLE) to be measurable.
  */
-function AnchoredPopover({
-  anchorRef,
-  open,
-  onClose,
-  align,
-  className,
-  children,
-}: Readonly<{
-  anchorRef: RefObject<HTMLButtonElement | null>;
-  open: boolean;
-  onClose: () => void;
-  align: 'left' | 'right';
-  className: string;
-  children: ReactNode;
-}>) {
-  const panelRef = useRef<HTMLDivElement>(null);
+function useAnchoredPopoverStyle(
+  anchorRef: RefObject<HTMLButtonElement | null>,
+  panelRef: RefObject<HTMLDivElement | null>,
+  open: boolean,
+  align: 'left' | 'right'
+): CSSProperties | null {
   const [style, setStyle] = useState<CSSProperties | null>(null);
-
   useLayoutEffect(() => {
     if (!open) {
       setStyle(null);
@@ -171,8 +159,7 @@ function AnchoredPopover({
     const anchor = anchorRef.current?.getBoundingClientRect();
     const panel = panelRef.current;
     if (!anchor || !panel) return;
-    const panelH = panel.offsetHeight;
-    const panelW = panel.offsetWidth;
+    const { offsetHeight: panelH, offsetWidth: panelW } = panel;
     const vw = globalThis.window.innerWidth;
     const vh = globalThis.window.innerHeight;
     const below = anchor.bottom + 6;
@@ -181,11 +168,19 @@ function AnchoredPopover({
     const rawLeft = align === 'right' ? anchor.right - panelW : anchor.left;
     const left = Math.min(Math.max(8, rawLeft), Math.max(8, vw - panelW - 8));
     setStyle({ position: 'fixed', top, left, zIndex: 5000 });
-  }, [open, anchorRef, align]);
+  }, [open, anchorRef, panelRef, align]);
+  return style;
+}
 
+/** Closes the popover on an outside pointer-down, scroll, resize, or Escape. */
+function usePopoverDismiss(
+  open: boolean,
+  onClose: () => void,
+  anchorRef: RefObject<HTMLButtonElement | null>,
+  panelRef: RefObject<HTMLDivElement | null>
+): void {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-
   useEffect(() => {
     if (!open) return;
     const handlePointer = (event: Event) => {
@@ -209,7 +204,32 @@ function AnchoredPopover({
       globalThis.window.removeEventListener('resize', dismiss);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [open, anchorRef]);
+  }, [open, anchorRef, panelRef]);
+}
+
+/**
+ * Popover anchored to a trigger button and rendered through a portal to
+ * document.body, so Stream's overflow:auto message list never clips it.
+ * Positioning and dismissal live in dedicated hooks.
+ */
+function AnchoredPopover({
+  anchorRef,
+  open,
+  onClose,
+  align,
+  className,
+  children,
+}: Readonly<{
+  anchorRef: RefObject<HTMLButtonElement | null>;
+  open: boolean;
+  onClose: () => void;
+  align: 'left' | 'right';
+  className: string;
+  children: ReactNode;
+}>) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const style = useAnchoredPopoverStyle(anchorRef, panelRef, open, align);
+  usePopoverDismiss(open, onClose, anchorRef, panelRef);
 
   if (!open || typeof document === 'undefined') return null;
   return createPortal(
@@ -318,7 +338,7 @@ function MessageActions({
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
         >
           <IoCreateOutline className="h-4 w-4 text-[var(--ink-faint)]" />
-          <Text as="span" variant="body-4" className="text-[var(--ink-body)]">
+          <Text as="span" variant="caption-1" className="text-[13px] text-[var(--ink-body)]">
             Edit
           </Text>
         </button>
@@ -331,7 +351,7 @@ function MessageActions({
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
         >
           <IoTrashOutline className="h-4 w-4 text-[var(--danger-text)]" />
-          <Text as="span" variant="body-4" className="text-[var(--danger-text)]">
+          <Text as="span" variant="caption-1" className="text-[13px] text-[var(--danger-text)]">
             Delete
           </Text>
         </button>
