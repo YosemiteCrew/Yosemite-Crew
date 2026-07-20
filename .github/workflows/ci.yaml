@@ -73,13 +73,18 @@ jobs:
       apps-with-coverage: ${{ needs.test.outputs.apps-with-coverage }}
     secrets: inherit
 
+  frontend-quality:
+    needs: core
+    if: needs.core.outputs.frontend == 'true'
+    uses: ./.github/workflows/frontend-quality.yml
+
   ci-required:
     name: CI Required
     # Not yet a required status check on either ruleset. It is published now so
     # its behaviour can be observed before it is made required; the runbook in
     # docs/ci/required-checks-migration.md covers that switchover.
     if: always()
-    needs: [core, test, sonar]
+    needs: [core, test, sonar, frontend-quality]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
