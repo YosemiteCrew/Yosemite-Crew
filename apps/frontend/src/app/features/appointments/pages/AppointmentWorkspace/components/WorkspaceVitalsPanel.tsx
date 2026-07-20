@@ -38,7 +38,12 @@ const VitalCell = ({
     <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-text-tertiary">
       {label}
     </span>
-    <span className="text-body-3-emphasis tabular-nums text-text-primary">{value}</span>
+    <span
+      className="text-[15px] font-bold leading-[130%] tabular-nums"
+      style={{ color: 'var(--ink)' }}
+    >
+      {value}
+    </span>
   </div>
 );
 
@@ -69,12 +74,17 @@ const VitalsCard = ({
     className="overflow-hidden rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
   >
     <div className="flex items-center justify-between px-4 pb-2.5 pt-3">
-      <span className="text-body-3-emphasis text-text-primary">Vitals</span>
+      <span
+        className="text-[14px] font-bold leading-[130%] tracking-[-0.01em]"
+        style={{ color: 'var(--ink)' }}
+      >
+        Vitals
+      </span>
       {canRecord && (
         <button
           type="button"
           onClick={onRecordVitals}
-          className="text-caption-1 font-semibold text-text-brand hover:underline"
+          className="text-[12px] font-semibold leading-[120%] text-blue-text hover:underline"
         >
           + Record
         </button>
@@ -131,12 +141,17 @@ const ObservationToolsCard = ({
     className="overflow-hidden rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
   >
     <div className="flex items-center justify-between px-4 pb-2.5 pt-3">
-      <span className="text-body-3-emphasis text-text-primary">Observation tools</span>
+      <span
+        className="text-[14px] font-bold leading-[130%] tracking-[-0.01em]"
+        style={{ color: 'var(--ink)' }}
+      >
+        Observation tools
+      </span>
       {canRecord && (
         <button
           type="button"
           onClick={onOpenObservations}
-          className="text-caption-1 font-semibold text-text-brand hover:underline"
+          className="text-[12px] font-semibold leading-[120%] text-blue-text hover:underline"
         >
           + New
         </button>
@@ -149,7 +164,7 @@ const ObservationToolsCard = ({
             key={obs.id}
             className="flex items-center gap-3 border-b border-card-border px-4 py-3 last:border-b-0"
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-primary-100 text-text-brand">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-primary-100 text-blue-text">
               <IoPulseOutline size={16} aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">

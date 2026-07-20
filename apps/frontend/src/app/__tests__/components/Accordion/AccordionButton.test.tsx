@@ -90,6 +90,21 @@ describe('AccordionButton Component', () => {
     expect(mockButtonClick).toHaveBeenCalledWith(true);
   });
 
+  it('renders the action button as a filled cta pill with its leading icon', () => {
+    render(
+      <AccordionButton
+        title="With Icon"
+        buttonTitle="Add"
+        buttonIcon={<span data-testid="add-icon">+</span>}
+        buttonClick={mockButtonClick}
+      />
+    );
+
+    const actionButton = screen.getByText('Add').closest('button');
+    expect(actionButton).toHaveClass('yc-primary-button');
+    expect(screen.getByTestId('add-icon')).toBeInTheDocument();
+  });
+
   it('does not render the action button when showButton is false', () => {
     render(<AccordionButton title="No Button" buttonTitle="Click Me" showButton={false} />);
 

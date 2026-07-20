@@ -46,6 +46,7 @@ const Explorecard = () => {
     <div className="flex flex-col w-full gap-2.5">
       <CardHeader
         title={'Explore'}
+        variant="section"
         options={durationOptions}
         selected={effectiveDuration}
         onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}

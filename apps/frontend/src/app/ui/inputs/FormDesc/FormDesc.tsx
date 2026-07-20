@@ -46,8 +46,8 @@ const FormDesc = ({
         required
         aria-label={inlabel}
         className={`
-          min-h-[72px] w-full rounded-[13px] border-[1.5px] bg-[var(--field-bg)]
-          px-[14px] py-[12px] text-[13.5px] leading-[1.5] text-[var(--ink-body)] outline-none transition-colors
+          min-h-[72px] w-full rounded-[12px] border-[1.5px] bg-[var(--field-bg)]
+          px-[14px] py-[12px] text-[14px] leading-[1.5] text-[var(--ink-body)] outline-none transition-colors
           placeholder:text-[var(--ink-faint)]
           disabled:cursor-not-allowed disabled:opacity-60
           ${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'}

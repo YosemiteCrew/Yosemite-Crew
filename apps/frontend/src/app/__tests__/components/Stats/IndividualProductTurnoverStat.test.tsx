@@ -28,6 +28,7 @@ describe('IndividualProductTurnoverStat', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { individualProductTurnover: ['Last 1 year'] },
       productTurnover: [],
+      inventoryTurnover: { turnsPerYear: 0, targetTurnsPerYear: 0 },
       emptyState: { individualProductTurnover: true },
     });
 
@@ -35,12 +36,14 @@ describe('IndividualProductTurnoverStat', () => {
 
     expect(screen.getByTestId('card-header')).toHaveTextContent('Product turnover');
     expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.queryByText(/Turned over/)).not.toBeInTheDocument();
   });
 
   it('renders top six products with proportional widths', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { individualProductTurnover: ['Last 1 year'] },
       emptyState: { individualProductTurnover: false },
+      inventoryTurnover: { turnsPerYear: 5.7, targetTurnsPerYear: 4.2 },
       productTurnover: [
         { itemId: '1', name: 'A', turnover: 10 },
         { itemId: '2', name: 'B', turnover: 5 },
@@ -62,6 +65,26 @@ describe('IndividualProductTurnoverStat', () => {
     expect(bars).toHaveLength(6);
     expect(bars[0].style.width).toBe('100%');
     expect(bars[1].style.width).toBe('50%');
+    // The design's three bar colours cycle down the rows.
+    expect(bars[0].style.background).toBe('var(--cta)');
+    expect(bars[1].style.background).toBe('var(--blue)');
+    expect(bars[2].style.background).toBe('var(--divider)');
+    expect(bars[3].style.background).toBe('var(--cta)');
+  });
+
+  it('renders the turnover insight chip against the clinic average', () => {
+    (useDashboardAnalytics as jest.Mock).mockReturnValue({
+      durationOptions: { individualProductTurnover: ['Last 1 year'] },
+      emptyState: { individualProductTurnover: false },
+      inventoryTurnover: { turnsPerYear: 3.1, targetTurnsPerYear: 4.2 },
+      productTurnover: [{ itemId: '1', name: 'A', turnover: 10 }],
+    });
+
+    render(<IndividualProductTurnoverStat />);
+
+    expect(
+      screen.getByText('Turned over 3.1× this year · below the 4.2 clinic average')
+    ).toBeInTheDocument();
   });
 
   it('renders zero-width bars when every product has no turnover', () => {
@@ -70,6 +93,7 @@ describe('IndividualProductTurnoverStat', () => {
     (useDashboardAnalytics as jest.Mock).mockReturnValue({
       durationOptions: { individualProductTurnover: ['Last 1 year'] },
       emptyState: { individualProductTurnover: false },
+      inventoryTurnover: { turnsPerYear: 0, targetTurnsPerYear: 0 },
       productTurnover: [
         { itemId: '1', name: 'A', turnover: 0 },
         { itemId: '2', name: 'B', turnover: 0 },

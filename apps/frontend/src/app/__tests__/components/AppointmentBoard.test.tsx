@@ -267,6 +267,65 @@ describe('AppointmentBoard', () => {
     expect(screen.getByText('Ward 1 / Kennel A')).toBeInTheDocument();
   });
 
+  // The wait is measured from a real check-in stamp, never from the booked start —
+  // a booked-start derivation reports lateness, not how long the patient has waited.
+  describe('checked-in wait', () => {
+    const checkedInCard = (over: Record<string, unknown>) =>
+      render(
+        <AppointmentBoard
+          appointments={[
+            { ...baseAppointment, id: 'appt-checked-in', status: 'CHECKED_IN', ...over } as any,
+          ]}
+          currentDate={new Date('2026-03-16T00:00:00.000Z')}
+          setCurrentDate={setCurrentDate}
+          canEditAppointments
+        />
+      );
+
+    it('renders the wait from checkedInAt when the backend supplies it', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-03-16T09:30:00.000Z'));
+      checkedInCard({ checkedInAt: '2026-03-16T09:18:00.000Z' });
+
+      expect(screen.getByText('Waiting 12 min')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start visit' })).toBeInTheDocument();
+      jest.useRealTimers();
+    });
+
+    it('omits the wait entirely when no check-in stamp exists', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-03-16T09:30:00.000Z'));
+      // startTime is 09:00 — a booked-start derivation would wrongly print "Waiting 30 min".
+      checkedInCard({});
+
+      expect(screen.queryByText(/Waiting/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start visit' })).toBeInTheDocument();
+      jest.useRealTimers();
+    });
+
+    it('omits the wait for an unparseable or sub-minute check-in stamp', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-03-16T09:30:00.000Z'));
+      const { rerender } = checkedInCard({ checkedInAt: 'not-a-date' });
+      expect(screen.queryByText(/Waiting/)).not.toBeInTheDocument();
+
+      rerender(
+        <AppointmentBoard
+          appointments={[
+            {
+              ...baseAppointment,
+              id: 'appt-checked-in',
+              status: 'CHECKED_IN',
+              checkedInAt: '2026-03-16T09:29:45.000Z',
+            } as any,
+          ]}
+          currentDate={new Date('2026-03-16T00:00:00.000Z')}
+          setCurrentDate={setCurrentDate}
+          canEditAppointments
+        />
+      );
+      expect(screen.queryByText(/Waiting/)).not.toBeInTheDocument();
+      jest.useRealTimers();
+    });
+  });
+
   it('triggers add appointment and date navigation callbacks', () => {
     const onAddAppointment = jest.fn();
 

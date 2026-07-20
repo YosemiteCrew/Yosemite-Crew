@@ -99,10 +99,16 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} variant="centered" size="md">
-      <div className="flex flex-col flex-auto min-h-0 gap-6">
-        <ModalHeader title="New task" onClose={() => setShowModal(false)} />
+      {/* Three banded sections per the design: a hairline under the header, the
+          scrolling field body, and a hairline over the footer actions. The
+          negative margins cancel the centered panel's 12px inset so both rules
+          run edge to edge; phones keep the sheet's own padding. */}
+      <div className="flex flex-col flex-auto min-h-0">
+        <div className="flex-none pb-4 border-b border-[var(--hairline)] md:-mx-3 md:-mt-3 md:px-[26px] md:pt-5">
+          <ModalHeader title="New task" onClose={() => setShowModal(false)} />
+        </div>
 
-        <div className="flex flex-col gap-6 w-full flex-auto min-h-0 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
+        <div className="flex flex-col gap-6 w-full flex-auto min-h-0 justify-start overflow-y-auto scrollbar-hidden pt-1.5 md:-mx-3 md:px-[26px] md:py-5">
           <TaskFormFields
             formData={formData}
             setFormData={setFormData}
@@ -135,24 +141,25 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
               });
             }}
           />
-          <div className="flex flex-col items-center gap-3 w-full pb-3">
-            {error && <div className="text-text-error text-sm text-center">{error}</div>}
-            <div className="flex w-full flex-wrap items-center justify-end gap-3">
-              <Secondary
-                href="#"
-                text="Save as template"
-                className="hidden"
-                onClick={handleCreateTemplate}
-              />
-              <Secondary href="#" text="Cancel" onClick={() => setShowModal(false)} />
-              <Primary
-                href="#"
-                text={isLoading ? 'Saving...' : 'Create task'}
-                className="w-auto min-w-[140px]"
-                onClick={handleCreate}
-                isDisabled={isLoading}
-              />
-            </div>
+        </div>
+
+        <div className="flex-none flex flex-col items-center gap-3 w-full pt-4 border-t border-[var(--hairline)] md:-mx-3 md:-mb-3 md:px-[26px] md:pb-5">
+          {error && <div className="text-text-error text-sm text-center">{error}</div>}
+          <div className="flex w-full flex-wrap items-center justify-end gap-3">
+            <Secondary
+              href="#"
+              text="Save as template"
+              className="hidden"
+              onClick={handleCreateTemplate}
+            />
+            <Secondary href="#" text="Cancel" onClick={() => setShowModal(false)} />
+            <Primary
+              href="#"
+              text={isLoading ? 'Saving...' : 'Create task'}
+              className="w-auto min-w-[140px]"
+              onClick={handleCreate}
+              isDisabled={isLoading}
+            />
           </div>
         </div>
       </div>

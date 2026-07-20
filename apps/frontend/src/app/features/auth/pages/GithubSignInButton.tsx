@@ -41,9 +41,9 @@ export function GithubSignInButton({
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '20px 0' }}>
-        <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
-        <span style={{ fontSize: 13, color: '#a9a39e' }}>or</span>
-        <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
+        <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
+        <span style={{ fontSize: 13, color: 'var(--ink-faint2)' }}>or</span>
+        <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
       </div>
       <button
         type="button"
@@ -69,7 +69,7 @@ export function GithubSignInButton({
             marginTop: 11,
             textAlign: 'center',
             fontSize: 12.5,
-            color: '#a9a39e',
+            color: 'var(--ink-faint2)',
             letterSpacing: '-0.01em',
           }}
         >

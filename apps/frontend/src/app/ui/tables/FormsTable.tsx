@@ -1,6 +1,11 @@
 import { FormsProps, getFormCategoryDisplayLabel } from '@/app/features/forms/types/forms';
 import React, { useMemo } from 'react';
-import { IoEye } from 'react-icons/io5';
+import {
+  IoClipboardOutline,
+  IoDocumentTextOutline,
+  IoEllipsisHorizontal,
+  IoMedkitOutline,
+} from 'react-icons/io5';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import FormCard from '@/app/ui/cards/FormCard';
 import { useTeamStore } from '@/app/stores/teamStore';
@@ -20,6 +25,48 @@ type Column<T> = {
 
 /** Minimal shape needed to resolve a linked service id to a display name. */
 type LinkedServiceOption = { label: string; value: string };
+
+/* Design gives the template cell a leading tinted tile whose glyph follows the
+   template's category — clipboard for intake, medkit for clinical notes,
+   document for everything else. */
+const getTemplateIcon = (category: string) => {
+  const key = String(category ?? '').toLowerCase();
+  if (key.includes('intake')) return IoClipboardOutline;
+  if (key.includes('soap') || key.includes('note') || key.includes('discharge')) {
+    return IoMedkitOutline;
+  }
+  return IoDocumentTextOutline;
+};
+
+/* Divs, not spans: `.TableDiv tbody tr td span:not(...)` in Generictable.css
+   force-styles every bare span inside a cell (700 weight, 60% opacity). */
+const TemplateNameCell = ({ item }: { item: FormsProps }) => {
+  const Icon = getTemplateIcon(item.category);
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <div
+        className="flex size-9 shrink-0 items-center justify-center rounded-[11px]"
+        style={{ background: 'var(--blue-soft)', color: 'var(--blue-text)' }}
+      >
+        <Icon size={16} aria-hidden="true" />
+      </div>
+      <div className="flex min-w-0 flex-col">
+        <div className="appointment-profile-title cell-name truncate" title={item.name}>
+          {item.name}
+        </div>
+        {item.description ? (
+          <div
+            className="truncate text-[11.5px]"
+            style={{ color: 'var(--ink-faint)' }}
+            title={item.description}
+          >
+            {item.description}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
 
 type FormsTableProps = {
   filteredList: FormsProps[];
@@ -86,7 +133,7 @@ const FormsTable = ({
       label: 'Form name',
       key: 'name',
       width: '200px',
-      render: (item: FormsProps) => <div className="appointment-profile-title">{item.name}</div>,
+      render: (item: FormsProps) => <TemplateNameCell item={item} />,
     },
     {
       label: 'Category',
@@ -99,25 +146,23 @@ const FormsTable = ({
       ),
     },
     {
-      label: 'Usage',
-      key: 'usage',
-      width: '130px',
-      render: (item: FormsProps) => <div className="appointment-profile-title">{item.usage}</div>,
-    },
-    {
-      label: 'Updated by',
-      key: 'updatedBy',
-      width: '140px',
+      label: 'Fields',
+      key: 'fields',
+      width: '90px',
       render: (item: FormsProps) => (
-        <div className="appointment-profile-title">{getUserName(item.updatedBy)}</div>
+        <div className="appointment-profile-title tabular-nums">{item.schema?.length ?? 0}</div>
       ),
     },
+    /* Design carries the edit stamp as one line — "02 Jul · Dr. Weber" — rather
+       than splitting the date and the person across two columns. */
     {
       label: 'Last updated',
       key: 'lastUpdated',
-      width: '140px',
+      width: '150px',
       render: (item: FormsProps) => (
-        <div className="appointment-profile-title">{item.lastUpdated}</div>
+        <div className="truncate text-[12.5px]" style={{ color: 'var(--ink-muted)' }}>
+          {[item.lastUpdated, getUserName(item.updatedBy)].filter(Boolean).join(' · ')}
+        </div>
       ),
     },
     {
@@ -135,14 +180,15 @@ const FormsTable = ({
       key: 'actions',
       width: '64px',
       render: (item: FormsProps) => (
-        <div className="action-btn-col">
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={() => handleViewForm(item)}
             aria-label={`View form ${item.name}`}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
+            className="flex size-7 cursor-pointer items-center justify-center rounded-[9px] transition-colors hover:bg-[var(--surface-soft)]"
+            style={{ color: 'var(--ink-faint)' }}
           >
-            <IoEye size={20} color="var(--color-neutral-900)" />
+            <IoEllipsisHorizontal size={16} aria-hidden="true" />
           </button>
         </div>
       ),
@@ -192,6 +238,7 @@ const FormsTable = ({
             tableClassName="forms-table-fixed"
             pagination
             pageSize={10}
+            itemNoun="templates"
           />
         )}
       </div>

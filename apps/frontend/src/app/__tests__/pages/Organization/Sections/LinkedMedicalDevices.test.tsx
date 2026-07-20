@@ -21,10 +21,6 @@ jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Secondary: ({ text }: any) => <button type="button">{text}</button>,
-}));
-
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: (selector: any) => selector({ primaryOrgId }),
 }));
@@ -51,6 +47,7 @@ jest.mock('@/app/lib/date', () => ({
 }));
 
 jest.mock('react-icons/io5', () => ({
+  IoArrowForward: () => <span data-testid="icon-arrow-forward" />,
   IoRefreshOutline: () => <span data-testid="icon-refresh" />,
   IoFlaskOutline: () => <span data-testid="icon-flask" />,
   IoWaterOutline: () => <span data-testid="icon-water" />,
@@ -87,7 +84,10 @@ describe('LinkedMedicalDevices', () => {
       expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
     );
     expect(screen.getByText(/Last cloud poll not yet · no devices linked/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open integrations' })).toBeInTheDocument();
+    const integrationsLink = screen.getByRole('link', { name: 'Open integrations' });
+    expect(integrationsLink).toBeInTheDocument();
+    expect(integrationsLink).toHaveAttribute('href', '/integrations');
+    expect(screen.getByTestId('icon-arrow-forward')).toBeInTheDocument();
   });
 
   it('renders online + idle devices with the right icons and health summary', async () => {

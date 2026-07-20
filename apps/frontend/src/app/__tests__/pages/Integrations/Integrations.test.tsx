@@ -148,9 +148,41 @@ jest.mock('@/app/features/integrations/services/merckService', () => ({
 const openSettings = () =>
   fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
 
+// The coming-soon cards each render a "Coming soon" <button>, so scope tab clicks to the
+// filter fieldset rather than matching every button with that label.
+const clickFilterTab = (name: string) => {
+  const tabs = screen.getByRole('group', { name: 'Filter integrations' });
+  fireEvent.click(within(tabs).getByRole('button', { name }));
+};
+
+// jest.config sets clearMocks (not resetMocks), so implementations set with mockReturnValue
+// leak between tests. Any test that depends on the MSD state must set it explicitly.
+const setMerckEnabled = (isEnabled: boolean) => {
+  const useMerckModule = jest.requireMock('@/app/hooks/useMerckIntegration');
+  (useMerckModule.useResolvedMerckIntegrationForPrimaryOrg as jest.Mock).mockReturnValue({
+    integration: isEnabled
+      ? { provider: 'MERCK_MANUALS', status: 'enabled', source: 'backend' }
+      : null,
+    isEnabled,
+    refresh: refreshMerckIntegrationMock,
+  });
+};
+
+const COMING_SOON_CARD_TITLES = ['RadAnalyzer', 'Vetnio', 'QuickBooks', 'Laika'];
+const CONNECTABLE_CARD_TITLES = ['IDEXX VetConnect PLUS', 'MSD Veterinary Manual'];
+
+const expectCardsHidden = (titles: string[]) => {
+  titles.forEach((title) => {
+    expect(screen.queryByText(title)).not.toBeInTheDocument();
+  });
+};
+
 describe('Integrations settings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearMocks does not restore implementations, so re-assert the default MSD state here
+    // instead of letting a previous test's override leak into the next one.
+    setMerckEnabled(true);
     enableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'enabled' });
     disableMerckMock.mockResolvedValue({ provider: 'MERCK_MANUALS', status: 'disabled' });
     const enabledIntegration = {
@@ -313,14 +345,14 @@ describe('Integrations settings', () => {
 
   it('has no axe violations on initial render', async () => {
     const { container } = render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
   it('filter tabs expose aria-pressed state', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     const allTab = screen.getByRole('button', { name: 'All' });
     expect(allTab).toHaveAttribute('aria-pressed', 'true');
     const connectedTab = screen.getByRole('button', { name: 'Connected' });
@@ -348,7 +380,7 @@ describe('Integrations settings', () => {
     });
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     fireEvent.click(screen.getByRole('button', { name: 'Connected' }));
     await screen.findByText('No connected integrations yet.');
   });
@@ -367,7 +399,7 @@ describe('Integrations settings', () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(enabledIntegration);
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     // When IDEXX is enabled and Available filter active, the IDEXX card should be hidden
     // (showIdexxCard = available && !idexxEnabled = false)
     const availableBtn = screen.getByRole('button', { name: 'Available' });
@@ -396,7 +428,7 @@ describe('Integrations settings', () => {
 
   it('shows the Vetnio integration card with "Coming soon" label', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(screen.getAllByText('Vetnio').length).toBeGreaterThanOrEqual(1);
     const comingSoonLabels = screen.getAllByText('Coming soon');
     expect(comingSoonLabels.length).toBeGreaterThan(0);
@@ -404,22 +436,66 @@ describe('Integrations settings', () => {
 
   it('shows Laika integration card with "Coming soon" label', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(screen.getAllByText('Laika').length).toBeGreaterThanOrEqual(1);
   });
 
   it('hides coming-soon cards when Connected filter is active', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     fireEvent.click(screen.getByRole('button', { name: 'Connected' }));
     await waitFor(() => {
       expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
     });
   });
 
+  it('hides coming-soon cards when the Available filter is active', async () => {
+    // IDEXX enabled (from beforeEach) + MSD disabled, so the Available tab has one real card.
+    setMerckEnabled(false);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Available');
+
+    await waitFor(() => {
+      expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    });
+    expectCardsHidden(COMING_SOON_CARD_TITLES);
+    // The genuinely available integration is still listed.
+    expect(screen.getByText('MSD Veterinary Manual')).toBeInTheDocument();
+  });
+
+  it('shows the Available empty state with no cards once IDEXX and MSD are both connected', async () => {
+    setMerckEnabled(true);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Available');
+
+    await screen.findByText('No available integrations right now.');
+    // The empty state must never render alongside visible cards.
+    expectCardsHidden([...COMING_SOON_CARD_TITLES, ...CONNECTABLE_CARD_TITLES]);
+  });
+
+  it('shows only coming-soon cards on the Coming soon tab', async () => {
+    setMerckEnabled(true);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    clickFilterTab('Coming soon');
+
+    await screen.findByText('RadAnalyzer');
+    COMING_SOON_CARD_TITLES.forEach((title) => {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    });
+    expectCardsHidden(CONNECTABLE_CARD_TITLES);
+    expect(screen.queryByText('No available integrations right now.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No connected integrations yet.')).not.toBeInTheDocument();
+  });
+
   it('renders the workspace subtitle under the Integrations heading', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(
       screen.getByText('Connect labs, references and devices to the workspace')
     ).toBeInTheDocument();
@@ -427,7 +503,7 @@ describe('Integrations settings', () => {
 
   it('renders the live status pill (dot branch) for an enabled integration', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     // Enabled IDEXX reads as CONNECTED (design copy) and exercises the isLive === true
     // branch that adds the success indicator dot. The status pill is a <span>; the
     // "Connected" filter tab is a <button>, so scope the assertion to the pill span.
@@ -437,7 +513,7 @@ describe('Integrations settings', () => {
 
   it('shows the developer-portal plugin hint row', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     expect(
       screen.getByText(/More integrations ship as plugins\. Browse the developer portal/i)
     ).toBeInTheDocument();
@@ -457,7 +533,7 @@ describe('Integrations settings', () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(disabledIntegration);
 
     render(<ProtectedIntegrations />);
-    await screen.findByRole('heading', { name: 'Integrations' });
+    await screen.findByRole('heading', { name: /^Integrations/ });
     // The disabled IDEXX pill (plus other providers defaulting to disabled) exercises the
     // isLive === false branch (no indicator dot).
     expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);

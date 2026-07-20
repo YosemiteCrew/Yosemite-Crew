@@ -33,7 +33,6 @@ import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-ch
 import { LuCommand } from 'react-icons/lu';
 import {
   IoArchiveOutline,
-  IoArrowBack,
   IoChatbubbleEllipsesOutline,
   IoGlobeOutline,
   IoSearchOutline,
@@ -41,18 +40,21 @@ import {
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import Text from '@/app/ui/Text';
-import { Badge } from '@/app/ui';
 import ConversationRow from './ConversationRow';
+import ConversationInfoPanel from './ConversationInfoPanel';
+import { deriveConversationPinned } from './conversationInfoPanelUtils';
+import ChannelHeaderBar from './ChannelHeaderBar';
 import { ChatAvatar } from './ChatAvatar';
 import { ChatHeaderContext } from './ChatHeaderContext';
 import ChatMessage from './ChatMessage';
 import ChatComposer from './ChatComposer';
 import ChatCommandPalette from './ChatCommandPalette';
 import ShareEntityModal from './ShareEntityModal';
-import MessageSearch from './MessageSearch';
 import NetworkDirectoryModal from './NetworkDirectoryModal';
 import { GroupModal, type OrgUserOption } from './GroupModal';
 import { useChatNotifications } from '../hooks/useChatNotifications';
+import { useChannelInfoDrawer } from '../hooks/useChannelInfoDrawer';
+import { useChannelSessionActions } from '../hooks/useChannelSessionActions';
 import { ChatShareContext } from './chatShareContext';
 import clsx from 'clsx';
 import {
@@ -61,6 +63,7 @@ import {
   formatRowTime,
   getChannelDisplayInfo,
   getSessionIdFromChannel,
+  isChannelMuted,
   isCounterpartOnline,
   matchesChannelId,
   matchesDirectSession,
@@ -76,10 +79,9 @@ import './ChatContainer.css';
 import {
   getChatClient,
   connectStreamUser,
-  endChatChannel,
   getAppointmentChannel,
 } from '@/app/features/chat/services/streamChatService';
-import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
+import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import {
   createOrgDirectChat,
   createOrgGroupChat,
@@ -89,7 +91,6 @@ import {
   updateGroup,
   deleteGroup,
   getChatSessions,
-  getChatSession,
   listOrgChatSessions,
 } from '@/app/features/chat/services/chatService';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
@@ -100,8 +101,6 @@ import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { useLoadAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useLoadCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
-import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
-import { useRouter } from 'next/navigation';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import AddAppointmentCentralModal from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
@@ -339,16 +338,9 @@ const ChannelHeaderWithCounterpart: FC<{
   currentUserId?: string | null;
 }> = ({ currentUserId }) => {
   const { channel } = useChannelStateContext();
-  const chatSessionStatusCtx = use(ChatSessionStatusContext);
-  const { statusByAppointmentId } = chatSessionStatusCtx;
+  const { statusByAppointmentId, refreshStatuses } = use(ChatSessionStatusContext);
   const { showBack, onBack } = use(ChatBackContext);
   const groupModalCtx = use(GroupModalContext);
-  const { notify } = useNotify();
-  const [closingSession, setClosingSession] = useState(false);
-  const [locallyClosed, setLocallyClosed] = useState(false);
-  const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [followUpOpen, setFollowUpOpen] = useState(false);
-  const [completingAppointment, setCompletingAppointment] = useState(false);
   const { title, channelMemberCount, isClientChat, isGroupChat, appointmentId, patientId } =
     deriveHeaderChannelInfo(channel, currentUserId);
   const backendStatus = appointmentId ? statusByAppointmentId[appointmentId] : undefined;
@@ -356,217 +348,87 @@ const ChannelHeaderWithCounterpart: FC<{
     appointmentId ? s.appointmentsById[appointmentId] : undefined
   );
   const companion = useCompanionStore((s) => (patientId ? s.companionsById[patientId] : undefined));
-  const router = useRouter();
 
-  // The session is closed when the channel or backend reports it ended/frozen,
-  // or when we just closed it locally (optimistic UI). Derived during render so
-  // it always tracks its source instead of being mirrored into state via an
-  // effect (react-doctor/no-derived-state).
-  const sessionClosed =
-    (channel?.data as any)?.status === 'ended' ||
-    (channel?.data as any)?.frozen === true ||
-    backendStatus === 'ended' ||
-    locallyClosed;
+  const {
+    sessionClosed,
+    closingSession,
+    completingAppointment,
+    rescheduleOpen,
+    setRescheduleOpen,
+    followUpOpen,
+    setFollowUpOpen,
+    handleCloseSession,
+    handleApptAction,
+  } = useChannelSessionActions({
+    channel,
+    appointment,
+    appointmentId,
+    backendStatus,
+    refreshStatuses,
+  });
 
-  const handleCloseSession = async () => {
-    if (!channel) {
-      /* v8 ignore next -- unreachable: the Close session button renders only when `isClientChat` is true, and deriveHeaderChannelInfo resolves the scope to 'colleagues' (never 'clients') when `channel` is null */
-      return;
-    }
+  const {
+    infoOpen,
+    openInfo,
+    closeInfo,
+    toggleInfo,
+    infoMuted,
+    handleToggleMute,
+    handleArchiveConversation,
+  } = useChannelInfoDrawer(channel);
 
-    // Prevent duplicate calls if already closing or already closed
-    if (closingSession || sessionClosed) {
-      /* v8 ignore next -- unreachable: the button carries `isDisabled={closingSession}` (BaseButton renders a real `disabled` attribute) and is swapped for the "Session closed" badge once `sessionClosed`, so it can never be clicked in either state */
-      return;
-    }
-
-    const confirmed = confirm(
-      'Are you sure you want to close this chat session? The client will no longer be able to send messages.'
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    setClosingSession(true);
-    try {
-      const appointmentId = (channel.data as any)?.appointmentId;
-      if (appointmentId) {
-        const session = await getChatSession(appointmentId);
-        const sessionId = (session as any)?._id || (session as any)?.id;
-        if (!sessionId) {
-          throw new Error('Chat session not found for this appointment');
-        }
-        await endChatChannel(sessionId);
-        chatSessionStatusCtx.refreshStatuses();
-        setLocallyClosed(true);
-        notify('success', {
-          title: 'Chat session closed',
-          text: 'Chat session closed successfully',
-        });
-      }
-    } catch (error) {
-      console.error('Failed to close chat session:', error);
-      notify('error', {
-        title: 'Couldn’t close chat session',
-        text: 'Please try again.',
-      });
-    } finally {
-      setClosingSession(false);
-    }
-  };
-
-  const hasSessionClosed = sessionClosed;
   const online = isCounterpartOnline(channel, currentUserId);
   const statusText = getHeaderStatusText({
     isGroupChat,
-    hasSessionClosed,
+    hasSessionClosed: sessionClosed,
     online,
     channelMemberCount,
     isClientChat,
   });
-
-  const handleAppointmentComplete = async () => {
-    if (!appointment || completingAppointment) {
-      /* v8 ignore next -- unreachable: ChatHeaderContext renders "Mark complete" only inside its `{appointment && …}` block and drops the action entirely while `completing` is true, so neither guard can fire */
-      return;
-    }
-    setCompletingAppointment(true);
-    try {
-      await changeAppointmentStatus(appointment, 'COMPLETED');
-      notify('success', {
-        title: 'Appointment completed',
-        text: 'The visit has been marked complete.',
-      });
-    } catch (error) {
-      notify('error', {
-        title: 'Unable to complete',
-        text: error instanceof Error ? error.message : 'Please try again.',
-      });
-    } finally {
-      setCompletingAppointment(false);
-    }
-  };
-
-  const handleApptAction = (action: string) => {
-    /* v8 ignore start -- unreachable: ChatHeaderContext renders the action buttons only when `appointment` (and therefore `appointmentId`) is defined, so this guard never fires */
-    if (!appointmentId) {
-      router.push('/appointments');
-      return;
-    }
-    /* v8 ignore stop */
-    if (action === 'Reschedule') {
-      /* v8 ignore start -- unreachable: the Reschedule button only renders inside ChatHeaderContext's `{appointment && …}` block, so `appointment` is always truthy here and this fallback is dead */
-      if (!appointment) {
-        router.push(buildWorkspaceHref(appointmentId));
-        return;
-      }
-      /* v8 ignore stop */
-      setRescheduleOpen(true);
-      return;
-    }
-    if (action === 'Send form') {
-      router.push(buildWorkspaceHref(appointmentId, 'INVOICE'));
-      return;
-    }
-    if (action === 'Mark complete') {
-      void handleAppointmentComplete();
-      return;
-    }
-    /* v8 ignore start -- unreachable: onAction only ever receives one of the four APPT_ACTIONS ('Reschedule', 'Send form', 'Mark complete', 'Book follow-up') and the first three already returned above, so this exhaustiveness fallback is dead */
-    if (action !== 'Book follow-up') {
-      router.push(buildWorkspaceHref(appointmentId));
-      return;
-    }
-    /* v8 ignore stop */
-    if (appointment?.companion?.id || appointment?.patient?.id) {
-      setFollowUpOpen(true);
-      return;
-    }
-    router.push('/appointments');
-  };
+  const pinnedMessages = deriveConversationPinned(channel);
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
-        {showBack && (
-          <button
-            type="button"
-            aria-label="Back to conversations"
-            onClick={onBack}
-            className="inline-flex size-[34px] shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] transition-colors hover:bg-[var(--screen-2)]"
-          >
-            <IoArrowBack className="h-[15px] w-[15px]" />
-          </button>
-        )}
-        <ChatAvatar
-          name={title}
-          online={!isGroupChat && !hasSessionClosed && online}
-          group={isGroupChat}
-          size="sm"
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="flex min-w-0 items-center gap-2">
-            <Text
-              as="span"
-              variant="body-3-emphasis"
-              className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[var(--ink)] xl:text-[14.5px]"
-            >
-              {title}
-            </Text>
-            {/* "Pet parent" is the fixed owner term and is NOT subject to the animal-terminology rewrite. */}
-            {isClientChat && (
-              <span className="hidden shrink-0 items-center self-center sm:inline-flex">
-                <Badge tone="warning">Pet parent</Badge>
-              </span>
-            )}
-          </span>
-          {online && !isGroupChat && !hasSessionClosed ? (
-            /* Design (thread header, online): 11.5px --success with a 6px pulsing dot. */
-            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--success)]">
-              <span className="chat-presence-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]" />
-              <span className="truncate">{statusText}</span>
-            </span>
-          ) : (
-            /* Design (thread header, offline): 11px --ink-faint. */
-            <Text
-              as="span"
-              variant="caption-2"
-              className="truncate text-[11px] text-[var(--ink-faint)]"
-            >
-              {statusText}
-            </Text>
-          )}
-        </div>
-        {/* No phone/video calling in chat. */}
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <MessageSearch />
-          {isGroupChat && (
-            <Primary
-              text="Group Info"
-              onClick={() => {
-                if (channel) {
-                  groupModalCtx.openEdit?.(channel);
-                }
-              }}
-            />
-          )}
-          {isClientChat && hasSessionClosed && <Badge tone="neutral">Session closed</Badge>}
-          {isClientChat && !hasSessionClosed && (
-            <Primary
-              text={closingSession ? 'Closing…' : 'Close session'}
-              onClick={handleCloseSession}
-              isDisabled={closingSession}
-            />
-          )}
-        </div>
-      </header>
+      <ChannelHeaderBar
+        title={title}
+        statusText={statusText}
+        chat={{
+          isClientChat,
+          isGroupChat,
+          sessionClosed,
+          showPresence: online && !isGroupChat && !sessionClosed,
+        }}
+        back={showBack ? { onBack } : undefined}
+        info={{ open: infoOpen, onToggle: toggleInfo }}
+        session={{ closing: closingSession, onClose: handleCloseSession }}
+        onOpenGroupInfo={() => {
+          if (channel) {
+            groupModalCtx.openEdit?.(channel);
+          }
+        }}
+      />
       {isClientChat && (
         <>
+          {infoOpen && (
+            <ConversationInfoPanel
+              channel={channel ?? null}
+              name={title}
+              subtitle={[companion?.name, statusText].filter(Boolean).join(' · ')}
+              online={online && !sessionClosed}
+              clientRecordHref={patientId ? buildCompanionOverviewHref(patientId) : undefined}
+              muted={infoMuted}
+              onToggleMute={handleToggleMute}
+              onArchive={handleArchiveConversation}
+              onClose={closeInfo}
+            />
+          )}
           <ChatHeaderContext
             allergy={companion?.allergy?.trim() || undefined}
             alerts={companion?.alerts}
             appointment={appointment}
             completing={completingAppointment}
+            pinned={pinnedMessages}
+            onOpenPinned={openInfo}
             onAction={handleApptAction}
           />
           {appointment && (
@@ -587,14 +449,6 @@ const ChannelHeaderWithCounterpart: FC<{
       )}
     </>
   );
-};
-
-const isChannelMuted = (channel: StreamChannel | null | undefined): boolean => {
-  try {
-    return Boolean(channel?.muteStatus?.().muted);
-  } catch {
-    return false;
-  }
 };
 
 type TriageHandlers = {

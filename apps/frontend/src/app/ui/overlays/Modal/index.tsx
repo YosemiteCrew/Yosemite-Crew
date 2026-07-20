@@ -8,7 +8,8 @@ import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
  * - `drawer` (default): right-side full-height drawer — the behaviour every existing
  *   caller has always used. Left untouched so opting in never regresses a current screen.
  * - `centered`: centered dialog panel per the PIMS Modal recipe (backdrop var(--sh55),
- *   radius 20, widths sm 480 / md 640 / lg 840). Opt-in only.
+ *   radius 22, borderless with a single deep float shadow, 26px horizontal content inset,
+ *   widths sm 480 / md 680 / lg 840). Opt-in only.
  *
  * On phones (< 768px) both variants are re-formed per the Foundations adaptation rule
  * "Modals -> bottom sheets. Phones get a grabber, top radius 24, full-width buttons;
@@ -32,10 +33,10 @@ type ModalProps = {
   'aria-labelledby'?: string;
 };
 
-/** Centered-panel widths from the Modal recipe (sm 480 / md 640 / lg 840). */
+/** Centered-panel widths from the Modal recipe (sm 480 / md 680 / lg 840). */
 const CENTERED_WIDTHS: Record<ModalSize, string> = {
   sm: 'sm:w-[480px]',
-  md: 'sm:w-[640px]',
+  md: 'sm:w-[680px]',
   lg: 'sm:w-[840px]',
 };
 
@@ -122,11 +123,11 @@ const Modal = ({
           showModal
         )}`}
         overlayStyle={{ backgroundColor: 'var(--sh55)' }}
-        containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-3
+        containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-[26px] py-5
         flex flex-col overflow-hidden max-h-[calc(100%-1.5rem)]
         w-[calc(100%-1.5rem)] ${CENTERED_WIDTHS[size]}
-        bg-neutral-0 border border-card-border rounded-[20px] z-[1200]
-        shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)]
+        bg-neutral-0 rounded-[22px] z-[1200]
+        shadow-[0_40px_110px_rgba(0,0,0,0.42)]
         transition-opacity duration-300 ease-in-out
         ${fadeClass(showModal)}`}
       >

@@ -1,13 +1,11 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import Rooms from '@/app/features/organization/pages/Organization/Sections/Rooms/Rooms';
 
 const useRoomsMock = jest.fn();
 const usePermissionsMock = jest.fn();
-const notifyMock = jest.fn();
-const toggleRoomAvailabilityMock = jest.fn();
 
 jest.mock('@/app/hooks/useRooms', () => ({
   useRoomsForPrimaryOrg: () => useRoomsMock(),
@@ -15,14 +13,6 @@ jest.mock('@/app/hooks/useRooms', () => ({
 
 jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: () => usePermissionsMock(),
-}));
-
-jest.mock('@/app/hooks/useNotify', () => ({
-  useNotify: () => ({ notify: notifyMock }),
-}));
-
-jest.mock('@/app/features/organization/services/roomService', () => ({
-  toggleRoomAvailability: (...args: any[]) => toggleRoomAvailabilityMock(...args),
 }));
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
@@ -44,7 +34,6 @@ describe('Rooms section', () => {
     jest.clearAllMocks();
     useRoomsMock.mockReturnValue([{ id: 'room-1', name: 'Room A', type: 'EXAM_ROOM' }]);
     usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
-    toggleRoomAvailabilityMock.mockResolvedValue(undefined);
   });
 
   it('renders the rooms list, count, type suffix and add trigger when permitted', () => {
@@ -53,17 +42,22 @@ describe('Rooms section', () => {
     expect(screen.getByRole('heading', { name: /Rooms/ })).toHaveTextContent('(1)');
     expect(screen.getByRole('button', { name: 'View Room A details' })).toBeInTheDocument();
     expect(screen.getByText(/exam room/)).toBeInTheDocument();
-    const add = screen.getByRole('button', { name: /Add room/ });
+    const add = screen.getByRole('button', { name: '+ Add room' });
     fireEvent.click(add);
     expect(screen.getByTestId('add-room')).toBeInTheDocument();
   });
 
-  it('hides the add trigger and availability switch when the user cannot edit rooms', () => {
+  it('hides the add trigger when the user cannot edit rooms', () => {
     usePermissionsMock.mockReturnValue({ can: jest.fn(() => false) });
     render(<Rooms />);
 
     expect(screen.getByRole('button', { name: 'View Room A details' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Add room/ })).not.toBeInTheDocument();
+  });
+
+  it('leaves availability toggling to the room detail view', () => {
+    render(<Rooms />);
+
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
@@ -143,58 +137,5 @@ describe('Rooms section', () => {
     rerender(<Rooms />);
 
     expect(screen.getByTestId('room-info')).toHaveTextContent('Room C');
-  });
-
-  it('marks a room available and notifies success', async () => {
-    useRoomsMock.mockReturnValue([
-      { id: 'room-1', name: 'Room A', type: 'EXAM_ROOM', availableNow: false },
-    ]);
-    render(<Rooms />);
-
-    fireEvent.click(screen.getByRole('switch', { name: /Enable availability for Room A/ }));
-
-    await waitFor(() =>
-      expect(notifyMock).toHaveBeenCalledWith('success', {
-        title: 'Room available',
-        text: 'Room A availability has been updated.',
-      })
-    );
-    expect(toggleRoomAvailabilityMock).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'room-1' }),
-      true
-    );
-  });
-
-  it('marks a room unavailable and notifies success', async () => {
-    useRoomsMock.mockReturnValue([
-      { id: 'room-1', name: 'Room A', type: 'EXAM_ROOM', availableNow: true },
-    ]);
-    render(<Rooms />);
-
-    fireEvent.click(screen.getByRole('switch', { name: /Disable availability for Room A/ }));
-
-    await waitFor(() =>
-      expect(notifyMock).toHaveBeenCalledWith('success', {
-        title: 'Room unavailable',
-        text: 'Room A availability has been updated.',
-      })
-    );
-  });
-
-  it('notifies an error when the availability update fails', async () => {
-    toggleRoomAvailabilityMock.mockRejectedValueOnce(new Error('nope'));
-    useRoomsMock.mockReturnValue([
-      { id: 'room-1', name: 'Room A', type: 'EXAM_ROOM', availableNow: false },
-    ]);
-    render(<Rooms />);
-
-    fireEvent.click(screen.getByRole('switch', { name: /Enable availability for Room A/ }));
-
-    await waitFor(() =>
-      expect(notifyMock).toHaveBeenCalledWith('error', {
-        title: 'Unable to update room',
-        text: 'Failed to update room availability. Please try again.',
-      })
-    );
   });
 });

@@ -374,10 +374,11 @@ describe('Tasks page', () => {
     expect(addTaskSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
   });
 
-  it('openAddTask: clicking Add button in the filter bar calls openAddTask', async () => {
+  it('openAddTask: clicking the header New task CTA calls openAddTask', async () => {
     render(<ProtectedTasks />);
 
-    const addButton = screen.getByRole('button', { name: 'Add' });
+    // Per the design the CTA sits in the page header actions, not the filter row.
+    const addButton = screen.getByRole('button', { name: 'New task' });
     await act(async () => {
       fireEvent.click(addButton);
       await Promise.resolve();
@@ -393,9 +394,11 @@ describe('Tasks page', () => {
       expect.objectContaining({
         filterOptions: expect.any(Array),
         statusOptions: expect.any(Array),
-        addButtonText: 'New task',
       })
     );
+    // The design's status row is Pending / In progress / Completed only.
+    const { statusOptions } = lastPropsOf(filterBarSpy);
+    expect(statusOptions.map((option: { key: string }) => option.key)).not.toContain('cancelled');
   });
 
   it('filteredList in board view ignores status filter (shows all matching query/audience)', async () => {
@@ -741,7 +744,7 @@ describe('Tasks page', () => {
 
     render(<ProtectedTasks />);
 
-    expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('task-change-status')).not.toBeInTheDocument();
     expect(screen.queryByTestId('task-reschedule')).not.toBeInTheDocument();
     expect(lastPropsOf(taskAgendaSpy).canEditTasks).toBe(false);

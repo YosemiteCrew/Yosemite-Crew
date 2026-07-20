@@ -56,6 +56,10 @@ const resetActiveTableState = (
   setters.setViewIntent(null);
 };
 
+/* Mirrors the `small` page size the Appointments/Tasks tables use on the dashboard,
+   so the footer caption reports the row count the table actually renders. */
+const SUMMARY_PAGE_SIZE = 5;
+
 const getNextSelectedAppointment = (
   current: Appointment | null,
   appointments: Appointment[]
@@ -150,10 +154,13 @@ const AppointmentTask = () => {
     return tasks.filter((item) => item.status.toLowerCase() === activeSubLabel.toLowerCase());
   }, [tasks, activeTable, activeSubLabel]);
 
+  const visibleCount =
+    activeTable === 'Appointments' ? filteredList.length : filteredTaskList.length;
+
   return (
     <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_ANY]}>
       <div className="summary-container pt-1">
-        <h2 className="text-[15px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+        <h2 className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
           Schedule{' '}
           <span className="font-medium text-[var(--ink-faint)]">
             ({activeTable === 'Appointments' ? appointments.length : tasks.length})
@@ -198,10 +205,13 @@ const AppointmentTask = () => {
           />
         )}
 
-        <div className="flex w-full justify-end">
+        <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-[var(--hairline)] pt-2.5">
+          <span className="text-[12px] text-[var(--ink-faint)]">
+            Showing {Math.min(SUMMARY_PAGE_SIZE, visibleCount)} of {visibleCount}
+          </span>
           <Link
             href={activeTable === 'Appointments' ? '/appointments' : '/tasks'}
-            className="text-[12px] font-semibold text-[var(--blue-text)]"
+            className="text-[12.5px] font-semibold text-[var(--blue-text)]"
           >
             {activeTable === 'Appointments' ? 'Open appointments' : 'Open tasks'} &rarr;
           </Link>

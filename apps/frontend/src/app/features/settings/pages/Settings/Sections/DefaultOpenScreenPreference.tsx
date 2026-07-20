@@ -1,6 +1,4 @@
 import React, { useMemo, useState, useRef } from 'react';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import { Primary } from '@/app/ui/primitives/Buttons';
 import { useNotify } from '@/app/hooks/useNotify';
 import { setSavedDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import {
@@ -17,6 +15,14 @@ import {
   normalizePmsPreferences,
   routeToDefaultOpenScreen,
 } from '@/app/features/settings/utils/pmsPreferences';
+import { PreferenceRow } from './PreferenceGroup';
+import PillSelect from './PillSelect';
+
+const APPOINTMENT_VIEW_OPTIONS = [
+  { value: 'calendar', label: 'Calendar' },
+  { value: 'board', label: 'Status Board' },
+  { value: 'list', label: 'Table' },
+];
 
 const DefaultOpenScreenPreference = () => {
   const { notify } = useNotify();
@@ -55,7 +61,10 @@ const DefaultOpenScreenPreference = () => {
     setDefaultView(savedView);
   }
 
-  const handleSave = async () => {
+  // Auto-save model from the design: dropdowns commit on change and the page header
+  // carries the single "Changes save automatically" indicator, so there is no
+  // per-preference Save button. Only failures surface a notification.
+  const persist = async (nextRoute: string, nextView: DefaultAppointmentsView) => {
     if (!primaryOrgId) {
       notify('error', {
         title: 'Organization not selected',
@@ -63,11 +72,9 @@ const DefaultOpenScreenPreference = () => {
       });
       return;
     }
-    const route = selection === '/dashboard' ? '/dashboard' : '/appointments';
-    const openScreenSaved = setSavedDefaultOpenScreenRoute(route);
-    const defaultViewSaved = shouldShowDefaultView
-      ? setSavedDefaultAppointmentsView(defaultView)
-      : true;
+    const route = nextRoute === '/dashboard' ? '/dashboard' : '/appointments';
+    setSavedDefaultOpenScreenRoute(route);
+    if (route === '/appointments') setSavedDefaultAppointmentsView(nextView);
     try {
       await patchUserProfile(primaryOrgId, {
         personalDetails: {
@@ -75,20 +82,9 @@ const DefaultOpenScreenPreference = () => {
           pmsPreferences: {
             ...pmsPreferences,
             defaultOpenScreen: routeToDefaultOpenScreen(route),
-            appointmentView: localToAppointmentView(defaultView),
+            appointmentView: localToAppointmentView(nextView),
           },
         },
-      });
-      if (openScreenSaved && defaultViewSaved) {
-        notify('success', {
-          title: 'Defaults updated',
-          text: 'Your default landing screen preferences have been saved.',
-        });
-        return;
-      }
-      notify('success', {
-        title: 'Defaults updated',
-        text: 'Saved to profile. Local cache refresh may require reloading.',
       });
     } catch {
       notify('error', {
@@ -98,32 +94,38 @@ const DefaultOpenScreenPreference = () => {
     }
   };
 
+  const handleScreenChange = (value: string) => {
+    setSelection(value);
+    void persist(value, defaultView);
+  };
+
+  const handleViewChange = (value: string) => {
+    const nextView = value as DefaultAppointmentsView;
+    setDefaultView(nextView);
+    void persist(selection, nextView);
+  };
+
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-        <LabelDropdown
-          placeholder="Default open screen"
+    <>
+      <PreferenceRow label="Default open screen" description="Where the app lands after sign-in">
+        <PillSelect
+          ariaLabel="Default open screen"
+          value={selection}
           options={options}
-          defaultOption={selection}
-          onSelect={(option) => setSelection(option.value)}
+          onChange={handleScreenChange}
         />
-        {shouldShowDefaultView && (
-          <LabelDropdown
-            placeholder="Default appointment view"
-            options={[
-              { value: 'calendar', label: 'Calendar' },
-              { value: 'board', label: 'Status Board' },
-              { value: 'list', label: 'Table' },
-            ]}
-            defaultOption={defaultView}
-            onSelect={(option) => setDefaultView(option.value as DefaultAppointmentsView)}
+      </PreferenceRow>
+      {shouldShowDefaultView && (
+        <PreferenceRow label="Default appointment view" description="Calendar, board, or list">
+          <PillSelect
+            ariaLabel="Default appointment view"
+            value={defaultView}
+            options={APPOINTMENT_VIEW_OPTIONS}
+            onChange={handleViewChange}
           />
-        )}
-      </div>
-      <div className="w-full flex justify-end!">
-        <Primary href="#" text="Save defaults" onClick={handleSave} />
-      </div>
-    </div>
+        </PreferenceRow>
+      )}
+    </>
   );
 };
 

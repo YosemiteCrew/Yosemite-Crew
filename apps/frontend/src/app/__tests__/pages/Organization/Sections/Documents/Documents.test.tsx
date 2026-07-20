@@ -55,6 +55,7 @@ jest.mock(
 );
 
 jest.mock('react-icons/io5', () => ({
+  IoCreateOutline: () => <span data-testid="icon-template" />,
   IoDocumentTextOutline: () => <span data-testid="icon-doc" />,
   IoEllipsisHorizontal: () => <span data-testid="icon-kebab" />,
 }));
@@ -97,6 +98,22 @@ describe('Organization documents section', () => {
       screen.getByText('Templates support merge fields: patient, parent, visit, practitioner')
     ).toBeInTheDocument();
     expect(accordionButtonSpy).toHaveBeenCalledWith(expect.objectContaining({ showButton: true }));
+    expect(screen.getAllByTestId('icon-doc')).toHaveLength(3);
+    expect(screen.queryByTestId('icon-template')).not.toBeInTheDocument();
+  });
+
+  it('marks a document with no uploaded file as a green E-SIGN template', () => {
+    useDocumentsMock.mockReturnValue([
+      doc({ _id: 'doc-esign', title: 'Anaesthesia consent', fileUrl: '' }),
+    ]);
+
+    render(<Documents />);
+
+    const badge = screen.getByText('E-SIGN');
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveClass('bg-[var(--status-completed-bg)]');
+    expect(screen.getByTestId('icon-template')).toBeInTheDocument();
+    expect(screen.queryByTestId('icon-doc')).not.toBeInTheDocument();
   });
 
   it('opens the document info view when a row is clicked', () => {

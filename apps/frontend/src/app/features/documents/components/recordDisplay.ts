@@ -12,9 +12,21 @@ import {
   IoWaterOutline,
 } from 'react-icons/io5';
 import { CompanionRecord } from '@/app/features/documents/types/companionDocuments';
+import {
+  RecordLifecycleFilter,
+  filterRecordsByLifecycle,
+  getLifecycleForFilter,
+} from '@/app/features/documents/components/recordLifecycle';
 
-/** Filter tabs backed by real record dimensions (source), not lifecycle status. */
-export type RecordFilter = 'ALL' | 'UPLOADED' | 'SYNCED';
+/** Where a record came from. Always available on every record. */
+export type RecordSourceFilter = 'ALL' | 'UPLOADED' | 'SYNCED';
+
+/**
+ * The record list's filter tabs: the source dimension above plus the design's
+ * lifecycle tabs, which only render for lifecycles the loaded records actually
+ * resolve to (see `getAvailableLifecycleTabs`).
+ */
+export type RecordFilter = RecordSourceFilter | RecordLifecycleFilter;
 
 /** Sort direction on the record's effective date. */
 export type RecordSortDirection = 'desc' | 'asc';
@@ -141,6 +153,8 @@ export const filterRecords = (
 ): CompanionRecord[] => {
   if (filter === 'UPLOADED') return records.filter((doc) => !doc.syncedFromPms);
   if (filter === 'SYNCED') return records.filter((doc) => Boolean(doc.syncedFromPms));
+  const lifecycle = getLifecycleForFilter(filter);
+  if (lifecycle) return filterRecordsByLifecycle(records, lifecycle);
   return records;
 };
 

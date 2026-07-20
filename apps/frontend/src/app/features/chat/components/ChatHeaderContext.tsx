@@ -1,8 +1,9 @@
-import { IoShieldOutline } from 'react-icons/io5';
+import { IoChevronForward, IoPin, IoShieldOutline } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import Text from '@/app/ui/Text';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import { ChatAvatar } from './ChatAvatar';
+import type { ConversationInfoPinned } from './conversationInfoPanelUtils';
 import { allowReschedule, canTransitionAppointmentStatus } from '@/app/lib/appointments';
 import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
 
@@ -42,12 +43,46 @@ const getVisibleAppointmentActions = (
   });
 };
 
+/** Design (thread): 'Pinned · "…" + N more' banner on --surface-soft. */
+function PinnedBanner({
+  pinned,
+  onOpen,
+}: Readonly<{ pinned: ConversationInfoPinned[]; onOpen?: () => void }>) {
+  const [first] = pinned;
+  const extra = pinned.length - 1;
+  const extraSuffix = extra > 0 ? ` + ${extra} more` : '';
+  return (
+    <div className="px-3.5 pt-1.5 sm:px-4 xl:px-[22px]">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-[9px] rounded-xl border border-[var(--hairline)] bg-[var(--surface-soft)] px-3.5 py-[7px] text-left"
+      >
+        <IoPin className="h-3 w-3 shrink-0 text-[var(--pink)]" />
+        <Text
+          as="span"
+          variant="caption-1"
+          className="min-w-0 flex-1 truncate text-[11.5px] text-[var(--ink-body)]"
+        >
+          <strong className="font-bold text-[var(--ink)]">Pinned</strong>
+          {` · “${first.text}”${extraSuffix}`}
+        </Text>
+        <IoChevronForward className="ml-auto h-3 w-3 shrink-0 text-[var(--ink-faint)]" />
+      </button>
+    </div>
+  );
+}
+
 export type ChatHeaderContextProps = Readonly<{
   allergy?: string;
   alerts?: ClinicalAlert[];
   appointment?: Appointment;
   /** True while a "Mark complete" request is in flight — hides that action. */
   completing?: boolean;
+  /** Pinned messages digested into the thread's pinned banner. */
+  pinned?: ConversationInfoPinned[];
+  /** Opens the conversation-info drawer on the pinned list. */
+  onOpenPinned?: () => void;
   onAction: (action: string) => void;
 }>;
 
@@ -56,6 +91,8 @@ export function ChatHeaderContext({
   alerts,
   appointment,
   completing,
+  pinned,
+  onOpenPinned,
   onAction,
 }: ChatHeaderContextProps) {
   const flags: string[] = [];
@@ -77,7 +114,9 @@ export function ChatHeaderContext({
   const apptName = appointment?.patient?.name ?? appointment?.companion?.name;
   const visibleActions = getVisibleAppointmentActions(appointment, completing);
 
-  if (flags.length === 0 && !appointment) return null;
+  const pinnedMessages = pinned ?? [];
+
+  if (flags.length === 0 && !appointment && pinnedMessages.length === 0) return null;
 
   return (
     <div className="shrink-0">
@@ -124,6 +163,7 @@ export function ChatHeaderContext({
           </div>
         </div>
       )}
+      {pinnedMessages.length > 0 && <PinnedBanner pinned={pinnedMessages} onOpen={onOpenPinned} />}
     </div>
   );
 }

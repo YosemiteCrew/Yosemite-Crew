@@ -25,8 +25,8 @@
   border-radius: 20px;
   background: var(--screen);
   box-shadow:
-    0 1px 2px var(--sh05),
-    0 12px 30px var(--sh08);
+    0 2px 6px var(--sh05),
+    0 18px 48px var(--sh08);
   padding: 36px 32px;
   text-align: center;
 }

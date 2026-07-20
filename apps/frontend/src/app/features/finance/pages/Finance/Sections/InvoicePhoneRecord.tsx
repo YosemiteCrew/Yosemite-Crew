@@ -3,6 +3,7 @@ import React from 'react';
 import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import {
+  IoCardOutline,
   IoCheckmarkCircle,
   IoClose,
   IoDownloadOutline,
@@ -51,6 +52,26 @@ const buildSubtitle = (invoice: Invoice, appointment?: Appointment): string => {
     .join(' · ');
 };
 
+type LedgerChannel = {
+  Icon: typeof IoCardOutline;
+  title: string;
+};
+
+/**
+ * Mirrors the desktop record: the payment row is labelled by the channel the
+ * payment came through, so the same invoice reads the same way at every width.
+ */
+const getLedgerChannel = (invoice: Invoice): LedgerChannel => {
+  const method = invoice.paymentCollectionMethod;
+  if (method === 'PAYMENT_INTENT' || method === 'PAYMENT_LINK') {
+    return { Icon: IoPhonePortraitOutline, title: 'Paid in the pet-parent app' };
+  }
+  if (method === 'PAYMENT_AT_CLINIC') {
+    return { Icon: IoCardOutline, title: 'Paid at the clinic' };
+  }
+  return { Icon: IoCardOutline, title: 'Payment recorded' };
+};
+
 const buildLedgerCaption = (invoice: Invoice, payerName?: string): string => {
   const methodLabel = getInvoicePaymentMethodLabel(invoice);
   const paidAt = invoice.paidAt ?? invoice.createdAt;
@@ -94,6 +115,7 @@ const InvoicePhoneRecord = ({
   const taxLabel = invoice.taxPercent ? `Tax ${invoice.taxPercent}%` : 'Tax';
   const settled = isSettledInvoice(invoice);
   const caption = buildLedgerCaption(invoice, payerName);
+  const { Icon: ChannelIcon, title: channelTitle } = getLedgerChannel(invoice);
   const email = payerEmail?.trim();
   const pdfUrl = invoice.pdfUrl;
   const receiptUrl = invoice.stripeReceiptUrl;
@@ -191,12 +213,10 @@ const InvoicePhoneRecord = ({
       {settled && (
         <div className="flex items-center gap-2.5 rounded-[14px] border border-[var(--hairline)] px-3.5 py-3">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-blue-light text-blue-text">
-            <IoPhonePortraitOutline size={15} aria-hidden="true" />
+            <ChannelIcon size={15} aria-hidden="true" />
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-[12.5px] font-bold text-[var(--ink)]">
-              Payment recorded
-            </span>
+            <span className="block text-[12.5px] font-bold text-[var(--ink)]">{channelTitle}</span>
             <span className="block text-[10.5px] text-[var(--ink-faint)] truncate" title={caption}>
               {caption}
             </span>

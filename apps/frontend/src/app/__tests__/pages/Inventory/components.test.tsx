@@ -226,6 +226,7 @@ describe('Inventory page inner components', () => {
     const setDispensaryModalOpen = jest.fn();
     const setActiveView = jest.fn();
     const onRestock = jest.fn();
+    const onViewHistory = jest.fn();
     const onDispense = jest.fn();
 
     const { rerender } = render(
@@ -246,6 +247,7 @@ describe('Inventory page inner components', () => {
         setActiveDispensaryRecord={setActiveDispensaryRecord}
         setDispensaryModalOpen={setDispensaryModalOpen}
         onRestock={onRestock}
+        onViewHistory={onViewHistory}
         onDispense={onDispense}
       />
     );
@@ -271,6 +273,7 @@ describe('Inventory page inner components', () => {
         setActiveDispensaryRecord={setActiveDispensaryRecord}
         setDispensaryModalOpen={setDispensaryModalOpen}
         onRestock={onRestock}
+        onViewHistory={onViewHistory}
         onDispense={onDispense}
       />
     );
@@ -301,6 +304,7 @@ describe('Inventory page inner components', () => {
         setActiveDispensaryRecord={setActiveDispensaryRecord}
         setDispensaryModalOpen={setDispensaryModalOpen}
         onRestock={onRestock}
+        onViewHistory={onViewHistory}
         onDispense={onDispense}
       />
     );

@@ -95,7 +95,7 @@ const DashboardSkeleton = () => (
 // eyebrow, a title bar, a 3-col tile grid and stacked rows that shimmer via the
 // ycShimmer keyframe (see globals.css). No spinners — the shape mirrors the page.
 const GenericSkeleton = () => (
-  <div className="mx-auto my-8 flex w-full max-w-[460px] flex-col gap-[14px] rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-[22px] shadow-[0_1px_2px_var(--sh05),0_12px_30px_var(--sh08)]">
+  <div className="mx-auto my-8 flex w-full max-w-[460px] flex-col gap-[14px] rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-[22px] shadow-[0_2px_6px_var(--sh05),0_18px_48px_var(--sh08)]">
     <div className="text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
       Page loading · skeleton
     </div>

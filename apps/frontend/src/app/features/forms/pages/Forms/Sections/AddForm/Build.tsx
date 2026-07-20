@@ -1300,6 +1300,13 @@ const SettingToggle: React.FC<{
   </div>
 );
 
+/** Palette icon tint: signature is pink (matching its dashed row), section break is faint ink. */
+const paletteIconColorFor = (key: OptionKey): string => {
+  if (key === 'signature') return 'text-[var(--pink)]';
+  if (key === 'group') return 'text-[var(--ink-faint)]';
+  return 'text-[var(--blue-text)]';
+};
+
 /** Left-palette tile that adds a field of the given type to the canvas. */
 const PaletteTile: React.FC<{ option: OptionProp; onAdd: (key: OptionKey) => void }> = ({
   option,
@@ -1310,7 +1317,7 @@ const PaletteTile: React.FC<{ option: OptionProp; onAdd: (key: OptionKey) => voi
     onClick={() => onAdd(option.key)}
     className="flex items-center gap-2.5 rounded-xl border border-[var(--hairline)] bg-[var(--screen)] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--ink-body)] transition-colors hover:border-[var(--blue)]"
   >
-    <span className={'text-[var(--blue-text)]'}>{paletteIconFor(option.key)}</span>
+    <span className={paletteIconColorFor(option.key)}>{paletteIconFor(option.key)}</span>
     {option.name}
   </button>
 );
@@ -1379,7 +1386,7 @@ const CanvasRow: React.FC<{
     >
       <span data-drag-handle className={draggable ? 'cursor-grab' : ''}>
         {isSignature ? (
-          <IoCreateOutline size={15} className="text-[var(--blue-text)]" aria-hidden="true" />
+          <IoCreateOutline size={15} className="text-[var(--pink)]" aria-hidden="true" />
         ) : (
           <IoReorderTwoOutline size={15} className="text-[var(--ink-faint2)]" aria-hidden="true" />
         )}
@@ -1657,6 +1664,18 @@ const BuilderCanvas: React.FC<BuilderCanvasProps> = ({
   </div>
 );
 
+/** Linked-service tag: violet for a service, blue for a package, per the design. */
+const LinkedServiceBadge: React.FC<{ badge?: string }> = ({ badge }) => {
+  const label = (badge ?? 'SERVICE').toUpperCase();
+  const tone =
+    label === 'PACKAGE'
+      ? 'border-[var(--status-upcoming-border)] bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)]'
+      : 'border-[var(--status-in-progress-border)] bg-[var(--status-in-progress-bg)] text-[var(--status-in-progress-text)]';
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${tone}`}>{label}</span>
+  );
+};
+
 type BuilderSettingsPanelProps = {
   selectedField: FormField | null;
   renderSelectedBuilder: (field: FormField) => React.ReactNode;
@@ -1717,9 +1736,7 @@ const BuilderSettingsPanel: React.FC<BuilderSettingsPanelProps> = ({
               className="flex items-center justify-between rounded-[11px] border border-[var(--hairline)] px-3 py-2 text-[12.5px] font-semibold text-[var(--ink-body)]"
             >
               {service.label}
-              <span className="rounded-full border border-[var(--status-in-progress-border)] bg-[var(--status-in-progress-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--status-in-progress-text)]">
-                {((service as { badge?: string }).badge ?? 'SERVICE').toUpperCase()}
-              </span>
+              <LinkedServiceBadge badge={service.badge} />
             </span>
           ))}
           {showServicePicker && (

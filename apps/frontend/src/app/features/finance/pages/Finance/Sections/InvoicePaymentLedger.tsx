@@ -1,6 +1,6 @@
 import React from 'react';
 import { Invoice } from '@yosemite-crew/types';
-import { IoCardOutline, IoCheckmarkCircle } from 'react-icons/io5';
+import { IoCardOutline, IoCheckmarkCircle, IoPhonePortraitOutline } from 'react-icons/io5';
 import { formatMoney } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
@@ -16,6 +16,28 @@ const SETTLED_STATUSES = new Set(['PAID', 'REFUNDED']);
 
 const isSettledInvoice = (invoice: Invoice): boolean =>
   SETTLED_STATUSES.has(invoice.status) || Boolean(invoice.paidAt);
+
+type LedgerChannel = {
+  Icon: typeof IoCardOutline;
+  title: string;
+};
+
+/**
+ * The design labels the payment row by the channel it came through rather than
+ * with a generic "Payment recorded": an app/link payment reads "Paid in the
+ * pet-parent app" behind a phone glyph, an at-the-desk payment reads "Paid at
+ * the clinic" behind a card glyph.
+ */
+const getLedgerChannel = (invoice: Invoice): LedgerChannel => {
+  const method = invoice.paymentCollectionMethod;
+  if (method === 'PAYMENT_INTENT' || method === 'PAYMENT_LINK') {
+    return { Icon: IoPhonePortraitOutline, title: 'Paid in the pet-parent app' };
+  }
+  if (method === 'PAYMENT_AT_CLINIC') {
+    return { Icon: IoCardOutline, title: 'Paid at the clinic' };
+  }
+  return { Icon: IoCardOutline, title: 'Payment recorded' };
+};
 
 const buildLedgerCaption = (invoice: Invoice, payerName?: string): string => {
   const methodLabel = getInvoicePaymentMethodLabel(invoice);
@@ -37,6 +59,7 @@ const InvoicePaymentLedger = ({
   if (!isSettledInvoice(invoice)) return null;
 
   const caption = buildLedgerCaption(invoice, payerName);
+  const { Icon: ChannelIcon, title: channelTitle } = getLedgerChannel(invoice);
   const receiptUrl = invoice.stripeReceiptUrl;
   const email = payerEmail?.trim();
 
@@ -46,10 +69,10 @@ const InvoicePaymentLedger = ({
       <div className="rounded-[14px] border border-card-border overflow-hidden">
         <div className="flex items-center gap-3 px-4 py-[11px]">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-blue-light text-blue-text">
-            <IoCardOutline size={16} aria-hidden="true" />
+            <ChannelIcon size={15} aria-hidden="true" />
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-[13px] font-bold text-[var(--ink)]">Payment recorded</span>
+            <span className="block text-[13px] font-bold text-[var(--ink)]">{channelTitle}</span>
             <span className="block text-[11.5px] text-text-tertiary truncate" title={caption}>
               {caption}
             </span>

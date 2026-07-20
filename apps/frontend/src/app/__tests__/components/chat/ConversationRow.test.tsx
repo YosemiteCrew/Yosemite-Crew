@@ -59,10 +59,18 @@ describe('ConversationRow', () => {
     expect(row).not.toHaveClass('opacity-[0.62]');
   });
 
-  it('renders a blue network unread badge instead of the pink one', () => {
+  it('renders the blue unread pill on a network row', () => {
     render(<ConversationRow {...base} network unread={4} />);
     const badge = screen.getByText('4');
     expect(badge).toHaveClass('bg-[var(--blue)]');
+  });
+
+  it('renders the same blue unread pill on a non-network row', () => {
+    render(<ConversationRow {...base} unread={4} />);
+    const badge = screen.getByText('4');
+    expect(badge).toHaveClass('bg-[var(--blue)]');
+    expect(badge).toHaveClass('font-extrabold');
+    expect(badge).toHaveClass('h-[17px]');
   });
 
   it('renders a clinic business glyph (not initials) for a network row', () => {

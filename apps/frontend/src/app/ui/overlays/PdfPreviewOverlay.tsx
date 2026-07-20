@@ -73,12 +73,20 @@ const PdfPreviewOverlay = ({
               <YosemiteLoader label="Loading PDF" size={120} testId="pdf-preview-loader" />
             </div>
           )}
+          {/* No `sandbox` attribute: Chrome's built-in PDF viewer refuses to
+              instantiate inside a sandboxed frame, so ANY sandbox token set —
+              including `allow-same-origin`, and including every token at once —
+              renders a blank white frame instead of the document. The src is
+              already constrained to blob:/https: by `getSafePdfPreviewUrl`, and
+              `frame-src` in the CSP independently limits which origins may be
+              framed at all, so the sandbox was never the control protecting
+              this iframe. */}
+          {/* react-doctor-disable-next-line react-doctor/iframe-missing-sandbox */}
           <iframe
             key={safePdfUrl}
             src={safePdfUrl}
             title={title}
             className="size-full border-0"
-            sandbox="allow-downloads allow-scripts"
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
             onLoad={() => setLoadedUrl(safePdfUrl)}

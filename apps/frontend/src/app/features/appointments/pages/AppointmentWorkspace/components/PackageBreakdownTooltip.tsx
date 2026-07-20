@@ -105,7 +105,7 @@ const PackageBreakdownTooltip = ({ item, currency }: PackageBreakdownTooltipProp
       <button
         type="button"
         aria-label={`View ${item.name} package breakdown`}
-        className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-blue-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
         <IoInformationCircleOutline aria-hidden="true" size={14} />
       </button>

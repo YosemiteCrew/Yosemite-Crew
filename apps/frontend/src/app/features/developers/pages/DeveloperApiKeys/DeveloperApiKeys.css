@@ -15,6 +15,11 @@
   margin: 0;
 }
 
+.dev-keys-subtitle {
+  font-size: 13.5px;
+  color: var(--ink-muted);
+}
+
 .dev-keys-preview {
   margin: 0;
   align-self: flex-start;
@@ -30,10 +35,10 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  background: var(--color-ink);
+  background: var(--spot);
   border-radius: 16px;
   padding: 16px 20px;
-  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
+  box-shadow: 0 12px 34px var(--sh20);
 }
 
 .dev-key-reveal-icon {
@@ -104,12 +109,14 @@
   border: 1px solid var(--color-card-border);
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
 }
 
 .dev-keys-row {
   display: grid;
-  grid-template-columns: 1.5fr 1.3fr 1fr 1fr 1fr 120px;
+  grid-template-columns: 1.5fr 1.3fr 1fr 1fr 1fr 120px 48px;
   gap: 12px;
   align-items: center;
   padding: 12px 20px;
@@ -131,14 +138,32 @@
   opacity: 0.6;
 }
 
+/* Just-created key row — tied visually to the reveal banner above it. */
+.dev-keys-row.is-new {
+  background: var(--surface-soft);
+}
+
+.dev-key-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .dev-key-value {
   font-family: ui-monospace, monospace;
   font-size: 12.5px;
-  color: var(--color-text-tertiary);
+  color: var(--ink-muted);
 }
 
 .dev-key-muted {
-  color: var(--color-text-tertiary);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+
+.dev-key-actions {
+  display: flex;
+  justify-content: center;
+  color: var(--ink-faint);
 }
 
 .dev-env-badge,
@@ -204,7 +229,12 @@
   flex: 1;
   border-radius: 4px 4px 2px 2px;
   background: var(--color-cyan);
-  opacity: 0.8;
+  opacity: 0.75;
+}
+
+/* The two most recent days carry full emphasis. */
+.dev-keys-usage-bar.is-recent {
+  opacity: 1;
 }
 
 .dev-keys-usage-total {
@@ -221,10 +251,10 @@
   }
 
   .dev-keys-row {
-    min-width: 760px;
+    min-width: 820px;
   }
 
   .dev-keys-usage {
-    min-width: 760px;
+    min-width: 820px;
   }
 }

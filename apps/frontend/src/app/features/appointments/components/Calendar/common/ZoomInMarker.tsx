@@ -87,12 +87,15 @@ const ZoomInMarker = ({
   }
 
   // Frame appointment card: 12px radius over a 1px status outline, thickened to a
-  // 3px status spine on the leading edge.
+  // 3px status spine on the leading edge. A requested (not yet confirmed) booking
+  // draws that outline dashed, keeping the spine solid.
+  const isRequested = String(ev.status ?? '').toUpperCase() === 'REQUESTED';
   const appointmentBlockStyle: React.CSSProperties = {
     ...statusStyle,
     borderWidth: '1px',
     borderLeftWidth: '3px',
-    borderStyle: 'solid',
+    borderStyle: isRequested ? 'dashed' : 'solid',
+    borderLeftStyle: 'solid',
     borderColor: statusStyle.borderColor,
     top: topPx,
     left: `calc(${leftPercent}% + ${laneGapPx}px)`,

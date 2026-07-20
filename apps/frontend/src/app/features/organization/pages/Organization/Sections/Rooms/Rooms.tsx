@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  IoAddOutline,
   IoBedOutline,
   IoBusinessOutline,
   IoCutOutline,
@@ -14,8 +13,6 @@ import { OrganisationRoom } from '@yosemite-crew/types';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
-import { toggleRoomAvailability } from '@/app/features/organization/services/roomService';
-import { useNotify } from '@/app/hooks/useNotify';
 import { humanize } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 
 type ManagedRoom = OrganisationRoom & {
@@ -43,9 +40,6 @@ const roomIcon = (type?: OrganisationRoom['type']): React.ReactNode => {
       return <IoMedkitOutline size={14} aria-hidden="true" />;
   }
 };
-
-const getAvailability = (room: ManagedRoom): boolean =>
-  room.availableNow ?? room.availability?.isAvailable ?? true;
 
 const daysLabel = (room: ManagedRoom): string | undefined => {
   if (room.availabilityMode === 'ALL_DAY') return 'Every day';
@@ -76,46 +70,7 @@ const roomMeta = (room: ManagedRoom): string => {
   return parts.length ? parts.join(' · ') : 'No schedule set';
 };
 
-const AvailabilitySwitch = ({
-  checked,
-  onChange,
-  roomName,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  roomName: string;
-}) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={`${checked ? 'Disable' : 'Enable'} availability for ${roomName}`}
-    onClick={() => onChange(!checked)}
-    className="inline-flex h-5 w-9 shrink-0 items-center rounded-full p-[2px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
-    style={{
-      backgroundColor: checked ? 'var(--success)' : 'var(--color-neutral-300)',
-    }}
-  >
-    <span
-      aria-hidden="true"
-      className={`block size-4 rounded-full bg-[var(--screen)] shadow-sm transition-transform ${
-        checked ? 'translate-x-4' : 'translate-x-0'
-      }`}
-    />
-  </button>
-);
-
-const RoomRow = ({
-  room,
-  canEditRoom,
-  onView,
-  onToggle,
-}: {
-  room: ManagedRoom;
-  canEditRoom: boolean;
-  onView: (room: ManagedRoom) => void;
-  onToggle: (room: ManagedRoom, isAvailable: boolean) => void;
-}) => {
+const RoomRow = ({ room, onView }: { room: ManagedRoom; onView: (room: ManagedRoom) => void }) => {
   const typeLabel = humanize(room.type).toLowerCase();
   return (
     <li className="flex items-center gap-[10px] border-t border-[var(--hairline)] px-5! py-[10px]!">
@@ -136,20 +91,12 @@ const RoomRow = ({
           {roomMeta(room)}
         </span>
       </button>
-      {canEditRoom && (
-        <AvailabilitySwitch
-          checked={getAvailability(room)}
-          onChange={(isAvailable) => onToggle(room, isAvailable)}
-          roomName={room.name || 'room'}
-        />
-      )}
     </li>
   );
 };
 
 const Rooms = () => {
   const rooms = useRoomsForPrimaryOrg();
-  const { notify } = useNotify();
   const { can } = usePermissions();
   const canEditRoom = can(PERMISSIONS.ROOM_EDIT_ANY);
   const [addPopup, setAddPopup] = useState(false);
@@ -172,22 +119,6 @@ const Rooms = () => {
     setViewPopup(true);
   };
 
-  const handleToggleAvailability = async (room: ManagedRoom, isAvailable: boolean) => {
-    try {
-      await toggleRoomAvailability(room, isAvailable);
-      notify('success', {
-        title: isAvailable ? 'Room available' : 'Room unavailable',
-        text: `${room.name} availability has been updated.`,
-      });
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Unable to update room',
-        text: 'Failed to update room availability. Please try again.',
-      });
-    }
-  };
-
   return (
     <PermissionGate allOf={[PERMISSIONS.ROOM_VIEW_ANY]}>
       <section className="overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
@@ -199,10 +130,9 @@ const Rooms = () => {
             <button
               type="button"
               onClick={() => setAddPopup(true)}
-              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors cursor-pointer"
+              className="text-[12px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors cursor-pointer"
             >
-              <IoAddOutline size={15} aria-hidden="true" />
-              Add room
+              + Add room
             </button>
           )}
         </div>
@@ -213,13 +143,7 @@ const Rooms = () => {
         ) : (
           <ul className="flex flex-col">
             {rooms.map((room) => (
-              <RoomRow
-                key={room.id}
-                room={room}
-                canEditRoom={canEditRoom}
-                onView={handleView}
-                onToggle={handleToggleAvailability}
-              />
+              <RoomRow key={room.id} room={room} onView={handleView} />
             ))}
           </ul>
         )}

@@ -53,6 +53,10 @@ describe('YourOrganizations', () => {
     render(<YourOrganizations />);
 
     expect(screen.getByRole('heading', { name: 'Your organizations' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'New organization' })).toHaveAttribute(
+      'href',
+      '/create-org'
+    );
     expect(screen.getByText('Alpenblick Animal Clinic')).toBeInTheDocument();
     expect(screen.getByText('Owner · primary')).toBeInTheDocument();
     expect(screen.getByText('PRIMARY')).toBeInTheDocument();

@@ -59,7 +59,7 @@ const PastItemsList = ({
   emptyLabel = 'Nothing recorded yet.',
 }: PastItemsListProps) => (
   <div className="flex flex-col gap-2">
-    <h3 className="text-[16px] font-bold text-text-brand">{title}</h3>
+    <h3 className="text-[16px] font-bold text-blue-text">{title}</h3>
     {items.length === 0 ? (
       <p className="py-4 text-body-4 text-text-secondary">{emptyLabel}</p>
     ) : (

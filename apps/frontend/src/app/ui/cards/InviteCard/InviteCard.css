@@ -63,3 +63,57 @@
   line-height: 120%;
   letter-spacing: -0.16px;
 }
+
+/* Invite row on the organization picker - see "PIMS - Onboarding & Auth". */
+.invite-picker-card {
+  padding: 16px 20px;
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
+}
+
+.invite-picker-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 800;
+  background: var(--avatar-amber-bg);
+  color: var(--avatar-amber-ink);
+}
+
+.invite-picker-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Element + class so the status tokens win over the Badge tone utilities. */
+span.invite-picker-badge {
+  background: var(--status-requested-bg);
+  color: var(--status-requested-text);
+  border: 1px solid var(--status-requested-border);
+}
+
+.invite-picker-action {
+  padding: 6px 13px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.invite-picker-action--accept {
+  background: var(--cta);
+  color: var(--cta-text);
+}
+
+.invite-picker-action--decline {
+  border: 1px solid var(--divider);
+  color: var(--ink-muted);
+}
+
+.invite-picker-action:disabled {
+  opacity: 0.5;
+}

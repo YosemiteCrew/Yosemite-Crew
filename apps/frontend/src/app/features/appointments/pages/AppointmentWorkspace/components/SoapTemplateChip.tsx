@@ -139,7 +139,7 @@ const SoapTemplateChip = ({
                         <IoCheckmark
                           size={14}
                           aria-hidden="true"
-                          className="shrink-0 text-text-brand"
+                          className="shrink-0 text-blue-text"
                         />
                       )}
                     </button>
@@ -155,7 +155,7 @@ const SoapTemplateChip = ({
                 onManage();
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-1.5 border-t border-card-border px-3.5 py-2.5 text-left text-caption-1 font-semibold text-text-brand hover:bg-neutral-100"
+              className="flex w-full items-center gap-1.5 border-t border-card-border px-3.5 py-2.5 text-left text-caption-1 font-semibold text-blue-text hover:bg-neutral-100"
             >
               <IoAddOutline size={12} aria-hidden="true" />
               Manage templates

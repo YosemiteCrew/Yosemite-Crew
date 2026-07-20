@@ -169,8 +169,16 @@ const StripeOnboarding = () => {
       </div>
 
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-page-title">Stripe onboarding</h1>
-        <p className="max-w-[460px] text-body-3 text-text-secondary">
+        <h1
+          className="font-newsreader text-[30px] font-normal leading-[1.2] tracking-[-0.02em]"
+          style={{ color: 'var(--ink)' }}
+        >
+          Stripe onboarding
+        </h1>
+        <p
+          className="max-w-[440px] text-[13.5px] leading-[1.6]"
+          style={{ color: 'var(--ink-muted)' }}
+        >
           Complete your Stripe setup to accept card payments, verify tax details, and review payout
           information for your organization.
         </p>

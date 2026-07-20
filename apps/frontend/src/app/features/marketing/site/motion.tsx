@@ -318,7 +318,9 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const reduced = useReducedMotion();
   const [display, setDisplay] = useState(value);
-  const [inView, setInView] = useState(false);
+  // Without IntersectionObserver (SSR / older browsers) the value counts up from
+  // the first paint; the observer below only gates it when it exists.
+  const [inView, setInView] = useState(() => typeof IntersectionObserver === 'undefined');
 
   const target = useMemo(() => {
     const raw = value.replaceAll(',', '');
@@ -335,10 +337,7 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
   }, [value]);
 
   useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') {
-      setInView(true);
-      return undefined;
-    }
+    if (typeof IntersectionObserver === 'undefined') return undefined;
     const node = ref.current;
     if (!node) return undefined;
     const io = new IntersectionObserver(

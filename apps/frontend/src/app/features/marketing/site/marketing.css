@@ -476,7 +476,7 @@
 .yc-field:focus {
   border-color: var(--blue);
   background: var(--field-bg);
-  box-shadow: 0 0 0 4px rgba(37, 123, 237, 0.1);
+  box-shadow: 0 0 0 3px var(--glow-b10);
 }
 select.yc-field {
   appearance: none;

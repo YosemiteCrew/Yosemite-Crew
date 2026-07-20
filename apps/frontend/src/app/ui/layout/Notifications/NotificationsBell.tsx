@@ -82,7 +82,7 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
       aria-controls={open ? panelId : undefined}
       onClick={() => setOpen((prev) => !prev)}
     >
-      <IoNotificationsOutline size={isPhone ? 15 : 16} />
+      <IoNotificationsOutline size={isPhone ? 15 : 17} />
       {unreadCount > 0 ? <span className={dotClass} aria-hidden /> : null}
     </button>
   );

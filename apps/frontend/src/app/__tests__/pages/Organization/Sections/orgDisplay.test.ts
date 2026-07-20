@@ -81,5 +81,17 @@ describe('orgDisplay helpers', () => {
       expect(humanize()).toBe('');
       expect(humanize('')).toBe('');
     });
+
+    // The catalog status pills (services / packages) render through humanize, so
+    // every lifecycle status the backend can send must come out as UI copy.
+    it.each([
+      ['ACTIVE', 'Active'],
+      ['ARCHIVED', 'Archived'],
+      ['INACTIVE', 'Inactive'],
+      ['DRAFT', 'Draft'],
+      ['PENDING_REVIEW', 'Pending review'],
+    ])('maps the %s catalog status to "%s"', (status, label) => {
+      expect(humanize(status)).toBe(label);
+    });
   });
 });
