@@ -32,6 +32,7 @@ permissions: {}
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 45
     permissions:
       contents: write
     # Gates the Azure signing secrets behind the protected `release` environment.
@@ -74,6 +75,7 @@ jobs:
 
   macos:
     runs-on: macos-14
+    timeout-minutes: 45
     permissions:
       contents: write
     # Same protected `release` environment gate for the Apple signing/notarization secrets.
@@ -120,6 +122,7 @@ jobs:
       - windows
       - macos
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     environment: release

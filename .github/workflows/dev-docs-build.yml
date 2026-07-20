@@ -17,6 +17,7 @@ jobs:
   build-dev-docs:
     name: Build dev-docs (Docusaurus)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:

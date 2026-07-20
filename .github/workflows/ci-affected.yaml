@@ -20,6 +20,7 @@ jobs:
   detect:
     name: Detect affected workspaces
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       has-any: ${{ steps.set-matrix.outputs.has_any }}
@@ -115,6 +116,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.has-any == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
@@ -203,6 +205,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.has-any != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - run: echo "No affected workspaces. Skipping."
 
@@ -211,6 +214,7 @@ jobs:
     name: CI Affected Status
     if: always() && !cancelled()
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [detect, run-affected, no-affected]
     steps:
       - name: Aggregate result

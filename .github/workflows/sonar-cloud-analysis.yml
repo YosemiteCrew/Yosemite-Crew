@@ -18,6 +18,7 @@ jobs:
   changes:
     name: Detect workspace changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     if: github.repository_owner == 'YosemiteCrew' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
@@ -136,6 +137,7 @@ jobs:
       )
     name: SonarQube Analysis - ${{ matrix.app }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: changes
     permissions:
       contents: read
