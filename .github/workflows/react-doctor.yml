@@ -6,10 +6,13 @@ name: React Doctor
 
 permissions:
   contents: read
-  # Commenting on a pull request uses the pull-requests scope, and the status
-  # check uses the statuses scope. The workflow creates no issues, so issues:
-  # write was an unused grant and is dropped.
   pull-requests: write
+  # Kept for the action's sticky PR summary comment. Pull request comments are
+  # created through the issue-comments API, so the action needs issues: write in
+  # addition to pull-requests: write, as its own setup documentation states.
+  # Dropping it silently disables the summary comment rather than failing, so it
+  # stays until PR comments are deliberately turned off in the action's config.
+  issues: write
   statuses: write
 
 concurrency:

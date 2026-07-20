@@ -102,10 +102,14 @@ jobs:
             run_all "no trustworthy base SHA"
           fi
 
-          # A lockfile, root manifest or turbo config change can alter any
-          # workspace's dependency graph in ways turbo's file-level filter does
-          # not model.
-          if git diff --name-only "$BASE_SHA" HEAD | grep -qE '^(pnpm-lock\.yaml|package\.json|turbo\.json)$'; then
+          # A lockfile, root manifest, workspace definition or turbo config
+          # change can alter any workspace's dependency graph in ways turbo's
+          # file-level filter does not model. pnpm-workspace.yaml matters most
+          # here: a diff that only adds, removes or renames a workspace glob
+          # leaves turbo's affected dry run returning zero tasks, so without
+          # this the matrix would come back empty and the aggregate check would
+          # go green having linted, built and tested nothing.
+          if git diff --name-only "$BASE_SHA" HEAD | grep -qE '^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json)$'; then
             run_all "lockfile or root configuration changed"
           fi
 

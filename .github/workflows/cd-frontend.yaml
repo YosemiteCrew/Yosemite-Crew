@@ -95,7 +95,13 @@ jobs:
     # detect job itself failed the output is empty, which must still deploy -
     # `== 'true'` would have turned an infrastructure failure into a silent
     # skipped release.
-    if: always() && needs.detect-frontend.outputs.should-deploy != 'false'
+    #
+    # Cancellation is the one case that must not deploy. This workflow sets
+    # cancel-in-progress, so a superseded push leaves detect-frontend cancelled
+    # with no output; under a bare always() the empty output reads as "not
+    # false" and would ship the older, superseded commit. !cancelled() excludes
+    # that while still deploying on a genuine detection failure.
+    if: ${{ !cancelled() && needs.detect-frontend.outputs.should-deploy != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
