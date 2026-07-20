@@ -60,6 +60,14 @@ jobs:
       inputs.run_sonar &&
       needs.test.outputs.apps-with-coverage != '' &&
       needs.test.outputs.apps-with-coverage != '[]'
+    # A reusable workflow cannot request more than its caller grants, and
+    # startup validation checks this even when the job is skipped, so the Sonar
+    # scan's checks:write / pull-requests:write are granted on the call here
+    # rather than widened across the whole workflow's default permissions.
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     uses: ./.github/workflows/_sonar.yaml
     with:
       apps-with-coverage: ${{ needs.test.outputs.apps-with-coverage }}
