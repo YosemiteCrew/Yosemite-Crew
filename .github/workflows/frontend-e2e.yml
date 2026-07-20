@@ -33,6 +33,7 @@ jobs:
   preflight:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       has-auth-creds: ${{ steps.check.outputs.has-auth-creds }}
     steps:

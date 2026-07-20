@@ -1,12 +1,16 @@
 name: sonar-cloud-analysis
 
+# Schedule-only. The per-pull-request and per-push analysis moved into the
+# single pipeline as the scan-only _sonar stage, which reads the coverage the
+# test stage already produced instead of reinstalling and rerunning every suite.
+# What stays here is the nightly full run: it does install, generate Prisma and
+# run the suites with coverage, so it remains the drift baseline and the
+# type-aware backstop for the rules the scan-only path cannot see without
+# node_modules. workflow_dispatch is kept so it can still be run on demand.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   schedule:
     - cron: '0 4 * * *'
-  push:
-    branches: [main, dev]
+  workflow_dispatch: {}
 
 concurrency:
   group: sonar-${{ github.ref }}
@@ -18,6 +22,7 @@ jobs:
   changes:
     name: Detect workspace changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     if: github.repository_owner == 'YosemiteCrew' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
@@ -94,19 +99,15 @@ jobs:
             case "$app" in
               frontend)
                 dir="apps/frontend"
-                token="SONAR_TOKEN_FRONTEND"
                 ;;
               backend)
                 dir="apps/backend"
-                token="SONAR_TOKEN_API"
                 ;;
               mobile)
                 dir="apps/mobileAppYC"
-                token="SONAR_TOKEN_MOBILE"
                 ;;
               desktop)
                 dir="apps/desktop"
-                token="SONAR_TOKEN_DESKTOP"
                 ;;
               *)
                 echo "Unknown app: $app" >&2
@@ -119,7 +120,7 @@ jobs:
             else
               first=0
             fi
-            json+="{\"app\":\"$app\",\"dir\":\"$dir\",\"sonar_token\":\"$token\"}"
+            json+="{\"app\":\"$app\",\"dir\":\"$dir\"}"
           done
           json+=']}'
 
@@ -136,6 +137,7 @@ jobs:
       )
     name: SonarQube Analysis - ${{ matrix.app }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: changes
     permissions:
       contents: read
@@ -196,4 +198,7 @@ jobs:
         with:
           projectBaseDir: ${{ matrix.dir }}
         env:
-          SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}
+          # Named statically rather than indexed with secrets[matrix.sonar_token]:
+          # a dynamic index exposes the whole secrets context to the expression,
+          # which CodeQL reports as excessive secret exposure.
+          SONAR_TOKEN: ${{ (matrix.app == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}

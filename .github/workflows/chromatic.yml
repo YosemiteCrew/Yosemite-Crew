@@ -26,6 +26,7 @@ jobs:
   chromatic:
     name: Chromatic Publish & Visual Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: vars.CHROMATIC_CONFIGURED == 'true'
     steps:
       - name: Checkout
