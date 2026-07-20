@@ -15,6 +15,22 @@
   margin: 0;
 }
 
+.dev-wb-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dev-wb-title-info {
+  color: var(--ink-faint);
+  flex-shrink: 0;
+}
+
+.dev-wb-subtitle {
+  font-size: 13.5px;
+  color: var(--ink-muted);
+}
+
 .dev-wb-preview {
   margin: 0;
   align-self: flex-start;
@@ -27,14 +43,14 @@
 }
 
 .dev-wb-promo {
-  background: var(--color-ink);
+  background: var(--spot);
   border-radius: 18px;
   padding: 22px 26px;
   display: flex;
   flex-direction: column;
   gap: 9px;
   align-items: flex-start;
-  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
+  box-shadow: 0 12px 34px var(--sh20);
 }
 
 .dev-wb-badge {
@@ -42,7 +58,8 @@
   align-items: center;
   padding: 4px 12px;
   border-radius: 9999px;
-  background: rgba(92, 225, 230, 0.14);
+  background: rgba(92, 225, 230, 0.12);
+  border: 1px solid rgba(92, 225, 230, 0.3);
   color: var(--color-cyan);
   font-weight: 700;
   text-transform: uppercase;
@@ -51,15 +68,16 @@
 
 .dev-wb-promo-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 23px;
   font-weight: 400;
+  line-height: 1.3;
   letter-spacing: -0.015em;
   color: #f4efe6;
+  max-width: 860px;
   text-wrap: balance;
 }
 
 .dev-wb-promo-accent {
-  font-style: italic;
   color: var(--color-cyan);
 }
 
@@ -67,11 +85,63 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  color: rgba(244, 239, 230, 0.72);
+  color: rgba(244, 239, 230, 0.6);
+}
+
+.dev-wb-steps {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.dev-wb-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dev-wb-step-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: rgba(92, 225, 230, 0.16);
+  color: var(--color-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.dev-wb-step-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f4efe6;
+}
+
+.dev-wb-section-head {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .dev-wb-section-title {
-  margin: 4px 0 0;
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.dev-wb-section-caption {
+  font-size: 12.5px;
+  color: var(--ink-faint);
 }
 
 .dev-wb-grid {
@@ -87,8 +157,17 @@
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+  gap: 10px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
+}
+
+.dev-wb-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .dev-wb-card-thumb {
@@ -96,22 +175,93 @@
   height: 44px;
   border-radius: 12px;
   background: var(--nav-active-bg);
-  color: var(--color-cyan-text);
+  color: var(--cyan-text);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.dev-wb-card-sample {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  background: var(--inset);
+  color: var(--ink-muted);
 }
 
 .dev-wb-card-title {
   margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .dev-wb-card-desc {
   margin: 0;
-  line-height: 1.5;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+.dev-wb-skeleton {
+  flex: 1;
+  min-height: 0;
+  border-radius: 12px;
+  background: var(--inset);
+  border: 1px solid var(--divider);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  justify-content: center;
+}
+
+.dev-wb-sk-bar {
+  display: block;
+  background: var(--pill-raised);
+  flex-shrink: 0;
+}
+
+.dev-wb-sk-bar.is-soft {
+  opacity: 0.7;
+}
+
+.dev-wb-sk-bar.is-faded {
+  opacity: 0.55;
+}
+
+.dev-wb-sk-pill {
+  display: block;
+  width: 88px;
+  height: 22px;
+  border-radius: 9999px;
+  background: var(--cta);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.dev-wb-sk-tiles {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.dev-wb-sk-tile {
+  flex: 1;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--pill-raised);
+  opacity: 0.6;
 }
 
 .dev-wb-card-action {
   margin-top: auto;
-  color: var(--color-cyan-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cyan-text);
 }

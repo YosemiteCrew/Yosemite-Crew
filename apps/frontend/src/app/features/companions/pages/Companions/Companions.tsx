@@ -179,7 +179,7 @@ const Companions = () => {
           <h1 className="text-page-title flex items-baseline gap-2 flex-wrap">
             <span className="flex items-baseline gap-3">
               {terminologyText('Companions')}
-              <span className="font-newsreader text-[16px] italic text-[var(--ink-faint)]">
+              <span className="text-page-title-count">
                 {`${patientsCount} patients, ${activeCount} active`}
               </span>
             </span>
@@ -192,9 +192,9 @@ const Companions = () => {
               <button
                 type="button"
                 aria-label={terminologyText('Companions info')}
-                className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+                className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-[var(--ink-faint)] hover:text-[var(--ink)] transition-colors"
               >
-                <IoInformationCircleOutline size={20} />
+                <IoInformationCircleOutline size={17} />
               </button>
             </GlassTooltip>
           </h1>

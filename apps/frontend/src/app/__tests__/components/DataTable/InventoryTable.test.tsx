@@ -221,7 +221,7 @@ describe('InventoryTable', () => {
     fireEvent.click(restockBtn);
     expect(onRestock).toHaveBeenCalledWith(item);
     // A healthy item keeps the neutral (non-highlighted) restock treatment.
-    expect(restockBtn.className).toContain('border-card-border');
+    expect(restockBtn.className).toContain('grid-row-action');
   });
 
   it('exposes accessible labels for the action icons (tooltip triggers)', () => {
@@ -314,8 +314,8 @@ describe('InventoryTable', () => {
     );
 
     expect(screen.getByText('Expired')).toBeInTheDocument();
-    // The expiry cell switches to the danger colour only for expired rows.
-    expect(container.querySelector('.text-\\[var\\(--color-danger-600\\)\\]')).toBeInTheDocument();
+    // The expiry cell switches to the theme-aware danger ink only for expired rows.
+    expect(container.querySelector('.cell-ink-danger')).toBeInTheDocument();
   });
 
   it('applies low-stock styling and the restock highlight when the status is low stock', () => {
@@ -332,10 +332,8 @@ describe('InventoryTable', () => {
     );
 
     expect(screen.getByText('Low stock')).toBeInTheDocument();
-    // The available column emphasises low stock with the warning colour.
-    expect(
-      container.querySelector('.text-\\[var\\(--color-pill-warning-text\\)\\]')
-    ).toBeInTheDocument();
+    // The available column emphasises low stock with the amber warn ink.
+    expect(container.querySelector('.cell-ink-warn')).toBeInTheDocument();
     // The restock button gains the active-nav highlight for low-stock rows.
     const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
     expect(restockBtn.className).toContain('bg-[var(--nav-active-bg)]');
@@ -564,7 +562,7 @@ describe('InventoryTable', () => {
     const pager = () => tableBranch(container);
 
     expect(pager().getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
-    expect(pager().getByText('1 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 1')).toHaveAttribute('aria-current', 'page');
 
     const prev = pager().getByRole('button', { name: 'Previous' });
     const next = pager().getByRole('button', { name: 'Next' });
@@ -573,7 +571,7 @@ describe('InventoryTable', () => {
 
     fireEvent.click(next);
     expect(pager().getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
-    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
     expect(pager().getByRole('button', { name: 'Next' })).toBeDisabled();
     // Paging is shared state: the card branch must land on the same short last page.
     expect(cardBranch(container).getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
@@ -596,7 +594,7 @@ describe('InventoryTable', () => {
     );
 
     fireEvent.click(tableBranch(container).getByRole('button', { name: 'Next' }));
-    expect(tableBranch(container).getByText('2 / 2')).toBeInTheDocument();
+    expect(tableBranch(container).getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
 
     rerender(
       <InventoryTable

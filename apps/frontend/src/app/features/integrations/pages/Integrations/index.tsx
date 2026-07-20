@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+import '@/app/features/integrations/pages/Integrations/integrations.css';
 
 const INTEGRATIONS_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import Modal from '@/app/ui/overlays/Modal';
@@ -20,7 +20,6 @@ import {
   useIntegrationsForPrimaryOrg,
 } from '@/app/hooks/useIntegrations';
 import { useIntegrationStore } from '@/app/stores/integrationStore';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import {
   disableIntegration,
@@ -36,9 +35,11 @@ import { getMerckGateway } from '@/app/features/integrations/services/merckServi
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
 import {
+  IoBookOutline,
   IoExtensionPuzzleOutline,
   IoInformationCircleOutline,
   IoRefreshOutline,
+  IoSettingsOutline,
   IoTrashOutline,
 } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -93,7 +94,13 @@ const integrationFilters = [
   { key: 'all', label: 'All' },
   { key: 'connected', label: 'Connected' },
   { key: 'available', label: 'Available' },
+  { key: 'coming-soon', label: 'Coming soon' },
 ] as const;
+
+type IntegrationFilterKey = (typeof integrationFilters)[number]['key'];
+
+// Total number of integration cards the page ships, surfaced beside the title.
+const TOTAL_INTEGRATIONS = 6;
 
 type ValidateState = 'idle' | 'valid' | 'invalid';
 
@@ -129,16 +136,29 @@ const getIdexxCardButtonLabel = (saving: boolean, idexxEnabled: boolean): string
   return idexxEnabled ? 'Disable' : 'Enable';
 };
 
+// Coming-soon integrations cannot be connected or enabled, so they belong only in the
+// unfiltered list and in the dedicated "Coming soon" tab - never under Connected or Available.
+const shouldShowComingSoonCards = (activeFilter: IntegrationFilterKey): boolean =>
+  activeFilter === 'all' || activeFilter === 'coming-soon';
+
+const hasVisibleIntegrationCards = (
+  activeFilter: IntegrationFilterKey,
+  showIdexxCard: boolean,
+  showMerckCard: boolean
+): boolean => showIdexxCard || showMerckCard || shouldShowComingSoonCards(activeFilter);
+
 const getIntegrationEmptyState = (
   integrationStatus: string,
-  activeFilter: (typeof integrationFilters)[number]['key'],
-  idexxEnabled: boolean,
-  merckEnabled: boolean
+  activeFilter: IntegrationFilterKey,
+  showIdexxCard: boolean,
+  showMerckCard: boolean
 ) => {
   const isReady = integrationStatus !== 'loading';
+  // Derived from card visibility so an empty-state message can never render beside a visible card.
+  const isEmpty = !hasVisibleIntegrationCards(activeFilter, showIdexxCard, showMerckCard);
   return {
-    showNoConnected: isReady && activeFilter === 'connected' && !idexxEnabled && !merckEnabled,
-    showNoAvailable: isReady && activeFilter === 'available' && idexxEnabled && merckEnabled,
+    showNoConnected: isReady && activeFilter === 'connected' && isEmpty,
+    showNoAvailable: isReady && activeFilter === 'available' && isEmpty,
   };
 };
 
@@ -493,7 +513,7 @@ const useIntegrationsPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [validateState, setValidateState] = useState<ValidateState>('idle');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'connected' | 'available'>('all');
+  const [activeFilter, setActiveFilter] = useState<IntegrationFilterKey>('all');
   const [error, setError] = useState<string | null>(null);
 
   // Render-phase adjustment: surface a new store-level integration error in
@@ -887,7 +907,7 @@ const IntegrationFilterTabs = ({
           onClick={() => setActiveFilter(tab.key)}
           aria-pressed={isActive}
           className={clsx(
-            'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
+            'rounded-full! border px-[13px] py-1.5 text-[12px] whitespace-nowrap transition-colors',
             isActive
               ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
               : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
@@ -900,12 +920,48 @@ const IntegrationFilterTabs = ({
   </fieldset>
 );
 
+// Compact integration card — design: 16px/18px padding, 18px radius, a 10px
+// column gap and a 42px inline icon leading the title row.
 const INTEGRATION_CARD_CLASS =
-  'rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-5 w-full flex items-stretch gap-4 min-h-[245px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
-const INTEGRATION_CARD_HEADER_CLASS = 'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2';
-const INTEGRATION_CARD_TITLE_CLASS = 'min-w-0 truncate text-heading-3 text-text-primary pt-1';
+  'rounded-[18px] border px-[18px] py-4 w-full flex flex-col gap-2.5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
+const INTEGRATION_CARD_STYLE: React.CSSProperties = {
+  background: 'var(--screen)',
+  borderColor: 'var(--hairline)',
+};
+const INTEGRATION_CARD_HEADER_CLASS = 'flex items-center gap-3';
+const INTEGRATION_CARD_TITLE_CLASS =
+  'min-w-0 flex-1 truncate text-[14.5px] font-bold tracking-[-0.01em]';
+const INTEGRATION_CARD_TITLE_STYLE: React.CSSProperties = { color: 'var(--ink)' };
+const INTEGRATION_CARD_DESC_CLASS = 'text-[12.5px] leading-[1.55] line-clamp-4';
+const INTEGRATION_CARD_DESC_STYLE: React.CSSProperties = { color: 'var(--ink-muted)' };
+const INTEGRATION_CARD_ACTIONS_CLASS = 'mt-auto flex flex-wrap items-center gap-2 pt-0.5';
 const COMING_SOON_PILL_CLASS =
   'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
+
+// 42x42 / radius 13 icon chip that leads each card header.
+const INTEGRATION_ICON_CLASS =
+  'flex size-[42px] shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold tracking-[0.02em]';
+const INTEGRATION_ICON_STYLES = {
+  idexx: { background: 'var(--spot)', color: '#f4efe6' },
+  merck: { background: 'var(--blue-soft)', color: 'var(--blue-text)' },
+  vetnio: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+  quickBooks: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  radAnalyzer: { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
+  laika: { background: 'var(--inset)', color: 'var(--ink-muted)' },
+} satisfies Record<string, React.CSSProperties>;
+
+// 32px circular icon buttons that close the card's action row.
+const CARD_ICON_BUTTON_CLASS =
+  'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full! transition-colors';
+const MANAGE_ICON_BUTTON_STYLE: React.CSSProperties = {
+  border: '1.5px solid var(--blue)',
+  color: 'var(--blue-text)',
+  boxShadow: '0 0 0 3px var(--glow-b10)',
+};
+const DISCONNECT_ICON_BUTTON_STYLE: React.CSSProperties = {
+  border: '1px solid var(--danger-border)',
+  color: 'var(--danger-text)',
+};
 
 const IdexxIntegrationCard = ({
   s,
@@ -917,68 +973,61 @@ const IdexxIntegrationCard = ({
   if (!s.showIdexxCard) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS}>
-      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center">
-          <Image
-            src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
-            alt="IDEXX"
-            width={56}
-            height={56}
-            className="object-contain max-h-[56px] max-w-[56px] size-auto"
-          />
+    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.idexx}>
+          IDX
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          IDEXX VetConnect PLUS
         </div>
+        <StatusPill
+          status={s.idexxIntegration?.status}
+          label={s.idexxEnabled ? 'Connected' : undefined}
+        />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Order in-house and reference lab work from the appointment workspace; results file to the
+        patient automatically.
+      </div>
+      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
+        {s.idexxEnabled ? (
+          <Secondary
+            href="/appointments/idexx-workspace"
+            text="Open workspace"
+            className="px-4 whitespace-nowrap"
+          />
+        ) : (
+          <Primary
+            href="#"
+            text={buttonLabel}
+            onClick={s.handleEnableDisable}
+            isDisabled={s.saving}
+            className="px-4 whitespace-nowrap"
+          />
+        )}
+        <button
+          type="button"
+          onClick={() => s.setShowSettings(true)}
+          aria-label="Manage credentials"
+          title="Manage"
+          className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
+          style={MANAGE_ICON_BUTTON_STYLE}
+        >
+          <IoSettingsOutline size={14} aria-hidden="true" />
+        </button>
         {s.idexxEnabled ? (
           <button
             type="button"
             onClick={s.handleEnableDisable}
             aria-label="Disable IDEXX quick action"
             title="Disable IDEXX quick action"
-            className="size-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
+            className={CARD_ICON_BUTTON_CLASS}
+            style={DISCONNECT_ICON_BUTTON_STYLE}
           >
-            <IoTrashOutline className="text-red-600" size={16} />
+            <IoTrashOutline size={14} aria-hidden="true" />
           </button>
-        ) : (
-          <div className="size-10" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3 pb-3">
-          <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX VetConnect PLUS</div>
-            <StatusPill
-              status={s.idexxIntegration?.status}
-              label={s.idexxEnabled ? 'Connected' : undefined}
-            />
-          </div>
-          <div className="text-body-4 text-text-secondary line-clamp-4">
-            Order in-house and reference lab work from the appointment workspace; results file to
-            the patient automatically.
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Secondary
-            href="#"
-            text="Manage credentials"
-            onClick={() => s.setShowSettings(true)}
-            className="px-4 whitespace-nowrap"
-          />
-          {s.idexxEnabled ? (
-            <Secondary
-              href="/appointments/idexx-workspace"
-              text="Open workspace"
-              className="px-4 whitespace-nowrap"
-            />
-          ) : (
-            <Primary
-              href="#"
-              text={buttonLabel}
-              onClick={s.handleEnableDisable}
-              isDisabled={s.saving}
-              className="px-4 whitespace-nowrap"
-            />
-          )}
-        </div>
+        ) : null}
       </div>
     </div>
   );
@@ -994,61 +1043,48 @@ const MerckIntegrationCard = ({
   if (!s.showMerckCard) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS}>
-      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center">
-          <Image
-            src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
-            alt="MSD Veterinary Manual"
-            width={60}
-            height={60}
-            className="object-contain max-h-[60px] max-w-[60px] size-auto"
-          />
+    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.merck}>
+          <IoBookOutline size={19} aria-hidden="true" />
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          MSD Veterinary Manual
         </div>
+        <StatusPill status={s.merckIntegration?.status} />
+      </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Search the veterinary manual from the workspace side rail without leaving the visit. Free
+        for every clinic.
+      </div>
+      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
+        {s.merckEnabled ? (
+          <Primary
+            href="/integrations/merck-manuals"
+            text="Open manuals"
+            className="px-4 whitespace-nowrap"
+          />
+        ) : (
+          <Primary
+            href="#"
+            text={buttonLabel}
+            onClick={s.handleMerckEnableDisable}
+            isDisabled={s.merckSaving}
+            className="px-4 whitespace-nowrap"
+          />
+        )}
         {s.merckEnabled ? (
           <button
             type="button"
             onClick={s.handleMerckEnableDisable}
             aria-label="Disable MSD Veterinary Manual"
             title="Disable MSD Veterinary Manual"
-            className="size-10 rounded-2xl! border border-red-200 flex items-center justify-center hover:bg-red-50 transition-colors cursor-pointer"
+            className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
+            style={DISCONNECT_ICON_BUTTON_STYLE}
           >
-            <IoTrashOutline className="text-red-600" size={16} />
+            <IoTrashOutline size={14} aria-hidden="true" />
           </button>
-        ) : (
-          <div className="size-10" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3 pb-3">
-          <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>MSD Veterinary Manual</div>
-            <StatusPill status={s.merckIntegration?.status} />
-          </div>
-          <div className="text-body-4 text-text-secondary line-clamp-4">
-            Search the veterinary manual from the workspace side rail without leaving the visit.
-            Free for every clinic.
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex w-full items-center justify-end">
-            {s.merckEnabled ? (
-              <Primary
-                href="/integrations/merck-manuals"
-                text="Open manuals"
-                className="w-full max-w-[160px] px-4"
-              />
-            ) : (
-              <Primary
-                href="#"
-                text={buttonLabel}
-                onClick={s.handleMerckEnableDisable}
-                isDisabled={s.merckSaving}
-                className="w-full max-w-[160px] px-4"
-              />
-            )}
-          </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1059,47 +1095,34 @@ const RadIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS}>
-      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
-          <Image
-            src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
-            alt="RadAnalyzer"
-            width={56}
-            height={56}
-            className="object-contain max-h-[56px] max-w-[56px] size-auto"
-          />
+    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.radAnalyzer}>
+          RA
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          RadAnalyzer
         </div>
-        <div className="size-10" />
+        <span
+          className={COMING_SOON_PILL_CLASS}
+          style={{
+            backgroundColor: 'var(--color-pill-neutral-bg)',
+            color: 'var(--color-pill-neutral-text)',
+            borderColor: 'var(--color-pill-neutral-border)',
+            borderStyle: 'solid',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3 pb-3">
-          <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>RadAnalyzer</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
-          </div>
-          <div className="text-body-4 text-text-secondary line-clamp-4">
-            Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex w-full items-center justify-end">
-            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
-          </div>
-        </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
+      </div>
+      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
+        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
       </div>
     </div>
   );
@@ -1110,48 +1133,35 @@ const VetnioIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS}>
-      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
-          <Image
-            src={MEDIA_SOURCES.futureAssets.vetnioLogoUrl}
-            alt="Vetnio"
-            width={56}
-            height={56}
-            className="object-contain max-h-[56px] max-w-[56px] size-auto"
-          />
+    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.vetnio}>
+          VN
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Vetnio
         </div>
-        <div className="size-10" />
+        <span
+          className={COMING_SOON_PILL_CLASS}
+          style={{
+            backgroundColor: 'var(--color-pill-neutral-bg)',
+            color: 'var(--color-pill-neutral-text)',
+            borderColor: 'var(--color-pill-neutral-border)',
+            borderStyle: 'solid',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3 pb-3">
-          <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>Vetnio</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
-          </div>
-          <div className="text-body-4 text-text-secondary line-clamp-4">
-            AI-powered documentation for veterinary practices &mdash; instantly generate clinical
-            notes, discharge summaries, and client communications from consultations.
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex w-full items-center justify-end">
-            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
-          </div>
-        </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        AI-powered documentation for veterinary practices &mdash; instantly generate clinical notes,
+        discharge summaries, and client communications from consultations.
+      </div>
+      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
+        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
       </div>
     </div>
   );
@@ -1162,44 +1172,35 @@ const QuickBooksIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS}>
-      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-1 flex items-center justify-center overflow-hidden">
-          <span className="font-satoshi text-[28px] font-bold leading-none tracking-[-0.56px] text-[#2ca01c]">
-            qb
-          </span>
+    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.quickBooks}>
+          QB
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          QuickBooks
         </div>
-        <div className="size-10" />
+        <span
+          className={COMING_SOON_PILL_CLASS}
+          style={{
+            backgroundColor: 'var(--color-pill-neutral-bg)',
+            color: 'var(--color-pill-neutral-text)',
+            borderColor: 'var(--color-pill-neutral-border)',
+            borderStyle: 'solid',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3 pb-3">
-          <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>QuickBooks</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
-          </div>
-          <div className="text-body-4 text-text-secondary line-clamp-4">
-            Accounting sync for invoices, payments, customers, and financial workflows through
-            QuickBooks Online.
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex w-full items-center justify-end">
-            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
-          </div>
-        </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        Accounting sync for invoices, payments, customers, and financial workflows through
+        QuickBooks Online.
+      </div>
+      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
+        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
       </div>
     </div>
   );
@@ -1210,50 +1211,36 @@ const LaikaIntegrationCard = ({
 }: {
   activeFilter: IntegrationsPageState['activeFilter'];
 }) => {
-  if (activeFilter === 'connected') return null;
+  if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS}>
-      <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-[15px] border border-[var(--hairline)] bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
-          <Image
-            src={MEDIA_SOURCES.futureAssets.laikaLogoUrl}
-            alt="Laika"
-            width={56}
-            height={16}
-            className="object-contain max-h-14 max-w-14 size-auto"
-            unoptimized
-          />
+    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+      <div className={INTEGRATION_CARD_HEADER_CLASS}>
+        <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.laika}>
+          LK
+        </span>
+        <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
+          Laika
         </div>
-        <div className="size-10" />
+        <span
+          className={COMING_SOON_PILL_CLASS}
+          style={{
+            backgroundColor: 'var(--color-pill-neutral-bg)',
+            color: 'var(--color-pill-neutral-text)',
+            borderColor: 'var(--color-pill-neutral-border)',
+            borderStyle: 'solid',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        <div className="flex flex-col gap-3 pb-3">
-          <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>Laika</div>
-            <span
-              className={COMING_SOON_PILL_CLASS}
-              style={{
-                backgroundColor: 'var(--color-pill-neutral-bg)',
-                color: 'var(--color-pill-neutral-text)',
-                borderColor: 'var(--color-pill-neutral-border)',
-                borderStyle: 'solid',
-              }}
-            >
-              Coming soon
-            </span>
-          </div>
-          <div className="text-body-4 text-text-secondary line-clamp-4">
-            AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
-            reason through differentials, and get evidence-based guidance trained exclusively on
-            veterinary medical data.
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex w-full items-center justify-end">
-            <Primary href="#" text="Coming soon" isDisabled className="w-full max-w-[160px] px-4" />
-          </div>
-        </div>
+      <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
+        AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
+        reason through differentials, and get evidence-based guidance trained exclusively on
+        veterinary medical data.
+      </div>
+      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
+        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
       </div>
     </div>
   );
@@ -1268,10 +1255,10 @@ const IntegrationCards = ({
   idexxCardButtonLabel: string;
   merckCardButtonLabel: string;
 }) => {
-  if (!s.showIdexxCard && !s.showMerckCard && s.activeFilter === 'connected') return null;
+  if (!hasVisibleIntegrationCards(s.activeFilter, s.showIdexxCard, s.showMerckCard)) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
       <IdexxIntegrationCard s={s} buttonLabel={idexxCardButtonLabel} />
       <MerckIntegrationCard s={s} buttonLabel={merckCardButtonLabel} />
       <RadIntegrationCard activeFilter={s.activeFilter} />
@@ -1287,8 +1274,8 @@ const IntegrationsPage = () => {
   const { showNoConnected, showNoAvailable } = getIntegrationEmptyState(
     s.integrationStatus,
     s.activeFilter,
-    s.idexxEnabled,
-    s.merckEnabled
+    s.showIdexxCard,
+    s.showMerckCard
   );
   const idexxCardButtonLabel = getIdexxCardButtonLabel(s.saving, s.idexxEnabled);
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
@@ -1299,6 +1286,7 @@ const IntegrationsPage = () => {
         <div className="flex flex-col gap-1">
           <h1 className="text-page-title flex items-center gap-2">
             <span>Integrations</span>
+            <span className="text-page-title-count">({TOTAL_INTEGRATIONS})</span>
             <GlassTooltip
               content={`Connect and manage external tools for ${
                 s.primaryOrg?.name ?? 'your organization'
@@ -1319,8 +1307,9 @@ const IntegrationsPage = () => {
           </p>
         </div>
         <div className="ml-auto flex items-start justify-end gap-3 flex-wrap">
-          <div className="text-body-4 text-text-secondary rounded-full border border-[var(--hairline)] px-4 py-2">
-            Active integrations: <span className="text-text-primary">{s.linkedCount}</span>
+          <div className="yc-integrations-active-pill">
+            <span aria-hidden="true" className="yc-integrations-active-dot" />
+            {s.linkedCount} active
           </div>
           <IntegrationFilterTabs
             activeFilter={s.activeFilter}
@@ -1342,11 +1331,13 @@ const IntegrationsPage = () => {
           merckCardButtonLabel={merckCardButtonLabel}
         />
 
-        <div className="flex items-center gap-2.5 rounded-[16px] border border-[var(--hairline)] px-3.5 py-3 text-[var(--ink-muted)]">
-          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[var(--inset)] text-[var(--cyan-text)]">
-            <IoExtensionPuzzleOutline size={15} aria-hidden="true" />
-          </span>
-          <span className="flex-1 text-[11.5px] leading-[1.45]">
+        <div className="yc-integrations-plugin-strip">
+          <IoExtensionPuzzleOutline
+            className="yc-integrations-plugin-strip-icon"
+            size={15}
+            aria-hidden="true"
+          />
+          <span className="flex-1">
             More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
           </span>
         </div>

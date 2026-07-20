@@ -174,6 +174,15 @@ describe('TaskWeekAgenda', () => {
     });
   });
 
+  it('tints the whole current-day column, not just its header cell', () => {
+    const { container } = renderAgenda();
+    const columns = Array.from(container.querySelectorAll('.group\\/col'));
+    expect(columns).toHaveLength(7);
+    // Today is Wed 8 — the third column of a Monday-aligned week.
+    expect(columns[2].getAttribute('style')).toContain('var(--surface-soft)');
+    expect(columns[0].getAttribute('style') ?? '').not.toContain('var(--surface-soft)');
+  });
+
   it('leaves the week-range navigator to the page title row', () => {
     renderAgenda();
     expect(screen.queryByRole('button', { name: 'Previous week' })).not.toBeInTheDocument();

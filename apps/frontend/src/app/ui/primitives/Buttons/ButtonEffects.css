@@ -14,6 +14,16 @@
   transition: background-color 200ms ease-out;
 }
 
+/* Compact card/panel footer CTA — design: 32px tall, 0 14px, 12px / 600. */
+.yc-primary-button--compact {
+  font-size: 12px !important;
+}
+
+/* Small inline CTA — design: 36px tall, 0 16px, 12.5px / 600. */
+.yc-primary-button--small {
+  font-size: 12.5px !important;
+}
+
 /* Hover darkens the fill (design: --cta-hover). !important beats the inline
    base fill set on the element so the hover state actually applies. */
 .yc-primary-button:hover {

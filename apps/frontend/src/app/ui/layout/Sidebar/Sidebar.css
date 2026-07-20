@@ -15,8 +15,8 @@
   height: 100%;
   flex-direction: column;
   overflow: visible;
-  /* Spec (PIMS Rebuild - Spec.md, desktop shell recipe): 20px 14px 16px. */
-  padding: 20px 14px 16px;
+  /* Design ("Shell expanded", 19 July inline styles): 18px 14px 14px. */
+  padding: 18px 14px 14px;
   border-right: 1px solid var(--hairline);
   background: var(--screen-2);
   transition:
@@ -32,8 +32,9 @@
   min-width: var(--sidebar-collapsed-width);
   max-width: var(--sidebar-collapsed-width);
   flex: 0 0 var(--sidebar-collapsed-width);
-  /* Design 76px icon rail: 16px top / 14px bottom, icons centered (0 side). */
-  padding: 16px 10px 14px;
+  /* Design 76px icon rail: 18px top / 14px bottom, 0 side — the centered 44px
+     pills define the horizontal rhythm. */
+  padding: 18px 0 14px;
 }
 
 /* Design rail: 18px gap between the 32px logo and the first icon. */
@@ -263,8 +264,11 @@
   justify-content: space-between;
 }
 
+/* The rail itself has no side padding, so the footer keeps the divider inset. */
 .sidebar-collapsed .sidebar-footer {
   justify-content: center;
+  padding-right: 10px;
+  padding-left: 10px;
 }
 
 .sidebar-status {

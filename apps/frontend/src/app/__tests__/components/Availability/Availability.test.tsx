@@ -54,7 +54,7 @@ const Wrapper = () => {
 };
 
 describe('Availability', () => {
-  it('toggles a day on checkbox click', () => {
+  it('toggles a day on switch click', () => {
     render(<Wrapper />);
 
     const mondayRow = screen.getByText('Monday').closest('div');
@@ -65,15 +65,22 @@ describe('Availability', () => {
     expect(checkbox).not.toBeChecked();
   });
 
+  it('shows a Day off label for disabled days', () => {
+    render(<Wrapper />);
+
+    // Monday is the only enabled day, so every other weekday reads "Day off".
+    expect(screen.getAllByText('Day off')).toHaveLength(daysOfWeek.length - 1);
+  });
+
   it('adds and removes intervals', () => {
     render(<Wrapper />);
 
     expect(screen.getAllByTestId(/slot-Monday/)).toHaveLength(2);
 
-    fireEvent.click(screen.getByTestId('IoAddCircle'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add range for Monday' }));
     expect(screen.getAllByTestId(/slot-Monday/)).toHaveLength(4);
 
-    fireEvent.click(screen.getByTestId('IoRemoveCircle'));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove range 2 for Monday' }));
     expect(screen.getAllByTestId(/slot-Monday/)).toHaveLength(2);
   });
 

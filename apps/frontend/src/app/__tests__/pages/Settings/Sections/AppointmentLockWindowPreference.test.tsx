@@ -32,30 +32,52 @@ describe('AppointmentLockWindowPreference', () => {
     expect((screen.getByLabelText('Inpatient') as HTMLInputElement).value).toBe('24');
   });
 
-  it('saves new values and persists them', () => {
+  // Auto-save model: the fields commit on blur, there is no Save button, and a
+  // successful write is reported by the page header's "Changes save automatically"
+  // indicator rather than a toast.
+  it('persists new values when the field is left', () => {
     render(<AppointmentLockWindowPreference />);
     fireEvent.change(screen.getByLabelText('Outpatient'), { target: { value: '12' } });
     fireEvent.change(screen.getByLabelText('Inpatient'), { target: { value: '48' } });
-    fireEvent.click(screen.getByText('Save lock window'));
+    fireEvent.blur(screen.getByLabelText('Inpatient'));
 
     expect(getSavedLockWindow()).toEqual({ outpatientHours: 12, inpatientHours: 48 });
-    expect(notify).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'Lock window updated' })
-    );
+    expect(notify).not.toHaveBeenCalled();
   });
 
-  it('clamps out-of-range values on save and reflects them in the inputs', () => {
+  it('does not re-persist when the committed values are unchanged', () => {
+    render(<AppointmentLockWindowPreference />);
+    fireEvent.blur(screen.getByLabelText('Outpatient'));
+
+    expect(setSavedLockWindow).not.toHaveBeenCalled();
+    expect(updateOrg).not.toHaveBeenCalled();
+  });
+
+  it('clamps out-of-range values on commit and reflects them in the inputs', () => {
     render(<AppointmentLockWindowPreference />);
     fireEvent.change(screen.getByLabelText('Outpatient'), { target: { value: '0' } });
     fireEvent.change(screen.getByLabelText('Inpatient'), { target: { value: '100000' } });
-    fireEvent.click(screen.getByText('Save lock window'));
+    fireEvent.blur(screen.getByLabelText('Inpatient'));
 
     const saved = getSavedLockWindow();
     expect(saved.outpatientHours).toBe(1);
     expect(saved.inpatientHours).toBe(720);
     expect((screen.getByLabelText('Outpatient') as HTMLInputElement).value).toBe('1');
     expect((screen.getByLabelText('Inpatient') as HTMLInputElement).value).toBe('720');
+  });
+
+  it('commits when Enter is pressed in a field, and ignores other keys', () => {
+    render(<AppointmentLockWindowPreference />);
+    const outpatient = screen.getByLabelText('Outpatient') as HTMLInputElement;
+    outpatient.focus();
+
+    fireEvent.change(outpatient, { target: { value: '9' } });
+    // A non-Enter key leaves the field focused, so nothing is committed yet.
+    fireEvent.keyDown(outpatient, { key: 'a' });
+    expect(setSavedLockWindow).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(outpatient, { key: 'Enter' });
+    expect(getSavedLockWindow().outpatientHours).toBe(9);
   });
 
   it('hydrates inputs from a previously saved window', () => {
@@ -80,7 +102,7 @@ describe('AppointmentLockWindowPreference', () => {
     render(<AppointmentLockWindowPreference />);
     fireEvent.change(screen.getByLabelText('Outpatient'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Inpatient'), { target: { value: '3' } });
-    fireEvent.click(screen.getByText('Save lock window'));
+    fireEvent.blur(screen.getByLabelText('Inpatient'));
 
     expect(updateOrg).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -94,7 +116,8 @@ describe('AppointmentLockWindowPreference', () => {
   it('notifies an error when persistence fails', () => {
     (setSavedLockWindow as jest.Mock).mockReturnValueOnce(false);
     render(<AppointmentLockWindowPreference />);
-    fireEvent.click(screen.getByText('Save lock window'));
+    fireEvent.change(screen.getByLabelText('Outpatient'), { target: { value: '7' } });
+    fireEvent.blur(screen.getByLabelText('Outpatient'));
     expect(notify).toHaveBeenCalledWith(
       'error',
       expect.objectContaining({ title: 'Unable to update lock window' })
@@ -153,8 +176,8 @@ describe('AppointmentLockWindowPreference', () => {
   });
 
   // The best-effort org push rejects: the `.catch(() => {})` handler runs and local persistence
-  // still reports success.
-  it('swallows a failed org push but still reports local success', async () => {
+  // still succeeds silently.
+  it('swallows a failed org push while keeping the local write', async () => {
     (updateOrg as jest.Mock).mockRejectedValue(new Error('boom'));
     useOrgStore.setState({
       orgsById: {
@@ -165,16 +188,14 @@ describe('AppointmentLockWindowPreference', () => {
 
     render(<AppointmentLockWindowPreference />);
     fireEvent.change(screen.getByLabelText('Outpatient'), { target: { value: '5' } });
-    fireEvent.click(screen.getByText('Save lock window'));
+    fireEvent.blur(screen.getByLabelText('Outpatient'));
 
     await waitFor(() => expect(updateOrg).toHaveBeenCalled());
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(notify).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'Lock window updated' })
-    );
+    expect(getSavedLockWindow().outpatientHours).toBe(5);
+    expect(notify).not.toHaveBeenCalled();
   });
 });

@@ -105,6 +105,9 @@ describe('CompanionDocumentsSection', () => {
     expect(screen.getByText('No records yet')).toBeInTheDocument();
     expect(screen.getByText(/Everything from visits lands here automatically/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload record' })).toBeInTheDocument();
+    // The design pairs the CTA with a secondary "Request from pet parent" pill,
+    // which has no flow behind it yet and so renders unavailable.
+    expect(screen.getByRole('button', { name: 'Request from pet parent' })).toBeDisabled();
   });
 
   it('renders a grouped record row and opens the file on row click', async () => {
@@ -257,6 +260,155 @@ describe('CompanionDocumentsSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Uploaded' }));
     expect(screen.getByText('No records match this filter.')).toBeInTheDocument();
     expect(screen.queryByText('Synced Report')).not.toBeInTheDocument();
+  });
+
+  // The design's Requested / Generated / Signed tabs depend on lifecycle fields
+  // the companion documents endpoint does not populate yet, so they must stay
+  // off screen rather than render as permanently-empty tabs.
+  it('renders no lifecycle tabs for records that carry no lifecycle signal', async () => {
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 's1',
+        title: 'Synced Report',
+        category: 'HEALTH',
+        subcategory: 'LAB_TEST',
+        issueDate: '2026-02-01T10:00:00Z',
+        syncedFromPms: true,
+        attachments: [{ mimeType: 'application/pdf' }],
+      },
+    ]);
+
+    render(<CompanionDocumentsSection companionId="comp-1" />);
+    await waitFor(() => expect(screen.getByText('Synced Report')).toBeInTheDocument());
+
+    // The existing source tabs are untouched.
+    expect(screen.getByRole('button', { name: 'All · 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Uploaded' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Synced' })).toBeInTheDocument();
+
+    expect(screen.queryByRole('button', { name: 'Requested' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generated' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Signed' })).not.toBeInTheDocument();
+  });
+
+  it('renders and applies the lifecycle tabs the loaded records resolve to', async () => {
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 'req',
+        title: 'Awaited Referral',
+        category: 'HEALTH',
+        subcategory: 'OTHER',
+        issueDate: '2026-02-01T10:00:00Z',
+        lifecycle: 'requested',
+        attachments: [],
+      },
+      {
+        id: 'sig',
+        title: 'Anaesthesia Consent',
+        category: 'HEALTH',
+        subcategory: 'SURGERY_PROCEDURE',
+        issueDate: '2026-02-02T10:00:00Z',
+        signedAt: '2026-02-02T12:00:00Z',
+        attachments: [{ mimeType: 'application/pdf' }],
+      },
+      {
+        id: 'up',
+        title: 'Parent Scan',
+        category: 'HEALTH',
+        subcategory: 'IMAGING_DIAGNOSTIC',
+        issueDate: '2026-02-03T10:00:00Z',
+        uploadedByParentId: 'parent-1',
+        attachments: [{ mimeType: 'application/pdf' }],
+      },
+    ]);
+
+    render(<CompanionDocumentsSection companionId="comp-1" />);
+    await waitFor(() => expect(screen.getByText('Awaited Referral')).toBeInTheDocument());
+
+    // Requested and Signed are populated; Generated is not, so it stays hidden.
+    expect(screen.getByRole('button', { name: 'Requested' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Signed' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generated' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Requested' }));
+    expect(screen.getByText('Awaited Referral')).toBeInTheDocument();
+    expect(screen.queryByText('Anaesthesia Consent')).not.toBeInTheDocument();
+    expect(screen.queryByText('Parent Scan')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Signed' }));
+    expect(screen.getByText('Anaesthesia Consent')).toBeInTheDocument();
+    expect(screen.queryByText('Awaited Referral')).not.toBeInTheDocument();
+
+    // The source tabs keep their own meaning alongside the lifecycle tabs.
+    fireEvent.click(screen.getByRole('button', { name: 'Uploaded' }));
+    expect(screen.getByText('Parent Scan')).toBeInTheDocument();
+    expect(screen.getByText('Anaesthesia Consent')).toBeInTheDocument();
+  });
+
+  it('surfaces a Generated tab for system-produced records', async () => {
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 'gen',
+        title: 'Discharge Summary',
+        category: 'HEALTH',
+        subcategory: 'DISCHARGE_SUMMARY',
+        issueDate: '2026-02-01T10:00:00Z',
+        sourceKind: 'TEMPLATE_INSTANCE',
+        attachments: [],
+      },
+      {
+        id: 'plain',
+        title: 'Plain Upload',
+        category: 'HEALTH',
+        subcategory: 'OTHER',
+        issueDate: '2026-02-02T10:00:00Z',
+        sourceKind: 'DOCUMENT',
+        attachments: [{ mimeType: 'application/pdf' }],
+      },
+    ]);
+
+    render(<CompanionDocumentsSection companionId="comp-1" />);
+    await waitFor(() => expect(screen.getByText('Discharge Summary')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generated' }));
+    expect(screen.getByText('Discharge Summary')).toBeInTheDocument();
+    expect(screen.queryByText('Plain Upload')).not.toBeInTheDocument();
+  });
+
+  it('falls back to All when the active lifecycle tab disappears on reload', async () => {
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 'sig',
+        title: 'Signed Consent',
+        category: 'HEALTH',
+        subcategory: 'SURGERY_PROCEDURE',
+        issueDate: '2026-02-01T10:00:00Z',
+        signedAt: '2026-02-01T12:00:00Z',
+        attachments: [{ mimeType: 'application/pdf' }],
+      },
+    ]);
+
+    const { rerender } = render(<CompanionDocumentsSection companionId="comp-1" />);
+    await waitFor(() => expect(screen.getByText('Signed Consent')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Signed' }));
+    expect(screen.getByText('Signed Consent')).toBeInTheDocument();
+
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 'plain',
+        title: 'Plain Record',
+        category: 'HEALTH',
+        subcategory: 'OTHER',
+        issueDate: '2026-02-02T10:00:00Z',
+        attachments: [{ mimeType: 'application/pdf' }],
+      },
+    ]);
+    rerender(<CompanionDocumentsSection companionId="comp-2" />);
+
+    await waitFor(() => expect(screen.getByText('Plain Record')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Signed' })).not.toBeInTheDocument();
+    // The filter reset, so the record list is visible rather than empty.
+    expect(screen.queryByText('No records match this filter.')).not.toBeInTheDocument();
   });
 
   it('opens and closes the upload sheet', async () => {

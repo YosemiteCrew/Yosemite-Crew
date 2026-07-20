@@ -60,22 +60,12 @@
   display: flex;
 }
 
+/* Design chrome (Foundations "Shell expanded"): the header controls are FLAT.
+   A --field-bg search pill, a hairline round bell and a hairline round profile
+   pill sit beside a naked org row — no glass, no blur, no drop shadow. */
 .yc-header-org-trigger,
 .yc-profile-trigger,
-.yc-command-button,
 .yc-icon-button {
-  height: 42px;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 86%, transparent);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-neutral-0) 88%, transparent),
-      color-mix(in srgb, var(--color-neutral-0) 70%, transparent)
-    ),
-    var(--color-surface-card);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 82%, transparent),
-    0 8px 22px color-mix(in srgb, var(--color-neutral-950) 5%, transparent);
   color: var(--color-text-primary);
   transition:
     border-color 0.18s ease,
@@ -89,47 +79,74 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 9px;
-  border-radius: 16px;
-  padding: 4px 10px 4px 5px;
-  /* Warm-glass chrome pill — translucent cream/espresso with a top sheen. */
-  border: 1px solid var(--hairline-soft);
-  background: var(--glass-93);
-  box-shadow:
-    inset 0 1px 0 var(--glass-inset-hi),
-    0 8px 22px var(--sh05);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  backdrop-filter: blur(18px) saturate(1.4);
 }
 
+/* Org switcher: a bare inline row (chip + kicker/name + caret), content-width. */
 .yc-header-org-trigger {
-  width: min(248px, 22vw);
+  width: auto;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
+/* Profile: a fully-round hairline pill on a transparent surface. */
 .yc-profile-trigger {
   max-width: 188px;
+  gap: 9px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px 10px 4px 4px;
 }
 
 .yc-header-trigger-open,
 .yc-header-org-trigger:hover,
 .yc-profile-trigger:hover,
-.yc-command-button:hover,
 .yc-icon-button:hover {
-  border-color: color-mix(in srgb, var(--color-brand-950) 28%, transparent);
-  background: color-mix(in srgb, var(--color-brand-100) 58%, var(--color-surface-card));
-  box-shadow:
-    inset 0 1px 0 var(--glass-inset-hi),
-    0 10px 24px var(--glow-b10);
+  border-color: var(--hairline-hover);
+  background: var(--nav-hover);
+  color: var(--ink);
 }
 
+/* Org chip: 32px, radius 10 (the design shows a --blue-soft monogram). */
 .yc-header-avatar {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  border: 1px solid var(--glass-inset-hi);
-  border-radius: 16px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 0;
+  border-radius: 10px;
   object-fit: cover;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-neutral-950) 8%, transparent);
+  box-shadow: none;
+}
+
+/* Monogram chip used when the organization carries no logo. */
+.yc-header-org-chip {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--blue-soft);
+  color: var(--blue-text);
+  font-family: var(--font-satoshi);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* Profile avatar: a 30px circle, borderless and unshadowed. */
+.yc-profile-trigger .yc-header-avatar {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  border-radius: 9999px;
 }
 
 .yc-header-trigger-copy,
@@ -264,20 +281,17 @@
   color: var(--color-text-error) !important;
 }
 
+/* Search: a flat 250x38 fully-round --field-bg field, no glass. */
 .yc-header-search {
   display: flex;
-  height: 42px !important;
-  width: min(280px, 22vw) !important;
-  border-radius: 16px !important;
-  /* Warm-glass search pill. */
-  border: 1px solid var(--hairline-soft);
-  background: var(--glass-93);
+  height: 38px !important;
+  width: 250px !important;
+  flex: none;
+  border-radius: 9999px !important;
+  border: 1px solid var(--hairline);
+  background: var(--field-bg);
   padding: 0 14px !important;
-  box-shadow:
-    inset 0 1px 0 var(--glass-inset-hi),
-    0 8px 22px var(--sh05);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: none;
 }
 
 .yc-header-search input {
@@ -287,56 +301,45 @@
   font-weight: 500;
 }
 
-.yc-command-button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: 16px;
-  color: var(--color-text-secondary);
-  padding: 0 13px;
-  /* Warm-glass command pill. */
-  border: 1px solid var(--hairline-soft);
-  background: var(--glass-93);
-  box-shadow:
-    inset 0 1px 0 var(--glass-inset-hi),
-    0 8px 22px var(--sh05);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  backdrop-filter: blur(18px) saturate(1.4);
-}
-
-.yc-command-key {
-  color: var(--color-text-tertiary);
+/* The design carries the ⌘K keycap INSIDE the search pill rather than beside it
+   as a second control; the shortcut itself is bound globally by the palette. */
+.yc-header-search::after {
+  content: '⌘K';
+  flex: none;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--pill-raised);
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0;
   line-height: 1;
+  padding: 2px 6px;
 }
 
-.yc-command-label {
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1;
-}
-
+/* Bell: 38px round, hairline border, --ink-soft glyph, transparent surface. */
 .yc-icon-button {
   position: relative;
   display: inline-flex;
-  width: 42px;
+  width: 38px;
+  height: 38px;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-soft);
 }
 
 /* Unread notifications badge — a small pulsing pink dot with a screen-coloured
    ring, pinned to the top-right of the bell button. */
 .yc-notification-dot {
   position: absolute;
-  top: 7px;
-  right: 8px;
-  width: 6px;
-  height: 6px;
+  top: 8px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
   border-radius: 9999px;
   background: var(--pink);
   border: 1.5px solid var(--screen);
@@ -368,12 +371,13 @@
 }
 
 @media screen and (max-width: 1180px) {
-  .yc-command-button {
-    display: none;
-  }
-
   .yc-header-search {
     width: min(240px, 24vw) !important;
+  }
+
+  /* Below the desktop frame the design's search pill carries no ⌘K keycap. */
+  .yc-header-search::after {
+    display: none;
   }
 }
 
@@ -397,24 +401,12 @@
     padding: 0 20px;
   }
 
-  /* Org switcher → flat inline chip + name + caret (no pill). */
-  .yc-header-org-trigger {
-    width: auto;
-    padding: 0;
-    border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  .yc-header-org-trigger .yc-header-avatar {
+  .yc-header-org-trigger .yc-header-avatar,
+  .yc-header-org-trigger .yc-header-org-chip {
     width: 30px;
     height: 30px;
     flex-basis: 30px;
-    border: 0;
     border-radius: 9px;
-    box-shadow: none;
   }
 
   .yc-header-org-trigger .yc-header-kicker {
@@ -435,14 +427,7 @@
   .yc-header-search {
     width: 200px !important;
     height: 36px !important;
-    flex: none;
-    border-radius: 9999px !important;
-    border-color: var(--hairline);
-    background: var(--field-bg);
-    box-shadow: none;
     padding: 0 13px !important;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 
   .yc-header-search input {
@@ -450,30 +435,19 @@
   }
 
   /* The design's tablet header carries no ⌘K control (search pill + bell only). */
-  .yc-command-button {
+  .yc-header-search::after {
     display: none;
   }
 
-  /* Bell → 36px round, hairline border, --ink-soft glyph, no glass. */
+  /* Bell → 36px round. */
   .yc-icon-button {
     width: 36px;
     height: 36px;
-    border: 1px solid var(--hairline);
-    border-radius: 9999px;
-    background: transparent;
-    box-shadow: none;
-    color: var(--ink-soft);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 
-  /* Profile → flatten to match the calm bell/search treatment. */
+  /* Profile → borderless to match the calm bell/search treatment. */
   .yc-profile-trigger {
     max-width: 150px;
     border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 }

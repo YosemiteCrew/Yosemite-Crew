@@ -4,10 +4,18 @@ import '@testing-library/jest-dom';
 import HistoryEmptyState from '@/app/features/companionHistory/components/HistoryEmptyState';
 
 describe('HistoryEmptyState', () => {
-  it('renders default empty message for non-error state', () => {
+  it('renders the rich records empty state for the plain non-error case', () => {
     render(<HistoryEmptyState />);
 
-    expect(screen.getByText('No overview entries found.')).toBeInTheDocument();
+    expect(screen.getByText('No records yet')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('renders a provided non-error message in the compact notice box', () => {
+    render(<HistoryEmptyState message="No audit entries found." />);
+
+    expect(screen.getByText('No audit entries found.')).toBeInTheDocument();
+    expect(screen.queryByText('No records yet')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

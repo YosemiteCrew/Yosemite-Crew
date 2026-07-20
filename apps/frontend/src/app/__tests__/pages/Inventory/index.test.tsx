@@ -101,9 +101,12 @@ jest.mock('next/dynamic', () => ({
 
       if (source.includes('components/TurnoverAnalytics')) {
         const setView = props.setActiveView as ((view: string) => void) | undefined;
+        const viewHistory = props.onViewHistory as ((item: unknown) => void) | undefined;
+        const items = (props.inventory ?? []) as unknown[];
         // Stub the dynamic analytics view: expose the Stock/Orders/Turnover
         // segmented control so tests can switch views (the real one renders the
-        // same buttons but only after the dynamic chunk loads).
+        // same buttons but only after the dynamic chunk loads), plus the product
+        // panel's History action.
         return (
           <div data-testid="mock-turnover-analytics">
             <button type="button" onClick={() => setView?.('inventory')}>
@@ -111,6 +114,13 @@ jest.mock('next/dynamic', () => ({
             </button>
             <button type="button" onClick={() => setView?.('turnover')}>
               Orders
+            </button>
+            <button
+              type="button"
+              data-testid="turnover-history-btn"
+              onClick={() => viewHistory?.(items[0])}
+            >
+              History
             </button>
           </div>
         );
@@ -1556,6 +1566,16 @@ describe('Inventory Page', () => {
     // to the inventory list via the "Stock" segment.
     fireEvent.click(screen.getByRole('button', { name: 'Stock' }));
     expect(screen.getByRole('heading', { level: 1, name: /Inventory/ })).toBeInTheDocument();
+  });
+
+  it('opens the record sheet on batch and expiry from the analytics History action', () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    fireEvent.click(screen.getByTestId('turnover-history-btn'));
+
+    expect(screen.getByTestId('info-modal')).toBeInTheDocument();
+    expect(screen.getByText('Current: Item A')).toBeInTheDocument();
   });
 
   it('returns to the catalog from the segmented control while in analytics', () => {

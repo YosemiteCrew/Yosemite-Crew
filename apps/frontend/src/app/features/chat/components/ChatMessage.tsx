@@ -304,7 +304,9 @@ function MessageBubble({
             'px-[13px] py-[10px] xl:px-[15px] xl:py-[11px]',
             mine
               ? 'rounded-[15px_15px_4px_15px] bg-[var(--cta)] text-[var(--cta-text)] xl:rounded-[18px_18px_4px_18px]'
-              : 'rounded-[15px_15px_15px_4px] border border-[var(--hairline)] bg-[var(--screen-2)] text-[var(--ink-body)] xl:rounded-[18px_18px_18px_4px]'
+              : // Design (Chat extended / thread panel / conversation info): the
+                // received bubble is --inset with a --divider edge.
+                'rounded-[15px_15px_15px_4px] border border-[var(--divider)] bg-[var(--inset)] text-[var(--ink-body)] xl:rounded-[18px_18px_18px_4px]'
           )}
         >
           <Text

@@ -66,6 +66,31 @@ describe('ContactusPage', () => {
       expect(mockedPostData).not.toHaveBeenCalled();
     });
 
+    it('should submit through the form action when the form is submitted natively', async () => {
+      const { container } = render(<ContactusPage />);
+
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'John Doe' },
+      });
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'Submitted without clicking the button.' },
+      });
+
+      fireEvent.submit(container.getElementsByTagName('form')[0]);
+
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/contact-us/contact-web', {
+        type: 'GENERAL_ENQUIRY',
+        message: 'Submitted without clicking the button.',
+        fullName: 'John Doe',
+        email: 'john.doe@example.com',
+        source: 'PMS_WEB',
+      });
+    });
+
     it('should show invalid email error', async () => {
       render(<ContactusPage />);
 

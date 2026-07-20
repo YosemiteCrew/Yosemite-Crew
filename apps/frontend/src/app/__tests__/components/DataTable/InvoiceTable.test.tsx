@@ -144,8 +144,11 @@ describe('InvoiceTable', () => {
 
     expect(desktop.getByText('Sam / Buddy')).toBeInTheDocument();
     expect(desktop.getByText('#inv-1')).toBeInTheDocument();
-    expect(desktop.getByText('Jan 1')).toBeInTheDocument();
-    expect(desktop.getByText('10:00 AM')).toBeInTheDocument();
+    // Design's date cell is one muted line — the time rides the identity
+    // sub-line, so it is not repeated here.
+    const dateCell = desktop.getByRole('button', { name: 'Open finance details for Buddy' });
+    expect(dateCell).toHaveTextContent('Jan 1');
+    expect(dateCell).not.toHaveTextContent('10:00 AM');
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
     expect(desktop.getByText('Paid in cash')).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith(

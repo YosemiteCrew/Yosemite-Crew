@@ -34,10 +34,11 @@ describe('PaymentActions', () => {
     expect(onCollect).toHaveBeenLastCalledWith('CASH');
   });
 
-  it('keeps deposit collection as a distinct action', () => {
+  it('collects a deposit through the third payment-method segment', () => {
     const onCollect = jest.fn();
     render(<PaymentActions {...base} onCollect={onCollect} />);
-    fireEvent.click(screen.getByRole('button', { name: /Collect Deposit/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Deposit' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Collect / }));
     expect(onCollect).toHaveBeenCalledWith('DEPOSIT');
   });
 

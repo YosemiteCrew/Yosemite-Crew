@@ -23,17 +23,19 @@ const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Items' },
   { label: 'Requested' },
   { label: 'Amount', align: 'right', className: 'pr-4' },
-  { label: 'Lead' },
+  { label: 'Prescriber' },
   { label: 'Location' },
   { label: 'Dispensed' },
   { label: '' },
 ];
 
 const STATUS_STYLES: Record<DispensaryStatus, React.CSSProperties> = {
+  // Design renders a waiting request as the NEUTRAL "requested" pill, not an
+  // amber warning — nothing is wrong yet, it simply has not been dispensed.
   PENDING: {
-    color: 'var(--color-pill-warning-text)',
-    backgroundColor: 'var(--color-pill-warning-bg)',
-    borderColor: 'var(--color-pill-warning-border)',
+    color: 'var(--color-pill-neutral-text)',
+    backgroundColor: 'var(--color-pill-neutral-bg)',
+    borderColor: 'var(--color-pill-neutral-border)',
   },
   DISPENSED: {
     color: 'var(--color-pill-success-text)',
@@ -83,7 +85,7 @@ const getDisplayName = (record: DispensaryRecord) => {
 
 const StatusPill = ({ status }: { status: DispensaryStatus }) => (
   <span
-    className="inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase whitespace-nowrap"
+    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] whitespace-nowrap"
     style={STATUS_STYLES[status]}
   >
     {STATUS_LABELS[status]}
@@ -103,7 +105,7 @@ const DispensaryRow = ({
 
   return (
     <div
-      className="grid items-center gap-2.5 border-t border-card-border px-5 py-2.5 text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
+      className="grid items-center gap-3 border-t border-card-border px-5 py-3 text-[13.5px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
       style={{ gridTemplateColumns: GRID_COLUMNS }}
     >
       <div

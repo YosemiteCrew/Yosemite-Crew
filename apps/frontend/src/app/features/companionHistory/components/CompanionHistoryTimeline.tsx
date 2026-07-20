@@ -27,6 +27,7 @@ import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { useLoadTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { useTaskStore } from '@/app/stores/taskStore';
 import { getIdexxResultPdfBlob } from '@/app/features/integrations/services/idexxService';
+import { parseFloatSafe } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests.helpers';
 import { useOrgStore } from '@/app/stores/orgStore';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -68,7 +69,10 @@ import {
 } from '@/app/lib/tasks';
 import { useNotify } from '@/app/hooks/useNotify';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { getPayloadString } from '@/app/features/companionHistory/utils/historyFormatters';
+import {
+  getPayloadString,
+  resolveHistoryDocumentId,
+} from '@/app/features/companionHistory/utils/historyFormatters';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -102,6 +106,9 @@ type PdfPreviewState = {
 type DetailPair = {
   label: string;
   value: string;
+  range?: string;
+  abnormal?: boolean;
+  direction?: string;
 };
 
 const DEFAULT_FILTER: HistoryFilterKey = 'ALL';
@@ -569,18 +576,65 @@ const getRecordArray = (
   return [];
 };
 
+const HIGH_FLAG_CODES = new Set(['H', 'HH', 'HIGH', 'ABOVE']);
+const LOW_FLAG_CODES = new Set(['L', 'LL', 'LOW', 'BELOW']);
+
+// Reference intervals arrive as "23-212", "10 - 125" or "5.1 to 16.8". The
+// shared LabTests parser only handles the spaced form, so analyte ranges get
+// their own anchored pattern.
+const ANALYTE_RANGE_PATTERN = /^(-?\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(-?\d+(?:\.\d+)?)$/i;
+
+const parseAnalyteRange = (range: string): { min: number; max: number } | null => {
+  const match = ANALYTE_RANGE_PATTERN.exec(range.replaceAll(',', '.').trim());
+  if (!match) return null;
+  const min = Number.parseFloat(match[1]);
+  const max = Number.parseFloat(match[2]);
+  return max > min ? { min, max } : null;
+};
+
+/**
+ * Out-of-range state for a single analyte. The lab's own flag wins where it is
+ * present; otherwise the value is compared against the reference interval. Only
+ * a determinable direction earns the design's ↑/↓ arrow.
+ */
+const getResultFlag = (
+  row: Record<string, unknown>,
+  value: string,
+  range: string
+): { abnormal: boolean; direction: string } => {
+  const code = (getPayloadString(row, ['interpretation', 'abnormalFlag', 'flag']) ?? '')
+    .trim()
+    .toUpperCase();
+  const bounds = parseAnalyteRange(range);
+  const numericValue = parseFloatSafe(value);
+  const isHigh = bounds !== null && numericValue !== null && numericValue > bounds.max;
+  const isLow = bounds !== null && numericValue !== null && numericValue < bounds.min;
+  if (HIGH_FLAG_CODES.has(code) || isHigh) {
+    return { abnormal: true, direction: '↑' };
+  }
+  if (LOW_FLAG_CODES.has(code) || isLow) {
+    return { abnormal: true, direction: '↓' };
+  }
+  const flagged = row.outOfRange === true || row.abnormal === true;
+  return { abnormal: flagged, direction: '' };
+};
+
 const getLabResults = (entry: HistoryEntry): DetailPair[] => {
   const rows = getRecordArray(entry.payload, ['results', 'tests', 'observations']);
-  return rows.slice(0, 6).map((row, index) => ({
-    label: getPayloadString(row, ['test', 'name', 'display']) || `Result ${index + 1}`,
-    value: [
-      getPayloadString(row, ['value', 'result']),
-      getPayloadString(row, ['unit']),
-      getPayloadString(row, ['reference', 'referenceRange']),
-    ]
-      .filter(Boolean)
-      .join(' / '),
-  }));
+  return rows.slice(0, 6).map((row, index) => {
+    // The flag is measured against the bare reading: a unit such as "x10^9/L"
+    // carries digits that would corrupt the numeric comparison.
+    const reading = getPayloadString(row, ['value', 'result']) ?? '';
+    const range = getPayloadString(row, ['reference', 'referenceRange']) ?? '';
+    const flag = getResultFlag(row, reading, range);
+    return {
+      label: getPayloadString(row, ['test', 'name', 'display']) || `Result ${index + 1}`,
+      value: [reading, getPayloadString(row, ['unit'])].filter(Boolean).join(' '),
+      range,
+      abnormal: flag.abnormal,
+      direction: flag.direction,
+    };
+  });
 };
 
 export const StructuredResultsPanel = ({
@@ -605,7 +659,7 @@ export const StructuredResultsPanel = ({
       >
         <span className="font-bold text-neutral-900">{result.label}</span>
         <span>{result.value || '-'}</span>
-        <span>{getPayloadString(entry.payload, ['referenceRange']) || '-'}</span>
+        <span>{result.range || getPayloadString(entry.payload, ['referenceRange']) || '-'}</span>
         <span>N/A</span>
       </div>
     ))}
@@ -1489,13 +1543,13 @@ const useCompanionHistoryTimelineView = ({
 
   // The drawer's "Download PDF" action resolves the document's real URL and hands
   // it to the browser for download/open, rather than re-opening the in-app viewer.
+  // It is only offered for records the document store actually holds — the drawer
+  // gates on the same resolver, so a lab/invoice/task id never reaches this endpoint.
   const handleDownloadRecord = useCallback(
     async (entry: HistoryEntry) => {
-      const payloadDocumentId = entry.payload.documentId;
-      const entryDocumentId =
-        typeof payloadDocumentId === 'string' && payloadDocumentId.trim()
-          ? payloadDocumentId
-          : entry.link.id;
+      const entryDocumentId = resolveHistoryDocumentId(entry);
+      /* v8 ignore next -- unreachable: HistoryRecordDrawer only renders the download action when resolveHistoryDocumentId returns an id */
+      if (!entryDocumentId) return;
       setPdfLoadingId(entry.id);
       try {
         const urls = await loadDocumentDownloadURL(entryDocumentId);
@@ -1812,6 +1866,18 @@ const useCompanionHistoryTimelineView = ({
     [activeAppointmentId, onOpenAppointmentView]
   );
 
+  // The drawer's open action for non-document records: it reuses the row's
+  // type-aware routing (lab → diagnostics, invoice → finance, task → tasks,
+  // appointment/form → the appointment workspace) and dismisses the drawer so the
+  // destination is not left behind an overlay when it opens in place.
+  const handleViewRecord = useCallback(
+    (entry: HistoryEntry) => {
+      setSelectedEntry(null);
+      handleOpenEntry(entry);
+    },
+    [handleOpenEntry]
+  );
+
   const handleShareRecord = useCallback(
     (entry: HistoryEntry) => {
       notify('info', {
@@ -1971,8 +2037,8 @@ const useCompanionHistoryTimelineView = ({
           results={selectedResults}
           linkedLabel={selectedLinkedLabel}
           onClose={() => setSelectedEntry(null)}
-          onView={handleTimelineOpen}
           onDownload={handleDownloadRecord}
+          onView={handleViewRecord}
           onOpenLinked={handleOpenLinkedFromDrawer}
           onShare={handleShareRecord}
           onDiscuss={handleDiscussRecord}

@@ -88,7 +88,7 @@ const BandCardView = ({ card }: { card: BandCard }) => (
   <article className="w-[146px] shrink-0 snap-start overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)] md:w-auto md:rounded-[18px] md:shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)]">
     <div className="relative h-[84px] md:h-[138px]">
       <BandMedia card={card} />
-      <span className="absolute left-2 top-2 z-[2] rounded-full bg-[rgba(29,28,27,0.55)] px-2 py-[3px] text-[10px] font-bold text-[#f7f3ec] tabular-nums backdrop-blur-[10px] md:left-2.5 md:top-2.5 md:px-2.5 md:py-1 md:text-[11px]">
+      <span className="absolute left-2 top-2 z-[2] rounded-full bg-[rgba(29,28,27,0.55)] px-2 py-[3px] text-[10px] font-bold text-[#f7f3ec] tabular-nums backdrop-blur-[10px] md:left-2.5 md:top-2.5 md:px-2.5 md:py-1 md:text-[11px] md:tracking-[0.04em]">
         {card.time}
       </span>
     </div>
@@ -131,8 +131,11 @@ const InClinicTodayBand = ({ companions }: InClinicTodayBandProps) => {
   return (
     <section aria-label="In the clinic today" className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-[7px] text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-faint)]">
-          <span className="size-1.5 rounded-full bg-[var(--success)]" aria-hidden="true" />
+        <span className="flex items-center gap-[7px] text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-faint)] md:text-[10.5px]">
+          <span
+            className="size-1.5 rounded-full bg-[var(--success)] md:size-[7px]"
+            aria-hidden="true"
+          />
           {terminologyText('In the clinic today')}
         </span>
         <button

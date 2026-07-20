@@ -1230,15 +1230,17 @@ function ContactForm({ values, setters, errors, confirm, submit }: Readonly<Cont
   const isGeneralOrFeature =
     selectedQueryType === 'General Enquiry' || selectedQueryType === 'Feature Request';
 
+  /**
+   * React 19 form action. The submit handler owns its own error handling, so the
+   * action only has to trigger it and must not hand its result back to React.
+   */
+  const handleFormAction = () => {
+    submit.onSubmit();
+  };
+
   return (
     <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit.onSubmit();
-        }}
-        style={FORM_STYLE}
-      >
+      <form action={handleFormAction} style={FORM_STYLE}>
         {/* type selector */}
         <ContactTypeSelector
           selectedQueryType={selectedQueryType}

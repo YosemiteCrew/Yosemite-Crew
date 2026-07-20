@@ -25,8 +25,8 @@
   border-radius: 20px;
   background: var(--screen);
   box-shadow:
-    0 18px 44px var(--sh12),
     0 6px 16px var(--sh10),
+    0 28px 70px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
 }
 
@@ -156,6 +156,11 @@
   color: var(--blue-text);
 }
 
+/* Soft-tint background + strong-ink glyph, same pairing as the blue and danger
+   discs above. The literal logo pink this used to carry (#ff90d4 over an 18% wash
+   of itself) only clears ~1.8:1 on the light bone surface, so the glyph all but
+   disappeared; --pink-text keeps the bright logo pink in dark mode (5.6:1) and
+   drops to the raspberry ink in light (4.1:1). */
 .yc-noti-disc--pink {
   background: var(--pink-soft);
   color: var(--pink-text);
@@ -224,6 +229,12 @@
   gap: 12px;
   border-top: 1px solid var(--hairline);
   padding: 11px 18px;
+}
+
+/* The design's footer is a two-end row ("View all" left, settings right). While
+   "View all" has no route to point at, the lone child keeps the right end. */
+.yc-noti-foot > :only-child {
+  margin-left: auto;
 }
 
 .yc-noti-viewall {

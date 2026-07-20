@@ -35,9 +35,17 @@ export const SoapContextField = ({ label, value }: { label: string; value?: stri
 );
 
 export const ChiefComplaintField = ({ value }: { value: string }) => (
-  <div className="flex min-h-14 items-center justify-between gap-4 rounded-2xl border border-input-border-default px-5 py-4">
-    <span className="shrink-0 text-yc-16-r-neutral font-bold">Chief Complaint</span>
-    <span className="min-w-0 overflow-x-auto whitespace-nowrap text-right text-yc-16-r-neutral">
+  <div
+    className="flex min-h-14 flex-col justify-center rounded-2xl px-5 py-4"
+    style={{ background: 'var(--screen)' }}
+  >
+    <span
+      className="mb-[5px] block text-[10.5px] font-bold uppercase tracking-[0.1em] leading-[120%]"
+      style={{ color: 'var(--ink-faint)' }}
+    >
+      Chief complaint
+    </span>
+    <span className="text-[13.5px] leading-[1.55]" style={{ color: 'var(--ink-body)' }}>
       {value}
     </span>
   </div>

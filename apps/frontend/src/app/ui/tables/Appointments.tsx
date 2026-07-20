@@ -174,6 +174,8 @@ const AppointmentsComponent = ({
           pagination={true}
           pageSize={small ? 5 : 10}
           tableClassName="appointments-table-fixed"
+          itemNoun="appointments"
+          rowClassName={(item) => (item.isEmergency ? 'appointment-row-emergency' : '')}
         />
       </div>
       <PaginatedCardList

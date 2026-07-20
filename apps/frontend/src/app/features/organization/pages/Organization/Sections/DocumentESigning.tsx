@@ -27,16 +27,21 @@ const ToggleRow = ({ title, description, checked, onChange }: ToggleRowProps) =>
       aria-checked={checked}
       aria-label={title}
       onClick={onChange}
-      className={clsx(
-        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
-        checked ? 'bg-primary-600' : 'bg-neutral-300'
-      )}
+      className="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full border transition-colors cursor-pointer"
+      style={{
+        backgroundColor: checked ? 'var(--blue)' : 'var(--inset)',
+        borderColor: checked ? 'var(--blue)' : 'var(--divider)',
+      }}
     >
       <span
         className={clsx(
-          'inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform',
-          checked ? 'translate-x-5' : 'translate-x-0.5'
+          'inline-block size-5 rounded-full border transition-transform',
+          checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
         )}
+        style={{
+          backgroundColor: checked ? '#ffffff' : 'var(--screen)',
+          borderColor: checked ? 'transparent' : 'var(--hairline)',
+        }}
       />
     </button>
   </div>

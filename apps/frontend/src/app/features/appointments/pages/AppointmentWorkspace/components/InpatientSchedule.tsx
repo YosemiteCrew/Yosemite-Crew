@@ -280,11 +280,7 @@ const InpatientSchedule = ({
   };
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Schedule"
-      className="flex flex-col gap-5"
-    >
+    <SectionContainer title="Schedule" className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
           <CircleIconButton
@@ -292,7 +288,7 @@ const InpatientSchedule = ({
             label="Previous day"
             onClick={() => shiftSelectedDate(-1)}
           />
-          <span className="text-text-brand">{dateLabel}</span>
+          <span className="text-blue-text">{dateLabel}</span>
           <CircleIconButton
             icon={<IoChevronForwardOutline aria-hidden="true" />}
             label="Next day"
@@ -340,7 +336,7 @@ const InpatientSchedule = ({
                     <IoAddOutline
                       size={14}
                       aria-hidden="true"
-                      className="shrink-0 text-text-brand"
+                      className="shrink-0 text-blue-text"
                     />
                     {template.name}
                   </button>

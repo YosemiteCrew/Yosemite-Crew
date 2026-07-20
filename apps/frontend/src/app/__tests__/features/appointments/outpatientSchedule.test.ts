@@ -134,4 +134,87 @@ describe('buildOutpatientSchedule', () => {
     expect(schedule.thisWeek[0].leadName).toBeUndefined();
     expect(schedule.thisWeek[0].roomName).toBeUndefined();
   });
+
+  // No backend populates the series fields yet, so every series signal must stay
+  // undefined unless it is genuinely present on the appointment.
+  describe('series signals', () => {
+    it('carries session position onto a visit when both index and total are present', () => {
+      const schedule = buildOutpatientSchedule(
+        [appt('s', { startOffsetMs: DAY, seriesIndex: 2, seriesTotal: 6 } as Partial<Appointment>)],
+        { companionId: 'poppy', nowMs: NOW }
+      );
+      expect(schedule.thisWeek[0].seriesIndex).toBe(2);
+      expect(schedule.thisWeek[0].seriesTotal).toBe(6);
+    });
+
+    it('leaves session position undefined when the fields are absent or not positive integers', () => {
+      const schedule = buildOutpatientSchedule(
+        [
+          appt('none', { startOffsetMs: DAY }),
+          appt('bad', {
+            startOffsetMs: 2 * DAY,
+            seriesIndex: 0,
+            seriesTotal: 2.5,
+          } as Partial<Appointment>),
+        ],
+        { companionId: 'poppy', nowMs: NOW }
+      );
+      for (const visit of schedule.thisWeek) {
+        expect(visit.seriesIndex).toBeUndefined();
+        expect(visit.seriesTotal).toBeUndefined();
+      }
+    });
+
+    it('exposes progress and note from the current appointment', () => {
+      const current = appt('current', {
+        seriesCompletedCount: 1,
+        seriesTotal: 6,
+        seriesNote: '  Laser series booked as a package.  ',
+      } as Partial<Appointment>);
+      const schedule = buildOutpatientSchedule([current], {
+        companionId: 'poppy',
+        excludeAppointmentId: 'current',
+        nowMs: NOW,
+        currentAppointment: current,
+      });
+      expect(schedule.seriesProgress).toEqual({ completed: 1, total: 6 });
+      expect(schedule.seriesNote).toBe('Laser series booked as a package.');
+    });
+
+    it('omits progress and note when no current appointment is supplied', () => {
+      const schedule = buildOutpatientSchedule([], { companionId: 'poppy', nowMs: NOW });
+      expect(schedule.seriesProgress).toBeUndefined();
+      expect(schedule.seriesNote).toBeUndefined();
+    });
+
+    it('never infers progress from a partial or inconsistent series', () => {
+      const cases: Partial<Appointment>[] = [
+        // A scheduled session 2 does not prove session 1 was delivered.
+        { seriesIndex: 2, seriesTotal: 6 } as Partial<Appointment>,
+        { seriesCompletedCount: 1 } as Partial<Appointment>,
+        { seriesCompletedCount: 7, seriesTotal: 6 } as Partial<Appointment>,
+        { seriesCompletedCount: -1, seriesTotal: 6 } as Partial<Appointment>,
+        { seriesCompletedCount: 1, seriesTotal: 0 } as Partial<Appointment>,
+      ];
+      for (const over of cases) {
+        const current = appt('current', over);
+        const schedule = buildOutpatientSchedule([], {
+          companionId: 'poppy',
+          nowMs: NOW,
+          currentAppointment: current,
+        });
+        expect(schedule.seriesProgress).toBeUndefined();
+      }
+    });
+
+    it('treats a blank series note as no note', () => {
+      const current = appt('current', { seriesNote: '   ' } as Partial<Appointment>);
+      const schedule = buildOutpatientSchedule([], {
+        companionId: 'poppy',
+        nowMs: NOW,
+        currentAppointment: current,
+      });
+      expect(schedule.seriesNote).toBeUndefined();
+    });
+  });
 });

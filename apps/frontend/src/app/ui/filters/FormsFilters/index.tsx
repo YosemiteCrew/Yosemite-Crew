@@ -23,10 +23,10 @@ type FormsFiltersProps = {
   categoryAction?: React.ReactNode;
 };
 
-// Design filter-chip recipe: pill, 6px 11px, 11px text (measured from the design).
+// Design filter-chip recipe: pill, 6px 13px, 12px text.
 const chipClassName = (isActive: boolean): string =>
   clsx(
-    'rounded-full! border px-[11px] py-1.5 text-[11px] transition-colors',
+    'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
     isActive
       ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
       : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
@@ -121,6 +121,12 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
       </div>
       <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
         {categoryAction}
+        {/* Design separates the pill row from the trailing dropdown with an 18px hairline. */}
+        <span
+          aria-hidden="true"
+          className="mx-1 shrink-0"
+          style={{ width: '1px', height: '18px', backgroundColor: 'var(--hairline)' }}
+        />
         <button
           ref={triggerRef}
           type="button"
@@ -128,7 +134,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-label={`Category: ${selectedCategoryLabel}`}
-          className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[11px] py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] transition-colors hover:border-[var(--divider)]"
+          className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[13px] py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:border-[var(--divider)]"
         >
           <span className="truncate">{selectedCategoryLabel}</span>
           <IoChevronDown

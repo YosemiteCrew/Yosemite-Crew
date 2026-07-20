@@ -11,19 +11,25 @@ import { accentFor, initialsOf } from '@/app/features/chat/components/chatAvatar
 
 const SIZE = {
   xs: 'size-[26px] text-[9.5px]',
+  // Conversation-info member row (design: 30px monogram).
+  xxs: 'size-[30px] text-[10px]',
   sm: 'size-9 text-xs',
   // Conversation-row avatar: 36px on tablet, 40px on the wide desktop frame.
   row: 'size-9 text-xs xl:size-10 xl:text-[13px]',
   md: 'h-11 w-11 text-sm',
   lg: 'size-12 text-base',
+  // Conversation-info header avatar (design: 52px).
+  xl: 'size-[52px] text-base',
 } as const;
 
 const GLYPH_SIZE = {
   xs: 'h-3.5 w-3.5',
+  xxs: 'h-4 w-4',
   sm: 'h-4 w-4',
   row: 'h-4 w-4 xl:h-[17px] xl:w-[17px]',
   md: 'h-5 w-5',
   lg: 'h-6 w-6',
+  xl: 'h-6 w-6',
 } as const;
 
 export type ChatAvatarProps = Readonly<{

@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
 import DefaultOpenScreenPreference from '@/app/features/settings/pages/Settings/Sections/DefaultOpenScreenPreference';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -8,29 +9,6 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { patchUserProfile } from '@/app/features/organization/services/profileService';
 import { setSavedDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { setSavedDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
-
-jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
-  __esModule: true,
-  default: ({ options, onSelect, placeholder, defaultOption }: any) => (
-    <div>
-      <div>{placeholder}</div>
-      <span data-testid={`sel-${placeholder}`}>{defaultOption}</span>
-      {options.map((option: any) => (
-        <button key={option.value} type="button" onClick={() => onSelect(option)}>
-          {option.label}
-        </button>
-      ))}
-    </div>
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
 
 jest.mock('@/app/hooks/useNotify', () => ({ useNotify: jest.fn() }));
 jest.mock('@/app/hooks/useProfiles', () => ({ usePrimaryOrgProfile: jest.fn() }));
@@ -46,6 +24,9 @@ jest.mock('@/app/lib/defaultAppointmentsView', () => ({
   ...jest.requireActual('@/app/lib/defaultAppointmentsView'),
   setSavedDefaultAppointmentsView: jest.fn(),
 }));
+
+const screenSelect = () => screen.getByLabelText('Default open screen') as HTMLSelectElement;
+const viewSelect = () => screen.getByLabelText('Default appointment view') as HTMLSelectElement;
 
 describe('DefaultOpenScreenPreference', () => {
   const notify = jest.fn();
@@ -72,11 +53,23 @@ describe('DefaultOpenScreenPreference', () => {
     (setSavedDefaultAppointmentsView as jest.Mock).mockReturnValue(true);
   });
 
-  it('saves dashboard preference successfully', async () => {
+  it('renders both preference rows with the design descriptions', () => {
     render(<DefaultOpenScreenPreference />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dashboard' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save defaults' }));
+    expect(screen.getByText('Default open screen')).toBeInTheDocument();
+    expect(screen.getByText('Where the app lands after sign-in')).toBeInTheDocument();
+    expect(screen.getByText('Default appointment view')).toBeInTheDocument();
+    expect(screen.getByText('Calendar, board, or list')).toBeInTheDocument();
+    expect(screenSelect().value).toBe('/appointments');
+    expect(viewSelect().value).toBe('board');
+  });
+
+  // Auto-save model: the pill commits on change, so there is no Save button and a
+  // successful write stays silent (the page header carries the indicator).
+  it('saves the dashboard preference as soon as it is picked', async () => {
+    render(<DefaultOpenScreenPreference />);
+
+    fireEvent.change(screenSelect(), { target: { value: '/dashboard' } });
 
     await waitFor(() => {
       expect(patchUserProfile).toHaveBeenCalledWith(
@@ -90,17 +83,18 @@ describe('DefaultOpenScreenPreference', () => {
     });
 
     expect(setSavedDefaultOpenScreenRoute).toHaveBeenCalledWith('/dashboard');
-    expect(notify).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'Defaults updated' })
-    );
+    // The dashboard route does not carry an appointment view, so the local view
+    // cache is left untouched and the second row is hidden.
+    expect(setSavedDefaultAppointmentsView).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Default appointment view')).toBeNull();
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it('shows missing org notification and stops', async () => {
     orgState.primaryOrgId = '';
 
     render(<DefaultOpenScreenPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save defaults' }));
+    fireEvent.change(screenSelect(), { target: { value: '/dashboard' } });
 
     await waitFor(() => {
       expect(notify).toHaveBeenCalledWith(
@@ -117,7 +111,7 @@ describe('DefaultOpenScreenPreference', () => {
     (patchUserProfile as jest.Mock).mockRejectedValue(new Error('boom'));
 
     render(<DefaultOpenScreenPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save defaults' }));
+    fireEvent.change(screenSelect(), { target: { value: '/dashboard' } });
 
     await waitFor(() => {
       expect(notify).toHaveBeenCalledWith(
@@ -127,14 +121,12 @@ describe('DefaultOpenScreenPreference', () => {
     });
   });
 
-  // selection stays on '/appointments' -> shouldShowDefaultView true, second dropdown
-  // rendered; picking Calendar routes appointmentView through localToAppointmentView.
-  it('saves the appointments route with a chosen appointment view', async () => {
+  // selection stays on '/appointments' -> the view row is rendered; picking Calendar
+  // routes appointmentView through localToAppointmentView and writes the local cache.
+  it('saves the appointment view against the appointments route', async () => {
     render(<DefaultOpenScreenPreference />);
 
-    // second dropdown is present because default selection is '/appointments'
-    fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save defaults' }));
+    fireEvent.change(viewSelect(), { target: { value: 'calendar' } });
 
     await waitFor(() => {
       expect(patchUserProfile).toHaveBeenCalledWith(
@@ -149,97 +141,53 @@ describe('DefaultOpenScreenPreference', () => {
         })
       );
     });
-    // defaultViewSaved branch: shouldShowDefaultView ? setSavedDefaultAppointmentsView(...) : true
     expect(setSavedDefaultAppointmentsView).toHaveBeenCalledWith('calendar');
     expect(setSavedDefaultOpenScreenRoute).toHaveBeenCalledWith('/appointments');
-    expect(notify).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ text: 'Your default landing screen preferences have been saved.' })
-    );
-  });
-
-  // openScreenSaved === false -> `openScreenSaved && defaultViewSaved` short-circuits false
-  // -> the fallback "Saved to profile" success notification.
-  it('shows the profile-only success message when the local open-screen cache does not persist', async () => {
-    (setSavedDefaultOpenScreenRoute as jest.Mock).mockReturnValue(false);
-
-    render(<DefaultOpenScreenPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Dashboard' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save defaults' }));
-
-    await waitFor(() => {
-      expect(notify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({
-          text: 'Saved to profile. Local cache refresh may require reloading.',
-        })
-      );
-    });
-  });
-
-  // defaultViewSaved === false (setSavedDefaultAppointmentsView false) while openScreenSaved true
-  // -> `true && false` -> fallback success message.
-  it('shows the profile-only success message when the appointment-view cache does not persist', async () => {
-    (setSavedDefaultAppointmentsView as jest.Mock).mockReturnValue(false);
-
-    render(<DefaultOpenScreenPreference />);
-    // stay on '/appointments' so shouldShowDefaultView is true and the view cache is written
-    fireEvent.click(screen.getByRole('button', { name: 'Save defaults' }));
-
-    await waitFor(() => {
-      expect(notify).toHaveBeenCalledWith(
-        'success',
-        expect.objectContaining({
-          text: 'Saved to profile. Local cache refresh may require reloading.',
-        })
-      );
-    });
   });
 
   // defaultOpenScreenToRoute('DASHBOARD') -> '/dashboard' -> shouldShowDefaultView false,
-  // so the appointment-view dropdown ('Calendar') is not rendered on first paint.
-  it('hides the appointment view dropdown when the saved screen is the dashboard', () => {
+  // so the appointment-view row is not rendered on first paint.
+  it('hides the appointment view row when the saved screen is the dashboard', () => {
     setProfile({ defaultOpenScreen: 'DASHBOARD', appointmentView: 'STATUS_BOARD' });
 
     render(<DefaultOpenScreenPreference />);
 
-    expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Calendar' })).toBeNull();
-    expect(screen.getByTestId('sel-Default open screen').textContent).toBe('/dashboard');
+    expect(screenSelect().value).toBe('/dashboard');
+    expect(screen.queryByLabelText('Default appointment view')).toBeNull();
   });
 
-  // appointmentViewToLocal('TABLE') -> 'list' feeds the default appointment view dropdown.
+  // appointmentViewToLocal('TABLE') -> 'list' feeds the default appointment view pill.
   it('maps the TABLE appointment view to the local list value', () => {
     setProfile({ defaultOpenScreen: 'APPOINTMENTS', appointmentView: 'TABLE' });
 
     render(<DefaultOpenScreenPreference />);
 
-    expect(screen.getByTestId('sel-Default appointment view').textContent).toBe('list');
+    expect(viewSelect().value).toBe('list');
   });
 
   // Reconcile branch (prevSavedRouteRef.current !== savedRoute): a profile change to DASHBOARD
-  // re-derives savedRoute and resets selection, hiding the appointment-view dropdown.
+  // re-derives savedRoute and resets selection, hiding the appointment-view row.
   it('re-syncs selection when the saved route changes between renders', () => {
     const { rerender } = render(<DefaultOpenScreenPreference />);
-    expect(screen.getByRole('button', { name: 'Calendar' })).toBeInTheDocument();
+    expect(viewSelect()).toBeInTheDocument();
 
     setProfile({ defaultOpenScreen: 'DASHBOARD', appointmentView: 'STATUS_BOARD' });
     rerender(<DefaultOpenScreenPreference />);
 
-    expect(screen.queryByRole('button', { name: 'Calendar' })).toBeNull();
-    expect(screen.getByTestId('sel-Default open screen').textContent).toBe('/dashboard');
+    expect(screen.queryByLabelText('Default appointment view')).toBeNull();
+    expect(screenSelect().value).toBe('/dashboard');
   });
 
   // Reconcile branch second operand (route same, only the view changed):
   // prevSavedViewRef.current !== savedView with prevSavedRouteRef.current === savedRoute.
   it('re-syncs the default view when only the saved appointment view changes', () => {
     const { rerender } = render(<DefaultOpenScreenPreference />);
-    expect(screen.getByTestId('sel-Default appointment view').textContent).toBe('board');
+    expect(viewSelect().value).toBe('board');
 
     setProfile({ defaultOpenScreen: 'APPOINTMENTS', appointmentView: 'CALENDAR' });
     rerender(<DefaultOpenScreenPreference />);
 
-    expect(screen.getByTestId('sel-Default appointment view').textContent).toBe('calendar');
+    expect(viewSelect().value).toBe('calendar');
   });
 
   // profile null -> optional chaining falls back to normalized default preferences,
@@ -251,10 +199,10 @@ describe('DefaultOpenScreenPreference', () => {
 
     render(<DefaultOpenScreenPreference />);
     // defaults: defaultOpenScreen APPOINTMENTS -> '/appointments', appointmentView STATUS_BOARD -> board
-    expect(screen.getByTestId('sel-Default open screen').textContent).toBe('/appointments');
-    expect(screen.getByTestId('sel-Default appointment view').textContent).toBe('board');
+    expect(screenSelect().value).toBe('/appointments');
+    expect(viewSelect().value).toBe('board');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save defaults' }));
+    fireEvent.change(viewSelect(), { target: { value: 'list' } });
     await waitFor(() => {
       expect(patchUserProfile).toHaveBeenCalledWith(
         'org-unknown',

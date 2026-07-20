@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
-import { Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useIntegrationStore } from '@/app/stores/integrationStore';
 import {
@@ -10,7 +10,13 @@ import {
 import { listIdexxIvlsDevices } from '@/app/features/integrations/services/idexxService';
 import { IvlsDevice } from '@/app/features/integrations/services/types';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { IoRefreshOutline, IoFlaskOutline, IoWaterOutline, IoBeakerOutline } from 'react-icons/io5';
+import {
+  IoArrowForward,
+  IoBeakerOutline,
+  IoFlaskOutline,
+  IoRefreshOutline,
+  IoWaterOutline,
+} from 'react-icons/io5';
 import type { IconType } from 'react-icons';
 
 const isDeviceOnline = (device: IvlsDevice): boolean =>
@@ -167,7 +173,13 @@ const LinkedMedicalDevices = () => {
           <span className="text-[11.5px] text-[var(--ink-faint)]">
             Devices sync via the IDEXX integration
           </span>
-          <Secondary href="/integrations" text="Open integrations" />
+          <Link
+            href="/integrations"
+            className="inline-flex items-center gap-[5px] text-[12px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors"
+          >
+            Open integrations
+            <IoArrowForward size={12} aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </AccordionButton>

@@ -15,6 +15,11 @@
   margin: 0;
 }
 
+.dev-plugins-subtitle {
+  font-size: 13.5px;
+  color: var(--ink-muted);
+}
+
 .dev-plugins-preview {
   margin: 0;
   align-self: flex-start;
@@ -40,7 +45,9 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
 }
 
 .dev-plugin-card-head {
@@ -88,11 +95,16 @@
 
 .dev-plugin-card-title {
   margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .dev-plugin-card-desc {
   margin: 0;
+  font-size: 12.5px;
   line-height: 1.5;
+  color: var(--ink-muted);
 }
 
 .dev-plugin-card-foot {
@@ -103,18 +115,25 @@
   gap: 12px;
 }
 
+.dev-plugin-card-author {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
 .dev-plugin-card-action {
-  color: var(--color-cyan-text);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan-text);
 }
 
 .dev-website-card {
-  background: var(--color-ink);
+  background: var(--spot);
   border-radius: 18px;
   padding: 22px 26px;
   display: flex;
   align-items: center;
   gap: 24px;
-  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
+  box-shadow: 0 12px 34px var(--sh20);
   overflow: hidden;
 }
 
@@ -212,7 +231,7 @@
   width: 8px;
   height: 8px;
   border-radius: 9999px;
-  background: var(--color-grey-light);
+  background: var(--divider);
   flex-shrink: 0;
 }
 
@@ -251,8 +270,8 @@
 .dev-site-book {
   padding: 4px 10px;
   border-radius: 9999px;
-  background: var(--color-text-primary);
-  color: var(--color-neutral-0);
+  background: var(--cta);
+  color: var(--cta-text);
   font-size: 9px;
   font-weight: 700;
 }
@@ -290,6 +309,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  font-size: 9.5px;
+  color: var(--ink-faint);
 }
 
 .dev-dot {

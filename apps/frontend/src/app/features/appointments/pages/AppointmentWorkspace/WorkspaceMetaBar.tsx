@@ -3,7 +3,10 @@ import { IoArrowForward, IoBedOutline, IoFootstepsOutline } from 'react-icons/io
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import ReadyToggle from '@/app/features/appointments/pages/AppointmentWorkspace/components/ReadyToggle';
-import StaffField from '@/app/features/appointments/pages/AppointmentWorkspace/components/StaffField';
+import StaffField, {
+  MetaFieldShell,
+  MetaFieldValue,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/components/StaffField';
 import {
   WORKSPACE_STEP_LABELS,
   type AppointmentEncounter,
@@ -22,25 +25,16 @@ const getSelectedDropdownLabel = (
 ) => options.find((option) => option.value === selectedValue)?.label ?? selectedValue ?? fallback;
 
 const ReadOnlyMetaField = ({ label, value }: { label: string; value: string }) => (
-  <div className="w-full">
-    <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
-      {label}
-    </span>
-    <div className="flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-5 pl-5">
-      <span className="min-w-0 flex-1 truncate text-left text-body-4 text-text-primary">
-        {value}
-      </span>
-    </div>
-  </div>
+  <MetaFieldShell label={label}>
+    <MetaFieldValue>{value}</MetaFieldValue>
+  </MetaFieldShell>
 );
 
 /**
- * Editable Room/Unit dropdown that shares the same static-label-above-a-box shape
- * as its sibling fields (StaffField / ConsultationTypeField / ReadOnlyMetaField).
- * The shared LabelDropdown already renders a static label above its trigger, so we
- * only restyle the trigger (`[&>div>div>button]`) into the meta box (min-h-12,
- * rounded-2xl, --whitebg, pl-5) so the locked (ReadOnlyMetaField) and unlocked
- * states share one 48px baseline with the value inside the box.
+ * Editable Room/Unit dropdown. LabelDropdown's trigger already carries the
+ * design's 46px / 1.5px-hairline / 13px-radius box, so the only change needed
+ * here is the label: its stacked label is hidden and re-rendered notched into
+ * the trigger's top border, matching the sibling read-only meta fields.
  */
 const EditableMetaDropdown = ({
   label,
@@ -53,7 +47,7 @@ const EditableMetaDropdown = ({
   value?: string;
   onSelect: (option: DropdownOption) => void;
 }) => (
-  <div className="w-full [&>div>div>button]:min-h-12 [&>div>div>button]:rounded-2xl! [&>div>div>button]:bg-(--whitebg)! [&>div>div>button]:pl-5!">
+  <div className="relative w-full [&>div>span]:pointer-events-none [&>div>span]:absolute [&>div>span]:-top-[7px] [&>div>span]:left-3 [&>div>span]:z-30 [&>div>span]:mb-0 [&>div>span]:bg-[var(--screen)] [&>div>span]:px-[5px] [&>div>span]:text-[10.5px] [&>div>span]:text-[var(--ink-faint)] [&>div>div>button]:rounded-[14px]! [&>div>div>button]:bg-transparent! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
     <LabelDropdown
       placeholder={label}
       options={options}
@@ -64,30 +58,24 @@ const EditableMetaDropdown = ({
 );
 
 /**
- * Read-only consultation-type field. Mirrors the StaffField label-above-a-box
- * shape but shows a mode-specific icon (bed = inpatient, footprints = outpatient)
- * instead of an avatar — the value is changed via the hospitalization flow.
+ * Read-only consultation-type field. Mirrors the StaffField notched box but
+ * shows a mode-specific icon (bed = inpatient, footprints = outpatient) instead
+ * of an avatar — the value is changed via the hospitalization flow.
  */
 const ConsultationTypeField = ({ mode }: { mode: EncounterMode }) => {
   const isInpatient = mode === 'INPATIENT';
   const label = isInpatient ? 'Inpatient' : 'Outpatient';
   return (
-    <div className="w-full">
-      <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
-        Consultation type
+    <MetaFieldShell label="Consultation type">
+      <MetaFieldValue>{label}</MetaFieldValue>
+      <span
+        aria-hidden="true"
+        className="flex size-[30px] shrink-0 items-center justify-center rounded-full"
+        style={{ background: 'var(--blue-soft)', color: 'var(--blue-text)' }}
+      >
+        {isInpatient ? <IoBedOutline size={16} /> : <IoFootstepsOutline size={16} />}
       </span>
-      <div className="flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-2 pl-5">
-        <span className="min-w-0 flex-1 truncate text-left text-body-4 text-text-primary">
-          {label}
-        </span>
-        <span
-          aria-hidden="true"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-text-brand"
-        >
-          {isInpatient ? <IoBedOutline size={16} /> : <IoFootstepsOutline size={16} />}
-        </span>
-      </div>
-    </div>
+    </MetaFieldShell>
   );
 };
 
@@ -246,8 +234,10 @@ const WorkspaceMetaBar = ({
   // wraps below the fields on narrow screens.
   return (
     <div className="flex flex-col gap-x-6 gap-y-5 lg:flex-row lg:items-start lg:justify-between">
-      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-5">{staffFields}</div>
-      <div className="flex shrink-0 flex-wrap items-start gap-x-3 gap-y-5 lg:justify-end">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-5">
+        {staffFields}
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3.5 gap-y-4 lg:justify-end">
         {readyToggles}
         {saveButton}
       </div>

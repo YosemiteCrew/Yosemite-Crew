@@ -441,7 +441,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('No overview entries found.')).toBeInTheDocument();
+      expect(screen.getByText('No records yet')).toBeInTheDocument();
     });
   });
 
@@ -593,7 +593,7 @@ describe('CompanionHistoryTimeline', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open submission' }));
 
     expect(await screen.findByText('Heart rate')).toBeInTheDocument();
-    expect(screen.getByText('88 / bpm')).toBeInTheDocument();
+    expect(screen.getByText('88 bpm')).toBeInTheDocument();
   });
 
   it('opens medical record PDFs in the preview overlay when a URL is available', async () => {
@@ -1234,7 +1234,7 @@ describe('CompanionHistoryTimeline', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'View IDEXX Result' }));
 
     expect(await screen.findByText('WBC')).toBeInTheDocument();
-    expect(screen.getByText('6.1 / k/uL')).toBeInTheDocument();
+    expect(screen.getByText('6.1 k/uL')).toBeInTheDocument();
     // Chip toggles to the collapse affordance
     expect(screen.getByRole('button', { name: 'Hide IDEXX Result' })).toBeInTheDocument();
   });
@@ -1295,7 +1295,7 @@ describe('CompanionHistoryTimeline', () => {
   it('renders the empty state and skips fetching when no companion id is provided', async () => {
     render(<CompanionHistoryTimeline companionId="" />);
 
-    expect(await screen.findByText('No overview entries found.')).toBeInTheDocument();
+    expect(await screen.findByText('No records yet')).toBeInTheDocument();
     expect(fetchCompanionHistory).not.toHaveBeenCalled();
   });
 
@@ -1867,12 +1867,54 @@ describe('CompanionHistoryTimeline', () => {
     expect(screen.getByText('WBC')).toBeInTheDocument();
   });
 
+  it('flags out-of-range analytes in the record drawer', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          title: 'Catalyst Chem 17',
+          payload: {
+            ...baseEntries[4].payload,
+            results: [
+              // In range: no arrow, no tint.
+              { test: 'ALT', value: '48', referenceRange: '10-125' },
+              // Above the interval.
+              { test: 'WBC', value: '17.2', referenceRange: '5.1-16.8' },
+              // Below the interval.
+              { test: 'HCT', value: '30', referenceRange: '37-55' },
+              // The lab's own flag wins where the value sits on the boundary.
+              { test: 'ALP', value: '212', referenceRange: '23-212', interpretation: 'H' },
+              // Flagged without a resolvable direction: tinted, but no arrow.
+              { test: 'Lipase', value: 'see note', outOfRange: true },
+            ],
+          },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open record detail for Catalyst Chem 17' })
+    );
+    const drawer = await screen.findByRole('dialog', { name: /Catalyst Chem 17/ });
+
+    expect(within(drawer).getByText('ALT')).toBeInTheDocument();
+    expect(within(drawer).getByText('10-125')).toBeInTheDocument();
+    expect(within(drawer).getByText('WBC ↑')).toBeInTheDocument();
+    expect(within(drawer).getByText('HCT ↓')).toBeInTheDocument();
+    expect(within(drawer).getByText('ALP ↑')).toBeInTheDocument();
+    expect(within(drawer).getByText('Lipase')).toBeInTheDocument();
+  });
+
   it('renders an empty overview and skips fetching when there is no primary org', async () => {
     mockOrgState = { primaryOrgId: null, orgsById: {} };
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    expect(await screen.findByText('No overview entries found.')).toBeInTheDocument();
+    expect(await screen.findByText('No records yet')).toBeInTheDocument();
     expect(fetchCompanionHistory).not.toHaveBeenCalled();
   });
 
@@ -2052,7 +2094,7 @@ describe('CompanionHistoryTimeline', () => {
     const drawer = await screen.findByRole('dialog', { name: /Catalyst Chem 17/ });
     expect(within(drawer).getByText('Record detail')).toBeInTheDocument();
     expect(within(drawer).getByText('ALP')).toBeInTheDocument();
-    expect(within(drawer).getByText('212 / U/L')).toBeInTheDocument();
+    expect(within(drawer).getByText('212 U/L')).toBeInTheDocument();
     expect(within(drawer).getByText('Mild ALP elevation.')).toBeInTheDocument();
     expect(within(drawer).getByText('Linked to')).toBeInTheDocument();
 
@@ -2133,6 +2175,73 @@ describe('CompanionHistoryTimeline', () => {
     } finally {
       anchorClickSpy.mockRestore();
     }
+  });
+
+  // Regression: the drawer's only primary action used to be "Download PDF", which
+  // pushed entry.link.id into the document download endpoint. A lab / invoice /
+  // task id is not a document id, so those records lost their open path and got a
+  // "Document unavailable" error instead. Each non-document type keeps its own
+  // routing and never touches the document endpoint.
+  it.each([
+    [
+      'lab result',
+      4,
+      'IDEXX Result',
+      'Open result',
+      '/appointments?appointmentId=a-1&open=labs&subLabel=idexx-labs',
+    ],
+    ['invoice', 5, 'Invoice', 'Open finance', '/finance?invoiceId=i-1'],
+    ['task', 1, 'Give medication', 'Open task', '/tasks?taskId=t-1'],
+  ])(
+    'opens a %s from the drawer through its own route, not the document endpoint',
+    async (_type, entryIndex, title, actionLabel, expectedPath) => {
+      (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+        entries: [baseEntries[entryIndex as number]],
+        nextCursor: null,
+        summary: { totalReturned: 1, countsByType: {} },
+      });
+
+      render(<CompanionHistoryTimeline companionId="c-1" />);
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: `Open record detail for ${title}` })
+      );
+      const drawer = await screen.findByRole('dialog', { name: new RegExp(title as string) });
+
+      expect(
+        within(drawer).queryByRole('button', { name: 'Download PDF' })
+      ).not.toBeInTheDocument();
+      fireEvent.click(within(drawer).getByRole('button', { name: actionLabel as string }));
+
+      expect(mockGetSafeSameOriginPath).toHaveBeenCalledWith(expectedPath);
+      expect(loadDocumentDownloadURL).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    }
+  );
+
+  it('opens the drawer record in place when it belongs to the active appointment', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[5]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { INVOICE: 1 } },
+    });
+    const onOpenAppointmentView = jest.fn();
+
+    render(
+      <CompanionHistoryTimeline
+        companionId="c-1"
+        activeAppointmentId="a-1"
+        onOpenAppointmentView={onOpenAppointmentView}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open record detail for Invoice' }));
+    const drawer = await screen.findByRole('dialog', { name: /Invoice/ });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Open finance' }));
+
+    expect(onOpenAppointmentView).toHaveBeenCalledWith({ label: 'finance', subLabel: 'summary' });
+    // The drawer must not stay on top of the workspace tab it just opened.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('uses the in-page callback and loaded appointment name for the drawer linked row', async () => {
@@ -2266,7 +2375,7 @@ describe('CompanionHistoryTimeline', () => {
   it('renders the empty overview when the companion id is undefined', async () => {
     render(<CompanionHistoryTimeline companionId={undefined as unknown as string} />);
 
-    expect(await screen.findByText('No overview entries found.')).toBeInTheDocument();
+    expect(await screen.findByText('No records yet')).toBeInTheDocument();
     expect(fetchCompanionHistory).not.toHaveBeenCalled();
   });
 

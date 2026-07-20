@@ -8,7 +8,9 @@ type ModalHeaderProps = {
 
 const ModalHeader = ({ title, onClose }: ModalHeaderProps) => (
   <div className="flex justify-between items-center">
-    <div className="text-body-1 text-text-primary">{title}</div>
+    <div className="text-[18px] font-bold tracking-[-0.02em]" style={{ color: 'var(--ink)' }}>
+      {title}
+    </div>
     <Close onClick={onClose} />
   </div>
 );

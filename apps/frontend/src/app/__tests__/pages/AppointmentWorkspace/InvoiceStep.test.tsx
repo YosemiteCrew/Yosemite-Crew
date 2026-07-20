@@ -173,6 +173,7 @@ jest.mock('@/app/stores/inventoryStore', () => ({
 }));
 
 import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
+import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
@@ -309,11 +310,24 @@ const renderInvoiceStep = (encounterOverrides: BuildEncounterOverrides = {}, pro
     <InvoiceStep {...defaultProps} encounter={buildEncounter(encounterOverrides)} {...props} />
   );
 
+/**
+ * Deposit is now the third segment of the payment-method control, so opening the
+ * deposit modal is: pick "Deposit", then press the single Collect action.
+ */
+const openDepositModal = async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'Deposit' }));
+  await userEvent.click(screen.getByRole('button', { name: /^Collect / }));
+};
+
 describe('<InvoiceStep /> component', () => {
   let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // The invoice store is real here (the payment-link status subscribes to it),
+    // so it must not leak invoices between tests.
+    useInvoiceStore.getState().clearInvoices();
 
     // The real store returns the id it assigns a new bill line; the interlink
     // save path relies on it to link the line to its prescription.
@@ -359,12 +373,50 @@ describe('<InvoiceStep /> component', () => {
     renderInvoiceStep();
 
     expect(await screen.findByTestId('total-bill-container')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Collect Deposit' })).toBeInTheDocument();
-    // Payment is a single method toggle (Online/Cash) plus one Collect action.
+    // Payment is a single method toggle (Online/Cash/Deposit) plus one Collect action.
     expect(screen.getByRole('button', { name: 'Online' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cash' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deposit' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Collect \$/ })).toBeInTheDocument();
     expect(screen.getByText(/no invoices recorded yet/i)).toBeInTheDocument();
+    // No invoice in the store means no payment link exists, so the design's status
+    // line under Collect must not appear at all.
+    expect(screen.queryByText(/Stripe · payment link/)).not.toBeInTheDocument();
+  });
+
+  it('shows the payment-link status under Collect when the invoice really has a link', async () => {
+    useInvoiceStore.getState().setInvoicesForOrg('org-1', [
+      {
+        id: 'inv-link',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        paymentCollectionMethod: 'PAYMENT_LINK',
+        stripeCheckoutUrl: 'https://checkout.example/pay',
+      },
+    ] as never);
+
+    renderInvoiceStep();
+
+    expect(await screen.findByText('Stripe · payment link ready')).toBeInTheDocument();
+  });
+
+  it('hides the payment-link status when the invoice collects at the clinic', async () => {
+    useInvoiceStore.getState().setInvoicesForOrg('org-1', [
+      {
+        id: 'inv-clinic',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+        stripeCheckoutUrl: 'https://checkout.example/pay',
+      },
+    ] as never);
+
+    renderInvoiceStep();
+
+    expect(await screen.findByTestId('total-bill-container')).toBeInTheDocument();
+    expect(screen.queryByText(/Stripe · payment link/)).not.toBeInTheDocument();
   });
 
   it('renders existing pastInvoices and expands a row to show the breakdown', async () => {
@@ -398,7 +450,7 @@ describe('<InvoiceStep /> component', () => {
 
     await waitFor(() => expect(invoiceServiceMock.loadAppointmentBilling).toHaveBeenCalled());
     expect(screen.queryByTestId('total-bill-container')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Collect Deposit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deposit' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: `Share invoice ${invoice.id}` })
     ).not.toBeInTheDocument();
@@ -519,7 +571,7 @@ describe('<InvoiceStep /> component', () => {
     });
     await screen.findByTestId('total-bill-container');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    await openDepositModal();
 
     const amountInput = await screen.findByRole('spinbutton', { name: /amount/i });
     await userEvent.clear(amountInput);
@@ -556,7 +608,7 @@ describe('<InvoiceStep /> component', () => {
     });
     await screen.findByTestId('total-bill-container');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    await openDepositModal();
 
     const onlineToggle = await screen.findByRole('button', { name: /online link/i });
     await userEvent.click(onlineToggle);
@@ -897,7 +949,7 @@ describe('<InvoiceStep /> component', () => {
     renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
     await screen.findByTestId('total-bill-container');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    await openDepositModal();
     await userEvent.click(await screen.findByRole('button', { name: /online link/i }));
     const generateLink = screen
       .getAllByRole('button')
@@ -1012,7 +1064,7 @@ describe('<InvoiceStep /> component', () => {
     renderInvoiceStep({ invoiceLineItems: [] });
     await screen.findByTestId('total-bill-container');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    await openDepositModal();
     const modalSubmit = screen
       .getAllByRole('button')
       .find((btn) => btn.textContent === 'Collect deposit');
@@ -1036,7 +1088,7 @@ describe('<InvoiceStep /> component', () => {
     renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
     await screen.findByTestId('total-bill-container');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    await openDepositModal();
     const modalSubmit = screen
       .getAllByRole('button')
       .find((btn) => btn.textContent === 'Collect deposit');
@@ -1056,7 +1108,7 @@ describe('<InvoiceStep /> component', () => {
     renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
     await screen.findByTestId('total-bill-container');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    await openDepositModal();
     const modalSubmit = screen
       .getAllByRole('button')
       .find((btn) => btn.textContent === 'Collect deposit');
@@ -1078,7 +1130,7 @@ describe('<InvoiceStep /> component', () => {
     renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
     await screen.findByTestId('total-bill-container');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    await openDepositModal();
     const modalSubmit = screen
       .getAllByRole('button')
       .find((btn) => btn.textContent === 'Collect deposit');

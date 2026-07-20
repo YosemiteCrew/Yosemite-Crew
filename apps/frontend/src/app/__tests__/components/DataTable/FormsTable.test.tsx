@@ -42,7 +42,10 @@ jest.mock('@/app/ui/cards/FormCard', () => {
 });
 
 jest.mock('react-icons/io5', () => ({
-  IoEye: () => <span data-testid="eye-icon">Eye</span>,
+  IoEllipsisHorizontal: () => <span data-testid="row-menu-icon">More</span>,
+  IoClipboardOutline: () => <span data-testid="template-icon-clipboard" />,
+  IoDocumentTextOutline: () => <span data-testid="template-icon-document" />,
+  IoMedkitOutline: () => <span data-testid="template-icon-medkit" />,
 }));
 
 let mockTeamsById: Record<string, { practionerId?: string; name?: string }> = {};
@@ -105,21 +108,21 @@ describe('FormsTable Component', () => {
   // --- 1. Helper Function Tests ---
 
   describe('getStatusStyle', () => {
-    it("returns correct style for 'Published'", () => {
+    it("returns the green live pill for 'Published'", () => {
       const style = getFormsStatusStyle('Published');
       expect(style).toEqual({
-        color: 'var(--color-pill-info-text)',
-        backgroundColor: 'var(--color-pill-info-bg)',
-        borderColor: 'var(--color-pill-info-border)',
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
       });
     });
 
     it("returns correct style for 'published' (case insensitive)", () => {
       const style = getFormsStatusStyle('published');
       expect(style).toEqual({
-        color: 'var(--color-pill-info-text)',
-        backgroundColor: 'var(--color-pill-info-bg)',
-        borderColor: 'var(--color-pill-info-border)',
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
       });
     });
 
@@ -132,12 +135,21 @@ describe('FormsTable Component', () => {
       });
     });
 
-    it('returns default style for unknown status', () => {
+    it("returns the neutral grey pill for 'Archived'", () => {
       const style = getFormsStatusStyle('Archived');
       expect(style).toEqual({
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      });
+    });
+
+    it('returns the progress style for an unknown status', () => {
+      const style = getFormsStatusStyle('Superseded');
+      expect(style).toEqual({
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
       });
     });
 
@@ -159,8 +171,11 @@ describe('FormsTable Component', () => {
     // Check headers
     expect(screen.getByText('Form name')).toBeInTheDocument();
     expect(screen.getByText('Category')).toBeInTheDocument();
-    expect(screen.getByText('Usage')).toBeInTheDocument();
-    expect(screen.getByText('Updated by')).toBeInTheDocument();
+    // Design's ledger counts fields; "Usage" is not one of its columns.
+    expect(screen.getByText('Fields')).toBeInTheDocument();
+    expect(screen.queryByText('Usage')).not.toBeInTheDocument();
+    // The edit stamp is one merged "date · person" column, not two.
+    expect(screen.queryByText('Updated by')).not.toBeInTheDocument();
     expect(screen.getByText('Last updated')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Actions')).toBeInTheDocument();
@@ -170,8 +185,7 @@ describe('FormsTable Component', () => {
     expect(screen.getAllByText('Intake Form').length).toBeGreaterThan(0);
     // "Custom" appears multiple times (once per row)
     expect(screen.getAllByText('Custom').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('External').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Alice').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2023-10-01 · Alice').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Published').length).toBeGreaterThan(0);
   });
 
@@ -186,14 +200,14 @@ describe('FormsTable Component', () => {
     const forms = [{ ...mockForms[0], updatedBy: 'u1' }];
     render(<FormsTable {...defaultProps} filteredList={forms as any} />);
 
-    expect(screen.getAllByText('Dr. Weber').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2023-10-01 · Dr. Weber').length).toBeGreaterThan(0);
   });
 
   it('calls setActiveForm and setViewPopup when view action is clicked', () => {
     render(<FormsTable {...defaultProps} />);
 
     // Find the eye icon/button for the first row
-    const viewButtons = screen.getAllByTestId('eye-icon');
+    const viewButtons = screen.getAllByTestId('row-menu-icon');
     // Ensure we click the button wrapping the icon
     fireEvent.click(viewButtons[0].closest('button')!);
 

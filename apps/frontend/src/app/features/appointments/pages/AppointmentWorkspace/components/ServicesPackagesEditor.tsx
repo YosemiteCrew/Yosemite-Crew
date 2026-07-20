@@ -31,7 +31,7 @@ const copyValue = (value?: string) => {
 };
 
 const ItemTag = ({ kind }: { kind: LineItem['kind'] }) => (
-  <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
+  <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-blue-text">
     {kind === 'PACKAGE' ? 'Package' : 'Service'}
   </span>
 );
@@ -173,7 +173,6 @@ const ServicesPackagesEditor = ({
       </div>
 
       <SectionContainer
-        titleClassName="text-yc-20-b-primary"
         title="Additional services & packages"
         titleIcon={<TitleAddIcon />}
         className="flex flex-col gap-5"

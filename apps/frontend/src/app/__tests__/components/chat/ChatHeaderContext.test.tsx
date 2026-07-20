@@ -185,6 +185,42 @@ describe('ChatHeaderContext', () => {
     expect(screen.getByText('Appointment')).toBeInTheDocument();
   });
 
+  it('renders the pinned banner with a single pinned message and no "+ N more" suffix', () => {
+    render(
+      <ChatHeaderContext pinned={[{ id: 'p1', text: 'Bring stool sample' }]} onAction={jest.fn()} />
+    );
+    expect(screen.getByText('Pinned')).toBeInTheDocument();
+    expect(screen.getByText(/“Bring stool sample”/)).toBeInTheDocument();
+    expect(screen.queryByText(/more/)).not.toBeInTheDocument();
+  });
+
+  it('appends "+ N more" to the pinned banner when several messages are pinned', () => {
+    render(
+      <ChatHeaderContext
+        pinned={[
+          { id: 'p1', text: 'Bring stool sample' },
+          { id: 'p2', text: 'Fasting required' },
+          { id: 'p3', text: 'Recheck in 2 weeks' },
+        ]}
+        onAction={jest.fn()}
+      />
+    );
+    expect(screen.getByText(/“Bring stool sample” \+ 2 more/)).toBeInTheDocument();
+  });
+
+  it('calls onOpenPinned when the pinned banner is clicked', () => {
+    const onOpenPinned = jest.fn();
+    render(
+      <ChatHeaderContext
+        pinned={[{ id: 'p1', text: 'Bring stool sample' }]}
+        onOpenPinned={onOpenPinned}
+        onAction={jest.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button'));
+    expect(onOpenPinned).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps a titled critical alert while skipping a high alert with no title', () => {
     render(
       <ChatHeaderContext

@@ -118,7 +118,7 @@ export function ShareEntityModal({
     <dialog
       open
       className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-start justify-center border-0 bg-[var(--scrim,rgba(29,28,27,0.44))] p-4 pt-24"
-      aria-label="Share from PIMS"
+      aria-label="Share to chat"
     >
       <button
         type="button"
@@ -126,21 +126,26 @@ export function ShareEntityModal({
         className="absolute inset-0 cursor-default"
         onClick={onClose}
       />
-      <div className="relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_2px_6px_var(--sh05),0_22px_56px_var(--sh10)]">
-        <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
+      {/* Design ("Share entity modal"): 470px card, 20px radius, 15px/700 title. */}
+      <div className="relative z-10 flex w-full max-w-[470px] flex-col overflow-hidden rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_2px_6px_var(--sh05),0_22px_56px_var(--sh10)]">
+        <div className="flex items-center justify-between border-b border-[var(--hairline)] px-5 pb-3.5 pt-4">
           <span className="flex items-center gap-2">
             <IoShareSocialOutline className="h-4 w-4 text-[var(--blue-text)]" />
-            <Text as="span" variant="body-3-emphasis" className="text-[var(--ink)]">
-              Share from PIMS
+            <Text
+              as="span"
+              variant="body-3-emphasis"
+              className="text-[15px] font-bold text-[var(--ink)]"
+            >
+              Share to chat
             </Text>
           </span>
           <button
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] hover:bg-[var(--screen-2)]"
+            className="inline-flex size-[30px] items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)] hover:bg-[var(--screen-2)]"
           >
-            <IoClose className="h-4 w-4" />
+            <IoClose className="h-3.5 w-3.5" />
           </button>
         </div>
 

@@ -1,4 +1,5 @@
 import {
+  buildPagerPageList,
   getInvoiceItemNames,
   getInvoiceStatusStyle,
   getInventoryStatusStyle,
@@ -179,6 +180,44 @@ describe('tableUtils', () => {
 
     it('defaults to empty array and returns dash', () => {
       expect(joinNames(byId)).toBe('-');
+    });
+  });
+
+  describe('buildPagerPageList', () => {
+    it('lists every page uncollapsed while the run fits the pill limit', () => {
+      expect(buildPagerPageList(1, 3)).toEqual([
+        { key: 'page-1', page: 1 },
+        { key: 'page-2', page: 2 },
+        { key: 'page-3', page: 3 },
+      ]);
+    });
+
+    it('collapses both ends behind gaps keyed by the page they follow', () => {
+      expect(buildPagerPageList(10, 20)).toEqual([
+        { key: 'page-1', page: 1 },
+        { key: 'gap-after-1', page: null },
+        { key: 'page-9', page: 9 },
+        { key: 'page-10', page: 10 },
+        { key: 'page-11', page: 11 },
+        { key: 'gap-after-11', page: null },
+        { key: 'page-20', page: 20 },
+      ]);
+    });
+
+    it('clamps the window at the first and last page', () => {
+      expect(buildPagerPageList(1, 20).map((entry) => entry.page)).toEqual([1, 2, null, 20]);
+      expect(buildPagerPageList(20, 20).map((entry) => entry.page)).toEqual([1, null, 19, 20]);
+    });
+
+    it('gives every slot in a run a unique key so React never falls back to position', () => {
+      for (const current of [1, 2, 5, 10, 19, 20]) {
+        const keys = buildPagerPageList(current, 20).map((entry) => entry.key);
+        expect(new Set(keys).size).toBe(keys.length);
+      }
+    });
+
+    it('returns an empty run when there are no pages', () => {
+      expect(buildPagerPageList(1, 0)).toEqual([]);
     });
   });
 });
