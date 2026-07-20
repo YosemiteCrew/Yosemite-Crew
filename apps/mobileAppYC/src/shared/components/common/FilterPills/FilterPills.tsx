@@ -61,7 +61,10 @@ export function FilterPills<T>({
               }}
               style={[styles.pill, isActive && styles.pillActive]}
               activeOpacity={0.8}
-              onPress={() => onSelect(option.id)}>
+              onPress={() => onSelect(option.id)}
+              accessibilityRole="radio"
+              accessibilityState={{selected: isActive}}
+              accessibilityLabel={option.label}>
               <Text
                 style={[styles.pillText, isActive && styles.pillTextActive]}>
                 {option.label}
@@ -89,22 +92,22 @@ const createStyles = (theme: any) =>
       height: 40,
       paddingHorizontal: theme.spacing['4'],
       paddingVertical: theme.spacing['1.25'],
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.pill,
       borderWidth: 1,
-      borderColor: theme.colors.text,
-      backgroundColor: theme.colors.white,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
       justifyContent: 'center',
       alignItems: 'center',
     },
     pillActive: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.cta,
+      borderColor: theme.colors.cta,
     },
     pillText: {
       ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
     },
     pillTextActive: {
-      color: theme.colors.primary,
+      color: theme.colors.ctaText,
     },
   });

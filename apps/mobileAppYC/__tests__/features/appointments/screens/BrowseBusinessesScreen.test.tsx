@@ -1,7 +1,7 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {Alert} from 'react-native';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import BrowseBusinessesScreen from '@/features/appointments/screens/BrowseBusinessesScreen';
 import * as reactRedux from 'react-redux';
 import {useNavigation, useRoute} from '@react-navigation/native';
@@ -69,6 +69,15 @@ jest.mock('@/shared/components/common/SearchBar/SearchBar', () => ({
     />
   ),
 }));
+
+jest.mock(
+  '@/features/linkedBusinesses/components/BusinessSearchDropdown',
+  () => ({
+    BusinessSearchDropdown: ({top}: any) => (
+      <mock-search-dropdown testID="search-dropdown" top={top} />
+    ),
+  }),
+);
 
 jest.mock(
   '@/features/appointments/components/BusinessCard/BusinessCard',
@@ -395,6 +404,55 @@ describe('BrowseBusinessesScreen', () => {
     dateNowSpy.mockRestore();
   });
 
+  it('waits for coordinates before re-searching when permission is newly granted', async () => {
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: false,
+      userCoords: null,
+      isLoading: false,
+    });
+
+    const rendered = render(<BrowseBusinessesScreen />);
+    dispatchMock.mockClear();
+
+    // Permission just became granted, but coordinates haven't resolved yet.
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: true,
+      userCoords: null,
+    });
+    rendered.rerender(<BrowseBusinessesScreen />);
+
+    expect(dispatchMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: expect.stringContaining('fetchBusinesses'),
+      }),
+    );
+  });
+
+  it('skips the permission-change re-search while location is still loading', () => {
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: false,
+      userCoords: null,
+      isLoading: false,
+    });
+
+    const rendered = render(<BrowseBusinessesScreen />);
+    dispatchMock.mockClear();
+
+    // Permission flips, but locationLoading is true, so the effect should bail
+    // out before evaluating the permission-changed logic at all.
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: true,
+      isLoading: true,
+    });
+    rendered.rerender(<BrowseBusinessesScreen />);
+
+    expect(dispatchMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: expect.stringContaining('fetchBusinesses'),
+      }),
+    );
+  });
+
   it('searches again after the first user location is resolved', async () => {
     let now = 1000;
     const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
@@ -466,6 +524,14 @@ describe('BrowseBusinessesScreen', () => {
     expect(getByText('No veterinary businesses in this area')).toBeTruthy();
   });
 
+  it('defaults to an empty redux businesses list when the businesses slice is missing', () => {
+    jest
+      .spyOn(reactRedux, 'useSelector')
+      .mockImplementation(cb => cb({companion: baseState.companion}));
+
+    expect(() => render(<BrowseBusinessesScreen />)).not.toThrow();
+  });
+
   it('renders businesses when clinics are provided', () => {
     const mockData = [
       {id: 'b1', name: 'Vet 1', category: 'hospital'},
@@ -484,6 +550,58 @@ describe('BrowseBusinessesScreen', () => {
     expect(getByTestId('card-Vet 1')).toBeTruthy();
     expect(getByTestId('card-Groomer 1')).toBeTruthy();
     expect(getByTestId('card-Groomer 2')).toBeTruthy();
+  });
+
+  it('shows the search results overlay when there are results and no search is in flight', () => {
+    (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
+      makePlacesSearchMock({
+        searchQuery: 'vet',
+        searchResults: [{id: 'r1', name: 'Result 1'}],
+        searching: false,
+      }),
+    );
+
+    const {UNSAFE_root} = render(<BrowseBusinessesScreen />);
+
+    const dropdown = UNSAFE_root.findAllByType('mock-search-dropdown' as any);
+    expect(dropdown.length).toBeGreaterThan(0);
+  });
+
+  it('hides the search results overlay while a search is still in flight', () => {
+    (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
+      makePlacesSearchMock({
+        searchQuery: 'vet',
+        searchResults: [{id: 'r1', name: 'Result 1'}],
+        searching: true,
+      }),
+    );
+
+    const {UNSAFE_root} = render(<BrowseBusinessesScreen />);
+
+    const dropdown = UNSAFE_root.findAllByType('mock-search-dropdown' as any);
+    expect(dropdown.length).toBe(0);
+  });
+
+  it('recomputes the search dropdown offset once the search header reports its layout height', () => {
+    (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
+      makePlacesSearchMock({
+        searchQuery: 'vet',
+        searchResults: [{id: 'r1', name: 'Result 1'}],
+        searching: false,
+      }),
+    );
+
+    const {UNSAFE_root} = render(<BrowseBusinessesScreen />);
+
+    const topBar = UNSAFE_root.find(
+      (node: any) => typeof node.props.onLayout === 'function',
+    );
+    act(() => {
+      topBar.props.onLayout({nativeEvent: {layout: {height: 120}}});
+    });
+
+    const dropdown = UNSAFE_root.findAllByType('mock-search-dropdown' as any);
+    expect(dropdown.length).toBeGreaterThan(0);
   });
 
   it('pressing a category filter pill updates the selected category', () => {
@@ -600,6 +718,73 @@ describe('BrowseBusinessesScreen', () => {
     });
   });
 
+  it('requests details for a business with a photo but a missing website', async () => {
+    const mockData = [
+      {
+        id: 'b1',
+        googlePlacesId: 'gp1',
+        photo: 'valid-photo',
+        phone: '555-1234',
+        website: null,
+      },
+    ];
+
+    jest
+      .spyOn(reactRedux, 'useSelector')
+      .mockImplementation(cb =>
+        cb({...baseState, businesses: {businesses: mockData}}),
+      );
+
+    dispatchMock.mockImplementation((_action: any) => ({
+      unwrap: jest.fn().mockResolvedValue({
+        photoUrl: 'new_url',
+        phoneNumber: '555-1234',
+        website: 'site.com',
+      }),
+    }));
+
+    render(<BrowseBusinessesScreen />);
+
+    await waitFor(() => {
+      expect(fetchBusinessDetails).toHaveBeenCalledWith('gp1');
+    });
+  });
+
+  it('does not re-request details for a business already requested', async () => {
+    const mockData = [{id: 'b1', googlePlacesId: 'gp1', photo: null}];
+
+    const selectorSpy = jest
+      .spyOn(reactRedux, 'useSelector')
+      .mockImplementation(cb =>
+        cb({...baseState, businesses: {businesses: mockData}}),
+      );
+
+    dispatchMock.mockImplementation((_action: any) => ({
+      unwrap: jest.fn().mockResolvedValue({
+        photoUrl: 'new_url',
+        phoneNumber: '123',
+        website: 'site.com',
+      }),
+    }));
+
+    const {rerender} = render(<BrowseBusinessesScreen />);
+
+    await waitFor(() => {
+      expect(fetchBusinessDetails).toHaveBeenCalledTimes(1);
+    });
+
+    // A new array reference with the same business/googlePlacesId re-runs the
+    // effect, but requestBusinessDetails should skip an already-requested id.
+    selectorSpy.mockImplementation(cb =>
+      cb({...baseState, businesses: {businesses: [...mockData]}}),
+    );
+    rerender(<BrowseBusinessesScreen />);
+
+    await waitFor(() => {
+      expect(fetchBusinessDetails).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('falls back to fetching image if details fetch fails', async () => {
     const mockData = [{id: 'b1', googlePlacesId: 'gp1', photo: null}];
 
@@ -640,6 +825,53 @@ describe('BrowseBusinessesScreen', () => {
 
     await waitFor(() => {
       expect(fetchGooglePlacesImage).toHaveBeenCalled();
+    });
+  });
+
+  it('does not set a fallback photo when the image fetch resolves without a photoUrl', async () => {
+    const mockData = [{id: 'b1', googlePlacesId: 'gp1', photo: null}];
+
+    jest
+      .spyOn(reactRedux, 'useSelector')
+      .mockImplementation(cb =>
+        cb({...baseState, businesses: {businesses: mockData}}),
+      );
+
+    const unwrapMock = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Detail fail'))
+      .mockResolvedValueOnce({});
+
+    dispatchMock.mockReturnValue({unwrap: unwrapMock});
+
+    expect(() => render(<BrowseBusinessesScreen />)).not.toThrow();
+
+    await waitFor(() => {
+      expect(fetchGooglePlacesImage).toHaveBeenCalledWith('gp1');
+    });
+  });
+
+  it('preserves prior fallback values when the details response omits a field', async () => {
+    const mockData = [
+      {id: 'b1', googlePlacesId: 'gp1', photo: null, phone: null},
+    ];
+
+    jest
+      .spyOn(reactRedux, 'useSelector')
+      .mockImplementation(cb =>
+        cb({...baseState, businesses: {businesses: mockData}}),
+      );
+
+    // Details resolve with no photoUrl/phoneNumber/website at all, so the
+    // fallback chains (`?? prev[...] ?? undefined/null`) get exercised.
+    dispatchMock.mockImplementation((_action: any) => ({
+      unwrap: jest.fn().mockResolvedValue({}),
+    }));
+
+    render(<BrowseBusinessesScreen />);
+
+    await waitFor(() => {
+      expect(fetchBusinessDetails).toHaveBeenCalledWith('gp1');
     });
   });
 

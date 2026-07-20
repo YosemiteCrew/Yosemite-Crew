@@ -1,6 +1,7 @@
 import {
   compareVersions,
   evaluateAppUpdatePrompt,
+  isTrustedStoreUrl,
   shouldShowOptionalPrompt,
 } from '@/features/appUpdate/services/appUpdatePolicy';
 import {Platform} from 'react-native';
@@ -21,6 +22,13 @@ describe('appUpdatePolicy', () => {
     expect(compareVersions('1.0.1', '1.0.0')).toBe(1);
     expect(compareVersions('1.2.0', '1.10.0')).toBe(-1);
     expect(compareVersions('2.0', '1.9.9')).toBe(1);
+  });
+
+  it('treats a shorter version string as having trailing zero parts', () => {
+    // Same common prefix, differing only in length: forces the loop to
+    // compare an index past the shorter array's length on both sides.
+    expect(compareVersions('1.0.0', '1.0')).toBe(0);
+    expect(compareVersions('1.0', '1.0.1')).toBe(-1);
   });
 
   it('returns required prompt when below minimum supported version', () => {
@@ -315,6 +323,27 @@ describe('appUpdatePolicy', () => {
     expect(prompt?.storeUrl).toBeNull();
   });
 
+  it('treats an unrecognized enabled string and an invalid build number string as false/null', () => {
+    const prompt = evaluateAppUpdatePrompt(
+      {
+        env: 'production',
+        enablePayments: true,
+        appUpdate: {
+          enabled: 'nope' as any,
+          minimumSupportedBuildNumber: 'not-a-number' as any,
+          latestVersion: '1.6.0',
+          androidStoreUrl:
+            'https://play.google.com/store/apps/details?id=com.yc',
+        },
+      },
+      '1.5.0',
+      300,
+      'com.yc',
+    );
+
+    expect(prompt).toBeNull();
+  });
+
   it('returns null when disabled and there is no forced or supported update condition', () => {
     const prompt = evaluateAppUpdatePrompt(
       {
@@ -393,6 +422,71 @@ describe('appUpdatePolicy', () => {
       currentVersion: '9.9.9',
       currentBuildNumber: 0,
       bundleId: 'unknown.bundle.id',
+    });
+  });
+
+  it('falls back to default version and build number when those methods are missing', () => {
+    jest.resetModules();
+    jest.doMock('react-native-device-info', () => ({
+      getBundleId: () => 'com.yc.partial',
+    }));
+
+    const {
+      getCurrentAppIdentity: getIdentity,
+    } = require('@/features/appUpdate/services/appUpdatePolicy');
+
+    expect(getIdentity()).toEqual({
+      currentVersion: '0.0.0',
+      currentBuildNumber: 0,
+      bundleId: 'com.yc.partial',
+    });
+  });
+
+  describe('isTrustedStoreUrl', () => {
+    it('trusts the Apple App Store domain', () => {
+      expect(
+        isTrustedStoreUrl('https://apps.apple.com/us/app/yc/id123456'),
+      ).toBe(true);
+    });
+
+    it('trusts the legacy itunes.apple.com domain', () => {
+      expect(isTrustedStoreUrl('https://itunes.apple.com/app/id123456')).toBe(
+        true,
+      );
+    });
+
+    it('trusts the itms-apps:// scheme used for direct App Store links', () => {
+      expect(
+        isTrustedStoreUrl('itms-apps://itunes.apple.com/app/id123456'),
+      ).toBe(true);
+    });
+
+    it('trusts the Google Play Store domain', () => {
+      expect(
+        isTrustedStoreUrl(
+          'https://play.google.com/store/apps/details?id=com.yc',
+        ),
+      ).toBe(true);
+    });
+
+    it('trusts the market:// scheme used for direct Play Store links', () => {
+      expect(isTrustedStoreUrl('market://details?id=com.yc')).toBe(true);
+    });
+
+    it('rejects a lookalike domain that merely contains a trusted hostname', () => {
+      expect(
+        isTrustedStoreUrl('https://apps.apple.com.evil.com/app/id123456'),
+      ).toBe(false);
+    });
+
+    it('rejects a userinfo-spoofed URL', () => {
+      expect(
+        isTrustedStoreUrl('https://apps.apple.com@evil.com/app/id123456'),
+      ).toBe(false);
+    });
+
+    it('rejects an arbitrary untrusted URL', () => {
+      expect(isTrustedStoreUrl('https://evil.example.com/payload')).toBe(false);
     });
   });
 });

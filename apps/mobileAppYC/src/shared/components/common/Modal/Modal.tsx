@@ -42,6 +42,7 @@ export const Modal: React.FC<ModalProps> = ({
           style={styles.backdrop}
           activeOpacity={1}
           onPress={onClose}
+          accessible={false}
         />
         <View
           style={[styles.content, {backgroundColor: theme.colors.background}]}>

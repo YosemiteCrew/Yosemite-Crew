@@ -92,6 +92,13 @@ export const NotificationFilterPills: React.FC<
                 styles.pill,
                 selectedFilter === option.id && styles.pillActive,
               ]}
+              accessibilityRole="radio"
+              accessibilityState={{selected: selectedFilter === option.id}}
+              accessibilityLabel={
+                unreadCounts[option.id]
+                  ? `${option.label}, ${unreadCounts[option.id]} unread`
+                  : option.label
+              }
               onLayout={e => {
                 itemLayouts.current[option.id] = {
                   x: e.nativeEvent.layout.x,
@@ -142,43 +149,44 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['2'],
     },
     pill: {
-      minWidth: theme.spacing['20'],
       height: theme.spacing['9'],
       paddingHorizontal: theme.spacing['4'],
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.pill,
       borderWidth: 1,
-      borderColor: theme.colors.secondary,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',
       gap: theme.spacing['1.25'],
     },
     pillActive: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.cta,
+      borderColor: theme.colors.cta,
     },
     pillText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.secondary,
+      ...theme.typography.labelXs,
+      color: theme.colors.inkMuted,
     },
     pillTextActive: {
-      color: theme.colors.primary,
+      color: theme.colors.ctaText,
+      fontWeight: '600',
     },
     badge: {
       minWidth: theme.spacing['5'],
       height: theme.spacing['5'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blueSoft,
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: theme.spacing['1'],
     },
     badgeActive: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.ctaText,
     },
     badgeText: {
       ...theme.typography.labelXs,
-      color: theme.colors.white,
+      color: theme.colors.blueText,
       fontWeight: '700',
     },
   });

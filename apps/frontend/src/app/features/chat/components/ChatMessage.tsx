@@ -117,12 +117,8 @@ function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen:
       <IoTimeOutline aria-label="Sending" className="h-[11px] w-[11px] text-[var(--ink-faint)]" />
     );
   if (seen)
-    return (
-      <IoCheckmarkDone aria-label="Seen" className="h-[11px] w-[11px] text-[var(--blue-text)]" />
-    );
-  return (
-    <IoCheckmarkOutline aria-label="Sent" className="h-[11px] w-[11px] text-[var(--ink-faint)]" />
-  );
+    return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue-text)]" />;
+  return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
 }
 
 /** Hover actions: react and reply, plus edit/delete for the user's own messages. */

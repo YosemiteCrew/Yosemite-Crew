@@ -126,9 +126,9 @@ const createStyles = (theme: any) =>
     thumbnailContainer: {
       width: 54,
       height: 54,
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.cardSmall,
       overflow: 'hidden',
-      backgroundColor: theme.colors.primarySurface,
+      backgroundColor: theme.colors.screen2,
       alignItems: 'center',
       justifyContent: 'center',
     },

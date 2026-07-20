@@ -12,39 +12,182 @@ import {getCurrentFcmToken} from '@/shared/services/firebaseNotifications';
 import {unregisterDeviceToken} from '@/shared/services/deviceTokenRegistry';
 import {LegalScreen} from '../components/LegalScreen';
 import {TERMS_SECTIONS} from '../data/termsData';
+import {TERMS_META} from '../data/legalMeta';
 import {createLegalStyles} from '../styles/legalStyles';
+import type {Theme} from '@/theme';
 import type {LegalStackParamList} from '@/navigation/types';
 
-if (__DEV__) {
-  try {
-    console.debug('TermsAndConditionsScreen: TERMS_SECTIONS typeof', typeof TERMS_SECTIONS, 'isArray', Array.isArray(TERMS_SECTIONS), 'len', Array.isArray(TERMS_SECTIONS) ? TERMS_SECTIONS.length : 'N/A');
-  } catch (err) {
-    // consume
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _err = err;
-  }
-}
-
-type TermsScreenProps = NativeStackScreenProps<LegalStackParamList, 'TermsAndConditions'>;
-type WithdrawalErrors = Partial<
-  Record<'fullName' | 'email' | 'address' | 'signature' | 'consent' | 'general', string>
+type TermsScreenProps = NativeStackScreenProps<
+  LegalStackParamList,
+  'TermsAndConditions'
 >;
+type WithdrawalErrors = Partial<
+  Record<
+    'fullName' | 'email' | 'address' | 'signature' | 'consent' | 'general',
+    string
+  >
+>;
+type WithdrawalFormState = {
+  fullName: string;
+  email: string;
+  address: string;
+  signature: string;
+  consent: boolean;
+};
+
+interface WithdrawalFormCardProps {
+  styles: ReturnType<typeof createLegalStyles>;
+  theme: Theme;
+  withdrawalForm: WithdrawalFormState;
+  formErrors: WithdrawalErrors;
+  isSubmitting: boolean;
+  setWithdrawalForm: React.Dispatch<React.SetStateAction<WithdrawalFormState>>;
+  clearFieldError: (field: keyof WithdrawalErrors) => void;
+  handleSubmit: () => void;
+}
 
 const WITHDRAWAL_MESSAGE =
   'I/we hereby withdraw the contract concluded with you.';
 
-export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
+/**
+ * Presentational card holding the EU right-of-withdrawal form. Extracted from
+ * the screen so the container stays focused on state + submission logic; all
+ * legal copy and field wiring is preserved verbatim.
+ */
+const WithdrawalFormCard: React.FC<WithdrawalFormCardProps> = ({
+  styles,
+  theme,
+  withdrawalForm,
+  formErrors,
+  isSubmitting,
+  setWithdrawalForm,
+  clearFieldError,
+  handleSubmit,
+}) => (
+  <LiquidGlassCard
+    glassEffect="regular"
+    interactive
+    style={styles.withdrawalCard}
+    fallbackStyle={styles.withdrawalCardFallback}>
+    <View style={styles.formHeader}>
+      <Text style={styles.formTitle} numberOfLines={1} ellipsizeMode="tail">
+        Withdrawal Form
+      </Text>
+      <Text style={styles.formSubtitle} numberOfLines={2} ellipsizeMode="tail">
+        Fill the form for Withdrawal
+      </Text>
+    </View>
+
+    <View style={styles.formFields}>
+      <Input
+        label="User Full Name"
+        value={withdrawalForm.fullName}
+        onChangeText={value =>
+          setWithdrawalForm(prev => {
+            clearFieldError('fullName');
+            return {...prev, fullName: value};
+          })
+        }
+        error={formErrors.fullName}
+      />
+      <Input
+        label="Email Address"
+        keyboardType="email-address"
+        value={withdrawalForm.email}
+        onChangeText={value =>
+          setWithdrawalForm(prev => {
+            clearFieldError('email');
+            return {...prev, email: value};
+          })
+        }
+        error={formErrors.email}
+      />
+      <Input
+        label="User Address"
+        multiline
+        numberOfLines={3}
+        textAlignVertical="top"
+        inputStyle={styles.textArea}
+        value={withdrawalForm.address}
+        onChangeText={value =>
+          setWithdrawalForm(prev => {
+            clearFieldError('address');
+            return {...prev, address: value};
+          })
+        }
+        error={formErrors.address}
+      />
+      <Input
+        label="Signature (Type Full Name)"
+        value={withdrawalForm.signature}
+        onChangeText={value =>
+          setWithdrawalForm(prev => {
+            clearFieldError('signature');
+            return {...prev, signature: value};
+          })
+        }
+        error={formErrors.signature}
+      />
+    </View>
+
+    <Checkbox
+      value={withdrawalForm.consent}
+      onValueChange={value =>
+        setWithdrawalForm(prev => {
+          clearFieldError('consent');
+          return {...prev, consent: value};
+        })
+      }
+      label="I/We hereby withdraw the contract concluded by me/us (*) for the purchase of the following goods (*)/the provision of the following service (*)"
+      labelStyle={styles.checkboxLabel}
+    />
+
+    {formErrors.consent && (
+      <Text style={styles.formErrorText}>{formErrors.consent}</Text>
+    )}
+    {formErrors.general && (
+      <Text style={styles.formErrorText}>{formErrors.general}</Text>
+    )}
+
+    <LiquidGlassButton
+      title="Submit"
+      onPress={handleSubmit}
+      glassEffect="regular"
+      interactive
+      tintColor={theme.colors.secondary}
+      borderColor={theme.colors.secondary}
+      style={styles.glassButtonDark}
+      textStyle={styles.glassButtonDarkText}
+      loading={isSubmitting}
+      disabled={isSubmitting}
+    />
+
+    <Text style={styles.formFooter}>
+      <Text style={styles.formFooterInline}>Form will be submitted to </Text>
+      <Text style={styles.formFooterInlineBold}>
+        DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz,
+        Germany, email address:{' '}
+      </Text>
+      <Text style={styles.formFooterEmail} accessibilityRole="link">
+        security@yosemitecrew.com
+      </Text>
+    </Text>
+  </LiquidGlassCard>
+);
+
+export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = props => {
   const {theme} = useTheme();
   const {user, logout} = useAuth();
   const styles = React.useMemo(() => createLegalStyles(theme), [theme]);
 
-  const [withdrawalForm, setWithdrawalForm] = React.useState({
-    fullName: '',
-    email: '',
-    address: '',
-    signature: '',
-    consent: false,
-  });
+  const [withdrawalForm, setWithdrawalForm] =
+    React.useState<WithdrawalFormState>({
+      fullName: '',
+      email: '',
+      address: '',
+      signature: '',
+      consent: false,
+    });
   const [formErrors, setFormErrors] = React.useState<WithdrawalErrors>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -113,7 +256,7 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
 
       return undefined;
     },
-    [user?.email]
+    [user?.email],
   );
 
   const validateForm = React.useCallback((): WithdrawalErrors => {
@@ -154,6 +297,8 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
   }, [logout]);
 
   const handleSubmit = React.useCallback(async () => {
+    /* istanbul ignore next -- the Submit button is disabled while submitting,
+       so this is a defensive guard that the UI cannot reach. */
     if (isSubmitting) {
       return;
     }
@@ -183,7 +328,10 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
           await unregisterDeviceToken({userId: user?.id, token});
         }
       } catch (tokenError) {
-        console.warn('[Withdrawal] Failed to unregister device token', tokenError);
+        console.warn(
+          '[Withdrawal] Failed to unregister device token',
+          tokenError,
+        );
       }
 
       Alert.alert(
@@ -206,121 +354,33 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = (props) => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [handleLogoutAfterSubmission, isSubmitting, user?.id, validateForm, withdrawalForm]);
-
-  const extraContent = (
-    <LiquidGlassCard
-      glassEffect="regular"
-      interactive
-      style={styles.withdrawalCard}
-      fallbackStyle={styles.withdrawalCardFallback}>
-      <View style={styles.formHeader}>
-        <Text style={styles.formTitle} numberOfLines={1} ellipsizeMode="tail">
-          Withdrawal Form
-        </Text>
-        <Text style={styles.formSubtitle} numberOfLines={2} ellipsizeMode="tail">
-          Fill the form for Withdrawal
-        </Text>
-      </View>
-
-      <View style={styles.formFields}>
-        <Input
-          label="User Full Name"
-          value={withdrawalForm.fullName}
-          onChangeText={value =>
-            setWithdrawalForm(prev => {
-              clearFieldError('fullName');
-              return {...prev, fullName: value};
-            })
-          }
-          error={formErrors.fullName}
-        />
-        <Input
-          label="Email Address"
-          keyboardType="email-address"
-          value={withdrawalForm.email}
-          onChangeText={value =>
-            setWithdrawalForm(prev => {
-              clearFieldError('email');
-              return {...prev, email: value};
-            })
-          }
-          error={formErrors.email}
-        />
-        <Input
-          label="User Address"
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-          inputStyle={styles.textArea}
-          value={withdrawalForm.address}
-          onChangeText={value =>
-            setWithdrawalForm(prev => {
-              clearFieldError('address');
-              return {...prev, address: value};
-            })
-          }
-          error={formErrors.address}
-        />
-        <Input
-          label="Signature (Type Full Name)"
-          value={withdrawalForm.signature}
-          onChangeText={value =>
-            setWithdrawalForm(prev => {
-              clearFieldError('signature');
-              return {...prev, signature: value};
-            })
-          }
-          error={formErrors.signature}
-        />
-      </View>
-
-      <Checkbox
-        value={withdrawalForm.consent}
-        onValueChange={value =>
-          setWithdrawalForm(prev => {
-            clearFieldError('consent');
-            return {...prev, consent: value};
-          })
-        }
-        label="I/We hereby withdraw the contract concluded by me/us (*) for the purchase of the following goods (*)/the provision of the following service (*)"
-        labelStyle={styles.checkboxLabel}
-      />
-
-      {formErrors.consent && (
-        <Text style={styles.formErrorText}>{formErrors.consent}</Text>
-      )}
-      {formErrors.general && (
-        <Text style={styles.formErrorText}>{formErrors.general}</Text>
-      )}
-
-      <LiquidGlassButton
-        title="Submit"
-        onPress={handleSubmit}
-        glassEffect="regular"
-        interactive
-        tintColor={theme.colors.secondary}
-        borderColor={theme.colors.secondary}
-        style={styles.glassButtonDark}
-        textStyle={styles.glassButtonDarkText}
-        loading={isSubmitting}
-        disabled={isSubmitting}
-      />
-
-      <Text style={styles.formFooter}>
-        <Text style={styles.formFooterInline}>Form will be submitted to </Text>
-        <Text style={styles.formFooterInlineBold}>DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7, 55127 Mainz, Germany, email address: </Text>
-        <Text style={styles.formFooterEmail} accessibilityRole="link">security@yosemitecrew.com</Text>
-      </Text>
-    </LiquidGlassCard>
-  );
+  }, [
+    handleLogoutAfterSubmission,
+    isSubmitting,
+    user?.id,
+    validateForm,
+    withdrawalForm,
+  ]);
 
   return (
     <LegalScreen
       {...props}
       title="Terms & Conditions"
+      docType="terms"
       sections={TERMS_SECTIONS}
-      extraContent={extraContent}
+      meta={TERMS_META}
+      extraContent={
+        <WithdrawalFormCard
+          styles={styles}
+          theme={theme}
+          withdrawalForm={withdrawalForm}
+          formErrors={formErrors}
+          isSubmitting={isSubmitting}
+          setWithdrawalForm={setWithdrawalForm}
+          clearFieldError={clearFieldError}
+          handleSubmit={handleSubmit}
+        />
+      }
     />
   );
 };

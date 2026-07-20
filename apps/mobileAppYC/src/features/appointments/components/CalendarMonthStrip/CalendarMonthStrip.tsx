@@ -113,7 +113,14 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
           item.isToday && styles.dateItemToday,
           !item.isCurrentMonth && styles.dateItemDisabled,
         ]}
-        onPress={() => onChange(item.date)}>
+        onPress={() => onChange(item.date)}
+        accessibilityRole="radio"
+        accessibilityState={{selected: item.isSelected}}
+        accessibilityLabel={
+          showMarker
+            ? `${item.dayName} ${item.dayNumber}, has appointments`
+            : `${item.dayName} ${item.dayNumber}`
+        }>
         <Text
           style={[styles.dateDay, item.isSelected && styles.dateDaySelected]}>
           {item.dayName}
@@ -143,14 +150,18 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
         <PressableOpacity
           onPress={() => setCurrentMonth(getPreviousMonth(currentMonth))}
           style={styles.navButton}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month">
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
         <Text style={styles.monthTitle}>{formatMonthYear(currentMonth)}</Text>
         <PressableOpacity
           onPress={() => setCurrentMonth(getNextMonth(currentMonth))}
           style={styles.navButton}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Next month">
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
       </View>

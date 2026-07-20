@@ -70,6 +70,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
     const statusUpper = String(task.status).toUpperCase();
     const isPending = statusUpper === 'PENDING';
     const isCompleted = statusUpper === 'COMPLETED';
+    const isCancelled = statusUpper === 'CANCELLED';
     const assignedToData =
       task.assignedTo === authUser?.id
         ? {
@@ -84,6 +85,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
     return {
       isPending,
       isCompleted,
+      isCancelled,
       assignedToData,
       isObservationalToolTask,
     };
@@ -210,6 +212,7 @@ jest.mock('@/features/tasks/components', () => ({
     showEditAction,
     showCompleteButton,
     assignedToName,
+    subcategoryLabel,
   }: any) => {
     const {View, Text, TouchableOpacity} = require('react-native');
     return (
@@ -217,6 +220,9 @@ jest.mock('@/features/tasks/components', () => ({
         <Text>{title}</Text>
         {assignedToName && (
           <Text testID={`assigned-${title}`}>{assignedToName}</Text>
+        )}
+        {subcategoryLabel && (
+          <Text testID={`subcategory-${title}`}>{subcategoryLabel}</Text>
         )}
         <TouchableOpacity testID={`view-${title}`} onPress={onPressView}>
           <Text>View</Text>
@@ -372,6 +378,53 @@ describe('TasksListScreen', () => {
     expect(queryByText('Missing Companion Task')).toBeNull();
   });
 
+  it('passes the subcategory label through when the task has one', () => {
+    const stateWithSubcategory = {
+      ...mockState,
+      mockTasks: [
+        {
+          ...mockState.mockTasks[0],
+          subcategory: 'Vaccination',
+        },
+      ],
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithSubcategory));
+
+    const {getByTestId} = render(<TasksListScreen />);
+    expect(getByTestId('subcategory-Regular Task').props.children).toBe(
+      'Vaccination',
+    );
+  });
+
+  it('defaults companion avatar to undefined when the companion has no profile image', () => {
+    const stateWithNoAvatar = {
+      ...mockState,
+      companion: {
+        ...mockState.companion,
+        companions: [
+          {id: 'c1', name: 'Buddy', profileImage: null},
+          {id: 'c2', name: 'Lucy', profileImage: 'img2'},
+        ],
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithNoAvatar));
+
+    expect(() => render(<TasksListScreen />)).not.toThrow();
+  });
+
+  it('builds a fallback list key when no companion is selected', () => {
+    const stateWithNoSelection = {
+      ...mockState,
+      companion: {
+        ...mockState.companion,
+        selectedCompanionId: null,
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithNoSelection));
+
+    expect(() => render(<TasksListScreen />)).not.toThrow();
+  });
+
   it('handles tasks assigned to other users (coverage for assignedToData)', () => {
     // Modify t1 to be assigned to someone else
     const otherUserState = {
@@ -462,5 +515,23 @@ describe('TasksListScreen', () => {
     const {queryByTestId} = render(<TasksListScreen />);
 
     expect(queryByTestId('start-ot-Regular Task')).toBeNull();
+  });
+
+  it('does not show edit action for a cancelled task', () => {
+    const cancelledState = {
+      ...mockState,
+      mockTasks: [
+        {
+          ...mockState.mockTasks[0],
+          title: 'Cancelled Task',
+          status: 'cancelled',
+        },
+      ],
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(cancelledState));
+
+    const {queryByTestId} = render(<TasksListScreen />);
+
+    expect(queryByTestId('edit-Cancelled Task')).toBeNull();
   });
 });

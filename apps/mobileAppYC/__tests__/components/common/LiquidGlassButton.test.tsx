@@ -112,6 +112,74 @@ describe('LiquidGlassButton', () => {
     });
   });
 
+  describe('Accessibility', () => {
+    it('exposes button role and defaults the label to the title on the native glass branch', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Save" onPress={() => {}} />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityRole).toBe('button');
+      expect(touchable.props.accessibilityLabel).toBe('Save');
+      expect(touchable.props.accessibilityState).toEqual({
+        disabled: false,
+        busy: false,
+      });
+    });
+
+    it('lets an explicit accessibilityLabel override the visible title', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="Save"
+              onPress={() => {}}
+              accessibilityLabel="Save changes to your pet's profile"
+            />,
+          ),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityLabel).toBe(
+        "Save changes to your pet's profile",
+      );
+    });
+
+    it('marks disabled and busy state for screen readers while loading', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Submit" onPress={() => {}} loading />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityState).toEqual({
+        disabled: true,
+        busy: true,
+      });
+    });
+
+    it('exposes button role and label on the Android fallback branch', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Continue" onPress={() => {}} />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityRole).toBe('button');
+      expect(touchable.props.accessibilityLabel).toBe('Continue');
+    });
+  });
+
   describe('Size Variants', () => {
     it('should render small size', () => {
       let tree!: TestRenderer.ReactTestRenderer;
@@ -708,6 +776,204 @@ describe('LiquidGlassButton', () => {
       });
 
       expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Color Parsing', () => {
+    it('should treat an rgba color with non-numeric channels as not light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="BadRgba"
+              onPress={() => {}}
+              tintColor="rgba(x, 10, 20)"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should treat a non-hex, non-rgba named color as not light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="Navy"
+              onPress={() => {}}
+              tintColor="navy"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should treat a short hex color as not light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="ShortHex"
+              onPress={() => {}}
+              tintColor="#abc"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Border Radius Fallback', () => {
+    it('should resolve a known theme border radius key to its numeric value', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="KnownRadius"
+              onPress={() => {}}
+              borderRadius="lg"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should fall back to the theme button radius for an unknown string key', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="UnknownRadius"
+              onPress={() => {}}
+              borderRadius={'notARadiusKey' as never}
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Compact Sizing', () => {
+    it('should skip size padding when compact', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton title="Compact" onPress={() => {}} compact />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('System Color Scheme', () => {
+    it('should resolve the system color scheme to light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="System"
+              onPress={() => {}}
+              colorScheme="system"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Icon Without Title', () => {
+    it('should render a right icon with no title spacing when title is absent', () => {
+      const RightIcon = () => <Text>»</Text>;
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton onPress={() => {}} rightIcon={<RightIcon />} />,
+          ),
+        );
+      });
+
+      const texts = tree.root.findAllByType(Text);
+      expect(texts.some(t => t.props.children === '»')).toBe(true);
+    });
+  });
+
+  describe('Android Fallback Branches', () => {
+    it('should apply a custom border color on the Android fallback surface', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="AndroidBorder"
+              onPress={() => {}}
+              borderColor="#00FF00"
+            />,
+          ),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable).toBeTruthy();
+    });
+
+    it('should use the dark android glass tint for the dark color scheme', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="AndroidDark"
+              onPress={() => {}}
+              colorScheme="dark"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should use white text for a dark tint on the Android fallback', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="AndroidTinted"
+              onPress={() => {}}
+              tintColor="#F44336"
+            />,
+          ),
+        );
+      });
+
+      const texts = tree.root.findAllByType(Text);
+      expect(texts.some(t => t.props.children === 'AndroidTinted')).toBe(true);
     });
   });
 });

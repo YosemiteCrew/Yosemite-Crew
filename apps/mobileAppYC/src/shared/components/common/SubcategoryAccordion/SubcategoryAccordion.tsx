@@ -63,7 +63,10 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
         <PressableOpacity
           style={styles.header}
           onPress={toggleExpanded}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={title}
+          accessibilityState={{expanded}}>
           {icon && <Image source={icon} style={styles.icon} />}
           <View
             style={[

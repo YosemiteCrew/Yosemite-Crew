@@ -10,6 +10,8 @@ jest.mock('@/shared/components/common/DocumentCard/DocumentCard', () => {
   return (props: any) => (
     <View testID="mock-card">
       <Text>{props.title}</Text>
+      {/* Reflect the derived synced flag for assertions */}
+      {props.synced ? <Text testID="synced-flag">SYNCED</Text> : null}
       {/* Simulate the card's view action button */}
       <Button testID="btn-view" title="View" onPress={props.onPressView} />
       {/* Simulate pressing the card body itself */}
@@ -38,6 +40,7 @@ describe('DocumentListItem', () => {
     issueDate: '2023-01-01',
     isUserAdded: true,
     uploadedByPmsUserId: null,
+    isSynced: false,
   };
 
   beforeEach(() => {
@@ -136,5 +139,42 @@ describe('DocumentListItem', () => {
     );
 
     expect(queryByTestId('btn-edit')).toBeNull();
+  });
+
+  // --- 3. Synced Flag Derivation ---
+
+  it('does not mark the card synced for a plain user-added document', () => {
+    const {queryByTestId} = render(
+      <DocumentListItem
+        document={baseDocument as any}
+        onPressView={mockOnView}
+      />,
+    );
+
+    expect(queryByTestId('synced-flag')).toBeNull();
+  });
+
+  it('marks the card synced when isSynced is true', () => {
+    const doc = {...baseDocument, isSynced: true};
+
+    const {getByTestId} = render(
+      <DocumentListItem document={doc as any} onPressView={mockOnView} />,
+    );
+
+    expect(getByTestId('synced-flag')).toBeTruthy();
+  });
+
+  it('marks the card synced when the document has a PMS uploader ID', () => {
+    const doc = {
+      ...baseDocument,
+      isSynced: false,
+      uploadedByPmsUserId: 'pms-user-1',
+    };
+
+    const {getByTestId} = render(
+      <DocumentListItem document={doc as any} onPressView={mockOnView} />,
+    );
+
+    expect(getByTestId('synced-flag')).toBeTruthy();
   });
 });

@@ -327,6 +327,60 @@ describe('ProfileImagePicker', () => {
       expect(linkSpy).toHaveBeenCalled();
     });
 
+    it('handles RESULTS.BLOCKED for the photo library', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.BLOCKED);
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+      const chooseGallery = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Choose from Gallery',
+      )!;
+
+      alertSpy.mockClear();
+      await act(async () => await chooseGallery.onPress!());
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Permission Blocked',
+        expect.stringContaining('Photo library'),
+        expect.any(Array),
+      );
+    });
+
+    it('handles RESULTS.LIMITED as already granted', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.LIMITED);
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+      const takePhoto = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Take Photo',
+      )!;
+
+      await act(async () => await takePhoto.onPress!());
+
+      expect(request).not.toHaveBeenCalled();
+      expect(launchCamera).toHaveBeenCalled();
+    });
+
+    it('treats an unrecognized permission result as denied', async () => {
+      (check as jest.Mock).mockResolvedValue('some-unexpected-result');
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+      const takePhoto = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Take Photo',
+      )!;
+
+      await act(async () => await takePhoto.onPress!());
+
+      expect(launchCamera).not.toHaveBeenCalled();
+    });
+
     it('handles checking permission error', async () => {
       (check as jest.Mock).mockRejectedValue(new Error('Check failed'));
       const {UNSAFE_getByType} = render(
@@ -427,6 +481,17 @@ describe('ProfileImagePicker', () => {
       expect(alertSpy).toHaveBeenCalledWith('Error', 'Bad things happened');
     });
 
+    it('falls back to a generic message when a generic error code has no errorMessage', async () => {
+      alertSpy.mockClear();
+      await runPickerFlow({
+        errorCode: 'other',
+      });
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Error',
+        'An error occurred while picking the image',
+      );
+    });
+
     it('handles success with valid URI', async () => {
       await runPickerFlow({
         assets: [{uri: 'new_image_uri', fileName: 'test.jpg'}],
@@ -438,6 +503,12 @@ describe('ProfileImagePicker', () => {
       alertSpy.mockClear();
       await runPickerFlow({assets: [{}]}); // Missing uri
       expect(alertSpy).toHaveBeenCalledWith('Error', 'Failed to get image URI');
+    });
+
+    it('does nothing when the response has no assets at all', async () => {
+      await runPickerFlow({});
+      expect(alertSpy).not.toHaveBeenCalledWith('Error', expect.any(String));
+      expect(mockOnImageSelected).not.toHaveBeenCalled();
     });
   });
 

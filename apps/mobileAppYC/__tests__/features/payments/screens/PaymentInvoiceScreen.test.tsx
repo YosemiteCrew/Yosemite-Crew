@@ -353,7 +353,9 @@ describe('PaymentInvoiceScreen', () => {
 
     render(<PaymentInvoiceScreen />);
 
-    expect(screen.getByText('Paid')).toBeTruthy();
+    // "Paid" now renders twice: the "Payment status" row value and the new
+    // status Badge in the invoice-details card header.
+    expect(screen.getAllByText('Paid').length).toBeGreaterThanOrEqual(2);
   });
 
   // --- Branch Coverage: Date Formatting ---
@@ -928,7 +930,8 @@ describe('PaymentInvoiceScreen', () => {
     render(<PaymentInvoiceScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('Pay now')).toBeTruthy();
+      // CTA label is data-driven: `Pay ${formatMoney(total)}` — total 150, USD → "$".
+      expect(screen.getByText('Pay $150.00')).toBeTruthy();
     });
   });
 
@@ -953,5 +956,254 @@ describe('PaymentInvoiceScreen', () => {
       );
       expect(mockGoBack).toHaveBeenCalled();
     });
+  });
+
+  // --- Additional Branch Coverage ---
+
+  it('falls back to guardian initial "Y" when the only name source is whitespace', () => {
+    const state = createSafeState({
+      auth: {user: null},
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            billedToName: '   ',
+            billedToEmail: undefined,
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getByText('Y')).toBeTruthy();
+  });
+
+  it('resolves the store invoice for an expense-based flow with no route invoice', () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {expenseId: 'exp-eo', appointmentId: 'apt-1'},
+    });
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getByText('Invoice details')).toBeTruthy();
+    expect(screen.getByText('INV-001')).toBeTruthy();
+  });
+
+  it('renders a price component with no type, code or amount (Line fallback)', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {...mockInvoiceData, totalPriceComponent: [{}]},
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getByText('Line 1')).toBeTruthy();
+  });
+
+  it('builds an effective invoice from a payment intent when no invoice exists', async () => {
+    const state = createSafeState({
+      appointments: {
+        items: [
+          {
+            ...mockStateBase.appointments.items[0],
+            paymentIntent: {createdAt: '2025-06-01T10:00:00Z'},
+          },
+        ],
+        invoices: {},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    await waitFor(() => {
+      expect(screen.getByText('pi-apt-1')).toBeTruthy();
+    });
+  });
+
+  it('renders refund details with all optional refund fields missing', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {
+        expenseId: 'exp-ru',
+        invoice: {
+          ...mockInvoiceData,
+          id: 'inv-ru',
+          status: 'REFUNDED',
+          refundReceiptUrl: 'https://example.com/refund-ru',
+        },
+      },
+    });
+    render(<PaymentInvoiceScreen />);
+    await waitFor(() => {
+      expect(screen.getByText('Refund')).toBeTruthy();
+      expect(screen.getByText('Refund ID')).toBeTruthy();
+      expect(screen.getByText('REFUNDED')).toBeTruthy();
+      expect(screen.getByText('View refund receipt')).toBeTruthy();
+    });
+  });
+
+  it('shows an em dash payment status for a blank invoice status', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {'apt-1': {...mockInvoiceData, status: '   '}},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getByText('Due')).toBeTruthy();
+  });
+
+  it('renders a "Cancelled" badge for a cancelled invoice status', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {'apt-1': {...mockInvoiceData, status: 'CANCELLED'}},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getAllByText('Cancelled').length).toBeGreaterThan(0);
+  });
+
+  it('renders a "Due" badge (not "Paid") for an unpaid invoice status', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {'apt-1': {...mockInvoiceData, status: 'Unpaid'}},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getAllByText('Due').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Paid')).toBeNull();
+  });
+
+  it('detects a cash-collected invoice from a PAID_CASH invoice status', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {'apt-1': {...mockInvoiceData, status: 'PAID_CASH'}},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getByText('Paid - Cash')).toBeTruthy();
+  });
+
+  it('detects a cash-collected invoice from cash payment metadata indicators', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            status: 'PAID',
+            metadata: {note: null, tender: 'cash'},
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getByText('Paid - Cash')).toBeTruthy();
+  });
+
+  it('stores the business photo from the business details response', async () => {
+    const photoDispatch = jest.fn(() => ({
+      unwrap: () => Promise.resolve({photoUrl: 'http://photo-a'}),
+    }));
+    (useDispatch as unknown as jest.Mock).mockReturnValue(photoDispatch);
+    const state = createSafeState({
+      appointments: {
+        items: [{...mockStateBase.appointments.items[0], status: 'COMPLETED'}],
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            totalPriceComponent: [
+              {type: 'base', amount: {value: 100}},
+              {type: 'discount', amount: {value: 5}},
+              {type: 'tax', amount: {value: 10}},
+            ],
+          },
+        },
+      },
+      businesses: {
+        businesses: [
+          {
+            id: 'biz-1',
+            name: 'Vet Clinic',
+            address: '123 Vet St',
+            googlePlacesId: 'gp-1',
+          },
+        ],
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    await waitFor(() => {
+      expect(photoDispatch).toHaveBeenCalled();
+    });
+    expect(screen.getByText('Invoice details')).toBeTruthy();
+  });
+
+  it('falls back to the places image when the business details lack a photo', async () => {
+    let call = 0;
+    const twoStepDispatch = jest.fn(() => ({
+      unwrap: () => {
+        call += 1;
+        return Promise.resolve(call === 1 ? {} : {photoUrl: 'http://photo-b'});
+      },
+    }));
+    (useDispatch as unknown as jest.Mock).mockReturnValue(twoStepDispatch);
+    const state = createSafeState({
+      appointments: {
+        items: [{...mockStateBase.appointments.items[0], status: 'COMPLETED'}],
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            totalPriceComponent: [
+              {type: 'base', amount: {value: 100}},
+              {type: 'discount', amount: {value: 5}},
+              {type: 'tax', amount: {value: 10}},
+            ],
+          },
+        },
+      },
+      businesses: {
+        businesses: [
+          {
+            id: 'biz-1',
+            name: 'Vet Clinic',
+            address: '123 Vet St',
+            googlePlacesId: 'gp-1',
+          },
+        ],
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    await waitFor(() => {
+      expect(twoStepDispatch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('defaults route params to an empty object when params are undefined', async () => {
+    (useRoute as jest.Mock).mockReturnValue({});
+    (useSelector as unknown as jest.Mock).mockImplementation(fn =>
+      fn(createSafeState({appointments: {items: [], invoices: {}}})),
+    );
+    render(<PaymentInvoiceScreen />);
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Missing data',
+        'Could not open payment screen without appointment or invoice.',
+      );
+    });
+  });
+
+  it('resets request refs when the appointmentId changes', () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {appointmentId: 'apt-1', companionId: 'comp-1'},
+    });
+    const {rerender} = render(<PaymentInvoiceScreen />);
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {appointmentId: 'apt-2', companionId: 'comp-1'},
+    });
+    rerender(<PaymentInvoiceScreen />);
+    expect(screen.getByTestId('summary-cards')).toBeTruthy();
   });
 });

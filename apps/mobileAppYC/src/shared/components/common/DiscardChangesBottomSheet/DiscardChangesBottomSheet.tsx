@@ -43,6 +43,8 @@ export const DiscardChangesBottomSheet = ({
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
+      destructive
+      destructiveIcon="arrow-undo-outline"
       title="Discard changes?"
       message="You have unsaved changes. Are you sure you want to discard them?"
       primaryButton={{

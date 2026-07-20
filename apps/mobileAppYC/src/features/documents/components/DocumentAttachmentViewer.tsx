@@ -7,7 +7,6 @@ import {
   useWindowDimensions,
   Share,
   ActivityIndicator,
-  PermissionsAndroid,
   Platform,
 } from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
@@ -22,8 +21,8 @@ import {
   isPdfFile,
   resolveSourceUri,
 } from './documentAttachmentUtils';
-import RNFS from 'react-native-fs';
 import {normalizeMimeType} from '@/shared/utils/mime';
+import {downloadDocumentToAppStorage} from '@/shared/utils/documentDownload';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
@@ -150,24 +149,6 @@ const DocViewer: React.FC<{fallback?: React.ReactNode; fileName?: string}> = ({
   );
 };
 
-const ensureStoragePermission = async () => {
-  if (Platform.OS !== 'android') {
-    return true;
-  }
-  // For API 33+, writing to Downloads does not require legacy storage permission.
-  if (Platform.Version >= 33) {
-    return true;
-  }
-  // Below API 29 the shared Download/ directory is only writable with the legacy
-  // write grant; targeting API 26+ means requesting READ alone never confers it.
-  const permission =
-    Platform.Version <= 28
-      ? PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
-      : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
-  const result = await PermissionsAndroid.request(permission);
-  return result === PermissionsAndroid.RESULTS.GRANTED;
-};
-
 const handleDownload = async (file: DocumentFile) => {
   const sourceUri = resolveSourceUri(file);
   if (!sourceUri) {
@@ -179,15 +160,6 @@ const handleDownload = async (file: DocumentFile) => {
   }
 
   try {
-    const hasPermission = await ensureStoragePermission();
-    if (!hasPermission) {
-      Alert.alert(
-        'Permission needed',
-        'Please grant storage permission to download files.',
-      );
-      return;
-    }
-
     const normalizedType = normalizeMimeType(file.type);
     const extension =
       (normalizedType && MIME_EXTENSION_MAP[normalizedType]) ||
@@ -197,15 +169,10 @@ const handleDownload = async (file: DocumentFile) => {
     const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
       ? safeName
       : `${safeName}.${extension}`;
-    const downloadDir =
-      RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
-    const downloadPath = `${downloadDir}/${fileName}`;
-    await RNFS.mkdir(downloadDir);
-    await RNFS.downloadFile({
-      fromUrl: sourceUri,
-      toFile: downloadPath,
-      discretionary: true,
-    }).promise;
+    const downloadPath = await downloadDocumentToAppStorage(
+      sourceUri,
+      fileName,
+    );
     Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
   } catch (error) {
     console.warn('[DocumentAttachmentViewer] Download error', error);

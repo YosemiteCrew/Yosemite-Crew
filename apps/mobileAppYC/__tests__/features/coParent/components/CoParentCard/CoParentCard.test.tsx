@@ -111,6 +111,25 @@ describe('CoParentCard', () => {
     expect(onPressView).toHaveBeenCalled();
   });
 
+  it('exposes a button role and name-based label on the card body', () => {
+    const onPressView = jest.fn();
+    const {getByLabelText} = render(
+      <CoParentCard coParent={mockCoParent as any} onPressView={onPressView} />,
+    );
+
+    const card = getByLabelText('View John Doe');
+    expect(card.props.accessibilityRole).toBe('button');
+    expect(card.props.accessibilityState).toEqual({disabled: false});
+  });
+
+  it('marks the card as disabled to screen readers when no onPressView is given', () => {
+    const {getByLabelText} = render(
+      <CoParentCard coParent={mockCoParent as any} />,
+    );
+    const card = getByLabelText('View John Doe');
+    expect(card.props.accessibilityState).toEqual({disabled: true});
+  });
+
   it('calls onPressEdit when the edit action is pressed', () => {
     const onPressEdit = jest.fn();
     const {getByTestId} = render(

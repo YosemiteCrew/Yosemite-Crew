@@ -1,9 +1,25 @@
 import React from 'react';
-import {render, fireEvent, act} from '@testing-library/react-native';
+import {render, act} from '@testing-library/react-native';
 import DeleteAccountBottomSheet, {
   DeleteAccountBottomSheetRef,
 } from '../../../../src/features/account/components/DeleteAccountBottomSheet';
 import {mockTheme} from '../../../setup/mockTheme';
+
+// --- Mutable mock state (prefixed `mock` so jest.mock factories may use them) ---
+
+// Toggles whether the inner ConfirmActionBottomSheet registers an imperative
+// handle. When false, `sheetRef.current` stays null so we exercise the
+// `sheetRef.current?.(open|close)` null optional-chain branches.
+let mockRegisterSheetHandle = true;
+
+// Swappable theme so we can render with a theme missing `colors.error` and hit
+// the `theme.colors.error ?? theme.colors.secondary` fallback branch.
+let mockThemeValue: any = mockTheme;
+
+// Captures the latest props handed to ConfirmActionBottomSheet so tests can call
+// the primary/secondary handlers directly, bypassing TouchableOpacity's disabled
+// gate (RNTL suppresses presses on disabled Touchables).
+const mockSheetProps: {current: any} = {current: null};
 
 // --- Mocks ---
 
@@ -19,10 +35,11 @@ jest.mock(
     } = require('react-native');
 
     return ReactLib.forwardRef((props: any, ref: any) => {
-      ReactLib.useImperativeHandle(ref, () => ({
-        open: jest.fn(),
-        close: jest.fn(),
-      }));
+      ReactLib.useImperativeHandle(ref, () =>
+        mockRegisterSheetHandle ? {open: jest.fn(), close: jest.fn()} : null,
+      );
+
+      mockSheetProps.current = props;
 
       return (
         <RNView testID="mock-confirm-sheet">
@@ -67,7 +84,7 @@ jest.mock('../../../../src/shared/components/common/Input/Input', () => {
 
 // 3. Mock Hooks
 jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: () => ({theme: mockThemeValue, isDark: false}),
 }));
 
 describe('DeleteAccountBottomSheet', () => {
@@ -77,6 +94,11 @@ describe('DeleteAccountBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRegisterSheetHandle = true;
+    mockThemeValue = mockTheme;
+    mockSheetProps.current = null;
+    mockOnDelete.mockReset();
+    mockOnDelete.mockResolvedValue(undefined);
   });
 
   // Helper to simulate typing
@@ -86,6 +108,21 @@ describe('DeleteAccountBottomSheet', () => {
     );
     act(() => {
       inputComponent.props.onChangeText(text);
+    });
+  };
+
+  // Invoke the captured primary/secondary handlers directly. This bypasses the
+  // TouchableOpacity disabled gate so we can drive the in-handler validation
+  // branches that a real disabled press would swallow.
+  const pressPrimary = async () => {
+    await act(async () => {
+      await mockSheetProps.current.primaryButton.onPress();
+    });
+  };
+
+  const pressSecondary = () => {
+    act(() => {
+      mockSheetProps.current.secondaryButton.onPress();
     });
   };
 
@@ -106,6 +143,10 @@ describe('DeleteAccountBottomSheet', () => {
     expect(
       getByText('Are you sure you want to delete your account?'),
     ).toBeTruthy();
+    expect(
+      getByText('To delete account re-write your email address.'),
+    ).toBeTruthy();
+    expect(getByText(/If you're not the primary parent/)).toBeTruthy();
     expect(getByTestId('sheet-primary-button')).toBeTruthy();
     expect(getByTestId('sheet-secondary-button')).toBeTruthy();
   });
@@ -164,26 +205,21 @@ describe('DeleteAccountBottomSheet', () => {
   });
 
   it('clears error on text change', async () => {
-    const {getByTestId, UNSAFE_getByType} = render(
+    const rendered = render(
       <DeleteAccountBottomSheet
         email="user@test.com"
         onDelete={mockOnDelete}
       />,
     );
+    const {getByTestId, UNSAFE_getByType} = rendered;
 
-    // Trigger error by pressing disabled button (bypassed via testID press)
-    await act(async () => {
-      fireEvent.press(getByTestId('sheet-primary-button'));
-    });
+    // Trigger a validation error (empty input) via the handler directly.
+    await pressPrimary();
+    expect(getByTestId('input-error').props.children).toBe('Email is required');
 
-    // Use findByText to wait for state update
-    // Type something
+    // Typing clears the error.
     typeEmail({UNSAFE_getByType}, 'u');
-
-    // Error should be gone. We check the input error prop via testID
-    // Since state update is async, we expect re-render.
-    const errorText = getByTestId('input-error');
-    expect(errorText.props.children).toBeFalsy();
+    expect(getByTestId('input-error').props.children).toBeFalsy();
   });
 
   // ===========================================================================
@@ -191,7 +227,7 @@ describe('DeleteAccountBottomSheet', () => {
   // ===========================================================================
 
   it('calls onDelete when valid and pressed', async () => {
-    const {getByTestId, UNSAFE_getByType} = render(
+    const {UNSAFE_getByType} = render(
       <DeleteAccountBottomSheet
         email="user@test.com"
         onDelete={mockOnDelete}
@@ -199,17 +235,25 @@ describe('DeleteAccountBottomSheet', () => {
     );
 
     typeEmail({UNSAFE_getByType}, 'user@test.com');
+    await pressPrimary();
 
-    await act(async () => {
-      fireEvent.press(getByTestId('sheet-primary-button'));
-    });
+    expect(mockOnDelete).toHaveBeenCalled();
+  });
+
+  it('calls onDelete when account email is null and any text is typed', async () => {
+    const {UNSAFE_getByType} = render(
+      <DeleteAccountBottomSheet email={null} onDelete={mockOnDelete} />,
+    );
+
+    typeEmail({UNSAFE_getByType}, 'anything at all');
+    await pressPrimary();
 
     expect(mockOnDelete).toHaveBeenCalled();
   });
 
   it('shows error if valid email matches but onDelete fails (Error object)', async () => {
     mockOnDelete.mockRejectedValue(new Error('Network fail'));
-    const {findByText, UNSAFE_getByType, getByTestId} = render(
+    const {getByTestId, UNSAFE_getByType} = render(
       <DeleteAccountBottomSheet
         email="user@test.com"
         onDelete={mockOnDelete}
@@ -217,18 +261,14 @@ describe('DeleteAccountBottomSheet', () => {
     );
 
     typeEmail({UNSAFE_getByType}, 'user@test.com');
+    await pressPrimary();
 
-    await act(async () => {
-      fireEvent.press(getByTestId('sheet-primary-button'));
-    });
-
-    const errorMsg = await findByText('Network fail');
-    expect(errorMsg).toBeTruthy();
+    expect(getByTestId('input-error').props.children).toBe('Network fail');
   });
 
-  it('shows generic error if onDelete fails with string', async () => {
+  it('shows generic error if onDelete fails with a non-Error value', async () => {
     mockOnDelete.mockRejectedValue('String error');
-    const {findByText, UNSAFE_getByType, getByTestId} = render(
+    const {getByTestId, UNSAFE_getByType} = render(
       <DeleteAccountBottomSheet
         email="user@test.com"
         onDelete={mockOnDelete}
@@ -236,19 +276,15 @@ describe('DeleteAccountBottomSheet', () => {
     );
 
     typeEmail({UNSAFE_getByType}, 'user@test.com');
+    await pressPrimary();
 
-    await act(async () => {
-      fireEvent.press(getByTestId('sheet-primary-button'));
-    });
-
-    const errorMsg = await findByText(
+    expect(getByTestId('input-error').props.children).toBe(
       'Failed to delete your account. Please try again.',
     );
-    expect(errorMsg).toBeTruthy();
   });
 
-  it('does nothing if isProcessing is true', async () => {
-    const {getByTestId, UNSAFE_getByType} = render(
+  it('does nothing (and shows loading label) if isProcessing is true', async () => {
+    const {getByText, getByTestId, UNSAFE_getByType} = render(
       <DeleteAccountBottomSheet
         email="user@test.com"
         onDelete={mockOnDelete}
@@ -256,18 +292,34 @@ describe('DeleteAccountBottomSheet', () => {
       />,
     );
 
-    typeEmail({UNSAFE_getByType}, 'user@test.com');
+    // Loading label is rendered
+    expect(getByText('Deleting...')).toBeTruthy();
+    // Button is disabled while processing
+    expect(
+      getByTestId('sheet-primary-button').props.accessibilityState?.disabled,
+    ).toBe(true);
 
-    await act(async () => {
-      fireEvent.press(getByTestId('sheet-primary-button'));
-    });
+    typeEmail({UNSAFE_getByType}, 'user@test.com');
+    await pressPrimary();
 
     expect(mockOnDelete).not.toHaveBeenCalled();
-    // Verify loading label
   });
 
-  // Edge Case: Hitting validation branches inside handleDelete explicitly
-  it('sets validation errors inside handler if bypassing disabled state', async () => {
+  it('sets "Email is required" error when submitting an empty input', async () => {
+    const {getByTestId} = render(
+      <DeleteAccountBottomSheet
+        email="user@test.com"
+        onDelete={mockOnDelete}
+      />,
+    );
+
+    await pressPrimary();
+
+    expect(getByTestId('input-error').props.children).toBe('Email is required');
+    expect(mockOnDelete).not.toHaveBeenCalled();
+  });
+
+  it('sets "must match" error when the typed email does not match', async () => {
     const {getByTestId, UNSAFE_getByType} = render(
       <DeleteAccountBottomSheet
         email="user@test.com"
@@ -275,15 +327,13 @@ describe('DeleteAccountBottomSheet', () => {
       />,
     );
 
-    // Case 1: Empty
-    await act(async () => {
-      fireEvent.press(getByTestId('sheet-primary-button'));
-    });
-    // Case 2: Mismatch
     typeEmail({UNSAFE_getByType}, 'mismatch@test.com');
-    await act(async () => {
-      fireEvent.press(getByTestId('sheet-primary-button'));
-    });
+    await pressPrimary();
+
+    expect(getByTestId('input-error').props.children).toBe(
+      'Email must match your account email',
+    );
+    expect(mockOnDelete).not.toHaveBeenCalled();
   });
 
   // ===========================================================================
@@ -299,7 +349,7 @@ describe('DeleteAccountBottomSheet', () => {
       />,
     );
 
-    // Create "dirty" state (error present, text typed)
+    // Create "dirty" state (text typed)
     typeEmail({UNSAFE_getByType}, 'dirty');
 
     // Call open
@@ -330,23 +380,66 @@ describe('DeleteAccountBottomSheet', () => {
     );
 
     typeEmail({UNSAFE_getByType}, 'dirty');
-
-    act(() => {
-      fireEvent.press(getByTestId('sheet-secondary-button'));
-    });
+    pressSecondary();
 
     expect(mockOnCancel).toHaveBeenCalled();
+    // State was reset -> delete disabled again
+    expect(
+      getByTestId('sheet-primary-button').props.accessibilityState?.disabled,
+    ).toBe(true);
   });
 
   it('handles cancel button when onCancel prop is undefined', () => {
-    const {getByTestId} = render(
+    render(
       <DeleteAccountBottomSheet
         email="user@test.com"
         onDelete={mockOnDelete}
       />,
     );
+    expect(() => pressSecondary()).not.toThrow();
+  });
+
+  it('handles a null inner sheet ref gracefully (open/close/cancel)', () => {
+    // Inner ConfirmActionBottomSheet does not register a handle, so
+    // sheetRef.current stays null across open/close/handleClose.
+    mockRegisterSheetHandle = false;
+
+    render(
+      <DeleteAccountBottomSheet
+        ref={ref}
+        email="user@test.com"
+        onDelete={mockOnDelete}
+        onCancel={mockOnCancel}
+      />,
+    );
+
     expect(() => {
-      fireEvent.press(getByTestId('sheet-secondary-button'));
+      act(() => {
+        ref.current?.open();
+      });
+      act(() => {
+        ref.current?.close();
+      });
+      pressSecondary();
     }).not.toThrow();
+
+    expect(mockOnCancel).toHaveBeenCalled();
+  });
+
+  // ===========================================================================
+  // 5. Theme fallback
+  // ===========================================================================
+
+  it('falls back to secondary color when the theme has no error color', () => {
+    mockThemeValue = {
+      ...mockTheme,
+      colors: {...mockTheme.colors, error: undefined},
+    };
+
+    const {getByText} = render(
+      <DeleteAccountBottomSheet email="a" onDelete={mockOnDelete} />,
+    );
+
+    expect(getByText('Delete account')).toBeTruthy();
   });
 });

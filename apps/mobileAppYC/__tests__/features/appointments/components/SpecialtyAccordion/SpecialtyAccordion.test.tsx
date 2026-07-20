@@ -1,6 +1,11 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
+import {Pressable} from 'react-native';
 import {mockTheme} from '../../../../setup/mockTheme';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
+// match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 import {SpecialtyAccordion} from '../../../../../src/features/appointments/components/SpecialtyAccordion/SpecialtyAccordion';
 import type {VetPackage} from '../../../../../src/features/appointments/types';
 
@@ -286,6 +291,23 @@ describe('SpecialtyAccordion', () => {
   });
 
   describe('toggle expand/collapse', () => {
+    it('exposes a button role and expanded state on the specialty header', () => {
+      const {UNSAFE_getAllByType} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={singleSpecialty}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      const [header] = UNSAFE_getAllByType(PressableType);
+      expect(header.props.accessibilityRole).toBe('button');
+      expect(header.props.accessibilityState).toEqual({expanded: true});
+
+      fireEvent.press(header);
+      expect(header.props.accessibilityState).toEqual({expanded: false});
+    });
+
     it('pressing a collapsed specialty reveals its services', () => {
       const {getByText, queryByText} = render(
         <SpecialtyAccordion

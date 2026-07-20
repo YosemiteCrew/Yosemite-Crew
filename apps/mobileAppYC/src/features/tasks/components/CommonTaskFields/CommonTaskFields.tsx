@@ -11,7 +11,10 @@ import {selectAcceptedCoParents} from '@/features/coParent/selectors';
 interface CommonTaskFieldsProps {
   formData: TaskFormData;
   errors: TaskFormErrors;
-  updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
+  updateField: <K extends keyof TaskFormData>(
+    field: K,
+    value: TaskFormData[K],
+  ) => void;
   onOpenAssignTaskSheet: () => void;
   theme: any;
 }
@@ -52,17 +55,32 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
     return formData.assignedTo;
   };
 
+  const assignedName = getAssignedUserName();
+  const assignedInitial = assignedName
+    ? assignedName.trim().charAt(0).toUpperCase()
+    : '';
+
   return (
     <View style={styles.container}>
       {/* Assign Task Field */}
       <View style={styles.fieldGroup}>
         <TouchableInput
-          label={getAssignedUserName() ? 'Assign to' : undefined}
-          value={getAssignedUserName()}
+          label={assignedName ? 'Assign to' : undefined}
+          value={assignedName}
           placeholder="Assign to"
           onPress={onOpenAssignTaskSheet}
+          leftComponent={
+            assignedName ? (
+              <View style={styles.assignAvatar}>
+                <Text style={styles.assignAvatarText}>{assignedInitial}</Text>
+              </View>
+            ) : undefined
+          }
           rightComponent={
-            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
+            <Image
+              source={Images.dropdownIcon}
+              style={iconStyles.dropdownIcon}
+            />
           }
           error={errors.assignedTo}
         />
@@ -78,7 +96,9 @@ export const CommonTaskFields: React.FC<CommonTaskFieldsProps> = ({
           numberOfLines={3}
           inputStyle={styles.textArea}
         />
-        {errors.additionalNote && <Text style={styles.errorText}>{errors.additionalNote}</Text>}
+        {errors.additionalNote && (
+          <Text style={styles.errorText}>{errors.additionalNote}</Text>
+        )}
       </View>
     </View>
   );
@@ -96,6 +116,19 @@ const createStyles = (theme: any) =>
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
+    },
+    assignAvatar: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: theme.colors.avatarVioletBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    assignAvatarText: {
+      ...theme.typography.labelXxsBold,
+      color: theme.colors.avatarVioletInk,
+      fontWeight: '700',
     },
     errorText: {
       ...theme.typography.labelXxsBold,

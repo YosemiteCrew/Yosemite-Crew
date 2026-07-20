@@ -17,6 +17,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppState} from 'react-native';
 import SuperTokens from 'supertokens-react-native';
+import {Buffer} from 'node:buffer';
 import {fetchProfileStatus} from '../../../src/features/account/services/profileService';
 import {
   clearStoredTokens,
@@ -165,6 +166,22 @@ describe('sessionManager', () => {
     it('returns undefined if decoding fails or token format invalid', () => {
       expect(resolveExpiration({idToken: 'invalid-token'})).toBeUndefined();
       expect(resolveExpiration({idToken: ''})).toBeUndefined();
+    });
+
+    it('returns undefined and warns when the decoded payload is not valid JSON', () => {
+      (Buffer.from as jest.Mock).mockImplementationOnce(() => ({
+        toString: () => 'not-json{',
+      }));
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = resolveExpiration({idToken: 'header.somepayload.sig'});
+
+      expect(result).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to decode JWT expiration',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
     });
   });
 
@@ -339,6 +356,31 @@ describe('sessionManager', () => {
       });
     });
 
+    it('treats an unparsable pending profile payload as "none" and warns', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@pending_profile') return Promise.resolve('not-json{');
+        return Promise.resolve(null);
+      });
+      mockActiveSession();
+      (fetchProfileStatus as jest.Mock).mockResolvedValue({
+        profileToken: 'tok',
+        isComplete: true,
+        parent: {id: 'pid-1'},
+      });
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await recoverAuthSession();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Auth] Failed to parse pending profile payload',
+        expect.any(Error),
+      );
+      expect(result?.kind).toBe('authenticated');
+      consoleSpy.mockRestore();
+    });
+
     it('returns pendingProfile if the user matches the pending profile key', async () => {
       (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
         if (key === '@pending_profile')
@@ -456,6 +498,102 @@ describe('sessionManager', () => {
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@pending_profile');
     });
 
+    it('no-ops clearing the pending flag if the payload disappears between reads', async () => {
+      mockActiveSession();
+      let pendingProfileReadCount = 0;
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@pending_profile') {
+          pendingProfileReadCount += 1;
+          // First read (checkPendingProfile) finds a match; second read
+          // (clearPendingProfileForUser) finds it already gone.
+          return Promise.resolve(
+            pendingProfileReadCount === 1
+              ? JSON.stringify({userId: 'st-user-123'})
+              : null,
+          );
+        }
+        return Promise.resolve(null);
+      });
+      (fetchProfileStatus as jest.Mock).mockResolvedValue({
+        profileToken: 'tok',
+        isComplete: true,
+        parent: {id: 'pid-1'},
+      });
+
+      const result = await recoverAuthSession();
+
+      expect(result?.kind).toBe('authenticated');
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith(
+        '@pending_profile',
+      );
+    });
+
+    it('no-ops clearing the pending flag if the payload now belongs to a different user', async () => {
+      mockActiveSession();
+      let pendingProfileReadCount = 0;
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@pending_profile') {
+          pendingProfileReadCount += 1;
+          return Promise.resolve(
+            JSON.stringify({
+              userId:
+                pendingProfileReadCount === 1 ? 'st-user-123' : 'someone-else',
+            }),
+          );
+        }
+        return Promise.resolve(null);
+      });
+      (fetchProfileStatus as jest.Mock).mockResolvedValue({
+        profileToken: 'tok',
+        isComplete: true,
+        parent: {id: 'pid-1'},
+      });
+
+      const result = await recoverAuthSession();
+
+      expect(result?.kind).toBe('authenticated');
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith(
+        '@pending_profile',
+      );
+    });
+
+    it('warns when clearing the pending profile payload fails to parse on the second read', async () => {
+      mockActiveSession();
+      let pendingProfileReadCount = 0;
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@pending_profile') {
+          pendingProfileReadCount += 1;
+          return Promise.resolve(
+            pendingProfileReadCount === 1
+              ? JSON.stringify({userId: 'st-user-123'})
+              : 'not-json{',
+          );
+        }
+        return Promise.resolve(null);
+      });
+      (fetchProfileStatus as jest.Mock).mockResolvedValue({
+        profileToken: 'tok',
+        isComplete: true,
+        parent: {id: 'pid-1'},
+      });
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await recoverAuthSession();
+
+      expect(result?.kind).toBe('authenticated');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Auth] Failed to clear pending profile payload',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
     it('continues recovery when orphan sign-out fails', async () => {
       mockActiveSession();
       mockSuperTokens.signOut.mockRejectedValue(new Error('signout failed'));
@@ -533,6 +671,27 @@ describe('sessionManager', () => {
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@auth_tokens');
     });
 
+    it('ignores unparsable legacy tokens in AsyncStorage', async () => {
+      mockSuperTokens.doesSessionExist.mockResolvedValue(false);
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@auth_tokens') return Promise.resolve('not-json{');
+        return Promise.resolve(null);
+      });
+      (loadStoredTokens as jest.Mock).mockResolvedValue(null);
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await recoverAuthSession();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to parse stored auth tokens',
+        expect.any(Error),
+      );
+      expect(result).toEqual({kind: 'unauthenticated'});
+      consoleSpy.mockRestore();
+    });
+
     it('ignores legacy amplify/firebase fallback tokens in AsyncStorage', async () => {
       mockSuperTokens.doesSessionExist.mockResolvedValue(false);
       (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
@@ -568,6 +727,76 @@ describe('sessionManager', () => {
       const result = await recoverAuthSession();
 
       expect(result).toEqual({kind: 'unauthenticated'});
+      consoleSpy.mockRestore();
+    });
+
+    it('returns pendingProfile for a stored-token session matching an incomplete pending profile', async () => {
+      const incompleteUser = {
+        id: 'user-456',
+        email: 'incomplete@example.com',
+      };
+      mockSuperTokens.doesSessionExist.mockResolvedValue(false);
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(incompleteUser));
+        if (key === '@pending_profile')
+          return Promise.resolve(JSON.stringify({userId: 'user-456'}));
+        return Promise.resolve(null);
+      });
+      (loadStoredTokens as jest.Mock).mockResolvedValue({
+        ...mockTokens,
+        expiresAt: Date.now() + 500000,
+      });
+
+      const result = await recoverAuthSession();
+
+      expect(result).toEqual({kind: 'pendingProfile'});
+    });
+
+    it('clears the pending flag for a stored-token session whose profile is now complete', async () => {
+      mockSuperTokens.doesSessionExist.mockResolvedValue(false);
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@pending_profile')
+          return Promise.resolve(JSON.stringify({userId: mockUser.id}));
+        return Promise.resolve(null);
+      });
+      (loadStoredTokens as jest.Mock).mockResolvedValue({
+        ...mockTokens,
+        expiresAt: Date.now() + 500000,
+      });
+
+      const result = await recoverAuthSession();
+
+      expect(result?.kind).toBe('authenticated');
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@pending_profile');
+    });
+
+    it('migrates legacy tokens even when secure storage persistence fails', async () => {
+      mockSuperTokens.doesSessionExist.mockResolvedValue(false);
+      (AsyncStorage.getItem as jest.Mock).mockImplementation(key => {
+        if (key === '@user_data')
+          return Promise.resolve(JSON.stringify(mockUser));
+        if (key === '@auth_tokens')
+          return Promise.resolve(
+            JSON.stringify({...mockTokens, expiresAt: Date.now() + 500000}),
+          );
+        return Promise.resolve(null);
+      });
+      (loadStoredTokens as jest.Mock).mockResolvedValue(null);
+      (storeTokens as jest.Mock).mockRejectedValueOnce(
+        new Error('secure store unavailable'),
+      );
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const result = await recoverAuthSession();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to migrate legacy auth tokens into secure storage',
+        expect.any(Error),
+      );
+      expect(result?.kind).toBe('authenticated');
       consoleSpy.mockRestore();
     });
 
@@ -722,6 +951,35 @@ describe('sessionManager', () => {
       expect(removeSpy).toHaveBeenCalled();
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@pending_profile');
       spy.mockRestore();
+    });
+
+    it('does not register a second AppState listener while one is already active', () => {
+      (AppState.addEventListener as jest.Mock).mockReturnValue({
+        remove: jest.fn(),
+      });
+
+      registerAppStateListener(() => {});
+      registerAppStateListener(() => {});
+
+      expect(AppState.addEventListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('warns when clearing the pending profile flag fails during resetAuthLifecycle', async () => {
+      (AsyncStorage.removeItem as jest.Mock).mockRejectedValueOnce(
+        new Error('remove failed'),
+      );
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      resetAuthLifecycle({clearPendingProfile: true});
+      // Allow the fire-and-forget promise chain to settle.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to clear pending profile state',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
     });
   });
 });

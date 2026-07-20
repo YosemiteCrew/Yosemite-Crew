@@ -47,7 +47,10 @@ export const TileSelector: React.FC<TileSelectorProps> = ({
               isSelected && selectedTileStyle,
             ]}
             onPress={() => onSelect(option.value)}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+            accessibilityRole="radio"
+            accessibilityState={{selected: isSelected}}
+            accessibilityLabel={option.label}>
             <Text
               style={[
                 styles.label,
