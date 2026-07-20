@@ -177,6 +177,29 @@ describe('DispensaryTable', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
+  it('formats Requested/Dispensed timestamps in the viewer local timezone (never forced UTC)', () => {
+    const dateSpy = jest.spyOn(Date.prototype, 'toLocaleDateString');
+    const timeSpy = jest.spyOn(Date.prototype, 'toLocaleTimeString');
+    const record = { ...baseRecord, timeDispensed: '2026-06-30T15:29:25.223Z' };
+
+    render(<DispensaryTable filteredList={[record]} />);
+
+    // Both the date and time formatters must run for the rendered timestamps...
+    expect(dateSpy).toHaveBeenCalled();
+    expect(timeSpy).toHaveBeenCalled();
+    // ...and none of them may pin the output to UTC, or the viewer sees a time
+    // offset from their own clock (the reported bug).
+    for (const [, options] of dateSpy.mock.calls) {
+      expect(options).not.toHaveProperty('timeZone');
+    }
+    for (const [, options] of timeSpy.mock.calls) {
+      expect(options).not.toHaveProperty('timeZone');
+    }
+
+    dateSpy.mockRestore();
+    timeSpy.mockRestore();
+  });
+
   it('applies the success color class when timeDispensed is present', () => {
     const record = { ...baseRecord, timeDispensed: '2026-06-30T15:29:25.223Z' };
     const { container } = render(<DispensaryTable filteredList={[record]} />);

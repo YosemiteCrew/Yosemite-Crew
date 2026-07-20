@@ -215,6 +215,28 @@ describe('Room Service', () => {
       );
     });
 
+    it('carries the draft availability species onto the upserted room for non-unit rooms', async () => {
+      const mockDTO = { resourceType: 'Location' };
+      const mockResponseData = { resourceType: 'Location', id: 'new-2' };
+      const mockFinalRoom = { id: 'room-2', name: 'Puppy Ward', organisationId: 'org-123' };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPostData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+
+      await createRoom({
+        name: 'Puppy Ward',
+        type: 'EXAM_ROOM',
+        availability: { species: ['CANINE', 'FELINE'], totalUnits: 0 },
+      } as OrganisationRoom & { availability: { species: string[]; totalUnits: number } });
+
+      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          availability: expect.objectContaining({ species: ['CANINE', 'FELINE'] }),
+        })
+      );
+    });
+
     it('uses a provided custom room code as-is', async () => {
       const mockDTO = { resourceType: 'Location' };
       const mockResponseData = { resourceType: 'Location', id: 'new-1' };
@@ -354,6 +376,29 @@ describe('Room Service', () => {
         expect.objectContaining({
           ...mockFinalRoom,
           organisationId: 'org-123',
+        })
+      );
+    });
+
+    it('carries the draft availability species onto the upserted room', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'raw-2' };
+      const mockResponseData = { resourceType: 'Location', id: 'raw-2' };
+      const mockFinalRoom = { id: 'room-1', name: 'Updated Room' };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Updated Room',
+        type: 'EXAM_ROOM',
+        availability: { species: ['EQUINE'], totalUnits: 0 },
+      } as OrganisationRoom & { availability: { species: string[]; totalUnits: number } });
+
+      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          availability: expect.objectContaining({ species: ['EQUINE'] }),
         })
       );
     });

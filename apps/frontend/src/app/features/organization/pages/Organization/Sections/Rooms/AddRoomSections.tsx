@@ -276,7 +276,7 @@ export const EquipmentSection = ({
             onChange={(value) => onChange({ equipment: value })}
             options={equipmentOptions}
           />
-          <div className="flex items-start gap-2">
+          <div className="flex items-end gap-2">
             <FormInput
               intype="text"
               value={customEquipmentName}
@@ -287,7 +287,7 @@ export const EquipmentSection = ({
               type="button"
               aria-label="Add custom equipment"
               onClick={onAddCustomEquipment}
-              className="mt-0 flex size-12 shrink-0 items-center justify-center rounded-2xl bg-text-primary text-white"
+              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-text-primary text-white"
             >
               <FiPlus size={18} aria-hidden="true" />
             </button>

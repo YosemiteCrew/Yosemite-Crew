@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { IoCheckmarkCircle } from 'react-icons/io5';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
-import { useServicesForPrimaryOrgSpecialities } from '@/app/hooks/useSpecialities';
+import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -24,13 +24,13 @@ type Step = {
 const DashboardSteps = () => {
   const primaryOrg = usePrimaryOrg();
   const subscription = useSubscriptionForPrimaryOrg();
-  const services = useServicesForPrimaryOrgSpecialities();
+  const specialities = useSpecialitiesForPrimaryOrg();
   const teams = useTeamForPrimaryOrg();
   const { can } = usePermissions();
 
   const steps: Step[] = useMemo(() => {
     if (!primaryOrg || !subscription) return [];
-    const hasServices = (services?.length ?? 0) > 0;
+    const hasServices = specialities.some((s) => (s.activeServiceCount ?? 0) > 0);
     const hasTeam = (teams?.length ?? 0) > 1;
     const hasStripeAccount = Boolean(subscription.connectAccountId);
     const stripeCompleted = Boolean(subscription.connectChargesEnabled);
@@ -77,7 +77,7 @@ const DashboardSteps = () => {
       },
     ];
     return nextSteps.filter((step) => step.isVisible);
-  }, [can, primaryOrg, services, teams, subscription]);
+  }, [can, primaryOrg, specialities, teams, subscription]);
 
   const completedCount = useMemo(() => steps.filter((s) => s.isCompleted).length, [steps]);
 

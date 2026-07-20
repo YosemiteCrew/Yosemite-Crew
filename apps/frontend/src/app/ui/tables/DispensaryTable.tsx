@@ -69,10 +69,9 @@ const formatDateTime = (iso?: string) => {
       month: 'short',
       day: '2-digit',
       year: 'numeric',
-      timeZone: 'UTC',
     }) +
     '\n' +
-    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   );
 };
 

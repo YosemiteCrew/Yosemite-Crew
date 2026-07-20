@@ -326,9 +326,10 @@ export const createRoom = async (room: RoomMutationPayload) => {
     };
     const fhirRoom = toOrganisationRoomResponseDTO(payload);
     const res = await postData<OrganisationRoomResponseDTO>('/fhir/v1/organisation-room', fhirRoom);
-    const normalRoom = {
+    const normalRoom: OrganisationRoom & { availability?: RoomAvailabilityDraft } = {
       ...payload,
       ...fromOrganisationRoomRequestDTO(res.data),
+      availability: room.availability,
     };
     upsertRoom(normalRoom);
     await syncRoomUnitGroups(normalRoom, room);
@@ -355,9 +356,10 @@ export const updateRoom = async (payload: RoomMutationPayload) => {
       '/fhir/v1/organisation-room/' + payload.id,
       fhirRoom
     );
-    const normalRoom = {
+    const normalRoom: OrganisationRoom & { availability?: RoomAvailabilityDraft } = {
       ...normalizedPayload,
       ...fromOrganisationRoomRequestDTO(res.data),
+      availability: payload.availability,
     };
     upsertRoom(normalRoom);
     await syncRoomUnitGroups(normalRoom, payload);

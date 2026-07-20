@@ -6,7 +6,7 @@ import DashboardSteps from '@/app/ui/widgets/DashboardSteps';
 
 const usePrimaryOrgMock = jest.fn();
 const useSubscriptionMock = jest.fn();
-const useServicesMock = jest.fn();
+const useSpecialitiesMock = jest.fn();
 const useTeamMock = jest.fn();
 const mockCan = jest.fn();
 
@@ -19,7 +19,7 @@ jest.mock('@/app/hooks/useBilling', () => ({
 }));
 
 jest.mock('@/app/hooks/useSpecialities', () => ({
-  useServicesForPrimaryOrgSpecialities: () => useServicesMock(),
+  useSpecialitiesForPrimaryOrg: () => useSpecialitiesMock(),
 }));
 
 jest.mock('@/app/hooks/useTeam', () => ({
@@ -54,7 +54,7 @@ describe('DashboardSteps', () => {
       connectAccountId: 'acct_1',
       connectChargesEnabled: false,
     });
-    useServicesMock.mockReturnValue([]);
+    useSpecialitiesMock.mockReturnValue([{ _id: 'sp1', activeServiceCount: 0 }]);
     useTeamMock.mockReturnValue([{ _id: 'u1' }]);
 
     render(<DashboardSteps />);
@@ -73,7 +73,7 @@ describe('DashboardSteps', () => {
       connectAccountId: null,
       connectChargesEnabled: false,
     });
-    useServicesMock.mockReturnValue([]);
+    useSpecialitiesMock.mockReturnValue([{ _id: 'sp1', activeServiceCount: 0 }]);
     useTeamMock.mockReturnValue([{ _id: 'u1' }]);
     mockCan.mockImplementation((input: any) => input === 'specialities:edit:any');
 
@@ -90,7 +90,7 @@ describe('DashboardSteps', () => {
       connectAccountId: 'acct_1',
       connectChargesEnabled: false,
     });
-    useServicesMock.mockReturnValue([{ id: 'svc' }]);
+    useSpecialitiesMock.mockReturnValue([{ _id: 'sp1', activeServiceCount: 3 }]);
     useTeamMock.mockReturnValue([{ _id: 'u1' }]);
 
     render(<DashboardSteps />);
@@ -106,10 +106,71 @@ describe('DashboardSteps', () => {
       connectAccountId: 'acct_1',
       connectChargesEnabled: true,
     });
-    useServicesMock.mockReturnValue([{ id: 'svc' }]);
+    useSpecialitiesMock.mockReturnValue([{ _id: 'sp1', activeServiceCount: 3 }]);
     useTeamMock.mockReturnValue([{ _id: 'u1' }, { _id: 'u2' }]);
 
     const { container } = render(<DashboardSteps />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('completes Step 1 when any speciality has activeServiceCount > 0 (survives refresh)', () => {
+    usePrimaryOrgMock.mockReturnValue({ _id: 'org1', isVerified: true });
+    useSubscriptionMock.mockReturnValue({
+      connectAccountId: 'acct_1',
+      connectChargesEnabled: false,
+    });
+    useSpecialitiesMock.mockReturnValue([
+      { _id: 'sp1', activeServiceCount: 0 },
+      { _id: 'sp2', activeServiceCount: 4 },
+    ]);
+    useTeamMock.mockReturnValue([{ _id: 'u1' }]);
+
+    render(<DashboardSteps />);
+
+    expect(screen.getByText('View services')).toBeInTheDocument();
+    expect(screen.getByText('1 of 3 done')).toBeInTheDocument();
+  });
+
+  it('leaves Step 1 incomplete when no speciality has active services', () => {
+    usePrimaryOrgMock.mockReturnValue({ _id: 'org1', isVerified: true });
+    useSubscriptionMock.mockReturnValue({
+      connectAccountId: 'acct_1',
+      connectChargesEnabled: false,
+    });
+    useSpecialitiesMock.mockReturnValue([{ _id: 'sp1', activeServiceCount: 0 }, { _id: 'sp2' }]);
+    useTeamMock.mockReturnValue([{ _id: 'u1' }]);
+
+    render(<DashboardSteps />);
+
+    expect(screen.getByText('Add services')).toBeInTheDocument();
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument();
+  });
+
+  it('renders nothing when there is no primary org', () => {
+    usePrimaryOrgMock.mockReturnValue(null);
+    useSubscriptionMock.mockReturnValue({
+      connectAccountId: 'acct_1',
+      connectChargesEnabled: false,
+    });
+    useSpecialitiesMock.mockReturnValue([{ _id: 'sp1', activeServiceCount: 0 }]);
+    useTeamMock.mockReturnValue([{ _id: 'u1' }]);
+
+    const { container } = render(<DashboardSteps />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('treats a missing team list as an incomplete team step', () => {
+    usePrimaryOrgMock.mockReturnValue({ _id: 'org1', isVerified: true });
+    useSubscriptionMock.mockReturnValue({
+      connectAccountId: 'acct_1',
+      connectChargesEnabled: false,
+    });
+    useSpecialitiesMock.mockReturnValue([{ _id: 'sp1', activeServiceCount: 0 }]);
+    useTeamMock.mockReturnValue(undefined);
+
+    render(<DashboardSteps />);
+
+    expect(screen.getByText('Invite team')).toBeInTheDocument();
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument();
   });
 });
