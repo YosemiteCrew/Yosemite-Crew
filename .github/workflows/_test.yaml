@@ -1,0 +1,221 @@
+name: Test
+
+# Reusable test stage: run each affected workspace's suite once, sharded, and
+# merge the per-shard coverage into one report per app for Sonar to consume.
+#
+# Coverage is collected here and nowhere else. Sonar no longer reinstalls,
+# regenerates Prisma and reruns the suites just to measure them.
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        description: Core detect matrix, as a JSON string.
+        required: true
+        type: string
+    outputs:
+      apps-with-coverage:
+        description: JSON array of app keys that produced a merged coverage report.
+        value: ${{ jobs.plan.outputs.apps-with-coverage }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  # Per-app merged-coverage floors.
+  #
+  # frontend carries the exact gate that frontend-quality's type-check-and-test
+  # job enforced on the jest command line before this pipeline replaced it, so
+  # slimming that workflow does not quietly drop a live threshold.
+  #
+  # desktop mirrors the thresholds already in its own jest config. It runs
+  # unsharded so that config still applies, and repeating it here keeps the gate
+  # in force if the suite is ever sharded, at which point the jest threshold
+  # would have to be removed. Measured at 98.18/89.58/99.37/98.18 today.
+  #
+  # backend and mobile have never had a floor. They get a bare tripwire rather
+  # than an invented threshold: it catches a report that measured nothing,
+  # without newly failing suites that were not being held to a number before.
+  COVERAGE_FLOORS: >-
+    {
+      "frontend": "statements=80,branches=70,functions=78,lines=80",
+      "desktop": "statements=95,branches=88,functions=95,lines=95",
+      "backend": "lines=1",
+      "mobile": "lines=1"
+    }
+
+jobs:
+  plan:
+    name: Plan test legs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      apps-with-coverage: ${{ steps.plan.outputs.apps_with_coverage }}
+      has-any: ${{ steps.plan.outputs.has_any }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Expand test legs
+        id: plan
+        env:
+          CORE_MATRIX: ${{ inputs.matrix }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CORE_MATRIX" > core-matrix.json
+          node scripts/ci/test-matrix.mjs --matrix core-matrix.json >> "$GITHUB_OUTPUT"
+
+  test:
+    name: Test ${{ matrix.workspace }} (${{ matrix.shard }}/${{ matrix.shards }})
+    needs: plan
+    if: needs.plan.outputs.has-any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Cache Jest transform cache
+        if: matrix.uses_jest
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ matrix.dir }}/.jest-cache
+          key: jest-${{ matrix.workspace }}-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            jest-${{ matrix.workspace }}-${{ runner.os }}-
+
+      - name: Download shared package dist output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist-packages
+
+      - name: Unpack shared package dist output
+        run: tar -xzf dist-packages.tar.gz
+
+      - name: Generate Prisma client
+        if: matrix.workspace == 'backend'
+        run: pnpm --filter @yosemite-crew/database run prisma:generate
+
+      # jest is invoked through `pnpm exec` rather than the package's test
+      # script. `pnpm --filter X run test -- --flags` forwards a literal `--` to
+      # jest, which reads it as a test path pattern and matches nothing; only
+      # frontend survives that form, because its run-jest.mjs wrapper strips it.
+      # Going direct also skips turbo, so these legs use the dist-packages
+      # artifact instead of rebuilding the shared packages.
+      #
+      # Only frontend's jest config sets a cacheDirectory, so the path is passed
+      # explicitly for every app to keep the transform cache in a known place.
+      #
+      # Shards emit istanbul JSON, not lcov. The merge stage needs the coverage
+      # map: merging lcov text loses data (lcov-result-merger drops FN/FNDA, so
+      # function coverage disappears silently). lcov is generated once, from the
+      # merged map, for Sonar.
+      - name: Test with coverage
+        if: matrix.coverage
+        run: |
+          pnpm --filter "${{ matrix.workspace }}" exec jest \
+            --ci \
+            --coverage \
+            --coverageReporters=json \
+            --shard=${{ matrix.shard }}/${{ matrix.shards }} \
+            --maxWorkers=2 \
+            --coverageDirectory=coverage \
+            --cacheDirectory=.jest-cache
+
+      # Shared packages and non-jest suites run without coverage and upload
+      # nothing, so no orphan shard artifact reaches the merge step.
+      - name: Test
+        if: ${{ !matrix.coverage && matrix.uses_jest }}
+        run: pnpm --filter "${{ matrix.workspace }}" exec jest --ci --maxWorkers=2
+
+      # Non-jest runners (packages/database uses `node --test`) take no jest
+      # flags at all, so they run their own script unmodified.
+      - name: Test (non-jest runner)
+        if: ${{ !matrix.uses_jest }}
+        run: pnpm --filter "${{ matrix.workspace }}" run test
+
+      - name: Upload shard coverage
+        if: matrix.coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-${{ matrix.app_key }}-shard-${{ matrix.shard }}
+          path: ${{ matrix.dir }}/coverage/coverage-final.json
+          if-no-files-found: error
+          retention-days: 1
+
+  coverage-merge:
+    name: Merge coverage (${{ matrix.app_key }})
+    needs: [plan, test]
+    if: needs.plan.outputs.apps-with-coverage != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.apps-with-coverage) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Download shard coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: coverage-${{ matrix.app_key }}-shard-*
+          path: shards
+
+      - name: Merge shard reports and enforce the floor
+        env:
+          APP: ${{ matrix.app_key }}
+        run: |
+          set -euo pipefail
+          FLOOR=$(printf '%s' "$COVERAGE_FLOORS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s)[process.env.APP]??""))')
+          if [ -z "$FLOOR" ]; then
+            echo "No coverage floor configured for '$APP'. Add one to COVERAGE_FLOORS."
+            exit 1
+          fi
+          node scripts/ci/merge-coverage.mjs --shards shards --out merged --floor "$FLOOR"
+
+      # istanbul writes SF: paths relative to the repo root. Sonar is given
+      # projectBaseDir=<app dir>, so the app prefix has to come off or every path
+      # fails to resolve and Sonar silently reports 0%. Both substitutions are
+      # anchored and idempotent, so they no-op on a report that is already
+      # app-relative.
+      - name: Normalise coverage paths
+        env:
+          APP_DIR: ${{ matrix.dir }}
+        run: |
+          set -euo pipefail
+          sed -i "s#^SF:${GITHUB_WORKSPACE}/${APP_DIR}/#SF:#" merged/lcov.info
+          sed -i "s#^SF:${APP_DIR}/#SF:#" merged/lcov.info
+          node scripts/ci/lcov-check.mjs --resolve "$APP_DIR" merged/lcov.info
+
+      - name: Upload merged coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-${{ matrix.app_key }}
+          path: merged/lcov.info
+          if-no-files-found: error
+          retention-days: 1
