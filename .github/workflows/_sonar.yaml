@@ -1,0 +1,95 @@
+name: Sonar
+
+# Reusable Sonar stage: scan only.
+#
+# The previous workflow reinstalled dependencies, regenerated the Prisma client
+# and reran every suite with coverage purely so the scanner had something to
+# read. The test stage already produces that coverage, so this stage downloads it
+# and does nothing else. There is no pnpm install, no prisma generate and no jest
+# run here by design.
+#
+# The cost of scanning without an install is that rules needing type resolution
+# from node_modules see less than they would (backend and desktop set
+# sonar.typescript.tsconfigPath). The nightly full analysis in
+# sonar-cloud-analysis.yml remains the type-aware backstop for exactly that gap.
+
+on:
+  workflow_call:
+    inputs:
+      apps-with-coverage:
+        description: JSON array of {app_key, dir, sonar_token} produced by the test stage.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Sonar scan (${{ matrix.app_key }})
+    # Forks never receive the Sonar secrets, so a scan there would fail on an
+    # empty token rather than tell anyone anything useful.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.apps-with-coverage) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Full history on every event, not just pull_request. Sonar attributes
+          # new code and blame from git history, and a depth-1 clone silently
+          # degrades both on push and merge_group. Coverage arrives as an
+          # artifact, so the only cost here is clone time.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download merged coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: coverage-${{ matrix.app_key }}
+          path: ${{ matrix.dir }}/coverage
+
+      - name: Verify coverage resolves against the source tree
+        env:
+          APP_DIR: ${{ matrix.dir }}
+        run: |
+          set -euo pipefail
+          LCOV="$APP_DIR/coverage/lcov.info"
+          if [ ! -s "$LCOV" ]; then
+            echo "$LCOV is missing or empty; the test stage did not produce coverage for this app."
+            exit 1
+          fi
+          # Sonar treats unresolvable coverage paths as 0% and passes its gate
+          # without complaint. Catch that here, before the scan.
+          node scripts/ci/lcov-check.mjs --resolve "$APP_DIR" "$LCOV"
+
+      - name: Cache Sonar scanner
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: sonar-${{ runner.os }}-${{ matrix.app_key }}-${{ github.run_id }}
+          restore-keys: |
+            sonar-${{ runner.os }}-${{ matrix.app_key }}-
+            sonar-${{ runner.os }}-
+
+      - name: Sonar scan
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        with:
+          projectBaseDir: ${{ matrix.dir }}
+          # Wait for the gate so a red quality gate reds this job, and therefore
+          # the aggregate required check, on merge_group as well as on a PR.
+          # SonarCloud decorates pull requests but posts no status on a merge
+          # group ref, so without this the queue would have no Sonar signal.
+          args: -Dsonar.qualitygate.wait=true
+        env:
+          SONAR_TOKEN: ${{ secrets[matrix.sonar_token] }}

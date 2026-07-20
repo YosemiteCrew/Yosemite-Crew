@@ -24,14 +24,16 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-// Single source of truth for the workspace -> Sonar/coverage app key mapping.
-// _test derives apps-with-coverage from this, and _sonar maps those keys back to
-// project directories, so producer and consumer cannot drift apart.
-const APP_KEYS = new Map([
-  ['frontend', 'frontend'],
-  ['backend', 'backend'],
-  ['mobileAppYC', 'mobile'],
-  ['@yosemite-crew/desktop', 'desktop'],
+// Single source of truth for the workspace -> Sonar app mapping: the key used
+// for coverage artifacts and the name of the secret holding that project's Sonar
+// token. _test carries both through to apps-with-coverage and _sonar consumes
+// them, so no stage re-derives a mapping of its own and producer and consumer
+// cannot drift apart.
+const APPS = new Map([
+  ['frontend', { app_key: 'frontend', sonar_token: 'SONAR_TOKEN_FRONTEND' }],
+  ['backend', { app_key: 'backend', sonar_token: 'SONAR_TOKEN_API' }],
+  ['mobileAppYC', { app_key: 'mobile', sonar_token: 'SONAR_TOKEN_MOBILE' }],
+  ['@yosemite-crew/desktop', { app_key: 'desktop', sonar_token: 'SONAR_TOKEN_DESKTOP' }],
 ]);
 
 // Workspaces whose jobs need a generated Prisma client before anything compiles.
@@ -124,10 +126,12 @@ function main() {
     if (dir === undefined) continue;
 
     const scripts = scriptsFor(dir);
+    const app = APPS.get(name);
     include.push({
       workspace: name,
       dir,
-      app_key: APP_KEYS.get(name) ?? '',
+      app_key: app?.app_key ?? '',
+      sonar_token: app?.sonar_token ?? '',
       has_lint: Boolean(scripts.lint),
       has_type_check: Boolean(scripts['type-check']),
       has_build: Boolean(scripts.build),

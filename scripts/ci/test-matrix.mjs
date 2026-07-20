@@ -6,7 +6,7 @@
 //
 // Emits key=value lines on stdout for the caller to append to $GITHUB_OUTPUT:
 //   matrix={"include":[{workspace,dir,app_key,shard,shards,coverage,uses_jest}]}
-//   apps_with_coverage=[{"app_key":"frontend","dir":"apps/frontend"},...]
+//   apps_with_coverage=[{"app_key":"frontend","dir":"apps/frontend","sonar_token":"..."},...]
 //   has_any=<bool>
 //
 // apps_with_coverage is derived here, from the same entries that produce the
@@ -66,7 +66,13 @@ for (const entry of core.include) {
   // tests and upload nothing, which is what keeps orphan shard artifacts out of
   // the coverage merge.
   const collectsCoverage = Boolean(entry.app_key) && usesJest;
-  if (collectsCoverage) appsWithCoverage.push({ app_key: entry.app_key, dir: entry.dir });
+  if (collectsCoverage) {
+    appsWithCoverage.push({
+      app_key: entry.app_key,
+      dir: entry.dir,
+      sonar_token: entry.sonar_token,
+    });
+  }
 
   const shards = collectsCoverage ? (SHARDS.get(entry.app_key) ?? 1) : 1;
   for (let shard = 1; shard <= shards; shard += 1) {
