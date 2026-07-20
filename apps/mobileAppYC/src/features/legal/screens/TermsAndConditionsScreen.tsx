@@ -366,6 +366,7 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = props => {
     <LegalScreen
       {...props}
       title="Terms & Conditions"
+      docType="terms"
       sections={TERMS_SECTIONS}
       meta={TERMS_META}
       extraContent={

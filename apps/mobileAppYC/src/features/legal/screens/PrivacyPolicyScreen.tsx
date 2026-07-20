@@ -14,6 +14,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyScreenProps> = props => (
   <LegalScreen
     {...props}
     title="Privacy Policy"
+    docType="privacy"
     sections={PRIVACY_POLICY_SECTIONS}
     meta={PRIVACY_META}
     navChips={['What we collect', 'How it is used', 'Your rights']}

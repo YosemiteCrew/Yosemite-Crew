@@ -1,5 +1,5 @@
 import React from 'react';
-import {ScrollView, Text, View} from 'react-native';
+import {ActivityIndicator, Alert, ScrollView, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -9,7 +9,12 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {useTheme} from '@/hooks';
 import {LegalContentRenderer} from './LegalContentRenderer';
 import {createLegalStyles} from '../styles/legalStyles';
-import {exportLegalDocument} from '../services/legalExportService';
+import {
+  legalDocumentService,
+  type YcLegalDocumentType,
+} from '../services/legalDocumentService';
+import {downloadDocumentToAppStorage} from '@/shared/utils/documentDownload';
+import {buildLegalFileName} from '../utils/legalFileName';
 import type {LegalSection, LegalDocumentMeta} from '../data/legalContentTypes';
 import type {LegalStackParamList} from '@/navigation/types';
 import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
@@ -19,6 +24,7 @@ type LegalScreenProps = NativeStackScreenProps<
   'PrivacyPolicy' | 'TermsAndConditions'
 > & {
   title: string;
+  docType: YcLegalDocumentType;
   sections: LegalSection[];
   extraContent?: React.ReactNode;
   meta?: LegalDocumentMeta;
@@ -29,6 +35,7 @@ type LegalScreenProps = NativeStackScreenProps<
 export const LegalScreen: React.FC<LegalScreenProps> = ({
   navigation,
   title,
+  docType,
   sections,
   extraContent,
   meta,
@@ -43,10 +50,30 @@ export const LegalScreen: React.FC<LegalScreenProps> = ({
   const insets = useSafeAreaInsets();
   const [topGlassHeight, setTopGlassHeight] = React.useState(0);
   const [activeChip, setActiveChip] = React.useState(0);
+  const [downloading, setDownloading] = React.useState(false);
 
-  const handleDownload = React.useCallback(() => {
-    exportLegalDocument(title, sections, meta);
-  }, [meta, sections, title]);
+  const handleDownload = React.useCallback(async () => {
+    if (downloading) {
+      return;
+    }
+    setDownloading(true);
+    try {
+      const doc = await legalDocumentService.fetchLegalDocument(docType);
+      const fileName = buildLegalFileName([title, doc.version]);
+      const downloadPath = await downloadDocumentToAppStorage(
+        doc.pdfUrl,
+        fileName,
+      );
+      Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
+    } catch (error) {
+      const message =
+        (error as any)?.message ??
+        'Unable to download the file. Please check your connection and try again.';
+      Alert.alert('Download failed', message);
+    } finally {
+      setDownloading(false);
+    }
+  }, [docType, downloading, title]);
 
   return (
     <SafeAreaView style={baseStyles.safeArea} edges={[]}>
@@ -129,13 +156,19 @@ export const LegalScreen: React.FC<LegalScreenProps> = ({
         <PressableOpacity
           accessibilityRole="button"
           accessibilityLabel="Download as PDF"
+          accessibilityState={{disabled: downloading}}
+          disabled={downloading}
           onPress={handleDownload}
           style={baseStyles.downloadButton}>
-          <Ionicons
-            name="download-outline"
-            size={16}
-            color={theme.colors.inkBody}
-          />
+          {downloading ? (
+            <ActivityIndicator size="small" color={theme.colors.inkBody} />
+          ) : (
+            <Ionicons
+              name="download-outline"
+              size={16}
+              color={theme.colors.inkBody}
+            />
+          )}
           <Text style={baseStyles.downloadButtonText}>Download as PDF</Text>
         </PressableOpacity>
       </ScrollView>

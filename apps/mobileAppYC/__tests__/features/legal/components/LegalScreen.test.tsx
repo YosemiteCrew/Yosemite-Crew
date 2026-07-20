@@ -1,12 +1,22 @@
 import React from 'react';
 import {mockTheme} from '../../../setup/mockTheme';
-import {Text} from 'react-native';
-import {render, fireEvent} from '@testing-library/react-native';
+import {Alert, Text} from 'react-native';
+import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {LegalScreen} from '../../../../src/features/legal/components/LegalScreen';
-import {exportLegalDocument} from '../../../../src/features/legal/services/legalExportService';
+import {legalDocumentService} from '../../../../src/features/legal/services/legalDocumentService';
+import {downloadDocumentToAppStorage} from '../../../../src/shared/utils/documentDownload';
 
-jest.mock('../../../../src/features/legal/services/legalExportService', () => ({
-  exportLegalDocument: jest.fn(),
+jest.mock(
+  '../../../../src/features/legal/services/legalDocumentService',
+  () => ({
+    legalDocumentService: {
+      fetchLegalDocument: jest.fn(),
+    },
+  }),
+);
+
+jest.mock('../../../../src/shared/utils/documentDownload', () => ({
+  downloadDocumentToAppStorage: jest.fn(),
 }));
 
 // --- Mocks ---
@@ -104,6 +114,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Terms of Service"
+        docType="terms"
         sections={mockSections}
       />,
     );
@@ -127,6 +138,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Privacy Policy"
+        docType="privacy"
         sections={mockSections}
         extraContent={<Text>Additional Info</Text>}
       />,
@@ -144,6 +156,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Back Test"
+        docType="terms"
         sections={[]}
       />,
     );
@@ -163,6 +176,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Height Test"
+        docType="terms"
         sections={mockSections}
       />,
     );
@@ -192,6 +206,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Terms & Conditions"
+        docType="terms"
         sections={mockSections}
         meta={{
           displayTitle: 'Terms of service',
@@ -212,6 +227,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Privacy Policy"
+        docType="privacy"
         sections={mockSections}
       />,
     );
@@ -231,6 +247,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Privacy Policy"
+        docType="privacy"
         sections={mockSections}
         navChips={['What we collect', 'Your rights']}
       />,
@@ -244,29 +261,78 @@ describe('LegalScreen', () => {
 
   // --- 7. Download as PDF ---
 
-  it('exports the document when the download button is pressed', () => {
+  it('fetches the real PDF and downloads it when the download button is pressed', async () => {
     const meta = {
       displayTitle: 'Terms of service',
       lastUpdated: '10 Jul 2026',
       version: 'v1.0',
     };
+    (legalDocumentService.fetchLegalDocument as jest.Mock).mockResolvedValue({
+      pdfUrl: 'https://cdn.example/legal/terms-v1.pdf',
+      version: 'v1',
+      lastUpdated: '2026-03-01',
+    });
+    (downloadDocumentToAppStorage as jest.Mock).mockResolvedValue(
+      '/app/Downloads/Terms-Conditions-v1.pdf',
+    );
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
     const {getByLabelText} = render(
       <LegalScreen
         // @ts-ignore
         navigation={mockNavigation}
         route={{} as any}
         title="Terms & Conditions"
+        docType="terms"
         sections={mockSections}
         meta={meta}
       />,
     );
 
     fireEvent.press(getByLabelText('Download as PDF'));
-    expect(exportLegalDocument).toHaveBeenCalledWith(
-      'Terms & Conditions',
-      mockSections,
-      meta,
+
+    await waitFor(() =>
+      expect(legalDocumentService.fetchLegalDocument).toHaveBeenCalledWith(
+        'terms',
+      ),
     );
+    await waitFor(() =>
+      expect(downloadDocumentToAppStorage).toHaveBeenCalledWith(
+        'https://cdn.example/legal/terms-v1.pdf',
+        'Terms-Conditions-v1.pdf',
+      ),
+    );
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Download complete',
+        expect.stringContaining('/app/Downloads/Terms-Conditions-v1.pdf'),
+      ),
+    );
+  });
+
+  it('shows a download-failed alert when fetching the PDF fails', async () => {
+    (legalDocumentService.fetchLegalDocument as jest.Mock).mockRejectedValue(
+      new Error('Network down'),
+    );
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    const {getByLabelText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Privacy Policy"
+        docType="privacy"
+        sections={mockSections}
+      />,
+    );
+
+    fireEvent.press(getByLabelText('Download as PDF'));
+
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith('Download failed', 'Network down'),
+    );
+    expect(downloadDocumentToAppStorage).not.toHaveBeenCalled();
   });
 
   it('does not re-measure when the layout height is unchanged', () => {
@@ -276,6 +342,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Height Test"
+        docType="terms"
         sections={mockSections}
       />,
     );
