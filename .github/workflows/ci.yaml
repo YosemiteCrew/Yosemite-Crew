@@ -1,0 +1,92 @@
+name: CI
+
+# Orchestrator for the single-run pipeline. Every stage is a reusable workflow
+# called from here, so all of them execute inside this one Actions run and hand
+# artifacts and outputs to each other by ordinary same-run means: no
+# workflow_run, no download-by-run-id, no PAT.
+#
+# TRANSITIONAL: ci-affected.yaml, frontend-quality.yml, frontend-a11y.yml and
+# dev-docs-build.yml are all still live and still the gates that matter. This
+# workflow runs beside them so the two can be compared on real pull requests
+# before anything is switched over or removed. That means some work is duplicated
+# on each PR for now; that is deliberate and ends when the old workflows are
+# retired.
+
+on:
+  pull_request: {}
+  push:
+    branches: [main, dev]
+  merge_group: {}
+  workflow_dispatch:
+    inputs:
+      force_push_base:
+        description: Base SHA override, for re-running after a force push.
+        required: false
+        type: string
+      run_sonar:
+        description: >
+          Run the scan-only Sonar stage. Off by default while
+          sonar-cloud-analysis.yml is still live, because two analyses of the
+          same SonarCloud project in one run would race each other.
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    uses: ./.github/workflows/_core.yaml
+    with:
+      force_push_base: ${{ inputs.force_push_base }}
+
+  test:
+    needs: core
+    if: needs.core.outputs.has-any == 'true'
+    uses: ./.github/workflows/_test.yaml
+    with:
+      matrix: ${{ needs.core.outputs.matrix }}
+
+  sonar:
+    needs: [core, test]
+    # Gated on the test stage's own output rather than on the affected booleans,
+    # so this can never ask for a coverage artifact that was not produced.
+    if: >
+      inputs.run_sonar &&
+      needs.test.outputs.apps-with-coverage != '' &&
+      needs.test.outputs.apps-with-coverage != '[]'
+    uses: ./.github/workflows/_sonar.yaml
+    with:
+      apps-with-coverage: ${{ needs.test.outputs.apps-with-coverage }}
+    secrets: inherit
+
+  ci-required:
+    name: CI Required
+    # Not yet a required status check on either ruleset. It is published now so
+    # its behaviour can be observed before it is made required; the runbook in
+    # docs/ci/required-checks-migration.md covers that switchover.
+    if: always()
+    needs: [core, test, sonar]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate stage results
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          # `skipped` passes: a packages-only change legitimately skips test, and
+          # sonar is skipped by default. `cancelled` fails: the previous
+          # aggregate used !cancelled(), which let a cancelled dependency through
+          # as a pass.
+          if ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}; then
+            echo "CI Required: at least one stage failed or was cancelled"
+            exit 1
+          fi
+          echo "CI Required: ok"
