@@ -168,7 +168,7 @@ const StatusFilterDropdown = ({
         createPortal(
           <div
             ref={dropdown.panelRef}
-            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_var(--color-shadow-soft)] overflow-hidden"
             style={dropdown.style}
           >
             {statusOptions.map((status) => {
