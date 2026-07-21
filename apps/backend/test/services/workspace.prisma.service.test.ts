@@ -13,7 +13,7 @@ jest.mock("src/config/prisma", () => ({
     appointment: { findFirst: jest.fn() },
     encounter: { findFirst: jest.fn(), findMany: jest.fn() },
     case: { findFirst: jest.fn() },
-    invoice: { findFirst: jest.fn() },
+    invoice: { findFirst: jest.fn(), findMany: jest.fn() },
     organization: { findUnique: jest.fn() },
     patient: { findFirst: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
@@ -87,7 +87,7 @@ describe("WorkspaceService", () => {
     appointment: { findFirst: jest.Mock };
     encounter: { findFirst: jest.Mock; findMany: jest.Mock };
     case: { findFirst: jest.Mock };
-    invoice: { findFirst: jest.Mock };
+    invoice: { findFirst: jest.Mock; findMany: jest.Mock };
     organization: { findUnique: jest.Mock };
     patient: { findFirst: jest.Mock };
     patientOrganisation: { findFirst: jest.Mock };
@@ -143,6 +143,7 @@ describe("WorkspaceService", () => {
     mockedPrisma.encounter.findFirst.mockResolvedValue(null);
     mockedPrisma.case.findFirst.mockResolvedValue(null);
     mockedPrisma.invoice.findFirst.mockResolvedValue(null);
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
     mockedPrisma.organization.findUnique.mockResolvedValue(null);
     mockedPrisma.patient.findFirst.mockResolvedValue(null);
     mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
@@ -310,6 +311,9 @@ describe("WorkspaceService", () => {
       readyForBillingAt: new Date("2026-06-15T12:00:00.000Z"),
       readyForBillingActorId: "user-1",
     });
+    // #1910: the appointment's invoice PDF (an INVOICE rendered document) must be pulled into the
+    // All Documents set by matching its sourceId to the appointment's invoice ids.
+    mockedPrisma.invoice.findMany.mockResolvedValue([{ id: "invoice-1" }]);
     mockedPrisma.user.findUnique.mockResolvedValue({
       firstName: "Dr",
       lastName: "Ready",
@@ -527,6 +531,19 @@ describe("WorkspaceService", () => {
       organisationId: "org-1",
       appointmentId: "appt-1",
     });
+    // #1910: the rendered-document query must include an INVOICE sourceId condition built from the
+    // appointment's invoice ids, so the invoice PDF is surfaced in All Documents.
+    expect(mockedPrisma.invoice.findMany).toHaveBeenCalledWith({
+      where: { appointmentId: "appt-1" },
+      select: { id: true },
+    });
+    const renderedDocumentQuery =
+      mockedPrisma.renderedDocument.findMany.mock.calls.at(-1)?.[0];
+    expect(renderedDocumentQuery?.where?.OR).toEqual(
+      expect.arrayContaining([
+        { sourceKind: "INVOICE", sourceId: { in: ["invoice-1"] } },
+      ]),
+    );
   });
 
   it("returns a bootstrap payload without billing state when no invoice is open", async () => {

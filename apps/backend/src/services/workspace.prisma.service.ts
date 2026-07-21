@@ -1761,6 +1761,18 @@ const loadDocuments = async (params: {
     { appointmentId: string | null; encounterId: string | null }
   >;
 }) => {
+  // An INVOICE rendered document links to the appointment through its source row
+  // (Invoice.appointmentId), not through a templateInstance or clinicalArtifact - so without this
+  // the appointment's invoice PDF is silently omitted from the All Documents section. Resolve the
+  // invoice ids up front and match the rendered documents by sourceId. (Legacy form-submission
+  // reads stay retired; forms surface via the rendered-document/templateInstance pipeline.)
+  const appointmentInvoices = params.appointmentId
+    ? await prisma.invoice.findMany({
+        where: { appointmentId: params.appointmentId },
+        select: { id: true },
+      })
+    : [];
+
   const renderedDocumentConditions = [
     ...(params.appointmentId
       ? [
@@ -1773,6 +1785,14 @@ const loadDocuments = async (params: {
             clinicalArtifact: {
               is: { appointmentId: params.appointmentId },
             },
+          },
+        ]
+      : []),
+    ...(appointmentInvoices.length
+      ? [
+          {
+            sourceKind: "INVOICE" as never,
+            sourceId: { in: appointmentInvoices.map((invoice) => invoice.id) },
           },
         ]
       : []),
