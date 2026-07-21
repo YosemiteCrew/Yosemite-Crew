@@ -223,6 +223,60 @@ const formatReleaseDate = (iso?: string): string | null => {
   }
 };
 
+type RawRelease = { tag_name?: string; published_at?: string; html_url?: string };
+
+/**
+ * Shape a raw GitHub release into ReleaseInfo. The version comes from tag_name (the git tag),
+ * never the release `name` (a free-form title): strip a leading area prefix (backend-/mobile-/
+ * pims-/...) so only the version remains.
+ */
+const toReleaseInfo = (raw: RawRelease): ReleaseInfo => ({
+  tag: (raw.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
+  date: formatReleaseDate(raw.published_at),
+  url: raw.html_url ?? null,
+});
+
+// Tag predicates (module-level so the reference stays stable across renders, keeping the
+// useTaggedReleaseFromList effect from re-firing). Inputs are already lower-cased.
+const matchesMobileTag = (tag: string): boolean => /mobile|ios|android|app-v|expo/.test(tag);
+const matchesPlatformTag = (tag: string): boolean => /^(pims|pms)[-_]/.test(tag);
+
+/**
+ * Newest release from the repo's releases list whose TAG matches `matchesTag`. Matching on the tag
+ * (not the free-text title) keeps e.g. a backend release that merely mentions "mobile" from being
+ * picked; the list is newest-first, so the first match is the latest. Shared by useMobileRelease
+ * and usePlatformRelease, which differ only in their cache key and tag predicate.
+ */
+const useTaggedReleaseFromList = (
+  cacheKey: string,
+  matchesTag: (tag: string) => boolean
+): ReleaseInfo => {
+  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
+
+  useEffect(() => {
+    let active = true;
+    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
+    if (cached) setRelease(cached);
+    void (async () => {
+      const list = (await fetchJson(
+        `${GITHUB_API_REPO}/releases?per_page=30`,
+        'application/vnd.github+json'
+      )) as RawRelease[] | null;
+      if (!active || !Array.isArray(list)) return;
+      const match = list.find((entry) => matchesTag((entry.tag_name ?? '').toLowerCase()));
+      if (!match?.html_url) return;
+      const next = toReleaseInfo(match);
+      setRelease(next);
+      setJsonStorageItem('session', cacheKey, next);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [cacheKey, matchesTag]);
+
+  return release;
+};
+
 /**
  * Latest GitHub release (platform). Used by the Home chip and Pet Businesses hero
  * pill (cached) and the Insights latest-release card. Pass `{ live: true }` on the
@@ -245,15 +299,9 @@ export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
       const json = (await fetchJson(
         `${GITHUB_API_REPO}/releases/latest`,
         'application/vnd.github+json'
-      )) as { tag_name?: string; published_at?: string; html_url?: string } | null;
+      )) as RawRelease | null;
       if (!active || !json?.tag_name) return;
-      const next: ReleaseInfo = {
-        // Derive the version from tag_name (the git tag), never the release `name`:
-        // GitHub release names are free-form titles and would land in the version slot.
-        tag: json.tag_name.replace(/^[a-z]+-(?=v?\d)/i, ''),
-        date: formatReleaseDate(json.published_at),
-        url: json.html_url ?? null,
-      };
+      const next = toReleaseInfo(json);
       setRelease(next);
       setJsonStorageItem('session', cacheKey, next);
     })();
@@ -272,85 +320,10 @@ export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
  * and publish date and links to that release.
  */
 export function usePlatformRelease(): ReleaseInfo {
-  const cacheKey = 'yc_rel_pims_v1';
-  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
-
-  useEffect(() => {
-    let active = true;
-    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
-    if (cached) setRelease(cached);
-    void (async () => {
-      const list = (await fetchJson(
-        `${GITHUB_API_REPO}/releases?per_page=30`,
-        'application/vnd.github+json'
-      )) as Array<{
-        tag_name?: string;
-        published_at?: string;
-        html_url?: string;
-      }> | null;
-      if (!active || !Array.isArray(list)) return;
-      // Match on the release TAG only (not the free-text title): the platform app ships under
-      // `pims-`/`pms-` tags, so a desktop or backend release whose notes mention "PIMS" is not
-      // mistaken for the platform release. The list is newest-first, so the first match is latest.
-      const isPlatformTag = (x: { tag_name?: string }) => /^(pims|pms)[-_]/i.test(x.tag_name ?? '');
-      const platform = list.find(isPlatformTag);
-      if (!platform?.html_url) return;
-      const next: ReleaseInfo = {
-        // tag_name only: the release `name` is a free-form title, not a version.
-        tag: (platform.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
-        date: formatReleaseDate(platform.published_at),
-        url: platform.html_url,
-      };
-      setRelease(next);
-      setJsonStorageItem('session', cacheKey, next);
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return release;
+  return useTaggedReleaseFromList('yc_rel_pims_v1', matchesPlatformTag);
 }
 
 /** Newest mobile-tagged GitHub release. Used by the Pet Parents hero pill. */
 export function useMobileRelease(): ReleaseInfo {
-  const cacheKey = 'yc_rel_mobile_v1';
-  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
-
-  useEffect(() => {
-    let active = true;
-    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
-    if (cached) setRelease(cached);
-    void (async () => {
-      const list = (await fetchJson(
-        `${GITHUB_API_REPO}/releases?per_page=30`,
-        'application/vnd.github+json'
-      )) as Array<{
-        tag_name?: string;
-        published_at?: string;
-        html_url?: string;
-      }> | null;
-      if (!active || !Array.isArray(list)) return;
-      // Match on the release TAG only (not the free-text title), so a platform or
-      // backend release whose notes merely mention "mobile" is not mistaken for the
-      // mobile app release.
-      const isMobileTag = (x: { tag_name?: string }) =>
-        /mobile|ios|android|app-v|expo/.test((x.tag_name ?? '').toLowerCase());
-      const mobile = list.find(isMobileTag);
-      if (!mobile?.html_url) return;
-      const next: ReleaseInfo = {
-        // tag_name only: the release `name` is a free-form title, not a version.
-        tag: (mobile.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
-        date: formatReleaseDate(mobile.published_at),
-        url: mobile.html_url,
-      };
-      setRelease(next);
-      setJsonStorageItem('session', cacheKey, next);
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return release;
+  return useTaggedReleaseFromList('yc_rel_mobile_v1', matchesMobileTag);
 }
