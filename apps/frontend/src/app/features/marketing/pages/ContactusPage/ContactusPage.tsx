@@ -11,6 +11,7 @@ import {
   IoBusinessOutline,
   IoAlertCircleOutline,
   IoArrowForwardOutline,
+  IoCheckmarkCircle,
 } from 'react-icons/io5';
 
 import {
@@ -1215,6 +1216,70 @@ function ComplaintFields({
   );
 }
 
+/* ---------- success confirmation (replaces the form after a send) ---------- */
+
+function ContactSuccess({ onReset }: Readonly<{ onReset: () => void }>) {
+  return (
+    <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
+      <div
+        role="status"
+        aria-live="polite"
+        style={{ ...FORM_STYLE, alignItems: 'center', textAlign: 'center', gap: 16 }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,143,93,0.12)',
+            color: 'var(--success)',
+          }}
+        >
+          <IoCheckmarkCircle style={{ fontSize: 32 }} />
+        </span>
+        <h2
+          style={{
+            margin: 0,
+            fontFamily: NEWSREADER,
+            fontSize: 26,
+            fontWeight: 500,
+            letterSpacing: '-0.03em',
+            color: 'var(--ink)',
+          }}
+        >
+          Message sent
+        </h2>
+        <p
+          style={{
+            margin: 0,
+            maxWidth: 360,
+            fontSize: 15,
+            lineHeight: 1.55,
+            letterSpacing: '-0.01em',
+            color: 'var(--ink-muted)',
+          }}
+        >
+          Thanks. A person reads every message, and we&apos;ll reply to your email shortly. Check
+          your spam folder if you don&apos;t hear back.
+        </p>
+        <button
+          type="button"
+          onClick={onReset}
+          className="yc-btn-primary"
+          style={{ ...SUBMIT_BUTTON_STYLE, cursor: 'pointer' }}
+        >
+          Send another message
+          <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: 17 }} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- right column: the contact form ---------- */
 
 interface ContactFormProps {
@@ -1300,6 +1365,7 @@ const ContactusPage = () => {
   const [phone, setPhone] = useState<string>('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submitted, setSubmitted] = useState<boolean>(false);
   // Query Type
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [selectedQueryType, setSelectedQueryType] = useState<TicketCategory>('General Enquiry');
@@ -1376,6 +1442,9 @@ const ContactusPage = () => {
       const payload = buildPayload(formValues);
       await postData('/v1/contact-us/contact-web', payload);
       resetForm();
+      // Surface an explicit confirmation: without it the form just clears on success, which reads
+      // as "nothing happened / the form is broken".
+      setSubmitted(true);
     } catch (error) {
       const errorMessage = axios.isAxiosError(error)
         ? error.response?.data?.message || error.message
@@ -1413,13 +1482,17 @@ const ContactusPage = () => {
       <div data-grid-1-m style={HERO_GRID_STYLE}>
         <ContactHero />
 
-        <ContactForm
-          values={formValues}
-          setters={setters}
-          errors={errors}
-          confirm={{ selections: confirmSelections, onToggle: toggleConfirmOption }}
-          submit={submit}
-        />
+        {submitted ? (
+          <ContactSuccess onReset={() => setSubmitted(false)} />
+        ) : (
+          <ContactForm
+            values={formValues}
+            setters={setters}
+            errors={errors}
+            confirm={{ selections: confirmSelections, onToggle: toggleConfirmOption }}
+            submit={submit}
+          />
+        )}
       </div>
     </section>
   );

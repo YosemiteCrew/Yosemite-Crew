@@ -244,8 +244,8 @@ describe('ContactusPage', () => {
         email: 'jane.doe@example.com',
         source: 'PMS_WEB',
       });
-      expect(screen.getByLabelText('Full Name')).toHaveValue('');
-      expect(screen.getByLabelText('Enter Email Address')).toHaveValue('');
+      // On success the form is replaced by the confirmation card.
+      expect(await screen.findByText('Message sent')).toBeInTheDocument();
     });
 
     it('should show the uploaded image name on the complaint form', async () => {
@@ -318,9 +318,7 @@ describe('ContactusPage', () => {
           declarationAccepted: true,
         },
       });
-      expect(screen.getByLabelText('Full Name')).toHaveValue('');
-      expect(screen.getByLabelText('Enter Email Address')).toHaveValue('');
-      expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
+      expect(await screen.findByText('Message sent')).toBeInTheDocument();
     });
 
     it('should keep submit button disabled if DSAR form is almost valid', () => {
@@ -355,6 +353,31 @@ describe('ContactusPage', () => {
       fireEvent.click(checkboxes[1]);
 
       expect(submitButton).toBeDisabled();
+    });
+
+    it('shows a confirmation after a successful send and returns to a fresh form', async () => {
+      render(<ContactusPage />);
+      const submitButton = screen.getAllByRole('button', { name: 'Send message' })[0];
+
+      fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'John Doe' } });
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'A confirmed message.' },
+      });
+
+      await waitFor(() => expect(submitButton).toBeEnabled());
+      fireEvent.click(submitButton);
+
+      // The success card replaces the form, so the clinician gets an explicit acknowledgement.
+      expect(await screen.findByText('Message sent')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Full Name')).not.toBeInTheDocument();
+
+      // "Send another message" brings back a fresh (empty) form.
+      fireEvent.click(screen.getByRole('button', { name: /Send another message/i }));
+      expect(screen.getByLabelText('Full Name')).toHaveValue('');
+      expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
     });
 
     it('should handle API submission failure gracefully', async () => {
