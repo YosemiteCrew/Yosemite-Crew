@@ -347,10 +347,12 @@
 .invoice-compact-fixed .appointment-profile-title.cell-name {
   font-size: 13px;
 }
+/* Finance identity sub-line sits one step up from --ink-faint so the parent /
+   patient cell no longer reads washed out against the row's darker figures. */
 .invoice-table-fixed .appointment-profile-sub,
 .invoice-compact-fixed .appointment-profile-sub {
   font-size: 11.5px;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 .forms-table-fixed .appointment-profile-title {
   font-size: 13.5px;

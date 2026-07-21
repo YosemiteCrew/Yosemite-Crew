@@ -15,9 +15,13 @@ jest.mock('next/navigation', () => ({
   redirect: jest.fn(),
 }));
 
-jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: jest.fn(),
-}));
+jest.mock('@/app/stores/authStore', () => {
+  const useAuthStore = jest.fn();
+  (useAuthStore as unknown as { getState: unknown }).getState = jest.fn(() => ({
+    checkSession: jest.fn(),
+  }));
+  return { useAuthStore };
+});
 
 jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),

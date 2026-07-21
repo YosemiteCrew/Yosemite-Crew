@@ -90,9 +90,9 @@ export const Organization = () => {
     <div className="yc-page-content flex flex-col gap-[14px]">
       <Profile primaryOrg={primaryorg} />
       {primaryorg.isVerified ? (
-        <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-start">
+        <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-stretch">
           <Team isVerified={primaryorg.isVerified} />
-          <div className="flex flex-col gap-[14px]">
+          <div className="flex min-h-0 flex-col gap-[14px]">
             <Rooms />
             <Payment />
             <DeleteOrg />

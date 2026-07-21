@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -33,6 +33,9 @@ import {
 type AppointmentMerckSearchProps = {
   activeAppointment: Appointment | null;
 };
+
+// A framing-refused MSD page never fires onLoad; cap the spinner and fall back.
+const MERCK_READER_TIMEOUT_MS = 12000;
 
 const getSafeMerckEntries = (entries: MerckEntry[]) =>
   entries.filter(
@@ -254,14 +257,18 @@ const MerckReaderOverlay = ({
   url,
   title,
   loading,
+  blocked,
   onClose,
   onLoad,
+  onError,
 }: {
   url: string;
   title: string;
   loading: boolean;
+  blocked: boolean;
   onClose: () => void;
   onLoad: () => void;
+  onError: () => void;
 }) => (
   <div
     data-signing-overlay="true"
@@ -289,7 +296,31 @@ const MerckReaderOverlay = ({
         </button>
       </div>
       <div className="relative flex-1">
-        {loading ? (
+        {blocked ? (
+          // MSD forbids third-party framing (X-Frame-Options / frame-ancestors),
+          // so the embed can never load. Rather than spin forever, offer the
+          // working new-tab path.
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)] px-6 text-center">
+            <span className="flex size-11 items-center justify-center rounded-full bg-blue-soft text-blue-text">
+              <IoOpenOutline size={20} aria-hidden="true" />
+            </span>
+            <span className="text-[13.5px] font-bold text-[var(--ink)]">
+              This manual can’t open inside the app
+            </span>
+            <span className="max-w-[340px] text-[12px] text-[var(--ink-faint)]">
+              MSD does not allow its manuals to be embedded. Open it in a new tab instead.
+            </span>
+            <button
+              type="button"
+              onClick={() => globalThis.window.open(url, '_blank', 'noopener,noreferrer')}
+              className="mt-1 inline-flex items-center gap-2 rounded-full! border border-hairline px-4 py-2 text-[12.5px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+            >
+              <IoOpenOutline size={15} aria-hidden="true" />
+              Open in new tab
+            </button>
+          </div>
+        ) : null}
+        {loading && !blocked ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
             <YosemiteLoader
               label="Loading Manual"
@@ -309,6 +340,7 @@ const MerckReaderOverlay = ({
           referrerPolicy="strict-origin"
           sandbox="allow-scripts allow-popups allow-forms"
           onLoad={onLoad}
+          onError={onError}
         />
       </div>
     </div>
@@ -334,6 +366,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const [readerUrl, setReaderUrl] = useState<string | null>(null);
   const [readerTitle, setReaderTitle] = useState('Merck Manual');
   const [readerLoading, setReaderLoading] = useState(false);
+  const [readerBlocked, setReaderBlocked] = useState(false);
   const requestRef = useRef(0);
   const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
   resultCacheRef.current ??= new Map();
@@ -399,8 +432,23 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     setReaderTitle(entry.title);
     setReaderUrl(url);
     setReaderLoading(true);
+    setReaderBlocked(false);
     setReaderOpen(true);
   };
+
+  // MSD refuses third-party framing, so the iframe's onLoad often never fires
+  // (nor does onError, reliably). Cap the spinner and switch to the new-tab
+  // fallback so it can't hang on "Loading Manual" forever.
+  const failReaderLoad = useCallback(() => {
+    setReaderLoading(false);
+    setReaderBlocked(true);
+  }, []);
+
+  useEffect(() => {
+    if (!readerOpen || !readerUrl || !readerLoading) return;
+    const timer = setTimeout(failReaderLoad, MERCK_READER_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [readerOpen, readerUrl, readerLoading, failReaderLoad]);
 
   const copyUrl = async (url: string) => {
     try {
@@ -543,8 +591,10 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
               url={readerUrl}
               title={readerTitle}
               loading={readerLoading}
+              blocked={readerBlocked}
               onClose={() => setReaderOpen(false)}
               onLoad={() => setReaderLoading(false)}
+              onError={failReaderLoad}
             />,
             document.body
           )

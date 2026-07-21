@@ -20,17 +20,18 @@ const initialsFrom = (first: string, last: string): string => {
 const isHttpsAvatar = (raw?: string | null): raw is string =>
   typeof raw === 'string' && raw.trim().startsWith('https://');
 
-const scrollToSection = (id: string) => {
-  globalThis.document?.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+type PersonalProps = {
+  onEditProfile?: () => void;
+  onEditHours?: () => void;
 };
 
 /**
  * Compact identity card leading the Settings screen: avatar, name, an
  * "email · role · specialty" meta line, an Edit profile affordance, and a one-line
  * availability summary. All data is real (auth attributes + org membership + profile);
- * the affordances scroll to the detailed editors in the section below.
+ * the affordances open the profile and availability editors as modals.
  */
-const Personal = () => {
+const Personal = ({ onEditProfile, onEditHours }: PersonalProps) => {
   const attributes = useAuthStore((s) => s.attributes);
   const { membership } = usePrimaryOrgWithMembership();
   const profile = usePrimaryOrgProfile();
@@ -79,7 +80,7 @@ const Personal = () => {
         </span>
         <button
           type="button"
-          onClick={() => scrollToSection('settings-user-profile')}
+          onClick={onEditProfile}
           className="flex h-[34px] flex-none items-center rounded-full border border-[var(--divider)] px-[15px] text-[12px] font-semibold text-[var(--ink-body)] hover:border-[var(--blue)] hover:text-[var(--blue-text)] transition-colors cursor-pointer"
         >
           Edit profile
@@ -94,11 +95,7 @@ const Personal = () => {
             {availabilitySummary ?? 'Not set'}
           </span>
         </span>
-        <button
-          type="button"
-          onClick={() => scrollToSection('settings-availability')}
-          className="yc-settings-ghost-pill"
-        >
+        <button type="button" onClick={onEditHours} className="yc-settings-ghost-pill">
           <IoTimeOutline size={13} aria-hidden="true" className="yc-settings-ghost-pill-icon" />
           Edit hours
         </button>

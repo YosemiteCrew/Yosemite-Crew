@@ -1,12 +1,9 @@
 import type { Appointment } from '@yosemite-crew/types';
 
-import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
+import { formatDateInPreferredTimeZone, getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
 import { getLoadDotCount } from './phoneMonthModel';
 
 const DAYS_IN_WEEK = 7;
-
-/** Frame labels: three-letter, uppercase, Monday first. */
-const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
 
 export type PhoneDayStripCell = {
   date: Date;
@@ -63,7 +60,10 @@ export const buildPhoneDayStrip = ({
       date,
       dateKey,
       dayOfMonth: date.getDate(),
-      weekdayLabel: WEEKDAY_LABELS[index],
+      // Label by the cell's ACTUAL weekday (in the preferred timezone), not by
+      // its position — the strip can start on any day (e.g. a rolling day-picker
+      // seeded from the selected date), so a fixed Monday-first list mislabels it.
+      weekdayLabel: formatDateInPreferredTimeZone(date, { weekday: 'short' }).toUpperCase(),
       isToday: dateKey === todayKey,
       isPast: dateKey < todayKey,
       isSelected: dateKey === selectedKey,

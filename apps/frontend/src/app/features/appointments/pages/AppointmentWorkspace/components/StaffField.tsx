@@ -16,14 +16,16 @@ type MetaFieldShellProps = {
 };
 
 /**
- * Shared meta-bar field chrome: a 46px box with a 1.5px hairline border and the
- * label notched into the top border (the label paints the screen background
- * behind itself so the border reads as interrupted rather than overlapped).
+ * Shared meta-bar field chrome: a 46px box with a filled surface, a 1.5px
+ * hairline border, and the label notched into the top border (the label paints
+ * the screen background behind itself so the border reads as interrupted rather
+ * than overlapped). The surface uses `--field-bg` so the field reads as filled —
+ * matching the design — instead of washing out transparently over the page.
  */
 export const MetaFieldShell = ({ label, children, className = '' }: MetaFieldShellProps) => (
   <div
     className={`relative flex h-[46px] w-full items-center gap-2 rounded-[14px] border-[1.5px] pr-2 pl-3.5 ${className}`}
-    style={{ borderColor: 'var(--hairline)' }}
+    style={{ background: 'var(--field-bg)', borderColor: 'var(--hairline)' }}
   >
     <span
       className="absolute -top-[7px] left-3 truncate px-[5px] text-[10.5px] font-semibold leading-[120%]"

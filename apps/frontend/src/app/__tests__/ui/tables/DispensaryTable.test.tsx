@@ -177,6 +177,31 @@ describe('DispensaryTable', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
+  it('formats Requested/Dispensed timestamps in the viewer local timezone (never forced UTC)', () => {
+    const dateSpy = jest.spyOn(Date.prototype, 'toLocaleDateString');
+    const timeSpy = jest.spyOn(Date.prototype, 'toLocaleTimeString');
+    const record = { ...baseRecord, timeDispensed: '2026-06-30T15:29:25.223Z' };
+
+    render(<DispensaryTable filteredList={[record]} />);
+
+    // Both the date and time formatters must run for the rendered timestamps...
+    expect(dateSpy).toHaveBeenCalled();
+    expect(timeSpy).toHaveBeenCalled();
+    // ...and must format in the viewer's OWN resolved timezone rather than a
+    // hardcoded literal (the #1879 bug pinned every viewer to 'UTC'). When the
+    // runner itself is in UTC (e.g. CI) the resolved zone is legitimately 'UTC';
+    // what matters is that the passed zone equals the viewer's resolved zone,
+    // never a constant. A wrong hardcoded zone would differ on a non-UTC runner.
+    const viewerZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    for (const [, options] of [...dateSpy.mock.calls, ...timeSpy.mock.calls]) {
+      const zone = (options as Intl.DateTimeFormatOptions | undefined)?.timeZone;
+      expect(zone).toBe(viewerZone);
+    }
+
+    dateSpy.mockRestore();
+    timeSpy.mockRestore();
+  });
+
   it('applies the success color class when timeDispensed is present', () => {
     const record = { ...baseRecord, timeDispensed: '2026-06-30T15:29:25.223Z' };
     const { container } = render(<DispensaryTable filteredList={[record]} />);

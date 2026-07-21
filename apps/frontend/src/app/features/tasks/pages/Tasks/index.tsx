@@ -11,11 +11,13 @@ import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { Task, TaskFilters, TaskStatus, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import { useSearchStore } from '@/app/stores/searchStore';
+import { useAuthStore } from '@/app/stores/authStore';
+import { normalizeCalendarId } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
+import { resolveTeamMemberPrimaryId } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
 import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
-import TaskWeekNav from '@/app/features/tasks/components/TaskWeekNav';
-import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -33,6 +35,16 @@ const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
  */
 const TASK_STATUS_PILLS = TaskStatusFilters.filter((option) => option.key !== 'cancelled');
 
+/**
+ * Assignee scope, kept as a segmented control (not an audience chip) so its
+ * "Team" label never reads as the "Team" audience pill sitting next to it.
+ * "My tasks" narrows every view to the tasks assigned to the signed-in member.
+ */
+const TASK_SCOPE_OPTIONS = [
+  { key: 'mine', name: 'My tasks' },
+  { key: 'team', name: 'Team' },
+];
+
 const TaskPlannerSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
 );
@@ -44,9 +56,6 @@ const TaskCalendar = dynamic(
   () => import('@/app/features/appointments/components/Calendar/TaskCalendar'),
   { loading: () => <TaskPlannerSkeleton /> }
 );
-const TaskWeekAgenda = dynamic(() => import('@/app/features/tasks/components/TaskWeekAgenda'), {
-  loading: () => <TaskPlannerSkeleton />,
-});
 const TaskBoard = dynamic(() => import('@/app/features/tasks/components/TaskBoard'), {
   loading: () => <TaskPlannerSkeleton />,
 });
@@ -68,6 +77,7 @@ const Tasks = () => {
   const handledDeepLinkRef = useRef<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
+  const [activeScope, setActiveScope] = useState('team');
   const [addPopup, setAddPopup] = useState(false);
   const [addTaskPrefill, setAddTaskPrefill] = useState<Partial<Task> | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
@@ -81,8 +91,31 @@ const Tasks = () => {
   const [activeView, setActiveView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
-  const isPhone = useIsPhone();
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
+
+  const teams = useTeamForPrimaryOrg();
+  const authUserId = useAuthStore(
+    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
+  );
+
+  // Resolve "is this task assigned to me?" the same way the calendar does, so a
+  // task tagged by sub, email or team-member id still matches the signed-in user.
+  const myPrimaryId = useMemo(
+    () => normalizeCalendarId(resolveTeamMemberPrimaryId(teams, authUserId, normalizeCalendarId)),
+    [teams, authUserId]
+  );
+  const isAssignedToMe = useCallback(
+    (task: Task) => {
+      const me = normalizeCalendarId(authUserId);
+      if (!me) return false;
+      if (normalizeCalendarId(task.assignedTo) === me) return true;
+      const assigneePrimary = normalizeCalendarId(
+        resolveTeamMemberPrimaryId(teams, task.assignedTo, normalizeCalendarId)
+      );
+      return assigneePrimary !== '' && assigneePrimary === myPrimaryId;
+    },
+    [authUserId, myPrimaryId, teams]
+  );
 
   const handleActiveCalendarChange = useCallback(
     (next: SetStateAction<string>) => {
@@ -138,6 +171,7 @@ const Tasks = () => {
     const q = query.trim().toLowerCase();
     const filterWanted = activeFilter.toLowerCase();
     const statusWanted = activeStatus.toLowerCase();
+    const scopeToMine = activeScope === 'mine';
 
     return tasks.filter((item) => {
       const status = item.status?.toLowerCase();
@@ -147,10 +181,13 @@ const Tasks = () => {
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.name?.toLowerCase().includes(q);
+      // The board hides the My/Team scope control (it has its own toolbar), so the
+      // page-level scope must not narrow the list feeding it - mirror matchesStatus.
+      const matchesScope = activeView === 'board' || !scopeToMine || isAssignedToMe(item);
 
-      return matchesStatus && matchesFilter && matchesQuery;
+      return matchesStatus && matchesFilter && matchesQuery && matchesScope;
     });
-  }, [tasks, activeStatus, activeFilter, query, activeView]);
+  }, [tasks, activeStatus, activeFilter, query, activeView, activeScope, isAssignedToMe]);
 
   const handleCreateFromCalendarSlot = useCallback(
     (prefill: { dueAt: Date; assignedTo?: string }) => {
@@ -182,17 +219,12 @@ const Tasks = () => {
       'w-full h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
   });
 
-  // The design carries the week-range navigator in the title row, beside the
-  // view toggle — so it only exists for the desktop/tablet week agenda, not for
-  // the board, the list, or the phone day list (which brings its own header).
-  const showWeekNav = activeView === 'calendar' && !isPhone;
-
   let plannerContent: React.ReactNode;
   if (activeView === 'calendar') {
-    // The design's tasks "Calendar" is a 7-day agenda board on tablet/desktop; a
-    // time grid cannot shrink to a phone, so below 768px the planner keeps the
-    // dedicated thumb-checkable day list (PhoneTaskDayList via TaskCalendar).
-    plannerContent = isPhone ? (
+    // Tasks share the appointments-grade planner: the header switches between the
+    // Day, Week and Team grids on tablet/desktop, while TaskCalendar drops to the
+    // thumb-checkable PhoneTaskDayList below 768px.
+    plannerContent = (
       <TaskCalendar
         filteredList={filteredList}
         allTasks={tasks}
@@ -208,16 +240,6 @@ const Tasks = () => {
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         canEditTasks={canEditTasks}
-        onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
-      />
-    ) : (
-      <TaskWeekAgenda
-        filteredList={filteredList}
-        currentDate={currentDate}
-        weekStart={weekStart}
-        canEditTasks={canEditTasks}
-        setActiveTask={setActiveTask}
-        setViewPopup={setViewPopup}
         onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
       />
     );
@@ -263,26 +285,17 @@ const Tasks = () => {
           showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
           actionBeforeAdd={
-            <>
-              {showWeekNav && (
-                <TaskWeekNav
-                  currentDate={currentDate}
-                  setCurrentDate={handleCurrentDateChange}
-                  setWeekStart={setWeekStart}
-                />
-              )}
-              {canEditTasks && (
-                <Primary
-                  text="New task"
-                  ariaLabel="New task"
-                  onClick={openAddTask}
-                  icon={<IoAdd size={16} aria-hidden="true" />}
-                  // The design seats the CTA after the view toggle; this slot
-                  // renders before it, so flex order restores that sequence.
-                  className="order-1 gap-[7px] px-[18px] whitespace-nowrap hover:scale-100"
-                />
-              )}
-            </>
+            canEditTasks ? (
+              <Primary
+                text="New task"
+                ariaLabel="New task"
+                onClick={openAddTask}
+                icon={<IoAdd size={16} aria-hidden="true" />}
+                // The design seats the CTA after the view toggle; this slot
+                // renders before it, so flex order restores that sequence.
+                className="order-1 gap-[7px] px-[18px] whitespace-nowrap hover:scale-100"
+              />
+            ) : undefined
           }
         />
         <MobileSearchBar placeholder="Search tasks" />
@@ -293,10 +306,13 @@ const Tasks = () => {
               <TaskFilterBar
                 filterOptions={TaskFilters}
                 statusOptions={TASK_STATUS_PILLS}
+                scopeOptions={TASK_SCOPE_OPTIONS}
                 activeFilter={activeFilter}
                 activeStatus={activeStatus}
+                activeScope={activeScope}
                 setActiveFilter={setActiveFilter}
                 setActiveStatus={setActiveStatus}
+                setActiveScope={setActiveScope}
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

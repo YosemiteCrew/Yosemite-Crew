@@ -12,13 +12,18 @@ import { Primary } from '@/app/ui/primitives/Buttons';
  * Cancelled) instead of the shared "All statuses" dropdown. Area-local so the
  * shared Filters dropdown pattern stays untouched for the other modules.
  */
+type ScopeOption = { key: string; name: string };
+
 type TaskFilterBarProps = {
   filterOptions: FilterOption[];
   statusOptions: StatusOption[];
+  scopeOptions?: ScopeOption[];
   activeFilter: string;
   activeStatus: string;
+  activeScope?: string;
   setActiveFilter: (value: string) => void;
   setActiveStatus: (value: string) => void;
+  setActiveScope?: (value: string) => void;
   showAddButton?: boolean;
   onAddButtonClick?: () => void;
   addButtonText?: string;
@@ -29,15 +34,19 @@ const PARENT_AUDIENCE_KEY = 'parent_task';
 const TaskFilterBar = ({
   filterOptions,
   statusOptions,
+  scopeOptions,
   activeFilter,
   activeStatus,
+  activeScope,
   setActiveFilter,
   setActiveStatus,
+  setActiveScope,
   showAddButton = false,
   onAddButtonClick,
   addButtonText = 'New task',
 }: TaskFilterBarProps) => {
   const statusPills = statusOptions.filter((option) => option.key.toLowerCase() !== 'all');
+  const showScope = !!scopeOptions && scopeOptions.length > 0 && !!setActiveScope;
 
   const toggleFilter = (key: string) => setActiveFilter(activeFilter === key ? 'all' : key);
   const toggleStatus = (key: string) => setActiveStatus(activeStatus === key ? 'all' : key);
@@ -45,6 +54,37 @@ const TaskFilterBar = ({
   return (
     <div className="flex w-full flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
+        {showScope && (
+          <>
+            <div
+              role="group"
+              aria-label="Task scope"
+              className="inline-flex items-center rounded-full border border-[var(--hairline)] p-0.5"
+            >
+              {scopeOptions.map((option) => {
+                const isActive = activeScope === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setActiveScope(option.key)}
+                    className={clsx(
+                      'inline-flex h-6 items-center rounded-full px-3 text-[12px] transition-colors',
+                      isActive
+                        ? 'bg-[var(--inset)] font-bold text-[var(--ink)]'
+                        : 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
+                    )}
+                  >
+                    {option.name}
+                  </button>
+                );
+              })}
+            </div>
+            <span aria-hidden="true" className="mx-1 h-[18px] w-px shrink-0 bg-[var(--hairline)]" />
+          </>
+        )}
+
         {filterOptions.map((option) => {
           const isActive = activeFilter === option.key;
           const isParent = option.key === PARENT_AUDIENCE_KEY;

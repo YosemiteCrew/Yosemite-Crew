@@ -121,10 +121,18 @@ export function MessageSearch() {
                     }}
                     className="flex w-full flex-col gap-0.5 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
                   >
-                    <Text as="span" variant="body-4-emphasis" className="truncate text-neutral-900">
+                    <Text
+                      as="span"
+                      variant="caption-1"
+                      className="truncate text-[13px] text-neutral-900"
+                    >
                       {message.user?.name || message.user?.id || 'User'}
                     </Text>
-                    <Text as="span" variant="caption-1" className="truncate text-neutral-500">
+                    <Text
+                      as="span"
+                      variant="caption-1"
+                      className="truncate text-[12px] text-neutral-500"
+                    >
                       {message.text || 'Attachment'}
                     </Text>
                   </button>

@@ -93,6 +93,56 @@ describe('InClinicTodayBand', () => {
     expect(screen.getByText('B')).toBeInTheDocument();
   });
 
+  it('opens the specific appointment on card click and keyboard activation', () => {
+    useAppointmentsMock.mockReturnValue([
+      {
+        id: 'a1 b',
+        status: 'IN_PROGRESS',
+        startTime: today,
+        appointmentDate: today,
+        concern: 'dental cleaning',
+        companion: { id: 'c1', name: 'Poppy', species: 'dog', breed: 'Beagle' },
+      },
+    ]);
+
+    render(<InClinicTodayBand companions={companions} />);
+
+    const card = screen.getByRole('button', {
+      name: 'Open appointment for Poppy, 08:30, In progress',
+    });
+
+    fireEvent.click(card);
+    expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=a1%20b&open=details');
+
+    pushMock.mockClear();
+    fireEvent.keyDown(card, { key: 'Enter' });
+    expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=a1%20b&open=details');
+
+    pushMock.mockClear();
+    fireEvent.keyDown(card, { key: ' ' });
+    expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=a1%20b&open=details');
+
+    // A non-activation key is ignored.
+    pushMock.mockClear();
+    fireEvent.keyDown(card, { key: 'Escape' });
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('renders a non-interactive card when the appointment has no id', () => {
+    useAppointmentsMock.mockReturnValue([
+      {
+        status: 'CHECKED_IN',
+        appointmentDate: today,
+        companion: { id: 'c1', name: 'Poppy', species: 'dog' },
+      },
+    ]);
+
+    render(<InClinicTodayBand companions={companions} />);
+
+    // No appointment id → the card is not exposed as a button and cannot navigate.
+    expect(screen.queryByRole('button', { name: /Open appointment for/ })).not.toBeInTheDocument();
+  });
+
   it('routes to the schedule from the header link', () => {
     useAppointmentsMock.mockReturnValue([
       {

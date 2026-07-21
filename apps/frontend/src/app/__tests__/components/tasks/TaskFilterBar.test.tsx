@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
@@ -114,5 +114,53 @@ describe('TaskFilterBar', () => {
     expect(screen.queryByRole('button', { name: 'Pending' })).not.toBeInTheDocument();
     // Audience pills still render.
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+  });
+
+  it('renders the assignee scope segmented control and toggles it', () => {
+    const setActiveScope = jest.fn();
+    renderBar({
+      scopeOptions: [
+        { key: 'mine', name: 'My tasks' },
+        { key: 'team', name: 'Team' },
+      ],
+      activeScope: 'team',
+      setActiveScope,
+    });
+
+    // The scope group is its own labelled region so its "Team" segment does not
+    // collide with the "Team" audience chip.
+    const scope = within(screen.getByRole('group', { name: 'Task scope' }));
+    const teamScope = scope.getByRole('button', { name: 'Team' });
+    const mineScope = scope.getByRole('button', { name: 'My tasks' });
+
+    expect(teamScope).toHaveAttribute('aria-pressed', 'true');
+    expect(mineScope).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(mineScope);
+    expect(setActiveScope).toHaveBeenCalledWith('mine');
+  });
+
+  it('falls back to the pill fill for the active border when none is provided', () => {
+    renderBar({
+      statusOptions: [{ key: 'pending', name: 'Pending', bg: '#eeeeee', text: '#111111' }],
+      activeStatus: 'pending',
+    });
+    const pill = screen.getByRole('button', { name: 'Pending' });
+    expect(pill).toHaveAttribute('aria-pressed', 'true');
+    expect(pill).toHaveStyle({ borderColor: '#eeeeee' });
+  });
+
+  it('hides the scope control when scope options are not supplied', () => {
+    const { unmount } = renderBar({
+      scopeOptions: [],
+      activeScope: 'team',
+      setActiveScope: jest.fn(),
+    });
+    expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
+    unmount();
+
+    // Options present but no handler wired: the control still stays hidden.
+    renderBar({ scopeOptions: [{ key: 'mine', name: 'My tasks' }], activeScope: 'mine' });
+    expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
   });
 });

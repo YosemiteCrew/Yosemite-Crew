@@ -41,10 +41,13 @@ import NativeSoapFields from './NativeSoapFields';
  * Auto-load the SOAP template linked to the encounter's service/package when the active draft
  * is still empty, so the clinician lands on the preloaded content. Runs once per encounter and
  * never overwrites typed content; the search box below still lets them override the default.
+ * Gated on `visitStarted` so a not-yet-started (Upcoming) appointment opens with empty SOAP —
+ * the template only prefills once clinical documentation has begun.
  */
 const useAutoResolvedSoapTemplate = ({
   organisationId,
   readOnly,
+  visitStarted,
   note,
   appointmentId,
   encounterId,
@@ -54,6 +57,7 @@ const useAutoResolvedSoapTemplate = ({
 }: {
   organisationId?: string;
   readOnly: boolean;
+  visitStarted: boolean;
   note: SoapNoteEntry;
   appointmentId: string;
   encounterId?: string;
@@ -63,7 +67,7 @@ const useAutoResolvedSoapTemplate = ({
 }) => {
   const autoResolvedSoapRef = useRef(false);
   useEffect(() => {
-    if (!organisationId || readOnly || autoResolvedSoapRef.current) return;
+    if (!organisationId || readOnly || !visitStarted || autoResolvedSoapRef.current) return;
     if (note.templateId || hasNativeSoapContent(note) || isCustomSoap(note)) return;
     autoResolvedSoapRef.current = true;
     let cancelled = false;
@@ -94,6 +98,7 @@ const useAutoResolvedSoapTemplate = ({
     note,
     organisationId,
     readOnly,
+    visitStarted,
   ]);
 };
 
@@ -169,6 +174,11 @@ type SoapStepProps = {
   appointmentService?: string;
   appointmentSpeciality?: string;
   encounter: AppointmentEncounter;
+  /**
+   * Whether the visit has started (checked in / in progress / completed). Gates the
+   * service/package SOAP auto-prefill so a not-yet-started appointment stays empty.
+   */
+  visitStarted: boolean;
   onRecordVitals: () => void;
   onSaveAndNext: () => void;
 };
@@ -189,6 +199,7 @@ const SoapStep = ({
   appointmentService,
   appointmentSpeciality,
   encounter,
+  visitStarted,
   onRecordVitals,
   onSaveAndNext,
 }: SoapStepProps) => {
@@ -221,6 +232,7 @@ const SoapStep = ({
   useAutoResolvedSoapTemplate({
     organisationId,
     readOnly,
+    visitStarted,
     note,
     appointmentId,
     encounterId,

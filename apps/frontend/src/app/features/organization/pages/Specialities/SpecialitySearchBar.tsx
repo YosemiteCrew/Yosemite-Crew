@@ -69,14 +69,14 @@ const SpecialitySearchBar = ({
               key={result.id}
               type="button"
               onMouseDown={() => onSelectResult(result)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-card-hover transition-colors"
+              className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-card-hover transition-colors"
             >
-              <span className="text-body-4 text-text-primary truncate">{result.name}</span>
-              <span className="text-caption-1 text-text-secondary shrink-0">{result.meta}</span>
+              <span className="text-[13px] text-text-primary truncate">{result.name}</span>
+              <span className="text-[12px] text-text-secondary shrink-0">{result.meta}</span>
             </button>
           ))
         ) : (
-          <div className="px-4 py-3 text-body-4 text-text-secondary">No results found.</div>
+          <div className="px-4 py-2 text-[13px] text-text-secondary">No results found.</div>
         )}
       </div>
     )}

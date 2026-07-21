@@ -19,7 +19,7 @@ const HERO_VIDEO_STYLE: CSSProperties = {
   top: 0,
   left: 0,
   width: '100%',
-  height: '100vh',
+  height: '100%',
   objectFit: 'cover',
   opacity: 0.3,
   filter: 'blur(1px) saturate(200%) brightness(0.8)',
@@ -33,11 +33,11 @@ const HERO_SCRIM_STYLE: CSSProperties = {
   top: 0,
   left: 0,
   right: 0,
-  height: '100vh',
+  height: '100%',
   zIndex: 1,
   pointerEvents: 'none',
   background:
-    'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0) 86%)',
+    'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0.04) 92%, rgba(239,232,220,0) 100%)',
 };
 
 /** Static base for the scroll-progress bar; width is applied inline from scroll state. */
@@ -378,9 +378,26 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
     return () => cancelAnimationFrame(frame);
   }, [inView, reduced, target, suffix, value]);
 
+  // Reserve the final value's width (invisible sizer) and overlay the animating
+  // value, with tabular-nums for equal-width digits. Otherwise the number's
+  // width changes every frame while counting up, reflowing the surrounding text
+  // (the flicker that settles once the final number lands).
   return (
-    <span ref={ref} className={className} style={style}>
-      {display}
+    <span
+      ref={ref}
+      className={className}
+      style={{
+        ...style,
+        position: 'relative',
+        display: 'inline-block',
+        whiteSpace: 'nowrap',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      <span aria-hidden="true" style={{ visibility: 'hidden' }}>
+        {value}
+      </span>
+      <span style={{ position: 'absolute', left: 0, top: 0 }}>{display}</span>
     </span>
   );
 }

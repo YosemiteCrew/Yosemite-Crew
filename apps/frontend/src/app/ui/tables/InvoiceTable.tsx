@@ -26,8 +26,8 @@ import { getAvatarPalette } from '@/app/features/companions/pages/Companions/com
 
 const buildAppointmentSubtitle = (
   typeName: string | undefined,
-  dateText: string,
-  timeText: string
+  timeText: string,
+  dateText?: string
 ): string => {
   const stamp = [dateText, timeText]
     .map((part) => part?.trim())
@@ -150,11 +150,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       getAppointmentCompanionPhotoUrl(companion),
       (companion?.species as ImageType) ?? 'other'
     );
+    // The Date column already carries the appointment date, so the desktop
+    // sub-line pairs the appointment type with the time only — no duplicated
+    // date. On tablet the Date column is dropped, so the date folds back in.
+    const foldedDate =
+      foldMeta && appointment ? formatDateLabel(appointment.appointmentDate) : undefined;
     const appointmentSubtitle = appointment
       ? buildAppointmentSubtitle(
           appointment.appointmentType?.name,
-          formatDateLabel(appointment.appointmentDate),
-          formatTimeLabel(appointment.startTime ?? appointment.appointmentDate)
+          formatTimeLabel(appointment.startTime ?? appointment.appointmentDate),
+          foldedDate
         )
       : '';
     // Tablet drops the Services and Date columns, so their content folds here.
