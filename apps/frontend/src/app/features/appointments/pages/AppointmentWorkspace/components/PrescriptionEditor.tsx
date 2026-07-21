@@ -372,7 +372,7 @@ const PrescriptionRow = ({
             onChange={(value) => onUpdateItem(item.id, { instructions: value })}
           />
         </div>
-        <span className="shrink-0 self-center text-body-3-emphasis font-bold text-text-primary">
+        <span className="shrink-0 self-start text-body-3-emphasis font-bold text-text-primary">
           {item.priceCents == null ? '-' : formatCents(item.priceCents)}
         </span>
       </div>

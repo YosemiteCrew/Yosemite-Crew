@@ -830,6 +830,13 @@ const TreatmentStep = ({
       // create-or-update is keyed off the row id.
       const reconciledPrescriptions = await Promise.all(
         normalizedPrescriptions.map(async (rx) => {
+          // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
+          // only ever set from persisted server state, so it always carries a real id). Re-POSTing
+          // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
+          // already-persisted, already-dispensed row untouched instead of re-saving it.
+          if (rx.finalized) {
+            return rx;
+          }
           const savedRx = await savePrescriptionArtifact(
             { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
             rx
