@@ -11,7 +11,11 @@ import {
   getMondayFirstWeekday,
   shiftMonthAnchor,
 } from '@/app/features/appointments/components/Calendar/responsive/phoneMonthModel';
-import { getDateKeyInPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  buildPreferredTimeZoneDayInstant,
+  getDateKeyInPreferredTimeZone,
+  setPreferredTimeZone,
+} from '@/app/lib/timezone';
 
 // The preferred timezone falls back to Europe/Berlin when localStorage is empty,
 // which makes every assertion below independent of the host machine's zone.
@@ -65,16 +69,18 @@ const TODAY = new Date(Date.UTC(2026, 6, 7, 8)); // Tue 7 Jul 2026, 10:00 Berlin
 const cellFor = (model: ReturnType<typeof buildPhoneMonthModel>, dateKey: string) =>
   model.weeks.flatMap((week) => week.cells).find((cell) => cell.dateKey === dateKey);
 
-describe('buildPhoneMonthModel — cell date round-trips in extreme forward zones', () => {
-  it('a UTC+12/+13 zone keeps the selected day (cell.date resolves to its own dateKey)', () => {
-    // Selecting a day sets currentDate = cell.date, which is then re-read via the preferred
-    // timezone. In Pacific/Auckland a UTC-noon anchor resolved to the NEXT calendar day, so
-    // clicking 7 Jul silently selected 8 Jul. The cell.date must round-trip to its own key.
+describe('buildPhoneMonthModel — cell dateKey round-trips in extreme forward zones', () => {
+  it('a UTC+12/+13 zone keeps the selected day (dateKey resolves to its own instant)', () => {
+    // Selecting a day builds currentDate on demand from cell.dateKey (as PhoneCalendar does), which
+    // is then re-read via the preferred timezone. In Pacific/Auckland a UTC-noon anchor resolved to
+    // the NEXT calendar day, so clicking 7 Jul silently selected 8 Jul. The key must round-trip.
     setPreferredTimeZone('Pacific/Auckland');
     const model = buildPhoneMonthModel({ monthDate: JULY_2026, appointments: [], today: TODAY });
     const cell = cellFor(model, '2026-07-07');
     expect(cell).toBeDefined();
-    expect(getDateKeyInPreferredTimeZone(cell!.date)).toBe('2026-07-07');
+    const [year, month, day] = cell!.dateKey.split('-').map(Number);
+    const selected = buildPreferredTimeZoneDayInstant(year, month, day);
+    expect(getDateKeyInPreferredTimeZone(selected)).toBe('2026-07-07');
   });
 });
 

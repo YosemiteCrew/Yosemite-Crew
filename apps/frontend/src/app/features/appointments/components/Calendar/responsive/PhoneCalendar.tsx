@@ -312,7 +312,7 @@ const PhoneCalendar = ({
           view="month"
           onViewChange={applyClinicView}
           onMonthChange={setMonthAnchor}
-          onSelectDay={(cell: PhoneMonthCell) => setCurrentDate(cell.date)}
+          onSelectDay={(cell: PhoneMonthCell) => setCurrentDate(parseDateKey(cell.dateKey))}
           onOpenDay={(dateKey: string) => openDay(parseDateKey(dateKey))}
         />
       </div>

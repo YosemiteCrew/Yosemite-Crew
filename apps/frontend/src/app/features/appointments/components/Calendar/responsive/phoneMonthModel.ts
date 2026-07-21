@@ -1,10 +1,6 @@
 import type { Appointment } from '@yosemite-crew/types';
 import type { AppointmentStatus } from '@/app/features/appointments/types/appointments';
-import {
-  buildPreferredTimeZoneDayInstant,
-  getDateKeyInPreferredTimeZone,
-  getDatePartsInPreferredTimeZone,
-} from '@/app/lib/timezone';
+import { getDateKeyInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 
 /**
  * Pure derivation layer for the phone month overview ("dot map + day peek").
@@ -42,11 +38,8 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
 };
 
 export type PhoneMonthCell = {
-  /** Instant anchored at LOCAL NOON in the preferred timezone (not midnight), so it round-trips
-   *  back to this cell's `dateKey` in every zone. Use `dateKey` for day identity; never assume a
-   *  midnight boundary on this value. */
-  date: Date;
-  /** `YYYY-MM-DD` calendar key — the identity of the cell. */
+  /** `YYYY-MM-DD` calendar key — the identity of the cell. Consumers derive a concrete instant on
+   *  demand (via parseDateKey) only when a day is actually selected, never for every grid cell. */
   dateKey: string;
   dayOfMonth: number;
   /** True for the leading/trailing days borrowed from the adjacent months. */
@@ -279,11 +272,6 @@ export const buildPhoneMonthModel = ({
     const appointmentCount = bucket?.appointments.length ?? 0;
 
     return {
-      // Anchor at local noon in the preferred timezone so the cell date round-trips through
-      // the preferred-timezone date key on every device. A UTC-noon anchor resolves to the
-      // prior day for negative offsets and, more importantly, to the NEXT day for zones 12+
-      // hours ahead of UTC (e.g. Pacific/Auckland), which shifted month selections by a day.
-      date: buildPreferredTimeZoneDayInstant(ref.year, ref.month, ref.day),
       dateKey,
       dayOfMonth: ref.day,
       isOutsideMonth,
