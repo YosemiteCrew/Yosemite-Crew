@@ -30,35 +30,30 @@ type HoursEditModalProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+const buildDefaultAvailability = (): AvailabilityState =>
+  daysOfWeek.reduce<AvailabilityState>((acc, day) => {
+    const isWeekday =
+      day === 'Monday' ||
+      day === 'Tuesday' ||
+      day === 'Wednesday' ||
+      day === 'Thursday' ||
+      day === 'Friday';
+    acc[day] = { enabled: isWeekday, intervals: [{ ...DEFAULT_INTERVAL }] };
+    return acc;
+  }, {} as AvailabilityState);
+
 /**
- * Availability &amp; consultation hours editor, presented as the centered "Edit
- * hours" modal from the design (Settings · availability modal). Owns the same
- * availability state, org/practitioner loading and save flow the inline OrgSection
- * used before the Settings page was reduced to its compact panel.
+ * Data layer for the availability editor: seeds the editable state from the store
+ * snapshot (or the practitioner profile), and owns the save flow. Kept out of the
+ * modal component so the component stays a thin presentational shell.
  */
-const HoursEditModal = ({ showModal, setShowModal }: HoursEditModalProps) => {
-  const attributes = useAuthStore((s) => s.attributes);
+const useAvailabilityHours = (setShowModal: HoursEditModalProps['setShowModal']) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const { org, membership } = usePrimaryOrgWithMembership();
   const { availabilities } = usePrimaryAvailability();
   const { notify } = useNotify();
 
-  const [availability, setAvailability] = useState<AvailabilityState>(() =>
-    daysOfWeek.reduce<AvailabilityState>((acc, day) => {
-      const isWeekday =
-        day === 'Monday' ||
-        day === 'Tuesday' ||
-        day === 'Wednesday' ||
-        day === 'Thursday' ||
-        day === 'Friday';
-
-      acc[day] = {
-        enabled: isWeekday,
-        intervals: [{ ...DEFAULT_INTERVAL }],
-      };
-      return acc;
-    }, {} as AvailabilityState)
-  );
+  const [availability, setAvailability] = useState<AvailabilityState>(buildDefaultAvailability);
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
   // Render-phase adjustment: seed the editable availability from the store
@@ -88,7 +83,10 @@ const HoursEditModal = ({ showModal, setShowModal }: HoursEditModalProps) => {
         ? response.baseAvailability
         : [];
       setAvailability(convertFromGetApi(baseAvailability));
-    })().catch(() => undefined);
+    })().catch(() => {
+      // A failed practitioner-profile load leaves the editable availability at its
+      // default; the user can still set and save fresh hours from here.
+    });
 
     return () => {
       cancelled = true;
@@ -103,10 +101,8 @@ const HoursEditModal = ({ showModal, setShowModal }: HoursEditModalProps) => {
         setTimeout(resolve, 0);
       });
       const converted = convertAvailability(availability);
-      if (!hasAtLeastOneAvailability(converted)) {
-        console.log('No availability selected');
-        return;
-      }
+      // Nothing enabled: leave the modal open so the user can pick a day.
+      if (!hasAtLeastOneAvailability(converted)) return;
       if (membership?.practitionerReference) {
         await upsertTeamAvailability(
           {
@@ -125,8 +121,7 @@ const HoursEditModal = ({ showModal, setShowModal }: HoursEditModalProps) => {
         text: 'Availability have been updated successfully.',
       });
       setShowModal(false);
-    } catch (error) {
-      console.log(error);
+    } catch {
       notify('error', {
         title: 'Unable to update availability details',
         text: 'Failed to update availability details. Please try again.',
@@ -135,6 +130,18 @@ const HoursEditModal = ({ showModal, setShowModal }: HoursEditModalProps) => {
       setIsSavingAvailability(false);
     }
   };
+
+  return { availability, setAvailability, isSavingAvailability, handleSaveAvailability };
+};
+
+/**
+ * Availability &amp; consultation hours editor, presented as the centered "Edit
+ * hours" modal from the design (Settings · availability modal).
+ */
+const HoursEditModal = ({ showModal, setShowModal }: HoursEditModalProps) => {
+  const attributes = useAuthStore((s) => s.attributes);
+  const { availability, setAvailability, isSavingAvailability, handleSaveAvailability } =
+    useAvailabilityHours(setShowModal);
 
   // Design subtitle: "<practitioner> · drives booking slots and the team planner",
   // collapsing to the trailing clause when the signed-in user has no name.

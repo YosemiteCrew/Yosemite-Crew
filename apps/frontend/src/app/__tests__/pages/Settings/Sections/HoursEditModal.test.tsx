@@ -153,18 +153,19 @@ describe('Settings HoursEditModal', () => {
 
   it('skips saving when no availability is selected', async () => {
     (availabilityUtils.hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
 
     const { setShowModal } = renderModal();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     });
 
-    await waitFor(() => expect(logSpy).toHaveBeenCalledWith('No availability selected'));
+    // The save flow reaches the validation check and returns early (no upsert).
+    await waitFor(() =>
+      expect(availabilityUtils.hasAtLeastOneAvailability as jest.Mock).toHaveBeenCalled()
+    );
     expect(mockUpsertAvailability).not.toHaveBeenCalled();
     expect(mockNotify).not.toHaveBeenCalledWith('success', expect.anything());
     expect(setShowModal).not.toHaveBeenCalled();
-    logSpy.mockRestore();
   });
 
   it('notifies an error when availability persistence throws', async () => {
