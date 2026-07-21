@@ -22,6 +22,7 @@ import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
 import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
 import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
+import {Images} from '@/assets/images';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksList'>;
 type Route = RouteProp<TaskStackParamList, 'TasksList'>;
@@ -84,6 +85,12 @@ export const TasksListScreen: React.FC = () => {
     }
   };
 
+  const handleAddTask = () => {
+    navigation.navigate('AddTask', {
+      prefillDate: formatDateToISODate(selectedDate),
+    });
+  };
+
   const renderTask = ({item}: {item: Task}) => {
     const companion = companions.find(c => c.id === item.companionId);
     const {
@@ -139,6 +146,8 @@ export const TasksListScreen: React.FC = () => {
           title={`${resolveCategoryLabel(category)} tasks`}
           showBackButton
           onBack={() => navigation.goBack()}
+          rightIcon={Images.addIconDark}
+          onRightPress={handleAddTask}
           glass={false}
         />
       }

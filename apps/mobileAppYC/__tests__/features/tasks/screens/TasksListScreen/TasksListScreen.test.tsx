@@ -125,13 +125,16 @@ jest.mock('@/shared/components/common', () => ({
 }));
 
 jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => {
+  Header: ({title, onBack, onRightPress}: any) => {
     const {TouchableOpacity, Text, View} = require('react-native');
     return (
       <View>
         <Text>{title}</Text>
         <TouchableOpacity testID="header-back-btn" onPress={onBack}>
           <Text>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="header-add-btn" onPress={onRightPress}>
+          <Text>Add</Text>
         </TouchableOpacity>
       </View>
     );
@@ -339,6 +342,14 @@ describe('TasksListScreen', () => {
     const {getByTestId} = render(<TasksListScreen />);
     fireEvent.press(getByTestId('header-back-btn'));
     expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  it('navigates to AddTask with the selected date prefilled when the header add button is pressed', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    fireEvent.press(getByTestId('header-add-btn'));
+    expect(mockNavigate).toHaveBeenCalledWith('AddTask', {
+      prefillDate: '2025-12-31',
+    });
   });
 
   it('handles companion selection', () => {
