@@ -414,6 +414,19 @@ const restoreFieldPlaceholders = (fields: FormField[]): void => {
   });
 };
 
+// buildTemplatePayload persists the chosen visibility as `rules.visibility`
+// (e.g. 'Internal', 'External', 'Internal & External'). Round-trip it back into
+// the form's `visibilityType` on reload instead of hardcoding 'Internal', so the
+// selector rehydrates the saved value. normalizeUsageLabel folds the various
+// stored encodings ('Internal_External' etc.) back to the canonical label.
+const resolveTemplateVisibility = (template: TemplateLike): Form['visibilityType'] => {
+  const persisted = (template.rules as { visibility?: unknown } | null)?.visibility;
+  if (typeof persisted === 'string' && persisted.trim()) {
+    return normalizeUsageLabel(persisted) as Form['visibilityType'];
+  }
+  return 'Internal';
+};
+
 const templateToForm = (template: TemplateLike): Form => {
   const sanitizePrescriptionSchema = (snapshot: TemplateSchemaSnapshot): TemplateSchemaSnapshot => {
     // The backend persists the canonical medications section plus generic
@@ -464,7 +477,7 @@ const templateToForm = (template: TemplateLike): Form => {
       name: input.name,
       category: templateKindToCategory(input.kind),
       description: input.description,
-      visibilityType: 'Internal',
+      visibilityType: resolveTemplateVisibility(template),
       status: template.status === 'ARCHIVED' ? 'archived' : 'draft',
       schema: uiSchema,
       serviceId: templateServicesFromLinks(template),
@@ -492,7 +505,7 @@ const templateToForm = (template: TemplateLike): Form => {
     name: input.name,
     category: templateKindToCategory(input.kind),
     description: input.description,
-    visibilityType: 'Internal',
+    visibilityType: resolveTemplateVisibility(template),
     status: resolveTemplateStatus(template.status, input.schemaSnapshot.sections.length),
     schema: uiSchema,
     serviceId: templateServicesFromLinks(template),

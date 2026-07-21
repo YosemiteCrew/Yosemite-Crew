@@ -410,7 +410,7 @@ const GoogleSearchDropDown = ({
         >
           {predictions?.map((pred, index: number) => (
             <button
-              className="flex w-full flex-col items-start gap-1 rounded-2xl! px-[1.25rem] py-[0.75rem] text-left hover:bg-card-hover"
+              className="flex w-full flex-col items-start gap-1 rounded-2xl! px-[1.25rem] py-2 text-left hover:bg-card-hover"
               key={pred.placeId ?? `${pred.kind}-${pred.description}-${index}`}
               type="button"
               onMouseDown={(e) => {
@@ -426,11 +426,11 @@ const GoogleSearchDropDown = ({
                 inputRef.current?.focus();
               }}
             >
-              <span className="w-full text-left text-body-4-emphasis text-text-primary">
+              <span className="w-full text-left text-[13px] font-medium text-text-primary">
                 {getPredictionPrimaryText(pred)}
               </span>
               {getPredictionSecondaryText(pred) ? (
-                <span className="w-full text-left text-caption-1 text-text-secondary">
+                <span className="w-full text-left text-[12px] font-medium text-text-secondary">
                   {getPredictionSecondaryText(pred)}
                 </span>
               ) : null}

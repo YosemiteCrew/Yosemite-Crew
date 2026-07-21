@@ -219,12 +219,12 @@ const AddForm = ({
       <div className="flex h-full flex-col gap-4">
         {/* Header: title + details summary + preview / MSD / save / close actions */}
         <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <div className="text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <div className="truncate text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]">
               {isEditing ? 'Edit template' : 'Add template'}
               {formData.name ? ` · ${formData.name}` : ''}
             </div>
-            <div className="text-caption-2 text-text-secondary">{detailsSummary}</div>
+            <div className="truncate text-[12.5px] text-[var(--ink-muted)]">{detailsSummary}</div>
           </div>
           <div className="flex items-center gap-2">
             <button

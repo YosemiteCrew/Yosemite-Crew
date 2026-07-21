@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
@@ -336,6 +336,35 @@ describe('AppointmentMerckSearch', () => {
     await waitFor(() =>
       expect(screen.queryByTestId('appointment-merck-reader-loader')).not.toBeInTheDocument()
     );
+  });
+
+  it('falls back to the new-tab prompt when the reader never fires load', async () => {
+    render(<AppointmentMerckSearch activeAppointment={null} />);
+    fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await screen.findByText('Canine Fever');
+
+    jest.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+      expect(screen.getByTestId('appointment-merck-reader-loader')).toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(12000);
+      });
+
+      expect(screen.getByText(/can.t open inside the app/)).toBeInTheDocument();
+      expect(screen.queryByTestId('appointment-merck-reader-loader')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Open in new tab' }).at(-1)!);
+      expect(globalThis.open).toHaveBeenCalledWith(
+        'https://www.merckvetmanual.com/topic',
+        '_blank',
+        'noopener,noreferrer'
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('opens the reader from the result title and sub-topic pills', async () => {

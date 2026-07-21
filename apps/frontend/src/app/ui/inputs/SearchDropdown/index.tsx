@@ -197,7 +197,7 @@ const SearchDropdown = ({
               onClick={() => onSelectOption(option.value)}
               className={
                 optionClassName ??
-                `px-5 py-3 text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start ${
+                `px-5 py-2 text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start ${
                   activeOptionId === `${listboxId}-option-${option.value}`
                     ? 'bg-card-hover text-text-primary!'
                     : ''

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -400,6 +400,90 @@ describe('MerckManuals page', () => {
 
     fireEvent.load(iframe);
     await waitFor(() => expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument());
+  });
+
+  it('falls back to open-in-new-tab when the reader load times out (framing refused)', async () => {
+    jest.useFakeTimers();
+    try {
+      render(<ProtectedMerckManuals />);
+      fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+      fireEvent.click(screen.getByText('Search'));
+      await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByText('Open'));
+      await screen.findByTitle('Canine Fever');
+      expect(screen.getByText(/Fetching/)).toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(12000);
+      });
+
+      const fallback = screen
+        .getByText('This manual can’t be shown here')
+        .closest('div') as HTMLElement;
+      expect(fallback).toBeInTheDocument();
+      // The infinite spinner and the un-renderable iframe are both gone.
+      expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument();
+      // The fallback reuses the "Open in new tab" action pointing at the original URL.
+      const fallbackLink = within(fallback).getByRole('link', { name: /Open in new tab/ });
+      expect(fallbackLink).toHaveAttribute('href', baseEntry.primaryUrl);
+      expect(fallbackLink).toHaveAttribute('target', '_blank');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not fall back when the iframe loads before the timeout elapses', async () => {
+    jest.useFakeTimers();
+    try {
+      render(<ProtectedMerckManuals />);
+      fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+      fireEvent.click(screen.getByText('Search'));
+      await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByText('Open'));
+      const iframe = await screen.findByTitle('Canine Fever');
+
+      act(() => {
+        fireEvent.load(iframe);
+      });
+      act(() => {
+        jest.advanceTimersByTime(12000);
+      });
+
+      expect(screen.queryByText('This manual can’t be shown here')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument();
+      expect(screen.getByTitle('Canine Fever')).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('resets the blocked fallback when a new reader is opened', async () => {
+    jest.useFakeTimers();
+    try {
+      render(<ProtectedMerckManuals />);
+      fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+      fireEvent.click(screen.getByText('Search'));
+      await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByText('Open'));
+      await screen.findByTitle('Canine Fever');
+      act(() => {
+        jest.advanceTimersByTime(12000);
+      });
+      expect(screen.getByText('This manual can’t be shown here')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Close Merck reader'));
+      fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+
+      expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
+      expect(screen.queryByText('This manual can’t be shown here')).not.toBeInTheDocument();
+      expect(screen.getByText(/Fetching/)).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('opens the reader from the title button, sub-topic pill and supports open-in-new-tab', async () => {

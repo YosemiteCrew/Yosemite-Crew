@@ -106,6 +106,18 @@ type RequiredStaffMember = {
 
 const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
 
+/**
+ * Whether the visit has actually begun. Only a checked-in, in-progress, or
+ * completed appointment has started; an Upcoming/Requested one has not. This
+ * gates two workflow decisions: a not-started appointment must land on SOAP
+ * (never Summary/discharge), and its SOAP draft must not be auto-prefilled from
+ * a service/package template before clinical documentation has begun.
+ */
+const hasVisitStarted = (status: Appointment['status']): boolean => {
+  const normalized = normalizeAppointmentStatus(status);
+  return normalized === 'CHECKED_IN' || normalized === 'IN_PROGRESS' || normalized === 'COMPLETED';
+};
+
 /** Companion detail rows condensed into the header's one-line identity summary. */
 const SUMMARY_META_LABELS = new Set(['Breed/Species', 'Sex', 'Age / DOB', 'Weight']);
 
@@ -484,13 +496,15 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           ...(clinicalResult.status === 'fulfilled' ? clinicalResult.value : {}),
           soapTemplates: templatesResult.status === 'fulfilled' ? templatesResult.value : [],
         });
-        // Prefill the active SOAP draft from the resolved template only when there
-        // is no saved/typed SOAP content yet, so we never overwrite a real record.
+        // Prefill the active SOAP draft from the resolved template only once the
+        // visit has started AND there is no saved/typed SOAP content yet — so a
+        // not-yet-started appointment opens with empty SOAP, and we never
+        // overwrite a real record.
         const resolvedSoap =
           resolvedSoapResult.status === 'fulfilled' ? resolvedSoapResult.value : null;
         const liveEncounter = getEncounter(appointmentId);
         const hasSoapContent = hasMeaningfulSoapContent(liveEncounter?.soap ?? []);
-        if (resolvedSoap && !hasSoapContent) {
+        if (resolvedSoap && !hasSoapContent && hasVisitStarted(appointment.status)) {
           applySoapTemplate(appointmentId, resolvedSoap);
         }
       })
@@ -501,6 +515,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
     appointment.encounterId,
     appointment.organisationId,
     appointment.appointmentType?.id,
+    appointment.status,
     appointmentId,
     actor.id,
     actor.name,
@@ -544,12 +559,20 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   useEffect(() => {
     if (!encounter || landedForRef.current === encounter.appointmentId) return;
     landedForRef.current = encounter.appointmentId;
+    // A not-yet-started (Upcoming/Requested) appointment always opens on SOAP —
+    // never on Summary/discharge — regardless of any derived encounter progress,
+    // a past lock window, or stale route/tab state. Progress-driven landing (and
+    // an explicit ?step=) only applies once the visit has actually begun.
+    if (!hasVisitStarted(appointment.status)) {
+      setActiveStep('SOAP');
+      return;
+    }
     const landingEncounter = {
       ...encounter,
       viewOnly: encounter.viewOnly || encounter.readyForDischarge.value || lockedByWindow,
     };
     setActiveStep(isValidStep(stepParam) ? stepParam : resolveLandingStep(landingEncounter));
-  }, [encounter, lockedByWindow, stepParam, setActiveStep]);
+  }, [encounter, lockedByWindow, stepParam, setActiveStep, appointment.status]);
 
   const companionDetails = useMemo(
     () =>
@@ -1462,6 +1485,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           appointmentService={appointment.appointmentType?.name}
           appointmentSpeciality={appointment.appointmentType?.speciality?.name}
           encounter={effectiveEncounter}
+          visitStarted={hasVisitStarted(appointment.status)}
           onRecordVitals={() => setActiveSideAction('RECORD')}
           onSaveAndNext={handleSaveAndNext}
         />

@@ -478,6 +478,31 @@
   background: var(--field-bg);
   box-shadow: 0 0 0 3px var(--glow-b10);
 }
+/* Chrome/WebKit paints autofilled inputs with its own pale-blue background and
+   near-white text, ignoring the warm-bone tokens above. Repaint the field with
+   design tokens: the huge inset box-shadow masks the UA background (the
+   background-color animation trick keeps it from flashing back), and
+   -webkit-text-fill-color / caret-color restore legible --ink-body text. */
+.yc-field:-webkit-autofill,
+.yc-field:-webkit-autofill:hover,
+.yc-field:-webkit-autofill:focus,
+.yc-field:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ink-body);
+  caret-color: var(--ink-body);
+  -webkit-box-shadow: 0 0 0 100px var(--field-bg) inset;
+  box-shadow: 0 0 0 100px var(--field-bg) inset;
+  border-color: var(--hairline);
+  transition: background-color 100000s ease-in-out 0s;
+}
+.yc-field:-webkit-autofill:focus {
+  border-color: var(--blue);
+  -webkit-box-shadow:
+    0 0 0 100px var(--field-bg) inset,
+    0 0 0 3px var(--glow-b10);
+  box-shadow:
+    0 0 0 100px var(--field-bg) inset,
+    0 0 0 3px var(--glow-b10);
+}
 select.yc-field {
   appearance: none;
   -webkit-appearance: none;

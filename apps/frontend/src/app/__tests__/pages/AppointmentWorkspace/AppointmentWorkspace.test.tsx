@@ -2069,6 +2069,46 @@ describe('AppointmentWorkspace container', () => {
     ).toBe(false);
   });
 
+  it('lands on SOAP (never Summary) when the appointment has not started, even past the lock window', async () => {
+    // An IN_PROGRESS appointment past its lock window lands on read-only Summary
+    // (see the lock-window test). A not-yet-started (Upcoming) one must instead
+    // open on SOAP so staff never skip clinical documentation.
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date('2026-04-20T09:00:00Z')),
+            status: 'UPCOMING',
+          } as Appointment
+        }
+      />
+    );
+
+    await waitFor(() => expect(useAppointmentWorkspaceStore.getState().activeStep).toBe('SOAP'));
+  });
+
+  it('does not auto-prefill SOAP from a resolved template before the visit has started', async () => {
+    (resolveSoapTemplate as jest.Mock).mockResolvedValue({
+      id: 'tmpl-upcoming',
+      content: { subjective: '<p>Prefilled subjective</p>' },
+    });
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date()), status: 'UPCOMING' } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    // The resolver still runs during hydration, but the template is NOT applied
+    // to the draft while the appointment is Upcoming.
+    await waitFor(() => expect(resolveSoapTemplate).toHaveBeenCalled());
+    expect(
+      (useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.soap ?? []).some(
+        (note) => note.templateId === 'tmpl-upcoming'
+      )
+    ).toBe(false);
+  });
+
   it('checks the appointment in to create an encounter when none exists', async () => {
     mockStepParam = 'TREATMENT';
     render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);

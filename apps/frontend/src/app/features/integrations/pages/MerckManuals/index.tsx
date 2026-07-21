@@ -535,25 +535,72 @@ const READER_AUDIENCE_META: Record<MerckAudience, { label: string; className: st
 const READER_FOOTER_NOTICE =
   "Content © MSD Veterinary Manual · displayed under your clinic's integration";
 
+// MSD forbids third-party framing (X-Frame-Options / frame-ancestors); the load
+// then never fires onLoad, so cap the spinner and fall back to opening in a new tab.
+const READER_LOAD_TIMEOUT_MS = 12000;
+
+const MerckReaderFallback = ({
+  readerUrl,
+  readerTitle,
+}: {
+  readerUrl: string;
+  readerTitle: string;
+}) => (
+  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)] px-8 text-center">
+    <span className="flex size-14 items-center justify-center rounded-full bg-[var(--inset)] text-[var(--ink-faint)]">
+      <IoBookOutline size={24} aria-hidden="true" />
+    </span>
+    <span className="text-[15px] font-bold text-[var(--ink)]">This manual can’t be shown here</span>
+    <span className="max-w-[380px] text-[12.5px] leading-relaxed text-[var(--ink-muted)]">
+      MSD Veterinary Manual doesn’t allow its pages to be embedded. Open “{readerTitle}” in a new
+      tab to read the full content.
+    </span>
+    <Link
+      href={readerUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-1 flex items-center gap-1.5 rounded-full! border border-hairline bg-[var(--screen)] px-4 py-2 text-[12.5px] font-bold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+    >
+      <IoOpenOutline size={14} aria-hidden="true" />
+      Open in new tab
+    </Link>
+  </div>
+);
+
 const MerckReaderPortal = ({
   readerOpen,
   readerUrl,
   readerTitle,
   readerLoading,
+  readerBlocked,
   audience,
   onCopyUrl,
   setReaderOpen,
   setReaderLoading,
+  setReaderBlocked,
 }: {
   readerOpen: boolean;
   readerUrl: string | null;
   readerTitle: string;
   readerLoading: boolean;
+  readerBlocked: boolean;
   audience: MerckAudience;
   onCopyUrl: (url: string) => void;
   setReaderOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setReaderBlocked: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
+  const onReaderLoadFailed = useCallback(() => {
+    setReaderLoading(false);
+    setReaderBlocked(true);
+  }, [setReaderLoading, setReaderBlocked]);
+
+  useEffect(() => {
+    if (!readerOpen || !readerUrl || !readerLoading) return;
+    const timer = setTimeout(onReaderLoadFailed, READER_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [readerOpen, readerUrl, readerLoading, onReaderLoadFailed]);
+
   if (!readerOpen || !readerUrl || typeof document === 'undefined') return null;
 
   const audienceMeta = READER_AUDIENCE_META[audience];
@@ -610,23 +657,30 @@ const MerckReaderPortal = ({
           </div>
         </div>
         <div className="relative flex-1">
-          {readerLoading ? (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
-              <YosemiteLoader label="Loading Manual" size={120} testId="merck-reader-loader" />
-              <span className="max-w-[320px] text-center text-[12px] text-[var(--ink-faint)]">
-                Fetching “{readerTitle}” from MSD…
-              </span>
-            </div>
-          ) : null}
-          <iframe
-            src={readerUrl}
-            title={readerTitle}
-            className="flex-1 size-full border-0"
-            loading="lazy"
-            referrerPolicy="strict-origin"
-            sandbox="allow-scripts allow-popups allow-forms"
-            onLoad={() => setReaderLoading(false)}
-          />
+          {readerBlocked ? (
+            <MerckReaderFallback readerUrl={readerUrl} readerTitle={readerTitle} />
+          ) : (
+            <>
+              {readerLoading ? (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
+                  <YosemiteLoader label="Loading Manual" size={120} testId="merck-reader-loader" />
+                  <span className="max-w-[320px] text-center text-[12px] text-[var(--ink-faint)]">
+                    Fetching “{readerTitle}” from MSD…
+                  </span>
+                </div>
+              ) : null}
+              <iframe
+                src={readerUrl}
+                title={readerTitle}
+                className="flex-1 size-full border-0"
+                loading="lazy"
+                referrerPolicy="strict-origin"
+                sandbox="allow-scripts allow-popups allow-forms"
+                onLoad={() => setReaderLoading(false)}
+                onError={onReaderLoadFailed}
+              />
+            </>
+          )}
         </div>
         <div className="border-t border-hairline px-6 py-3">
           <span className="text-[11.5px] text-[var(--ink-faint)]">{READER_FOOTER_NOTICE}</span>
@@ -657,6 +711,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [readerTitle, setReaderTitle] = useState('Merck Manual');
   const [readerUrl, setReaderUrl] = useState<string | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
+  const [readerBlocked, setReaderBlocked] = useState(false);
 
   const requestIdRef = useRef(0);
   const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
@@ -723,6 +778,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     setReaderTitle(entry.title);
     setReaderUrl(url);
     setReaderLoading(true);
+    setReaderBlocked(false);
     setReaderOpen(true);
   };
 
@@ -845,10 +901,12 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         readerUrl={readerUrl}
         readerTitle={readerTitle}
         readerLoading={readerLoading}
+        readerBlocked={readerBlocked}
         audience={audience}
         onCopyUrl={onCopyUrl}
         setReaderOpen={setReaderOpen}
         setReaderLoading={setReaderLoading}
+        setReaderBlocked={setReaderBlocked}
       />
 
       {entries.length === 0 ? (
