@@ -68,40 +68,28 @@ const persistAvailability = async (
 };
 
 /**
- * Data layer for the availability editor: seeds the editable state from the store
- * snapshot (or the practitioner profile), and owns the save flow. Kept out of the
- * modal component so the component stays a thin presentational shell.
+ * Editable availability state: seeds from the org snapshot, or from the signed-in
+ * practitioner's saved profile when there is one.
  */
-const useAvailabilityHours = (setShowModal: HoursEditModalProps['setShowModal']) => {
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const { org, membership } = usePrimaryOrgWithMembership();
+const useEditableAvailability = (practitionerReference: string | undefined) => {
   const { availabilities } = usePrimaryAvailability();
-  const { notify } = useNotify();
-
   const [availability, setAvailability] = useState<AvailabilityState>(buildDefaultAvailability);
-  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
-  // Render-phase adjustment: seed the editable availability from the store
-  // snapshot whenever a new snapshot arrives (org-level fallback only).
+  // Render-phase adjustment: seed from the store snapshot (org-level fallback only).
   const [syncedAvailabilities, setSyncedAvailabilities] = useState<typeof availabilities | null>(
     null
   );
-  if (
-    availabilities &&
-    !membership?.practitionerReference &&
-    availabilities !== syncedAvailabilities
-  ) {
+  if (availabilities && !practitionerReference && availabilities !== syncedAvailabilities) {
     setSyncedAvailabilities(availabilities);
     setAvailability(availabilities);
   }
 
   useEffect(() => {
-    const practitionerId = membership?.practitionerReference;
-    if (!practitionerId) return;
+    if (!practitionerReference) return;
     let cancelled = false;
 
     (async () => {
-      const data = await getProfileForUserForPrimaryOrg(practitionerId);
+      const data = await getProfileForUserForPrimaryOrg(practitionerReference);
       if (cancelled) return;
       const response = data as { baseAvailability?: unknown };
       const baseAvailability = Array.isArray(response?.baseAvailability)
@@ -116,7 +104,23 @@ const useAvailabilityHours = (setShowModal: HoursEditModalProps['setShowModal'])
     return () => {
       cancelled = true;
     };
-  }, [membership?.practitionerReference]);
+  }, [practitionerReference]);
+
+  return [availability, setAvailability] as const;
+};
+
+/**
+ * Orchestrates the availability save flow, kept out of the modal component so the
+ * component stays a thin presentational shell.
+ */
+const useAvailabilityHours = (setShowModal: HoursEditModalProps['setShowModal']) => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const { org, membership } = usePrimaryOrgWithMembership();
+  const { notify } = useNotify();
+  const [availability, setAvailability] = useEditableAvailability(
+    membership?.practitionerReference
+  );
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
   const handleSaveAvailability = async () => {
     if (isSavingAvailability) return;
