@@ -1,6 +1,10 @@
 import type { Appointment } from '@yosemite-crew/types';
 import type { AppointmentStatus } from '@/app/features/appointments/types/appointments';
-import { getDateKeyInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  buildPreferredTimeZoneDayInstant,
+  getDateKeyInPreferredTimeZone,
+  getDatePartsInPreferredTimeZone,
+} from '@/app/lib/timezone';
 
 /**
  * Pure derivation layer for the phone month overview ("dot map + day peek").
@@ -273,9 +277,11 @@ export const buildPhoneMonthModel = ({
     const appointmentCount = bucket?.appointments.length ?? 0;
 
     return {
-      // Noon UTC so the cell date round-trips through the preferred-timezone date
-      // key on every device (a local-midnight Date can resolve to the prior day).
-      date: new Date(Date.UTC(ref.year, ref.month - 1, ref.day, 12, 0, 0)),
+      // Anchor at local noon in the preferred timezone so the cell date round-trips through
+      // the preferred-timezone date key on every device. A UTC-noon anchor resolves to the
+      // prior day for negative offsets and, more importantly, to the NEXT day for zones 12+
+      // hours ahead of UTC (e.g. Pacific/Auckland), which shifted month selections by a day.
+      date: buildPreferredTimeZoneDayInstant(ref.year, ref.month, ref.day),
       dateKey,
       dayOfMonth: ref.day,
       isOutsideMonth,

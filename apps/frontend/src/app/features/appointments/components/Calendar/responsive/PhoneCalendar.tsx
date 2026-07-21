@@ -11,7 +11,7 @@ import { useLoadTasksForPrimaryOrg, useTasksAssignedToUser } from '@/app/hooks/u
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
-import { getPreferredTimeZone } from '@/app/lib/timezone';
+import { buildPreferredTimeZoneDayInstant, getPreferredTimeZone } from '@/app/lib/timezone';
 import { useNotify } from '@/app/hooks/useNotify';
 import type { Task } from '@/app/features/tasks/types/task';
 import type { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
@@ -85,9 +85,10 @@ const startOfLocalDay = (date: Date): Date =>
 
 const parseDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split('-').map(Number);
-  // Anchor to noon UTC so the key round-trips through getDateKeyInPreferredTimeZone
-  // for every device timezone (a local midnight can land on the previous day).
-  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  // Anchor at local noon in the preferred timezone so the key round-trips through
+  // getDateKeyInPreferredTimeZone for every zone - a UTC-noon anchor lands on the next day
+  // for zones 12+ hours ahead of UTC (e.g. Pacific/Auckland).
+  return buildPreferredTimeZoneDayInstant(year, month, day);
 };
 
 const minutesOfDay = (date: Date): number => date.getHours() * 60 + date.getMinutes();

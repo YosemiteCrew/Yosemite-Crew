@@ -12,6 +12,7 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { useNotify } from '@/app/hooks/useNotify';
+import { getDateKeyInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -301,8 +302,10 @@ describe('PhoneCalendar', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /^2026-07-07/ }));
 
-      // Cells anchor to noon UTC so the date key round-trips across timezones.
-      expect(setCurrentDate).toHaveBeenCalledWith(new Date(Date.UTC(2026, 6, 7, 12, 0, 0)));
+      // Cells anchor to local noon in the preferred timezone, so the selected date round-trips
+      // back to its own day key (not the next day, as a UTC-noon anchor would in +12/+13 zones).
+      const selectedDate = (setCurrentDate as jest.Mock).mock.calls.at(-1)?.[0] as Date;
+      expect(getDateKeyInPreferredTimeZone(selectedDate)).toBe('2026-07-07');
       expect(screen.getByRole('region', { name: 'Month overview' })).toBeInTheDocument();
     });
 
@@ -322,8 +325,9 @@ describe('PhoneCalendar', () => {
 
       const openedDate = (setCurrentDate as jest.Mock).mock.calls.at(-1)?.[0] as Date;
       expect(openedDate).toBeInstanceOf(Date);
-      // parseDateKey anchors the opened day to noon UTC (timezone-stable).
-      expect(openedDate.getUTCHours()).toBe(12);
+      // parseDateKey anchors the opened day to local noon in the preferred timezone (never near a
+      // day boundary), so the day key stays stable across every zone.
+      expect(getDatePartsInPreferredTimeZone(openedDate).hour).toBe(12);
       expect(setActiveCalendar).toHaveBeenCalledWith('day');
     });
   });
