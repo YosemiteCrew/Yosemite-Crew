@@ -224,8 +224,12 @@ const PhoneCalendar = ({
 
   const handleBookFold = useCallback(
     (fold: DayRailFold) => {
+      // Pass currentDate straight through (the booking path reads its day in the PREFERRED
+      // timezone via buildDateInPreferredTimeZone). Do NOT re-project through startOfLocalDay,
+      // whose device-local getters shift the day when the preferred zone is ahead of the device
+      // (e.g. opening 7 Jul in Pacific/Auckland from a US/Pacific browser prefilled 6 Jul).
       onCreateFromCalendarSlot?.({
-        date: startOfLocalDay(currentDate),
+        date: currentDate,
         minuteOfDay: fold.startMinutes,
       });
     },

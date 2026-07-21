@@ -185,13 +185,18 @@ describe('PhoneCalendar', () => {
       expect(onOpenWorkspace).toHaveBeenCalledWith(checkedIn);
     });
 
-    it('books into a folded band at the fold start minute', async () => {
-      renderCalendar();
+    it('books into a folded band using the viewed day as-is, not a device-local projection', async () => {
+      // currentDate carries a time-of-day. The booking date must be that exact instant (its day is
+      // read in the preferred timezone downstream), NOT stripped to device-local midnight, which
+      // would shift the day when the preferred zone is ahead of the device (bug: opening 7 Jul in
+      // Pacific/Auckland from a US/Pacific browser prefilled 6 Jul).
+      const viewed = localDate(7, 12);
+      renderCalendar({ currentDate: viewed });
 
       await userEvent.click(screen.getAllByRole('button', { name: 'Book' })[0]);
 
       expect(onCreateFromCalendarSlot).toHaveBeenCalledWith({
-        date: new Date(2026, 6, 7),
+        date: viewed,
         minuteOfDay: expect.any(Number),
       });
     });
