@@ -45,7 +45,7 @@ export const createTaskFormStyles = (theme: any) => {
     },
     saveButtonText: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     errorText: errorStyles.errorText,
   });

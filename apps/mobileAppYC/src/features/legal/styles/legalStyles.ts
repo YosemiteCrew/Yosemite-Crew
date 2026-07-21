@@ -190,7 +190,7 @@ export const createLegalStyles = (theme: any) =>
     },
     glassButtonDarkText: {
       ...theme.typography.titleSmall,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
   });

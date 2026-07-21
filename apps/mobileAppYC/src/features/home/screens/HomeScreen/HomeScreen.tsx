@@ -1820,7 +1820,7 @@ const createStyles = (theme: any) =>
     },
     reviewButtonText: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     upcomingFooter: {
       gap: theme.spacing['2'],
