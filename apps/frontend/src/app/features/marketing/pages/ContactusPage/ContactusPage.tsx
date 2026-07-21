@@ -1218,51 +1218,53 @@ function ComplaintFields({
 
 /* ---------- success confirmation (replaces the form after a send) ---------- */
 
+const SUCCESS_CARD_STYLE: CSSProperties = {
+  ...FORM_STYLE,
+  alignItems: 'center',
+  textAlign: 'center',
+  gap: 16,
+};
+
+const SUCCESS_ICON_STYLE: CSSProperties = {
+  width: 56,
+  height: 56,
+  borderRadius: 9999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'rgba(0,143,93,0.12)',
+  color: 'var(--success)',
+};
+
+const SUCCESS_TITLE_STYLE: CSSProperties = {
+  margin: 0,
+  fontFamily: NEWSREADER,
+  fontSize: 26,
+  fontWeight: 500,
+  letterSpacing: '-0.03em',
+  color: 'var(--ink)',
+};
+
+const SUCCESS_TEXT_STYLE: CSSProperties = {
+  margin: 0,
+  maxWidth: 360,
+  fontSize: 15,
+  lineHeight: 1.55,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-muted)',
+};
+
+const SUCCESS_BUTTON_STYLE: CSSProperties = { ...SUBMIT_BUTTON_STYLE, cursor: 'pointer' };
+
 function ContactSuccess({ onReset }: Readonly<{ onReset: () => void }>) {
   return (
     <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
-      <div
-        role="status"
-        aria-live="polite"
-        style={{ ...FORM_STYLE, alignItems: 'center', textAlign: 'center', gap: 16 }}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,143,93,0.12)',
-            color: 'var(--success)',
-          }}
-        >
+      <div role="status" aria-live="polite" style={SUCCESS_CARD_STYLE}>
+        <span aria-hidden="true" style={SUCCESS_ICON_STYLE}>
           <IoCheckmarkCircle style={{ fontSize: 32 }} />
         </span>
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: NEWSREADER,
-            fontSize: 26,
-            fontWeight: 500,
-            letterSpacing: '-0.03em',
-            color: 'var(--ink)',
-          }}
-        >
-          Message sent
-        </h2>
-        <p
-          style={{
-            margin: 0,
-            maxWidth: 360,
-            fontSize: 15,
-            lineHeight: 1.55,
-            letterSpacing: '-0.01em',
-            color: 'var(--ink-muted)',
-          }}
-        >
+        <h2 style={SUCCESS_TITLE_STYLE}>Message sent</h2>
+        <p style={SUCCESS_TEXT_STYLE}>
           Thanks. A person reads every message, and we&apos;ll reply to your email shortly. Check
           your spam folder if you don&apos;t hear back.
         </p>
@@ -1270,7 +1272,7 @@ function ContactSuccess({ onReset }: Readonly<{ onReset: () => void }>) {
           type="button"
           onClick={onReset}
           className="yc-btn-primary"
-          style={{ ...SUBMIT_BUTTON_STYLE, cursor: 'pointer' }}
+          style={SUCCESS_BUTTON_STYLE}
         >
           Send another message
           <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: 17 }} />
