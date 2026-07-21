@@ -30,17 +30,42 @@ type HoursEditModalProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
+const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+
 const buildDefaultAvailability = (): AvailabilityState =>
   daysOfWeek.reduce<AvailabilityState>((acc, day) => {
-    const isWeekday =
-      day === 'Monday' ||
-      day === 'Tuesday' ||
-      day === 'Wednesday' ||
-      day === 'Thursday' ||
-      day === 'Friday';
-    acc[day] = { enabled: isWeekday, intervals: [{ ...DEFAULT_INTERVAL }] };
+    acc[day] = { enabled: WEEKDAYS.has(day), intervals: [{ ...DEFAULT_INTERVAL }] };
     return acc;
   }, {} as AvailabilityState);
+
+type MembershipLike = { practitionerReference?: string; id?: string } | null | undefined;
+type OrgLike = { _id?: unknown } | null | undefined;
+
+// Convert the editable availability and persist it (team vs. org level). Returns
+// false when nothing is enabled, so the caller can keep the editor open.
+const persistAvailability = async (
+  availability: AvailabilityState,
+  membership: MembershipLike,
+  org: OrgLike,
+  primaryOrgId: string | null
+): Promise<boolean> => {
+  const converted = convertAvailability(availability);
+  if (!hasAtLeastOneAvailability(converted)) return false;
+  if (membership?.practitionerReference) {
+    await upsertTeamAvailability(
+      {
+        _id: membership.id ?? membership.practitionerReference,
+        practionerId: membership.practitionerReference,
+        organisationId: primaryOrgId ?? String(org?._id ?? ''),
+      } as any,
+      converted,
+      null
+    );
+  } else {
+    await upsertAvailability(converted, null);
+  }
+  return true;
+};
 
 /**
  * Data layer for the availability editor: seeds the editable state from the store
@@ -100,22 +125,9 @@ const useAvailabilityHours = (setShowModal: HoursEditModalProps['setShowModal'])
       await new Promise<void>((resolve) => {
         setTimeout(resolve, 0);
       });
-      const converted = convertAvailability(availability);
       // Nothing enabled: leave the modal open so the user can pick a day.
-      if (!hasAtLeastOneAvailability(converted)) return;
-      if (membership?.practitionerReference) {
-        await upsertTeamAvailability(
-          {
-            _id: membership.id ?? membership.practitionerReference,
-            practionerId: membership.practitionerReference,
-            organisationId: primaryOrgId ?? String(org?._id ?? ''),
-          } as any,
-          converted,
-          null
-        );
-      } else {
-        await upsertAvailability(converted, null);
-      }
+      const saved = await persistAvailability(availability, membership, org, primaryOrgId);
+      if (!saved) return;
       notify('success', {
         title: 'Availability updated',
         text: 'Availability have been updated successfully.',
