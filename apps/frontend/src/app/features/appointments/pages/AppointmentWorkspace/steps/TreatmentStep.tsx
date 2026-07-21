@@ -788,9 +788,9 @@ const TreatmentStep = ({
     // number-format rule. Finalized rows are read-only and skipped by the save loop, so exclude
     // them: an older/external finalized record missing a now-required field must not wedge the
     // save behind a validation error the clinician cannot fix.
-    const prescriptionErrors = normalizedPrescriptions
-      .filter((rx) => !rx.finalized)
-      .flatMap((rx) => getPrescriptionSaveErrors(rx));
+    const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
+      rx.finalized ? [] : getPrescriptionSaveErrors(rx)
+    );
     if (prescriptionErrors.length > 0) {
       setPrescriptionError(prescriptionErrors[0]);
       setTreatmentSaveError('Complete all prescription details before saving.');
