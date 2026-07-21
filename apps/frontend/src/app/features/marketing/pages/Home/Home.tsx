@@ -1213,7 +1213,7 @@ function PetBusinessesPillar() {
           linkText="Explore the practice suite"
         />
 
-        <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
+        <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center', minWidth: 0 }}>
           <div
             className="yc-card-lift"
             style={{

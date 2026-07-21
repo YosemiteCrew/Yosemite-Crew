@@ -187,7 +187,7 @@ export const Arrow = ({ open }: { open: boolean }) => (
 // ─── Floating label ─────────────────────────────────────────────────────────────
 export const FloatLabel = ({ floated, children }: { floated: boolean; children: ReactNode }) => (
   <span
-    className="pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-neutral-0 px-1 transition-all duration-150"
+    className="yc-float-label pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-neutral-0 px-1 transition-all duration-150"
     style={
       floated
         ? { ...floatLabelActive, top: 0, transform: 'translateY(-50%)' }
