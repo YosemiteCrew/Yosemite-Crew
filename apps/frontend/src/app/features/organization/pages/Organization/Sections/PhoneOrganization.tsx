@@ -261,7 +261,9 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
 
   // The desktop Specialities panel loads the catalog on mount; the phone screen
   // must too, or the specialities accordion has no services to reveal when tapped.
-  const primaryOrgId = String(primaryOrg._id);
+  // Keep a missing id as undefined (never the string "undefined") so loadServicesForOrg can fall
+  // back to the store's primary org id / skip, instead of fetching /organisation/undefined.
+  const primaryOrgId = primaryOrg._id ? String(primaryOrg._id) : undefined;
   useEffect(() => {
     loadServicesForOrg(primaryOrgId).catch(() => {
       // Leave the accordion bodies empty if the load fails; the list still renders.

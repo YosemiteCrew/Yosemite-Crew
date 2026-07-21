@@ -124,6 +124,13 @@ describe('PhoneOrganization', () => {
     expect(mockLoadServicesForOrg).toHaveBeenCalledWith('org-1');
   });
 
+  it('passes undefined (not the string "undefined") to the loader when the org has no id', () => {
+    render(<PhoneOrganization primaryOrg={{ ...org, _id: undefined }} />);
+    // A missing id must stay undefined so loadServicesForOrg falls back to the store id / skips,
+    // instead of fetching /organisation/undefined.
+    expect(mockLoadServicesForOrg).toHaveBeenCalledWith(undefined);
+  });
+
   it('keeps rendering when the service load fails', async () => {
     mockLoadServicesForOrg.mockRejectedValueOnce(new Error('boom'));
     renderPhone();
