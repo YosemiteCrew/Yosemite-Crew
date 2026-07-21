@@ -301,7 +301,8 @@ describe('PhoneCalendar', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /^2026-07-07/ }));
 
-      expect(setCurrentDate).toHaveBeenCalledWith(new Date(2026, 6, 7));
+      // Cells anchor to noon UTC so the date key round-trips across timezones.
+      expect(setCurrentDate).toHaveBeenCalledWith(new Date(Date.UTC(2026, 6, 7, 12, 0, 0)));
       expect(screen.getByRole('region', { name: 'Month overview' })).toBeInTheDocument();
     });
 
@@ -321,8 +322,8 @@ describe('PhoneCalendar', () => {
 
       const openedDate = (setCurrentDate as jest.Mock).mock.calls.at(-1)?.[0] as Date;
       expect(openedDate).toBeInstanceOf(Date);
-      expect(openedDate.getHours()).toBe(0);
-      expect(openedDate.getMinutes()).toBe(0);
+      // parseDateKey anchors the opened day to noon UTC (timezone-stable).
+      expect(openedDate.getUTCHours()).toBe(12);
       expect(setActiveCalendar).toHaveBeenCalledWith('day');
     });
   });

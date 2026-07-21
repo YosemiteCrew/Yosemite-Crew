@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import PhoneOrganization from '@/app/features/organization/pages/Organization/Sections/PhoneOrganization';
@@ -39,6 +39,11 @@ jest.mock('@/app/features/organization/services/orgService', () => ({
   updateOrg: jest.fn(),
 }));
 
+const mockLoadServicesForOrg = jest.fn();
+jest.mock('@/app/features/organization/services/serviceService', () => ({
+  loadServicesForOrg: (...args: unknown[]) => mockLoadServicesForOrg(...args),
+}));
+
 jest.mock('@/app/features/organization/pages/Organization/Sections/Team/AddTeam', () => ({
   __esModule: true,
   default: ({ showModal }: { showModal: boolean }) =>
@@ -57,6 +62,7 @@ jest.mock('@/app/features/organization/pages/Organization/Sections/OrgProfileEdi
 }));
 
 const org: Organisation = {
+  _id: 'org-1',
   name: 'Alpenblick Animal Clinic',
   type: 'HOSPITAL',
   phoneNo: '+49 8821',
@@ -71,6 +77,7 @@ const renderPhone = () => render(<PhoneOrganization primaryOrg={org} />);
 describe('PhoneOrganization', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLoadServicesForOrg.mockResolvedValue([]);
     canMock.mockReturnValue(true);
     useTeamMock.mockReturnValue([
       {
@@ -110,6 +117,18 @@ describe('PhoneOrganization', () => {
       'href',
       '/stripe-onboarding?orgId=org-1'
     );
+  });
+
+  it('loads the org services on mount so the specialities accordion has bodies', () => {
+    renderPhone();
+    expect(mockLoadServicesForOrg).toHaveBeenCalledWith('org-1');
+  });
+
+  it('keeps rendering when the service load fails', async () => {
+    mockLoadServicesForOrg.mockRejectedValueOnce(new Error('boom'));
+    renderPhone();
+    await waitFor(() => expect(mockLoadServicesForOrg).toHaveBeenCalledWith('org-1'));
+    expect(screen.getByText('Specialities & services')).toBeInTheDocument();
   });
 
   it('navigates back when the back button is pressed', () => {

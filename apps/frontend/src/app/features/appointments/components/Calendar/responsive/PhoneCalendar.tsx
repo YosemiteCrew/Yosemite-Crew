@@ -85,7 +85,9 @@ const startOfLocalDay = (date: Date): Date =>
 
 const parseDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  // Anchor to noon UTC so the key round-trips through getDateKeyInPreferredTimeZone
+  // for every device timezone (a local midnight can land on the previous day).
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 };
 
 const minutesOfDay = (date: Date): number => date.getHours() * 60 + date.getMinutes();

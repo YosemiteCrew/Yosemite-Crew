@@ -14,6 +14,7 @@ import { Organisation, Service } from '@yosemite-crew/types';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { Team as TeamProp } from '@/app/features/organization/types/team';
 import { useSpecialitiesWithServiceNamesForPrimaryOrg } from '@/app/hooks/useSpecialities';
+import { loadServicesForOrg } from '@/app/features/organization/services/serviceService';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { usePermissions } from '@/app/hooks/usePermissions';
@@ -257,6 +258,15 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeTeam, setActiveTeam] = useState<TeamProp | null>(teams[0] ?? null);
+
+  // The desktop Specialities panel loads the catalog on mount; the phone screen
+  // must too, or the specialities accordion has no services to reveal when tapped.
+  const primaryOrgId = String(primaryOrg._id);
+  useEffect(() => {
+    loadServicesForOrg(primaryOrgId).catch(() => {
+      // Leave the accordion bodies empty if the load fails; the list still renders.
+    });
+  }, [primaryOrgId]);
 
   useEffect(() => {
     setActiveTeam((prev) => {

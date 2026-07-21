@@ -273,7 +273,9 @@ export const buildPhoneMonthModel = ({
     const appointmentCount = bucket?.appointments.length ?? 0;
 
     return {
-      date: new Date(ref.year, ref.month - 1, ref.day),
+      // Noon UTC so the cell date round-trips through the preferred-timezone date
+      // key on every device (a local-midnight Date can resolve to the prior day).
+      date: new Date(Date.UTC(ref.year, ref.month - 1, ref.day, 12, 0, 0)),
       dateKey,
       dayOfMonth: ref.day,
       isOutsideMonth,
