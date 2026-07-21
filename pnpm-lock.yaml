@@ -48,7 +48,6 @@ overrides:
   '@babel/plugin-transform-modules-systemjs': 7.29.4
   fast-xml-builder: 1.2.1
   postcss: 8.5.14
-  fast-uri: 3.1.2
   uuid@11.1.0: 11.1.1
   ip-address: 10.1.1
   '@grpc/grpc-js@1.9.15': 1.9.16
@@ -83,7 +82,6 @@ overrides:
   ws@8.19.0: 8.21.0
   multer: 2.2.0
   aws-cdk-lib: 2.246.0
-  fast-uri@3.1.1: 3.1.2
   '@babel/core@7.29.0': 7.29.6
   next: 15.5.18
   sitemap@7.1.2: 7.1.3
@@ -98,6 +96,7 @@ overrides:
   nodemailer: 9.0.2
   tar: 7.5.17
   tar-fs@<=3.1.3: 3.1.3
+  fast-uri: 3.1.3
 
 importers:
 
@@ -127,15 +126,6 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
-      istanbul-lib-coverage:
-        specifier: ^3.2.2
-        version: 3.2.2
-      istanbul-lib-report:
-        specifier: ^3.0.1
-        version: 3.0.1
-      istanbul-reports:
-        specifier: ^3.2.0
-        version: 3.2.0
       lint-staged:
         specifier: ^17.0.8
         version: 17.0.8
@@ -15416,7 +15406,7 @@ packages:
     resolution: {integrity: sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==}
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.2
+      fast-uri: 3.1.3
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -20194,8 +20184,8 @@ packages:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
     dev: true
 
-  /fast-uri@3.1.2:
-    resolution: {integrity: sha512-rVjf7ArG3LTk+FS6Yw81V1DLuZl1bRbNrev6Tmd/9RaroeeRRJhAt7jg/6YFxbvAQXUCavSoZhPPj6oOx+5KjQ==}
+  /fast-uri@3.1.3:
+    resolution: {integrity: sha512-i70LwGWUduXqzicKXWshooq+sWL1K3WUU5rKZNG/0i3a1OSoX3HqhH5WbWwTmqWfor4urUakGPiRQcleRZTwOg==}
 
   /fast-xml-builder@1.2.1:
     resolution: {integrity: sha512-tPb5TTWfgfVx5BNSi2xV0eLr89POeXXn0dXIsCJ9m1narrWxeIyx6je9d7Rce/3NyXLbvuQmLkxq+RuxMWejvw==}
@@ -30489,7 +30479,7 @@ packages:
     dependencies:
       eastasianwidth: 0.2.0
       emoji-regex: 9.2.2
-      strip-ansi: 7.2.0
+      strip-ansi: 7.1.2
 
   /string-width@7.2.0:
     resolution: {integrity: sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ==}
@@ -30612,6 +30602,12 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       ansi-regex: 5.0.1
+
+  /strip-ansi@7.1.2:
+    resolution: {integrity: sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA==}
+    engines: {node: '>=12'}
+    dependencies:
+      ansi-regex: 6.2.2
 
   /strip-ansi@7.2.0:
     resolution: {integrity: sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w==}
@@ -32940,7 +32936,7 @@ packages:
     dependencies:
       ansi-styles: 6.2.3
       string-width: 5.1.2
-      strip-ansi: 7.2.0
+      strip-ansi: 7.1.2
 
   /wrap-ansi@9.0.2:
     resolution: {integrity: sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==}
