@@ -785,10 +785,12 @@ const TreatmentStep = ({
     // BEFORE the persist/no-persist branch so it blocks even when org/encounter haven't hydrated
     // (otherwise the step would silently advance without validating). Each row must carry the
     // required clinical instructions (frequency, duration, quantity, route, form) and pass every
-    // number-format rule.
-    const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
-      getPrescriptionSaveErrors(rx)
-    );
+    // number-format rule. Finalized rows are read-only and skipped by the save loop, so exclude
+    // them: an older/external finalized record missing a now-required field must not wedge the
+    // save behind a validation error the clinician cannot fix.
+    const prescriptionErrors = normalizedPrescriptions
+      .filter((rx) => !rx.finalized)
+      .flatMap((rx) => getPrescriptionSaveErrors(rx));
     if (prescriptionErrors.length > 0) {
       setPrescriptionError(prescriptionErrors[0]);
       setTreatmentSaveError('Complete all prescription details before saving.');

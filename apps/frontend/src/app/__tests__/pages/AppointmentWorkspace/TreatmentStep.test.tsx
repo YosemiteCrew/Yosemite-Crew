@@ -492,6 +492,43 @@ describe('TreatmentStep', () => {
     expect(screen.getByRole('combobox', { name: /fulfillment/i })).toBeDisabled();
   });
 
+  it('does not block Save Treatment on a finalized row missing a now-required field', async () => {
+    // A finalized record hydrated from older/external data may lack a currently-required field. It
+    // is read-only and skipped by the save loop, so it must not wedge the save behind a validation
+    // error the clinician cannot fix (Codex P2 on #1909).
+    const onOpenInvoice = jest.fn();
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          // Deliberately missing frequency/duration/quantity (required on a fresh row).
+          fulfillment: 'PRESCRIPTION_ONLY' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    // Validation skips the finalized row, so the save advances to billing...
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    // ...and the finalized row is never re-saved.
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    expect(savedIds).not.toContain('rx-final');
+  });
+
   it('adds and removes services from the workspace store', () => {
     const enc = seedAndGet();
     render(
