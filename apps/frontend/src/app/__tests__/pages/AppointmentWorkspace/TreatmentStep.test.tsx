@@ -465,6 +465,33 @@ describe('TreatmentStep', () => {
     expect(screen.queryByText('Medication')).not.toBeInTheDocument();
   });
 
+  it('locks a finalized (unbilled) prescription so its edits cannot be silently dropped', () => {
+    // The save loop skips re-saving finalized rows, so their fields must be read-only - otherwise a
+    // clinician's edits would never persist yet still show/invoice (Codex P1 on #1909).
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          frequency: 'BID (twice daily)',
+          durationDays: '5',
+          durationUnit: 'days',
+          qty: '10',
+          refill: '2',
+          fulfillment: 'IN_HOUSE' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    // The locked state is surfaced, and the row's controls are read-only.
+    expect(screen.getByText('Finalized')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /fulfillment/i })).toBeDisabled();
+  });
+
   it('adds and removes services from the workspace store', () => {
     const enc = seedAndGet();
     render(
