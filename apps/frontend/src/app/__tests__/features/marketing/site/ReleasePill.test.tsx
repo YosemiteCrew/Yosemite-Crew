@@ -24,10 +24,14 @@ let latestValue: ReleaseInfo = latest;
 let mobileValue: ReleaseInfo = mobile;
 let platformValue: ReleaseInfo = platform;
 
+const mockUseLatestRelease = jest.fn((): ReleaseInfo => latestValue);
+const mockUseMobileRelease = jest.fn((): ReleaseInfo => mobileValue);
+const mockUsePlatformRelease = jest.fn((): ReleaseInfo => platformValue);
+
 jest.mock('@/app/features/marketing/site/useGithubStats', () => ({
-  useLatestRelease: () => latestValue,
-  useMobileRelease: () => mobileValue,
-  usePlatformRelease: () => platformValue,
+  useLatestRelease: () => mockUseLatestRelease(),
+  useMobileRelease: () => mockUseMobileRelease(),
+  usePlatformRelease: () => mockUsePlatformRelease(),
 }));
 
 import { ReleasePill } from '@/app/features/marketing/site/ReleasePill';
@@ -37,6 +41,23 @@ describe('ReleasePill', () => {
     latestValue = latest;
     mobileValue = mobile;
     platformValue = platform;
+    mockUseLatestRelease.mockClear();
+    mockUseMobileRelease.mockClear();
+    mockUsePlatformRelease.mockClear();
+  });
+
+  it('fetches only the release endpoint the variant needs, not all of them', () => {
+    const { unmount } = render(<ReleasePill variant="latest" version="v2.0 beta" />);
+    expect(mockUseLatestRelease).toHaveBeenCalled();
+    expect(mockUseMobileRelease).not.toHaveBeenCalled();
+    expect(mockUsePlatformRelease).not.toHaveBeenCalled();
+    unmount();
+
+    mockUseLatestRelease.mockClear();
+    render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.1.0-beta" />);
+    expect(mockUsePlatformRelease).toHaveBeenCalled();
+    expect(mockUseLatestRelease).not.toHaveBeenCalled();
+    expect(mockUseMobileRelease).not.toHaveBeenCalled();
   });
 
   it('renders the Home "Latest release" variant with the live tag and link', () => {

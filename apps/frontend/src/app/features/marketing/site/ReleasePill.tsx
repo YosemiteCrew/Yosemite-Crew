@@ -59,57 +59,60 @@ const PILL_STYLE: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-function useReleaseFor(variant: ReleaseVariant): ReleaseInfo {
-  const latest = useLatestRelease();
-  const mobile = useMobileRelease();
-  const platform = usePlatformRelease();
-  if (variant === 'mobile') return mobile;
-  if (variant === 'latest') return latest;
-  // The platform pill resolves the newest PIMS-tagged release (its own tag/date/url), NOT the
-  // repo-wide "latest release" which is a desktop build.
-  if (variant === 'platform') return platform;
-  // static: no live release metadata.
-  return { tag: null, date: null, url: null };
+const EMPTY_RELEASE: ReleaseInfo = { tag: null, date: null, url: null };
+
+const Dot = () => (
+  <span
+    style={{ width: 7, height: 7, borderRadius: 9999, background: GREEN_DOT, flex: 'none' }}
+    aria-hidden="true"
+  />
+);
+
+const Divider = () => (
+  <span
+    style={{ width: 1, height: 12, background: 'var(--divider)', flex: 'none' }}
+    aria-hidden="true"
+  />
+);
+
+/** Home "Latest release" pill body. Takes an already-resolved release (no fetching here). */
+function LatestPillBody({
+  version,
+  href,
+  release,
+}: Readonly<{ version: string; href?: string; release: ReleaseInfo }>) {
+  const resolvedHref = release.url ?? href ?? `${GITHUB_REPO_URL}/releases`;
+  return (
+    <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={LATEST_PILL_STYLE}>
+      <Dot />
+      <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>Latest release</span>
+      <Divider />
+      <span>{release.tag ?? version}</span>
+      <IoLogoGithub
+        style={{ fontSize: 15, flex: 'none', color: 'var(--ink-faint)' }}
+        aria-hidden="true"
+      />
+    </a>
+  );
 }
 
-/**
- * Hero eyebrow release pill. The version string is fixed copy; the publish date and
- * link resolve live from GitHub. Green status dot follows the live-status convention.
- */
-export function ReleasePill({ variant, label, version, href }: Readonly<ReleasePillProps>) {
-  const release = useReleaseFor(variant);
+/** Platform / mobile / static pill body. Takes an already-resolved release (no fetching here). */
+function StandardPillBody({
+  variant,
+  label,
+  version,
+  href,
+  release,
+}: Readonly<{
+  variant: ReleaseVariant;
+  label?: string;
+  version: string;
+  href?: string;
+  release: ReleaseInfo;
+}>) {
   // When no specific release URL resolved, link to the releases index rather than
   // /releases/latest, so a platform/static pill never deep-links the desktop build.
   const resolvedHref = release.url ?? href ?? `${GITHUB_REPO_URL}/releases`;
-
-  const dot = (
-    <span
-      style={{ width: 7, height: 7, borderRadius: 9999, background: GREEN_DOT, flex: 'none' }}
-      aria-hidden="true"
-    />
-  );
-  const divider = (
-    <span
-      style={{ width: 1, height: 12, background: 'var(--divider)', flex: 'none' }}
-      aria-hidden="true"
-    />
-  );
-
-  if (variant === 'latest') {
-    return (
-      <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={LATEST_PILL_STYLE}>
-        {dot}
-        <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>Latest release</span>
-        {divider}
-        <span>{release.tag ?? version}</span>
-        <IoLogoGithub
-          style={{ fontSize: 15, flex: 'none', color: 'var(--ink-faint)' }}
-          aria-hidden="true"
-        />
-      </a>
-    );
-  }
-
   const isStatic = variant === 'static';
   // The live release tag is trusted for the mobile and platform pills (each hook filters to its
   // own tag prefix), so they show the real version + publish date. The hard-coded `version` stays
@@ -118,7 +121,7 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
     variant === 'mobile' || variant === 'platform' ? (release.tag ?? version) : version;
   return (
     <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={PILL_STYLE}>
-      {dot}
+      <Dot />
       {label}
       <span
         style={{ width: 1, height: 12, background: 'var(--divider)', margin: '0 3px' }}
@@ -134,4 +137,37 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
       />
     </a>
   );
+}
+
+// Per-variant wrappers each mount EXACTLY ONE release hook, so a pill only ever fires the single
+// GitHub request it needs. A `latest`/`mobile`/`static` pill never fetches the platform releases
+// list (and vice-versa), which keeps public marketing loads off the unauthenticated rate limit.
+function LatestPill({ version, href }: Readonly<ReleasePillProps>) {
+  return <LatestPillBody version={version} href={href} release={useLatestRelease()} />;
+}
+function MobilePill(props: Readonly<ReleasePillProps>) {
+  return <StandardPillBody {...props} release={useMobileRelease()} />;
+}
+function PlatformPill(props: Readonly<ReleasePillProps>) {
+  return <StandardPillBody {...props} release={usePlatformRelease()} />;
+}
+function StaticPill(props: Readonly<ReleasePillProps>) {
+  return <StandardPillBody {...props} release={EMPTY_RELEASE} />;
+}
+
+/**
+ * Hero eyebrow release pill. The version string is fixed copy; the publish date and link resolve
+ * live from GitHub. Dispatches to a per-variant pill so only the needed release endpoint is fetched.
+ */
+export function ReleasePill(props: Readonly<ReleasePillProps>) {
+  switch (props.variant) {
+    case 'latest':
+      return <LatestPill {...props} />;
+    case 'mobile':
+      return <MobilePill {...props} />;
+    case 'platform':
+      return <PlatformPill {...props} />;
+    default:
+      return <StaticPill {...props} />;
+  }
 }
