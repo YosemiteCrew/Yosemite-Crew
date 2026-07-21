@@ -17,6 +17,7 @@ import type { Task } from '@/app/features/tasks/types/task';
 import type { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 
 import PhoneDayRail from './PhoneDayRail';
+import { DEFAULT_DAY_RAIL_WINDOW } from './dayRailLayout';
 import PhoneDayStrip from './PhoneDayStrip';
 import PhoneWeekOverview from './PhoneWeekOverview';
 import PhoneMonthOverview from './PhoneMonthOverview';
@@ -165,6 +166,22 @@ const PhoneCalendar = ({
         : dayEvents,
     [dayEvents, currentUserPractitionerId]
   );
+
+  // The rail defaults to the 08:00-16:00 clinic day, but appointments booked
+  // outside those hours would silently drop off it (the count and the rail would
+  // disagree). Expand the window to cover any out-of-hours appointment.
+  const dayWindow = useMemo(() => {
+    let startHour = DEFAULT_DAY_RAIL_WINDOW.startHour;
+    let endHour = DEFAULT_DAY_RAIL_WINDOW.endHour;
+    dayEvents.forEach((appointment) => {
+      const start = minutesOfDay(new Date(appointment.startTime));
+      const rawEnd = minutesOfDay(new Date(appointment.endTime));
+      const end = rawEnd > start ? rawEnd : start + 60;
+      startHour = Math.min(startHour, Math.floor(start / 60));
+      endHour = Math.max(endHour, Math.ceil(end / 60));
+    });
+    return { startHour: Math.max(0, startHour), endHour: Math.min(24, endHour) };
+  }, [dayEvents]);
 
   // Only 'day' and 'week' exist on the shared union — 'month' stays phone-local.
   const applyClinicView = useCallback(
@@ -320,6 +337,7 @@ const PhoneCalendar = ({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <PhoneDayRail
           appointments={dayEvents}
+          dayWindow={dayWindow}
           nowMinutes={minutesOfDay(referenceNow)}
           onSelectAppointment={onSelectAppointment}
           onStartVisit={onOpenWorkspace}

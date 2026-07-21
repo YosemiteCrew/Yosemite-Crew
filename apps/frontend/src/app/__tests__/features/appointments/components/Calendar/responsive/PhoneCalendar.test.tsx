@@ -139,6 +139,21 @@ describe('PhoneCalendar', () => {
       expect(screen.getByRole('button', { name: /Pretzel/ })).toBeInTheDocument();
     });
 
+    it('expands the day rail window to cover out-of-hours appointments', () => {
+      renderCalendar({
+        dayEvents: [
+          makeAppointment({ id: 'early', startTime: at(7), endTime: at(8) }),
+          // Invalid end (midnight <= start) falls back to a one-hour span, pushing
+          // the window end to 20:00.
+          makeAppointment({ id: 'late', startTime: at(19), endTime: at(0) }),
+        ],
+      });
+
+      // Default window is 08:00-16:00; it should now stretch to 07:00-20:00.
+      expect(screen.getByText('07:00')).toBeInTheDocument();
+      expect(screen.getByText('20:00')).toBeInTheDocument();
+    });
+
     it('opens an appointment through the page callback', async () => {
       renderCalendar();
 
