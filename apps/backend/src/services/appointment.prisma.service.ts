@@ -2216,10 +2216,25 @@ export const AppointmentPrismaService = {
       let inProgressCaseId = resolvedCaseId;
       if (patch.status === "IN_PROGRESS" && row.status !== "IN_PROGRESS") {
         if (!inProgressEncounterId) {
+          // Create the encounter from the PATCHED appointment context (patient, kind, type, case,
+          // concern, times) - the same values the update below writes - so a request that both
+          // starts the appointment AND edits it never links an encounter built from stale
+          // pre-update context.
+          const patchedRow = {
+            ...row,
+            patient: input.patient,
+            appointmentKind,
+            appointmentType,
+            concern: input.concern ?? row.concern,
+            startTime: patch.startTime,
+            endTime: patch.endTime,
+            caseId: resolvedCaseId ?? row.caseId,
+            encounterId: null,
+          } as AppointmentRow;
           const ensured = await ensureEncounterOnCheckIn({
             tx,
             appointmentId,
-            current: row,
+            current: patchedRow,
             caseId: resolvedCaseId,
           });
           inProgressEncounterId = ensured.encounterId;
