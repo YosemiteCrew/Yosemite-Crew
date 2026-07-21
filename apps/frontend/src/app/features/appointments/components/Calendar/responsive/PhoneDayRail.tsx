@@ -226,7 +226,10 @@ const PhoneDayRail = ({
         </React.Fragment>
       ) : null}
 
-      {layout.blocks.length === 0 && layout.segments.length > 0 ? (
+      {/* When the day folds into a free band, that band's "… free · folded · Book"
+          label already communicates the empty state — don't also overlay this
+          message on top of it. Only show it when nothing folded either. */}
+      {layout.blocks.length === 0 && layout.folds.length === 0 && layout.segments.length > 0 ? (
         <span className="yc-day-rail__empty">{emptyLabel}</span>
       ) : null}
     </section>
