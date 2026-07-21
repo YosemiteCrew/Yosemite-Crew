@@ -21,7 +21,7 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@secretlint/secretlint-rule-no-dotenv": "^11.3.0",
-    "@secretlint/secretlint-rule-preset-recommend": "^11.3.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "aws-cdk-lib": "2.246.0",
     "constructs": "^10.6.0",
     "eslint": "^9.33.0",
