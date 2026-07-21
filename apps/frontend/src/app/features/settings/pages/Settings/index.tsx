@@ -1,7 +1,7 @@
 'use client';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
-import React from 'react';
+import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 
@@ -20,11 +20,13 @@ const RowSkeleton = () => (
 const Personal = dynamic(() => import('@/app/features/settings/pages/Settings/Sections/Personal'), {
   loading: () => <CardSkeleton />,
 });
-const OrgSection = dynamic(
-  () => import('@/app/features/settings/pages/Settings/Sections/OrgSection'),
-  {
-    loading: () => <CardSkeleton />,
-  }
+const ProfileEditModal = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/ProfileEditModal'),
+  { loading: () => null }
+);
+const HoursEditModal = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/HoursEditModal'),
+  { loading: () => null }
 );
 const YourOrganizations = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/YourOrganizations'),
@@ -54,10 +56,6 @@ const AppearancePreference = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/AppearancePreference'),
   { loading: () => <RowSkeleton /> }
 );
-const SecuritySection = dynamic(
-  () => import('@/app/features/settings/pages/Settings/Sections/SecuritySection'),
-  { loading: () => <CardSkeleton /> }
-);
 const DeleteProfile = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/DeleteProfile'),
   {
@@ -66,6 +64,9 @@ const DeleteProfile = dynamic(
 );
 
 const Settings = () => {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
+
   return (
     <div className="yc-page-content">
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
@@ -93,7 +94,10 @@ const Settings = () => {
       {/* Compact control panel — the design's 2-column Settings grid:
           [Personal | Workspace preferences] / [Scheduling & messaging | Organizations + Delete]. */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 items-start">
-        <Personal />
+        <Personal
+          onEditProfile={() => setProfileOpen(true)}
+          onEditHours={() => setHoursOpen(true)}
+        />
 
         <PreferenceGroup title="Workspace preferences">
           <DefaultOpenScreenPreference />
@@ -113,10 +117,11 @@ const Settings = () => {
         </div>
       </div>
 
-      {/* Detailed editors reached from the Personal card's "Edit profile" / "edit"
-          affordances (settings-user-profile, settings-availability), plus security. */}
-      <OrgSection />
-      <SecuritySection />
+      {/* Detailed editors are reached from the Personal card's "Edit profile" /
+          "Edit hours" affordances as centered modals, so the page itself stays
+          the compact control panel the design specifies. */}
+      <ProfileEditModal showModal={profileOpen} setShowModal={setProfileOpen} />
+      <HoursEditModal showModal={hoursOpen} setShowModal={setHoursOpen} />
     </div>
   );
 };
