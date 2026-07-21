@@ -97,6 +97,7 @@ overrides:
   tar: 7.5.17
   tar-fs@<=3.1.3: 3.1.3
   fast-uri: 3.1.3
+  websocket-driver: 0.7.5
 
 importers:
 
@@ -20173,7 +20174,7 @@ packages:
     resolution: {integrity: sha512-CzbClwlXAuiRQAlUyfqPgvPoNKTckTPGfwZV4ZdAhVcP2lh9KUxJg2b5GkE7XbjKQ3YJnQ9z6D9ntLAlB+tP8g==}
     engines: {node: '>=0.8.0'}
     dependencies:
-      websocket-driver: 0.7.4
+      websocket-driver: 0.7.5
     dev: false
 
   /fb-watchman@2.0.2:
@@ -22703,7 +22704,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@22.19.8)(typescript@5.0.4)
+      ts-node: 10.9.2(@types/node@20.19.31)(typescript@5.9.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -29948,7 +29949,7 @@ packages:
     dependencies:
       faye-websocket: 0.11.4
       uuid: 8.3.2
-      websocket-driver: 0.7.4
+      websocket-driver: 0.7.5
     dev: false
 
   /sort-css-media-queries@2.2.0:
@@ -32594,8 +32595,8 @@ packages:
       wrap-ansi: 7.0.0
     dev: false
 
-  /websocket-driver@0.7.4:
-    resolution: {integrity: sha512-b17KeDIQVjvb0ssuSDF2cYXSg2iztliJ4B9WdsuB6J952qCPKmnVq4DyW5motImXHDC1cBT/1UezrJVsKw5zjg==}
+  /websocket-driver@0.7.5:
+    resolution: {integrity: sha512-ZL2+3c7kMBdIRCMz6l8jQMHyGVxj+UL+xVk74Ombiciboca8rHa15L86B19E5oh1pL9Ii/uj54gtsIrZGMo6zA==}
     engines: {node: '>=0.8.0'}
     dependencies:
       http-parser-js: 0.5.10
