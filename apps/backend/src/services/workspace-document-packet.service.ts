@@ -151,7 +151,7 @@ const selectMergeableDocuments = (
   const skipped = documents.length - mergeable.length;
   if (skipped > 0) {
     logger.warn(
-      `[WorkspaceDocumentPacket] Skipping ${skipped} non-rendered document(s) when ${context}; only rendered documents are included in the merged PDF.`,
+      `[WorkspaceDocumentPacket] Skipping ${skipped} non-packet document(s) (direct uploads and invoices) when ${context}; only clinical/form packet members are merged into the PDF.`,
     );
   }
   return mergeable;
