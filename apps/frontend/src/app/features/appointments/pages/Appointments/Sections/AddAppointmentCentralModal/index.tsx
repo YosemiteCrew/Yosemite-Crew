@@ -341,7 +341,7 @@ export const PersonRow = ({
       <div
         ref={triggerRef}
         className={clsx(
-          'relative flex items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] transition-colors duration-150 cursor-text',
+          'relative flex items-center min-h-[46px] border-[1.5px] bg-neutral-0 transition-colors duration-150 cursor-text',
           visibleOpen
             ? 'rounded-t-[12px] border-input-border-active border-b-0'
             : 'rounded-[12px] border-[var(--hairline)]',
@@ -614,7 +614,7 @@ export const TimeSlotDropdown = ({
         type="button"
         ref={triggerRef}
         className={clsx(
-          'relative flex w-full items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] text-left transition-colors duration-150 select-none',
+          'relative flex w-full items-center min-h-[46px] border-[1.5px] bg-neutral-0 text-left transition-colors duration-150 select-none',
           open
             ? 'rounded-t-[12px] border-input-border-active border-b-0'
             : 'rounded-[12px] border-[var(--hairline)]',
@@ -641,7 +641,7 @@ export const TimeSlotDropdown = ({
 
 // ─── SlotBadge — duration display ──────────────────────────────────────────────
 export const SlotBadge = ({ label }: { label: string | null }) => (
-  <div className="relative flex items-center min-h-[46px] border-[1.5px] border-[var(--hairline)] rounded-[12px] bg-[var(--field-bg)] px-5 py-3">
+  <div className="relative flex items-center min-h-[46px] border-[1.5px] border-[var(--hairline)] rounded-[12px] bg-neutral-0 px-5 py-3">
     <FloatLabel floated={Boolean(label)}>Slot duration</FloatLabel>
     <span style={label ? text16R : { ...text16R, color: INPUT_PLACEHOLDER }}>{label ?? ''}</span>
   </div>

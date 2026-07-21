@@ -234,7 +234,7 @@ const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
   const isLive = key === 'enabled';
   return (
     <span
-      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-label-xsmall px-2.5 py-1 rounded-full! border!"
+      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-[10px] font-bold px-2.5 py-0.5 rounded-full! border!"
       style={
         tokens
           ? {
