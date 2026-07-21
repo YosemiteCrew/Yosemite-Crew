@@ -181,7 +181,9 @@ const Tasks = () => {
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.name?.toLowerCase().includes(q);
-      const matchesScope = !scopeToMine || isAssignedToMe(item);
+      // The board hides the My/Team scope control (it has its own toolbar), so the
+      // page-level scope must not narrow the list feeding it - mirror matchesStatus.
+      const matchesScope = activeView === 'board' || !scopeToMine || isAssignedToMe(item);
 
       return matchesStatus && matchesFilter && matchesQuery && matchesScope;
     });

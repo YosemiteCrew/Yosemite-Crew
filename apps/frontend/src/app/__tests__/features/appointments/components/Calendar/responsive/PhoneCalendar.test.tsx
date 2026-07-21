@@ -154,6 +154,19 @@ describe('PhoneCalendar', () => {
       expect(screen.getByText('20:00')).toBeInTheDocument();
     });
 
+    it('stretches the day rail window to midnight for overnight appointments', () => {
+      renderCalendar({
+        dayEvents: [
+          // 21:00 -> 01:00 the next day: the end rolls past midnight, so the window
+          // must reach end-of-day (old code capped it at start + 1h = 22:00).
+          makeAppointment({ id: 'overnight', startTime: at(21), endTime: localDate(8, 1) }),
+        ],
+      });
+
+      // Only reachable when the overnight branch extends the window to 24:00.
+      expect(screen.getByText('23:00')).toBeInTheDocument();
+    });
+
     it('opens an appointment through the page callback', async () => {
       renderCalendar();
 

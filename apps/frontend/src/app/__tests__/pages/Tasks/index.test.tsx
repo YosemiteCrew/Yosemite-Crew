@@ -828,4 +828,45 @@ describe('Tasks page', () => {
 
     expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([]);
   });
+
+  it('does not apply the my-tasks scope in board view', async () => {
+    authAttributesMock.mockReturnValue({ sub: 'me-123' });
+    useTasksMock.mockReturnValue([
+      {
+        _id: 'mine',
+        status: 'pending',
+        audience: 'employee_task',
+        name: 'Mine',
+        assignedTo: 'me-123',
+      },
+      {
+        _id: 'theirs',
+        status: 'pending',
+        audience: 'employee_task',
+        name: 'Theirs',
+        assignedTo: 'other',
+      },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    render(<ProtectedTasks />);
+
+    // Narrow to my tasks in the calendar view.
+    await act(async () => {
+      lastPropsOf(filterBarSpy).setActiveScope('mine');
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+      expect.objectContaining({ _id: 'mine' }),
+    ]);
+
+    // The board hides the scope control, so switching to it must show every task.
+    fireEvent.click(screen.getByText('Board'));
+    expect(lastPropsOf(taskBoardSpy).tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ _id: 'mine' }),
+        expect.objectContaining({ _id: 'theirs' }),
+      ])
+    );
+  });
 });

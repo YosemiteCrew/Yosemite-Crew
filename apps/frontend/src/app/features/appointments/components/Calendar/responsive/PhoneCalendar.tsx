@@ -174,9 +174,15 @@ const PhoneCalendar = ({
     let startHour = DEFAULT_DAY_RAIL_WINDOW.startHour;
     let endHour = DEFAULT_DAY_RAIL_WINDOW.endHour;
     dayEvents.forEach((appointment) => {
-      const start = minutesOfDay(new Date(appointment.startTime));
-      const rawEnd = minutesOfDay(new Date(appointment.endTime));
-      const end = rawEnd > start ? rawEnd : start + 60;
+      const startDate = new Date(appointment.startTime);
+      const endDate = new Date(appointment.endTime);
+      const start = minutesOfDay(startDate);
+      const rawEnd = minutesOfDay(endDate);
+      // Overnight appointments (the end rolls past midnight) run to end-of-day on
+      // this rail, matching dayRailLayout; a zero/negative span keeps a 1h block.
+      let end = start + 60;
+      if (rawEnd > start) end = rawEnd;
+      else if (endDate.getTime() > startDate.getTime()) end = 24 * 60;
       startHour = Math.min(startHour, Math.floor(start / 60));
       endHour = Math.max(endHour, Math.ceil(end / 60));
     });
