@@ -265,6 +265,53 @@ export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
   return release;
 }
 
+/**
+ * Newest platform (PIMS) GitHub release. Used by the Pet Businesses hero pill. The repo's
+ * `/releases/latest` is a desktop build, so the platform pill must not borrow it; instead pick the
+ * newest release whose TAG is a platform tag (`pims-`/`pms-`), which carries the real PIMS version
+ * and publish date and links to that release.
+ */
+export function usePlatformRelease(): ReleaseInfo {
+  const cacheKey = 'yc_rel_pims_v1';
+  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
+
+  useEffect(() => {
+    let active = true;
+    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
+    if (cached) setRelease(cached);
+    void (async () => {
+      const list = (await fetchJson(
+        `${GITHUB_API_REPO}/releases?per_page=30`,
+        'application/vnd.github+json'
+      )) as Array<{
+        tag_name?: string;
+        published_at?: string;
+        html_url?: string;
+      }> | null;
+      if (!active || !Array.isArray(list)) return;
+      // Match on the release TAG only (not the free-text title): the platform app ships under
+      // `pims-`/`pms-` tags, so a desktop or backend release whose notes mention "PIMS" is not
+      // mistaken for the platform release. The list is newest-first, so the first match is latest.
+      const isPlatformTag = (x: { tag_name?: string }) => /^(pims|pms)[-_]/i.test(x.tag_name ?? '');
+      const platform = list.find(isPlatformTag);
+      if (!platform?.html_url) return;
+      const next: ReleaseInfo = {
+        // tag_name only: the release `name` is a free-form title, not a version.
+        tag: (platform.tag_name ?? '').replace(/^[a-z]+-(?=v?\d)/i, '') || null,
+        date: formatReleaseDate(platform.published_at),
+        url: platform.html_url,
+      };
+      setRelease(next);
+      setJsonStorageItem('session', cacheKey, next);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return release;
+}
+
 /** Newest mobile-tagged GitHub release. Used by the Pet Parents hero pill. */
 export function useMobileRelease(): ReleaseInfo {
   const cacheKey = 'yc_rel_mobile_v1';

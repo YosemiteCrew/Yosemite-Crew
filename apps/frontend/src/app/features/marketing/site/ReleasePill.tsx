@@ -3,7 +3,12 @@
 import type { CSSProperties } from 'react';
 import { IoLogoGithub } from 'react-icons/io5';
 import { GITHUB_REPO_URL } from './assets';
-import { useLatestRelease, useMobileRelease, type ReleaseInfo } from './useGithubStats';
+import {
+  useLatestRelease,
+  useMobileRelease,
+  usePlatformRelease,
+  type ReleaseInfo,
+} from './useGithubStats';
 
 type ReleaseVariant = 'latest' | 'platform' | 'mobile' | 'static';
 
@@ -57,11 +62,13 @@ const PILL_STYLE: CSSProperties = {
 function useReleaseFor(variant: ReleaseVariant): ReleaseInfo {
   const latest = useLatestRelease();
   const mobile = useMobileRelease();
+  const platform = usePlatformRelease();
   if (variant === 'mobile') return mobile;
   if (variant === 'latest') return latest;
-  // platform + static: no live release metadata. The repo-wide "latest release" is a
-  // desktop build, so a platform pill must not borrow its tag, date, or URL (it would
-  // link to and date-stamp the desktop release while showing the platform version).
+  // The platform pill resolves the newest PIMS-tagged release (its own tag/date/url), NOT the
+  // repo-wide "latest release" which is a desktop build.
+  if (variant === 'platform') return platform;
+  // static: no live release metadata.
   return { tag: null, date: null, url: null };
 }
 
@@ -104,10 +111,11 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
   }
 
   const isStatic = variant === 'static';
-  // The live release tag is only trusted for the mobile pill (useMobileRelease filters
-  // to mobile tags). The platform pill keeps its hard-coded copy, since the repo-wide
-  // "latest release" is a desktop build, not the platform version.
-  const shownVersion = variant === 'mobile' ? (release.tag ?? version) : version;
+  // The live release tag is trusted for the mobile and platform pills (each hook filters to its
+  // own tag prefix), so they show the real version + publish date. The hard-coded `version` stays
+  // as the fallback shown until the live release resolves (or if the fetch fails).
+  const shownVersion =
+    variant === 'mobile' || variant === 'platform' ? (release.tag ?? version) : version;
   return (
     <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={PILL_STYLE}>
       {dot}
