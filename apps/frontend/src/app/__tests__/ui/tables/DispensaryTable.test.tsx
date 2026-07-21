@@ -187,16 +187,15 @@ describe('DispensaryTable', () => {
     // Both the date and time formatters must run for the rendered timestamps...
     expect(dateSpy).toHaveBeenCalled();
     expect(timeSpy).toHaveBeenCalled();
-    // ...and must format in the viewer's OWN resolved timezone, never pinned to
-    // UTC, or the viewer sees a time offset from their own clock (the reported
-    // bug). An explicit local zone is fine; a forced 'UTC' is not.
+    // ...and must format in the viewer's OWN resolved timezone rather than a
+    // hardcoded literal (the #1879 bug pinned every viewer to 'UTC'). When the
+    // runner itself is in UTC (e.g. CI) the resolved zone is legitimately 'UTC';
+    // what matters is that the passed zone equals the viewer's resolved zone,
+    // never a constant. A wrong hardcoded zone would differ on a non-UTC runner.
     const viewerZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     for (const [, options] of [...dateSpy.mock.calls, ...timeSpy.mock.calls]) {
       const zone = (options as Intl.DateTimeFormatOptions | undefined)?.timeZone;
-      expect(zone).not.toBe('UTC');
-      if (zone !== undefined) {
-        expect(zone).toBe(viewerZone);
-      }
+      expect(zone).toBe(viewerZone);
     }
 
     dateSpy.mockRestore();
