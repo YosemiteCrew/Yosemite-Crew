@@ -421,7 +421,14 @@ export const getHourInPreferredTimeZone = (value: Date): number => {
   return getDatePartsInPreferredTimeZone(value).hour;
 };
 
-const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): number => {
+// Intl.DateTimeFormat construction is the expensive part of an offset lookup, and the offset
+// helper is called in tight loops (e.g. once per cell when building the phone month grid). The
+// formatter is immutable and reusable for any instant, so cache one per timezone.
+const offsetFormatterByTimeZone = new Map<string, Intl.DateTimeFormat>();
+
+const getOffsetFormatter = (timeZone: string): Intl.DateTimeFormat => {
+  const cached = offsetFormatterByTimeZone.get(timeZone);
+  if (cached) return cached;
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone,
     timeZoneName: 'shortOffset',
@@ -429,7 +436,12 @@ const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): 
     minute: '2-digit',
     hourCycle: 'h23',
   });
-  const offsetLabel = formatter
+  offsetFormatterByTimeZone.set(timeZone, formatter);
+  return formatter;
+};
+
+const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): number => {
+  const offsetLabel = getOffsetFormatter(timeZone)
     .formatToParts(instant)
     .find((part) => part.type === 'timeZoneName')?.value;
   const match = /GMT([+-])(\d{1,2})(?::?(\d{2}))?/.exec(offsetLabel ?? '');
