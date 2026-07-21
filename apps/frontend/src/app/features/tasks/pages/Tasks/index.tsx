@@ -11,8 +11,12 @@ import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
 import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { Task, TaskFilters, TaskStatus, TaskStatusFilters } from '@/app/features/tasks/types/task';
 import { useSearchStore } from '@/app/stores/searchStore';
+import { useAuthStore } from '@/app/stores/authStore';
+import { normalizeCalendarId } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
+import { resolveTeamMemberPrimaryId } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
 import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -30,6 +34,16 @@ const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
  * shared status list (which other surfaces still use in full).
  */
 const TASK_STATUS_PILLS = TaskStatusFilters.filter((option) => option.key !== 'cancelled');
+
+/**
+ * Assignee scope, kept as a segmented control (not an audience chip) so its
+ * "Team" label never reads as the "Team" audience pill sitting next to it.
+ * "My tasks" narrows every view to the tasks assigned to the signed-in member.
+ */
+const TASK_SCOPE_OPTIONS = [
+  { key: 'mine', name: 'My tasks' },
+  { key: 'team', name: 'Team' },
+];
 
 const TaskPlannerSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -63,6 +77,7 @@ const Tasks = () => {
   const handledDeepLinkRef = useRef<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
+  const [activeScope, setActiveScope] = useState('team');
   const [addPopup, setAddPopup] = useState(false);
   const [addTaskPrefill, setAddTaskPrefill] = useState<Partial<Task> | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
@@ -77,6 +92,30 @@ const Tasks = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
+
+  const teams = useTeamForPrimaryOrg();
+  const authUserId = useAuthStore(
+    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
+  );
+
+  // Resolve "is this task assigned to me?" the same way the calendar does, so a
+  // task tagged by sub, email or team-member id still matches the signed-in user.
+  const myPrimaryId = useMemo(
+    () => normalizeCalendarId(resolveTeamMemberPrimaryId(teams, authUserId, normalizeCalendarId)),
+    [teams, authUserId]
+  );
+  const isAssignedToMe = useCallback(
+    (task: Task) => {
+      const me = normalizeCalendarId(authUserId);
+      if (!me) return false;
+      if (normalizeCalendarId(task.assignedTo) === me) return true;
+      const assigneePrimary = normalizeCalendarId(
+        resolveTeamMemberPrimaryId(teams, task.assignedTo, normalizeCalendarId)
+      );
+      return assigneePrimary !== '' && assigneePrimary === myPrimaryId;
+    },
+    [authUserId, myPrimaryId, teams]
+  );
 
   const handleActiveCalendarChange = useCallback(
     (next: SetStateAction<string>) => {
@@ -132,6 +171,7 @@ const Tasks = () => {
     const q = query.trim().toLowerCase();
     const filterWanted = activeFilter.toLowerCase();
     const statusWanted = activeStatus.toLowerCase();
+    const scopeToMine = activeScope === 'mine';
 
     return tasks.filter((item) => {
       const status = item.status?.toLowerCase();
@@ -141,10 +181,11 @@ const Tasks = () => {
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.name?.toLowerCase().includes(q);
+      const matchesScope = !scopeToMine || isAssignedToMe(item);
 
-      return matchesStatus && matchesFilter && matchesQuery;
+      return matchesStatus && matchesFilter && matchesQuery && matchesScope;
     });
-  }, [tasks, activeStatus, activeFilter, query, activeView]);
+  }, [tasks, activeStatus, activeFilter, query, activeView, activeScope, isAssignedToMe]);
 
   const handleCreateFromCalendarSlot = useCallback(
     (prefill: { dueAt: Date; assignedTo?: string }) => {
@@ -263,10 +304,13 @@ const Tasks = () => {
               <TaskFilterBar
                 filterOptions={TaskFilters}
                 statusOptions={TASK_STATUS_PILLS}
+                scopeOptions={TASK_SCOPE_OPTIONS}
                 activeFilter={activeFilter}
                 activeStatus={activeStatus}
+                activeScope={activeScope}
                 setActiveFilter={setActiveFilter}
                 setActiveStatus={setActiveStatus}
+                setActiveScope={setActiveScope}
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

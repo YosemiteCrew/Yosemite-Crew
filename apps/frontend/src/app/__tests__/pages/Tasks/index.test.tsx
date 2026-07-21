@@ -120,6 +120,18 @@ jest.mock('@/app/hooks/useTask', () => ({
   useTasksForPrimaryOrg: () => useTasksMock(),
 }));
 
+const useTeamMock = jest.fn();
+const authAttributesMock = jest.fn();
+
+jest.mock('@/app/hooks/useTeam', () => ({
+  useTeamForPrimaryOrg: () => useTeamMock(),
+}));
+
+jest.mock('@/app/stores/authStore', () => ({
+  useAuthStore: (selector: (state: { attributes: unknown }) => unknown) =>
+    selector({ attributes: authAttributesMock() }),
+}));
+
 jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: () => usePermissionsMock(),
 }));
@@ -210,6 +222,8 @@ describe('Tasks page', () => {
     useSearchParamsMock.mockReturnValue({ get: () => null });
     // Default to the tablet/desktop experience (7-day agenda board).
     useIsPhoneMock.mockReturnValue(false);
+    useTeamMock.mockReturnValue([]);
+    authAttributesMock.mockReturnValue({ sub: 'me-123' });
   });
 
   it('renders the calendar planner and switches to table', () => {
@@ -742,5 +756,76 @@ describe('Tasks page', () => {
         ]),
       })
     );
+  });
+
+  it('narrows the list to my tasks when the scope is set to mine', async () => {
+    authAttributesMock.mockReturnValue({ sub: 'me-123' });
+    // The signed-in member is reachable by a second id form (practionerId) so a
+    // task tagged with that id still resolves to "me" via the team map.
+    useTeamMock.mockReturnValue([{ practionerId: 'prac-1', userId: 'me-123', name: 'Me' }]);
+    useTasksMock.mockReturnValue([
+      {
+        _id: 'mine-direct',
+        status: 'pending',
+        audience: 'employee_task',
+        name: 'Mine',
+        assignedTo: 'me-123',
+      },
+      {
+        _id: 'mine-primary',
+        status: 'pending',
+        audience: 'employee_task',
+        name: 'Also mine',
+        assignedTo: 'prac-1',
+      },
+      {
+        _id: 'theirs',
+        status: 'pending',
+        audience: 'employee_task',
+        name: 'Theirs',
+        assignedTo: 'someone-else',
+      },
+      { _id: 'bare', status: 'pending', audience: 'employee_task', name: 'Unassigned' },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    render(<ProtectedTasks />);
+
+    // The default "Team" scope surfaces everyone's tasks.
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toHaveLength(4);
+
+    await act(async () => {
+      lastPropsOf(filterBarSpy).setActiveScope('mine');
+      await Promise.resolve();
+    });
+
+    // "My tasks" keeps only the two that resolve to the signed-in member.
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+      expect.objectContaining({ _id: 'mine-direct' }),
+      expect.objectContaining({ _id: 'mine-primary' }),
+    ]);
+  });
+
+  it('shows nothing under "my tasks" when the signed-in member cannot be resolved', async () => {
+    authAttributesMock.mockReturnValue({});
+    useTasksMock.mockReturnValue([
+      {
+        _id: 't1',
+        status: 'pending',
+        audience: 'employee_task',
+        name: 'Alpha',
+        assignedTo: 'me-123',
+      },
+    ]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    render(<ProtectedTasks />);
+
+    await act(async () => {
+      lastPropsOf(filterBarSpy).setActiveScope('mine');
+      await Promise.resolve();
+    });
+
+    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([]);
   });
 });
