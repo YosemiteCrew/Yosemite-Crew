@@ -42,7 +42,9 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
 };
 
 export type PhoneMonthCell = {
-  /** Local-midnight Date for the cell, for consumers that need a Date. */
+  /** Instant anchored at LOCAL NOON in the preferred timezone (not midnight), so it round-trips
+   *  back to this cell's `dateKey` in every zone. Use `dateKey` for day identity; never assume a
+   *  midnight boundary on this value. */
   date: Date;
   /** `YYYY-MM-DD` calendar key — the identity of the cell. */
   dateKey: string;
