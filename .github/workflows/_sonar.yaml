@@ -67,7 +67,7 @@ jobs:
           persist-credentials: false
 
       - name: Download merged coverage
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: coverage-${{ matrix.app_key }}
           path: ${{ matrix.dir }}/coverage
@@ -87,7 +87,7 @@ jobs:
           node scripts/ci/lcov-check.mjs --resolve "$APP_DIR" "$LCOV"
 
       - name: Cache Sonar scanner
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.sonar/cache
           key: sonar-${{ runner.os }}-${{ matrix.app_key }}-${{ github.run_id }}
@@ -116,7 +116,7 @@ jobs:
           esac
 
       - name: Sonar scan
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         with:
           projectBaseDir: ${{ matrix.dir }}
           # Wait for the gate so a red quality gate reds this job, and therefore

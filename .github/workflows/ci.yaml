@@ -50,10 +50,17 @@ jobs:
     # vars.DISABLE_SONAR is a kill switch that works on every trigger, unlike a
     # workflow_dispatch input, which is null on pull_request and would silently
     # skip the stage on exactly the events that matter most.
+    #
+    # Dependabot PRs run with the Dependabot secret store, which does not carry
+    # the SONAR_TOKEN* values, so the scan can only fail with "Not authorized".
+    # Skip Sonar for them (the roll-up below counts a skipped stage as a pass);
+    # the nightly sonar-cloud-analysis run remains the type-aware backstop and
+    # every dependency change is re-scanned there once it lands on dev.
     if: >
       vars.DISABLE_SONAR != 'true' &&
       needs.test.outputs.apps-with-coverage != '' &&
-      needs.test.outputs.apps-with-coverage != '[]'
+      needs.test.outputs.apps-with-coverage != '[]' &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
     # A reusable workflow cannot request more than its caller grants, and
     # startup validation checks this even when the job is skipped, so the Sonar
     # scan's checks:write / pull-requests:write are granted on the call here
