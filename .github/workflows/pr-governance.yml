@@ -53,7 +53,13 @@ jobs:
     timeout-minutes: 15
     # Release sync PRs replay already-merged dev history into main. Keep title
     # validation active, but do not re-lint historical commits in that path.
-    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') }}
+    #
+    # Dependabot writes long changelog and release-note lines into its commit
+    # bodies, which trip config-conventional's body/footer-max-line-length and
+    # fail this job on every bot PR. The PR-title gate above still runs, so the
+    # conventional type(scope) contract is enforced on the squash-merge subject;
+    # only the generated body lines are exempt.
+    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') && github.event.pull_request.user.login != 'dependabot[bot]' }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
