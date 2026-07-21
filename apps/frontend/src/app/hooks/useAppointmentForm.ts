@@ -1226,6 +1226,8 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       setFormData((prev) => ({
         ...prev,
         appointmentKind,
+        // Clear any slot-derived duration so the badge follows the new speciality.
+        durationMinutes: 0,
         appointmentType: {
           id: '',
           name: '',
@@ -1257,6 +1259,8 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       setFormData((prev) => ({
         ...prev,
         appointmentKind: serviceAppointmentKind,
+        // Clear any slot-derived duration so the badge follows the new service.
+        durationMinutes: 0,
         appointmentType: {
           id: option.value,
           name: option.label,
