@@ -142,7 +142,12 @@ const selectMergeableDocuments = (
   documents: WorkspaceDocumentRow[],
   context: string,
 ): WorkspaceDocumentRow[] => {
-  const mergeable = documents.filter((doc) => doc.sourceKind !== "DOCUMENT");
+  // Exclude direct uploads (DOCUMENT - not renderable/mergeable) and INVOICE rendered documents:
+  // an invoice surfaces in the All Documents list but is NOT a clinical-packet member, so it must
+  // never be merged into a signed or printed discharge packet.
+  const mergeable = documents.filter(
+    (doc) => doc.sourceKind !== "DOCUMENT" && doc.sourceKind !== "INVOICE",
+  );
   const skipped = documents.length - mergeable.length;
   if (skipped > 0) {
     logger.warn(
