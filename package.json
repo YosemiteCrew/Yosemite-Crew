@@ -26,8 +26,8 @@
     "constructs": "^10.6.0",
     "eslint": "^9.33.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.8",
-    "prettier": "^3.9.5",
+    "lint-staged": "^17.1.0",
+    "prettier": "^3.9.6",
     "react-doctor": "^0.2.14",
     "secretlint": "^11.3.0",
     "turbo": "^2.10.4"
