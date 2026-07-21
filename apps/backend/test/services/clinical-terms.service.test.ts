@@ -1,6 +1,8 @@
 import { ClinicalTermsService } from "../../src/services/clinical-terms.service";
 import { CodeService } from "src/services/code.service";
 import { prisma } from "src/config/prisma";
+import fs from "node:fs";
+import path from "node:path";
 
 jest.mock("src/services/code.service", () => ({
   CodeService: {
@@ -246,6 +248,112 @@ describe("ClinicalTermsService", () => {
           source: "VeNom",
         },
       ]);
+    });
+  });
+
+  describe("importFromFile - path traversal protection", () => {
+    const testDataDir = path.join(process.cwd(), "test-data-clinical");
+    const validFile = path.join(testDataDir, "concepts.json");
+
+    beforeAll(() => {
+      // Create test directory and file
+      if (!fs.existsSync(testDataDir)) {
+        fs.mkdirSync(testDataDir, { recursive: true });
+      }
+      fs.writeFileSync(
+        validFile,
+        JSON.stringify([
+          {
+            ycCode: "YC-TEST",
+            label: "Test Concept",
+            domain: "Diagnosis",
+            active: true,
+            source: "test",
+            designations: [],
+            codes: [],
+            species: ["SA"],
+          },
+        ])
+      );
+    });
+
+    afterAll(() => {
+      // Clean up test files
+      if (fs.existsSync(validFile)) {
+        fs.unlinkSync(validFile);
+      }
+      if (fs.existsSync(testDataDir)) {
+        fs.rmdirSync(testDataDir);
+      }
+    });
+
+    it("should successfully import from a valid relative file path", async () => {
+      // Update test data to use valid source value
+      fs.writeFileSync(
+        validFile,
+        JSON.stringify([
+          {
+            ycCode: "YC-TEST",
+            label: "Test Concept",
+            domain: "Diagnosis",
+            active: true,
+            source: "VeNom",  // Changed from "test" to valid enum value
+            designations: [],
+            codes: [],
+            species: ["SA"],
+          },
+        ])
+      );
+      
+      const result = await ClinicalTermsService.importFromFile(
+        "test-data-clinical/concepts.json"
+      );
+      expect(CodeService.upsertEntry).toHaveBeenCalled();
+      expect(result).toHaveProperty("entriesUpserted");
+    });
+
+    it("should reject path traversal with double dots", async () => {
+      await expect(
+        ClinicalTermsService.importFromFile("../../../etc/passwd")
+      ).rejects.toThrow("Invalid file path");
+    });
+
+    it("should reject path traversal in middle of path", async () => {
+      await expect(
+        ClinicalTermsService.importFromFile("data/../../../etc/passwd")
+      ).rejects.toThrow("Invalid file path");
+    });
+
+    it("should reject absolute Unix paths", async () => {
+      await expect(
+        ClinicalTermsService.importFromFile("/etc/passwd")
+      ).rejects.toThrow("Invalid file path");
+    });
+
+    it("should reject absolute Windows paths", async () => {
+      const windowsPath = "C:\\Windows\\System32\\config\\sam";
+      if (path.isAbsolute(windowsPath)) {
+        await expect(
+          ClinicalTermsService.importFromFile(windowsPath)
+        ).rejects.toThrow("Invalid file path");
+      } else {
+        // On Unix, this would fail with ENOENT or parsing error, which is acceptable
+        await expect(
+          ClinicalTermsService.importFromFile(windowsPath)
+        ).rejects.toThrow();
+      }
+    });
+
+    it("should reject URL-encoded path traversal", async () => {
+      await expect(
+        ClinicalTermsService.importFromFile("..%2F..%2F..%2Fetc%2Fpasswd")
+      ).rejects.toThrow("Invalid file path");
+    });
+
+    it("should reject backslash path traversal", async () => {
+      await expect(
+        ClinicalTermsService.importFromFile("..\\..\\..\\windows\\system32\\config\\sam")
+      ).rejects.toThrow("Invalid file path");
     });
   });
 });

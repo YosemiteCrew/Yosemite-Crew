@@ -239,6 +239,9 @@ export const ClinicalTermsService = {
   },
 
   async importFromFile(filePath: string) {
+    if (filePath.includes("..") || path.isAbsolute(filePath)) {
+      throw new Error("Invalid file path");
+    }
     const absolutePath = path.resolve(filePath);
     const rawText = fs.readFileSync(absolutePath, "utf-8");
     const parsed = this.parseConcepts(JSON.parse(rawText));
