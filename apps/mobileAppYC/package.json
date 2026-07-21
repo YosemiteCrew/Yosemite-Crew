@@ -86,7 +86,7 @@
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
     "semver": "^7.7.4",
-    "stream-chat-react-native": "^8.8.0",
+    "stream-chat-react-native": "^9.7.0",
     "supertokens-react-native": "^5.1.5",
     "toastify-react-native": "^7.2.3",
     "uuid": "11.1.1"
