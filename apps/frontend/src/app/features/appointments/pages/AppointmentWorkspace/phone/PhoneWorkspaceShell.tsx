@@ -92,10 +92,10 @@ const PhoneWorkspaceShell = ({
   }, [activeStep]);
 
   return (
-    // Bleed the workspace page's px-4/py-5 so the shell runs edge-to-edge, and size
-    // it to the space the phone shell leaves between its fixed 54px header and the
-    // 72px bottom tab bar (see PhoneShell.css) so the body scrolls internally.
-    <div className="-mx-4 -my-5 flex h-[calc(100dvh-54px-72px-env(safe-area-inset-bottom,0px))] min-h-[480px] flex-col bg-(--screen)">
+    // #main-content already insets the fixed 54px header and 72px tab bar (top/
+    // bottom padding, no horizontal padding - see PhoneShell.css), so the shell
+    // runs edge-to-edge without any bleed and its body scrolls internally.
+    <div className="flex h-[calc(100dvh-54px-72px-env(safe-area-inset-bottom,0px))] min-h-[480px] flex-col bg-(--screen)">
       <PhonePatientBar
         appointment={appointment}
         companionName={companionName}
