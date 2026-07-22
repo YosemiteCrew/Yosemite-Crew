@@ -1,10 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { IoArrowForward, IoCalendarOutline } from 'react-icons/io5';
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 
 const OnlineBooking = () => (
-  <AccordionButton title="Online booking" showButton={false}>
+  <SectionCard title="Online booking" showButton={false}>
     <div className="flex flex-col gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-4! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-[var(--blue-soft)] text-[var(--blue-text)]">
@@ -27,7 +27,7 @@ const OnlineBooking = () => (
         <IoArrowForward size={13} aria-hidden="true" />
       </Link>
     </div>
-  </AccordionButton>
+  </SectionCard>
 );
 
 export default OnlineBooking;

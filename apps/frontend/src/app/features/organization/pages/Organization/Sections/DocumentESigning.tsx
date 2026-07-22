@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
 import { IoShieldCheckmarkOutline } from 'react-icons/io5';
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import DocSigningPortal from '@/app/features/docSigning/components/DocSigningPortal';
@@ -63,7 +63,7 @@ const DocumentESigning = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.DOCUMENT_VIEW_ANY]}>
-      <AccordionButton title="E-signing" showButton={false} keepMounted>
+      <SectionCard title="E-signing" showButton={false}>
         <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
           <div className="px-5! py-3! border-b border-[var(--hairline)] text-[11.5px] text-[var(--ink-faint)]">
             How consent documents get signed
@@ -124,7 +124,7 @@ const DocumentESigning = () => {
             )}
           </div>
         </div>
-      </AccordionButton>
+      </SectionCard>
     </PermissionGate>
   );
 };
