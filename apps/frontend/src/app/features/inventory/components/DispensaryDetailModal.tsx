@@ -241,11 +241,17 @@ const DispensaryDetailModal = ({
     ? `${record.patient.name} • ${ownerLastName}`
     : record.patient.name;
 
-  const handleDispense = async () => {
+  /**
+   * Dispensing and marking not-dispensed differ only in which endpoint they
+   * call: both hold the panel open, close it on success and refresh the queue.
+   */
+  const runPrescriptionAction = async (
+    action: (organisationId: string, prescriptionId: string) => Promise<unknown>
+  ) => {
     if (actioning) return;
     setActioning(true);
     try {
-      await dispensePrescription(organisationId, record.prescriptionId);
+      await action(organisationId, record.prescriptionId);
       setShowModal(false);
       onActionComplete();
     } finally {
@@ -253,17 +259,8 @@ const DispensaryDetailModal = ({
     }
   };
 
-  const handleNotDispensed = async () => {
-    if (actioning) return;
-    setActioning(true);
-    try {
-      await notDispensedPrescription(organisationId, record.prescriptionId);
-      setShowModal(false);
-      onActionComplete();
-    } finally {
-      setActioning(false);
-    }
-  };
+  const handleDispense = () => runPrescriptionAction(dispensePrescription);
+  const handleNotDispensed = () => runPrescriptionAction(notDispensedPrescription);
 
   const handlePrintLabel = async () => {
     if (printing) return;

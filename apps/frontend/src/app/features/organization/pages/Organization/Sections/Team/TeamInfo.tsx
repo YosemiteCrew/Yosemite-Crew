@@ -332,84 +332,93 @@ const useTeamInfoContent = ({
     }
   };
 
-  const handleAddressSave = async (values: any) => {
+  /**
+   * The three profile sections save identically - patch one subtree of the
+   * stored profile, upsert, mirror it back into local state, notify - and
+   * differ only in the patch and the wording, so they share one body.
+   */
+  const saveProfileSection = async ({
+    buildPayload,
+    messages,
+  }: {
+    buildPayload: (current: UserProfile) => UserProfile;
+    messages: {
+      successTitle: string;
+      successText: string;
+      errorTitle: string;
+      errorText: string;
+    };
+  }) => {
     try {
       if (!profile?.profile) return;
-      const payload: UserProfile = {
-        ...profile.profile,
-        _id: profile.profile?._id,
+      const payload = buildPayload(profile.profile);
+      await upsertUserProfile(payload);
+      setProfile((prev: any) => ({
+        ...prev,
+        profile: payload,
+      }));
+      notify('success', { title: messages.successTitle, text: messages.successText });
+    } catch (error) {
+      console.log(error);
+      notify('error', { title: messages.errorTitle, text: messages.errorText });
+    }
+  };
+
+  const handleAddressSave = (values: any) =>
+    saveProfileSection({
+      buildPayload: (current) => ({
+        ...current,
+        _id: current._id,
         personalDetails: {
-          ...profile.profile.personalDetails,
+          ...current.personalDetails,
           address: {
-            ...profile.profile.personalDetails?.address,
+            ...current.personalDetails?.address,
             addressLine: values.addressLine,
             state: values.state,
             city: values.city,
             postalCode: values.postalCode,
           },
         },
-      };
-      await upsertUserProfile(payload);
-      setProfile((prev: any) => ({
-        ...prev,
-        profile: payload,
-      }));
-      notify('success', {
-        title: 'Address updated',
-        text: 'Address details have been updated successfully.',
-      });
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Unable to update address',
-        text: 'Failed to update address details. Please try again.',
-      });
-    }
-  };
+      }),
+      messages: {
+        successTitle: 'Address updated',
+        successText: 'Address details have been updated successfully.',
+        errorTitle: 'Unable to update address',
+        errorText: 'Failed to update address details. Please try again.',
+      },
+    });
 
-  const handlePersonalSave = async (values: any) => {
-    try {
-      if (!profile?.profile) return;
-      const payload: UserProfile = {
-        ...profile.profile,
-        _id: profile.profile?._id,
+  const handlePersonalSave = (values: any) =>
+    saveProfileSection({
+      buildPayload: (current) => ({
+        ...current,
+        _id: current._id,
         personalDetails: {
-          ...profile.profile.personalDetails,
+          ...current.personalDetails,
           gender: values.gender,
           dateOfBirth: values.dateOfBirth,
           phoneNumber: values.phoneNumber,
           address: {
-            ...profile.profile.personalDetails?.address,
+            ...current.personalDetails?.address,
             country: values.country,
           },
         },
-      };
-      await upsertUserProfile(payload);
-      setProfile((prev: any) => ({
-        ...prev,
-        profile: payload,
-      }));
-      notify('success', {
-        title: 'Personal details updated',
-        text: 'Personal details have been updated successfully.',
-      });
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Unable to update personal details',
-        text: 'Failed to update personal details. Please try again.',
-      });
-    }
-  };
+      }),
+      messages: {
+        successTitle: 'Personal details updated',
+        successText: 'Personal details have been updated successfully.',
+        errorTitle: 'Unable to update personal details',
+        errorText: 'Failed to update personal details. Please try again.',
+      },
+    });
 
-  const handleProfessionalSave = async (values: any) => {
-    try {
-      if (!profile?.profile) return;
-      const payload: UserProfile = {
-        ...profile.profile,
-        _id: profile.profile?._id,
+  const handleProfessionalSave = (values: any) =>
+    saveProfileSection({
+      buildPayload: (current) => ({
+        ...current,
+        _id: current._id,
         professionalDetails: {
-          ...profile.profile.professionalDetails,
+          ...current.professionalDetails,
           linkedin: values.linkedin,
           medicalLicenseNumber: values.licenseNumber,
           yearsOfExperience: values.experience,
@@ -417,24 +426,14 @@ const useTeamInfoContent = ({
           qualification: values.qulaification,
           biography: values.description,
         },
-      };
-      await upsertUserProfile(payload);
-      setProfile((prev: any) => ({
-        ...prev,
-        profile: payload,
-      }));
-      notify('success', {
-        title: 'Professional details updated',
-        text: 'Professional details have been updated successfully.',
-      });
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Unable to update professional details',
-        text: 'Failed to update professional details. Please try again.',
-      });
-    }
-  };
+      }),
+      messages: {
+        successTitle: 'Professional details updated',
+        successText: 'Professional details have been updated successfully.',
+        errorTitle: 'Unable to update professional details',
+        errorText: 'Failed to update professional details. Please try again.',
+      },
+    });
 
   const handlePermUpdate = async ({
     extraPerissions,
