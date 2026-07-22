@@ -125,7 +125,7 @@ jest.mock('@/shared/components/common', () => ({
 }));
 
 jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack, onRightPress}: any) => {
+  Header: ({title, onBack, onRightPress, rightAccessibilityLabel}: any) => {
     const {TouchableOpacity, Text, View} = require('react-native');
     return (
       <View>
@@ -133,7 +133,10 @@ jest.mock('@/shared/components/common/Header/Header', () => ({
         <TouchableOpacity testID="header-back-btn" onPress={onBack}>
           <Text>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity testID="header-add-btn" onPress={onRightPress}>
+        <TouchableOpacity
+          testID="header-add-btn"
+          accessibilityLabel={rightAccessibilityLabel}
+          onPress={onRightPress}>
           <Text>Add</Text>
         </TouchableOpacity>
       </View>
@@ -350,6 +353,13 @@ describe('TasksListScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('AddTask', {
       prefillDate: '2025-12-31',
     });
+  });
+
+  it('labels the header add button with its actual action for screen readers', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    expect(getByTestId('header-add-btn').props.accessibilityLabel).toBe(
+      'Add task',
+    );
   });
 
   it('handles companion selection', () => {

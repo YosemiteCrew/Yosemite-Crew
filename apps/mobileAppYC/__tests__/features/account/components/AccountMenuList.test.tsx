@@ -96,4 +96,47 @@ describe('AccountMenuList', () => {
     const images = profileButton.findAllByType(Image);
     expect(images).toHaveLength(1);
   });
+
+  it.each([
+    ['indigo', () => lightTheme.colors.indigo],
+    ['violet', () => lightTheme.colors.violet],
+    ['success', () => lightTheme.colors.success],
+  ] as const)(
+    'tints the %s tile icon with its accent colour',
+    (tone, getExpectedTint) => {
+      const {getByLabelText} = renderWithStore(
+        <AccountMenuList
+          items={[{id: 'item', label: 'Item', icon: createIcon(), tone}]}
+          onItemPress={jest.fn()}
+        />,
+      );
+
+      const button = getByLabelText('Item') as ReactTestInstance;
+      const [tileIcon] = button.findAllByType(Image);
+      const iconStyles = Array.isArray(tileIcon.props.style)
+        ? tileIcon.props.style
+        : [tileIcon.props.style];
+      const hasExpectedTint = iconStyles.some(
+        style => style?.tintColor === getExpectedTint(),
+      );
+      expect(hasExpectedTint).toBe(true);
+    },
+  );
+
+  it('leaves the tile icon untinted when no tone-specific accent applies', () => {
+    const {getByLabelText} = renderWithStore(
+      <AccountMenuList
+        items={[{id: 'item', label: 'Item', icon: createIcon()}]}
+        onItemPress={jest.fn()}
+      />,
+    );
+
+    const button = getByLabelText('Item') as ReactTestInstance;
+    const [tileIcon] = button.findAllByType(Image);
+    const iconStyles = Array.isArray(tileIcon.props.style)
+      ? tileIcon.props.style
+      : [tileIcon.props.style];
+    const hasAnyTint = iconStyles.some(style => style?.tintColor !== undefined);
+    expect(hasAnyTint).toBe(false);
+  });
 });

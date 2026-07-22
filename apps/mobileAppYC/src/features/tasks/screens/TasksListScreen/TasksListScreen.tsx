@@ -148,6 +148,7 @@ export const TasksListScreen: React.FC = () => {
           onBack={() => navigation.goBack()}
           rightIcon={Images.addIconDark}
           onRightPress={handleAddTask}
+          rightAccessibilityLabel="Add task"
           glass={false}
         />
       }
