@@ -121,21 +121,18 @@ const normalizeId = (value?: string) =>
     .pop()
     ?.toLowerCase() ?? '';
 
-const useTeamInfoContent = ({
-  showModal,
-  setShowModal,
+/**
+ * The member's working hours: the editable grid, the in-flight flag and the
+ * save. Seeded by the profile fetch in the panel, which is why setAvailability
+ * is returned rather than kept private.
+ */
+const useTeamAvailability = ({
   activeTeam,
-  canEditTeam,
-}: TeamInfoProps) => {
-  const specialities = useSpecialitiesForPrimaryOrg();
-  const { membership } = usePrimaryOrgWithMembership();
-  const { notify } = useNotify();
-  const { refetch: refetchData } = useSubscriptionCounterUpdate();
-  const [permissionOverride, setPermissionOverride] = React.useState<{
-    teamId: string;
-    permissions: Permission[];
-  } | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  notify,
+}: {
+  activeTeam: Team;
+  notify: ReturnType<typeof useNotify>['notify'];
+}) => {
   const [availability, setAvailability] = useState<AvailabilityState>(() =>
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
       const isWeekday =
@@ -154,88 +151,53 @@ const useTeamInfoContent = ({
   );
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
-  const [profile, setProfile] = useState<any>(null);
-
-  const isSelfMember =
-    normalizeId(activeTeam?.practionerId) === normalizeId(membership?.practitionerReference) ||
-    normalizeId(activeTeam?._id) === normalizeId(membership?.id);
-  const canEditMutableMember = canEditTeam && activeTeam.role !== 'OWNER';
-  const canEditRole = canEditTeam && activeTeam.role !== 'OWNER';
-  // Employment type can be set by team managers OR by the member themselves
-  const canEditEmploymentType = isSelfMember || canEditMutableMember;
-  const canEditDepartment = false;
-  // Personal profile fields are self-only — team managers cannot edit another person's profile
-  const canEditPersonal = isSelfMember;
-  const canEditAddress = isSelfMember;
-  const canEditProfessional = isSelfMember;
-  const canEditAvailability = isSelfMember;
-  const canEditOrgDetails = canEditRole || canEditEmploymentType || canEditDepartment;
-  const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
-  const role = activeTeam.role as RoleCode;
-  const activeTeamId = activeTeam._id ?? '';
-  const perms =
-    permissionOverride?.teamId === activeTeamId
-      ? permissionOverride.permissions
-      : activeTeam.effectivePermissions;
-
-  const SpecialitiesOptions = useMemo(
-    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
-    [specialities]
-  );
-
-  const fields = useMemo(
-    () =>
-      getFields({
-        SpecialitiesOptions,
-        activeTeam,
-        canEditRole,
-        canEditEmploymentType,
-        canEditDepartment,
-      }),
-    [SpecialitiesOptions, activeTeam, canEditRole, canEditEmploymentType, canEditDepartment]
-  );
-
-  useEffect(() => {
-    const userId = activeTeam.practionerId;
-    if (!showModal || !userId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await getProfileForUserForPrimaryOrg(userId);
-        if (!cancelled) {
-          setProfile(data);
-          if (data) {
-            const { baseAvailability } = data as { baseAvailability?: unknown };
-            setAvailability(
-              convertFromGetApi(Array.isArray(baseAvailability) ? baseAvailability : [])
-            );
-          }
-        }
-      } catch {
-        setProfile(null);
+  const updateAvailability = async () => {
+    if (isSavingAvailability) return;
+    try {
+      startTransition(() => setIsSavingAvailability(true));
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+      const converted = convertAvailability(availability);
+      if (!hasAtLeastOneAvailability(converted)) {
+        console.log('No availability selected');
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [showModal, activeTeam]);
-
-  const handleModalVisibility: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
-    setShowModal(value);
-    if (value === false) {
-      setShowDeleteModal(false);
+      await upsertTeamAvailability(activeTeam, converted, null);
+      notify('success', {
+        title: 'Team member updated',
+        text: 'Team member has been updated successfully.',
+      });
+    } catch (error) {
+      console.log(error);
+      notify('error', {
+        title: 'Unable to update availability',
+        text: 'Failed to update availability. Please try again.',
+      });
+    } finally {
+      setIsSavingAvailability(false);
     }
   };
 
-  const orgInfoData = useMemo(
-    () => ({
-      role: activeTeam?.role ?? '',
-      speciality: activeTeam?.speciality.map((s) => s._id) ?? '',
-      employmentType: profile?.profile?.personalDetails?.employmentType ?? '',
-    }),
-    [profile, activeTeam]
-  );
+  return { availability, setAvailability, isSavingAvailability, updateAvailability };
+};
 
+/**
+ * The three editable profile sections. Each reads its slice of the fetched
+ * profile and writes it back through one shared save, so the sections stay
+ * together and out of the panel body.
+ */
+const useTeamProfileSections = ({
+  profile,
+  setProfile,
+  activeTeam,
+  notify,
+}: {
+  profile: any;
+  setProfile: React.Dispatch<React.SetStateAction<any>>;
+  activeTeam: Team;
+  notify: ReturnType<typeof useNotify>['notify'];
+}) => {
   const personalInfoData = useMemo(
     () => ({
       name: activeTeam?.name ?? '',
@@ -269,74 +231,6 @@ const useTeamInfoContent = ({
     [profile]
   );
 
-  const handleDelete = async () => {
-    try {
-      await removeMember(activeTeam);
-      await refetchData();
-      notify('success', {
-        title: 'Team member deleted',
-        text: 'Team member has been deleted successfully.',
-      });
-      setShowDeleteModal(false);
-      setShowModal(false);
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Unable to delete team member',
-        text: 'Failed to delete team member. Please try again.',
-      });
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
-  };
-
-  const handleMappingUpdate = async (values: any) => {
-    try {
-      if (canEditRole && values.role && values.role !== activeTeam.role) {
-        const member: Team = {
-          ...activeTeam,
-          role: values.role,
-        };
-        await updateMember(member);
-      }
-
-      if (canEditEmploymentType && profile?.profile) {
-        const nextEmploymentType = values.employmentType || '';
-        const currentEmploymentType = profile.profile.personalDetails?.employmentType || '';
-        if (nextEmploymentType !== currentEmploymentType) {
-          const payload: UserProfile = {
-            ...profile.profile,
-            _id: profile.profile?._id,
-            personalDetails: {
-              ...profile.profile.personalDetails,
-              employmentType: nextEmploymentType,
-            },
-          };
-          await upsertUserProfile(payload);
-        }
-      }
-
-      await refetchData();
-      notify('success', {
-        title: 'Team member updated',
-        text: 'Team member has been updated successfully.',
-      });
-    } catch (error) {
-      console.log(error);
-      notify('error', {
-        title: 'Unable to update team member',
-        text: 'Failed to update team member. Please try again.',
-      });
-    }
-  };
-
-  /**
-   * The three profile sections save identically - patch one subtree of the
-   * stored profile, upsert, mirror it back into local state, notify - and
-   * differ only in the patch and the wording, so they share one body.
-   */
   const saveProfileSection = async ({
     buildPayload,
     messages,
@@ -435,6 +329,70 @@ const useTeamInfoContent = ({
       },
     });
 
+  return {
+    personalInfoData,
+    addressInfoData,
+    professionalInfoData,
+    handleAddressSave,
+    handlePersonalSave,
+    handleProfessionalSave,
+  };
+};
+
+/**
+ * Mutations against the membership record itself - removal and permissions -
+ * together with the confirm-dialog and optimistic-permission state they own.
+ * Profile edits live in useTeamProfileSections; these never touch the profile.
+ */
+const useTeamMemberAdmin = ({
+  activeTeam,
+  activeTeamId,
+  role,
+  notify,
+  refetchData,
+  setShowModal,
+}: {
+  activeTeam: Team;
+  activeTeamId: string;
+  role: RoleCode;
+  notify: ReturnType<typeof useNotify>['notify'];
+  refetchData: () => Promise<unknown>;
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
+  const [permissionOverride, setPermissionOverride] = React.useState<{
+    teamId: string;
+    permissions: Permission[];
+  } | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const perms =
+    permissionOverride?.teamId === activeTeamId
+      ? permissionOverride.permissions
+      : activeTeam.effectivePermissions;
+
+  const handleDelete = async () => {
+    try {
+      await removeMember(activeTeam);
+      await refetchData();
+      notify('success', {
+        title: 'Team member deleted',
+        text: 'Team member has been deleted successfully.',
+      });
+      setShowDeleteModal(false);
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+      notify('error', {
+        title: 'Unable to delete team member',
+        text: 'Failed to delete team member. Please try again.',
+      });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+  };
+
   const handlePermUpdate = async ({
     extraPerissions,
     revokedPermissions,
@@ -470,19 +428,156 @@ const useTeamInfoContent = ({
     }
   };
 
-  const updateAvailability = async () => {
-    if (isSavingAvailability) return;
-    try {
-      startTransition(() => setIsSavingAvailability(true));
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, 0);
-      });
-      const converted = convertAvailability(availability);
-      if (!hasAtLeastOneAvailability(converted)) {
-        console.log('No availability selected');
-        return;
+  return {
+    showDeleteModal,
+    setShowDeleteModal,
+    perms,
+    handleDelete,
+    handleDeleteCancel,
+    handlePermUpdate,
+  };
+};
+
+const useTeamInfoContent = ({
+  showModal,
+  setShowModal,
+  activeTeam,
+  canEditTeam,
+}: TeamInfoProps) => {
+  const specialities = useSpecialitiesForPrimaryOrg();
+  const { membership } = usePrimaryOrgWithMembership();
+  const { notify } = useNotify();
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
+  const {
+    showDeleteModal,
+    setShowDeleteModal,
+    perms,
+    handleDelete,
+    handleDeleteCancel,
+    handlePermUpdate,
+  } = useTeamMemberAdmin({
+    activeTeam,
+    activeTeamId: activeTeam._id ?? '',
+    role: activeTeam.role as RoleCode,
+    notify,
+    refetchData,
+    setShowModal,
+  });
+  const { availability, setAvailability, isSavingAvailability, updateAvailability } =
+    useTeamAvailability({ activeTeam, notify });
+
+  const [profile, setProfile] = useState<any>(null);
+  const {
+    personalInfoData,
+    addressInfoData,
+    professionalInfoData,
+    handleAddressSave,
+    handlePersonalSave,
+    handleProfessionalSave,
+  } = useTeamProfileSections({ profile, setProfile, activeTeam, notify });
+
+  const isSelfMember =
+    normalizeId(activeTeam?.practionerId) === normalizeId(membership?.practitionerReference) ||
+    normalizeId(activeTeam?._id) === normalizeId(membership?.id);
+  const canEditMutableMember = canEditTeam && activeTeam.role !== 'OWNER';
+  const canEditRole = canEditTeam && activeTeam.role !== 'OWNER';
+  // Employment type can be set by team managers OR by the member themselves
+  const canEditEmploymentType = isSelfMember || canEditMutableMember;
+  const canEditDepartment = false;
+  // Personal profile fields are self-only — team managers cannot edit another person's profile
+  const canEditPersonal = isSelfMember;
+  const canEditAddress = isSelfMember;
+  const canEditProfessional = isSelfMember;
+  const canEditAvailability = isSelfMember;
+  const canEditOrgDetails = canEditRole || canEditEmploymentType || canEditDepartment;
+  const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
+  const role = activeTeam.role as RoleCode;
+
+  const SpecialitiesOptions = useMemo(
+    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
+    [specialities]
+  );
+
+  const fields = useMemo(
+    () =>
+      getFields({
+        SpecialitiesOptions,
+        activeTeam,
+        canEditRole,
+        canEditEmploymentType,
+        canEditDepartment,
+      }),
+    [SpecialitiesOptions, activeTeam, canEditRole, canEditEmploymentType, canEditDepartment]
+  );
+
+  useEffect(() => {
+    const userId = activeTeam.practionerId;
+    if (!showModal || !userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getProfileForUserForPrimaryOrg(userId);
+        if (!cancelled) {
+          setProfile(data);
+          if (data) {
+            const { baseAvailability } = data as { baseAvailability?: unknown };
+            setAvailability(
+              convertFromGetApi(Array.isArray(baseAvailability) ? baseAvailability : [])
+            );
+          }
+        }
+      } catch {
+        setProfile(null);
       }
-      await upsertTeamAvailability(activeTeam, converted, null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showModal, activeTeam, setAvailability]);
+
+  const handleModalVisibility: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
+    setShowModal(value);
+    if (value === false) {
+      setShowDeleteModal(false);
+    }
+  };
+
+  const orgInfoData = useMemo(
+    () => ({
+      role: activeTeam?.role ?? '',
+      speciality: activeTeam?.speciality.map((s) => s._id) ?? '',
+      employmentType: profile?.profile?.personalDetails?.employmentType ?? '',
+    }),
+    [profile, activeTeam]
+  );
+
+  const handleMappingUpdate = async (values: any) => {
+    try {
+      if (canEditRole && values.role && values.role !== activeTeam.role) {
+        const member: Team = {
+          ...activeTeam,
+          role: values.role,
+        };
+        await updateMember(member);
+      }
+
+      if (canEditEmploymentType && profile?.profile) {
+        const nextEmploymentType = values.employmentType || '';
+        const currentEmploymentType = profile.profile.personalDetails?.employmentType || '';
+        if (nextEmploymentType !== currentEmploymentType) {
+          const payload: UserProfile = {
+            ...profile.profile,
+            _id: profile.profile?._id,
+            personalDetails: {
+              ...profile.profile.personalDetails,
+              employmentType: nextEmploymentType,
+            },
+          };
+          await upsertUserProfile(payload);
+        }
+      }
+
+      await refetchData();
       notify('success', {
         title: 'Team member updated',
         text: 'Team member has been updated successfully.',
@@ -490,13 +585,17 @@ const useTeamInfoContent = ({
     } catch (error) {
       console.log(error);
       notify('error', {
-        title: 'Unable to update availability',
-        text: 'Failed to update availability. Please try again.',
+        title: 'Unable to update team member',
+        text: 'Failed to update team member. Please try again.',
       });
-    } finally {
-      setIsSavingAvailability(false);
     }
   };
+
+  /**
+   * The three profile sections save identically - patch one subtree of the
+   * stored profile, upsert, mirror it back into local state, notify - and
+   * differ only in the patch and the wording, so they share one body.
+   */
 
   return (
     <>

@@ -220,6 +220,120 @@ const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
   );
 };
 
+/**
+ * Everything the panel *does*, kept out of what it renders: the two in-flight
+ * flags, the queue actions and the label's object-URL lifecycle. Callable
+ * before the panel's `record` guard, so it takes an id that may be empty.
+ */
+const useDispensaryActions = ({
+  organisationId,
+  prescriptionId,
+  setShowModal,
+  onActionComplete,
+}: {
+  organisationId: string;
+  prescriptionId: string;
+  setShowModal: (value: boolean) => void;
+  onActionComplete: () => void;
+}) => {
+  const [actioning, setActioning] = useState(false);
+  const [printing, setPrinting] = useState(false);
+
+  /**
+   * Dispensing and marking not-dispensed differ only in which endpoint they
+   * call: both hold the panel open, close it on success and refresh the queue.
+   */
+  const runPrescriptionAction = async (
+    action: (organisationId: string, prescriptionId: string) => Promise<unknown>
+  ) => {
+    if (actioning) return;
+    setActioning(true);
+    try {
+      await action(organisationId, prescriptionId);
+      setShowModal(false);
+      onActionComplete();
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const handlePrintLabel = async () => {
+    if (printing) return;
+    setPrinting(true);
+    try {
+      const blob = await fetchPrescriptionLabelPdf(organisationId, prescriptionId);
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (win) win.focus();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  return {
+    actioning,
+    printing,
+    handleDispense: () => runPrescriptionAction(dispensePrescription),
+    handleNotDispensed: () => runPrescriptionAction(notDispensedPrescription),
+    handlePrintLabel,
+    // The panel must not be dismissed out from under an action in flight.
+    handleClose: () => {
+      if (actioning) return;
+      setShowModal(false);
+    },
+  };
+};
+
+type DispensaryFooterProps = {
+  isDispensed: boolean;
+  isPending: boolean;
+  itemCount: number;
+  actions: ReturnType<typeof useDispensaryActions>;
+};
+
+const DispensaryFooter = ({
+  isDispensed,
+  isPending,
+  itemCount,
+  actions,
+}: Readonly<DispensaryFooterProps>) => {
+  if (isDispensed) {
+    return (
+      <ModalFooter>
+        <Secondary
+          href="#"
+          text={actions.printing ? 'Loading…' : 'Label'}
+          ariaLabel="Label"
+          icon={<IoPrintOutline />}
+          onClick={actions.handlePrintLabel}
+          isDisabled={actions.printing}
+          size="large"
+        />
+      </ModalFooter>
+    );
+  }
+
+  if (!isPending) return null;
+
+  return (
+    <ModalFooter align="stretch">
+      <Primary
+        href="#"
+        text={actions.actioning ? 'Dispensing…' : `Dispense all (${itemCount})`}
+        onClick={actions.handleDispense}
+        isDisabled={actions.actioning}
+      />
+      <Secondary
+        href="#"
+        text="Not dispensed"
+        onClick={actions.handleNotDispensed}
+        isDisabled={actions.actioning}
+      />
+    </ModalFooter>
+  );
+};
+
 const DispensaryDetailModal = ({
   record,
   showModal,
@@ -227,8 +341,12 @@ const DispensaryDetailModal = ({
   organisationId,
   onActionComplete,
 }: Props) => {
-  const [actioning, setActioning] = useState(false);
-  const [printing, setPrinting] = useState(false);
+  const actions = useDispensaryActions({
+    organisationId,
+    prescriptionId: record?.prescriptionId ?? '',
+    setShowModal,
+    onActionComplete,
+  });
 
   if (!record) return null;
   const isDispensed = record.status === 'DISPENSED';
@@ -241,46 +359,6 @@ const DispensaryDetailModal = ({
     ? `${record.patient.name} • ${ownerLastName}`
     : record.patient.name;
 
-  /**
-   * Dispensing and marking not-dispensed differ only in which endpoint they
-   * call: both hold the panel open, close it on success and refresh the queue.
-   */
-  const runPrescriptionAction = async (
-    action: (organisationId: string, prescriptionId: string) => Promise<unknown>
-  ) => {
-    if (actioning) return;
-    setActioning(true);
-    try {
-      await action(organisationId, record.prescriptionId);
-      setShowModal(false);
-      onActionComplete();
-    } finally {
-      setActioning(false);
-    }
-  };
-
-  const handleDispense = () => runPrescriptionAction(dispensePrescription);
-  const handleNotDispensed = () => runPrescriptionAction(notDispensedPrescription);
-
-  const handlePrintLabel = async () => {
-    if (printing) return;
-    setPrinting(true);
-    try {
-      const blob = await fetchPrescriptionLabelPdf(organisationId, record.prescriptionId);
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, '_blank');
-      if (win) win.focus();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } finally {
-      setPrinting(false);
-    }
-  };
-
-  const handleClose = () => {
-    if (actioning) return;
-    setShowModal(false);
-  };
-
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex h-full flex-col gap-6 overflow-hidden">
@@ -288,8 +366,8 @@ const DispensaryDetailModal = ({
           eyebrow={isDispensed ? 'Dispensed request' : 'Dispense request'}
           title={patientLine1}
           meta={ownerName}
-          onClose={handleClose}
-          isCloseDisabled={actioning}
+          onClose={actions.handleClose}
+          isCloseDisabled={actions.actioning}
           actions={
             isDispensed && (
               <IoCheckmarkCircle size={20} className="text-[var(--success)] shrink-0" />
@@ -322,35 +400,12 @@ const DispensaryDetailModal = ({
           )}
         </div>
 
-        {isDispensed && (
-          <ModalFooter>
-            <Secondary
-              href="#"
-              text={printing ? 'Loading…' : 'Label'}
-              ariaLabel="Label"
-              icon={<IoPrintOutline />}
-              onClick={handlePrintLabel}
-              isDisabled={printing}
-              size="large"
-            />
-          </ModalFooter>
-        )}
-        {isPending && (
-          <ModalFooter align="stretch">
-            <Primary
-              href="#"
-              text={actioning ? 'Dispensing…' : `Dispense all (${items.length})`}
-              onClick={handleDispense}
-              isDisabled={actioning}
-            />
-            <Secondary
-              href="#"
-              text="Not dispensed"
-              onClick={handleNotDispensed}
-              isDisabled={actioning}
-            />
-          </ModalFooter>
-        )}
+        <DispensaryFooter
+          isDispensed={isDispensed}
+          isPending={isPending}
+          itemCount={items.length}
+          actions={actions}
+        />
       </div>
     </Modal>
   );
