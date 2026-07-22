@@ -439,44 +439,20 @@ const useTeamMemberAdmin = ({
   };
 };
 
-const useTeamInfoContent = ({
-  showModal,
-  setShowModal,
+/**
+ * What the signed-in viewer may edit on this member. Ownership and self-service
+ * are the only two axes: an OWNER's role is immutable, and a person's own
+ * profile is theirs alone to change even when they cannot manage the team.
+ */
+const useTeamMemberPermissions = ({
   activeTeam,
   canEditTeam,
-}: TeamInfoProps) => {
-  const specialities = useSpecialitiesForPrimaryOrg();
-  const { membership } = usePrimaryOrgWithMembership();
-  const { notify } = useNotify();
-  const { refetch: refetchData } = useSubscriptionCounterUpdate();
-  const {
-    showDeleteModal,
-    setShowDeleteModal,
-    perms,
-    handleDelete,
-    handleDeleteCancel,
-    handlePermUpdate,
-  } = useTeamMemberAdmin({
-    activeTeam,
-    activeTeamId: activeTeam._id ?? '',
-    role: activeTeam.role as RoleCode,
-    notify,
-    refetchData,
-    setShowModal,
-  });
-  const { availability, setAvailability, isSavingAvailability, updateAvailability } =
-    useTeamAvailability({ activeTeam, notify });
-
-  const [profile, setProfile] = useState<any>(null);
-  const {
-    personalInfoData,
-    addressInfoData,
-    professionalInfoData,
-    handleAddressSave,
-    handlePersonalSave,
-    handleProfessionalSave,
-  } = useTeamProfileSections({ profile, setProfile, activeTeam, notify });
-
+  membership,
+}: {
+  activeTeam: Team;
+  canEditTeam: boolean;
+  membership: ReturnType<typeof usePrimaryOrgWithMembership>['membership'];
+}) => {
   const isSelfMember =
     normalizeId(activeTeam?.practionerId) === normalizeId(membership?.practitionerReference) ||
     normalizeId(activeTeam?._id) === normalizeId(membership?.id);
@@ -494,22 +470,45 @@ const useTeamInfoContent = ({
   const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
   const role = activeTeam.role as RoleCode;
 
-  const SpecialitiesOptions = useMemo(
-    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
-    [specialities]
-  );
+  return {
+    isSelfMember,
+    canEditRole,
+    canEditEmploymentType,
+    canEditDepartment,
+    canEditPersonal,
+    canEditAddress,
+    canEditProfessional,
+    canEditAvailability,
+    canEditOrgDetails,
+    canDeleteMember,
+    role,
+  };
+};
 
-  const fields = useMemo(
-    () =>
-      getFields({
-        SpecialitiesOptions,
-        activeTeam,
-        canEditRole,
-        canEditEmploymentType,
-        canEditDepartment,
-      }),
-    [SpecialitiesOptions, activeTeam, canEditRole, canEditEmploymentType, canEditDepartment]
-  );
+/**
+ * The member's stored record: the profile fetched when the panel opens, the
+ * org-details view of it, and the save that writes role and employment type
+ * back. Seeds the availability grid from the same response, which is why it
+ * takes setAvailability.
+ */
+const useTeamMemberRecord = ({
+  activeTeam,
+  showModal,
+  canEditRole,
+  canEditEmploymentType,
+  notify,
+  refetchData,
+  setAvailability,
+}: {
+  activeTeam: Team;
+  showModal: boolean;
+  canEditRole: boolean;
+  canEditEmploymentType: boolean;
+  notify: ReturnType<typeof useNotify>['notify'];
+  refetchData: () => Promise<unknown>;
+  setAvailability: React.Dispatch<React.SetStateAction<AvailabilityState>>;
+}) => {
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     const userId = activeTeam.practionerId;
@@ -535,13 +534,6 @@ const useTeamInfoContent = ({
       cancelled = true;
     };
   }, [showModal, activeTeam, setAvailability]);
-
-  const handleModalVisibility: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
-    setShowModal(value);
-    if (value === false) {
-      setShowDeleteModal(false);
-    }
-  };
 
   const orgInfoData = useMemo(
     () => ({
@@ -589,6 +581,91 @@ const useTeamInfoContent = ({
         title: 'Unable to update team member',
         text: 'Failed to update team member. Please try again.',
       });
+    }
+  };
+
+  return { profile, setProfile, orgInfoData, handleMappingUpdate };
+};
+
+const useTeamInfoContent = ({
+  showModal,
+  setShowModal,
+  activeTeam,
+  canEditTeam,
+}: TeamInfoProps) => {
+  const specialities = useSpecialitiesForPrimaryOrg();
+  const { membership } = usePrimaryOrgWithMembership();
+  const { notify } = useNotify();
+  const { refetch: refetchData } = useSubscriptionCounterUpdate();
+  const {
+    canEditRole,
+    canEditEmploymentType,
+    canEditDepartment,
+    canEditPersonal,
+    canEditAddress,
+    canEditProfessional,
+    canEditAvailability,
+    canEditOrgDetails,
+    canDeleteMember,
+    role,
+  } = useTeamMemberPermissions({ activeTeam, canEditTeam, membership });
+  const {
+    showDeleteModal,
+    setShowDeleteModal,
+    perms,
+    handleDelete,
+    handleDeleteCancel,
+    handlePermUpdate,
+  } = useTeamMemberAdmin({
+    activeTeam,
+    activeTeamId: activeTeam._id ?? '',
+    role: activeTeam.role as RoleCode,
+    notify,
+    refetchData,
+    setShowModal,
+  });
+  const { availability, setAvailability, isSavingAvailability, updateAvailability } =
+    useTeamAvailability({ activeTeam, notify });
+  const { profile, setProfile, orgInfoData, handleMappingUpdate } = useTeamMemberRecord({
+    activeTeam,
+    showModal,
+    canEditRole,
+    canEditEmploymentType,
+    notify,
+    refetchData,
+    setAvailability,
+  });
+
+  const {
+    personalInfoData,
+    addressInfoData,
+    professionalInfoData,
+    handleAddressSave,
+    handlePersonalSave,
+    handleProfessionalSave,
+  } = useTeamProfileSections({ profile, setProfile, activeTeam, notify });
+
+  const SpecialitiesOptions = useMemo(
+    () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
+    [specialities]
+  );
+
+  const fields = useMemo(
+    () =>
+      getFields({
+        SpecialitiesOptions,
+        activeTeam,
+        canEditRole,
+        canEditEmploymentType,
+        canEditDepartment,
+      }),
+    [SpecialitiesOptions, activeTeam, canEditRole, canEditEmploymentType, canEditDepartment]
+  );
+
+  const handleModalVisibility: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
+    setShowModal(value);
+    if (value === false) {
+      setShowDeleteModal(false);
     }
   };
 
