@@ -157,10 +157,13 @@ const getOrgFallbackRedirect = (pathname: string): string | null => {
   return pathname === '/organizations' ? null : '/organizations';
 };
 
+// Takes the membership rather than a permission array so the role-derived
+// resolution lives in exactly one place; both guard paths need the same answer.
 const getPermissionsFallbackRedirect = (
   pathname: string,
-  effectivePermissions: string[]
+  membership: Parameters<typeof resolveMembershipPermissions>[0]
 ): string | null => {
+  const effectivePermissions = resolveMembershipPermissions(membership);
   if (canAccessPathByPermissions(pathname, effectivePermissions)) return null;
   const fallbackRoute = resolveFirstAccessibleAppRoute(effectivePermissions);
   if (fallbackRoute === pathname) return null;
@@ -211,11 +214,7 @@ const resolveReadyOrgGuardRedirect = ({
   });
   if (orgRedirect && orgRedirect !== pathname) return orgRedirect;
 
-  const effectivePermissions = resolveMembershipPermissions(membership);
-  const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
-    pathname,
-    effectivePermissions
-  );
+  const permissionsFallbackRedirect = getPermissionsFallbackRedirect(pathname, membership);
   if (permissionsFallbackRedirect) return permissionsFallbackRedirect;
 
   const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
@@ -371,11 +370,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
 
     if (redirectTo && redirectTo !== pathname) return;
 
-    const effectivePermissions = resolveMembershipPermissions(membership);
-    const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
-      pathname,
-      effectivePermissions
-    );
+    const permissionsFallbackRedirect = getPermissionsFallbackRedirect(pathname, membership);
     if (permissionsFallbackRedirect) return;
 
     const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
