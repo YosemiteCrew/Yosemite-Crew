@@ -1059,7 +1059,7 @@ const MerckIntegrationCard = ({
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
         {s.merckEnabled ? (
-          <Primary
+          <Secondary
             href="/integrations/merck-manuals"
             text="Open manuals"
             className="px-4 whitespace-nowrap"
@@ -1125,12 +1125,12 @@ const RadIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
@@ -1173,12 +1173,12 @@ const VetnioIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
@@ -1221,12 +1221,12 @@ const QuickBooksIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
@@ -1270,12 +1270,12 @@ const LaikaIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
