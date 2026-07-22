@@ -120,7 +120,7 @@ describe('labTestsUtils', () => {
     expect(getOrderStatusTone(order({ status: 'pending review' }), new Map())).toBe('warning');
     expect(
       getOrderStatusTone(order({ idexxOrderId: 'error', status: 'created' }), resultProgress)
-    ).toBe('warning');
+    ).toBe('danger');
     expect(getOrderStatusTone(order({ status: 'unknown' }), new Map())).toBe('neutral');
   });
 });

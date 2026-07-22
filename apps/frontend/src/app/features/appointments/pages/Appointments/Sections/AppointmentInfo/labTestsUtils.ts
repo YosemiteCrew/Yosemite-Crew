@@ -74,6 +74,7 @@ export const getOrderStatusTone = (
 ): StatusTone => {
   const badgeClass = getOrderStatusBadgeClass(order, resultProgressByOrderId);
   if (badgeClass.startsWith('bg-green-50')) return 'success';
-  if (badgeClass.startsWith('bg-amber-50') || badgeClass.startsWith('bg-red-50')) return 'warning';
+  if (badgeClass.startsWith('bg-red-50')) return 'danger';
+  if (badgeClass.startsWith('bg-amber-50')) return 'warning';
   return 'neutral';
 };

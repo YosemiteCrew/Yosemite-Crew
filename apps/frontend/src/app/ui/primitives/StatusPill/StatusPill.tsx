@@ -11,11 +11,12 @@ import React from 'react';
  *   already compute a status colour via a helper can adopt the shared geometry
  *   without rewriting their colour logic. `tokens` wins when both are given.
  *
- * There is no `danger` tone: the pill token scale has no danger set, and the
- * app has always drawn error/overdue states with `warning`. Callers that mean
- * danger pass `tone="warning"` (or their own tokens).
+ * `danger` draws from the `--danger-*` scale rather than `--color-pill-*`,
+ * which has no danger set. It is a distinct tone on purpose: folding danger
+ * into `warning` would silently repaint every error state amber.
  */
-export type StatusTone = 'success' | 'warning' | 'info' | 'neutral' | 'accent' | 'progress';
+export type StatusTone =
+  'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'accent' | 'progress';
 
 export type StatusPillTokens = { bg: string; text: string; border: string };
 
@@ -29,6 +30,11 @@ const TONE_TOKENS: Record<StatusTone, StatusPillTokens> = {
     bg: 'var(--color-pill-warning-bg)',
     text: 'var(--color-pill-warning-text)',
     border: 'var(--color-pill-warning-border)',
+  },
+  danger: {
+    bg: 'var(--danger-bg)',
+    text: 'var(--danger-text)',
+    border: 'var(--danger-border)',
   },
   info: {
     bg: 'var(--color-pill-info-bg)',

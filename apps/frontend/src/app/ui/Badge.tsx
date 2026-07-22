@@ -13,7 +13,7 @@ const toneMap: Record<NonNullable<BadgeProps['tone']>, StatusTone> = {
   brand: 'accent',
   success: 'success',
   warning: 'warning',
-  danger: 'warning',
+  danger: 'danger',
 };
 
 const Badge = ({ tone = 'neutral', className, children }: BadgeProps) => (

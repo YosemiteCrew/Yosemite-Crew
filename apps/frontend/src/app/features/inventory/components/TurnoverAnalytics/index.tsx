@@ -12,7 +12,7 @@ import {
 } from 'react-icons/io5';
 import { useDashboardAnalytics } from '@/app/features/dashboard/hooks/useDashboardAnalytics';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
-import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   InventoryItem,
   InventoryTurnoverItem,
@@ -62,12 +62,6 @@ const kpiLabelClass = 'text-[10px] font-bold uppercase tracking-[0.08em] text-[v
 const kpiValueClass = 'text-[22px] font-bold tracking-[-0.02em] tabular-nums text-[var(--ink)]';
 const kpiCaptionClass = 'text-[11px] text-[var(--ink-faint)]';
 const insetBoxClass = 'bg-[var(--inset)] border border-[var(--divider)]';
-
-const LOW_STOCK_PILL_TOKENS: StatusPillTokens = {
-  bg: 'var(--danger-bg)',
-  text: 'var(--danger-text)',
-  border: 'var(--danger-border)',
-};
 
 const abcTileClass: Record<AbcClass, string> = {
   'Class A': 'bg-[var(--blue)] text-white',
@@ -341,7 +335,7 @@ const ProductDetailPanel = ({
         <span className="text-[14px] font-bold text-[var(--ink)]">{panel.name}</span>
         <span className="text-[11px] text-[var(--ink-faint)]">{panel.subtitle}</span>
       </span>
-      {panel.isLowStock && <StatusPill label="LOW STOCK" tokens={LOW_STOCK_PILL_TOKENS} />}
+      {panel.isLowStock && <StatusPill label="LOW STOCK" tone="danger" />}
     </div>
     <div className="flex flex-col gap-3 px-[18px] py-3.5">
       <div className="grid grid-cols-2 gap-2.5">
