@@ -36,6 +36,16 @@ const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
 const TASK_STATUS_PILLS = TaskStatusFilters.filter((option) => option.key !== 'cancelled');
 
 /**
+ * Calendar-only audience pill. The planner header already carries the
+ * Day/Week/Team switcher, so the team split needs no second control; only the
+ * pet-parent filter survives, as the task-side counterpart to the appointments
+ * planner's Emergencies pill.
+ */
+const TASK_CALENDAR_FILTERS = TaskFilters.filter((option) => option.key === 'parent_task').map(
+  (option) => ({ ...option, dotColor: 'var(--pink)' })
+);
+
+/**
  * Assignee scope, kept as a segmented control (not an audience chip) so its
  * "Team" label never reads as the "Team" audience pill sitting next to it.
  * "My tasks" narrows every view to the tasks assigned to the signed-in member.
@@ -181,9 +191,10 @@ const Tasks = () => {
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.name?.toLowerCase().includes(q);
-      // The board hides the My/Team scope control (it has its own toolbar), so the
-      // page-level scope must not narrow the list feeding it - mirror matchesStatus.
-      const matchesScope = activeView === 'board' || !scopeToMine || isAssignedToMe(item);
+      // Only the list view still renders the My/Team scope control - the board has
+      // its own toolbar and the planner relies on the Day/Week/Team switcher - so
+      // the page-level scope must never narrow the views that cannot clear it.
+      const matchesScope = activeView !== 'list' || !scopeToMine || isAssignedToMe(item);
 
       return matchesStatus && matchesFilter && matchesQuery && matchesScope;
     });
@@ -241,6 +252,12 @@ const Tasks = () => {
         setWeekStart={setWeekStart}
         canEditTasks={canEditTasks}
         onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
+        filterOptions={TASK_CALENDAR_FILTERS}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        statusOptions={TASK_STATUS_PILLS}
+        activeStatus={activeStatus}
+        setActiveStatus={setActiveStatus}
       />
     );
   } else if (activeView === 'board') {
@@ -302,7 +319,7 @@ const Tasks = () => {
 
         <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
           <div className={wrapperClassName}>
-            {activeView !== 'board' && (
+            {activeView === 'list' && (
               <TaskFilterBar
                 filterOptions={TaskFilters}
                 statusOptions={TASK_STATUS_PILLS}

@@ -381,18 +381,36 @@ describe('Tasks page', () => {
     expect(addTaskSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
   });
 
-  it('feeds the inline audience + status pills to the filter bar', () => {
+  it('feeds the status dropdown and pet-parent pill to the planner header', () => {
     render(<ProtectedTasks />);
 
-    expect(filterBarSpy).toHaveBeenCalledWith(
+    expect(taskCalendarSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filterOptions: expect.any(Array),
         statusOptions: expect.any(Array),
       })
     );
-    // The design's status row is Pending / In progress / Completed only.
-    const { statusOptions } = lastPropsOf(filterBarSpy);
+    const { statusOptions, filterOptions } = lastPropsOf(taskCalendarSpy);
+    // The design's status set is Pending / In progress / Completed only.
     expect(statusOptions.map((option: { key: string }) => option.key)).not.toContain('cancelled');
+    // Day/Week/Team already covers the team split, so only the parent pill remains.
+    expect(filterOptions.map((option: { key: string }) => option.key)).toEqual(['parent_task']);
+    expect(filterOptions[0].dotColor).toBe('var(--pink)');
+    // The planner header owns the filters, so no separate pill row renders.
+    expect(filterBarSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps the audience, status and scope pill row for the list view', () => {
+    render(<ProtectedTasks />);
+    fireEvent.click(screen.getByText('List'));
+
+    expect(filterBarSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filterOptions: expect.any(Array),
+        statusOptions: expect.any(Array),
+        scopeOptions: expect.any(Array),
+      })
+    );
   });
 
   it('filteredList in board view ignores status filter (shows all matching query/audience)', async () => {
@@ -637,7 +655,7 @@ describe('Tasks page', () => {
     render(<ProtectedTasks />);
 
     await act(async () => {
-      lastPropsOf(filterBarSpy).setActiveStatus('completed');
+      lastPropsOf(taskCalendarSpy).setActiveStatus('completed');
       await Promise.resolve();
     });
     expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
@@ -645,14 +663,14 @@ describe('Tasks page', () => {
     ]);
 
     await act(async () => {
-      lastPropsOf(filterBarSpy).setActiveFilter('employee_task');
+      lastPropsOf(taskCalendarSpy).setActiveFilter('employee_task');
       await Promise.resolve();
     });
     // t2 is the only completed task, but its audience is client_task.
     expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([]);
 
     await act(async () => {
-      lastPropsOf(filterBarSpy).setActiveStatus('pending');
+      lastPropsOf(taskCalendarSpy).setActiveStatus('pending');
       await Promise.resolve();
     });
     expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
@@ -794,13 +812,15 @@ describe('Tasks page', () => {
     // The default "Team" scope surfaces everyone's tasks.
     expect(lastPropsOf(taskCalendarSpy).filteredList).toHaveLength(4);
 
+    // The scope control lives in the list view only.
+    fireEvent.click(screen.getByText('List'));
     await act(async () => {
       lastPropsOf(filterBarSpy).setActiveScope('mine');
       await Promise.resolve();
     });
 
     // "My tasks" keeps only the two that resolve to the signed-in member.
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+    expect(lastPropsOf(taskTableSpy).filteredList).toEqual([
       expect.objectContaining({ _id: 'mine-direct' }),
       expect.objectContaining({ _id: 'mine-primary' }),
     ]);
@@ -821,12 +841,13 @@ describe('Tasks page', () => {
 
     render(<ProtectedTasks />);
 
+    fireEvent.click(screen.getByText('List'));
     await act(async () => {
       lastPropsOf(filterBarSpy).setActiveScope('mine');
       await Promise.resolve();
     });
 
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([]);
+    expect(lastPropsOf(taskTableSpy).filteredList).toEqual([]);
   });
 
   it('does not apply the my-tasks scope in board view', async () => {
@@ -851,12 +872,13 @@ describe('Tasks page', () => {
 
     render(<ProtectedTasks />);
 
-    // Narrow to my tasks in the calendar view.
+    // Narrow to my tasks in the list view, the only view with the scope control.
+    fireEvent.click(screen.getByText('List'));
     await act(async () => {
       lastPropsOf(filterBarSpy).setActiveScope('mine');
       await Promise.resolve();
     });
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+    expect(lastPropsOf(taskTableSpy).filteredList).toEqual([
       expect.objectContaining({ _id: 'mine' }),
     ]);
 
