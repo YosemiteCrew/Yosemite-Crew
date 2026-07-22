@@ -874,10 +874,10 @@ describe('AppointmentInfo modal', () => {
     expect(latestLabels.some((label: any) => label.key === 'prescription')).toBe(true);
   });
 
-  it('navigates to companion history and closes the modal when the companion name is clicked', () => {
+  it('navigates to companion history and closes the modal from the header history action', () => {
     renderModal();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Buddy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open companion history' }));
 
     expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('/companions/history'));
     expect(setShowModal).toHaveBeenCalledWith(false);

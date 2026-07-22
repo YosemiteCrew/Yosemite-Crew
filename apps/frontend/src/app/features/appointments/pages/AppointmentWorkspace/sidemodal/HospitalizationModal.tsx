@@ -10,7 +10,8 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import type { DropdownOption } from '@/app/hooks/useDropdown';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
-import '@/app/ui/primitives/Buttons/ButtonEffects.css';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import { Primary } from '@/app/ui/primitives/Buttons';
 
 const NEUTRAL_900 = 'var(--color-neutral-900)';
 
@@ -273,28 +274,14 @@ const HospitalizationModal = ({
           </div>
         </div>
 
-        {/* Footer: convert action */}
-        <div className="flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
-          <button
-            type="button"
+        <ModalFooter>
+          <Primary
+            text={isConverting ? 'Converting' : 'Convert to Inpatient'}
+            icon={<IoCheckmarkOutline aria-hidden="true" />}
             onClick={handleConvert}
-            disabled={isConverting}
-            className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-2.75 font-satoshi text-base font-medium leading-6 whitespace-nowrap"
-            onPointerDown={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-              e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-            }}
-            onPointerMove={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-              e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-            }}
-          >
-            <IoCheckmarkOutline aria-hidden="true" />
-            {isConverting ? 'Converting' : 'Convert to Inpatient'}
-          </button>
-        </div>
+            isDisabled={isConverting}
+          />
+        </ModalFooter>
       </div>
     </AppointmentCentralModalShell>
   );

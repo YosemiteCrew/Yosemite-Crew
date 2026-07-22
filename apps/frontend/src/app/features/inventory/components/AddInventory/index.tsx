@@ -5,7 +5,7 @@ import { calculateBatchTotals } from '@/app/features/inventory/pages/Inventory/u
 import { BusinessType } from '@/app/features/organization/types/org';
 import FormSection from '@/app/features/inventory/components/AddInventory/FormSection';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 
 const labels: { key: InventorySectionKey; name: string }[] = [
@@ -470,14 +470,9 @@ const useAddInventoryContent = ({
   }
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between border-b border-card-border pb-4">
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="text-body-1 text-text-primary">Add product</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title="Add product" onClose={() => setShowModal(false)} />
 
         <Labels
           labels={labels}
@@ -515,13 +510,13 @@ const useAddInventoryContent = ({
                     style={{
                       backgroundColor:
                         formData.basicInfo.visibleInInventory === false
-                          ? 'var(--color-neutral-300)'
-                          : 'var(--color-blue-sky)',
+                          ? 'var(--divider)'
+                          : 'var(--blue)',
                     }}
                   >
                     <span
                       aria-hidden="true"
-                      className={`block size-6 rounded-full bg-neutral-0 shadow-sm transition-transform ${
+                      className={`block size-6 rounded-full bg-[var(--screen)] shadow-sm transition-transform ${
                         formData.basicInfo.visibleInInventory === false
                           ? 'translate-x-0'
                           : 'translate-x-6'

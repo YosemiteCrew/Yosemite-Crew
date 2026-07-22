@@ -35,7 +35,7 @@ import {
 import { IvlsDevice, LabOrder } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import {
   IoBookOutline,
   IoExtensionPuzzleOutline,
@@ -679,6 +679,8 @@ const useIntegrationsPage = () => {
   };
 };
 
+const INTEGRATION_SETTINGS_TITLE_ID = 'integration-settings-title';
+
 const IdexxSettingsModal = ({
   showSettings,
   setShowSettings,
@@ -738,33 +740,32 @@ const IdexxSettingsModal = ({
   const enabledAtText = formatOptionalDate(idexxIntegration?.enabledAt, 'Not enabled');
 
   return (
-    <Modal showModal={showSettings} setShowModal={setShowSettings}>
+    <Modal
+      showModal={showSettings}
+      setShowModal={setShowSettings}
+      aria-labelledby={INTEGRATION_SETTINGS_TITLE_ID}
+    >
       <div className="flex flex-col h-full gap-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-heading-3 text-text-primary">Integration settings</h3>
-            <div className="text-body-4 text-text-secondary">
-              Configure IDEXX for this organization
-            </div>
-          </div>
-          <Close onClick={() => setShowSettings(false)} />
-        </div>
-        <div className="flex items-center justify-between rounded-xl border border-[var(--hairline)] px-3 py-2 bg-[var(--field-bg)]">
+        <ModalHeader
+          title="Integration settings"
+          meta="Configure IDEXX for this organization"
+          onClose={() => setShowSettings(false)}
+          titleId={INTEGRATION_SETTINGS_TITLE_ID}
+        />
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--hairline)] px-3 py-2 bg-[var(--field-bg)]">
           <div className="text-caption-1 text-text-secondary">
             Last refreshed: <span className="text-text-primary">{lastRefreshedText}</span>
           </div>
-          <button
-            type="button"
+          <Secondary
+            size="compact"
+            text="Refresh"
+            ariaLabel="Refresh integrations"
+            icon={<IoRefreshOutline className={refreshIconClass} aria-hidden="true" />}
             onClick={() => {
               handleManualRefresh().catch(() => undefined);
             }}
-            className="size-8 rounded-full! border border-[var(--hairline)] flex items-center justify-center text-text-primary hover:bg-card-hover"
-            aria-label="Refresh integrations"
-            title="Refresh integrations"
-            disabled={refreshing}
-          >
-            <IoRefreshOutline className={refreshIconClass} size={16} />
-          </button>
+            isDisabled={refreshing}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-1">
@@ -962,7 +963,7 @@ const COMING_SOON_PILL_CLASS =
 const INTEGRATION_ICON_CLASS =
   'flex size-[42px] shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold tracking-[0.02em]';
 const INTEGRATION_ICON_STYLES = {
-  idexx: { background: 'var(--spot)', color: '#f4efe6' },
+  idexx: { background: 'var(--spot)', color: 'var(--spot-ink)' },
   merck: { background: 'var(--blue-soft)', color: 'var(--blue-text)' },
   vetnio: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
   quickBooks: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },

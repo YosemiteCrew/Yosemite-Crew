@@ -33,7 +33,9 @@ import {
   LabResult,
   LabResultTest,
 } from '@/app/features/integrations/services/types';
-import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
+import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -611,6 +613,8 @@ export const ResultDetailBody = ({
   );
 };
 
+const ORDER_DETAIL_TITLE_ID = 'idexx-order-detail-title';
+
 type OrderDetailPanelProps = {
   activeResultDetail: LabResult | null;
   resultDetailLoading: boolean;
@@ -634,21 +638,13 @@ const OrderDetailPanel = ({
   const pdfLoading = pdfPreviewLoadingId === activeResultDetail?.resultId;
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-caption-3 text-text-secondary">Order detail</span>
-          <span className="flex items-center gap-2">
-            <span
-              id="idexx-order-detail-title"
-              className="text-heading-3 text-text-primary tabular-nums"
-            >
-              {activeResultDetail?.accessionId ?? activeResultDetail?.resultId ?? 'Order'}
-            </span>
-            {activeResultDetail ? <StatusCell result={activeResultDetail} /> : null}
-          </span>
-        </div>
-        <Close onClick={onClose} />
-      </div>
+      <ModalHeader
+        eyebrow="Order detail"
+        title={activeResultDetail?.accessionId ?? activeResultDetail?.resultId ?? 'Order'}
+        titleId={ORDER_DETAIL_TITLE_ID}
+        actions={activeResultDetail ? <StatusCell result={activeResultDetail} /> : null}
+        onClose={onClose}
+      />
 
       {activeResultDetail ? (
         <div
@@ -689,26 +685,28 @@ const OrderDetailPanel = ({
         terminologyText={terminologyText}
       />
 
-      <div className="flex shrink-0 flex-col gap-2 border-t border-card-border pt-3">
-        <Primary
-          href={appointmentLabsHref || '#'}
-          text="Open in appointment labs"
-          icon={<IoCheckmarkCircleOutline aria-hidden="true" />}
-          isDisabled={!appointmentLabsHref}
-          ariaLabel="Open in appointment labs"
-        />
-        <Secondary
-          href="#"
-          text={pdfLoading ? 'Loading PDF...' : 'Open results PDF'}
-          icon={<IoDocumentAttachOutline aria-hidden="true" />}
-          isDisabled={!activeResultDetail || pdfLoading}
-          onClick={() => {
-            if (activeResultDetail) {
-              openResultPdfPreview(activeResultDetail.resultId).catch(() => undefined);
-            }
-          }}
-        />
-      </div>
+      <ModalFooter align="stretch">
+        <div className="flex flex-col gap-2">
+          <Primary
+            href={appointmentLabsHref || '#'}
+            text="Open in appointment labs"
+            icon={<IoCheckmarkCircleOutline aria-hidden="true" />}
+            isDisabled={!appointmentLabsHref}
+            ariaLabel="Open in appointment labs"
+          />
+          <Secondary
+            href="#"
+            text={pdfLoading ? 'Loading PDF...' : 'Open results PDF'}
+            icon={<IoDocumentAttachOutline aria-hidden="true" />}
+            isDisabled={!activeResultDetail || pdfLoading}
+            onClick={() => {
+              if (activeResultDetail) {
+                openResultPdfPreview(activeResultDetail.resultId).catch(() => undefined);
+              }
+            }}
+          />
+        </div>
+      </ModalFooter>
     </div>
   );
 };
@@ -723,24 +721,6 @@ const getAutoRefreshLabel = (autoRefresh: boolean): string => {
 const getRefreshButtonLabel = (loading: boolean): string => {
   if (loading) return 'Refreshing...';
   return 'Refresh';
-};
-
-const getResultModalOverlayClassName = (showResultModal: boolean): string => {
-  const visibleClass = showResultModal ? 'opacity-100' : 'opacity-0 pointer-events-none';
-  return `fixed backdrop-blur-[2px] inset-0 bg-[var(--sh55)] z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
-};
-
-const getResultModalContainerClassName = (showResultModal: boolean): string => {
-  // Phone: a bottom sheet that slides up. Tablet / desktop: a right-hand drawer.
-  const translateClass = showResultModal
-    ? 'translate-y-0 sm:translate-x-0'
-    : 'translate-y-full sm:translate-y-0 sm:translate-x-[120%]';
-  return `fixed z-[1200] p-4 bg-neutral-0 border border-card-border
-          inset-x-0 bottom-0 w-full max-h-[85vh] rounded-t-3xl
-          sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-0 sm:m-3 sm:h-[calc(100%-2rem)]
-          sm:max-h-none sm:w-[420px] sm:rounded-2xl
-          transition-transform duration-300 ease-in-out
-          ${translateClass}`;
 };
 
 const getStartRow = (page: number, pageSize: number, pageCount: number): number => {
@@ -1606,8 +1586,6 @@ const IdexxWorkspacePage = () => {
   const s = useIdexxWorkspacePage();
   const autoRefreshLabel = getAutoRefreshLabel(s.autoRefresh);
   const refreshButtonLabel = getRefreshButtonLabel(s.loading);
-  const resultModalOverlayClassName = getResultModalOverlayClassName(s.showResultModal);
-  const resultModalContainerClassName = getResultModalContainerClassName(s.showResultModal);
   const startRow = getStartRow(s.page, s.pageSize, s.paginatedResults.length);
   const showSkeleton = s.loading && s.filteredResults.length === 0;
   const activeAppointmentLabsHref = s.activeResultDetail
@@ -1844,12 +1822,11 @@ const IdexxWorkspacePage = () => {
         </Accordion>
       </div>
 
-      <ModalBase
+      <Modal
         showModal={s.showResultModal}
         setShowModal={s.setShowResultModal}
-        overlayClassName={resultModalOverlayClassName}
-        containerClassName={resultModalContainerClassName}
-        aria-labelledby="idexx-order-detail-title"
+        size="md"
+        aria-labelledby={ORDER_DETAIL_TITLE_ID}
       >
         <OrderDetailPanel
           activeResultDetail={s.activeResultDetail}
@@ -1860,7 +1837,7 @@ const IdexxWorkspacePage = () => {
           openResultPdfPreview={s.actions.openResultPdfPreview}
           onClose={() => s.setShowResultModal(false)}
         />
-      </ModalBase>
+      </Modal>
 
       <div className="text-caption-2 text-text-extra">{IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}</div>
     </div>

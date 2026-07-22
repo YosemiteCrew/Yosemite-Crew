@@ -14,8 +14,9 @@ import { IoIosAddCircleOutline } from 'react-icons/io';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { ChatAvatar } from './ChatAvatar';
 
 export type OrgUserOption = {
@@ -51,6 +52,8 @@ export interface GroupModalProps {
   onRemoveMember: (userId: string) => Promise<void>;
   onDelete: () => Promise<void>;
 }
+
+const TITLE_ID = 'chat-group-modal-title';
 
 /** Resolves whether the current user may modify the group (creator in edit mode). */
 function resolveIsCreator(
@@ -161,17 +164,24 @@ export const GroupModal: FC<GroupModalProps> = ({
   };
 
   return (
-    <Modal showModal={open} setShowModal={() => undefined} onClose={handleClose}>
+    <Modal
+      showModal={open}
+      setShowModal={() => undefined}
+      onClose={handleClose}
+      size="md"
+      aria-labelledby={TITLE_ID}
+    >
       <div className="flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <div className="text-body-1 text-text-primary">
-            {mode === 'create' ? 'Create group' : `Group chat · ${placeholder.trim() || 'group'}`}
-          </div>
-          <Close onClick={handleClose} />
-        </div>
+        <ModalHeader
+          title={
+            mode === 'create' ? 'Create group' : `Group chat · ${placeholder.trim() || 'group'}`
+          }
+          onClose={handleClose}
+          titleId={TITLE_ID}
+        />
 
         <div className="flex-1 flex flex-col overflow-hidden gap-6">
-          <div className="flex-1 overflow-y-auto flex flex-col gap-6 pt-1 scrollbar-hidden pr-1 px-3">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-6 pt-1 scrollbar-hidden pr-1">
             {(mode === 'create' || isCreator) && (
               <div className="flex flex-col gap-3">
                 <FormInput
@@ -312,22 +322,24 @@ export const GroupModal: FC<GroupModalProps> = ({
             )}
           </div>
 
-          <div className="flex justify-center gap-3 pb-1 px-3">
-            {mode === 'create' && (
+          {mode === 'create' && (
+            <ModalFooter align="stretch">
               <Primary
                 text={busy ? 'Creating...' : 'Create Group'}
                 onClick={handleCreate}
                 isDisabled={busy || !title.trim() || members.length === 0}
               />
-            )}
-            {mode === 'edit' && isCreator && (
+            </ModalFooter>
+          )}
+          {mode === 'edit' && isCreator && (
+            <ModalFooter align="stretch">
               <Delete
                 text={busy ? 'Deleting...' : 'Delete Group'}
                 onClick={onDelete}
                 isDisabled={busy}
               />
-            )}
-          </div>
+            </ModalFooter>
+          )}
         </div>
       </div>
     </Modal>

@@ -3,11 +3,14 @@ import {
   IoCalendarOutline,
   IoChatbubbleEllipsesOutline,
   IoChevronForwardOutline,
-  IoClose,
   IoDownloadOutline,
   IoOpenOutline,
   IoShareOutline,
 } from 'react-icons/io5';
+import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
 import {
   formatHistoryDateTime,
@@ -40,19 +43,10 @@ type HistoryRecordDrawerProps = {
   onDiscuss: (entry: HistoryEntry) => void;
 };
 
+const TITLE_ID = 'history-record-drawer-title';
+
 const MICRO_CAPTION_CLASS =
   'text-[9.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]';
-
-// The title-block eyebrow reads one step larger/looser than the in-body table
-// and "Linked to" captions in the design (10.5px / 0.1em vs 9.5px / 0.08em).
-const HEADER_CAPTION_CLASS =
-  'text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]';
-
-const FOOTER_PRIMARY_CLASS =
-  'flex h-[42px] items-center justify-center gap-1.5 rounded-full! bg-[var(--cta)] text-[13px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
-
-const FOOTER_SECONDARY_CLASS =
-  'flex flex-1 items-center justify-center gap-1.5 rounded-full! border border-hairline py-2 text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
 // Design results table: Analyte 1fr / Result 72px / Range 90px, with abnormal
 // rows carrying the warn tint across every cell.
@@ -98,17 +92,19 @@ const RecordPrimaryAction = ({
 }) => {
   if (resolveHistoryDocumentId(entry)) {
     return (
-      <button type="button" onClick={() => onDownload(entry)} className={FOOTER_PRIMARY_CLASS}>
-        <IoDownloadOutline size={15} aria-hidden="true" />
-        Download PDF
-      </button>
+      <Primary
+        text="Download PDF"
+        icon={<IoDownloadOutline aria-hidden="true" />}
+        onClick={() => onDownload(entry)}
+      />
     );
   }
   return (
-    <button type="button" onClick={() => onView(entry)} className={FOOTER_PRIMARY_CLASS}>
-      <IoOpenOutline size={15} aria-hidden="true" />
-      {getPrimaryActionLabel(entry)}
-    </button>
+    <Primary
+      text={getPrimaryActionLabel(entry)}
+      icon={<IoOpenOutline aria-hidden="true" />}
+      onClick={() => onView(entry)}
+    />
   );
 };
 
@@ -129,41 +125,17 @@ const HistoryRecordDrawer = ({
   const note = entry.summary?.trim() || entry.subtitle?.trim() || '';
 
   return (
-    <dialog
-      open
-      aria-label={`Record detail for ${entry.title}`}
-      className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center border-0 bg-[var(--sh55)] p-0 backdrop-blur-sm md:items-stretch md:justify-end"
-    >
-      <button
-        type="button"
-        aria-label="Dismiss record detail"
-        data-history-record-drawer="true"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default"
-      />
-      <section
-        aria-label={`Record detail for ${entry.title}`}
-        className="relative z-10 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-hairline bg-[var(--screen-2)] shadow-2xl md:h-full md:max-h-none md:w-[360px] md:rounded-none md:border-y-0 md:border-r-0"
-      >
-        <header className="flex flex-none items-start justify-between gap-2.5 border-b border-hairline px-5 pb-3.5 pt-[18px]">
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className={HEADER_CAPTION_CLASS}>Record detail</span>
-            <h2 className="truncate text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-              {entry.title}
-            </h2>
-            {meta ? <span className="text-[11.5px] text-[var(--ink-faint)]">{meta}</span> : null}
-          </div>
-          <button
-            type="button"
-            aria-label="Close record detail"
-            onClick={onClose}
-            className="flex size-[30px] flex-none items-center justify-center rounded-full! border border-hairline text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)]"
-          >
-            <IoClose size={14} aria-hidden="true" />
-          </button>
-        </header>
+    <Modal showModal setShowModal={() => onClose()} size="sm" aria-labelledby={TITLE_ID}>
+      <div className="flex h-full flex-col gap-4">
+        <ModalHeader
+          eyebrow="Record detail"
+          title={entry.title}
+          meta={meta || undefined}
+          onClose={onClose}
+          titleId={TITLE_ID}
+        />
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
           {results.length > 0 ? (
             <div className="overflow-hidden rounded-[14px] border border-hairline bg-[var(--screen)]">
               <div className={`${RESULT_GRID_CLASS} bg-[var(--screen-2)] py-2.5`}>
@@ -203,25 +175,27 @@ const HistoryRecordDrawer = ({
           ) : null}
         </div>
 
-        <footer className="flex flex-none flex-col gap-2 border-t border-hairline px-5 pb-5 pt-3.5">
-          <RecordPrimaryAction entry={entry} onDownload={onDownload} onView={onView} />
-          <div className="flex gap-2">
-            <button type="button" onClick={() => onShare(entry)} className={FOOTER_SECONDARY_CLASS}>
-              <IoShareOutline size={13} aria-hidden="true" />
-              Share to app
-            </button>
-            <button
-              type="button"
-              onClick={() => onDiscuss(entry)}
-              className={FOOTER_SECONDARY_CLASS}
-            >
-              <IoChatbubbleEllipsesOutline size={13} aria-hidden="true" />
-              Discuss in chat
-            </button>
+        <ModalFooter align="stretch">
+          <div className="flex flex-col gap-2">
+            <RecordPrimaryAction entry={entry} onDownload={onDownload} onView={onView} />
+            <div className="flex gap-2 [&>*]:flex-1">
+              <Secondary
+                size="small"
+                text="Share to app"
+                icon={<IoShareOutline aria-hidden="true" />}
+                onClick={() => onShare(entry)}
+              />
+              <Secondary
+                size="small"
+                text="Discuss in chat"
+                icon={<IoChatbubbleEllipsesOutline aria-hidden="true" />}
+                onClick={() => onDiscuss(entry)}
+              />
+            </div>
           </div>
-        </footer>
-      </section>
-    </dialog>
+        </ModalFooter>
+      </div>
+    </Modal>
   );
 };
 
