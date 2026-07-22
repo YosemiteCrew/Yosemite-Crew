@@ -9,27 +9,26 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { toTitle } from '@/app/lib/validators';
-
-const BADGE_BASE =
-  'inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold';
-const BADGE_ESIGN =
-  'bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]';
-const BADGE_FILE =
-  'bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]';
+import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
+import {
+  COMPLETED_PILL_TOKENS,
+  UPCOMING_PILL_TOKENS,
+} from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 
 /**
  * The design colour-codes the two kinds of org document: green E-SIGN for in-app
  * templates and blue for a static upload. A document with no uploaded file is the
  * template case — there is nothing to download, it gets signed in the app.
  */
-const getDocTypeBadge = (fileUrl?: string): { label: string; className: string } => {
+const getDocTypeBadge = (fileUrl?: string): { label: string; tokens: StatusPillTokens } => {
   const url = String(fileUrl ?? '')
     .trim()
     .toLowerCase();
-  if (!url) return { label: 'E-SIGN', className: BADGE_ESIGN };
-  if (url.endsWith('.pdf')) return { label: 'PDF', className: BADGE_FILE };
-  if (url.endsWith('.doc') || url.endsWith('.docx')) return { label: 'DOC', className: BADGE_FILE };
-  return { label: 'FILE', className: BADGE_FILE };
+  if (!url) return { label: 'E-SIGN', tokens: COMPLETED_PILL_TOKENS };
+  if (url.endsWith('.pdf')) return { label: 'PDF', tokens: UPCOMING_PILL_TOKENS };
+  if (url.endsWith('.doc') || url.endsWith('.docx'))
+    return { label: 'DOC', tokens: UPCOMING_PILL_TOKENS };
+  return { label: 'FILE', tokens: UPCOMING_PILL_TOKENS };
 };
 
 const Documents = () => {
@@ -105,7 +104,7 @@ const Documents = () => {
                       {document.description ? ` · ${document.description}` : ''}
                     </span>
                   </button>
-                  <span className={`${BADGE_BASE} ${badge.className}`}>{badge.label}</span>
+                  <StatusPill label={badge.label} tokens={badge.tokens} />
                   <button
                     type="button"
                     onClick={() => handleView(document)}

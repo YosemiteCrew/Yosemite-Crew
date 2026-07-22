@@ -1,4 +1,5 @@
 import type { IdexxTest, LabOrder } from '@/app/features/integrations/services/types';
+import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
 
 export const formatTestPrice = (test: IdexxTest) => {
@@ -65,4 +66,14 @@ export const getOrderStatusBadgeClass = (
   if (key.includes('error') || key.includes('failed') || key.includes('cancel'))
     return 'bg-red-50 text-red-700';
   return 'bg-card-hover text-text-secondary';
+};
+
+export const getOrderStatusTone = (
+  order: LabOrder,
+  resultProgressByOrderId: Map<string, string>
+): StatusTone => {
+  const badgeClass = getOrderStatusBadgeClass(order, resultProgressByOrderId);
+  if (badgeClass.startsWith('bg-green-50')) return 'success';
+  if (badgeClass.startsWith('bg-amber-50') || badgeClass.startsWith('bg-red-50')) return 'warning';
+  return 'neutral';
 };

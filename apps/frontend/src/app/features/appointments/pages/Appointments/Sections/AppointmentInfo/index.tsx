@@ -37,6 +37,7 @@ import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { useLoadFormsForPrimaryOrg } from '@/app/hooks/useForms';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { SoapNoteSubmission } from '@/app/features/appointments/types/soap';
 import SignatureActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions';
@@ -186,7 +187,7 @@ type CustomFormsSectionProps = {
 };
 
 const FormBadge: React.FC<{ label: string; badgeClass: string }> = ({ label, badgeClass }) => (
-  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>{label}</span>
+  <StatusPill label={label} tone={badgeClass.startsWith('bg-green-50') ? 'success' : 'warning'} />
 );
 
 const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({

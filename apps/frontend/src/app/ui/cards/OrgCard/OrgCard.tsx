@@ -59,15 +59,12 @@ const OrgCard = ({ org, handleOrgClick }: OrgCardProps) => {
         <span className="flex items-center gap-2">
           <span className="org-picker-name truncate">{name}</span>
           {isVerified ? (
-            <Badge
-              tone="success"
-              className="org-picker-badge-verified shrink-0 px-2! py-0.5! text-[9px]!"
-            >
+            <Badge tone="success" className="org-picker-badge-verified shrink-0">
               <IoShieldCheckmark aria-hidden />
               VERIFIED
             </Badge>
           ) : (
-            <Badge tone="warning" className="shrink-0 px-2! py-0.5! text-[9px]!">
+            <Badge tone="warning" className="shrink-0">
               PENDING
             </Badge>
           )}
