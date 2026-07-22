@@ -668,6 +668,18 @@ describe('ViewAppointmentScreen', () => {
       expect(
         formatAppointmentFormValue({id: 'raw', type: 'text'} as any, 42),
       ).toBe('42');
+      expect(
+        formatAppointmentFormValue(
+          {id: 'story', type: 'richtext'} as any,
+          '<p>Patient is stable &amp; resting</p>',
+        ),
+      ).toBe('Patient is stable & resting');
+      expect(
+        formatAppointmentFormValue(
+          {id: 'story', type: 'richtext'} as any,
+          '<p></p>',
+        ),
+      ).toBe('—');
     });
 
     it('resolves appointment form actions for each form state', () => {

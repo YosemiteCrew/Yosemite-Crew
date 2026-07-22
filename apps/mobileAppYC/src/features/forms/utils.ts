@@ -19,6 +19,48 @@ const safeDate = (value?: string | Date | null): Date | undefined => {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
+// richtext answers are stored as sanitized HTML (see RichTextRenderer on web)
+// so they round-trip through the web WYSIWYG editor unchanged. Mobile has no
+// rich-text editor, so we degrade to plain-text editing/display: strip tags
+// and re-wrap plain text into simple <p> HTML on save, rather than showing
+// raw markup or overwriting formatted content with plain text.
+const HTML_ENTITIES: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+};
+
+export const stripHtmlToPlainText = (html?: string | null): string => {
+  if (!html) {
+    return '';
+  }
+  return html
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*(p|div|li)\s*>/gi, '\n')
+    .replace(/<[^<>]*>/g, '')
+    .replace(
+      /&nbsp;|&amp;|&lt;|&gt;|&quot;|&#39;/g,
+      match => HTML_ENTITIES[match],
+    )
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+
+export const wrapPlainTextAsHtml = (text: string): string =>
+  text
+    .split('\n')
+    .map(line => `<p>${escapeHtml(line)}</p>`)
+    .join('');
+
 export const hasSignatureField = (fields?: FormField[]): boolean => {
   if (!fields?.length) {
     return false;

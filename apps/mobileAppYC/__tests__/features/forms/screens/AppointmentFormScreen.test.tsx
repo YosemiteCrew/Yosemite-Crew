@@ -1983,6 +1983,119 @@ describe('AppointmentFormScreen — final coverage push', () => {
       const {getByText} = render(<AppointmentFormScreen />);
       expect(getByText('50%')).toBeTruthy();
     });
+
+    it('strips HTML tags and decodes entities for display instead of showing raw markup', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {
+            story: '<p>Patient is stable &amp; resting</p><p>Second line</p>',
+          },
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe(
+        'Patient is stable & resting\nSecond line',
+      );
+    });
+
+    it('re-wraps edited plain text into <p> HTML so the stored answer stays valid HTML', async () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      mockDispatch.mockImplementation(() => {
+        const p = Promise.resolve({});
+        (p as any).unwrap = () => Promise.resolve({});
+        return p;
+      });
+
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Story'), 'Line one\nLine two');
+      fireEvent(getByText('Submit'), 'onTouchEnd');
+
+      await waitFor(() =>
+        expect(FormActions.submitAppointmentForm).toHaveBeenCalledWith(
+          expect.objectContaining({
+            answers: expect.objectContaining({
+              story: '<p>Line one</p><p>Line two</p>',
+            }),
+          }),
+        ),
+      );
+    });
+
+    it('omits the placeholder for a locked richtext field in signing mode', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, allowSign: true},
+      });
+
+      const schema = [
+        {
+          id: 'story',
+          type: 'richtext',
+          label: 'Story',
+          placeholder: 'Describe the visit',
+        },
+      ];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.placeholder).toBeUndefined();
+      expect(getByTestId('input-Story').props.editable).toBe(false);
+    });
+
+    it('displays a dash when a richtext value strips down to nothing', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: '<p></p>'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe('—');
+    });
+
+    it('prefills an empty richtext field from the schema meta.defaultValue', () => {
+      const schema = [
+        {
+          id: 'story',
+          type: 'richtext',
+          label: 'Story',
+          meta: {defaultValue: '<p>Default boilerplate</p>'},
+        },
+      ];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe(
+        'Default boilerplate',
+      );
+    });
   });
 
   // -------------------------------------------------------------------------

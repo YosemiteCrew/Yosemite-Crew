@@ -1,5 +1,6 @@
 import type {FormField} from '@yosemite-crew/types';
 import type {AppointmentFormEntry} from '@/features/forms';
+import {stripHtmlToPlainText} from '@/features/forms/utils';
 
 export const normalizeAvatarUrl = (value: unknown): string | null => {
   if (typeof value !== 'string') {
@@ -157,6 +158,9 @@ export const formatAppointmentFormValue = (
   }
   if (field.type === 'boolean') {
     return value ? 'Yes' : 'No';
+  }
+  if (field.type === 'richtext') {
+    return stripHtmlToPlainText(value) || '—';
   }
   if (Array.isArray(value)) {
     return value.map(v => `${v}`).join(', ') || '—';

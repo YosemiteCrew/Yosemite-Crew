@@ -33,6 +33,10 @@ import {
   startFormSigning,
   fetchAppointmentForms,
 } from '@/features/forms';
+import {
+  stripHtmlToPlainText,
+  wrapPlainTextAsHtml,
+} from '@/features/forms/utils';
 import type {FormField} from '@yosemite-crew/types';
 import {createFormStyles} from '@/shared/utils/formStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
@@ -82,6 +86,49 @@ const cleanPlaceholder = (value?: string | null): string | undefined => {
 const cleanLabel = (value?: string | null): string | undefined => {
   if (!value) return value ?? undefined;
   return value.replaceAll(/pet/gi, 'Companion');
+};
+
+type PrefillContext = {
+  isAlreadyFilled: boolean;
+  today: Date;
+  ownerFullName: string;
+  companionName: string;
+  lockNonCheckboxInputs: boolean;
+  shouldPrefillOwner: (field: FormField) => boolean;
+  shouldPrefillCompanion: (field: FormField) => boolean;
+};
+
+// Extracted from the prefill useEffect's `fill` walker to keep its cognitive
+// complexity within the Sonar-enforced limit — this resolves a single
+// non-group, non-checkbox field's prefill value, independent of tree walking.
+const resolveFieldPrefillValue = (
+  field: FormField,
+  ctx: PrefillContext,
+): unknown => {
+  if (field.type === 'date' && !ctx.isAlreadyFilled) {
+    return ctx.today;
+  }
+  if (ctx.isAlreadyFilled) {
+    return undefined;
+  }
+  if (ctx.shouldPrefillOwner(field) && ctx.ownerFullName) {
+    return ctx.ownerFullName;
+  }
+  if (ctx.shouldPrefillCompanion(field) && ctx.companionName) {
+    return ctx.companionName;
+  }
+  const metaDefaultValue = (field as any).meta?.defaultValue;
+  if (typeof metaDefaultValue === 'string' && metaDefaultValue.trim()) {
+    return metaDefaultValue;
+  }
+  if (ctx.lockNonCheckboxInputs) {
+    const placeholderVal =
+      (field as any).placeholder ?? (field as any).text ?? '';
+    if (placeholderVal) {
+      return cleanPlaceholder(placeholderVal);
+    }
+  }
+  return undefined;
 };
 
 export const AppointmentFormScreen: React.FC = () => {
@@ -228,35 +275,21 @@ export const AppointmentFormScreen: React.FC = () => {
           }
           return;
         }
-        const isCheckboxField = field.type === 'checkbox';
-        if (isCheckboxField) {
+        if (field.type === 'checkbox') {
           return;
         }
-        if (field.type === 'date' && !isTruthy(next[field.id])) {
-          next[field.id] = today;
+        const resolved = resolveFieldPrefillValue(field, {
+          isAlreadyFilled: isTruthy(next[field.id]),
+          today,
+          ownerFullName,
+          companionName,
+          lockNonCheckboxInputs,
+          shouldPrefillOwner,
+          shouldPrefillCompanion,
+        });
+        if (resolved !== undefined) {
+          next[field.id] = resolved;
           updated = true;
-          return;
-        }
-        if (isTruthy(next[field.id])) {
-          return;
-        }
-        if (shouldPrefillOwner(field) && ownerFullName) {
-          next[field.id] = ownerFullName;
-          updated = true;
-          return;
-        }
-        if (shouldPrefillCompanion(field) && companionName) {
-          next[field.id] = companionName;
-          updated = true;
-          return;
-        }
-        if (lockNonCheckboxInputs) {
-          const placeholderVal =
-            (field as any).placeholder ?? (field as any).text ?? '';
-          if (placeholderVal) {
-            next[field.id] = cleanPlaceholder(placeholderVal);
-            updated = true;
-          }
         }
       };
 
@@ -571,7 +604,6 @@ export const AppointmentFormScreen: React.FC = () => {
       case 'input':
       case 'textarea':
       case 'number':
-      case 'richtext':
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Input
@@ -583,13 +615,36 @@ export const AppointmentFormScreen: React.FC = () => {
                   : cleanPlaceholder((field as any).placeholder)
               }
               onChangeText={text => handleChange(field.id, text)}
-              multiline={field.type === 'textarea' || field.type === 'richtext'}
+              multiline={field.type === 'textarea'}
               keyboardType={field.type === 'number' ? 'numeric' : 'default'}
               inputStyle={
-                field.type === 'textarea' || field.type === 'richtext'
-                  ? styles.textArea
-                  : undefined
+                field.type === 'textarea' ? styles.textArea : undefined
               }
+              error={error}
+              editable={!lockNonCheckboxInputs}
+            />
+          </View>
+        );
+      case 'richtext':
+        // No WYSIWYG editor on mobile: edit the HTML answer as plain text and
+        // re-wrap it into simple <p> HTML on change so the stored value stays
+        // valid HTML for the web RichTextRenderer, instead of overwriting it
+        // with unwrapped plain text.
+        return (
+          <View key={field.id} style={styles.fieldContainer}>
+            <Input
+              label={labelText}
+              value={stripHtmlToPlainText(value)}
+              placeholder={
+                lockNonCheckboxInputs
+                  ? undefined
+                  : cleanPlaceholder((field as any).placeholder)
+              }
+              onChangeText={text =>
+                handleChange(field.id, wrapPlainTextAsHtml(text))
+              }
+              multiline
+              inputStyle={styles.textArea}
               error={error}
               editable={!lockNonCheckboxInputs}
             />
@@ -894,6 +949,9 @@ const renderValueForDisplay = (field: FormField, value: any): string => {
   }
   if (field.type === 'boolean') {
     return value ? 'Yes' : 'No';
+  }
+  if (field.type === 'richtext') {
+    return stripHtmlToPlainText(value) || '—';
   }
   if (Array.isArray(value)) {
     return value.map(v => `${v}`).join(', ') || '—';
