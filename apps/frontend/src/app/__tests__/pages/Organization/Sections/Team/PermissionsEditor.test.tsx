@@ -6,7 +6,7 @@ import {
   computeEffectivePermissions,
   uniq,
 } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
-import { Permission, PERMISSIONS } from '@/app/lib/permissions';
+import { Permission, PERMISSIONS, ROLE_PERMISSIONS } from '@/app/lib/permissions';
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
@@ -110,6 +110,26 @@ describe('PermissionsEditor component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('restores both analytics view permissions when the row is re-enabled', async () => {
+    // ADMIN holds analytics:view:any and analytics:view:clinical together.
+    // Turning the row off drops both; turning it back on must return both,
+    // not just the first - otherwise view:clinical is unrecoverable from the UI.
+    render(
+      <PermissionsEditor role={adminRole} value={ROLE_PERMISSIONS.ADMIN} onSave={mockOnSave} />
+    );
+
+    const analyticsView = screen.getByLabelText('Analytics view permission');
+    fireEvent.click(analyticsView); // off
+    fireEvent.click(analyticsView); // back on
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockOnSave).toHaveBeenCalled());
+    const saved = mockOnSave.mock.calls.at(-1)?.[0];
+    expect(saved.revokedPermissions).not.toContain(PERMISSIONS.ANALYTICS_VIEW_CLINICAL);
+    expect(saved.revokedPermissions).not.toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
   });
 
   it('renders permissions accordion', () => {

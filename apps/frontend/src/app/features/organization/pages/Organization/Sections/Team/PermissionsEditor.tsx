@@ -13,6 +13,14 @@ type PermissionRow = {
   editEnablePriority?: Permission[];
   viewLabel?: string;
   editLabel?: string;
+  /**
+   * Whether the view permissions in this row stack rather than replace each
+   * other. Most rows are tiers - `view:any` supersedes `view:own`, `edit:any`
+   * supersedes `edit:limited` - so enabling one must clear the others. Analytics
+   * is not: a role holds `view:any` and `view:clinical` together, so picking one
+   * would silently drop the other with no way to get it back.
+   */
+  additiveView?: boolean;
 };
 
 const PERMISSION_ROWS: PermissionRow[] = [
@@ -105,6 +113,7 @@ const PERMISSION_ROWS: PermissionRow[] = [
     viewEnablePriority: [PERMISSIONS.ANALYTICS_VIEW_ANY, PERMISSIONS.ANALYTICS_VIEW_CLINICAL],
     editEnablePriority: [PERMISSIONS.ANALYTICS_EDIT_ANY],
     viewLabel: 'View (Any/Clinical)',
+    additiveView: true,
   },
   {
     key: 'audit',
@@ -172,6 +181,20 @@ function removeAll(perms: Permission[], candidates?: Permission[]) {
   if (!candidates?.length) return perms;
   const remove = new Set(candidates);
   return perms.filter((p) => !remove.has(p));
+}
+
+/**
+ * Which permissions an additive group restores: everything the role baseline
+ * grants, so re-enabling gives back exactly what turning it off removed.
+ */
+function pickAdditiveEnablePermissions(
+  roleDefaults: Permission[],
+  enablePriority?: Permission[]
+): Permission[] {
+  if (!enablePriority?.length) return [];
+  const defaultsSet = new Set(roleDefaults);
+  const fromDefaults = enablePriority.filter((p) => defaultsSet.has(p));
+  return fromDefaults.length ? fromDefaults : enablePriority.slice(0, 1);
 }
 
 function pickEnablePermission(
@@ -251,19 +274,26 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
           return removeAll(prev, candidates);
         }
 
-        // Check => remove conflicts in that group, add the chosen permission
-        const toAdd = pickEnablePermission(roleDefaults, priority);
-        if (!toAdd) return prev;
+        // Check => remove conflicts in that group, then add back what applies:
+        // every baseline permission for an additive group, one tier otherwise.
+        const isAdditive = kind === 'view' && row.additiveView === true;
+        const single = pickEnablePermission(roleDefaults, priority);
+        const toAdd = isAdditive
+          ? pickAdditiveEnablePermissions(roleDefaults, priority)
+          : ((single ? [single] : []) as Permission[]);
+        if (!toAdd.length) return prev;
 
-        let next = uniq([...removeAll(prev, candidates), toAdd]);
+        let next = uniq([...removeAll(prev, candidates), ...toAdd]);
 
         // ✅ Rule: turning EDIT on also turns VIEW on
         if (kind === 'edit' && viewCandidates.length && !hasAny(next, viewCandidates)) {
-          const viewToAdd = pickEnablePermission(
-            roleDefaults,
-            row.viewEnablePriority ?? viewCandidates
-          );
-          if (viewToAdd) next = uniq([...next, viewToAdd]);
+          const viewPriority = row.viewEnablePriority ?? viewCandidates;
+          const viewToAdd = row.additiveView
+            ? pickAdditiveEnablePermissions(roleDefaults, viewPriority)
+            : ((pickEnablePermission(roleDefaults, viewPriority)
+                ? [pickEnablePermission(roleDefaults, viewPriority)]
+                : []) as Permission[]);
+          if (viewToAdd.length) next = uniq([...next, ...viewToAdd]);
         }
 
         return next;
