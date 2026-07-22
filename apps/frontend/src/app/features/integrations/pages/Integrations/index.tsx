@@ -14,6 +14,8 @@ import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
+import { useHasPermission } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   loadIntegrationsForPrimaryOrg,
   useIntegrationByProviderForPrimaryOrg,
@@ -494,6 +496,14 @@ const useIdexxActions = (s: IdexxActionsState) => {
 const useIntegrationsPage = () => {
   const primaryOrg = usePrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  // Most roles can view the catalog but not change it: the backend requires
+  // integrations:edit:any for the credentials, enable, disable and validate
+  // routes, so those controls stay hidden rather than 403 on click.
+  const canEditIntegrations = useHasPermission(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
+  // Supervisor, Assistant and Receptionist can view the catalog without holding
+  // labs:view:any, and the device/order loaders hit lab routes that require it,
+  // so those reads are skipped rather than failing the page on open.
+  const canViewLabs = useHasPermission(PERMISSIONS.LABS_VIEW_ANY);
   const integrations = useIntegrationsForPrimaryOrg();
   const {
     integration: merckIntegration,
@@ -527,6 +537,14 @@ const useIntegrationsPage = () => {
   useEffect(() => {
     const run = async () => {
       if (!primaryOrgId) return;
+      if (!canViewLabs) {
+        // Losing lab access (org switch, or the permission revoked) must drop
+        // anything fetched under the previous one, or the settings modal keeps
+        // rendering stale devices and orders.
+        setDevices([]);
+        setRecentOrders([]);
+        return;
+      }
       if (idexxIntegration?.status === 'enabled') {
         try {
           const ivls = await listIdexxIvlsDevices(primaryOrgId);
@@ -549,7 +567,7 @@ const useIntegrationsPage = () => {
       }
     };
     run().catch(() => undefined);
-  }, [primaryOrgId, idexxIntegration?.status]);
+  }, [primaryOrgId, idexxIntegration?.status, canViewLabs]);
 
   useEffect(() => {
     setValidateState(resolveValidateState(idexxIntegration?.credentialsStatus));
@@ -622,6 +640,8 @@ const useIntegrationsPage = () => {
   return {
     primaryOrg,
     primaryOrgId,
+    canEditIntegrations,
+    canViewLabs,
     integrationStatus,
     integrationsLastFetchedAt,
     idexxIntegration,
@@ -991,13 +1011,14 @@ const IdexxIntegrationCard = ({
         patient automatically.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        {s.idexxEnabled ? (
+        {s.idexxEnabled && s.canViewLabs && (
           <Secondary
             href="/appointments/idexx-workspace"
             text="Open workspace"
             className="px-4 whitespace-nowrap"
           />
-        ) : (
+        )}
+        {!s.idexxEnabled && s.canEditIntegrations && (
           <Primary
             href="#"
             text={buttonLabel}
@@ -1006,17 +1027,19 @@ const IdexxIntegrationCard = ({
             className="px-4 whitespace-nowrap"
           />
         )}
-        <button
-          type="button"
-          onClick={() => s.setShowSettings(true)}
-          aria-label="Manage credentials"
-          title="Manage"
-          className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
-          style={MANAGE_ICON_BUTTON_STYLE}
-        >
-          <IoSettingsOutline size={14} aria-hidden="true" />
-        </button>
-        {s.idexxEnabled ? (
+        {s.canEditIntegrations && (
+          <button
+            type="button"
+            onClick={() => s.setShowSettings(true)}
+            aria-label="Manage credentials"
+            title="Manage"
+            className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
+            style={MANAGE_ICON_BUTTON_STYLE}
+          >
+            <IoSettingsOutline size={14} aria-hidden="true" />
+          </button>
+        )}
+        {s.idexxEnabled && s.canEditIntegrations ? (
           <button
             type="button"
             onClick={s.handleEnableDisable}
@@ -1058,13 +1081,14 @@ const MerckIntegrationCard = ({
         for every clinic.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        {s.merckEnabled ? (
-          <Primary
+        {s.merckEnabled && (
+          <Secondary
             href="/integrations/merck-manuals"
             text="Open manuals"
             className="px-4 whitespace-nowrap"
           />
-        ) : (
+        )}
+        {!s.merckEnabled && s.canEditIntegrations && (
           <Primary
             href="#"
             text={buttonLabel}
@@ -1073,7 +1097,7 @@ const MerckIntegrationCard = ({
             className="px-4 whitespace-nowrap"
           />
         )}
-        {s.merckEnabled ? (
+        {s.merckEnabled && s.canEditIntegrations ? (
           <button
             type="button"
             onClick={s.handleMerckEnableDisable}
@@ -1125,12 +1149,12 @@ const RadIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
@@ -1173,12 +1197,12 @@ const VetnioIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
@@ -1221,12 +1245,12 @@ const QuickBooksIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
@@ -1270,12 +1294,12 @@ const LaikaIntegrationCard = ({
         <span
           className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
           style={{
-            background: 'var(--inset)',
-            color: 'var(--ink-muted)',
-            border: '1px solid var(--hairline)',
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
           }}
         >
-          Coming soon
+          Notify me
         </span>
       </div>
     </div>
@@ -1391,8 +1415,11 @@ const IntegrationsPage = () => {
         ) : null}
       </div>
 
+      {/* Every control inside the panel hits an integrations:edit:any route, so
+          it never mounts for a view-only role - closing the paths that open it
+          from a failed validate or enable as well as from the gear. */}
       <IdexxSettingsModal
-        showSettings={s.showSettings}
+        showSettings={s.canEditIntegrations && s.showSettings}
         setShowSettings={s.setShowSettings}
         idexxIntegration={s.idexxIntegration}
         idexxEnabled={s.idexxEnabled}

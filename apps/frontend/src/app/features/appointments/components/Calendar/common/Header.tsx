@@ -29,7 +29,7 @@ import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import { useCalendarWeekNavigation } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import { getStartOfWeek } from '@/app/features/appointments/components/Calendar/weekHelpers';
 
-type FilterOption = { key: string; name: string };
+type FilterOption = { key: string; name: string; dotColor?: string };
 type StatusOption = {
   key: string;
   name: string;
@@ -256,6 +256,13 @@ const FilterPills = ({
                 aria-hidden="true"
                 className="size-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: 'var(--danger)' }}
+              />
+            )}
+            {!isEmergencyFilter && filter.dotColor && (
+              <span
+                aria-hidden="true"
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: filter.dotColor }}
               />
             )}
             <span>{filter.name}</span>
