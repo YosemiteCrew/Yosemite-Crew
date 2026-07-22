@@ -515,7 +515,6 @@ describe('TeamInfo', () => {
 
   it('does not save availability when none is selected', async () => {
     (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     render(
       <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
@@ -530,8 +529,9 @@ describe('TeamInfo', () => {
     await waitFor(() => {
       expect(upsertTeamAvailability).not.toHaveBeenCalled();
     });
-    expect(consoleSpy).toHaveBeenCalledWith('No availability selected');
-    consoleSpy.mockRestore();
+    // The empty grid is a no-op, not a failure: nothing is saved and the user
+    // is not told anything went wrong.
+    expect(notifyMock).not.toHaveBeenCalledWith('error', expect.anything());
   });
 
   it('shows an error notification when saving availability fails', async () => {

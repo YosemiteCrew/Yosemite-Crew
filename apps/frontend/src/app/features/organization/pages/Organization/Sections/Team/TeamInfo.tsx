@@ -36,6 +36,7 @@ import Delete from '@/app/ui/primitives/Buttons/Delete';
 import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { upsertTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
+import { logger } from '@/app/lib/logger';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
 import { IoTrash } from 'react-icons/io5';
 
@@ -160,7 +161,7 @@ const useTeamAvailability = ({
       });
       const converted = convertAvailability(availability);
       if (!hasAtLeastOneAvailability(converted)) {
-        console.log('No availability selected');
+        logger.warn('Skipped availability save: no availability selected');
         return;
       }
       await upsertTeamAvailability(activeTeam, converted, null);
@@ -169,7 +170,7 @@ const useTeamAvailability = ({
         text: 'Team member has been updated successfully.',
       });
     } catch (error) {
-      console.log(error);
+      logger.error('Failed to save team availability', error);
       notify('error', {
         title: 'Unable to update availability',
         text: 'Failed to update availability. Please try again.',
@@ -253,7 +254,7 @@ const useTeamProfileSections = ({
       }));
       notify('success', { title: messages.successTitle, text: messages.successText });
     } catch (error) {
-      console.log(error);
+      logger.error('Failed to save a team member profile section', error);
       notify('error', { title: messages.errorTitle, text: messages.errorText });
     }
   };
@@ -381,7 +382,7 @@ const useTeamMemberAdmin = ({
       setShowDeleteModal(false);
       setShowModal(false);
     } catch (error) {
-      console.log(error);
+      logger.error('Failed to remove a team member', error);
       notify('error', {
         title: 'Unable to delete team member',
         text: 'Failed to delete team member. Please try again.',
@@ -420,7 +421,7 @@ const useTeamMemberAdmin = ({
         text: 'Team member has been updated successfully.',
       });
     } catch (error) {
-      console.log(error);
+      logger.error('Failed to update team member permissions', error);
       notify('error', {
         title: 'Unable to update permissions',
         text: 'Failed to update permissions. Please try again.',
@@ -583,7 +584,7 @@ const useTeamInfoContent = ({
         text: 'Team member has been updated successfully.',
       });
     } catch (error) {
-      console.log(error);
+      logger.error('Failed to update a team member mapping', error);
       notify('error', {
         title: 'Unable to update team member',
         text: 'Failed to update team member. Please try again.',
