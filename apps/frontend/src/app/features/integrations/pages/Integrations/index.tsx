@@ -70,6 +70,11 @@ const statusTokens: Record<string, StatusTokens> = {
     text: 'var(--color-pill-info-text)',
     border: 'var(--color-pill-info-border)',
   },
+  'coming-soon': {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
+  },
 };
 
 const credentialsStatusTokens: Record<string, StatusTokens> = {
@@ -956,9 +961,6 @@ const INTEGRATION_CARD_TITLE_STYLE: React.CSSProperties = { color: 'var(--ink)' 
 const INTEGRATION_CARD_DESC_CLASS = 'text-[12.5px] leading-[1.55] line-clamp-4';
 const INTEGRATION_CARD_DESC_STYLE: React.CSSProperties = { color: 'var(--ink-muted)' };
 const INTEGRATION_CARD_ACTIONS_CLASS = 'mt-auto flex flex-wrap items-center gap-2 pt-0.5';
-const COMING_SOON_PILL_CLASS =
-  'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
-
 // 42x42 / radius 13 icon chip that leads each card header.
 const INTEGRATION_ICON_CLASS =
   'flex size-[42px] shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold tracking-[0.02em]';
@@ -1131,17 +1133,7 @@ const RadIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           RadAnalyzer
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
@@ -1178,17 +1170,7 @@ const VetnioIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Vetnio
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered documentation for veterinary practices &mdash; instantly generate clinical notes,
@@ -1226,17 +1208,7 @@ const QuickBooksIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           QuickBooks
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Accounting sync for invoices, payments, customers, and financial workflows through
@@ -1274,17 +1246,7 @@ const LaikaIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Laika
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
