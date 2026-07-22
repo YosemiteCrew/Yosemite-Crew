@@ -13,6 +13,7 @@ const useIntegrationsForPrimaryOrgMock = jest.fn();
 const useIntegrationByProviderForPrimaryOrgMock = jest.fn();
 const usePrimaryOrgMock = jest.fn();
 const usePrimaryOrgIdMock = jest.fn();
+const membershipMock = jest.fn(() => ({ roleCode: 'OWNER' }) as Record<string, unknown>);
 const useResolvedMerckMock = jest.fn();
 const refreshMerckIntegrationMock = jest.fn();
 const integrationStatusMock = jest.fn();
@@ -65,7 +66,16 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ primaryOrgId: usePrimaryOrgIdMock() }),
+  useOrgStore: (selector: any) => {
+    const primaryOrgId = usePrimaryOrgIdMock();
+    // The page resolves integrations:edit:any from this membership, so the role
+    // drives whether the mutation controls render.
+    return selector({
+      primaryOrgId,
+      status: 'loaded',
+      membershipsByOrgId: primaryOrgId ? { [primaryOrgId]: membershipMock() } : {},
+    });
+  },
 }));
 
 jest.mock('@/app/hooks/useIntegrations', () => ({
@@ -1148,7 +1158,11 @@ describe('IntegrationsPage — misc branches', () => {
     await flush();
   });
 
-  it('short-circuits every action handler when there is no primary org', async () => {
+  it('renders no mutating controls, and calls nothing, without a primary org', async () => {
+    // integrations:edit:any resolves from the active org's membership, so with
+    // no org there is no edit grant and every mutating control stays off the
+    // page. That subsumes the old per-handler org guards, which are now only
+    // reachable if the org is cleared after the controls have rendered.
     usePrimaryOrgIdMock.mockReturnValue(null);
     usePrimaryOrgMock.mockReturnValue(null); // tooltip "?? your organization" branch
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(
@@ -1157,22 +1171,14 @@ describe('IntegrationsPage — misc branches', () => {
 
     renderPage();
     await waitForPage();
-    await openSettings();
 
-    // Fill credentials so the Store button is enabled and reaches its org guard.
-    fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'user-a' } });
-    fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'pass-a' } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Store credentials' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh integrations' }));
-    // Card enable buttons are gated on saving only, so they reach the org guard.
-    fireEvent.click(
-      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' })
-    );
-    fireEvent.click(
-      within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' })
-    );
+    expect(screen.queryByRole('button', { name: 'Manage credentials' })).not.toBeInTheDocument();
+    expect(
+      within(getCard('IDEXX VetConnect PLUS')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
+    expect(
+      within(getCard('MSD Veterinary Manual')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
 
     await flush();
 
@@ -1182,5 +1188,22 @@ describe('IntegrationsPage — misc branches', () => {
     expect(enableIntegrationMock).not.toHaveBeenCalled();
     expect(listIdexxIvlsDevicesMock).not.toHaveBeenCalled();
     expect(getMerckGatewayMock).not.toHaveBeenCalled();
+  });
+
+  it('hides the mutating controls from a view-only role but keeps the read links', async () => {
+    // Supervisor/Vet/Technician/Assistant/Receptionist get integrations:view:any
+    // from the backend but not integrations:edit:any, so the catalog stays
+    // readable while every control that would 403 is withheld.
+    membershipMock.mockReturnValue({ roleCode: 'RECEPTIONIST' });
+
+    renderPage();
+    await waitForPage();
+
+    expect(screen.queryByRole('button', { name: 'Manage credentials' })).not.toBeInTheDocument();
+    expect(
+      within(getCard('MSD Veterinary Manual')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
+    // The read-only affordance survives.
+    expect(getCard('IDEXX VetConnect PLUS')).toBeInTheDocument();
   });
 });

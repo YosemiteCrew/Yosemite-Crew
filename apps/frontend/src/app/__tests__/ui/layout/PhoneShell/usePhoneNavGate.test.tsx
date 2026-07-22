@@ -30,7 +30,11 @@ const setupStore = (
   mockUseOrgStore.mockImplementation((selector: any) =>
     selector({
       primaryOrgId,
-      membershipsByOrgId: primaryOrgId ? { [primaryOrgId]: { effectivePermissions } } : {},
+      // Permissions resolve from role + extras, never from the stored snapshot,
+      // so a roleless fixture carries its set as extras.
+      membershipsByOrgId: primaryOrgId
+        ? { [primaryOrgId]: { extraPermissions: effectivePermissions } }
+        : {},
     })
   );
 };

@@ -174,7 +174,7 @@ describe('Sidebar', () => {
   it('starts the route loader and navigates when clicking an enabled inactive route', () => {
     setup({
       pathname: '/organization',
-      membership: { effectivePermissions: ['analytics:view:any'], roleDisplay: 'Owner' },
+      membership: { extraPermissions: ['analytics:view:any'], roleDisplay: 'Owner' },
       collapsed: false,
     });
 
@@ -188,7 +188,7 @@ describe('Sidebar', () => {
   it('does not navigate when clicking a disabled route', () => {
     setup({
       pathname: '/organization',
-      membership: { effectivePermissions: ['analytics:view:any'], roleDisplay: 'Owner' },
+      membership: { extraPermissions: ['analytics:view:any'], roleDisplay: 'Owner' },
       collapsed: false,
     });
 
@@ -301,7 +301,7 @@ describe('Sidebar', () => {
 
   it('resolves the logo target to appointments for non-owner roles', () => {
     setup({
-      membership: { effectivePermissions: ALL_PERMISSIONS, roleDisplay: 'Veterinarian' },
+      membership: { extraPermissions: ALL_PERMISSIONS, roleDisplay: 'Veterinarian' },
       collapsed: false,
     });
 
