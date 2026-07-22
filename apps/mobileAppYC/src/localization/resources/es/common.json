@@ -238,7 +238,8 @@
     "title": "Tareas",
     "emptyNoCompanionTitle": "Añade un compañero para empezar",
     "emptyNoCompanionDescription": "Tareas como dosis, aseo y planes de alimentación están vinculadas a un compañero. Añade uno primero para empezar a crear tareas.",
-    "emptyNoCompanionAction": "Añadir un compañero"
+    "emptyNoCompanionAction": "Añadir un compañero",
+    "addTaskAccessibilityLabel": "Añadir tarea"
   },
   "observationalTool": {
     "headerTitleFallback": "Herramienta de observación",

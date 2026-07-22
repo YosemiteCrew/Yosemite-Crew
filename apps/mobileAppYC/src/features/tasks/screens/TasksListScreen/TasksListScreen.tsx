@@ -4,6 +4,7 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
+import {useTranslation} from 'react-i18next';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -31,6 +32,7 @@ export const TasksListScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
+  const {t} = useTranslation();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -148,7 +150,7 @@ export const TasksListScreen: React.FC = () => {
           onBack={() => navigation.goBack()}
           rightIcon={Images.addIconDark}
           onRightPress={handleAddTask}
-          rightAccessibilityLabel="Add task"
+          rightAccessibilityLabel={t('tasks.addTaskAccessibilityLabel')}
           glass={false}
         />
       }
