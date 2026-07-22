@@ -161,7 +161,7 @@ const getOrgFallbackRedirect = (pathname: string): string | null => {
 // resolution lives in exactly one place; both guard paths need the same answer.
 const getPermissionsFallbackRedirect = (
   pathname: string,
-  membership: Parameters<typeof resolveMembershipPermissions>[0]
+  membership: UserOrganization
 ): string | null => {
   const effectivePermissions = resolveMembershipPermissions(membership);
   if (canAccessPathByPermissions(pathname, effectivePermissions)) return null;
