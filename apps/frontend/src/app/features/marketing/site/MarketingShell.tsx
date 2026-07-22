@@ -28,7 +28,9 @@ export function MarketingShell({
         id="main-content"
         tabIndex={-1}
         className="yc-public-page"
-        style={{ background: 'var(--page)' }}
+        // overflow-x: clip guards the public pages against any horizontal scroll
+        // without creating a scroll container (which would break sticky descendants).
+        style={{ background: 'var(--page)', overflowX: 'clip' }}
       >
         {children}
       </main>

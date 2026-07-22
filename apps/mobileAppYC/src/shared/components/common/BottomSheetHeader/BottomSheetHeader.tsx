@@ -33,7 +33,8 @@ export const BottomSheetHeader: React.FC<BottomSheetHeaderProps> = ({
         <LiquidGlassIconButton
           onPress={onClose}
           size={closeButtonSize}
-          style={styles.closeButton}>
+          style={styles.closeButton}
+          accessibilityLabel="Close">
           <Image
             source={closeIconSource}
             style={styles.closeIcon}
@@ -57,15 +58,17 @@ const createStyles = (theme: any) =>
     },
     titleContainer: {
       flex: 1,
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
-      paddingHorizontal: theme.spacing['10'],
+      paddingRight: theme.spacing['12'],
     },
     title: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
-      textAlign: 'center',
-      lineHeight: theme.typography.h3.fontSize * 1.3,
+      // Left-aligned 18/700 Satoshi title with a slightly taller line height.
+      ...theme.typography.paragraphBold,
+      fontSize: 18,
+      lineHeight: 24,
+      color: theme.colors.ink,
+      textAlign: 'left',
       maxWidth: '100%',
     },
     closeButton: {

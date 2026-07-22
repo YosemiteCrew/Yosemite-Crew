@@ -20,6 +20,21 @@ export type AppUpdatePrompt = {
 const OPTIONAL_PROMPT_DEFAULT_HOURS = 24;
 const IOS_APP_STORE_URL_PREFIX = 'itms-apps://itunes.apple.com/app/id';
 
+// storeUrl can come straight from the remotely-fetched MobileConfig, so it
+// must be checked against a fixed allowlist before ever being handed to
+// Linking.openURL - otherwise a compromised/misconfigured config endpoint
+// could make the app open an arbitrary URL.
+const TRUSTED_STORE_URL_PATTERNS = [
+  /^https:\/\/apps\.apple\.com\//i,
+  /^https:\/\/itunes\.apple\.com\//i,
+  /^itms-apps:\/\/itunes\.apple\.com\//i,
+  /^https:\/\/play\.google\.com\/store\/apps\//i,
+  /^market:\/\/details\?/i,
+];
+
+export const isTrustedStoreUrl = (url: string): boolean =>
+  TRUSTED_STORE_URL_PATTERNS.some(pattern => pattern.test(url));
+
 const toBoolean = (value: unknown): boolean => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {

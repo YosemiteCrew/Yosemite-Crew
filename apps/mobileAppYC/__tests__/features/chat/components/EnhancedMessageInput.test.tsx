@@ -102,6 +102,14 @@ describe('EnhancedMessageInput', () => {
     expect(getByText('attach-file')).toBeTruthy();
   });
 
+  it('exposes button roles and labels on the voice and attachment buttons', () => {
+    const {getByLabelText} = render(<EnhancedMessageInput />);
+    const micButton = getByLabelText('Record voice message');
+    const attachButton = getByLabelText('Add attachment');
+    expect(micButton.props.accessibilityRole).toBe('button');
+    expect(attachButton.props.accessibilityRole).toBe('button');
+  });
+
   // --- Voice Recording ---
 
   it('handles Android permission denial', async () => {
@@ -276,6 +284,19 @@ describe('EnhancedMessageInput', () => {
     expect(queryByText(/Recording.../)).toBeNull();
   });
 
+  it('exposes button roles and labels on the cancel and send-recording buttons', async () => {
+    const {getByLabelText} = render(<EnhancedMessageInput />);
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('Record voice message'));
+    });
+
+    const cancelButton = getByLabelText('Cancel recording');
+    const sendButton = getByLabelText('Send voice message');
+    expect(cancelButton.props.accessibilityRole).toBe('button');
+    expect(sendButton.props.accessibilityRole).toBe('button');
+  });
+
   it('handles cancel recording error silently (logs only)', async () => {
     const consoleSpy = jest
       .spyOn(console, 'error')
@@ -445,16 +466,135 @@ describe('EnhancedMessageInput', () => {
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
-  it('handles document with missing metadata defaults', async () => {
+  it('rejects a file with a missing/unrecognized mime type instead of sending it as octet-stream', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
     (pickDocuments as jest.Mock).mockResolvedValue([
       {uri: 'uri', name: null, type: null, size: null},
     ]);
     await triggerAttachmentOption(2);
 
-    expect(mockSendFile).toHaveBeenCalledWith(
-      'uri',
-      'Document',
-      'application/octet-stream',
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Unsupported file',
+      expect.stringContaining('not supported'),
     );
+  });
+
+  it('rejects a disallowed mime type (e.g. an executable) even when the picker returns one', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    (pickDocuments as jest.Mock).mockResolvedValue([
+      {
+        uri: 'uri',
+        name: 'app.exe',
+        type: 'application/x-msdownload',
+        size: 10,
+      },
+    ]);
+    await triggerAttachmentOption(2);
+
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Unsupported file',
+      expect.stringContaining('not supported'),
+    );
+  });
+
+  it('sends only the allowed files when a multi-select includes a disallowed type', async () => {
+    (pickDocuments as jest.Mock).mockResolvedValue([
+      {uri: 'ok-uri', name: 'ok.pdf', type: 'application/pdf', size: 100},
+      {uri: 'bad-uri', name: 'bad.exe', type: 'application/x-msdownload'},
+    ]);
+    await triggerAttachmentOption(2);
+
+    expect(mockSendFile).toHaveBeenCalledTimes(1);
+    expect(mockSendFile).toHaveBeenCalledWith(
+      'ok-uri',
+      'ok.pdf',
+      'application/pdf',
+    );
+  });
+
+  // --- Guard / else-path coverage ---
+
+  it('stops recording without sending when audio path is empty', async () => {
+    const {getByText, queryByText} = render(<EnhancedMessageInput />);
+
+    await act(async () => {
+      fireEvent.press(getByText('mic'));
+    });
+
+    (Sound.stopRecorder as jest.Mock).mockResolvedValue('');
+
+    await act(async () => {
+      fireEvent.press(getByText('send'));
+    });
+
+    expect(Sound.stopRecorder).toHaveBeenCalled();
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(queryByText(/Recording.../)).toBeNull();
+  });
+
+  it('ignores gallery result with no assets', async () => {
+    (launchImageLibrary as jest.Mock).mockResolvedValue({});
+
+    await triggerAttachmentOption(0);
+
+    expect(mockSendImage).not.toHaveBeenCalled();
+  });
+
+  it('returns early when gallery assets have no valid uris', async () => {
+    (launchImageLibrary as jest.Mock).mockResolvedValue({
+      assets: [{uri: null}, {uri: undefined}],
+    });
+
+    await triggerAttachmentOption(0);
+
+    expect(mockSendImage).not.toHaveBeenCalled();
+  });
+
+  it('ignores camera result with no assets', async () => {
+    (launchCamera as jest.Mock).mockResolvedValue({});
+
+    await triggerAttachmentOption(1);
+
+    expect(mockSendImage).not.toHaveBeenCalled();
+  });
+
+  it('ignores document result when empty', async () => {
+    (pickDocuments as jest.Mock).mockResolvedValue([]);
+
+    await triggerAttachmentOption(2);
+
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('shows loading indicator while stopping recording', async () => {
+    let resolveStop: (value: string) => void = () => {};
+    (Sound.stopRecorder as jest.Mock).mockReturnValue(
+      new Promise<string>(resolve => {
+        resolveStop = resolve;
+      }),
+    );
+
+    const {getByText, queryByText} = render(<EnhancedMessageInput />);
+
+    await act(async () => {
+      fireEvent.press(getByText('mic'));
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('send'));
+    });
+
+    // While the stop is in flight, the send icon is swapped for the spinner
+    expect(queryByText(/Recording.../)).toBeTruthy();
+    expect(queryByText('send')).toBeNull();
+
+    await act(async () => {
+      resolveStop('path/to/audio.m4a');
+    });
   });
 });

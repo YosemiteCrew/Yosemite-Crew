@@ -158,7 +158,7 @@ const InventoryTurnoverFilters = ({
           ref={triggerRef}
           type="button"
           onClick={() => setDropdownOpen((v) => !v)}
-          className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between min-w-30"
+          className="flex h-10 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-[13px] justify-between min-w-30"
           style={getTurnoverStatusButtonStyle(selectedStatus)}
         >
           <span>{selectedStatus.key === 'ALL' ? 'Status' : selectedStatus.name}</span>
@@ -189,12 +189,12 @@ const InventoryTurnoverFilters = ({
                       setDropdownOpen(false);
                     }}
                     className={clsx(
-                      'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                      'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
                       isSelected && option.key !== 'ALL' ? 'font-medium' : 'hover:bg-card-hover'
                     )}
                   >
                     <span
-                      className="inline-block size-3 rounded-full shrink-0"
+                      className="inline-block size-2 rounded-full shrink-0"
                       style={{
                         backgroundColor: option.border,
                         borderWidth: '1px',
@@ -205,7 +205,7 @@ const InventoryTurnoverFilters = ({
                     <span style={{ color: dropdownTextColor }}>{option.name}</span>
                     {isSelected && (
                       <span
-                        className="ml-auto text-sm font-semibold"
+                        className="ml-auto text-[12px] font-semibold"
                         style={{ color: dropdownTextColor }}
                       >
                         ✓

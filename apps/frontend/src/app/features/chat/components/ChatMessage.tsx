@@ -12,7 +12,19 @@
  * the top-level component stays simple to read and test.
  */
 
-import { useState, type MouseEvent, type ReactNode, type SyntheticEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+  type SyntheticEvent,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useMessageContext, useChannelActionContext, Attachment } from 'stream-chat-react';
 import {
   IoCheckmarkDone,
@@ -93,13 +105,21 @@ function MentionAwareText({ body, mine }: Readonly<{ body: string; mine: boolean
   );
 }
 
+// React 19 passes `ref` as a normal prop, so no forwardRef wrapper is needed.
 function MsgIconButton({
   label,
   onClick,
   children,
-}: Readonly<{ label: string; onClick?: (e: MouseEvent) => void; children: ReactNode }>) {
+  ref,
+}: Readonly<{
+  label: string;
+  onClick?: (e: MouseEvent) => void;
+  children: ReactNode;
+  ref?: Ref<HTMLButtonElement>;
+}>) {
   return (
     <button
+      ref={ref}
       type="button"
       aria-label={label}
       onClick={onClick}
@@ -110,6 +130,116 @@ function MsgIconButton({
   );
 }
 
+const POPOVER_MEASURE_STYLE: CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  visibility: 'hidden',
+  zIndex: 5000,
+};
+
+/**
+ * Fixed-position style anchored to a trigger: opens below it, flipping above only
+ * when there is no room before the viewport bottom (the last-message case that
+ * used to crop the reaction picker). Null until measured, so the panel first
+ * renders hidden (POPOVER_MEASURE_STYLE) to be measurable.
+ */
+function useAnchoredPopoverStyle(
+  anchorRef: RefObject<HTMLButtonElement | null>,
+  panelRef: RefObject<HTMLDivElement | null>,
+  open: boolean,
+  align: 'left' | 'right'
+): CSSProperties | null {
+  const [style, setStyle] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    if (!open) {
+      setStyle(null);
+      return;
+    }
+    const anchor = anchorRef.current?.getBoundingClientRect();
+    const panel = panelRef.current;
+    if (!anchor || !panel) return;
+    const { offsetHeight: panelH, offsetWidth: panelW } = panel;
+    const vw = globalThis.window.innerWidth;
+    const vh = globalThis.window.innerHeight;
+    const below = anchor.bottom + 6;
+    const flipUp = below + panelH + 8 > vh;
+    const top = flipUp ? Math.max(8, anchor.top - panelH - 6) : below;
+    const rawLeft = align === 'right' ? anchor.right - panelW : anchor.left;
+    const left = Math.min(Math.max(8, rawLeft), Math.max(8, vw - panelW - 8));
+    setStyle({ position: 'fixed', top, left, zIndex: 5000 });
+  }, [open, anchorRef, panelRef, align]);
+  return style;
+}
+
+/** Closes the popover on an outside pointer-down, scroll, resize, or Escape. */
+function usePopoverDismiss(
+  open: boolean,
+  onClose: () => void,
+  anchorRef: RefObject<HTMLButtonElement | null>,
+  panelRef: RefObject<HTMLDivElement | null>
+): void {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const handlePointer = (event: Event) => {
+      const target = event.target as Node;
+      if (panelRef.current?.contains(target) || anchorRef.current?.contains(target)) return;
+      onCloseRef.current();
+    };
+    const dismiss = () => onCloseRef.current();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current();
+    };
+    document.addEventListener('mousedown', handlePointer);
+    globalThis.window.addEventListener('scroll', dismiss, { passive: true, capture: true });
+    globalThis.window.addEventListener('resize', dismiss);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      globalThis.window.removeEventListener('scroll', dismiss, {
+        capture: true,
+      } as EventListenerOptions);
+      globalThis.window.removeEventListener('resize', dismiss);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open, anchorRef, panelRef]);
+}
+
+/**
+ * Popover anchored to a trigger button and rendered through a portal to
+ * document.body, so Stream's overflow:auto message list never clips it.
+ * Positioning and dismissal live in dedicated hooks.
+ */
+function AnchoredPopover({
+  anchorRef,
+  open,
+  onClose,
+  align,
+  className,
+  children,
+}: Readonly<{
+  anchorRef: RefObject<HTMLButtonElement | null>;
+  open: boolean;
+  onClose: () => void;
+  align: 'left' | 'right';
+  className: string;
+  children: ReactNode;
+}>) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const style = useAnchoredPopoverStyle(anchorRef, panelRef, open, align);
+  usePopoverDismiss(open, onClose, anchorRef, panelRef);
+
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal(
+    <div ref={panelRef} style={style ?? POPOVER_MEASURE_STYLE} className={className}>
+      {children}
+    </div>,
+    document.body
+  );
+}
+
 /** Read-receipt indicator for an outgoing message. */
 function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen: boolean }>) {
   if (sending)
@@ -117,12 +247,8 @@ function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen:
       <IoTimeOutline aria-label="Sending" className="h-[11px] w-[11px] text-[var(--ink-faint)]" />
     );
   if (seen)
-    return (
-      <IoCheckmarkDone aria-label="Seen" className="h-[11px] w-[11px] text-[var(--blue-text)]" />
-    );
-  return (
-    <IoCheckmarkOutline aria-label="Sent" className="h-[11px] w-[11px] text-[var(--ink-faint)]" />
-  );
+    return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue-text)]" />;
+  return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-[var(--ink-faint)]" />;
 }
 
 /** Hover actions: react and reply, plus edit/delete for the user's own messages. */
@@ -141,14 +267,17 @@ function MessageActions({
 }>) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const reactBtnRef = useRef<HTMLButtonElement>(null);
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
   const closeAll = () => {
     setPickerOpen(false);
     setMenuOpen(false);
   };
-  const side = mine ? 'right-0' : 'left-0';
+  const align = mine ? 'right' : 'left';
   return (
-    <span className="relative flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+    <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
       <MsgIconButton
+        ref={reactBtnRef}
         label="React"
         onClick={() => {
           closeAll();
@@ -162,6 +291,7 @@ function MessageActions({
       </MsgIconButton>
       {mine && (
         <MsgIconButton
+          ref={moreBtnRef}
           label="More"
           onClick={() => {
             closeAll();
@@ -171,79 +301,61 @@ function MessageActions({
           <IoEllipsisVertical className="h-4 w-4" />
         </MsgIconButton>
       )}
-      {pickerOpen && (
-        <>
+      <AnchoredPopover
+        anchorRef={reactBtnRef}
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        align={align}
+        className="flex items-center gap-0.5 rounded-full border border-[var(--hairline)] bg-[var(--screen)] p-1 shadow-[0_6px_16px_var(--sh10),0_20px_48px_var(--sh12)]"
+      >
+        {REACTION_EMOJIS.map((emoji) => (
           <button
+            key={emoji}
             type="button"
-            aria-label="Close"
-            className="fixed inset-0 z-10 cursor-default"
-            onClick={() => setPickerOpen(false)}
-          />
-          <div
-            className={clsx(
-              'absolute top-9 z-20 flex items-center gap-0.5 rounded-full border border-[var(--hairline)] bg-[var(--screen)] p-1 shadow-[0_6px_16px_var(--sh10),0_20px_48px_var(--sh12)]',
-              side
-            )}
+            onClick={(ev) => {
+              onReact(emoji, ev);
+              setPickerOpen(false);
+            }}
+            className="flex size-8 items-center justify-center rounded-full text-lg leading-none hover:bg-[var(--inset)]"
           >
-            {REACTION_EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={(ev) => {
-                  onReact(emoji, ev);
-                  setPickerOpen(false);
-                }}
-                className="flex size-8 items-center justify-center rounded-full text-lg hover:bg-[var(--inset)]"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-      {menuOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="Close"
-            className="fixed inset-0 z-10 cursor-default"
-            onClick={() => setMenuOpen(false)}
-          />
-          <div
-            className={clsx(
-              'absolute top-9 z-20 w-36 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-1.5 shadow-[0_6px_16px_var(--sh10),0_24px_56px_var(--sh12)]',
-              side
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                onEdit();
-                setMenuOpen(false);
-              }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
-            >
-              <IoCreateOutline className="h-4 w-4 text-[var(--ink-faint)]" />
-              <Text as="span" variant="body-4" className="text-[var(--ink-body)]">
-                Edit
-              </Text>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onDelete();
-                setMenuOpen(false);
-              }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
-            >
-              <IoTrashOutline className="h-4 w-4 text-[var(--danger-text)]" />
-              <Text as="span" variant="body-4" className="text-[var(--danger-text)]">
-                Delete
-              </Text>
-            </button>
-          </div>
-        </>
-      )}
+            {emoji}
+          </button>
+        ))}
+      </AnchoredPopover>
+      <AnchoredPopover
+        anchorRef={moreBtnRef}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        align={align}
+        className="w-36 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-1.5 shadow-[0_6px_16px_var(--sh10),0_24px_56px_var(--sh12)]"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onEdit();
+            setMenuOpen(false);
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
+        >
+          <IoCreateOutline className="h-4 w-4 text-[var(--ink-faint)]" />
+          <Text as="span" variant="caption-1" className="text-[13px] text-[var(--ink-body)]">
+            Edit
+          </Text>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onDelete();
+            setMenuOpen(false);
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]"
+        >
+          <IoTrashOutline className="h-4 w-4 text-[var(--danger-text)]" />
+          <Text as="span" variant="caption-1" className="text-[13px] text-[var(--danger-text)]">
+            Delete
+          </Text>
+        </button>
+      </AnchoredPopover>
     </span>
   );
 }

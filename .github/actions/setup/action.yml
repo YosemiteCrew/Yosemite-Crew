@@ -22,11 +22,13 @@ runs:
       with:
         run_install: false
 
+    # No `cache: pnpm` here. setup-node's built-in cache and the explicit
+    # actions/cache block below both cache the pnpm store, so enabling both made
+    # every job save and restore the same directory twice.
     - name: Setup Node
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: ${{ inputs.node-version }}
-        cache: pnpm
 
     - name: Resolve pnpm store path
       id: store

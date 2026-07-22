@@ -93,6 +93,14 @@ describe('VoiceMessagePlayer', () => {
     expect(getByText('play-arrow')).toBeTruthy();
   });
 
+  it('exposes button role and a "Play" label before playback starts', () => {
+    const {getByLabelText} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+    const button = getByLabelText('Play');
+    expect(button.props.accessibilityRole).toBe('button');
+  });
+
   it('handles zero or missing duration gracefully', () => {
     const {getByText} = render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} />,
@@ -135,6 +143,17 @@ describe('VoiceMessagePlayer', () => {
     await waitFor(() => expect(Sound.pausePlayer).toHaveBeenCalled());
   });
 
+  it('updates the accessibility label to "Pause" once playback starts', async () => {
+    const {getByLabelText} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton();
+    await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
+
+    expect(getByLabelText('Pause')).toBeTruthy();
+  });
+
   it('resumes playing when button is pressed while paused (and position > 0)', async () => {
     render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
@@ -161,13 +180,16 @@ describe('VoiceMessagePlayer', () => {
   // --- 3. Stop Control & Lifecycle ---
 
   it('stops playback and resets when stop button is pressed', async () => {
-    const {getByText} = render(
+    const {getByText, getByLabelText} = render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
     );
 
     // Start playing to reveal Stop button
     pressPlayPauseButton();
     await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
+
+    const stopButton = getByLabelText('Stop');
+    expect(stopButton.props.accessibilityRole).toBe('button');
 
     // Stop button uses the 'stop' icon
     fireEvent.press(getByText('stop'));

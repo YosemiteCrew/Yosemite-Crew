@@ -7,6 +7,11 @@ name: React Doctor
 permissions:
   contents: read
   pull-requests: write
+  # Kept for the action's sticky PR summary comment. Pull request comments are
+  # created through the issue-comments API, so the action needs issues: write in
+  # addition to pull-requests: write, as its own setup documentation states.
+  # Dropping it silently disables the summary comment rather than failing, so it
+  # stays until PR comments are deliberately turned off in the action's config.
   issues: write
   statuses: write
 
@@ -17,10 +22,14 @@ concurrency:
 jobs:
   react-doctor:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          # Runs a third-party action against PR-controlled code; do not leave
+          # the default token in git config for it to read.
+          persist-credentials: false
 
       - name: Run React Doctor
         id: react-doctor
@@ -63,10 +72,14 @@ jobs:
 
   react-doctor-mobile:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          # Runs a third-party action against PR-controlled code; do not leave
+          # the default token in git config for it to read.
+          persist-credentials: false
 
       - name: Run React Doctor
         id: react-doctor

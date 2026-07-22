@@ -52,7 +52,8 @@ const setOrg = ({
   mockUseOrgStore.mockImplementation((selector: any) =>
     selector({
       primaryOrgId: 'org-1',
-      membershipsByOrgId: { 'org-1': { effectivePermissions: permissions } },
+      // Permissions resolve from role + extras, not the stored snapshot.
+      membershipsByOrgId: { 'org-1': { extraPermissions: permissions } },
     })
   );
 };

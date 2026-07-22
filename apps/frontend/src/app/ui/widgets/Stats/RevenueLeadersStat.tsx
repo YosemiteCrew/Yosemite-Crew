@@ -39,7 +39,11 @@ const RevenueLeadersStat = () => {
         selected={selectedDuration}
         onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}
       />
-      <div className="flex min-h-89 w-full flex-col gap-3.5 overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div
+        className={`flex w-full flex-col gap-3.5 overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] ${
+          isEmpty ? 'min-h-89' : ''
+        }`}
+      >
         {isEmpty ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-[var(--ink-faint)]">
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">

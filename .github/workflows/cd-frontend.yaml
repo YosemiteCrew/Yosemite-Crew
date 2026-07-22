@@ -19,6 +19,7 @@ jobs:
   detect-frontend:
     name: Detect if frontend build is affected
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       should-deploy: ${{ steps.set.outputs.should_deploy }}
     steps:
@@ -34,37 +35,55 @@ jobs:
           run_install: false
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
       - name: Compute base SHA
         id: base
-        run: |
-          BASE_SHA=$(git rev-parse HEAD~1)
-          echo "sha=$BASE_SHA" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: ./scripts/ci/compute-base-sha.sh >> "$GITHUB_OUTPUT"
 
-      - name: Compute if frontend is affected (Turborepo)
-        run: |
-          BASE_SHA="${{ steps.base.outputs.sha }}"
-          echo "Diff base => $BASE_SHA"
-
-          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
-            # Only ask Turbo for frontend build tasks since BASE_SHA
-            pnpm dlx turbo@2.8.3 run build --filter=frontend...[${BASE_SHA}] --dry=json > affected-frontend.json || echo '{"tasks":[]}' > affected-frontend.json
-          else
-            echo "⚠️ Base SHA not found, assuming frontend is affected"
-            echo '{"tasks":[{"package":"frontend"}]}' > affected-frontend.json
-          fi
-
-          cat affected-frontend.json
-
+      # Every uncertain path below deploys. A missed deploy silently leaves the
+      # site stale, whereas a redundant deploy only costs an Amplify build, so
+      # this decision fails closed to deploying rather than to skipping.
       - name: Decide whether to deploy
         id: set
         shell: bash
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          RUN_ALL: ${{ steps.base.outputs.run_all }}
         run: |
-          node -e 'const fs=require("fs"); const a=JSON.parse(fs.readFileSync("affected-frontend.json","utf8")); const tasks=a.tasks||[]; const has=tasks.length>0; process.stdout.write(`should_deploy=${has}\n`);' >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          deploy() {
+            echo "$1"
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          if [ "$RUN_ALL" = "true" ]; then
+            deploy "No trustworthy base SHA; deploying."
+          fi
+
+          echo "Diff base => $BASE_SHA"
+          if ! pnpm dlx turbo@2.10.4 run build --filter="frontend...[${BASE_SHA}]" --dry=json > affected-frontend.json; then
+            deploy "Turbo dry run failed; deploying."
+          fi
+
+          if ! COUNT=$(node -e 'const a=require("./affected-frontend.json"); process.stdout.write(String((a.tasks||[]).length));'); then
+            deploy "Could not read the affected task list; deploying."
+          fi
+
+          echo "Affected frontend build tasks: $COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Show decision
         run: echo "should-deploy=${{ steps.set.outputs.should_deploy }}"
@@ -72,8 +91,19 @@ jobs:
   deploy-frontend:
     name: Trigger Amplify deploy (frontend)
     needs: detect-frontend
-    if: needs.detect-frontend.outputs.should-deploy == 'true'
+    # Deploy unless detection positively proved the frontend unaffected. If the
+    # detect job itself failed the output is empty, which must still deploy -
+    # `== 'true'` would have turned an infrastructure failure into a silent
+    # skipped release.
+    #
+    # Cancellation is the one case that must not deploy. This workflow sets
+    # cancel-in-progress, so a superseded push leaves detect-frontend cancelled
+    # with no output; under a bare always() the empty output reads as "not
+    # false" and would ship the older, superseded commit. !cancelled() excludes
+    # that while still deploying on a genuine detection failure.
+    if: ${{ !cancelled() && needs.detect-frontend.outputs.should-deploy != 'false' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Select Amplify webhook for branch
         id: webhook

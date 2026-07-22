@@ -1,6 +1,10 @@
 import {StyleSheet} from 'react-native';
 import {createFormStyles} from '@/shared/utils/formStyles';
-import {createScreenContainerStyles, createErrorContainerStyles, createSearchAndSelectorStyles} from '@/shared/utils/screenStyles';
+import {
+  createScreenContainerStyles,
+  createErrorContainerStyles,
+  createSearchAndSelectorStyles,
+} from '@/shared/utils/screenStyles';
 
 export const createTaskFormStyles = (theme: any) => {
   const formStyles = createFormStyles(theme);
@@ -23,6 +27,11 @@ export const createTaskFormStyles = (theme: any) => {
     label: {
       ...theme.typography.inputLabel,
       color: theme.colors.secondary,
+    },
+    companionLabel: {
+      ...theme.typography.inputLabel,
+      color: theme.colors.inkBody,
+      marginLeft: theme.spacing['1'],
     },
     footer: {
       paddingHorizontal: theme.spacing['4'],

@@ -43,10 +43,10 @@ const PackageBreakdownSearch = ({
             key={item.id}
             type="button"
             onClick={() => onSelectItem(item)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-card-hover text-body-4 text-text-primary"
+            className="w-full flex items-center justify-between px-4 py-2 text-left hover:bg-card-hover text-[13px] text-text-primary"
           >
             <span>{item.name}</span>
-            <span className="text-caption-1 text-text-secondary">
+            <span className="text-[12px] text-text-secondary">
               {TYPE_LABELS[item.type] ?? item.type} ·{' '}
               {formatMoney(item.unitPrice, item.currency ?? orgCurrency)}
             </span>
@@ -55,7 +55,7 @@ const PackageBreakdownSearch = ({
       </div>
     )}
     {searchQuery.trim() && filteredSearch.length === 0 && !searchLoading && (
-      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[var(--screen)] border border-card-border rounded-2xl shadow-lg px-4 py-3 text-body-4 text-text-secondary">
+      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[var(--screen)] border border-card-border rounded-2xl shadow-lg px-4 py-3 text-[13px] text-text-secondary">
         No items found.
       </div>
     )}

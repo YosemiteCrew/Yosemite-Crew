@@ -362,7 +362,10 @@ describe('apiClient', () => {
 
       const mockResponse = {
         status: 200,
-        data: {clientSecret: 'dummy-client-secret-value', email: 'parent@example.com'},
+        data: {
+          clientSecret: 'dummy-client-secret-value',
+          email: 'parent@example.com',
+        },
         config: {method: 'get', url: '/payment-intent'},
       };
 

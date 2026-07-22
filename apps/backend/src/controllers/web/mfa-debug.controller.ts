@@ -1,10 +1,13 @@
 import type { Response } from "express";
 import type { SessionRequest } from "@yosemite-crew/auth";
 import { getSessionUserId, createTotpDeviceForUser } from "@yosemite-crew/auth";
+import { isLocalDevEnvironment } from "../../utils/local-dev";
 
 function assertLocalDev() {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("MFA debug endpoints are disabled in production");
+  if (!isLocalDevEnvironment()) {
+    throw new Error(
+      "MFA debug endpoints are disabled outside local development",
+    );
   }
 }
 

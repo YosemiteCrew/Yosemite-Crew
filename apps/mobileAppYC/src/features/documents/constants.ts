@@ -6,7 +6,9 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'admin',
     label: 'Admin',
+    description: 'Passport, certificates, insurance',
     icon: Images.adminIcon,
+    iconTint: 'avatarVioletBg',
     isSynced: false,
     fileCount: 0,
     subcategories: [
@@ -23,7 +25,9 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'health',
     label: 'Health',
+    description: 'Prescriptions, labs, vaccinations',
     icon: Images.healthIconCategory,
+    iconTint: 'blueSoft',
     isSynced: true,
     fileCount: 0,
     subcategories: [
@@ -41,7 +45,9 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'hygiene-maintenance',
     label: 'Hygiene maintenance',
+    description: 'Grooming, dental, skin care',
     icon: Images.hygieneIcon,
+    iconTint: 'pinkGlow',
     isSynced: true,
     fileCount: 0,
     subcategories: [
@@ -62,7 +68,9 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'dietary-plans',
     label: 'Dietary plans',
+    description: 'Nutrition plans',
     icon: Images.dietaryIcon,
+    iconTint: 'avatarGreenBg',
     isSynced: false,
     fileCount: 0,
     subcategories: [
@@ -72,7 +80,9 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'others',
     label: 'Others',
+    description: 'Weight logs, behaviour notes, photos',
     icon: Images.othersIconCategory,
+    iconTint: 'avatarAmberBg',
     isSynced: false,
     fileCount: 0,
     subcategories: [

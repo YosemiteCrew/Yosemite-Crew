@@ -728,7 +728,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       <PressableOpacity
         activeOpacity={0.85}
         onPress={onPress}
-        testID={`${key}-empty-tile`}>
+        testID={`${key}-empty-tile`}
+        accessibilityRole="button"
+        accessibilityLabel={title}>
         {content}
       </PressableOpacity>
     );
@@ -1260,6 +1262,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
     return (
       <YearlySpendCard
+        compact
         amount={expenseSummary?.total ?? 0}
         currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
         currencySymbol={resolveCurrencySymbol(
@@ -1307,7 +1310,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           <PressableOpacity
             style={styles.profileButton}
             onPress={() => navigation.navigate('Account')}
-            activeOpacity={0.85}>
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Your profile">
             <View style={styles.avatar}>
               {headerAvatarUri && !headerAvatarError ? (
                 <Image
@@ -1323,6 +1328,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </View>
             <View>
               <Text style={styles.greetingName}>Hello, {displayName}</Text>
+              <Text style={styles.greetingTitle}>
+                {hasCompanions ? 'Your companions' : 'Welcome'}
+              </Text>
             </View>
           </PressableOpacity>
 
@@ -1331,7 +1339,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <LiquidGlassIconButton
                 onPress={handleEmergencyPress}
                 size={actionIconSize}
-                style={styles.actionIcon}>
+                style={styles.actionIcon}
+                accessibilityLabel="Emergency">
                 <Image
                   source={Images.emergencyIcon}
                   style={styles.actionImage}
@@ -1342,7 +1351,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <LiquidGlassIconButton
                 onPress={() => navigation.navigate('Notifications')}
                 size={actionIconSize}
-                style={styles.actionIcon}>
+                style={styles.actionIcon}
+                accessibilityLabel={
+                  hasUnreadNotifications
+                    ? 'Notifications, unread'
+                    : 'Notifications'
+                }>
                 <View style={styles.notificationIconWrapper}>
                   <Image
                     source={Images.notificationIcon}
@@ -1384,21 +1398,35 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         ]}
         showsVerticalScrollIndicator={false}>
         {companions.length === 0 ? (
-          <View style={[styles.heroShadowWrapper, styles.heroTouchable]}>
+          <View style={styles.heroShadowWrapper}>
             <LiquidGlassCard
               glassEffect="clear"
               interactive
-              tintColor={theme.colors.primary}
+              tintColor={theme.colors.cardBackground}
               style={styles.heroCard}
               fallbackStyle={styles.heroFallback}>
-              <PressableOpacity
-                activeOpacity={0.9}
-                onPress={handleAddCompanion}
-                style={styles.heroContent}>
-                <Image source={Images.paw} style={styles.heroPaw} />
-                <Image source={Images.plusIcon} style={styles.heroIconImage} />
+              <View style={styles.heroContent}>
+                <View style={styles.heroPawCircle}>
+                  <Image source={Images.paw} style={styles.heroPawIcon} />
+                </View>
                 <Text style={styles.heroTitle}>Add your first companion</Text>
-              </PressableOpacity>
+                <Text style={styles.heroSubtitle}>
+                  Start their record: visits, doses, documents and everyone who
+                  cares for them, on one timeline.
+                </Text>
+                <PressableOpacity
+                  activeOpacity={0.9}
+                  onPress={handleAddCompanion}
+                  style={styles.heroButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add companion">
+                  <Image
+                    source={Images.plusIcon}
+                    style={styles.heroButtonIcon}
+                  />
+                  <Text style={styles.heroButtonText}>Add companion</Text>
+                </PressableOpacity>
+              </View>
             </LiquidGlassCard>
           </View>
         ) : (
@@ -1478,7 +1506,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                     key={action.id}
                     style={styles.quickAction}
                     activeOpacity={0.88}
-                    onPress={() => handleQuickActionPress(action.id)}>
+                    onPress={() => handleQuickActionPress(action.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={action.label}>
                     <View
                       style={[
                         styles.quickActionIconWrapper,
@@ -1565,8 +1595,14 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     greetingName: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
+      // Warm-bone greeting: Newsreader serif italic in the companion pink.
+      ...theme.typography.greeting,
+      color: theme.colors.pink,
+    },
+    greetingTitle: {
+      // Large Newsreader serif headline under the greeting.
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
     },
     headerActions: {
       flexDirection: 'row',
@@ -1604,12 +1640,6 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: theme.colors.cardBackground,
     },
-    heroTouchable: {
-      alignSelf: 'flex-start',
-      width: '50%',
-      minWidth: theme.spacing['40'],
-      maxWidth: theme.spacing['40'],
-    },
     heroShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
       ...(Platform.OS === 'ios' ? theme.shadows.sm : null),
@@ -1623,37 +1653,61 @@ const createStyles = (theme: any) =>
       borderColor: 'transparent',
     },
     heroContent: {
-      flex: 1,
-      minHeight: theme.spacing['24'] + theme.spacing['1'],
-      justifyContent: 'space-between',
-      gap: theme.spacing['2'],
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['2'],
     },
-    heroPaw: {
-      position: 'absolute',
-      right: theme.spacing['-11.25'],
-      top: theme.spacing['-11.25'],
-      width: theme.spacing['40'],
-      height: theme.spacing['40'],
-      tintColor: theme.colors.whiteOverlay70,
-      resizeMode: 'contain',
+    heroPawCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.pinkGlow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: theme.spacing['1'],
     },
-    heroIconImage: {
-      marginTop: theme.spacing['9'],
-      marginBottom: theme.spacing['1.25'],
-      width: theme.spacing['9'],
-      height: theme.spacing['9'],
-      tintColor: theme.colors.onPrimary,
+    heroPawIcon: {
+      width: 34,
+      height: 34,
+      tintColor: theme.colors.pink,
       resizeMode: 'contain',
     },
     heroTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.onPrimary,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    heroSubtitle: {
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing['3'],
+    },
+    heroButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+      backgroundColor: theme.colors.cta,
+      borderRadius: theme.borderRadius.full,
+      paddingHorizontal: theme.spacing['6'],
+      paddingVertical: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
+    },
+    heroButtonIcon: {
+      width: 16,
+      height: 16,
+      tintColor: theme.colors.ctaText,
+      resizeMode: 'contain',
+    },
+    heroButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.ctaText,
     },
     heroFallback: {
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primary,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     section: {
@@ -1705,10 +1759,10 @@ const createStyles = (theme: any) =>
       width: theme.spacing['12'],
       height: theme.spacing['12'],
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.blueSoft,
       justifyContent: 'center',
       alignItems: 'center',
-      boxShadow: `0px 1px 3px ${theme.colors.black}`,
+      boxShadow: `0px 1px 3px ${theme.colors.neutralShadow}`,
     },
     quickActionBrandIconWrapper: {
       backgroundColor: theme.colors.cardBackground,
@@ -1746,7 +1800,7 @@ const createStyles = (theme: any) =>
       width: theme.spacing['7'],
       height: theme.spacing['7'],
       resizeMode: 'contain',
-      tintColor: theme.colors.white,
+      tintColor: theme.colors.blue,
     },
     quickActionBrandIcon: {
       width: theme.spacing['12'],

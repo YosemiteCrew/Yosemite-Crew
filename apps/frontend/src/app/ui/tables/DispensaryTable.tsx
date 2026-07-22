@@ -61,6 +61,12 @@ const formatAmount = (cents: number, currency = 'USD') => {
   return `${symbol} ${(cents / 100).toFixed(2)}`;
 };
 
+// Format dispensary timestamps in the viewer's own timezone (they used to be
+// forced to UTC, #1879). Resolving it explicitly documents the intent and keeps
+// the value deterministic; the table's rows are client-fetched, so there is no
+// server-rendered value that could hydrate-mismatch.
+const VIEWER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 const formatDateTime = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -69,10 +75,14 @@ const formatDateTime = (iso?: string) => {
       month: 'short',
       day: '2-digit',
       year: 'numeric',
-      timeZone: 'UTC',
+      timeZone: VIEWER_TIME_ZONE,
     }) +
     '\n' +
-    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+    d.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: VIEWER_TIME_ZONE,
+    })
   );
 };
 

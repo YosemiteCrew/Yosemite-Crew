@@ -19,7 +19,7 @@ const DeleteOrg = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.ORG_DELETE]}>
-      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--danger-border)] px-5! py-[14px]!">
+      <div className="mt-auto flex items-center gap-3 rounded-[18px] border border-[var(--danger-border)] px-5! py-[14px]!">
         <div className="flex-1">
           <div className="text-[13px] font-bold text-[var(--danger-text)]">Delete organization</div>
           <div className="text-[11.5px] text-[var(--ink-faint)]">

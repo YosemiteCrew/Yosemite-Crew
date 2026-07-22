@@ -5,10 +5,13 @@ const redirect = jest.fn();
 jest.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }));
 
 let mockState: { status: string; role: string };
-jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: (selector: (state: { status: string; role: string }) => unknown) =>
-    selector(mockState),
-}));
+const mockCheckSession = jest.fn();
+jest.mock('@/app/stores/authStore', () => {
+  const useAuthStore = (selector: (state: { status: string; role: string }) => unknown) =>
+    selector(mockState);
+  useAuthStore.getState = () => ({ checkSession: mockCheckSession });
+  return { useAuthStore };
+});
 
 const resolvePostAuthRedirect = jest.fn();
 jest.mock('@/app/lib/postAuthRedirect', () => ({
@@ -21,6 +24,7 @@ describe('AuthedRedirectShell', () => {
   beforeEach(() => {
     redirect.mockReset();
     resolvePostAuthRedirect.mockReset();
+    mockCheckSession.mockReset();
     mockState = { status: 'unauthenticated', role: 'member' };
   });
 
@@ -52,5 +56,22 @@ describe('AuthedRedirectShell', () => {
       expect(resolvePostAuthRedirect).toHaveBeenCalledWith({ fallbackRole: 'admin' })
     );
     await waitFor(() => expect(redirect).toHaveBeenCalledWith('/dashboard'));
+  });
+
+  it('bootstraps the session check when the auth status is idle', async () => {
+    mockState = { status: 'idle', role: 'member' };
+
+    render(
+      <AuthedRedirectShell>
+        <div>auth screen</div>
+      </AuthedRedirectShell>
+    );
+
+    // idle is not authenticated, so the auth screen still renders and nothing redirects,
+    // but the session check is kicked off so `status` can resolve.
+    await waitFor(() => expect(mockCheckSession).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('auth screen')).toBeInTheDocument();
+    expect(resolvePostAuthRedirect).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

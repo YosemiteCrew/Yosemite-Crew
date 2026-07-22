@@ -71,7 +71,7 @@ function MenuItem({
       )}
     >
       {icon}
-      <Text as="span" variant="body-4" className="text-[var(--ink)]">
+      <Text as="span" variant="caption-1" className="text-[13px] text-[var(--ink)]">
         {label}
       </Text>
     </button>

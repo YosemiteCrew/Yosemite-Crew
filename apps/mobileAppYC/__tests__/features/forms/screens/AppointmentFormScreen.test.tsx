@@ -49,38 +49,14 @@ jest.mock('@react-navigation/native', () => ({
   useIsFocused: jest.fn(),
 }));
 
-jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        cardBackground: 'gray',
-        text: 'black',
-        textSecondary: 'gray',
-        primary: 'blue',
-        primaryTint: 'lightblue',
-        border: 'black',
-        borderMuted: 'lightgray',
-        error: 'red',
-        successSurface: 'lightgreen',
-        success: 'green',
-        secondary: 'purple',
-        white: 'white',
-      },
-      spacing: {'1': 4, '2': 8, '3': 12, '4': 16, '18': 72},
-      borderRadius: {md: 8, lg: 12},
-      typography: {
-        titleLarge: {fontSize: 20},
-        body14: {fontSize: 14},
-        labelSmall: {fontSize: 12},
-        button: {fontSize: 16},
-        titleSmall: {fontSize: 14},
-        bodyMedium: {fontSize: 14},
-        body12: {fontSize: 12},
-      },
-    },
-  }),
-}));
+// Use the shared, complete warm-bone theme mock so createStyles() never hits an
+// undefined token (screen2/inkFaint/blueSoft/cta/borderRadius.button/...).
+jest.mock('../../../../src/hooks', () => {
+  const {createMockTheme} = require('../../../setup/mockTheme');
+  return {
+    useTheme: () => ({theme: createMockTheme()}),
+  };
+});
 
 jest.mock('../../../../src/features/forms', () => ({
   selectFormsForAppointment: jest.fn(),
@@ -234,6 +210,8 @@ describe('AppointmentFormScreen — final coverage push', () => {
     (useNavigation as jest.Mock).mockReturnValue({
       navigate: mockNavigate,
       goBack: mockGoBack,
+      addListener: jest.fn(() => jest.fn()),
+      dispatch: jest.fn(),
     });
     (useRoute as jest.Mock).mockReturnValue({params: defaultRouteParams});
     (useIsFocused as jest.Mock).mockReturnValue(true);
@@ -1133,7 +1111,9 @@ describe('AppointmentFormScreen — final coverage push', () => {
     it('wires the main form header back action', () => {
       const {getByTestId} = render(<AppointmentFormScreen />);
 
-      fireEvent(getByTestId('header-back'), 'onTouchEnd');
+      // The rebuilt header renders a real PressableOpacity (Pressable), which
+      // exposes onPress rather than onTouchEnd — fire a press, not a touch.
+      fireEvent.press(getByTestId('header-back'));
 
       expect(mockGoBack).toHaveBeenCalled();
     });
@@ -2022,6 +2002,165 @@ describe('AppointmentFormScreen — final coverage push', () => {
       const {getByTestId} = render(<AppointmentFormScreen />);
       const btn = getByTestId('btn-View & Sign');
       expect(btn.props.onTouchEnd).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Remaining branch coverage after the warm-bone rebuild
+  // -------------------------------------------------------------------------
+
+  describe('remaining warm-bone branch coverage', () => {
+    const resolvedUnwrap = (value: any) => ({
+      unwrap: () => Promise.resolve(value),
+      catch: jest.fn(),
+    });
+
+    it('invokes goBack from the footer Back button', () => {
+      const {getByText} = render(<AppointmentFormScreen />);
+
+      fireEvent.press(getByText('Back'));
+
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    it('renders the header subtitle with organisation, date and companion', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: mockUser},
+          appointments: {
+            items: [
+              {
+                ...mockAppointment,
+                date: '2024-08-15',
+                organisationName: 'Happy Vets',
+              },
+            ],
+          },
+          companion: {companions: [mockCompanion]},
+        }),
+      );
+
+      const {getByText} = render(<AppointmentFormScreen />);
+      // headerSubtitle takes the `appointment?.date ? getDisplayDate(...)` branch
+      expect(getByText(/Happy Vets/)).toBeTruthy();
+    });
+
+    it('prefills a locked field from its text property when no placeholder exists', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, allowSign: true},
+      });
+      const entry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {id: 'info', type: 'input', label: 'Info', text: 'Reserved'},
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      // placeholder undefined → falls back to `field.text` in the lock-prefill path
+      expect(getByTestId('input-Info').props.value).toBe('Reserved');
+    });
+
+    it('goes back when signing is required but the submission id is missing', async () => {
+      const entry = {...baseFormEntry, signingRequired: true};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch.mockReturnValueOnce(resolvedUnwrap({}));
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+
+      await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(FormActions.startFormSigning).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Signing not started',
+        expect.stringContaining('could not start the signing process'),
+      );
+    });
+
+    it('warns before discarding unsaved answers and lets the user keep editing or discard', () => {
+      const listeners: Record<string, (e: any) => void> = {};
+      const mockAddListener = jest.fn((event: string, cb: any) => {
+        listeners[event] = cb;
+        return jest.fn();
+      });
+      const mockDispatchNav = jest.fn();
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: mockNavigate,
+        goBack: mockGoBack,
+        addListener: mockAddListener,
+        dispatch: mockDispatchNav,
+      });
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Name'), 'new value');
+
+      const preventDefault = jest.fn();
+      const action = {type: 'GO_BACK'};
+      listeners.beforeRemove({preventDefault, data: {action}});
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Discard changes?',
+        expect.stringContaining('have not been saved yet'),
+        expect.any(Array),
+      );
+
+      const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2];
+      const discardButton = alertButtons.find(
+        (btn: any) => btn.text === 'Discard',
+      );
+      discardButton.onPress();
+      expect(mockDispatchNav).toHaveBeenCalledWith(action);
+    });
+
+    it('does not prompt on back navigation when there are no unsaved changes', () => {
+      const listeners: Record<string, (e: any) => void> = {};
+      const mockAddListener = jest.fn((event: string, cb: any) => {
+        listeners[event] = cb;
+        return jest.fn();
+      });
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: mockNavigate,
+        goBack: mockGoBack,
+        addListener: mockAddListener,
+        dispatch: jest.fn(),
+      });
+
+      render(<AppointmentFormScreen />);
+
+      const preventDefault = jest.fn();
+      listeners.beforeRemove({preventDefault, data: {action: {}}});
+
+      expect(preventDefault).not.toHaveBeenCalled();
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it('JSON-stringifies an object value whose url is empty in read-only mode', () => {
+      const entry = {
+        ...baseFormEntry,
+        status: 'completed',
+        submission: {_id: 's1', answers: {u: {url: ''}}},
+        form: {
+          ...baseFormEntry.form,
+          schema: [{id: 'u', type: 'input', label: 'Doc'}],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      // 'url' in value is true but value.url is falsy → JSON.stringify fallback
+      expect(getByTestId('input-Doc').props.value).toBe('{"url":""}');
     });
   });
 });

@@ -136,22 +136,17 @@ describe('Settings Personal identity card', () => {
     expect(screen.getByText('Not set')).toBeInTheDocument();
   });
 
-  it('scrolls to the profile and availability editors via the affordances', () => {
-    const scrollIntoView = jest.fn();
-    const getById = jest
-      .spyOn(document, 'getElementById')
-      .mockReturnValue({ scrollIntoView } as unknown as HTMLElement);
+  it('opens the profile and availability editors via the affordance callbacks', () => {
+    const onEditProfile = jest.fn();
+    const onEditHours = jest.fn();
 
-    render(<Personal />);
+    render(<Personal onEditProfile={onEditProfile} onEditHours={onEditHours} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
-    expect(getById).toHaveBeenCalledWith('settings-user-profile');
+    expect(onEditProfile).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit hours' }));
-    expect(getById).toHaveBeenCalledWith('settings-availability');
-
-    expect(scrollIntoView).toHaveBeenCalledTimes(2);
-    getById.mockRestore();
+    expect(onEditHours).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to a placeholder name and omits the meta line when data is sparse', () => {

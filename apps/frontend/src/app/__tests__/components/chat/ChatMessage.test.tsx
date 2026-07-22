@@ -152,6 +152,61 @@ describe('ChatMessage', () => {
     expect(handleReaction).toHaveBeenCalledWith('❤️', expect.anything());
   });
 
+  it('renders the reaction picker in a body portal with every emoji visible', () => {
+    // Regression: the picker previously opened downward inside Stream's
+    // overflow:auto message list and was clipped on the last message. It now
+    // renders through a portal to document.body with position:fixed so no scroll
+    // ancestor can clip it, and every REACTION_EMOJI stays visible.
+    const REACTION_EMOJIS = ['👍', '❤️', '😂', '🎉', '🙏', '✅'];
+    setup();
+    fireEvent.click(screen.getByLabelText('React'));
+    REACTION_EMOJIS.forEach((emoji) => {
+      expect(screen.getByText(emoji)).toBeInTheDocument();
+    });
+    const popover = screen.getByText('❤️').closest('div');
+    expect(popover?.parentElement).toBe(document.body);
+    expect(popover).toHaveStyle({ position: 'fixed' });
+  });
+
+  it('closes the reaction picker on Escape', () => {
+    setup();
+    fireEvent.click(screen.getByLabelText('React'));
+    expect(screen.getByText('❤️')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText('❤️')).not.toBeInTheDocument();
+  });
+
+  it('dismisses the reaction picker when the page scrolls', () => {
+    setup();
+    fireEvent.click(screen.getByLabelText('React'));
+    expect(screen.getByText('❤️')).toBeInTheDocument();
+    fireEvent.scroll(window);
+    expect(screen.queryByText('❤️')).not.toBeInTheDocument();
+  });
+
+  it('flips the reaction picker above the trigger when there is no room below', () => {
+    setup();
+    const reactBtn = screen.getByLabelText('React');
+    // Anchor sits at the very bottom of the viewport, so the picker must open
+    // upward rather than clip past the fold.
+    jest.spyOn(reactBtn, 'getBoundingClientRect').mockReturnValue({
+      bottom: 900,
+      top: 890,
+      left: 50,
+      right: 90,
+      width: 40,
+      height: 20,
+      x: 50,
+      y: 890,
+      toJSON: () => ({}),
+    } as DOMRect);
+    fireEvent.click(reactBtn);
+    const popover = screen.getByText('❤️').closest('div');
+    expect(popover).toHaveStyle({ position: 'fixed' });
+    // top = max(8, anchor.top - panelHeight - 6) with a zero-height jsdom panel.
+    expect(popover?.style.top).toBe('884px');
+  });
+
   it('replies via the thread handler', () => {
     const { handleOpenThread } = setup();
     fireEvent.click(screen.getByLabelText('Reply'));
@@ -251,19 +306,19 @@ describe('ChatMessage', () => {
     expect(editMessage).not.toHaveBeenCalled();
   });
 
-  it('closes the reaction picker via the backdrop', () => {
+  it('closes the reaction picker on an outside pointer-down', () => {
     setup();
     fireEvent.click(screen.getByLabelText('React'));
     expect(screen.getByText('❤️')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.mouseDown(document.body);
     expect(screen.queryByText('❤️')).not.toBeInTheDocument();
   });
 
-  it('closes the more-menu via the backdrop', () => {
+  it('closes the more-menu on an outside pointer-down', () => {
     setup({ isMyMessage: true });
     fireEvent.click(screen.getByLabelText('More'));
     expect(screen.getByText('Edit')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.mouseDown(document.body);
     expect(screen.queryByText('Edit')).not.toBeInTheDocument();
   });
 

@@ -141,7 +141,7 @@ export function ChatCommandPalette({
                     <ChatAvatar name={title} size="sm" />
                     <Text
                       as="span"
-                      variant="body-4-emphasis"
+                      variant="caption-1"
                       className="flex-1 truncate text-neutral-900"
                     >
                       {title}

@@ -6,6 +6,7 @@ import type { AuthenticatedRequest } from "../middlewares/auth";
 import { requireAnyAuth } from "../middlewares/auth";
 import { MfaController } from "../controllers/web/mfa.controller";
 import { MfaDebugController } from "../controllers/web/mfa-debug.controller";
+import { isLocalDevEnvironment } from "../utils/local-dev";
 
 const router = Router();
 
@@ -82,11 +83,19 @@ router.post(
   requireAuth(),
   (req: SessionRequest, res: Response) => MfaController.disableTotp(req, res),
 );
-router.post(
-  "/mfa/totp/debug/create-device",
-  requireAuth(),
-  (req: SessionRequest, res: Response) =>
-    MfaDebugController.createTotpDevice(req, res),
-);
+// Local-development helper for creating a TOTP device without the full
+// enrollment flow. Gated at registration so the route is structurally absent
+// unless this process is an explicitly-flagged local run, and gated again at
+// runtime by the controller's assertLocalDev. Both consult the same helper, so
+// any deployed environment - including a dev or staging tier running
+// NODE_ENV=development - fails closed at both layers.
+if (isLocalDevEnvironment()) {
+  router.post(
+    "/mfa/totp/debug/create-device",
+    requireAuth(),
+    (req: SessionRequest, res: Response) =>
+      MfaDebugController.createTotpDevice(req, res),
+  );
+}
 
 export default router;

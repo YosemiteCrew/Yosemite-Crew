@@ -86,7 +86,7 @@ describe('motion primitives', () => {
       render(<Reveal>no-observer content</Reveal>);
       render(<CountUp value="128" />);
       expect(screen.getByText('no-observer content')).toBeInTheDocument();
-      expect(screen.getByText('128')).toBeInTheDocument();
+      expect(screen.getAllByText('128').at(-1)).toBeInTheDocument();
     } finally {
       (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = io;
     }
@@ -105,12 +105,12 @@ describe('motion primitives', () => {
   it('CountUp shows the formatted target under reduced motion', () => {
     setReducedMotion(true);
     render(<CountUp value="67,134" />);
-    expect(screen.getByText('67,134')).toBeInTheDocument();
+    expect(screen.getAllByText('67,134').at(-1)).toBeInTheDocument();
   });
 
   it('CountUp renders non-numeric values verbatim', () => {
     render(<CountUp value="Coming soon" />);
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+    expect(screen.getAllByText('Coming soon').at(-1)).toBeInTheDocument();
   });
 
   it('CountUp animates to the target with requestAnimationFrame', () => {
@@ -121,7 +121,7 @@ describe('motion primitives', () => {
         return 1;
       });
     render(<CountUp value="3,210" className="stat" />);
-    expect(screen.getByText('3,210')).toBeInTheDocument();
+    expect(screen.getAllByText('3,210').at(-1)).toBeInTheDocument();
     raf.mockRestore();
   });
 

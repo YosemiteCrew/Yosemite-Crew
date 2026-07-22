@@ -1,6 +1,6 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {Pressable, Image} from 'react-native';
+import {Pressable} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
   DocumentCard,
@@ -12,13 +12,6 @@ import {
 const PressableType = (Pressable as any).type;
 
 // --- Mocks ---
-
-// Mock Images asset
-jest.mock('@/assets/images', () => ({
-  Images: {
-    documentFallback: {uri: 'fallback-image-png'},
-  },
-}));
 
 // Mock SwipeableActionCard (Wrapper)
 jest.mock(
@@ -33,7 +26,7 @@ jest.mock(
   },
 );
 
-// Mock helpers
+// Mock helpers (formatLabel returns the label as-is, falling back when empty)
 jest.mock('@/shared/utils/helpers', () => ({
   formatLabel: (label: string, fallback: string) => label || fallback,
 }));
@@ -70,88 +63,94 @@ describe('DocumentCard Component', () => {
   // 1. Rendering Logic
   // ===========================================================================
 
-  it('renders correctly with all props provided', () => {
+  it('renders the title, the joined meta line, and the swipeable wrapper', () => {
     const {getByText, getByTestId} = render(<DocumentCard {...defaultProps} />);
 
     expect(getByTestId('swipeable-card')).toBeTruthy();
     expect(getByText('Vaccination Report')).toBeTruthy();
-    expect(getByText('Happy Vet Clinic')).toBeTruthy();
-    expect(getByText('Checkup')).toBeTruthy();
-    // Verify date formatting (Jan 15, 2023)
-    expect(getByText('Jan 15, 2023')).toBeTruthy();
+    // Meta line: visit type · business · issue date (single node)
+    expect(
+      getByText(/Checkup\s+·\s+Happy Vet Clinic\s+·\s+Jan 15, 2023/),
+    ).toBeTruthy();
   });
 
-  it('renders default values when props are missing or empty', () => {
-    const {getByText, getAllByText} = render(
+  it('renders the default document icon tile and trailing ellipsis icon', () => {
+    const {getByTestId} = render(<DocumentCard {...defaultProps} />);
+
+    expect(getByTestId('icon-document-text-outline')).toBeTruthy();
+    expect(getByTestId('icon-ellipsis-horizontal')).toBeTruthy();
+  });
+
+  it('falls back to "Document" and renders no meta line when fields are empty', () => {
+    const {getByText, queryByText} = render(
       <DocumentCard
         {...defaultProps}
         title=""
         businessName=""
         visitType=""
-        issueDate="" // Empty string simulates invalid date scenario for helper logic
+        issueDate=""
       />,
     );
 
-    expect(getByText('Document')).toBeTruthy(); // Default title
+    expect(getByText('Document')).toBeTruthy();
+    // No segments -> no separator anywhere on the row
+    expect(queryByText(/·/)).toBeNull();
+  });
 
-    // "Business: —" and "Visit type: —" and "Issue Date: —"
-    // Since "—" appears multiple times, we check specifically or check count
-    const dashes = getAllByText('—');
-    expect(dashes.length).toBeGreaterThanOrEqual(3);
+  it('omits empty segments in the meta line but keeps the rest', () => {
+    const {getByText, queryByText} = render(
+      <DocumentCard {...defaultProps} businessName="" />,
+    );
+
+    // Business omitted; visit type and date remain, joined by the separator
+    expect(getByText(/^Checkup\s+·\s+Jan 15, 2023$/)).toBeTruthy();
+    expect(queryByText(/Happy Vet Clinic/)).toBeNull();
   });
 
   // ===========================================================================
   // 2. Date Formatting Logic
   // ===========================================================================
 
-  it('formats valid ISO date string correctly', () => {
+  it('formats a valid ISO date string into the meta line', () => {
     const {getByText} = render(
       <DocumentCard {...defaultProps} issueDate="2023-12-25" />,
     );
-    expect(getByText('Dec 25, 2023')).toBeTruthy();
+    expect(
+      getByText(/Checkup\s+·\s+Happy Vet Clinic\s+·\s+Dec 25, 2023/),
+    ).toBeTruthy();
   });
 
-  it('formats Date object correctly', () => {
-    // @ts-ignore - Prop type says string, but helper handles Date object too
-    const dateObj = new Date('2023-11-20');
-    const {getByText} = render(
-      // @ts-ignore
-      <DocumentCard {...defaultProps} issueDate={dateObj} />,
-    );
-    expect(getByText('Nov 20, 2023')).toBeTruthy();
-  });
-
-  it('handles invalid date string gracefully', () => {
-    const {getByText} = render(
+  it('omits the date segment when the date is invalid', () => {
+    const {getByText, queryByText} = render(
       <DocumentCard {...defaultProps} issueDate="invalid-date-string" />,
     );
-    // Should render dash for invalid date
-    // Note: Because other fields might also render '—', ensure context or check existence
-    // The component renders: <Text>Title: </Text><Text>—</Text>
-    // So specifically checking for the dash
-    const allDashes = getByText(/—/);
-    expect(allDashes).toBeTruthy();
+    // Invalid date -> segment dropped; visit type + business remain
+    expect(getByText(/^Checkup\s+·\s+Happy Vet Clinic$/)).toBeTruthy();
+    expect(queryByText(/—/)).toBeNull();
   });
 
   // ===========================================================================
-  // 3. Image Logic
+  // 3. Synced Pill
   // ===========================================================================
 
-  it('renders provided thumbnail', () => {
-    const customImage = {uri: 'custom-uri'};
-    const {UNSAFE_getByType} = render(
-      <DocumentCard {...defaultProps} thumbnail={customImage} />,
+  it('renders the SYNCED pill only when synced is true', () => {
+    const {getByTestId, getByText} = render(
+      <DocumentCard {...defaultProps} synced />,
     );
-    const image = UNSAFE_getByType(Image);
-    expect(image.props.source).toEqual(customImage);
+    expect(getByTestId('document-synced-pill')).toBeTruthy();
+    expect(getByText('SYNCED')).toBeTruthy();
   });
 
-  it('renders fallback image when thumbnail is undefined', () => {
-    const {UNSAFE_getByType} = render(
-      <DocumentCard {...defaultProps} thumbnail={undefined} />,
+  it('hides the SYNCED pill when synced is false', () => {
+    const {queryByTestId} = render(
+      <DocumentCard {...defaultProps} synced={false} />,
     );
-    const image = UNSAFE_getByType(Image);
-    expect(image.props.source).toEqual({uri: 'fallback-image-png'});
+    expect(queryByTestId('document-synced-pill')).toBeNull();
+  });
+
+  it('hides the SYNCED pill by default when synced is omitted', () => {
+    const {queryByTestId} = render(<DocumentCard {...defaultProps} />);
+    expect(queryByTestId('document-synced-pill')).toBeNull();
   });
 
   // ===========================================================================

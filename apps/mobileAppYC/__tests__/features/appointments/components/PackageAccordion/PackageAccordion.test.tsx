@@ -144,6 +144,23 @@ describe('PackageAccordion', () => {
     expect(getAllByText('$ 3400.00').length).toBeGreaterThan(0);
   });
 
+  it('applies the pressed header style while the header is being pressed', () => {
+    const {UNSAFE_root} = render(
+      <PackageAccordion
+        title="Packages"
+        packages={[mockPackageWithItems]}
+        onSelectPackage={onSelectPackage}
+      />,
+    );
+    const header = UNSAFE_root.find(
+      (node: any) => typeof node.props.style === 'function',
+    );
+    const flattened = [header.props.style({pressed: true})].flat(Infinity);
+    expect(flattened.some((style: any) => style && style.opacity === 0.7)).toBe(
+      true,
+    );
+  });
+
   describe('default expanded state', () => {
     it('first package is expanded by default and shows breakdown', () => {
       const {getByText} = render(
@@ -310,6 +327,27 @@ describe('PackageAccordion', () => {
         'Canine Radiographic Assessment',
         undefined,
       );
+    });
+  });
+
+  describe('Appointment kind badges', () => {
+    it('shows the known label for a recognized kind and falls back to the raw value for an unrecognized one', () => {
+      const packageWithKinds: VetPackage = {
+        ...mockPackageWithItems,
+        id: 'pkg-kinds',
+        appointmentKinds: ['INPATIENT', 'SURGERY'] as any,
+      };
+
+      const {getByText} = render(
+        <PackageAccordion
+          title="Packages"
+          packages={[packageWithKinds]}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+
+      expect(getByText('Inpatient')).toBeTruthy();
+      expect(getByText('SURGERY')).toBeTruthy();
     });
   });
 });

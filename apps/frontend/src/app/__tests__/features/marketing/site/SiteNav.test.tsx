@@ -4,6 +4,8 @@ import '@testing-library/jest-dom';
 
 let starsValue: string | null = '2.4k';
 let scrolledValue = false;
+let mockAuthState: { status: string; user: unknown; role: string | null };
+const mockCheckSession = jest.fn();
 
 jest.mock('@/app/features/marketing/site/useGithubStats', () => ({
   useGithubStats: () => ({ stars: starsValue }),
@@ -11,6 +13,11 @@ jest.mock('@/app/features/marketing/site/useGithubStats', () => ({
 jest.mock('@/app/features/marketing/site/motion', () => ({
   useScrolled: () => scrolledValue,
 }));
+jest.mock('@/app/stores/authStore', () => {
+  const useAuthStore = (selector: (s: typeof mockAuthState) => unknown) => selector(mockAuthState);
+  useAuthStore.getState = () => ({ checkSession: mockCheckSession });
+  return { useAuthStore };
+});
 jest.mock('next/image', () => ({
   __esModule: true,
   default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
@@ -26,6 +33,8 @@ describe('SiteNav', () => {
   beforeEach(() => {
     starsValue = '2.4k';
     scrolledValue = false;
+    mockAuthState = { status: 'unauthenticated', user: null, role: null };
+    mockCheckSession.mockReset();
   });
 
   it('renders the primary nav links, star count and the get-started CTA', () => {
@@ -70,5 +79,28 @@ describe('SiteNav', () => {
     scrolledValue = true;
     render(<SiteNav active="about" />);
     expect(screen.getAllByRole('link', { name: 'About' }).length).toBeGreaterThan(0);
+  });
+
+  it('shows a "Go to app" link to the default route for an authenticated visitor', () => {
+    mockAuthState = { status: 'authenticated', user: { userId: 'u1' }, role: 'developer' };
+    render(<SiteNav />);
+    const goToApp = screen.getAllByRole('link', { name: 'Go to app' });
+    expect(goToApp.length).toBeGreaterThan(0);
+    expect(goToApp.every((el) => el.getAttribute('href') === '/developers/home')).toBe(true);
+    expect(screen.queryByRole('link', { name: 'Get started' })).not.toBeInTheDocument();
+  });
+
+  it('shows the "Get started" sign-up link for a guest', () => {
+    render(<SiteNav />);
+    const getStarted = screen.getAllByRole('link', { name: 'Get started' });
+    expect(getStarted.length).toBeGreaterThan(0);
+    expect(getStarted.every((el) => el.getAttribute('href') === '/signup')).toBe(true);
+    expect(screen.queryByRole('link', { name: 'Go to app' })).not.toBeInTheDocument();
+  });
+
+  it('bootstraps the session check when the auth status is idle', () => {
+    mockAuthState = { status: 'idle', user: null, role: null };
+    render(<SiteNav />);
+    expect(mockCheckSession).toHaveBeenCalledTimes(1);
   });
 });

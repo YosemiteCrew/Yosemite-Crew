@@ -5,10 +5,11 @@ import clsx from 'clsx';
 import { IoChevronBackOutline, IoChevronForwardOutline, IoWarning } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 
+import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
+
 import {
   buildPhoneWeekOverview,
   SEGMENT_COLORS,
-  toDateKey,
   type PhoneWeekDayMeta,
   type PhoneWeekDayRow,
 } from './phoneWeekLoad';
@@ -140,7 +141,11 @@ const PhoneWeekOverview = ({
     [weekStart, appointments, dayMeta, defaultCapacity]
   );
 
-  const selectedKey = selectedDate ? toDateKey(selectedDate) : null;
+  // Each day row is keyed by its preferred-time-zone day (buildPhoneWeekOverview matches
+  // appointments the same way), so the selection must be keyed in that zone too. Using the
+  // device-local day here highlighted the wrong row when the preferred zone crossed a local
+  // midnight relative to the selected instant.
+  const selectedKey = selectedDate ? getDateKeyInPreferredTimeZone(selectedDate) : null;
 
   return (
     <section className="yc-pwo" aria-label={`${overview.weekLabel}, ${overview.rangeLabel}`}>

@@ -103,7 +103,10 @@ export const createOrg = async (formData: Organisation) => {
       organizationReference: _id,
       roleCode: 'OWNER',
       roleDisplay: 'Owner',
-      active: false,
+      // The server creates this mapping active (it defaults `active ?? true`),
+      // so the optimistic copy has to match or the creator is treated as a
+      // deactivated member until the next mapping fetch.
+      active: true,
       effectivePermissions: ROLE_PERMISSIONS.OWNER,
       extraPermissions: [],
       revokedPermissions: [],

@@ -30,6 +30,19 @@ type TaskCalendarProps = {
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks?: boolean;
   onCreateFromCalendarSlot?: (prefill: { dueAt: Date; assignedTo?: string }) => void;
+  filterOptions?: Array<{ key: string; name: string; dotColor?: string }>;
+  activeFilter?: string;
+  setActiveFilter?: (value: string) => void;
+  statusOptions?: Array<{
+    key: string;
+    name: string;
+    bg?: string;
+    text?: string;
+    border?: string;
+    dropdownText?: string;
+  }>;
+  activeStatus?: string;
+  setActiveStatus?: (value: string) => void;
 };
 
 const TaskCalendar = ({
@@ -48,6 +61,12 @@ const TaskCalendar = ({
   setWeekStart,
   canEditTasks = false,
   onCreateFromCalendarSlot,
+  filterOptions,
+  activeFilter,
+  setActiveFilter,
+  statusOptions,
+  activeStatus,
+  setActiveStatus,
 }: TaskCalendarProps) => {
   const allTaskItems = allTasks ?? filteredList;
   const teams = useTeamForPrimaryOrg();
@@ -151,6 +170,12 @@ const TaskCalendar = ({
           setZoomMode={setZoomMode}
           activeCalendar={activeCalendar}
           setActiveCalendar={setActiveCalendar}
+          filterOptions={filterOptions}
+          activeFilter={activeFilter}
+          setActiveFilter={setActiveFilter}
+          statusOptions={statusOptions}
+          activeStatus={activeStatus}
+          setActiveStatus={setActiveStatus}
         />
         {dragError ? (
           <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">

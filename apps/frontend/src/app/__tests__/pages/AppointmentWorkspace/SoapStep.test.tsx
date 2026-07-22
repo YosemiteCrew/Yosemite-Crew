@@ -5,7 +5,10 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import SoapStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
-import { getWorkspaceTemplateById } from '@/app/features/appointments/services/workspaceTemplateService';
+import {
+  getWorkspaceTemplateById,
+  resolveSoapTemplate,
+} from '@/app/features/appointments/services/workspaceTemplateService';
 
 expect.extend(toHaveNoViolations);
 
@@ -65,9 +68,11 @@ describe('SoapStep', () => {
     (saveSoapNote as jest.Mock).mockResolvedValue({ id: 'soap-saved' });
     (getWorkspaceTemplateById as jest.Mock).mockReset();
     (getWorkspaceTemplateById as jest.Mock).mockResolvedValue(undefined);
+    (resolveSoapTemplate as jest.Mock).mockReset();
+    (resolveSoapTemplate as jest.Mock).mockResolvedValue(null);
   });
 
-  const renderSoapStep = (encounter = seedAndGet()) =>
+  const renderSoapStep = (encounter = seedAndGet(), visitStarted = true) =>
     render(
       <SoapStep
         appointmentId={APPT}
@@ -76,6 +81,7 @@ describe('SoapStep', () => {
         appointmentService={APPOINTMENT_SERVICE}
         appointmentSpeciality={APPOINTMENT_SPECIALITY}
         encounter={encounter}
+        visitStarted={visitStarted}
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />
@@ -204,6 +210,47 @@ describe('SoapStep', () => {
     expect(soap?.templateId).toBeUndefined();
   });
 
+  it('auto-prefills the service/package SOAP template once the visit has started', async () => {
+    (resolveSoapTemplate as jest.Mock).mockResolvedValueOnce({
+      id: 'tpl-auto',
+      name: 'Auto SOAP',
+      content: { subjective: '<p>auto subjective</p>' },
+    });
+    const encounter = seedAndGet();
+    renderSoapStep(encounter, true);
+    await waitFor(() => {
+      expect(resolveSoapTemplate).toHaveBeenCalled();
+      const draft = useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter(APPT)
+        ?.soap.find((entry) => entry.status !== 'COMPLETED');
+      expect(draft?.subjective).toBe('<p>auto subjective</p>');
+    });
+  });
+
+  it('does NOT auto-prefill the SOAP template before the visit has started', async () => {
+    (resolveSoapTemplate as jest.Mock).mockResolvedValue({
+      id: 'tpl-auto',
+      name: 'Auto SOAP',
+      content: { subjective: '<p>auto subjective</p>' },
+    });
+    const encounter = seedAndGet();
+    renderSoapStep(encounter, false);
+    // The auto-resolve is gated off, so the resolver never runs and the draft
+    // stays empty.
+    await waitFor(() => {
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soapTemplates.length
+      ).toBeGreaterThan(0);
+    });
+    expect(resolveSoapTemplate).not.toHaveBeenCalled();
+    const draft = useAppointmentWorkspaceStore
+      .getState()
+      .getEncounter(APPT)
+      ?.soap.find((entry) => entry.status !== 'COMPLETED');
+    expect(draft?.subjective ?? '').not.toContain('auto subjective');
+  });
+
   it('shows the autosave indicator after a save', () => {
     seedAndGet();
     useAppointmentWorkspaceStore.getState().upsertSoap(APPT, { subjective: '<p>history</p>' });
@@ -213,6 +260,7 @@ describe('SoapStep', () => {
         appointmentId={APPT}
         appointmentReason={APPOINTMENT_REASON}
         encounter={enc}
+        visitStarted
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />
@@ -233,6 +281,7 @@ describe('SoapStep', () => {
         appointmentId={APPT}
         appointmentReason={APPOINTMENT_REASON}
         encounter={enc}
+        visitStarted
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />
@@ -247,6 +296,7 @@ describe('SoapStep', () => {
         appointmentId={APPT}
         appointmentReason={APPOINTMENT_REASON}
         encounter={updated}
+        visitStarted
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />
@@ -271,6 +321,7 @@ describe('SoapStep', () => {
         encounter={enc}
         authorId="current-user"
         authorName="Dr Current User"
+        visitStarted
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />
@@ -288,6 +339,7 @@ describe('SoapStep', () => {
         encounter={updated}
         authorId="current-user"
         authorName="Dr Current User"
+        visitStarted
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />
@@ -388,6 +440,7 @@ describe('SoapStep', () => {
         organisationId="org-1"
         appointmentReason={APPOINTMENT_REASON}
         encounter={enc}
+        visitStarted
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />
@@ -426,6 +479,7 @@ describe('SoapStep', () => {
         organisationId="org-1"
         appointmentReason={APPOINTMENT_REASON}
         encounter={enc}
+        visitStarted
         onRecordVitals={onRecordVitals}
         onSaveAndNext={onSaveAndNext}
       />

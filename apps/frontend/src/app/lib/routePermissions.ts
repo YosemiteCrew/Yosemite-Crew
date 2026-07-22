@@ -1,10 +1,19 @@
 import { appRoutes } from '@/app/constants/routes';
-import { Permission, PERMISSIONS } from '@/app/lib/permissions';
+import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
 
-const ROUTE_ACCESS_OVERRIDES: ReadonlyArray<{ pathPrefix: string; requiredAny: Permission[] }> = [
+const ROUTE_ACCESS_OVERRIDES: ReadonlyArray<{
+  pathPrefix: string;
+  requiredAny?: Permission[];
+  requiredAll?: Permission[];
+}> = [
   {
+    // The workspace needs both grants: it loads lab results and orders from
+    // routes requiring labs:view:any, and reads the integration status from
+    // routes requiring integrations:view:any, so holding one without the other
+    // renders it empty. Role baselines always pair them, but extras and
+    // revocations can separate the two on a custom membership.
     pathPrefix: '/appointments/idexx-workspace',
-    requiredAny: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+    requiredAll: [PERMISSIONS.LABS_VIEW_ANY, PERMISSIONS.INTEGRATIONS_VIEW_ANY],
   },
   {
     pathPrefix: '/integrations',
@@ -33,14 +42,71 @@ export const hasAnyRequiredPermission = (
   return requiredAnyPermissions.some((permission) => permissionSet.has(permission));
 };
 
-const resolveRequiredAnyPermissionsForPath = (pathname: string): Permission[] | undefined => {
+export const hasAllRequiredPermissions = (
+  effectivePermissions: string[] | undefined,
+  requiredAllPermissions?: Permission[]
+): boolean => {
+  if (!requiredAllPermissions?.length) return true;
+  if (!effectivePermissions?.length) return false;
+
+  const permissionSet = new Set(effectivePermissions);
+  return requiredAllPermissions.every((permission) => permissionSet.has(permission));
+};
+
+type MembershipPermissionSource = {
+  roleCode?: string | null;
+  active?: boolean | null;
+  extraPermissions?: string[] | null;
+  revokedPermissions?: string[] | null;
+};
+
+/**
+ * Effective permissions for a membership, recomputed from its role instead of
+ * trusting the stored snapshot alone. Memberships persist effectivePermissions
+ * at write time, so a row written before a permission joined the role table
+ * keeps that stale set indefinitely, which silently greys out nav entries the
+ * role does own. Recomputing baseline + extras - revocations mirrors the
+ * backend formula, so drifted rows heal without a data migration while explicit
+ * revocations are still honoured. An unrecognised role falls back to the stored
+ * array so an unknown role never gains permissions it was never granted.
+ */
+export const resolveMembershipPermissions = (
+  membership?: MembershipPermissionSource | null
+): string[] => {
+  // The backend only resolves permissions for an active mapping and treats a
+  // missing flag as active, so an explicitly deactivated membership grants
+  // nothing here either.
+  if (membership?.active === false) return [];
+
+  const extras = membership?.extraPermissions ?? [];
+  const roleCode = membership?.roleCode;
+  // No role at all: the backend returns the extras verbatim, without applying
+  // revocations. A role that is merely unrecognised is different - it falls
+  // through to an empty baseline below and still honours revocations.
+  if (!roleCode) return [...new Set(extras)];
+
+  // The stored effectivePermissions snapshot is deliberately never consulted.
+  // It is written at save time, so dropping a permission from the role table
+  // leaves it behind in every earlier snapshot without ever appearing in
+  // revokedPermissions; folding those in would re-grant access the API now
+  // denies. Deriving purely from role plus extras minus revocations is exactly
+  // what the backend recomputes on every request.
+  const baseline = ROLE_PERMISSIONS[roleCode as RoleCode] ?? [];
+  const granted = new Set<string>([...baseline, ...extras]);
+  for (const permission of membership?.revokedPermissions ?? []) granted.delete(permission);
+  return [...granted];
+};
+
+const resolveRouteAccessRequirements = (
+  pathname: string
+): { any?: Permission[]; all?: Permission[] } => {
   const override = ROUTE_ACCESS_OVERRIDES.find((rule) => matchesPath(pathname, rule.pathPrefix));
   if (override) {
-    return override.requiredAny;
+    return { any: override.requiredAny, all: override.requiredAll };
   }
 
   const route = appRoutes.find((item) => matchesPath(pathname, item.href));
-  return route?.requiredAnyPermissions;
+  return { any: route?.requiredAnyPermissions };
 };
 
 export const canAccessPathByPermissions = (
@@ -48,8 +114,11 @@ export const canAccessPathByPermissions = (
   effectivePermissions: string[] | undefined
 ): boolean => {
   const normalizedPath = normalizePath(pathname);
-  const requiredAnyPermissions = resolveRequiredAnyPermissionsForPath(normalizedPath);
-  return hasAnyRequiredPermission(effectivePermissions, requiredAnyPermissions);
+  const { any, all } = resolveRouteAccessRequirements(normalizedPath);
+  return (
+    hasAnyRequiredPermission(effectivePermissions, any) &&
+    hasAllRequiredPermissions(effectivePermissions, all)
+  );
 };
 
 export const resolveFirstAccessibleAppRoute = (

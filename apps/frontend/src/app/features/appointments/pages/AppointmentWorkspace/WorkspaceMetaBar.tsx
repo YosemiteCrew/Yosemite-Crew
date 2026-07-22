@@ -32,9 +32,11 @@ const ReadOnlyMetaField = ({ label, value }: { label: string; value: string }) =
 
 /**
  * Editable Room/Unit dropdown. LabelDropdown's trigger already carries the
- * design's 46px / 1.5px-hairline / 13px-radius box, so the only change needed
- * here is the label: its stacked label is hidden and re-rendered notched into
- * the trigger's top border, matching the sibling read-only meta fields.
+ * design's 46px / 1.5px-hairline / 13px-radius box, so the changes needed here
+ * are the label and the fill: its stacked label is hidden and re-rendered
+ * notched into the trigger's top border, and the trigger is filled with
+ * `--field-bg` (theme-live via var()) so it matches the sibling read-only meta
+ * fields instead of washing out transparently.
  */
 const EditableMetaDropdown = ({
   label,
@@ -47,7 +49,7 @@ const EditableMetaDropdown = ({
   value?: string;
   onSelect: (option: DropdownOption) => void;
 }) => (
-  <div className="relative w-full [&>div>span]:pointer-events-none [&>div>span]:absolute [&>div>span]:-top-[7px] [&>div>span]:left-3 [&>div>span]:z-30 [&>div>span]:mb-0 [&>div>span]:bg-[var(--screen)] [&>div>span]:px-[5px] [&>div>span]:text-[10.5px] [&>div>span]:text-[var(--ink-faint)] [&>div>div>button]:rounded-[14px]! [&>div>div>button]:bg-transparent! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
+  <div className="relative w-full [&>div>span]:pointer-events-none [&>div>span]:absolute [&>div>span]:-top-[7px] [&>div>span]:left-3 [&>div>span]:z-30 [&>div>span]:mb-0 [&>div>span]:bg-[var(--screen)] [&>div>span]:px-[5px] [&>div>span]:text-[10.5px] [&>div>span]:text-[var(--ink-faint)] [&>div>div>button]:rounded-[14px]! [&>div>div>button]:bg-[var(--field-bg)]! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
     <LabelDropdown
       placeholder={label}
       options={options}

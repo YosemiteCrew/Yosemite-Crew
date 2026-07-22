@@ -82,6 +82,20 @@ describe('DocumentAttachmentsSection', () => {
     expect(mockOnAddPress).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes a button role and the empty title as the accessibility label', () => {
+    const {getByLabelText} = render(
+      <DocumentAttachmentsSection
+        files={[]}
+        onAddPress={mockOnAddPress}
+        onRequestRemove={mockOnRequestRemove}
+        emptyTitle="Press Me"
+      />,
+    );
+
+    const button = getByLabelText('Press Me');
+    expect(button.props.accessibilityRole).toBe('button');
+  });
+
   // --- 2. List State (Non-Image Files) ---
 
   it('renders a list of non-image files with placeholders', () => {
@@ -129,6 +143,22 @@ describe('DocumentAttachmentsSection', () => {
     fireEvent.press(closeIcon!.parent!);
 
     expect(mockOnRequestRemove).toHaveBeenCalledWith(file);
+  });
+
+  it('exposes a button role and the file name on the remove button', () => {
+    (isImageFile as jest.Mock).mockReturnValue(false);
+    const file = {id: '1', name: 'test.pdf'};
+
+    const {getByLabelText} = render(
+      <DocumentAttachmentsSection
+        files={[file] as any}
+        onAddPress={mockOnAddPress}
+        onRequestRemove={mockOnRequestRemove}
+      />,
+    );
+
+    const removeButton = getByLabelText('Remove test.pdf');
+    expect(removeButton.props.accessibilityRole).toBe('button');
   });
 
   // --- 3. List State (Image Files & Source Resolution) ---
@@ -227,6 +257,21 @@ describe('DocumentAttachmentsSection', () => {
     fireEvent.press(addIcon!.parent!);
 
     expect(mockOnAddPress).toHaveBeenCalled();
+  });
+
+  it('exposes a button role and label on the add-more tile', () => {
+    (isImageFile as jest.Mock).mockReturnValue(false);
+
+    const {getByLabelText} = render(
+      <DocumentAttachmentsSection
+        files={[{id: '1'} as any]}
+        onAddPress={mockOnAddPress}
+        onRequestRemove={mockOnRequestRemove}
+      />,
+    );
+
+    const addButton = getByLabelText('Add more documents');
+    expect(addButton.props.accessibilityRole).toBe('button');
   });
 
   it('hides add button when hideAddButton is true', () => {
