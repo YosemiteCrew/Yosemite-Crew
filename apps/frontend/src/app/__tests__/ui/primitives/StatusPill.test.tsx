@@ -43,4 +43,14 @@ describe('StatusPill', () => {
     render(<StatusPill label="Fit" className="w-fit" />);
     expect(screen.getByText('Fit').closest('span')).toHaveClass('w-fit');
   });
+  it('applies a CSS style passthrough over the tone colours', () => {
+    render(
+      <StatusPill
+        label="Overdue"
+        tone="neutral"
+        style={{ backgroundColor: 'rgb(10, 20, 30)', color: 'rgb(1, 1, 1)' }}
+      />
+    );
+    expect(screen.getByText('Overdue')).toHaveStyle({ backgroundColor: 'rgb(10, 20, 30)' });
+  });
 });

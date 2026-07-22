@@ -54,6 +54,7 @@ import { getCompanionAuditTrail } from '@/app/features/audit/services/auditServi
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Search from '@/app/ui/inputs/Search';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { AppointmentLabels, TaskLabels, getStatusStyle } from '@/app/config/statusConfig';
 import {
   canTransitionAppointmentStatus,
@@ -329,13 +330,15 @@ export const StatusPillSelect = ({
 
   if (locked || disabled || menuOptions.length === 0) {
     return (
-      <span
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
-        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
-        title={formatStatusLabel(status)}
-      >
-        <span className="whitespace-nowrap">{label}</span>
-      </span>
+      <StatusPill
+        style={statusPillStyle(normalizedStatus)}
+        className="w-fit"
+        label={
+          <span className="whitespace-nowrap" title={formatStatusLabel(status)}>
+            {label}
+          </span>
+        }
+      />
     );
   }
 
@@ -348,15 +351,21 @@ export const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         onBlur={() => setOpen(false)}
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
+        className="w-fit rounded-full! transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         title={formatStatusLabel(status)}
       >
-        <span className="whitespace-nowrap">{label}</span>
-        <IoChevronDownOutline
-          size={10}
-          aria-hidden="true"
-          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        <StatusPill
+          style={statusPillStyle(normalizedStatus)}
+          label={
+            <>
+              <span className="whitespace-nowrap">{label}</span>
+              <IoChevronDownOutline
+                size={10}
+                aria-hidden="true"
+                className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              />
+            </>
+          }
         />
       </button>
       {open ? (

@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { IoCalendarOutline, IoEye, IoListOutline, IoSyncOutline } from 'react-icons/io5';
 import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
@@ -92,12 +93,10 @@ const CompanionCard = ({
         <div className="text-caption-1 text-text-extra">Upcoming appointment:</div>
         <div className="text-caption-1 text-text-primary">{'-'}</div>
       </div>
-      <div
+      <StatusPill
         style={getCompanionStatusStyle(companion.companion.status || 'inactive')}
-        className="appointment-status"
-      >
-        {toTitleCase(companion.companion.status || 'inactive')}
-      </div>
+        label={toTitleCase(companion.companion.status || 'inactive')}
+      />
       <div className="flex gap-2 justify-center">
         <GlassTooltip content={terminologyText('View companion')} side="top">
           <button

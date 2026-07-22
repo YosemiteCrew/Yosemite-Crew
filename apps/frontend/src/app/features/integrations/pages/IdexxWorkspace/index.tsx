@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -300,9 +301,10 @@ const PatientCell = ({ result }: { result: LabResult }) => {
 };
 
 const StatusCell = ({ result }: { result: LabResult }) => (
-  <span className="appointment-status" style={getResultStatusStyle(result.status)}>
-    {formatTitleCase(result.status, '-')}
-  </span>
+  <StatusPill
+    style={getResultStatusStyle(result.status)}
+    label={formatTitleCase(result.status, '-')}
+  />
 );
 
 type ResultActionCellProps = {

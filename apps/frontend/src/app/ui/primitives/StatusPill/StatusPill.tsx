@@ -59,6 +59,13 @@ type StatusPillProps = {
   tone?: StatusTone;
   /** Explicit colour set for callers that already resolve a status colour. */
   tokens?: StatusPillTokens;
+  /**
+   * Colour passthrough for the many features whose status helpers already return
+   * a CSS style object ({color, backgroundColor, borderColor}). Wins over
+   * `tone`/`tokens`, so `<StatusPill style={getInvoiceStatusStyle(s)} .../>` just
+   * works. Colour only - layout belongs in `className`.
+   */
+  style?: React.CSSProperties;
   /** Leading `--success` dot for a "live"/"online" state. */
   showDot?: boolean;
   /** Extra classes for layout only (e.g. `w-fit`). */
@@ -69,6 +76,7 @@ const StatusPill = ({
   label,
   tone = 'neutral',
   tokens,
+  style,
   showDot = false,
   className,
 }: StatusPillProps) => {
@@ -83,6 +91,7 @@ const StatusPill = ({
         color: resolved.text,
         borderColor: resolved.border,
         borderStyle: 'solid',
+        ...style,
       }}
     >
       {showDot && (
