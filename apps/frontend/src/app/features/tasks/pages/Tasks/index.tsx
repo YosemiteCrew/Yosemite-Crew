@@ -18,6 +18,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { normalizeCalendarId } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
 import { resolveTeamMemberPrimaryId } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
 import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -41,8 +42,10 @@ const TASK_STATUS_PILLS = TaskStatusFilters.filter((option) => option.key !== 'c
  * pet-parent filter survives, as the task-side counterpart to the appointments
  * planner's Emergencies pill.
  */
-const TASK_CALENDAR_FILTERS = TaskFilters.filter((option) => option.key === 'parent_task').map(
-  (option) => ({ ...option, dotColor: 'var(--pink)' })
+const PARENT_AUDIENCE_KEY = 'parent_task';
+
+const TASK_CALENDAR_FILTERS = TaskFilters.flatMap((option) =>
+  option.key === PARENT_AUDIENCE_KEY ? [{ ...option, dotColor: 'var(--pink)' }] : []
 );
 
 /**
@@ -99,6 +102,19 @@ const Tasks = () => {
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
   const [activeCalendar, setActiveCalendar] = useState('week');
   const [activeView, setActiveView] = useState('calendar');
+  const isPhone = useIsPhone();
+  // The phone planner swaps the grid for a day list and never renders the
+  // calendar header, so the pill row stays there. Deriving visibility once keeps
+  // the rendered controls and the filters they drive from drifting apart.
+  const showsTaskFilterBar = activeView === 'list' || (activeView === 'calendar' && isPhone);
+
+  // The planner header only carries the pet-parent pill, so an audience chosen
+  // in the list view would keep filtering the calendar with nothing on screen to
+  // show or clear it. Normalise back to "all" whenever the pill row is hidden.
+  useEffect(() => {
+    if (showsTaskFilterBar) return;
+    setActiveFilter((prev) => (prev === 'all' || prev === PARENT_AUDIENCE_KEY ? prev : 'all'));
+  }, [showsTaskFilterBar]);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
@@ -191,14 +207,23 @@ const Tasks = () => {
         activeView === 'board' || statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;
       const matchesQuery = !q || item.name?.toLowerCase().includes(q);
-      // Only the list view still renders the My/Team scope control - the board has
-      // its own toolbar and the planner relies on the Day/Week/Team switcher - so
-      // the page-level scope must never narrow the views that cannot clear it.
-      const matchesScope = activeView !== 'list' || !scopeToMine || isAssignedToMe(item);
+      // The scope control ships with the pill row, so scope may only narrow the
+      // list while that row is on screen; otherwise a carried "My tasks" would
+      // filter a view that offers no way to clear it.
+      const matchesScope = !showsTaskFilterBar || !scopeToMine || isAssignedToMe(item);
 
       return matchesStatus && matchesFilter && matchesQuery && matchesScope;
     });
-  }, [tasks, activeStatus, activeFilter, query, activeView, activeScope, isAssignedToMe]);
+  }, [
+    tasks,
+    activeStatus,
+    activeFilter,
+    query,
+    activeView,
+    activeScope,
+    showsTaskFilterBar,
+    isAssignedToMe,
+  ]);
 
   const handleCreateFromCalendarSlot = useCallback(
     (prefill: { dueAt: Date; assignedTo?: string }) => {
@@ -319,7 +344,7 @@ const Tasks = () => {
 
         <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
           <div className={wrapperClassName}>
-            {activeView === 'list' && (
+            {showsTaskFilterBar && (
               <TaskFilterBar
                 filterOptions={TaskFilters}
                 statusOptions={TASK_STATUS_PILLS}

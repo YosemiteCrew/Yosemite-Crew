@@ -413,6 +413,50 @@ describe('Tasks page', () => {
     );
   });
 
+  it('keeps the pill row on the phone planner, which renders no calendar header', () => {
+    // Below 768px TaskCalendar swaps the grid for the day list and returns
+    // before the header, so the pill row stays as the only filter surface.
+    useIsPhoneMock.mockReturnValue(true);
+    render(<ProtectedTasks />);
+
+    expect(filterBarSpy).toHaveBeenCalled();
+  });
+
+  it('clears an audience filter the planner header cannot display', async () => {
+    render(<ProtectedTasks />);
+
+    fireEvent.click(screen.getByText('List'));
+    await act(async () => {
+      lastPropsOf(filterBarSpy).setActiveFilter('employee_task');
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(filterBarSpy).activeFilter).toBe('employee_task');
+
+    // Back on the planner the header only carries the pet-parent pill, so a
+    // carried Team filter would narrow the grid with nothing able to clear it.
+    await act(async () => {
+      fireEvent.click(screen.getByText('Calendar'));
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(taskCalendarSpy).activeFilter).toBe('all');
+  });
+
+  it('preserves the pet-parent filter across views because the header shows it', async () => {
+    render(<ProtectedTasks />);
+
+    fireEvent.click(screen.getByText('List'));
+    await act(async () => {
+      lastPropsOf(filterBarSpy).setActiveFilter('parent_task');
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Calendar'));
+      await Promise.resolve();
+    });
+    expect(lastPropsOf(taskCalendarSpy).activeFilter).toBe('parent_task');
+  });
+
   it('filteredList in board view ignores status filter (shows all matching query/audience)', async () => {
     useTasksMock.mockReturnValue([
       { _id: 't1', status: 'pending', audience: 'EMPLOYEE_TASK', name: 'Follow up' },
