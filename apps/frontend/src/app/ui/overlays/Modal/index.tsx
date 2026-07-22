@@ -47,7 +47,7 @@ const CENTERED_WIDTHS: Record<ModalSize, string> = {
  * a caller that names no size renders exactly as it did.
  */
 const DRAWER_WIDTHS: Record<ModalSize, string> = {
-  sm: 'sm:w-[380px]',
+  sm: 'sm:w-[360px]',
   md: 'sm:w-[470px]',
   lg: 'sm:w-[530px]',
 };

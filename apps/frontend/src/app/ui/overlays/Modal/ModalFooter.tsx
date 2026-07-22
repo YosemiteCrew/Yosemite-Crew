@@ -3,8 +3,9 @@ import React from 'react';
 type ModalFooterProps = {
   children: React.ReactNode;
   /**
-   * Right-aligns the action row. Panels with a single full-width primary
-   * (invite, book, save) keep the default stretch instead.
+   * How the action row sits in the bar. Defaults to `end` (right-aligned), the
+   * layout most panels use. Panels whose actions span the full width - a lone
+   * invite/book/save primary, or a paired Discard/Apply - pass `stretch`.
    */
   align?: 'start' | 'end' | 'stretch';
 };
