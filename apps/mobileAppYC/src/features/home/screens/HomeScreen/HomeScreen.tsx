@@ -1326,7 +1326,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 </Text>
               )}
             </View>
-            <View style={styles.greetingTextBlock}>
+            <View style={styles.greetingTextBlock} testID="greeting-text-block">
               <Text
                 style={styles.greetingName}
                 numberOfLines={1}
@@ -1344,7 +1344,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </View>
           </PressableOpacity>
 
-          <View style={styles.headerActions}>
+          <View style={styles.headerActions} testID="header-actions">
             <View style={styles.actionIconShadowWrapper}>
               <LiquidGlassIconButton
                 onPress={handleEmergencyPress}

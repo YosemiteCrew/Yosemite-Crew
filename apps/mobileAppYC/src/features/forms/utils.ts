@@ -66,11 +66,18 @@ const escapeHtml = (value: string): string =>
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
 
-export const wrapPlainTextAsHtml = (text: string): string =>
-  text
+export const wrapPlainTextAsHtml = (text: string): string => {
+  // A blank line (or several) has no real content — return '' rather than
+  // e.g. "<p></p>", which is a non-empty string that isTruthy()/required
+  // validation would wrongly treat as an answer.
+  if (!text.trim()) {
+    return '';
+  }
+  return text
     .split('\n')
     .map(line => `<p>${escapeHtml(line)}</p>`)
     .join('');
+};
 
 export const hasSignatureField = (fields?: FormField[]): boolean => {
   if (!fields?.length) {

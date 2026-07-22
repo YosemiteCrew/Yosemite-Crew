@@ -421,5 +421,12 @@ describe('Form Utils', () => {
         '<p>&lt;script&gt;&amp;"&lt;/script&gt;</p>',
       );
     });
+
+    it('returns an empty string instead of "<p></p>" when the text has no real content', () => {
+      expect(wrapPlainTextAsHtml('')).toBe('');
+      expect(wrapPlainTextAsHtml('   ')).toBe('');
+      expect(wrapPlainTextAsHtml('\n\n\n')).toBe('');
+      expect(wrapPlainTextAsHtml('  \n  \n  ')).toBe('');
+    });
   });
 });
