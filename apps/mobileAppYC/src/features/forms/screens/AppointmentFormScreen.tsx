@@ -552,8 +552,12 @@ export const AppointmentFormScreen: React.FC = () => {
           label={cleanLabel(field.label)}
           value={displayWithFallback}
           editable={false}
-          multiline={field.type === 'textarea'}
-          inputStyle={field.type === 'textarea' ? styles.textArea : undefined}
+          multiline={field.type === 'textarea' || field.type === 'richtext'}
+          inputStyle={
+            field.type === 'textarea' || field.type === 'richtext'
+              ? styles.textArea
+              : undefined
+          }
           containerStyle={styles.readOnlyInputContainer}
         />
       </View>
@@ -567,6 +571,7 @@ export const AppointmentFormScreen: React.FC = () => {
       case 'input':
       case 'textarea':
       case 'number':
+      case 'richtext':
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Input
@@ -578,10 +583,12 @@ export const AppointmentFormScreen: React.FC = () => {
                   : cleanPlaceholder((field as any).placeholder)
               }
               onChangeText={text => handleChange(field.id, text)}
-              multiline={field.type === 'textarea'}
+              multiline={field.type === 'textarea' || field.type === 'richtext'}
               keyboardType={field.type === 'number' ? 'numeric' : 'default'}
               inputStyle={
-                field.type === 'textarea' ? styles.textArea : undefined
+                field.type === 'textarea' || field.type === 'richtext'
+                  ? styles.textArea
+                  : undefined
               }
               error={error}
               editable={!lockNonCheckboxInputs}
@@ -756,9 +763,11 @@ export const AppointmentFormScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}>
       <PressableOpacity
+        testID="dismiss-keyboard-wrapper"
         activeOpacity={1}
         onPress={Keyboard.dismiss}
-        accessible={false}>
+        accessible={false}
+        style={styles.flex}>
         <LiquidGlassHeaderScreen
           header={headerNode}
           contentPadding={theme.spacing['3']}>

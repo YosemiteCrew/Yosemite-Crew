@@ -1118,6 +1118,15 @@ describe('AppointmentFormScreen — final coverage push', () => {
       expect(mockGoBack).toHaveBeenCalled();
     });
 
+    it('stretches the keyboard-dismiss wrapper to fill the screen so the form body is not collapsed behind the header', () => {
+      const {getByTestId} = render(<AppointmentFormScreen />);
+
+      const wrapper = getByTestId('dismiss-keyboard-wrapper');
+      const flattenedStyle = [wrapper.props.style].flat(Infinity);
+      const hasFlex = flattenedStyle.some((style: any) => style?.flex === 1);
+      expect(hasFlex).toBe(true);
+    });
+
     it('fetches forms when focused, appointment exists, and entry is missing', async () => {
       (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
 
@@ -1915,6 +1924,64 @@ describe('AppointmentFormScreen — final coverage push', () => {
 
       const {getByTestId} = render(<AppointmentFormScreen />);
       expect(getByTestId('input-container-Notes')).toBeTruthy();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // richtext field type — must render (previously fell through to null while
+  // still counting toward the progress percentage, making it unreachable)
+  // -------------------------------------------------------------------------
+
+  describe('richtext field type', () => {
+    it('renders a richtext field as a multiline Input in edit mode', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-container-Story')).toBeTruthy();
+    });
+
+    it('renders a filled richtext field as a read-only multiline Input', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: 'Once upon a time'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe('Once upon a time');
+    });
+
+    it('counts a filled richtext field toward form progress', () => {
+      const schema = [
+        {id: 'story', type: 'richtext', label: 'Story'},
+        {id: 'notes', type: 'textarea', label: 'Notes'},
+      ];
+      const entry = {
+        ...baseFormEntry,
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: 'Once upon a time'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByText} = render(<AppointmentFormScreen />);
+      expect(getByText('50%')).toBeTruthy();
     });
   });
 
