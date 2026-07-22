@@ -140,4 +140,29 @@ describe('AccountMenuList', () => {
     const hasAnyTint = iconStyles.some(style => style?.tintColor !== undefined);
     expect(hasAnyTint).toBe(false);
   });
+
+  it('leaves the tile icon untinted when tintIcon is false, even with an accent tone', () => {
+    const {getByLabelText} = renderWithStore(
+      <AccountMenuList
+        items={[
+          {
+            id: 'item',
+            label: 'Item',
+            icon: createIcon(),
+            tone: 'info',
+            tintIcon: false,
+          },
+        ]}
+        onItemPress={jest.fn()}
+      />,
+    );
+
+    const button = getByLabelText('Item') as ReactTestInstance;
+    const [tileIcon] = button.findAllByType(Image);
+    const iconStyles = Array.isArray(tileIcon.props.style)
+      ? tileIcon.props.style
+      : [tileIcon.props.style];
+    const hasAnyTint = iconStyles.some(style => style?.tintColor !== undefined);
+    expect(hasAnyTint).toBe(false);
+  });
 });

@@ -160,6 +160,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
+      width: '100%',
       alignItems: 'center',
       marginVertical: theme.spacing['5'],
     },

@@ -4,7 +4,7 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Platform, Text, TextInput} from 'react-native';
+import {Platform, Text, TextInput, View} from 'react-native';
 import {OTPInput} from '@/shared/components/common/OTPInput/OTPInput';
 import {themeReducer} from '@/features/theme';
 
@@ -261,6 +261,19 @@ describe('OTPInput', () => {
       expect(flattenedStyle.flex).toBe(1);
       expect(flattenedStyle.maxWidth).toBe(50);
     });
+  });
+
+  it('gives the root container a definite width so the flex inputs can size against it', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    const [rootContainer] = tree.root.findAllByType(View);
+    expect(rootContainer.props.style).toEqual(
+      expect.objectContaining({width: '100%'}),
+    );
   });
 
   it('should set textContentType to oneTimeCode', () => {

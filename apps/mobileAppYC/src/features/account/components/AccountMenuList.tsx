@@ -15,6 +15,11 @@ export interface AccountMenuItem {
   /** Warm-bone tile tint. Falls back to danger/neutral when omitted. */
   tone?: IconTileTone;
   danger?: boolean;
+  /**
+   * Set to false for bitmaps with an opaque background (e.g. faqIcon) where
+   * tintColor would flatten the whole glyph into a solid block. Defaults to true.
+   */
+  tintIcon?: boolean;
 }
 
 export interface AccountMenuListProps {
@@ -68,7 +73,11 @@ export const AccountMenuList: React.FC<AccountMenuListProps> = ({
             <IconTile
               icon={item.icon}
               tone={tone}
-              iconTintColor={resolveIconTint(theme, tone)}
+              iconTintColor={
+                item.tintIcon === false
+                  ? undefined
+                  : resolveIconTint(theme, tone)
+              }
               size={theme.spacing['10']}
               style={styles.iconTile}
             />
