@@ -99,7 +99,7 @@ export const createFormScreenStyles = (theme: Theme) =>
       ...theme.shadows.lg,
     },
     buttonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.paragraphBold,
     },
   });
