@@ -500,6 +500,10 @@ const useIntegrationsPage = () => {
   // integrations:edit:any for the credentials, enable, disable and validate
   // routes, so those controls stay hidden rather than 403 on click.
   const canEditIntegrations = useHasPermission(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
+  // Supervisor, Assistant and Receptionist can view the catalog without holding
+  // labs:view:any, and the device/order loaders hit lab routes that require it,
+  // so those reads are skipped rather than failing the page on open.
+  const canViewLabs = useHasPermission(PERMISSIONS.LABS_VIEW_ANY);
   const integrations = useIntegrationsForPrimaryOrg();
   const {
     integration: merckIntegration,
@@ -533,6 +537,7 @@ const useIntegrationsPage = () => {
   useEffect(() => {
     const run = async () => {
       if (!primaryOrgId) return;
+      if (!canViewLabs) return;
       if (idexxIntegration?.status === 'enabled') {
         try {
           const ivls = await listIdexxIvlsDevices(primaryOrgId);
@@ -555,7 +560,7 @@ const useIntegrationsPage = () => {
       }
     };
     run().catch(() => undefined);
-  }, [primaryOrgId, idexxIntegration?.status]);
+  }, [primaryOrgId, idexxIntegration?.status, canViewLabs]);
 
   useEffect(() => {
     setValidateState(resolveValidateState(idexxIntegration?.credentialsStatus));
@@ -629,6 +634,7 @@ const useIntegrationsPage = () => {
     primaryOrg,
     primaryOrgId,
     canEditIntegrations,
+    canViewLabs,
     integrationStatus,
     integrationsLastFetchedAt,
     idexxIntegration,
@@ -998,7 +1004,7 @@ const IdexxIntegrationCard = ({
         patient automatically.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        {s.idexxEnabled && (
+        {s.idexxEnabled && s.canViewLabs && (
           <Secondary
             href="/appointments/idexx-workspace"
             text="Open workspace"

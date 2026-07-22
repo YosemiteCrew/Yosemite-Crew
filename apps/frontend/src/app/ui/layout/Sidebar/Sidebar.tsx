@@ -143,7 +143,9 @@ const Sidebar = () => {
   // Developer portal doesn't need org data to load
   if (isInitialLoading && !isDevPortal) return <div className="sidebar"></div>;
 
-  const orgMissing = !primaryOrg;
+  // A deactivated mapping counts as no org: an empty permission set alone would
+  // still leave routes that declare no required permission reachable.
+  const orgMissing = !primaryOrg || membership?.active === false;
   const orgVerified = !!primaryOrg?.isVerified;
 
   return (

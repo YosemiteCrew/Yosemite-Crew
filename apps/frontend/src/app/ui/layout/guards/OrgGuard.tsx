@@ -238,7 +238,12 @@ const resolveGuardRedirect = ({
 }: GuardRedirectParams): string | null => {
   if (isAuthGuardDisabled || isStatusPending(orgStatus) || shouldWaitForData) return null;
   if (!primaryOrgId) return getOrgFallbackRedirect(pathname);
-  if (!primaryOrg || !membership) return getOrgFallbackRedirect(pathname);
+  // A deactivated mapping is treated as no membership at all: returning no
+  // permissions is not enough on its own, because routes that declare no
+  // required permission stay reachable for an empty permission set.
+  if (!primaryOrg || !membership || membership.active === false) {
+    return getOrgFallbackRedirect(pathname);
+  }
 
   return resolveReadyOrgGuardRedirect({
     pathname,
@@ -353,7 +358,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
       return;
     }
 
-    if (!primaryOrg || !membership) {
+    if (!primaryOrg || !membership || membership.active === false) {
       return;
     }
 

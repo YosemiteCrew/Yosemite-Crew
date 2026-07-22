@@ -86,38 +86,33 @@ describe('routePermissions', () => {
       expect(resolveMembershipPermissions()).toEqual([]);
     });
 
-    it('falls back to the stored set when the role is unrecognised', () => {
+    it('grants only the extras when the role is unrecognised', () => {
       expect(
         resolveMembershipPermissions({
           roleCode: 'NOT_A_ROLE',
-          effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+          extraPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
         })
       ).toEqual([PERMISSIONS.TASKS_VIEW_ANY]);
     });
 
-    it('repairs a drifted stored set from the role baseline', () => {
-      // An owner row written before analytics joined the role table keeps that
-      // stale set forever, which greyed the Dashboard nav entry for the owner.
-      const resolved = resolveMembershipPermissions({
-        roleCode: 'OWNER',
-        effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
-      });
+    it('derives the full baseline for a recognised role', () => {
+      // An owner row written before analytics joined the role table keeps a
+      // stale snapshot forever, which greyed the Dashboard nav entry for the
+      // owner. Deriving from the role instead repairs it.
+      const resolved = resolveMembershipPermissions({ roleCode: 'OWNER' });
 
       expect(resolved).toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
       expect(resolved).toContain(PERMISSIONS.TASKS_VIEW_ANY);
     });
 
-    it('drops a stored grant the role no longer carries', () => {
-      // Removing a permission from the role table leaves it in every snapshot
-      // written before that change, and nothing ever adds it to
-      // revokedPermissions, so folding the snapshot in would re-grant access
-      // the API now denies.
-      const resolved = resolveMembershipPermissions({
-        roleCode: 'TECHNICIAN',
-        effectivePermissions: [PERMISSIONS.ANALYTICS_VIEW_ANY],
-      });
+    it('never grants a permission the role does not carry', () => {
+      // Removing a permission from the role table leaves it behind in earlier
+      // snapshots without ever reaching revokedPermissions, so the snapshot is
+      // not a grant source at all: only role plus extras count.
+      const resolved = resolveMembershipPermissions({ roleCode: 'TECHNICIAN' });
 
       expect(resolved).not.toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
+      expect(resolved).toContain(PERMISSIONS.INTEGRATIONS_VIEW_ANY);
     });
 
     it('grants nothing for an explicitly deactivated membership', () => {
@@ -127,7 +122,7 @@ describe('routePermissions', () => {
         resolveMembershipPermissions({
           roleCode: 'OWNER',
           active: false,
-          effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+          extraPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
         })
       ).toEqual([]);
     });
@@ -138,16 +133,14 @@ describe('routePermissions', () => {
       );
     });
 
-    it('honours extra grants on a membership with no recognised role', () => {
+    it('grants exactly the extras on a membership with no recognised role', () => {
       // The backend returns the extras verbatim when there is no role, so the
-      // client must not fall back to an empty or stale snapshot alone.
-      const resolved = resolveMembershipPermissions({
-        extraPermissions: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
-        effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
-      });
-
-      expect(resolved).toContain(PERMISSIONS.INTEGRATIONS_VIEW_ANY);
-      expect(resolved).toContain(PERMISSIONS.TASKS_VIEW_ANY);
+      // extras are the whole grant: nothing is inherited from a snapshot.
+      expect(
+        resolveMembershipPermissions({
+          extraPermissions: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+        })
+      ).toEqual([PERMISSIONS.INTEGRATIONS_VIEW_ANY]);
     });
 
     it('grants integrations to every role the backend grants it to', () => {
@@ -171,7 +164,6 @@ describe('routePermissions', () => {
     it('keeps extra grants and honours explicit revocations', () => {
       const resolved = resolveMembershipPermissions({
         roleCode: 'OWNER',
-        effectivePermissions: [],
         extraPermissions: ['custom:extra'],
         revokedPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
       });

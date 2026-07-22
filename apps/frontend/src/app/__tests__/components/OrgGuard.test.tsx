@@ -372,7 +372,8 @@ describe('OrgGuard', () => {
         membershipsByOrgId: {
           [orgId]: {
             roleDisplay: 'Owner',
-            effectivePermissions: ['analytics:view:any'],
+            // Permissions derive from roleCode, mirroring a real mapping.
+            roleCode: 'OWNER',
           },
         },
       })

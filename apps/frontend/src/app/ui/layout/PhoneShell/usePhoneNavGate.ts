@@ -36,7 +36,9 @@ export function usePhoneNavGate(): PhoneNavGate {
   );
   const effectivePermissions = resolveMembershipPermissions(membership);
 
-  const orgMissing = !primaryOrg;
+  // A deactivated mapping counts as no org: an empty permission set alone would
+  // still leave routes that declare no required permission reachable.
+  const orgMissing = !primaryOrg || membership?.active === false;
   const orgVerified = !!primaryOrg?.isVerified;
 
   const isRouteEnabled = (routeName?: string): boolean => {
