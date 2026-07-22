@@ -19,7 +19,7 @@ describe('routePermissions', () => {
     ).toBe(true);
   });
 
-  it('requires labs:view:any for the IDEXX workspace route override', () => {
+  it('requires both labs and integrations view for the IDEXX workspace route', () => {
     expect(canAccessPathByPermissions('/appointments/idexx-workspace', [])).toBe(false);
     expect(
       canAccessPathByPermissions('/appointments/idexx-workspace', [
@@ -27,15 +27,47 @@ describe('routePermissions', () => {
       ])
     ).toBe(false);
     // Seeing the integration is not enough: the workspace loads lab results and
-    // orders on open, and those routes require labs:view:any.
+    // orders on open from routes that require labs:view:any.
     expect(
       canAccessPathByPermissions('/appointments/idexx-workspace', [
         PERMISSIONS.INTEGRATIONS_VIEW_ANY,
       ])
     ).toBe(false);
+    // Nor is lab access alone: the workspace reads the integration status, so a
+    // membership whose extras or revocations split the pair renders it empty.
     expect(
       canAccessPathByPermissions('/appointments/idexx-workspace', [PERMISSIONS.LABS_VIEW_ANY])
+    ).toBe(false);
+    expect(
+      canAccessPathByPermissions('/appointments/idexx-workspace', [
+        PERMISSIONS.LABS_VIEW_ANY,
+        PERMISSIONS.INTEGRATIONS_VIEW_ANY,
+      ])
     ).toBe(true);
+  });
+
+  it('every role baseline that reaches the IDEXX workspace holds both grants', () => {
+    // The pairing that makes the AND safe in practice: roles either have both
+    // or neither, so only a custom membership can split them.
+    const roles = ['OWNER', 'ADMIN', 'VETERINARIAN', 'TECHNICIAN'] as const;
+
+    for (const roleCode of roles) {
+      expect(
+        canAccessPathByPermissions(
+          '/appointments/idexx-workspace',
+          resolveMembershipPermissions({ roleCode })
+        )
+      ).toBe(true);
+    }
+
+    for (const roleCode of ['SUPERVISOR', 'ASSISTANT', 'RECEPTIONIST'] as const) {
+      expect(
+        canAccessPathByPermissions(
+          '/appointments/idexx-workspace',
+          resolveMembershipPermissions({ roleCode })
+        )
+      ).toBe(false);
+    }
   });
 
   it('hasAnyRequiredPermission returns false when required permissions are missing', () => {

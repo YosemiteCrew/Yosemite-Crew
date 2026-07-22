@@ -1,14 +1,19 @@
 import { appRoutes } from '@/app/constants/routes';
 import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
 
-const ROUTE_ACCESS_OVERRIDES: ReadonlyArray<{ pathPrefix: string; requiredAny: Permission[] }> = [
+const ROUTE_ACCESS_OVERRIDES: ReadonlyArray<{
+  pathPrefix: string;
+  requiredAny?: Permission[];
+  requiredAll?: Permission[];
+}> = [
   {
-    // The workspace loads lab results and orders on open, and those routes
-    // require labs:view:any, so viewing the integration is not enough. Every
-    // role already carries integrations:view:any, so gating on the lab
-    // permission alone is the stricter of the two and needs no AND support.
+    // The workspace needs both grants: it loads lab results and orders from
+    // routes requiring labs:view:any, and reads the integration status from
+    // routes requiring integrations:view:any, so holding one without the other
+    // renders it empty. Role baselines always pair them, but extras and
+    // revocations can separate the two on a custom membership.
     pathPrefix: '/appointments/idexx-workspace',
-    requiredAny: [PERMISSIONS.LABS_VIEW_ANY],
+    requiredAll: [PERMISSIONS.LABS_VIEW_ANY, PERMISSIONS.INTEGRATIONS_VIEW_ANY],
   },
   {
     pathPrefix: '/integrations',
@@ -35,6 +40,17 @@ export const hasAnyRequiredPermission = (
 
   const permissionSet = new Set(effectivePermissions);
   return requiredAnyPermissions.some((permission) => permissionSet.has(permission));
+};
+
+export const hasAllRequiredPermissions = (
+  effectivePermissions: string[] | undefined,
+  requiredAllPermissions?: Permission[]
+): boolean => {
+  if (!requiredAllPermissions?.length) return true;
+  if (!effectivePermissions?.length) return false;
+
+  const permissionSet = new Set(effectivePermissions);
+  return requiredAllPermissions.every((permission) => permissionSet.has(permission));
 };
 
 type MembershipPermissionSource = {
@@ -81,14 +97,16 @@ export const resolveMembershipPermissions = (
   return [...granted];
 };
 
-const resolveRequiredAnyPermissionsForPath = (pathname: string): Permission[] | undefined => {
+const resolveRouteAccessRequirements = (
+  pathname: string
+): { any?: Permission[]; all?: Permission[] } => {
   const override = ROUTE_ACCESS_OVERRIDES.find((rule) => matchesPath(pathname, rule.pathPrefix));
   if (override) {
-    return override.requiredAny;
+    return { any: override.requiredAny, all: override.requiredAll };
   }
 
   const route = appRoutes.find((item) => matchesPath(pathname, item.href));
-  return route?.requiredAnyPermissions;
+  return { any: route?.requiredAnyPermissions };
 };
 
 export const canAccessPathByPermissions = (
@@ -96,8 +114,11 @@ export const canAccessPathByPermissions = (
   effectivePermissions: string[] | undefined
 ): boolean => {
   const normalizedPath = normalizePath(pathname);
-  const requiredAnyPermissions = resolveRequiredAnyPermissionsForPath(normalizedPath);
-  return hasAnyRequiredPermission(effectivePermissions, requiredAnyPermissions);
+  const { any, all } = resolveRouteAccessRequirements(normalizedPath);
+  return (
+    hasAnyRequiredPermission(effectivePermissions, any) &&
+    hasAllRequiredPermissions(effectivePermissions, all)
+  );
 };
 
 export const resolveFirstAccessibleAppRoute = (
