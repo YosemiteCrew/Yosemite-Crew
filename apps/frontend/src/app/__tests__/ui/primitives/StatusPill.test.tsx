@@ -57,4 +57,10 @@ describe('StatusPill', () => {
     render(<StatusPill label="Overdue" tone="danger" />);
     expect(screen.getByText('Overdue')).toHaveStyle({ backgroundColor: 'var(--danger-bg)' });
   });
+  it('hugs its content so a flex column cannot stretch it into a band', () => {
+    render(<StatusPill label="Low stock" />);
+    // The class this replaced set width:fit-content; without it the badge is
+    // stretched by a flex column's default align-items: stretch.
+    expect(screen.getByText('Low stock')).toHaveClass('w-fit');
+  });
 });

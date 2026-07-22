@@ -87,9 +87,13 @@ const StatusPill = ({
   className,
 }: StatusPillProps) => {
   const resolved = tokens ?? TONE_TOKENS[tone];
+  // `w-fit` matters: a badge is often a direct child of a flex column, whose
+  // default `align-items: stretch` would otherwise pull it into a full-width
+  // band. An explicit cross size defeats the stretch, and unlike `self-start`
+  // it leaves the badge centred in the flex rows it also sits in.
   return (
     <span
-      className={`inline-flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full! border! px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ${
+      className={`inline-flex w-fit max-w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full! border! px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ${
         className ?? ''
       }`}
       style={{
