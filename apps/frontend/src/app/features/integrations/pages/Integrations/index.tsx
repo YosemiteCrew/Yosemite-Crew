@@ -46,6 +46,7 @@ import {
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type StatusTokens = { bg: string; text: string; border: string };
 
@@ -224,6 +225,15 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   );
 };
 
+// Resolves this page's status keys (enabled/disabled/valid/active/…) to the
+// shared StatusPill, keeping the key semantics and the enabled-only live dot so
+// no call site changes. Colours still come from the local token maps.
+const NEUTRAL_FALLBACK_TOKENS: StatusTokens = {
+  bg: 'var(--color-card-hover)',
+  text: 'var(--color-text-secondary)',
+  border: 'var(--color-card-border)',
+};
+
 const StatusPill = ({
   status,
   label,
@@ -239,36 +249,13 @@ const StatusPill = ({
 }) => {
   const key = (status ?? 'disabled').toLowerCase();
   const normalizedLabel = label ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-  const tokens = tokensOverride ?? statusTokens[key];
-  const isLive = showDot ?? key === 'enabled';
+  const tokens = tokensOverride ?? statusTokens[key] ?? NEUTRAL_FALLBACK_TOKENS;
   return (
-    <span
-      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-[10px] font-bold px-2.5 py-0.5 rounded-full! border!"
-      style={
-        tokens
-          ? {
-              backgroundColor: tokens.bg,
-              color: tokens.text,
-              borderColor: tokens.border,
-              borderStyle: 'solid',
-            }
-          : {
-              backgroundColor: 'var(--color-card-hover)',
-              color: 'var(--color-text-secondary)',
-              borderColor: 'var(--color-card-border)',
-              borderStyle: 'solid',
-            }
-      }
-    >
-      {isLive ? (
-        <span
-          aria-hidden="true"
-          className="size-1.5 rounded-full"
-          style={{ backgroundColor: 'var(--success)' }}
-        />
-      ) : null}
-      {normalizedLabel}
-    </span>
+    <SharedStatusPill
+      label={normalizedLabel}
+      tokens={tokens}
+      showDot={showDot ?? key === 'enabled'}
+    />
   );
 };
 
