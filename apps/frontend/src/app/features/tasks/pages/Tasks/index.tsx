@@ -326,7 +326,9 @@ const Tasks = () => {
           showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
           actionBeforeAdd={
-            canEditTasks ? (
+            // On phone the create action is the shell FAB, so the header CTA
+            // would be a duplicate - the design's "primary action -> FAB" rule.
+            canEditTasks && !isPhone ? (
               <Primary
                 text="New task"
                 ariaLabel="New task"
