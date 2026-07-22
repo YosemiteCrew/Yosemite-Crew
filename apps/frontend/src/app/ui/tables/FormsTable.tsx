@@ -1,3 +1,4 @@
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { FormsProps, getFormCategoryDisplayLabel } from '@/app/features/forms/types/forms';
 import React, { useMemo } from 'react';
 import {
@@ -170,9 +171,7 @@ const FormsTable = ({
       key: 'status',
       width: '110px',
       render: (item: FormsProps) => (
-        <div className="appointment-status" style={getFormsStatusStyle(item.status || '')}>
-          {item.status}
-        </div>
+        <StatusPill style={getFormsStatusStyle(item.status || '')} label={item.status} />
       ),
     },
     {

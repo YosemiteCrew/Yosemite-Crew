@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import { formatDateLabel } from '@/app/lib/forms';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -69,12 +70,7 @@ const InvoiceDetailHeader = ({
       actions={
         <>
           {statusLabel && (
-            <span
-              className="inline-flex items-center rounded-full px-2.5 py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] border shrink-0"
-              style={statusStyle}
-            >
-              {statusLabel}
-            </span>
+            <StatusPill className="shrink-0" label={statusLabel} style={statusStyle} />
           )}
           {pdfUrl && (
             <a

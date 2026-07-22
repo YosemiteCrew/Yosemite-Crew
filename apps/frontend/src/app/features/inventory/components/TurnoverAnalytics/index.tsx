@@ -12,6 +12,7 @@ import {
 } from 'react-icons/io5';
 import { useDashboardAnalytics } from '@/app/features/dashboard/hooks/useDashboardAnalytics';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   InventoryItem,
   InventoryTurnoverItem,
@@ -334,11 +335,7 @@ const ProductDetailPanel = ({
         <span className="text-[14px] font-bold text-[var(--ink)]">{panel.name}</span>
         <span className="text-[11px] text-[var(--ink-faint)]">{panel.subtitle}</span>
       </span>
-      {panel.isLowStock && (
-        <span className="inline-flex items-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-2.5 py-[3px] text-[9.5px] font-bold text-[var(--danger-text)]">
-          LOW STOCK
-        </span>
-      )}
+      {panel.isLowStock && <StatusPill label="LOW STOCK" tone="danger" />}
     </div>
     <div className="flex flex-col gap-3 px-[18px] py-3.5">
       <div className="grid grid-cols-2 gap-2.5">

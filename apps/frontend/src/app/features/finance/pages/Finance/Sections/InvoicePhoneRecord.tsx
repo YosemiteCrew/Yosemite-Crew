@@ -10,6 +10,7 @@ import {
   IoOpenOutline,
   IoPhonePortraitOutline,
 } from 'react-icons/io5';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { formatMoney } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
@@ -143,12 +144,7 @@ const InvoicePhoneRecord = ({
                 {numberLabel}
               </h2>
               {statusLabel && (
-                <span
-                  className="shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.04em]"
-                  style={statusStyle}
-                >
-                  {statusLabel}
-                </span>
+                <StatusPill className="shrink-0" label={statusLabel} style={statusStyle} />
               )}
             </span>
             {subtitle && (

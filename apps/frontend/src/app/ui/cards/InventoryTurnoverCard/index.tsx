@@ -1,4 +1,5 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { formatTurnoverStatus, getInventoryTurnoverStatusStyle } from '@/app/ui/tables/tableUtils';
 
 const InventoryTurnoverCard = ({ item }: any) => {
@@ -38,9 +39,10 @@ const InventoryTurnoverCard = ({ item }: any) => {
         <div className="text-caption-1 text-text-extra">Days on shelf:</div>
         <div className="text-caption-1 text-text-primary">{item.daysOnShelf}</div>
       </div>
-      <div style={getInventoryTurnoverStatusStyle(item.status)} className="appointment-status">
-        {formatTurnoverStatus(item.status)}
-      </div>
+      <StatusPill
+        style={getInventoryTurnoverStatusStyle(item.status)}
+        label={formatTurnoverStatus(item.status)}
+      />
     </div>
   );
 };

@@ -23,6 +23,7 @@ import {
 } from 'react-icons/io5';
 import Text from '@/app/ui/Text';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 export type SharedEntityData = {
   entityType: string;
@@ -119,16 +120,14 @@ export function SharedEntityCard({
           )}
         </span>
         {status && (
-          <span
-            className="inline-flex shrink-0 items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase"
-            style={{
-              background: `var(--status-${statusTone ?? 'requested'}-bg)`,
-              color: `var(--status-${statusTone ?? 'requested'}-text)`,
-              borderColor: `var(--status-${statusTone ?? 'requested'}-border)`,
+          <StatusPill
+            label={status}
+            tokens={{
+              bg: `var(--status-${statusTone ?? 'requested'}-bg)`,
+              text: `var(--status-${statusTone ?? 'requested'}-text)`,
+              border: `var(--status-${statusTone ?? 'requested'}-border)`,
             }}
-          >
-            {status}
-          </span>
+          />
         )}
       </div>
       {showValueRow && (

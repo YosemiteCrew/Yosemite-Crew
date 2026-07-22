@@ -9,6 +9,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { getSafeImageUrl } from '@/app/lib/urls';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   avatarAccentFor,
   humanize,
@@ -75,11 +76,7 @@ const TeamRow = ({ team, onOpen }: { team: TeamProp; onOpen: (team: TeamProp) =>
       <span className="truncate text-[var(--ink-muted)]">{humanize(team.role) || '—'}</span>
       <span className="truncate text-[var(--ink-muted)]">{employmentLabel(team)}</span>
       <span>
-        <span
-          className={`inline-flex items-center rounded-full border px-[9px] py-[2px] text-[9.5px] font-bold ${pill.className}`}
-        >
-          {pill.label}
-        </span>
+        <StatusPill label={pill.label} tokens={pill.tokens} />
       </span>
       <span className="flex justify-center">
         <button

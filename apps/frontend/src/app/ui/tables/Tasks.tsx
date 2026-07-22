@@ -1,4 +1,5 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
@@ -120,9 +121,7 @@ const Tasks = ({
       key: 'status',
       width: '130px',
       render: (item: Task) => (
-        <div className="appointment-status" style={getTaskStatusStyle(item.status)}>
-          {toTitleCase(item.status)}
-        </div>
+        <StatusPill style={getTaskStatusStyle(item.status)} label={toTitleCase(item.status)} />
       ),
     },
     {

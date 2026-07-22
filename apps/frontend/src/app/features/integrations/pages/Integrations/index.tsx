@@ -46,6 +46,7 @@ import {
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type StatusTokens = { bg: string; text: string; border: string };
 
@@ -69,6 +70,11 @@ const statusTokens: Record<string, StatusTokens> = {
     bg: 'var(--color-pill-info-bg)',
     text: 'var(--color-pill-info-text)',
     border: 'var(--color-pill-info-border)',
+  },
+  'coming-soon': {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
   },
 };
 
@@ -205,17 +211,7 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <span
-          className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
-          style={{
-            backgroundColor: dt.bg,
-            color: dt.text,
-            borderColor: dt.border,
-            borderStyle: 'solid',
-          }}
-        >
-          {statusLabel}
-        </span>
+        <StatusPill label={statusLabel} tokens={dt} showDot={statusKey === 'active'} />
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
         <div className="text-text-secondary">Last cloud poll</div>
@@ -229,39 +225,37 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   );
 };
 
-const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
+// Resolves this page's status keys (enabled/disabled/valid/active/…) to the
+// shared StatusPill, keeping the key semantics and the enabled-only live dot so
+// no call site changes. Colours still come from the local token maps.
+const NEUTRAL_FALLBACK_TOKENS: StatusTokens = {
+  bg: 'var(--color-card-hover)',
+  text: 'var(--color-text-secondary)',
+  border: 'var(--color-card-border)',
+};
+
+const StatusPill = ({
+  status,
+  label,
+  tokens: tokensOverride,
+  showDot,
+}: {
+  status?: string;
+  label?: string;
+  // Pills whose colours come from a different map (device, credentials) pass
+  // their tokens directly; everything else looks the key up in statusTokens.
+  tokens?: StatusTokens;
+  showDot?: boolean;
+}) => {
   const key = (status ?? 'disabled').toLowerCase();
   const normalizedLabel = label ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-  const tokens = statusTokens[key];
-  const isLive = key === 'enabled';
+  const tokens = tokensOverride ?? statusTokens[key] ?? NEUTRAL_FALLBACK_TOKENS;
   return (
-    <span
-      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-[10px] font-bold px-2.5 py-0.5 rounded-full! border!"
-      style={
-        tokens
-          ? {
-              backgroundColor: tokens.bg,
-              color: tokens.text,
-              borderColor: tokens.border,
-              borderStyle: 'solid',
-            }
-          : {
-              backgroundColor: 'var(--color-card-hover)',
-              color: 'var(--color-text-secondary)',
-              borderColor: 'var(--color-card-border)',
-              borderStyle: 'solid',
-            }
-      }
-    >
-      {isLive ? (
-        <span
-          aria-hidden="true"
-          className="size-1.5 rounded-full"
-          style={{ backgroundColor: 'var(--success)' }}
-        />
-      ) : null}
-      {normalizedLabel}
-    </span>
+    <SharedStatusPill
+      label={normalizedLabel}
+      tokens={tokens}
+      showDot={showDot ?? key === 'enabled'}
+    />
   );
 };
 
@@ -339,17 +333,7 @@ const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
             <span className="min-w-0 truncate font-semibold text-text-primary">
               {formatOrderLabel(order)}
             </span>
-            <span
-              className="shrink-0 text-label-xsmall px-2 py-0.5 rounded-full! border!"
-              style={{
-                backgroundColor: tokens.bg,
-                color: tokens.text,
-                borderColor: tokens.border,
-                borderStyle: 'solid',
-              }}
-            >
-              {formatOrderStatusLabel(order.status)}
-            </span>
+            <StatusPill label={formatOrderStatusLabel(order.status)} tokens={tokens} />
           </div>
         );
       })}
@@ -805,27 +789,10 @@ const IdexxSettingsModal = ({
               <div className="grid grid-cols-2 gap-2 text-caption-1">
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
-                  <span
-                    className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
-                    style={(() => {
-                      const t = credentialsStatusTokens[credentialsStatusKey];
-                      return t
-                        ? {
-                            backgroundColor: t.bg,
-                            color: t.text,
-                            borderColor: t.border,
-                            borderStyle: 'solid',
-                          }
-                        : {
-                            backgroundColor: 'var(--color-card-hover)',
-                            color: 'var(--color-text-secondary)',
-                            borderColor: 'var(--color-card-border)',
-                            borderStyle: 'solid',
-                          };
-                    })()}
-                  >
-                    {credentialsStatusLabel}
-                  </span>
+                  <StatusPill
+                    label={credentialsStatusLabel}
+                    tokens={credentialsStatusTokens[credentialsStatusKey]}
+                  />
                 </div>
                 <div className="text-text-secondary">Last validated</div>
                 <div className="text-text-primary text-right">{lastValidatedText}</div>
@@ -956,9 +923,6 @@ const INTEGRATION_CARD_TITLE_STYLE: React.CSSProperties = { color: 'var(--ink)' 
 const INTEGRATION_CARD_DESC_CLASS = 'text-[12.5px] leading-[1.55] line-clamp-4';
 const INTEGRATION_CARD_DESC_STYLE: React.CSSProperties = { color: 'var(--ink-muted)' };
 const INTEGRATION_CARD_ACTIONS_CLASS = 'mt-auto flex flex-wrap items-center gap-2 pt-0.5';
-const COMING_SOON_PILL_CLASS =
-  'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
-
 // 42x42 / radius 13 icon chip that leads each card header.
 const INTEGRATION_ICON_CLASS =
   'flex size-[42px] shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold tracking-[0.02em]';
@@ -1131,17 +1095,7 @@ const RadIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           RadAnalyzer
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
@@ -1178,17 +1132,7 @@ const VetnioIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Vetnio
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered documentation for veterinary practices &mdash; instantly generate clinical notes,
@@ -1226,17 +1170,7 @@ const QuickBooksIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           QuickBooks
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Accounting sync for invoices, payments, customers, and financial workflows through
@@ -1274,17 +1208,7 @@ const LaikaIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Laika
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,

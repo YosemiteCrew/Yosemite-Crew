@@ -4,6 +4,7 @@ import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getStatusStyle } from '@/app/config/statusConfig';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
 import {
@@ -112,12 +113,11 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
 export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentProps) => {
   const displayStatus = normalizeAppointmentStatus(appointment.status) ?? 'REQUESTED';
   return (
-    <span
-      style={{ ...getStatusStyle(displayStatus), borderWidth: '1px', borderStyle: 'solid' }}
-      className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 whitespace-nowrap"
-    >
-      {toTitle(displayStatus)}
-    </span>
+    <StatusPill
+      style={getStatusStyle(displayStatus)}
+      label={toTitle(displayStatus)}
+      className="w-fit"
+    />
   );
 };
 

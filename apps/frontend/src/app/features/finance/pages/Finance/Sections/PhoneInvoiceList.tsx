@@ -19,6 +19,7 @@ import { getInvoiceOutstanding, type FinanceMetrics } from '@/app/lib/financeMet
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type PhoneInvoiceListProps = {
   filteredList: Invoice[];
@@ -99,12 +100,7 @@ const PhoneInvoiceCard = ({
           )}
         </span>
         {statusLabel && (
-          <span
-            className="shrink-0 inline-flex items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.04em]"
-            style={getInvoiceStatusStyle(invoice.status)}
-          >
-            {statusLabel}
-          </span>
+          <StatusPill label={statusLabel} style={getInvoiceStatusStyle(invoice.status)} />
         )}
       </span>
       <span className="flex items-center gap-2.5">
