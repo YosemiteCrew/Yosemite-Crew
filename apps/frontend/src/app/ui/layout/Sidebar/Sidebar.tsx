@@ -28,7 +28,7 @@ import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { appRoutes, devRoutes } from '@/app/config/routes';
 import type { RouteItem } from '@/app/config/routes';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
-import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
+import { hasAnyRequiredPermission, resolveMembershipPermissions } from '@/app/lib/routePermissions';
 import {
   isSidebarCollapsedByDefault,
   setSidebarCollapsedPreference,
@@ -106,7 +106,7 @@ const Sidebar = () => {
   const membership = useOrgStore((s) =>
     primaryOrgId ? (s.membershipsByOrgId?.[primaryOrgId] ?? null) : null
   );
-  const effectivePermissions = membership?.effectivePermissions ?? [];
+  const effectivePermissions = resolveMembershipPermissions(membership);
 
   const routeIcons = useMemo(() => ROUTE_ICONS, []);
 

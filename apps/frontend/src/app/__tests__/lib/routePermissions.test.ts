@@ -2,6 +2,7 @@ import {
   canAccessPathByPermissions,
   hasAnyRequiredPermission,
   resolveFirstAccessibleAppRoute,
+  resolveMembershipPermissions,
 } from '@/app/lib/routePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 
@@ -77,5 +78,46 @@ describe('routePermissions', () => {
 
   it('prefers first accessible route over custom fallback route', () => {
     expect(resolveFirstAccessibleAppRoute([], '/home')).toBe('/organization');
+  });
+
+  describe('resolveMembershipPermissions', () => {
+    it('returns an empty list when there is no membership', () => {
+      expect(resolveMembershipPermissions(null)).toEqual([]);
+      expect(resolveMembershipPermissions()).toEqual([]);
+    });
+
+    it('falls back to the stored set when the role is unrecognised', () => {
+      expect(
+        resolveMembershipPermissions({
+          roleCode: 'NOT_A_ROLE',
+          effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+        })
+      ).toEqual([PERMISSIONS.TASKS_VIEW_ANY]);
+    });
+
+    it('repairs a drifted stored set from the role baseline', () => {
+      // An owner row written before analytics joined the role table keeps that
+      // stale set forever, which greyed the Dashboard nav entry for the owner.
+      const resolved = resolveMembershipPermissions({
+        roleCode: 'OWNER',
+        effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+      });
+
+      expect(resolved).toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
+      expect(resolved).toContain(PERMISSIONS.TASKS_VIEW_ANY);
+    });
+
+    it('keeps extra grants and honours explicit revocations', () => {
+      const resolved = resolveMembershipPermissions({
+        roleCode: 'OWNER',
+        effectivePermissions: [],
+        extraPermissions: ['custom:extra'],
+        revokedPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+      });
+
+      expect(resolved).toContain('custom:extra');
+      expect(resolved).toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
+      expect(resolved).not.toContain(PERMISSIONS.TASKS_VIEW_ANY);
+    });
   });
 });

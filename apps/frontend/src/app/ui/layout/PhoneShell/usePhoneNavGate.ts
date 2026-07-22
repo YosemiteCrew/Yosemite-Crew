@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 
 import { appRoutes } from '@/app/config/routes';
-import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
+import { hasAnyRequiredPermission, resolveMembershipPermissions } from '@/app/lib/routePermissions';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
@@ -34,7 +34,7 @@ export function usePhoneNavGate(): PhoneNavGate {
   const membership = useOrgStore((s) =>
     primaryOrgId ? (s.membershipsByOrgId?.[primaryOrgId] ?? null) : null
   );
-  const effectivePermissions = membership?.effectivePermissions ?? [];
+  const effectivePermissions = resolveMembershipPermissions(membership);
 
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
