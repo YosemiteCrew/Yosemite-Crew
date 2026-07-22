@@ -2116,7 +2116,7 @@ describe('CompanionHistoryTimeline', () => {
       expect.objectContaining({ title: 'Discuss in chat' })
     );
 
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Close record detail' }));
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 

@@ -163,7 +163,7 @@ describe('FormInfo', () => {
     expect(screen.getByRole('button', { name: 'Unpublish' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument();
-    // Only the real close control is a button; the centring spacer is inert markup.
+    // The shared panel header contributes exactly one close control.
     expect(screen.getAllByRole('button', { name: 'close' })).toHaveLength(1);
   });
 

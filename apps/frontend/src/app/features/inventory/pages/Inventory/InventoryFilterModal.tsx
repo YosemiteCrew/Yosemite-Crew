@@ -1,6 +1,9 @@
 import React from 'react';
 import { FiSliders, FiX, FiChevronUp, FiChevronDown, FiCheck } from 'react-icons/fi';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import {
   AbcClassOptions,
   InventoryFiltersState,
@@ -85,31 +88,22 @@ const FilterModalHeader = ({
   setFilterOpen,
   setFilters,
 }: FilterModalHeaderProps) => (
-  <div className="flex items-center justify-between pb-4 shrink-0">
-    <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
-      <FiSliders size={18} aria-hidden="true" />
-      <span>Filter</span>
-    </div>
-    <div className="flex items-center gap-2">
-      {selectedFilterChips.length > 0 && (
+  <ModalHeader
+    title="Filter"
+    icon={<FiSliders size={16} aria-hidden="true" className="text-[var(--ink-faint)]" />}
+    onClose={() => setFilterOpen(false)}
+    actions={
+      selectedFilterChips.length > 0 && (
         <button
           type="button"
           onClick={() => setFilters(defaultFilters)}
-          className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
+          className="rounded-full border border-blue-text px-4 py-1.5 text-caption-1 text-blue-text hover:bg-blue-light transition-colors"
         >
           Clear all
         </button>
-      )}
-      <button
-        type="button"
-        onClick={() => setFilterOpen(false)}
-        aria-label="Close"
-        className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
-      >
-        <FiX size={18} />
-      </button>
-    </div>
-  </div>
+      )
+    }
+  />
 );
 
 type SelectedFilterChipsProps = {
@@ -120,7 +114,7 @@ const SelectedFilterChips = ({ selectedFilterChips }: SelectedFilterChipsProps) 
   if (selectedFilterChips.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 pb-4 shrink-0">
+    <div className="flex flex-wrap gap-2 shrink-0">
       {selectedFilterChips.map((chip) => (
         <span
           key={chip.id}
@@ -342,26 +336,22 @@ type FilterModalFooterProps = {
 };
 
 const FilterModalFooter = ({ setFilterOpen, setFilters }: FilterModalFooterProps) => (
-  <div className="grid grid-cols-2 gap-3 border-t border-card-border pt-5 mt-5 shrink-0">
-    <button
-      type="button"
+  <ModalFooter align="stretch">
+    <Primary
+      href="#"
+      text="Apply"
+      icon={<FiCheck aria-hidden="true" />}
       onClick={() => setFilterOpen(false)}
-      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
-    >
-      <FiCheck size={18} aria-hidden="true" />
-      Apply
-    </button>
-    <button
-      type="button"
+    />
+    <Secondary
+      href="#"
+      text="Discard"
       onClick={() => {
         setFilters(defaultFilters);
         setFilterOpen(false);
       }}
-      className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-transparent px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
-    >
-      Discard
-    </button>
-  </div>
+    />
+  </ModalFooter>
 );
 
 export const InventoryFilterModal = ({
@@ -388,8 +378,8 @@ export const InventoryFilterModal = ({
   const selectedSuppliers = new Set(filters.suppliers);
 
   return (
-    <Modal showModal={filterOpen} setShowModal={setFilterOpen}>
-      <div className="flex h-full flex-col">
+    <Modal showModal={filterOpen} setShowModal={setFilterOpen} size="sm">
+      <div className="flex h-full flex-col gap-4">
         <FilterModalHeader
           selectedFilterChips={selectedFilterChips}
           setFilterOpen={setFilterOpen}

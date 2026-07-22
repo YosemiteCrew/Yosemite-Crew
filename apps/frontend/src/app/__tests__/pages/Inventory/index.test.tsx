@@ -162,6 +162,11 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </button>
   ),
+  Secondary: ({ text, onClick, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="secondary-btn">
+      {text}
+    </button>
+  ),
 }));
 
 // Mock Filters

@@ -17,6 +17,8 @@ type ModalHeaderProps = {
   actions?: React.ReactNode;
   /** Wired to the shell's aria-labelledby so the title names the dialog. */
   titleId?: string;
+  /** Blocks dismissal while the panel has work in flight. */
+  isCloseDisabled?: boolean;
 };
 
 /**
@@ -36,6 +38,7 @@ const ModalHeader = ({
   icon,
   actions,
   titleId,
+  isCloseDisabled,
 }: ModalHeaderProps) => (
   <div className="flex items-start justify-between gap-3">
     <div className="flex min-w-0 flex-col gap-[3px]">
@@ -57,7 +60,7 @@ const ModalHeader = ({
     </div>
     <div className="flex shrink-0 items-center gap-2">
       {actions}
-      <Close onClick={onClose} />
+      <Close onClick={onClose} isDisabled={isCloseDisabled} />
     </div>
   </div>
 );

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
-import { IoClose, IoSwapVerticalOutline } from 'react-icons/io5';
+import { IoSwapVerticalOutline } from 'react-icons/io5';
 import Modal from '@/app/ui/overlays/Modal';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -203,7 +204,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
   const toggleSort = () => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
 
   const uploadButton = (
-    <Primary href="#" text="Upload record" onClick={openUpload} className="w-auto min-w-[150px]" />
+    <Primary href="#" text="Upload record" onClick={openUpload} className="w-auto min-w-37.5" />
   );
 
   const uploadCta = (
@@ -216,14 +217,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
   const emptyStateActions = (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_EDIT_ANY]}>
       {uploadButton}
-      <button
-        type="button"
-        disabled
-        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-body)' }}
-        className="flex h-[42px] items-center gap-1.5 rounded-full border px-[18px] text-[13px] font-semibold disabled:cursor-not-allowed"
-      >
-        Request from pet parent
-      </button>
+      <Secondary href="#" text="Request from pet parent" isDisabled />
     </PermissionGate>
   );
 
@@ -269,16 +263,14 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
             </div>
 
             {groups.length === 0 ? (
-              <div className="py-6 text-center text-[12.5px] text-[var(--ink-faint)]">
+              <div className="py-6 text-center text-caption-2 text-[var(--ink-faint)]">
                 No records match this filter.
               </div>
             ) : (
               <div className="flex flex-col gap-3">
                 {groups.map((group) => (
                   <div key={group.label} className="flex flex-col gap-2">
-                    <div className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                      {group.label}
-                    </div>
+                    <div className="text-caption-3 text-[var(--ink-faint)]">{group.label}</div>
                     <div className="flex flex-col gap-2">
                       {group.items.map((doc, index) => (
                         <CompanionRecordRow
@@ -304,17 +296,7 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
           aria-label="Upload record"
         >
           <div className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto scrollbar-hidden">
-            <div className="flex items-center justify-between">
-              <h2 className="text-heading-3 text-text-primary">Upload record</h2>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={closeUpload}
-                className="grid size-8 place-items-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)]"
-              >
-                <IoClose size={15} aria-hidden="true" />
-              </button>
-            </div>
+            <ModalHeader title="Upload record" onClose={closeUpload} />
             <CompanionDocumentUploadForm
               companionId={companionId}
               formData={formData}
