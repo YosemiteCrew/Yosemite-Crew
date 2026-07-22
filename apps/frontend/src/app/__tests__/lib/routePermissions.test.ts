@@ -120,6 +120,54 @@ describe('routePermissions', () => {
       expect(resolved).not.toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
     });
 
+    it('grants nothing for an explicitly deactivated membership', () => {
+      // The backend RBAC lookup requires active: true, so a client that still
+      // holds a deactivated mapping must not light up nav for an offboarded user.
+      expect(
+        resolveMembershipPermissions({
+          roleCode: 'OWNER',
+          active: false,
+          effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+        })
+      ).toEqual([]);
+    });
+
+    it('treats a missing active flag as active, matching the backend default', () => {
+      expect(resolveMembershipPermissions({ roleCode: 'OWNER' })).toContain(
+        PERMISSIONS.ANALYTICS_VIEW_ANY
+      );
+    });
+
+    it('honours extra grants on a membership with no recognised role', () => {
+      // The backend returns the extras verbatim when there is no role, so the
+      // client must not fall back to an empty or stale snapshot alone.
+      const resolved = resolveMembershipPermissions({
+        extraPermissions: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+        effectivePermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+      });
+
+      expect(resolved).toContain(PERMISSIONS.INTEGRATIONS_VIEW_ANY);
+      expect(resolved).toContain(PERMISSIONS.TASKS_VIEW_ANY);
+    });
+
+    it('grants integrations to every role the backend grants it to', () => {
+      // The client role table had drifted from the backend for the non-admin
+      // roles, which hid /integrations from users the API authorises.
+      const roles = [
+        'SUPERVISOR',
+        'VETERINARIAN',
+        'TECHNICIAN',
+        'ASSISTANT',
+        'RECEPTIONIST',
+      ] as const;
+
+      for (const roleCode of roles) {
+        expect(resolveMembershipPermissions({ roleCode })).toContain(
+          PERMISSIONS.INTEGRATIONS_VIEW_ANY
+        );
+      }
+    });
+
     it('keeps extra grants and honours explicit revocations', () => {
       const resolved = resolveMembershipPermissions({
         roleCode: 'OWNER',

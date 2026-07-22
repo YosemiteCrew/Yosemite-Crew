@@ -35,6 +35,7 @@ export const hasAnyRequiredPermission = (
 
 type MembershipPermissionSource = {
   roleCode?: string | null;
+  active?: boolean | null;
   effectivePermissions?: string[] | null;
   extraPermissions?: string[] | null;
   revokedPermissions?: string[] | null;
@@ -53,16 +54,26 @@ type MembershipPermissionSource = {
 export const resolveMembershipPermissions = (
   membership?: MembershipPermissionSource | null
 ): string[] => {
+  // The backend only resolves permissions for an active mapping and treats a
+  // missing flag as active, so an explicitly deactivated membership grants
+  // nothing here either.
+  if (membership?.active === false) return [];
+
+  const extras = membership?.extraPermissions ?? [];
   const baseline = ROLE_PERMISSIONS[membership?.roleCode as RoleCode];
-  // Nothing to derive from, so the stored snapshot is the only signal left.
-  if (!baseline) return membership?.effectivePermissions ?? [];
+  // No baseline to derive from. The backend still grants the extras for a
+  // roleless mapping, so honour those alongside whatever was last stored
+  // rather than hiding routes the API allows.
+  if (!baseline) {
+    return [...new Set([...extras, ...(membership?.effectivePermissions ?? [])])];
+  }
 
   // Deliberately excludes the stored snapshot. Dropping a permission from the
   // role table leaves it in every previously written snapshot without ever
   // appearing in revokedPermissions, so folding those in would re-grant access
   // the API now denies. Matching the backend formula exactly keeps the two in
   // step in both directions.
-  const granted = new Set<string>([...baseline, ...(membership?.extraPermissions ?? [])]);
+  const granted = new Set<string>([...baseline, ...extras]);
   for (const permission of membership?.revokedPermissions ?? []) granted.delete(permission);
   return [...granted];
 };
