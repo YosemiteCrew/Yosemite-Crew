@@ -101,6 +101,7 @@ describe('AccountMenuList', () => {
     ['indigo', () => lightTheme.colors.indigo],
     ['violet', () => lightTheme.colors.violet],
     ['success', () => lightTheme.colors.success],
+    ['info', () => lightTheme.colors.info],
   ] as const)(
     'tints the %s tile icon with its accent colour',
     (tone, getExpectedTint) => {

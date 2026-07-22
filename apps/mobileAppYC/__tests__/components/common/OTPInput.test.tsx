@@ -242,6 +242,27 @@ describe('OTPInput', () => {
     });
   });
 
+  it('should size each input responsively with a capped max width', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    tree.root.findAllByType(TextInput).forEach(input => {
+      const flattenedStyle = input.props.style.reduce(
+        (acc: Record<string, unknown>, style: Record<string, unknown>) => ({
+          ...acc,
+          ...style,
+        }),
+        {},
+      );
+
+      expect(flattenedStyle.flex).toBe(1);
+      expect(flattenedStyle.maxWidth).toBe(50);
+    });
+  });
+
   it('should set textContentType to oneTimeCode', () => {
     let tree!: TestRenderer.ReactTestRenderer;
 

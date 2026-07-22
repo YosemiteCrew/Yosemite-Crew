@@ -39,6 +39,8 @@ const resolveIconTint = (
       return theme.colors.violet;
     case 'success':
       return theme.colors.success;
+    case 'info':
+      return theme.colors.info;
     default:
       return undefined;
   }
