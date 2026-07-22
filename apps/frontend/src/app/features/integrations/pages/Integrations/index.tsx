@@ -210,17 +210,7 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <span
-          className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
-          style={{
-            backgroundColor: dt.bg,
-            color: dt.text,
-            borderColor: dt.border,
-            borderStyle: 'solid',
-          }}
-        >
-          {statusLabel}
-        </span>
+        <StatusPill label={statusLabel} tokens={dt} showDot={statusKey === 'active'} />
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
         <div className="text-text-secondary">Last cloud poll</div>
@@ -234,11 +224,23 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   );
 };
 
-const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
+const StatusPill = ({
+  status,
+  label,
+  tokens: tokensOverride,
+  showDot,
+}: {
+  status?: string;
+  label?: string;
+  // Pills whose colours come from a different map (device, credentials) pass
+  // their tokens directly; everything else looks the key up in statusTokens.
+  tokens?: StatusTokens;
+  showDot?: boolean;
+}) => {
   const key = (status ?? 'disabled').toLowerCase();
   const normalizedLabel = label ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-  const tokens = statusTokens[key];
-  const isLive = key === 'enabled';
+  const tokens = tokensOverride ?? statusTokens[key];
+  const isLive = showDot ?? key === 'enabled';
   return (
     <span
       className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-[10px] font-bold px-2.5 py-0.5 rounded-full! border!"
@@ -344,17 +346,7 @@ const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
             <span className="min-w-0 truncate font-semibold text-text-primary">
               {formatOrderLabel(order)}
             </span>
-            <span
-              className="shrink-0 text-label-xsmall px-2 py-0.5 rounded-full! border!"
-              style={{
-                backgroundColor: tokens.bg,
-                color: tokens.text,
-                borderColor: tokens.border,
-                borderStyle: 'solid',
-              }}
-            >
-              {formatOrderStatusLabel(order.status)}
-            </span>
+            <StatusPill label={formatOrderStatusLabel(order.status)} tokens={tokens} />
           </div>
         );
       })}
@@ -810,27 +802,10 @@ const IdexxSettingsModal = ({
               <div className="grid grid-cols-2 gap-2 text-caption-1">
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
-                  <span
-                    className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
-                    style={(() => {
-                      const t = credentialsStatusTokens[credentialsStatusKey];
-                      return t
-                        ? {
-                            backgroundColor: t.bg,
-                            color: t.text,
-                            borderColor: t.border,
-                            borderStyle: 'solid',
-                          }
-                        : {
-                            backgroundColor: 'var(--color-card-hover)',
-                            color: 'var(--color-text-secondary)',
-                            borderColor: 'var(--color-card-border)',
-                            borderStyle: 'solid',
-                          };
-                    })()}
-                  >
-                    {credentialsStatusLabel}
-                  </span>
+                  <StatusPill
+                    label={credentialsStatusLabel}
+                    tokens={credentialsStatusTokens[credentialsStatusKey]}
+                  />
                 </div>
                 <div className="text-text-secondary">Last validated</div>
                 <div className="text-text-primary text-right">{lastValidatedText}</div>
