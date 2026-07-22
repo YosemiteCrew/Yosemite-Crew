@@ -14,6 +14,8 @@ import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
+import { useHasPermission } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   loadIntegrationsForPrimaryOrg,
   useIntegrationByProviderForPrimaryOrg,
@@ -494,6 +496,10 @@ const useIdexxActions = (s: IdexxActionsState) => {
 const useIntegrationsPage = () => {
   const primaryOrg = usePrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  // Most roles can view the catalog but not change it: the backend requires
+  // integrations:edit:any for the credentials, enable, disable and validate
+  // routes, so those controls stay hidden rather than 403 on click.
+  const canEditIntegrations = useHasPermission(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
   const integrations = useIntegrationsForPrimaryOrg();
   const {
     integration: merckIntegration,
@@ -622,6 +628,7 @@ const useIntegrationsPage = () => {
   return {
     primaryOrg,
     primaryOrgId,
+    canEditIntegrations,
     integrationStatus,
     integrationsLastFetchedAt,
     idexxIntegration,
@@ -991,13 +998,14 @@ const IdexxIntegrationCard = ({
         patient automatically.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        {s.idexxEnabled ? (
+        {s.idexxEnabled && (
           <Secondary
             href="/appointments/idexx-workspace"
             text="Open workspace"
             className="px-4 whitespace-nowrap"
           />
-        ) : (
+        )}
+        {!s.idexxEnabled && s.canEditIntegrations && (
           <Primary
             href="#"
             text={buttonLabel}
@@ -1006,17 +1014,19 @@ const IdexxIntegrationCard = ({
             className="px-4 whitespace-nowrap"
           />
         )}
-        <button
-          type="button"
-          onClick={() => s.setShowSettings(true)}
-          aria-label="Manage credentials"
-          title="Manage"
-          className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
-          style={MANAGE_ICON_BUTTON_STYLE}
-        >
-          <IoSettingsOutline size={14} aria-hidden="true" />
-        </button>
-        {s.idexxEnabled ? (
+        {s.canEditIntegrations && (
+          <button
+            type="button"
+            onClick={() => s.setShowSettings(true)}
+            aria-label="Manage credentials"
+            title="Manage"
+            className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
+            style={MANAGE_ICON_BUTTON_STYLE}
+          >
+            <IoSettingsOutline size={14} aria-hidden="true" />
+          </button>
+        )}
+        {s.idexxEnabled && s.canEditIntegrations ? (
           <button
             type="button"
             onClick={s.handleEnableDisable}
@@ -1058,13 +1068,14 @@ const MerckIntegrationCard = ({
         for every clinic.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        {s.merckEnabled ? (
+        {s.merckEnabled && (
           <Secondary
             href="/integrations/merck-manuals"
             text="Open manuals"
             className="px-4 whitespace-nowrap"
           />
-        ) : (
+        )}
+        {!s.merckEnabled && s.canEditIntegrations && (
           <Primary
             href="#"
             text={buttonLabel}
@@ -1073,7 +1084,7 @@ const MerckIntegrationCard = ({
             className="px-4 whitespace-nowrap"
           />
         )}
-        {s.merckEnabled ? (
+        {s.merckEnabled && s.canEditIntegrations ? (
           <button
             type="button"
             onClick={s.handleMerckEnableDisable}
@@ -1391,8 +1402,11 @@ const IntegrationsPage = () => {
         ) : null}
       </div>
 
+      {/* Every control inside the panel hits an integrations:edit:any route, so
+          it never mounts for a view-only role - closing the paths that open it
+          from a failed validate or enable as well as from the gear. */}
       <IdexxSettingsModal
-        showSettings={s.showSettings}
+        showSettings={s.canEditIntegrations && s.showSettings}
         setShowSettings={s.setShowSettings}
         idexxIntegration={s.idexxIntegration}
         idexxEnabled={s.idexxEnabled}

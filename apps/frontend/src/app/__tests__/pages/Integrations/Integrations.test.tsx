@@ -46,7 +46,14 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ primaryOrgId: 'org-1' }),
+  useOrgStore: (selector: any) =>
+    selector({
+      primaryOrgId: 'org-1',
+      status: 'loaded',
+      // Owner membership so integrations:edit:any resolves and the mutation
+      // controls render for these cases.
+      membershipsByOrgId: { 'org-1': { roleCode: 'OWNER' } },
+    }),
 }));
 
 jest.mock('@/app/hooks/useIntegrations', () => ({
