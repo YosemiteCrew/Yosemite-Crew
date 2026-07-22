@@ -498,7 +498,7 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['4'],
     },
     buttonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.paragraphBold,
     },
     inputContainer: {

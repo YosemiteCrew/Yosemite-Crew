@@ -1008,7 +1008,7 @@ const createStyles = (theme: any) => {
     },
     otCtaButtonText: {
       ...theme.typography.buttonH6Clash19,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
     ...formStyles,
@@ -1192,7 +1192,7 @@ const createStyles = (theme: any) => {
     },
     reuseButtonText: {
       ...theme.typography.buttonH6Clash19,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
     errorContainer: {

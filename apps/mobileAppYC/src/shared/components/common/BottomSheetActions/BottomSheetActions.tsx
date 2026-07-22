@@ -71,6 +71,6 @@ const createStyles = (theme: any, cancelTextColor: string) =>
     },
     saveButtonText: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
   });

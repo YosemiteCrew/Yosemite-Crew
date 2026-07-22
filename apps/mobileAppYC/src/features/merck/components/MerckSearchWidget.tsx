@@ -1291,7 +1291,7 @@ const createStyles = (theme: any) =>
     },
     openButtonText: {
       ...theme.typography.buttonSmall,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       includeFontPadding: false,
       textAlignVertical: 'center',
     },

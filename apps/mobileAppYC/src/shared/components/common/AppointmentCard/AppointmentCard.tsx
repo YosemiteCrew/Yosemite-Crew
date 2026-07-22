@@ -264,7 +264,7 @@ const createStyles = (theme: any) =>
     },
     directionsButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     textBlock: {flex: 1, gap: theme.spacing['1']},
     name: {...theme.typography.titleMedium, color: theme.colors.secondary},

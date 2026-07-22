@@ -66,6 +66,7 @@ type MenuItem = {
   tone?: IconTileTone;
   onPress: () => void;
   danger?: boolean;
+  tintIcon?: boolean;
 };
 
 // Removed COMPANION_PLACEHOLDERS
@@ -120,6 +121,7 @@ const buildAccountMenuItems = (
     label: 'FAQs',
     icon: Images.faqIcon,
     tone: 'info',
+    tintIcon: false,
     onPress: () => {
       navigation.navigate('FAQ');
     },
