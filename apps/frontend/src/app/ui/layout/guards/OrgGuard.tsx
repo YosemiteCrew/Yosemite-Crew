@@ -31,6 +31,7 @@ import { getStorage, getStorageItem, setStorageItem } from '@/app/lib/browserSto
 import {
   canAccessPathByPermissions,
   resolveFirstAccessibleAppRoute,
+  resolveMembershipPermissions,
 } from '@/app/lib/routePermissions';
 import { appRoutes } from '@/app/constants/routes';
 
@@ -210,7 +211,7 @@ const resolveReadyOrgGuardRedirect = ({
   });
   if (orgRedirect && orgRedirect !== pathname) return orgRedirect;
 
-  const effectivePermissions = membership.effectivePermissions ?? [];
+  const effectivePermissions = resolveMembershipPermissions(membership);
   const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
     pathname,
     effectivePermissions
@@ -370,7 +371,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
 
     if (redirectTo && redirectTo !== pathname) return;
 
-    const effectivePermissions = membership.effectivePermissions ?? [];
+    const effectivePermissions = resolveMembershipPermissions(membership);
     const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
       pathname,
       effectivePermissions
