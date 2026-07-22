@@ -445,7 +445,7 @@ function Hero() {
 
       <div style={HERO_CONTENT_STYLE}>
         <div ref={releaseRef} style={{ opacity: 0, animation: `ycHeroUp 0.9s ${EASE} 0.05s both` }}>
-          <ReleasePill variant="platform" label="Platform PIMS" version="v2.0 beta" />
+          <ReleasePill variant="platform" label="Platform PIMS" version="v2.1.0-beta" />
         </div>
 
         <HeroHeading />

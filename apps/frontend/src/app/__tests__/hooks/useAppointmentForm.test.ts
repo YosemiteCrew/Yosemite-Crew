@@ -345,6 +345,79 @@ describe('useAppointmentForm', () => {
     });
   });
 
+  it('keeps a slot-derived duration when the same service is re-selected and clears it when the service changes', async () => {
+    const loadSpecialityCatalog = jest.fn(() => Promise.resolve());
+    setRevampCatalogState({
+      loadSpecialityCatalog,
+      services: [
+        {
+          id: 'svc-consult',
+          code: 'CS-001',
+          name: 'General consult',
+          description: 'Exam and consultation',
+          type: 'CONSULTATION',
+          specialityId: 'spec-general',
+          organisationId: 'org-1',
+          grossAmount: 75,
+          defaultDiscount: 0,
+          maxDiscount: 10,
+          durationMinutes: 30,
+          isBookable: true,
+          isInpatientPreferred: false,
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'svc-dental',
+          code: 'CS-002',
+          name: 'Dental clean',
+          description: 'Scale and polish',
+          type: 'CONSULTATION',
+          specialityId: 'spec-general',
+          organisationId: 'org-1',
+          grossAmount: 120,
+          defaultDiscount: 0,
+          maxDiscount: 10,
+          durationMinutes: 45,
+          isBookable: true,
+          isInpatientPreferred: false,
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    const { result } = renderHook(() => useAppointmentForm());
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-general' });
+    });
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'General consult', value: 'svc-consult' });
+    });
+    expect(result.current.formData.appointmentType?.id).toBe('svc-consult');
+
+    // A calendar slot fills in the duration for this service.
+    await act(async () => {
+      result.current.setFormData((prev) => ({ ...prev, durationMinutes: 30 }));
+    });
+    expect(result.current.formData.durationMinutes).toBe(30);
+
+    // Re-selecting the same service must keep that duration: the slot-load effect does not re-run
+    // when the service id is unchanged, so zeroing it here would strand booking on
+    // "Please select a duration".
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'General consult', value: 'svc-consult' });
+    });
+    expect(result.current.formData.durationMinutes).toBe(30);
+
+    // Switching to a different service clears the stale duration so the badge follows the new one.
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'Dental clean', value: 'svc-dental' });
+    });
+    expect(result.current.formData.appointmentType?.id).toBe('svc-dental');
+    expect(result.current.formData.durationMinutes).toBe(0);
+  });
+
   it('includes bookable packages with a Package badge and excludes non-bookable packages', async () => {
     const loadSpecialityCatalog = jest.fn(() => Promise.resolve());
     setRevampCatalogState({

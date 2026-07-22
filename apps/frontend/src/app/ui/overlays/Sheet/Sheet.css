@@ -61,6 +61,13 @@
     }
   }
 
+  /* Floating field labels straddle the field's top border, so inside a sheet the
+     protruding half must match the sheet surface (not the desktop --neutral-0
+     panel) or it shows as a lighter cream patch. */
+  .yc-phone-sheet .yc-float-label {
+    background: var(--glass-93);
+  }
+
   /* The grabber, title row and footer are fixed furniture: `flex: none` keeps
      the flex column from shrinking them (a 44x5 grabber squashes to 2px
      otherwise) so the body is the only region that gives, and scrolls. */
@@ -140,6 +147,9 @@
 
   dialog.yc-modal-sheet-closed {
     transform: translateY(100%);
+    /* Parked off-screen: drop the upward float shadow so it stops bleeding a
+       dark band up into the page above (seen behind e.g. the Settings screen). */
+    box-shadow: none;
   }
 
   /* `variant="drawer"` on a phone: full-screen, per "drawers go full-screen".

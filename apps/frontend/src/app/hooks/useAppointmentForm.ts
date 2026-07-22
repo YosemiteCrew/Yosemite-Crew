@@ -1226,6 +1226,8 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       setFormData((prev) => ({
         ...prev,
         appointmentKind,
+        // Clear any slot-derived duration so the badge follows the new speciality.
+        durationMinutes: 0,
         appointmentType: {
           id: '',
           name: '',
@@ -1257,6 +1259,11 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       setFormData((prev) => ({
         ...prev,
         appointmentKind: serviceAppointmentKind,
+        // Clear any slot-derived duration so the badge follows the new service - but only when the
+        // service actually changes. Re-selecting the same service does not re-run the slot-load
+        // effect, so zeroing here would strand durationMinutes at 0 and block booking with
+        // "Please select a duration".
+        durationMinutes: prev.appointmentType?.id === option.value ? prev.durationMinutes : 0,
         appointmentType: {
           id: option.value,
           name: option.label,

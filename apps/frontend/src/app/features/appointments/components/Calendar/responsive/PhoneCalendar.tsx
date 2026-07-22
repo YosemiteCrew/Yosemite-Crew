@@ -11,7 +11,7 @@ import { useLoadTasksForPrimaryOrg, useTasksAssignedToUser } from '@/app/hooks/u
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
-import { getPreferredTimeZone } from '@/app/lib/timezone';
+import { buildPreferredTimeZoneDayInstant, getPreferredTimeZone } from '@/app/lib/timezone';
 import { useNotify } from '@/app/hooks/useNotify';
 import type { Task } from '@/app/features/tasks/types/task';
 import type { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
@@ -85,7 +85,10 @@ const startOfLocalDay = (date: Date): Date =>
 
 const parseDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  // Anchor at local noon in the preferred timezone so the key round-trips through
+  // getDateKeyInPreferredTimeZone for every zone - a UTC-noon anchor lands on the next day
+  // for zones 12+ hours ahead of UTC (e.g. Pacific/Auckland).
+  return buildPreferredTimeZoneDayInstant(year, month, day);
 };
 
 const minutesOfDay = (date: Date): number => date.getHours() * 60 + date.getMinutes();
@@ -221,8 +224,12 @@ const PhoneCalendar = ({
 
   const handleBookFold = useCallback(
     (fold: DayRailFold) => {
+      // Pass currentDate straight through (the booking path reads its day in the PREFERRED
+      // timezone via buildDateInPreferredTimeZone). Do NOT re-project through startOfLocalDay,
+      // whose device-local getters shift the day when the preferred zone is ahead of the device
+      // (e.g. opening 7 Jul in Pacific/Auckland from a US/Pacific browser prefilled 6 Jul).
       onCreateFromCalendarSlot?.({
-        date: startOfLocalDay(currentDate),
+        date: currentDate,
         minuteOfDay: fold.startMinutes,
       });
     },
@@ -305,7 +312,7 @@ const PhoneCalendar = ({
           view="month"
           onViewChange={applyClinicView}
           onMonthChange={setMonthAnchor}
-          onSelectDay={(cell: PhoneMonthCell) => setCurrentDate(cell.date)}
+          onSelectDay={(cell: PhoneMonthCell) => setCurrentDate(parseDateKey(cell.dateKey))}
           onOpenDay={(dateKey: string) => openDay(parseDateKey(dateKey))}
         />
       </div>
