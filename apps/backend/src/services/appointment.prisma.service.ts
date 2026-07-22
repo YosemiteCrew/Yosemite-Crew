@@ -1025,9 +1025,15 @@ const ensureEncounterOnCheckIn = async (args: {
   tx: TransactionClient;
   appointmentId: string;
   current: AppointmentRow;
-}) => {
+  // Pre-resolved case for the appointment. When provided it is used as-is, so this helper and its
+  // caller never both resolve/create a case (which would leave an inpatient with a duplicate case).
+  caseId?: string;
+}): Promise<{ encounterId: string; caseId: string | null }> => {
   if (args.current.encounterId) {
-    return args.current.encounterId;
+    return {
+      encounterId: args.current.encounterId,
+      caseId: normalizeOptionalString(args.current.caseId) ?? null,
+    };
   }
 
   const patientId = getPatientId(args.current.patient);
@@ -1035,6 +1041,7 @@ const ensureEncounterOnCheckIn = async (args: {
     args.current.appointmentKind,
   );
   const caseId =
+    normalizeOptionalString(args.caseId) ??
     normalizeOptionalString(args.current.caseId) ??
     (await resolveCaseContext({
       tx: args.tx,
@@ -1088,7 +1095,7 @@ const ensureEncounterOnCheckIn = async (args: {
     },
   });
 
-  return createdEncounter.id;
+  return { encounterId: createdEncounter.id, caseId };
 };
 
 const assertLeadAvailability = async (args: {
@@ -1807,7 +1814,7 @@ export const AppointmentPrismaService = {
     );
 
     const updated = await prisma.$transaction(async (tx) => {
-      const encounterId = await ensureEncounterOnCheckIn({
+      const { encounterId } = await ensureEncounterOnCheckIn({
         tx,
         appointmentId,
         current: row,
@@ -1847,7 +1854,7 @@ export const AppointmentPrismaService = {
     assertAppointmentTransition(row.status, "CHECKED_IN", "checkInAppointment");
 
     const updated = await prisma.$transaction(async (tx) => {
-      const encounterId = await ensureEncounterOnCheckIn({
+      const { encounterId } = await ensureEncounterOnCheckIn({
         tx,
         appointmentId,
         current: row,
@@ -2199,17 +2206,43 @@ export const AppointmentPrismaService = {
         });
       }
 
-      // On the transition into IN_PROGRESS, stamp the encounter's real
-      // actual-start so the workspace visit timer runs (bug #1903). Only fires on
-      // the first move into IN_PROGRESS and only when an encounter exists.
-      if (
-        patch.status === "IN_PROGRESS" &&
-        row.status !== "IN_PROGRESS" &&
-        encounterId
-      ) {
+      // On the transition into IN_PROGRESS, stamp the encounter's real actual-start so the
+      // workspace visit timer runs (bug #1903). Guarantee an encounter first: an appointment can
+      // reach IN_PROGRESS without one (e.g. a CHECKED_IN set from the edit form rather than the
+      // encounter-creating check-in action), and with no encounter there is nowhere to record the
+      // start, so the timer stays "Not started". Thread the ensured ids into the update below so it
+      // does not overwrite the freshly-linked case/encounter back to null.
+      let inProgressEncounterId = encounterId;
+      let inProgressCaseId = resolvedCaseId;
+      if (patch.status === "IN_PROGRESS" && row.status !== "IN_PROGRESS") {
+        if (!inProgressEncounterId) {
+          // Create the encounter from the PATCHED appointment context (patient, kind, type, case,
+          // concern, times) - the same values the update below writes - so a request that both
+          // starts the appointment AND edits it never links an encounter built from stale
+          // pre-update context.
+          const patchedRow = {
+            ...row,
+            patient: input.patient,
+            appointmentKind,
+            appointmentType,
+            concern: input.concern ?? row.concern,
+            startTime: patch.startTime,
+            endTime: patch.endTime,
+            caseId: resolvedCaseId ?? row.caseId,
+            encounterId: null,
+          } as AppointmentRow;
+          const ensured = await ensureEncounterOnCheckIn({
+            tx,
+            appointmentId,
+            current: patchedRow,
+            caseId: resolvedCaseId,
+          });
+          inProgressEncounterId = ensured.encounterId;
+          inProgressCaseId = ensured.caseId ?? resolvedCaseId;
+        }
         await stampEncounterActualStartOnProgress({
           tx,
-          encounterId,
+          encounterId: inProgressEncounterId,
           startedAt: new Date(),
         });
       }
@@ -2221,8 +2254,8 @@ export const AppointmentPrismaService = {
           appointmentType: appointmentType
             ? toJsonValue(appointmentType)
             : toNullableJsonValue(row.appointmentType),
-          caseId: resolvedCaseId ?? null,
-          encounterId: encounterId ?? null,
+          caseId: inProgressCaseId ?? null,
+          encounterId: inProgressEncounterId ?? null,
           productItemId: selection.productItemId,
           updatedAt: new Date(),
         },

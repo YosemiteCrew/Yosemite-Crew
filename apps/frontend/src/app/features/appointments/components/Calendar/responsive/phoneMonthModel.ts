@@ -38,9 +38,8 @@ const STATUS_LABELS: Record<AppointmentStatus, string> = {
 };
 
 export type PhoneMonthCell = {
-  /** Local-midnight Date for the cell, for consumers that need a Date. */
-  date: Date;
-  /** `YYYY-MM-DD` calendar key — the identity of the cell. */
+  /** `YYYY-MM-DD` calendar key — the identity of the cell. Consumers derive a concrete instant on
+   *  demand (via parseDateKey) only when a day is actually selected, never for every grid cell. */
   dateKey: string;
   dayOfMonth: number;
   /** True for the leading/trailing days borrowed from the adjacent months. */
@@ -273,7 +272,6 @@ export const buildPhoneMonthModel = ({
     const appointmentCount = bucket?.appointments.length ?? 0;
 
     return {
-      date: new Date(ref.year, ref.month - 1, ref.day),
       dateKey,
       dayOfMonth: ref.day,
       isOutsideMonth,

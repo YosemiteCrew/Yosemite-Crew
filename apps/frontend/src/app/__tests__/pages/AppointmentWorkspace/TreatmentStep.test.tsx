@@ -465,6 +465,70 @@ describe('TreatmentStep', () => {
     expect(screen.queryByText('Medication')).not.toBeInTheDocument();
   });
 
+  it('locks a finalized (unbilled) prescription so its edits cannot be silently dropped', () => {
+    // The save loop skips re-saving finalized rows, so their fields must be read-only - otherwise a
+    // clinician's edits would never persist yet still show/invoice (Codex P1 on #1909).
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          frequency: 'BID (twice daily)',
+          durationDays: '5',
+          durationUnit: 'days',
+          qty: '10',
+          refill: '2',
+          fulfillment: 'IN_HOUSE' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    // The locked state is surfaced, and the row's controls are read-only.
+    expect(screen.getByText('Finalized')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /fulfillment/i })).toBeDisabled();
+  });
+
+  it('does not block Save Treatment on a finalized row missing a now-required field', async () => {
+    // A finalized record hydrated from older/external data may lack a currently-required field. It
+    // is read-only and skipped by the save loop, so it must not wedge the save behind a validation
+    // error the clinician cannot fix (Codex P2 on #1909).
+    const onOpenInvoice = jest.fn();
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          // Deliberately missing frequency/duration/quantity (required on a fresh row).
+          fulfillment: 'PRESCRIPTION_ONLY' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    // Validation skips the finalized row, so the save advances to billing...
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    // ...and the finalized row is never re-saved.
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    expect(savedIds).not.toContain('rx-final');
+  });
+
   it('adds and removes services from the workspace store', () => {
     const enc = seedAndGet();
     render(
@@ -1037,6 +1101,42 @@ describe('TreatmentStep', () => {
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );
+  });
+
+  // #1909: an already-finalized prescription (a locked clinical record) must NOT be re-saved on the
+  // next Save Treatment - re-POSTing/PATCHing it returns 409 and would fail the whole save. It is
+  // skipped while fresh rows still persist and the step advances to billing.
+  it('skips re-saving a finalized prescription while still saving fresh rows', async () => {
+    const onOpenInvoice = jest.fn();
+    seedAndGet();
+    // Mark rx-1 as an already-finalized record; rx-2 stays a fresh (savable) row.
+    const store = useAppointmentWorkspaceStore.getState();
+    const seeded = store.getEncounter(APPT)!.prescription;
+    store.setPrescriptions(
+      APPT,
+      seeded.map((rx) => (rx.id === 'rx-1' ? { ...rx, finalized: true } : rx))
+    );
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    // The finalized row is never re-saved; the fresh row still is.
+    expect(savedIds).not.toContain('rx-1');
+    expect(savedIds).toContain('rx-2');
+    // The finalized row is not re-dispensed either.
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1');
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
   });
 
   it('blocks the invoice and shows an error when treatment persistence fails', async () => {

@@ -12,6 +12,7 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { useNotify } from '@/app/hooks/useNotify';
+import { getDateKeyInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -184,13 +185,18 @@ describe('PhoneCalendar', () => {
       expect(onOpenWorkspace).toHaveBeenCalledWith(checkedIn);
     });
 
-    it('books into a folded band at the fold start minute', async () => {
-      renderCalendar();
+    it('books into a folded band using the viewed day as-is, not a device-local projection', async () => {
+      // currentDate carries a time-of-day. The booking date must be that exact instant (its day is
+      // read in the preferred timezone downstream), NOT stripped to device-local midnight, which
+      // would shift the day when the preferred zone is ahead of the device (bug: opening 7 Jul in
+      // Pacific/Auckland from a US/Pacific browser prefilled 6 Jul).
+      const viewed = localDate(7, 12);
+      renderCalendar({ currentDate: viewed });
 
       await userEvent.click(screen.getAllByRole('button', { name: 'Book' })[0]);
 
       expect(onCreateFromCalendarSlot).toHaveBeenCalledWith({
-        date: new Date(2026, 6, 7),
+        date: viewed,
         minuteOfDay: expect.any(Number),
       });
     });
@@ -301,7 +307,10 @@ describe('PhoneCalendar', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /^2026-07-07/ }));
 
-      expect(setCurrentDate).toHaveBeenCalledWith(new Date(2026, 6, 7));
+      // Cells anchor to local noon in the preferred timezone, so the selected date round-trips
+      // back to its own day key (not the next day, as a UTC-noon anchor would in +12/+13 zones).
+      const selectedDate = (setCurrentDate as jest.Mock).mock.calls.at(-1)?.[0] as Date;
+      expect(getDateKeyInPreferredTimeZone(selectedDate)).toBe('2026-07-07');
       expect(screen.getByRole('region', { name: 'Month overview' })).toBeInTheDocument();
     });
 
@@ -321,8 +330,9 @@ describe('PhoneCalendar', () => {
 
       const openedDate = (setCurrentDate as jest.Mock).mock.calls.at(-1)?.[0] as Date;
       expect(openedDate).toBeInstanceOf(Date);
-      expect(openedDate.getHours()).toBe(0);
-      expect(openedDate.getMinutes()).toBe(0);
+      // parseDateKey anchors the opened day to local noon in the preferred timezone (never near a
+      // day boundary), so the day key stays stable across every zone.
+      expect(getDatePartsInPreferredTimeZone(openedDate).hour).toBe(12);
       expect(setActiveCalendar).toHaveBeenCalledWith('day');
     });
   });

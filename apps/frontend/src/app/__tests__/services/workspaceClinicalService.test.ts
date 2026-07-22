@@ -630,7 +630,26 @@ describe('workspaceClinicalService', () => {
       {}
     );
     expect(prescriptions[0].id).toBe('rx-enc');
+    // #1909: a FHIR status of 'active' means the prescription is finalized (COMPLETED/SIGNED).
+    expect(prescriptions[0].finalized).toBe(true);
     expect(prescription.id).toBe('rx-enc');
+  });
+
+  it('marks a draft-status prescription as not finalized', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: bundle('MedicationRequest', {
+        id: 'rx-draft',
+        status: 'draft',
+        medicationCodeableConcept: { text: 'Meloxicam' },
+      }),
+    });
+
+    const prescriptions = await listPrescriptionsForEncounter('org-1', 'enc-1', {
+      appointmentId: 'appt-1',
+    });
+
+    // A draft prescription can still be PATCHed, so it must not be flagged finalized.
+    expect(prescriptions[0].finalized).toBe(false);
   });
 
   it('lists observation tool submissions attached to the appointment', async () => {

@@ -439,6 +439,40 @@ describe("WorkspaceDocumentPacketService.sign", () => {
     expect(result.signing?.status).toBe("IN_PROGRESS");
   });
 
+  it("never merges an INVOICE rendered document into the signed clinical packet", async () => {
+    arrange();
+    // A visit with a finalized invoice: the invoice shows in All Documents but is not a packet
+    // member, so signing must exclude it while still merging the clinical docs.
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        documents: [
+          docRow("d1", "SOAP_NOTE"),
+          { ...docRow("d2", "FORM"), sourceKind: "FORM_SUBMISSION" },
+          { ...docRow("inv", "INVOICE"), sourceKind: "INVOICE" },
+        ],
+      }),
+    );
+
+    await WorkspaceDocumentPacketService.sign({
+      organisationId: "org-1",
+      packetId: "pkt-1",
+      signerId: "user-1",
+      signerName: "Dr Jane",
+    });
+
+    expect(mockedBuildPacketPdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documents: [
+          expect.objectContaining({ documentId: "d1" }),
+          expect.objectContaining({ documentId: "d2" }),
+        ],
+      }),
+    );
+    const updateArg =
+      mockedPrisma.workspaceDocumentPacket.update.mock.calls[0][0];
+    expect(updateArg.data.signing.documentIds).toEqual(["d1", "d2"]);
+  });
+
   it("refuses to sign when the authenticated signer has no resolvable email", async () => {
     arrange();
     mockedPrisma.user.findFirst.mockResolvedValue(null);

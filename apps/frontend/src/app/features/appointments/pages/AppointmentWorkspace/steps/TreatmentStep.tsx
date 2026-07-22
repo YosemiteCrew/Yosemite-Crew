@@ -785,9 +785,11 @@ const TreatmentStep = ({
     // BEFORE the persist/no-persist branch so it blocks even when org/encounter haven't hydrated
     // (otherwise the step would silently advance without validating). Each row must carry the
     // required clinical instructions (frequency, duration, quantity, route, form) and pass every
-    // number-format rule.
+    // number-format rule. Finalized rows are read-only and skipped by the save loop, so exclude
+    // them: an older/external finalized record missing a now-required field must not wedge the
+    // save behind a validation error the clinician cannot fix.
     const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
-      getPrescriptionSaveErrors(rx)
+      rx.finalized ? [] : getPrescriptionSaveErrors(rx)
     );
     if (prescriptionErrors.length > 0) {
       setPrescriptionError(prescriptionErrors[0]);
@@ -830,6 +832,13 @@ const TreatmentStep = ({
       // create-or-update is keyed off the row id.
       const reconciledPrescriptions = await Promise.all(
         normalizedPrescriptions.map(async (rx) => {
+          // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
+          // only ever set from persisted server state, so it always carries a real id). Re-POSTing
+          // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
+          // already-persisted, already-dispensed row untouched instead of re-saving it.
+          if (rx.finalized) {
+            return rx;
+          }
           const savedRx = await savePrescriptionArtifact(
             { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
             rx

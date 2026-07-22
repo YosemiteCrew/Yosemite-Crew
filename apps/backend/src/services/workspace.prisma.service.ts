@@ -296,6 +296,7 @@ type WorkspaceAccess = {
   tasks: boolean;
   labs: boolean;
   documents: boolean;
+  billing: boolean;
   treatmentItems: boolean;
 };
 
@@ -312,6 +313,7 @@ const SYSTEM_WORKSPACE_ACCESS: WorkspaceAccess = {
   tasks: true,
   labs: true,
   documents: true,
+  billing: true,
   treatmentItems: true,
 };
 
@@ -324,6 +326,7 @@ const buildWorkspaceAccess = (
   tasks: snapshot.canViewTasks,
   labs: snapshot.canViewLabs,
   documents: snapshot.canViewDocuments,
+  billing: snapshot.permissions.includes("billing:view:any"),
   treatmentItems: snapshot.permissions.includes("billing:view:any"),
 });
 
@@ -1760,7 +1763,25 @@ const loadDocuments = async (params: {
     string,
     { appointmentId: string | null; encounterId: string | null }
   >;
+  canViewBilling?: boolean;
 }) => {
+  // An INVOICE rendered document links to the appointment through its source row
+  // (Invoice.appointmentId), not through a templateInstance or clinicalArtifact - so without this
+  // the appointment's invoice PDF is silently omitted from the All Documents section. Resolve the
+  // invoice ids up front and match the rendered documents by sourceId. (Legacy form-submission
+  // reads stay retired; forms surface via the rendered-document/templateInstance pipeline.)
+  //
+  // Invoices are financial documents: the rendered-document controller only serves an INVOICE PDF to
+  // callers holding `billing:view:any`. Gate the lookup on the same permission so a document-view-only
+  // caller never receives invoice ids they could not open - matching the controller's access rule.
+  const appointmentInvoices =
+    params.appointmentId && params.canViewBilling
+      ? await prisma.invoice.findMany({
+          where: { appointmentId: params.appointmentId },
+          select: { id: true },
+        })
+      : [];
+
   const renderedDocumentConditions = [
     ...(params.appointmentId
       ? [
@@ -1773,6 +1794,14 @@ const loadDocuments = async (params: {
             clinicalArtifact: {
               is: { appointmentId: params.appointmentId },
             },
+          },
+        ]
+      : []),
+    ...(appointmentInvoices.length
+      ? [
+          {
+            sourceKind: "INVOICE" as never,
+            sourceId: { in: appointmentInvoices.map((invoice) => invoice.id) },
           },
         ]
       : []),
@@ -2039,6 +2068,7 @@ const buildBootstrapAggregate = async (
       appointmentId,
       encounterId,
       companionId,
+      canViewBilling: access.billing,
       scheduleIds: schedules.map((schedule) => schedule.id),
       scheduleContext,
     }),

@@ -1122,7 +1122,16 @@ const RadIntegrationCard = ({
         Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'var(--inset)',
+            color: 'var(--ink-muted)',
+            border: '1px solid var(--hairline)',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
     </div>
   );
@@ -1161,7 +1170,16 @@ const VetnioIntegrationCard = ({
         discharge summaries, and client communications from consultations.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'var(--inset)',
+            color: 'var(--ink-muted)',
+            border: '1px solid var(--hairline)',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
     </div>
   );
@@ -1200,7 +1218,16 @@ const QuickBooksIntegrationCard = ({
         QuickBooks Online.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'var(--inset)',
+            color: 'var(--ink-muted)',
+            border: '1px solid var(--hairline)',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
     </div>
   );
@@ -1240,7 +1267,16 @@ const LaikaIntegrationCard = ({
         veterinary medical data.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'var(--inset)',
+            color: 'var(--ink-muted)',
+            border: '1px solid var(--hairline)',
+          }}
+        >
+          Coming soon
+        </span>
       </div>
     </div>
   );

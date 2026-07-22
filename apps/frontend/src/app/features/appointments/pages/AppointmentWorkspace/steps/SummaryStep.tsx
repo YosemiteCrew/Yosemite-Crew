@@ -237,12 +237,6 @@ const SigningStatusPill = ({ signingStatus }: { signingStatus?: string | null })
   );
 };
 
-/** Shared column template (mirrors the Invoice table) so the heading and row
- *  grids resolve to identical track widths. The Actions track is fixed. */
-const DOCUMENT_COLS =
-  '@2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_92px]';
-const DOCUMENT_ROW_GRID = `grid gap-3 ${DOCUMENT_COLS} @2xl:items-center`;
-
 const downloadDocumentUrl = (url: string) => {
   const link = globalThis.document.createElement('a');
   link.href = url;
@@ -302,53 +296,47 @@ export const AllDocumentsTable = ({
         </p>
       )}
       {!error && documents.length > 0 && (
-        <div className="@container flex flex-col gap-3">
-          <div
-            className={`${DOCUMENT_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate @2xl:grid`}
-          >
-            <span>Created</span>
-            <span>Source</span>
-            <span>Title</span>
-            <span>Status</span>
-            <span>Signing</span>
-            <span className="text-right">Actions</span>
-          </div>
+        <div className="flex flex-col gap-3">
+          {/* Stacked cards, not a fixed multi-column grid: the section lives in a ~400px aside, so a
+              6-track row forces the status/signing pills to overflow their columns and overlap the
+              neighbouring cell. A card keeps the title on its own line (truncates with a tooltip),
+              lets the pills wrap, and pins the actions to the right at every width. */}
           <ul className="flex flex-col gap-3">
             {documents.map((document) => (
               <li
                 key={document.documentId}
-                className={`${DOCUMENT_ROW_GRID} rounded-2xl border border-card-border p-4`}
+                className="flex items-start gap-3 rounded-2xl border border-card-border p-4"
               >
-                <span className="truncate text-body-4 text-text-secondary">
-                  {formatDateTime(toIsoString(document.createdAt))}
-                </span>
-                <span>
-                  <DocumentSourcePill source={document.sourceKind} />
-                </span>
-                <span className="truncate font-medium text-text-primary">{document.title}</span>
-                <span className="truncate text-body-4 text-text-primary">
-                  {humanizeToken(document.status)}
-                </span>
-                <span className="truncate">
-                  <SigningStatusPill signingStatus={document.signingStatus} />
-                </span>
-                <div className="flex justify-end gap-2">
-                  {canView && (
-                    <>
-                      <CircleIconButton
-                        icon={<IoEyeOutline aria-hidden="true" />}
-                        label={`View ${document.title}`}
-                        variant="dark"
-                        onClick={() => void handleDocumentAction(document)}
-                      />
-                      <CircleIconButton
-                        icon={<IoDownloadOutline aria-hidden="true" />}
-                        label={`Download ${document.title}`}
-                        onClick={() => void handleDocumentAction(document)}
-                      />
-                    </>
-                  )}
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="truncate font-medium text-text-primary" title={document.title}>
+                    {document.title}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <DocumentSourcePill source={document.sourceKind} />
+                    <span className="text-body-4 text-text-primary">
+                      {humanizeToken(document.status)}
+                    </span>
+                    <SigningStatusPill signingStatus={document.signingStatus} />
+                  </div>
+                  <span className="text-body-4 text-text-secondary">
+                    {formatDateTime(toIsoString(document.createdAt))}
+                  </span>
                 </div>
+                {canView && (
+                  <div className="flex shrink-0 justify-end gap-2">
+                    <CircleIconButton
+                      icon={<IoEyeOutline aria-hidden="true" />}
+                      label={`View ${document.title}`}
+                      variant="dark"
+                      onClick={() => void handleDocumentAction(document)}
+                    />
+                    <CircleIconButton
+                      icon={<IoDownloadOutline aria-hidden="true" />}
+                      label={`Download ${document.title}`}
+                      onClick={() => void handleDocumentAction(document)}
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>
