@@ -357,6 +357,12 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
 
     expect(mockUpsertUser).toHaveBeenCalledTimes(2);
     expect(mockChannel).toHaveBeenCalledTimes(1);
+    // Both clinics list the conversation, so the channel is stamped with both.
+    expect(mockChannel).toHaveBeenCalledWith(
+      "team",
+      expect.stringMatching(/^nd_/),
+      expect.objectContaining({ organisationIds: ["org1", "org2"] }),
+    );
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const createArgs = mockedPrisma.chatSession.create.mock.calls[0][0].data;
     expect(createArgs).toMatchObject({

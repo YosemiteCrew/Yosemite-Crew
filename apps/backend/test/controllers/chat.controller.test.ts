@@ -476,6 +476,19 @@ describe("ChatController.listMySessions", () => {
     ]);
   });
 
+  it("matches the organisation on either side of a cross-clinic session", async () => {
+    findMany.mockResolvedValue([{ id: "s1" }]);
+    const res = makeRes();
+    await ChatController.listMySessions(
+      makeReq({ params: { organisationId: "o1" } }),
+      res,
+    );
+    expect(findMany.mock.calls[0][0].where.OR).toEqual([
+      { organisationId: "o1" },
+      { counterpartOrganisationId: "o1" },
+    ]);
+  });
+
   it("excludes closed sessions by default", async () => {
     findMany.mockResolvedValue([{ id: "s1" }]);
     const res = makeRes();
