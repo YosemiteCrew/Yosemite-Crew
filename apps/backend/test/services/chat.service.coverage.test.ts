@@ -151,7 +151,11 @@ describe("ChatService.ensureAppointmentChat", () => {
     expect(mockChannel).toHaveBeenCalledWith(
       "messaging",
       "appointment-a1",
-      expect.objectContaining({ appointmentId: "a1", organisationId: "org1" }),
+      expect.objectContaining({
+        appointmentId: "a1",
+        organisationId: "org1",
+        organisationIds: ["org1"],
+      }),
     );
     expect(mockCreate).toHaveBeenCalled();
     // parent + vet + system upserts
@@ -248,7 +252,10 @@ describe("ChatService.createOrgDirectChat", () => {
     expect(mockChannel).toHaveBeenCalledWith(
       "team",
       expect.stringMatching(/^od_/),
-      expect.objectContaining({ members: ["userA", "userB"] }),
+      expect.objectContaining({
+        members: ["userA", "userB"],
+        organisationIds: ["org1"],
+      }),
     );
     expect(mockUpsertUser).toHaveBeenCalledTimes(2);
     expect(mockedPrisma.chatSession.create).toHaveBeenCalledWith(
@@ -291,7 +298,11 @@ describe("ChatService.createOrgGroupChat", () => {
     expect(mockChannel).toHaveBeenCalledWith(
       "team",
       expect.stringMatching(/^org-group-/),
-      expect.objectContaining({ name: "Team", created_by_id: "owner" }),
+      expect.objectContaining({
+        name: "Team",
+        created_by_id: "owner",
+        organisationIds: ["org1"],
+      }),
     );
     expect(mockedPrisma.chatSession.create).toHaveBeenCalledWith(
       expect.objectContaining({
