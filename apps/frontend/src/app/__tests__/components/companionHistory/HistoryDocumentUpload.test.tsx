@@ -9,9 +9,19 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <>{children}</>,
 }));
 
-jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
+jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
-  default: ({ children }: any) => <div>{children}</div>,
+  default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
+}));
+
+jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
+  __esModule: true,
+  default: ({ title, onClose }: any) => (
+    <div>
+      <div>{title}</div>
+      <button type="button" aria-label="close" onClick={onClose} />
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
@@ -83,6 +93,7 @@ describe('HistoryDocumentUpload', () => {
 
   it('shows validation errors for missing fields', async () => {
     render(<HistoryDocumentUpload companionId="comp-1" />);
+    fireEvent.click(screen.getByText('Upload record'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -91,11 +102,12 @@ describe('HistoryDocumentUpload', () => {
     expect(createCompanionDocumentMock).not.toHaveBeenCalled();
   });
 
-  it('submits document and resets form on success', async () => {
+  it('submits the document, closes the panel and resets the form', async () => {
     const onUploaded = jest.fn();
     createCompanionDocumentMock.mockResolvedValue({ _id: 'doc-1' });
 
     render(<HistoryDocumentUpload companionId="comp-1" onUploaded={onUploaded} />);
+    fireEvent.click(screen.getByText('Upload record'));
 
     fireEvent.change(screen.getByTestId('Category'), {
       target: { value: 'HEALTH' },
@@ -134,6 +146,9 @@ describe('HistoryDocumentUpload', () => {
     });
 
     expect(onUploaded).toHaveBeenCalledTimes(1);
+    // The panel closes itself on success, and reopening starts from a clean form.
+    expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Upload record'));
     expect(screen.getByLabelText('Title')).toHaveValue('');
   });
 });
