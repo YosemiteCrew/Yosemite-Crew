@@ -804,6 +804,29 @@ describe('ViewAppointmentScreen', () => {
           },
         } as any),
       ).toEqual([{id: '', label: '', value: 'Untitled value'}]);
+
+      // A blank rich-text answer ("<p></p>") formats to '—' and is excluded
+      // from the schema-based rows, but its raw HTML must not leak back in
+      // through the raw-answer fallback — it should resolve to no rows.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {schema: [{id: 'story', label: 'Story', type: 'richtext'}]},
+          submission: {answers: {story: '<p></p>'}},
+        } as any),
+      ).toEqual([]);
+
+      // A non-schema raw answer alongside a blank schema-known rich-text
+      // field still comes through — only the rich-text value is stripped.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {schema: [{id: 'story', label: 'Story', type: 'richtext'}]},
+          submission: {
+            answers: {story: '<p></p>', extra_note: 'Orphaned answer'},
+          },
+        } as any),
+      ).toEqual([
+        {id: 'extra_note', label: 'Extra note', value: 'Orphaned answer'},
+      ]);
     });
   });
 

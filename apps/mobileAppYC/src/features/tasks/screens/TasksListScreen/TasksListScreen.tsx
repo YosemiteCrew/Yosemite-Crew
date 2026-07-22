@@ -87,6 +87,12 @@ export const TasksListScreen: React.FC = () => {
     }
   };
 
+  // Tasks always belong to a companion — AddTask can't be submitted without
+  // one selected (its companion selector has no "add companion" affordance
+  // of its own), so hide the header add action rather than send the user
+  // into a form they can't complete.
+  const hasCompanions = companions.length > 0;
+
   const handleAddTask = () => {
     navigation.navigate('AddTask', {
       prefillDate: formatDateToISODate(selectedDate),
@@ -148,8 +154,8 @@ export const TasksListScreen: React.FC = () => {
           title={`${resolveCategoryLabel(category)} tasks`}
           showBackButton
           onBack={() => navigation.goBack()}
-          rightIcon={Images.addIconDark}
-          onRightPress={handleAddTask}
+          rightIcon={hasCompanions ? Images.addIconDark : undefined}
+          onRightPress={hasCompanions ? handleAddTask : undefined}
           rightAccessibilityLabel={t('tasks.addTaskAccessibilityLabel')}
           glass={false}
         />

@@ -369,6 +369,21 @@ describe('TasksListScreen', () => {
     expect(getByTestId('header-add-btn')).toBeTruthy();
   });
 
+  it('hides the header add button when the user has no companions, since AddTask cannot be submitted without one', () => {
+    const stateWithNoCompanions = {
+      ...mockState,
+      companion: {
+        ...mockState.companion,
+        companions: [],
+        selectedCompanionId: null,
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithNoCompanions));
+
+    const {queryByTestId} = render(<TasksListScreen />);
+    expect(queryByTestId('header-add-btn')).toBeNull();
+  });
+
   it('navigates to AddTask with the selected date prefilled when the header add button is pressed', () => {
     const {getByTestId} = render(<TasksListScreen />);
     fireEvent.press(getByTestId('header-add-btn'));

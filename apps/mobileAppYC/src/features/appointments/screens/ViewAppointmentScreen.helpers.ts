@@ -201,12 +201,14 @@ export const getAppointmentFormAnswerRows = (
     return [];
   }
   const rows: Array<{id: string; label: string; value: string}> = [];
+  const fieldTypeById = new Map<string, FormField['type']>();
   const collect = (fields: FormField[]) => {
     fields.forEach(f => {
       if (f.type === 'group') {
         collect(f.fields);
         return;
       }
+      fieldTypeById.set(f.id, f.type);
       rows.push({
         id: f.id,
         label: f.label ?? f.id,
@@ -221,20 +223,32 @@ export const getAppointmentFormAnswerRows = (
   if (filtered.length) {
     return filtered;
   }
+  // The raw-answer fallback below is for answers with no matching schema
+  // field (e.g. the schema changed after submission), so it intentionally
+  // shows raw/unparseable values (like an invalid typed date) verbatim. For
+  // rich-text fields we DO still know about, apply the same HTML-stripping
+  // used above so a blank "<p></p>" answer doesn't reappear here as
+  // unformatted markup instead of the empty state.
   const rawAnswers = entry.submission.answers ?? {};
   const capitalize = (text: string) => {
     if (!text.length) return text;
     return text.charAt(0).toUpperCase() + text.slice(1);
   };
-  return Object.entries(rawAnswers).flatMap(([key, val]) =>
-    val !== undefined && val !== null && `${val}`.trim() !== ''
+  return Object.entries(rawAnswers).flatMap(([key, val]) => {
+    const resolvedVal =
+      fieldTypeById.get(key) === 'richtext' && typeof val === 'string'
+        ? stripHtmlToPlainText(val)
+        : val;
+    return resolvedVal !== undefined &&
+      resolvedVal !== null &&
+      `${resolvedVal}`.trim() !== ''
       ? [
           {
             id: key,
             label: capitalize(key.replaceAll('_', ' ')),
-            value: `${val}`,
+            value: `${resolvedVal}`,
           },
         ]
-      : [],
-  );
+      : [];
+  });
 };
