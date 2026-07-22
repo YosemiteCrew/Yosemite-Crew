@@ -3,8 +3,12 @@ import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/p
 
 const ROUTE_ACCESS_OVERRIDES: ReadonlyArray<{ pathPrefix: string; requiredAny: Permission[] }> = [
   {
+    // The workspace loads lab results and orders on open, and those routes
+    // require labs:view:any, so viewing the integration is not enough. Every
+    // role already carries integrations:view:any, so gating on the lab
+    // permission alone is the stricter of the two and needs no AND support.
     pathPrefix: '/appointments/idexx-workspace',
-    requiredAny: [PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+    requiredAny: [PERMISSIONS.LABS_VIEW_ANY],
   },
   {
     pathPrefix: '/integrations',
@@ -59,10 +63,11 @@ export const resolveMembershipPermissions = (
   if (membership?.active === false) return [];
 
   const extras = membership?.extraPermissions ?? [];
-  const baseline = ROLE_PERMISSIONS[membership?.roleCode as RoleCode];
-  // No baseline to derive from, and the backend returns the extras verbatim in
-  // that case, so the extras are the whole grant.
-  if (!baseline) return [...new Set(extras)];
+  const roleCode = membership?.roleCode;
+  // No role at all: the backend returns the extras verbatim, without applying
+  // revocations. A role that is merely unrecognised is different - it falls
+  // through to an empty baseline below and still honours revocations.
+  if (!roleCode) return [...new Set(extras)];
 
   // The stored effectivePermissions snapshot is deliberately never consulted.
   // It is written at save time, so dropping a permission from the role table
@@ -70,6 +75,7 @@ export const resolveMembershipPermissions = (
   // revokedPermissions; folding those in would re-grant access the API now
   // denies. Deriving purely from role plus extras minus revocations is exactly
   // what the backend recomputes on every request.
+  const baseline = ROLE_PERMISSIONS[roleCode as RoleCode] ?? [];
   const granted = new Set<string>([...baseline, ...extras]);
   for (const permission of membership?.revokedPermissions ?? []) granted.delete(permission);
   return [...granted];

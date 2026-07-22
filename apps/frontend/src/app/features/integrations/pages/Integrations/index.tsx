@@ -537,7 +537,14 @@ const useIntegrationsPage = () => {
   useEffect(() => {
     const run = async () => {
       if (!primaryOrgId) return;
-      if (!canViewLabs) return;
+      if (!canViewLabs) {
+        // Losing lab access (org switch, or the permission revoked) must drop
+        // anything fetched under the previous one, or the settings modal keeps
+        // rendering stale devices and orders.
+        setDevices([]);
+        setRecentOrders([]);
+        return;
+      }
       if (idexxIntegration?.status === 'enabled') {
         try {
           const ivls = await listIdexxIvlsDevices(primaryOrgId);

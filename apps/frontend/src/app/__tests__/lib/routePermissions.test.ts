@@ -19,17 +19,22 @@ describe('routePermissions', () => {
     ).toBe(true);
   });
 
-  it('requires integrations:view:any for IDEXX workspace route override', () => {
+  it('requires labs:view:any for the IDEXX workspace route override', () => {
     expect(canAccessPathByPermissions('/appointments/idexx-workspace', [])).toBe(false);
     expect(
       canAccessPathByPermissions('/appointments/idexx-workspace', [
         PERMISSIONS.APPOINTMENTS_VIEW_ANY,
       ])
     ).toBe(false);
+    // Seeing the integration is not enough: the workspace loads lab results and
+    // orders on open, and those routes require labs:view:any.
     expect(
       canAccessPathByPermissions('/appointments/idexx-workspace', [
         PERMISSIONS.INTEGRATIONS_VIEW_ANY,
       ])
+    ).toBe(false);
+    expect(
+      canAccessPathByPermissions('/appointments/idexx-workspace', [PERMISSIONS.LABS_VIEW_ANY])
     ).toBe(true);
   });
 
@@ -91,6 +96,28 @@ describe('routePermissions', () => {
         resolveMembershipPermissions({
           roleCode: 'NOT_A_ROLE',
           extraPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+        })
+      ).toEqual([PERMISSIONS.TASKS_VIEW_ANY]);
+    });
+
+    it('still applies revocations when the role is unrecognised', () => {
+      // The backend only skips the revocation step when there is no role at
+      // all; a role that is merely unknown resolves against an empty baseline
+      // and still has its revocations subtracted.
+      expect(
+        resolveMembershipPermissions({
+          roleCode: 'NOT_A_ROLE',
+          extraPermissions: [PERMISSIONS.TASKS_VIEW_ANY, PERMISSIONS.INTEGRATIONS_VIEW_ANY],
+          revokedPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+        })
+      ).toEqual([PERMISSIONS.INTEGRATIONS_VIEW_ANY]);
+    });
+
+    it('returns the extras verbatim when there is no role at all', () => {
+      expect(
+        resolveMembershipPermissions({
+          extraPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
+          revokedPermissions: [PERMISSIONS.TASKS_VIEW_ANY],
         })
       ).toEqual([PERMISSIONS.TASKS_VIEW_ANY]);
     });
