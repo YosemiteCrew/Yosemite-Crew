@@ -395,6 +395,14 @@ describe('Form Utils', () => {
     it('collapses excess blank lines and trims surrounding whitespace', () => {
       expect(stripHtmlToPlainText('<p></p><p></p><p>Text</p>')).toBe('Text');
     });
+
+    it('fully strips nested/malformed tags that would reconstitute after a single pass', () => {
+      // A naive single-pass replace removes the inner "<script>", which
+      // reconstitutes "<scr" + "ipt>" into a fresh <script> tag left behind.
+      expect(
+        stripHtmlToPlainText('<scr<script>ipt>alert(1)</scr<script>ipt>'),
+      ).toBe('alert(1)');
+    });
   });
 
   describe('wrapPlainTextAsHtml', () => {

@@ -37,10 +37,21 @@ export const stripHtmlToPlainText = (html?: string | null): string => {
   if (!html) {
     return '';
   }
-  return html
+  const withNewlines = html
     .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\/\s*(p|div|li)\s*>/gi, '\n')
-    .replace(/<[^<>]*>/g, '')
+    .replace(/<\/\s*(p|div|li)\s*>/gi, '\n');
+
+  // Strip to a fixed point rather than a single pass: one replace can leave
+  // a reconstituted tag behind for malformed/nested markup like
+  // "<scr<script>ipt>" (CodeQL: incomplete multi-character sanitization).
+  let stripped = withNewlines;
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped.replace(/<[^<>]*>/g, '');
+  } while (stripped !== previous);
+
+  return stripped
     .replace(
       /&nbsp;|&amp;|&lt;|&gt;|&quot;|&#39;/g,
       match => HTML_ENTITIES[match],
