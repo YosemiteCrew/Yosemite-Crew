@@ -53,15 +53,16 @@ type MembershipPermissionSource = {
 export const resolveMembershipPermissions = (
   membership?: MembershipPermissionSource | null
 ): string[] => {
-  const stored = membership?.effectivePermissions ?? [];
   const baseline = ROLE_PERMISSIONS[membership?.roleCode as RoleCode];
-  if (!baseline) return stored;
+  // Nothing to derive from, so the stored snapshot is the only signal left.
+  if (!baseline) return membership?.effectivePermissions ?? [];
 
-  const granted = new Set<string>([
-    ...baseline,
-    ...(membership?.extraPermissions ?? []),
-    ...stored,
-  ]);
+  // Deliberately excludes the stored snapshot. Dropping a permission from the
+  // role table leaves it in every previously written snapshot without ever
+  // appearing in revokedPermissions, so folding those in would re-grant access
+  // the API now denies. Matching the backend formula exactly keeps the two in
+  // step in both directions.
+  const granted = new Set<string>([...baseline, ...(membership?.extraPermissions ?? [])]);
   for (const permission of membership?.revokedPermissions ?? []) granted.delete(permission);
   return [...granted];
 };

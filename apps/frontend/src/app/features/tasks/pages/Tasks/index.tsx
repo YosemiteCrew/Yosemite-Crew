@@ -109,12 +109,11 @@ const Tasks = () => {
   const showsTaskFilterBar = activeView === 'list' || (activeView === 'calendar' && isPhone);
 
   // The planner header only carries the pet-parent pill, so an audience chosen
-  // in the list view would keep filtering the calendar with nothing on screen to
-  // show or clear it. Normalise back to "all" whenever the pill row is hidden.
-  useEffect(() => {
-    if (showsTaskFilterBar) return;
-    setActiveFilter((prev) => (prev === 'all' || prev === PARENT_AUDIENCE_KEY ? prev : 'all'));
-  }, [showsTaskFilterBar]);
+  // in the list view cannot be shown or cleared from the calendar. Derive what
+  // actually applies rather than writing the state back: no extra render, and
+  // the list view keeps its own selection when the user returns to it.
+  const appliedFilter =
+    showsTaskFilterBar || activeFilter === PARENT_AUDIENCE_KEY ? activeFilter : 'all';
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
@@ -195,7 +194,7 @@ const Tasks = () => {
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filterWanted = activeFilter.toLowerCase();
+    const filterWanted = appliedFilter.toLowerCase();
     const statusWanted = activeStatus.toLowerCase();
     const scopeToMine = activeScope === 'mine';
 
@@ -217,7 +216,7 @@ const Tasks = () => {
   }, [
     tasks,
     activeStatus,
-    activeFilter,
+    appliedFilter,
     query,
     activeView,
     activeScope,
@@ -278,7 +277,7 @@ const Tasks = () => {
         canEditTasks={canEditTasks}
         onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
         filterOptions={TASK_CALENDAR_FILTERS}
-        activeFilter={activeFilter}
+        activeFilter={appliedFilter}
         setActiveFilter={setActiveFilter}
         statusOptions={TASK_STATUS_PILLS}
         activeStatus={activeStatus}

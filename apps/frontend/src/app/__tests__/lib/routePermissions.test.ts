@@ -107,6 +107,19 @@ describe('routePermissions', () => {
       expect(resolved).toContain(PERMISSIONS.TASKS_VIEW_ANY);
     });
 
+    it('drops a stored grant the role no longer carries', () => {
+      // Removing a permission from the role table leaves it in every snapshot
+      // written before that change, and nothing ever adds it to
+      // revokedPermissions, so folding the snapshot in would re-grant access
+      // the API now denies.
+      const resolved = resolveMembershipPermissions({
+        roleCode: 'TECHNICIAN',
+        effectivePermissions: [PERMISSIONS.ANALYTICS_VIEW_ANY],
+      });
+
+      expect(resolved).not.toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
+    });
+
     it('keeps extra grants and honours explicit revocations', () => {
       const resolved = resolveMembershipPermissions({
         roleCode: 'OWNER',

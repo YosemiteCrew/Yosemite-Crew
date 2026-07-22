@@ -706,18 +706,21 @@ describe('Tasks page', () => {
       expect.objectContaining({ _id: 't2' }),
     ]);
 
+    // Audience pills other than the pet-parent one only exist in the list view,
+    // so that is the only place a Team filter can actually be applied.
+    fireEvent.click(screen.getByText('List'));
     await act(async () => {
-      lastPropsOf(taskCalendarSpy).setActiveFilter('employee_task');
+      lastPropsOf(filterBarSpy).setActiveFilter('employee_task');
       await Promise.resolve();
     });
     // t2 is the only completed task, but its audience is client_task.
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([]);
+    expect(lastPropsOf(taskTableSpy).filteredList).toEqual([]);
 
     await act(async () => {
-      lastPropsOf(taskCalendarSpy).setActiveStatus('pending');
+      lastPropsOf(filterBarSpy).setActiveStatus('pending');
       await Promise.resolve();
     });
-    expect(lastPropsOf(taskCalendarSpy).filteredList).toEqual([
+    expect(lastPropsOf(taskTableSpy).filteredList).toEqual([
       expect.objectContaining({ _id: 't1' }),
     ]);
   });
