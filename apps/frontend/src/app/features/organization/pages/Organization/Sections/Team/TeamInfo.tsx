@@ -22,7 +22,6 @@ import {
   removeMember,
   updateMember,
 } from '@/app/features/organization/services/teamService';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
@@ -504,27 +503,25 @@ const useTeamInfoContent = ({
     <>
       <Modal showModal={showModal} setShowModal={handleModalVisibility}>
         <div className="flex flex-col h-full gap-6">
-          <div className="flex justify-between items-center">
-            <div className="size-8" aria-hidden="true" />
-            <div className="flex justify-center items-center gap-2">
-              <div className="text-body-1 text-text-primary">View team</div>
-            </div>
-            <Close onClick={() => setShowModal(false)} />
-          </div>
+          <ModalHeader
+            eyebrow="Team member"
+            title={activeTeam.name || 'View team'}
+            meta={RoleOptions.find((option) => option.value === activeTeam.role)?.label}
+            onClose={() => setShowModal(false)}
+            actions={
+              canDeleteMember && (
+                <button
+                  type="button"
+                  aria-label="Delete team member"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="grid size-8 cursor-pointer place-items-center rounded-full border border-transparent hover:border-danger-600"
+                >
+                  <IoTrash size={18} color="var(--color-danger-600)" />
+                </button>
+              )
+            }
+          />
           <div className="flex flex-col gap-8 overflow-y-auto flex-1 w-full scrollbar-hidden">
-            <div className={`flex items-center gap-2`}>
-              <div className="flex items-center justify-between w-full">
-                <div className="text-body-2 text-text-primary">{activeTeam.name || '-'}</div>
-                {canDeleteMember && (
-                  <IoTrash
-                    className="cursor-pointer"
-                    onClick={() => setShowDeleteModal(true)}
-                    size={26}
-                    color="var(--color-danger-600)"
-                  />
-                )}
-              </div>
-            </div>
             <EditableAccordion
               title="Org details"
               fields={fields}

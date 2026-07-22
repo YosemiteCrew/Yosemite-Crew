@@ -140,10 +140,13 @@ jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
   __esModule: true,
-  default: ({ title, onClose }: any) => (
+  default: ({ title, meta, eyebrow, actions, onClose }: any) => (
     <div>
+      {eyebrow && <div>{eyebrow}</div>}
       <div>{title}</div>
-      <button type="button" onClick={onClose}>
+      {meta && <div>{meta}</div>}
+      {actions}
+      <button type="button" aria-label="close" onClick={onClose}>
         close-delete-modal
       </button>
     </div>
