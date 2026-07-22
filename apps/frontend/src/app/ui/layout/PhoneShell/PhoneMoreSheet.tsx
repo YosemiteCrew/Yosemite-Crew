@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { IconType } from 'react-icons';
-import { IoChevronForwardOutline } from 'react-icons/io5';
+import { IoChevronForwardOutline, IoLogOutOutline } from 'react-icons/io5';
 
 import BottomSheet from './BottomSheet';
 
@@ -28,14 +28,24 @@ export type PhoneMoreSheetProps = {
   sections: PhoneMoreSection[];
   links: PhoneMoreLink[];
   onNavigate: (href: string) => void;
+  onSignOut: () => void;
 };
 
 /**
  * The More bottom sheet: the six secondary areas (each with a context line),
- * then the always-available Settings and Developer portal links, then the system
- * status line. Built on the shared BottomSheet primitive.
+ * then the always-available Settings and Developer portal links, the sign-out
+ * action, and the system status line. This is the only place a phone can sign
+ * out - the avatar menu that holds it on desktop is hidden below 768px. Built
+ * on the shared BottomSheet primitive.
  */
-const PhoneMoreSheet = ({ open, onClose, sections, links, onNavigate }: PhoneMoreSheetProps) => {
+const PhoneMoreSheet = ({
+  open,
+  onClose,
+  sections,
+  links,
+  onNavigate,
+  onSignOut,
+}: PhoneMoreSheetProps) => {
   const go = (href: string) => {
     onNavigate(href);
     onClose();
@@ -89,6 +99,22 @@ const PhoneMoreSheet = ({ open, onClose, sections, links, onNavigate }: PhoneMor
             </li>
           );
         })}
+        <li>
+          <button
+            type="button"
+            className="yc-phone-more-row yc-phone-more-row-signout"
+            onClick={() => {
+              onClose();
+              onSignOut();
+            }}
+          >
+            <span className="yc-phone-more-row-icon yc-phone-more-row-icon-signout" aria-hidden>
+              <IoLogOutOutline size={17} />
+            </span>
+            <span className="yc-phone-more-row-label">Sign out</span>
+            <IoChevronForwardOutline className="yc-phone-more-row-chevron" size={14} aria-hidden />
+          </button>
+        </li>
         <li>
           <div className="yc-phone-more-row yc-phone-more-status-row">
             <span className="yc-phone-more-status-dot" aria-hidden />
