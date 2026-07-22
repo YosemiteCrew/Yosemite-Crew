@@ -379,7 +379,13 @@ export const ChatController = {
 
       const sessions = await prisma.chatSession.findMany({
         where: {
-          organisationId,
+          // A cross-clinic chat is stored against the requesting clinic with the
+          // other one as counterpart, so matching organisationId alone hides the
+          // conversation from the clinic that was invited into it.
+          OR: [
+            { organisationId },
+            { counterpartOrganisationId: organisationId },
+          ],
           members: { has: userId },
           ...(includeClosed ? {} : { status: { not: "CLOSED" } }),
         },

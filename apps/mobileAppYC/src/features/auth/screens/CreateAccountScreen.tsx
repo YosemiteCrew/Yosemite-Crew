@@ -1688,7 +1688,7 @@ const createStyles = (theme: Theme) =>
       ...theme.shadows.sm,
     },
     successButtonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.paragraphBold,
     },
     ageVerificationSheetLayout: {
@@ -1739,7 +1739,7 @@ const createStyles = (theme: Theme) =>
       ...theme.shadows.sm,
     },
     ageVerificationSheetButtonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.paragraphBold,
     },
   });

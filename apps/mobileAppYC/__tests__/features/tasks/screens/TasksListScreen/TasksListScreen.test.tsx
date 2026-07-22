@@ -33,6 +33,15 @@ jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
+const TASKS_TRANSLATIONS: Record<string, string> = {
+  'tasks.addTaskAccessibilityLabel': 'Add task',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => TASKS_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
 jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveCategoryLabel: (cat: string) => cat.toUpperCase(),
 }));
@@ -125,7 +134,13 @@ jest.mock('@/shared/components/common', () => ({
 }));
 
 jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => {
+  Header: ({
+    title,
+    onBack,
+    rightIcon,
+    onRightPress,
+    rightAccessibilityLabel,
+  }: any) => {
     const {TouchableOpacity, Text, View} = require('react-native');
     return (
       <View>
@@ -133,6 +148,14 @@ jest.mock('@/shared/components/common/Header/Header', () => ({
         <TouchableOpacity testID="header-back-btn" onPress={onBack}>
           <Text>Back</Text>
         </TouchableOpacity>
+        {rightIcon && (
+          <TouchableOpacity
+            testID="header-add-btn"
+            accessibilityLabel={rightAccessibilityLabel}
+            onPress={onRightPress}>
+            <Text>Add</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   },
@@ -339,6 +362,41 @@ describe('TasksListScreen', () => {
     const {getByTestId} = render(<TasksListScreen />);
     fireEvent.press(getByTestId('header-back-btn'));
     expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  it('supplies a rightIcon so the header renders the add button', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    expect(getByTestId('header-add-btn')).toBeTruthy();
+  });
+
+  it('hides the header add button when the user has no companions, since AddTask cannot be submitted without one', () => {
+    const stateWithNoCompanions = {
+      ...mockState,
+      companion: {
+        ...mockState.companion,
+        companions: [],
+        selectedCompanionId: null,
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithNoCompanions));
+
+    const {queryByTestId} = render(<TasksListScreen />);
+    expect(queryByTestId('header-add-btn')).toBeNull();
+  });
+
+  it('navigates to AddTask with the selected date prefilled when the header add button is pressed', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    fireEvent.press(getByTestId('header-add-btn'));
+    expect(mockNavigate).toHaveBeenCalledWith('AddTask', {
+      prefillDate: '2025-12-31',
+    });
+  });
+
+  it('labels the header add button with its actual action for screen readers', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    expect(getByTestId('header-add-btn').props.accessibilityLabel).toBe(
+      'Add task',
+    );
   });
 
   it('handles companion selection', () => {

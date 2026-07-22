@@ -165,7 +165,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.secondary,
     },
     saveButtonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.paragraphBold,
     },
   });

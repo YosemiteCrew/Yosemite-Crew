@@ -8,11 +8,12 @@ import {mockTheme} from '../../../../setup/mockTheme';
 const PressableType = (Pressable as any).type;
 import {SpecialtyAccordion} from '../../../../../src/features/appointments/components/SpecialtyAccordion/SpecialtyAccordion';
 import type {VetPackage} from '../../../../../src/features/appointments/types';
+import {useTheme} from '@/hooks';
 
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
 }));
 
 jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
@@ -25,11 +26,11 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => ({
-    LiquidGlassButton: ({title, onPress}: any) => {
+    LiquidGlassButton: ({title, onPress, textStyle}: any) => {
       const {TouchableOpacity, Text} = require('react-native');
       return (
         <TouchableOpacity testID="glass-button" onPress={onPress}>
-          <Text>{title}</Text>
+          <Text style={textStyle}>{title}</Text>
         </TouchableOpacity>
       );
     },
@@ -149,6 +150,7 @@ const packagesOnlySpecialty = [
 describe('SpecialtyAccordion', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme, isDark: false});
   });
 
   describe('header rendering', () => {
@@ -431,6 +433,45 @@ describe('SpecialtyAccordion', () => {
       );
       fireEvent.press(getAllByText('Select service')[0]);
       expect(onSelectService).toHaveBeenCalledWith('svc-1', 'General');
+    });
+  });
+
+  describe('Select service button CTA color', () => {
+    it('applies the light-theme cta text color', () => {
+      const {getAllByText} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={singleSpecialty}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getAllByText('Select service')[0].props.style).toEqual(
+        expect.objectContaining({color: mockTheme.colors.ctaText}),
+      );
+    });
+
+    it('applies the dark-theme cta text color', () => {
+      const darkCtaText = '#201C18';
+      (useTheme as jest.Mock).mockReturnValue({
+        theme: {
+          ...mockTheme,
+          colors: {...mockTheme.colors, ctaText: darkCtaText},
+        },
+        isDark: true,
+      });
+
+      const {getAllByText} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={singleSpecialty}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getAllByText('Select service')[0].props.style).toEqual(
+        expect.objectContaining({color: darkCtaText}),
+      );
     });
   });
 

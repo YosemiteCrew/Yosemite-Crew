@@ -127,6 +127,7 @@ describe('SearchBar Component', () => {
       expect(input).toBeTruthy();
       expect(input.props.multiline).toBe(false);
       expect(input.props.numberOfLines).toBe(1);
+      expect(input.props.returnKeyType).toBe('search');
     });
 
     it('passes value and handles text changes', () => {

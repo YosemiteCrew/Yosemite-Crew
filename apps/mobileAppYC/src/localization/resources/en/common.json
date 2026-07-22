@@ -238,7 +238,8 @@
     "title": "Tasks",
     "emptyNoCompanionTitle": "Add a companion to get started",
     "emptyNoCompanionDescription": "Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks.",
-    "emptyNoCompanionAction": "Add a companion"
+    "emptyNoCompanionAction": "Add a companion",
+    "addTaskAccessibilityLabel": "Add task"
   },
   "observationalTool": {
     "headerTitleFallback": "Observational Tool",

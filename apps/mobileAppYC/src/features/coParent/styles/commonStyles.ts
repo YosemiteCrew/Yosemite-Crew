@@ -18,7 +18,7 @@ export const createCommonCoParentStyles = (theme: any) =>
       ...theme.shadows.lg,
     },
     buttonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.titleMedium,
     },
     centerContent: {
