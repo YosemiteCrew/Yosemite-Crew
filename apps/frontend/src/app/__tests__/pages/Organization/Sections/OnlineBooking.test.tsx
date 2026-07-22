@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import OnlineBooking from '@/app/features/organization/pages/Organization/Sections/OnlineBooking';
 
-jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
+jest.mock('@/app/ui/primitives/SectionCard/SectionCard', () => ({
   __esModule: true,
   default: ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div>

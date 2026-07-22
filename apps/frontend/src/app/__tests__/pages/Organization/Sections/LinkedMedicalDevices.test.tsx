@@ -11,7 +11,7 @@ const listIdexxIvlsDevicesMock = jest.fn();
 let primaryOrgId: string | null = 'org-1';
 let lastFetchedAt: number | null = null;
 
-jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
+jest.mock('@/app/ui/primitives/SectionCard/SectionCard', () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>

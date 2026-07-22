@@ -1,4 +1,4 @@
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import React, { useEffect, useState } from 'react';
 import { IoCreateOutline, IoDocumentTextOutline, IoEllipsisHorizontal } from 'react-icons/io5';
 import AddDocument from '@/app/features/organization/pages/Organization/Sections/Documents/AddDocument';
@@ -59,7 +59,7 @@ const Documents = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.DOCUMENT_VIEW_ANY]}>
-      <AccordionButton
+      <SectionCard
         title="Documents"
         buttonTitle="Add"
         buttonClick={setAddPopup}
@@ -122,7 +122,7 @@ const Documents = () => {
             Templates support merge fields: patient, parent, visit, practitioner
           </div>
         </div>
-      </AccordionButton>
+      </SectionCard>
       <AddDocument showModal={addPopup} setShowModal={setAddPopup} />
       {activeDocument && (
         <DocumentInfo
