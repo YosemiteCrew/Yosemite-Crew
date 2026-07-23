@@ -358,6 +358,11 @@ const useTeamProfileSections = ({
           ? 'Enter both a first and last name.'
           : 'Failed to update personal details. Please try again.',
       });
+      // Re-throw so EditableAccordion.handleSave's own catch keeps the
+      // accordion in edit mode instead of exiting on a resolved promise -
+      // otherwise the rejected/unsaved formValues render over the stored
+      // data as if the save had succeeded.
+      throw error;
     }
   };
 

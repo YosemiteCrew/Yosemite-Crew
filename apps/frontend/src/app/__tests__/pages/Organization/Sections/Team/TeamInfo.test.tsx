@@ -18,6 +18,11 @@ import { useTeamStore } from '@/app/stores/teamStore';
 import { hasAtLeastOneAvailability } from '@/app/features/appointments/components/Availability/utils';
 
 const editableSavePayloads: Record<string, any> = {};
+// The real EditableAccordion only stays in edit mode when onSave's promise
+// rejects, so this regression-tests handlePersonalSave's own contract
+// directly (does it actually reject?) rather than the mock's UI, which has
+// no editing-state concept to assert against.
+const capturedOnSaves: Record<string, (values: any) => Promise<void>> = {};
 const availabilitySetterSpy = jest.fn();
 const notifyMock = jest.fn();
 const refetchMock = jest.fn();
@@ -76,32 +81,44 @@ jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   // option VALUES the component actually offers. Values live in the value
   // attribute, not in text, so they cannot collide with the findByText(/FULL_TIME/)
   // queries that read the `data` JSON above.
-  default: ({ title, showEditIcon, onSave, data, fields }: any) => (
-    <div data-testid={`editable-${title}`}>
-      <div>{title}</div>
-      <div>{JSON.stringify(data)}</div>
-      {(fields ?? [])
-        .filter((field: any) => Array.isArray(field.options))
-        .map((field: any) => (
-          <select
-            key={field.key}
-            aria-label={field.label}
-            data-testid={`field-options-${field.key}`}
+  default: ({ title, showEditIcon, onSave, data, fields }: any) => {
+    if (onSave) capturedOnSaves[title] = onSave;
+    return (
+      <div data-testid={`editable-${title}`}>
+        <div>{title}</div>
+        <div>{JSON.stringify(data)}</div>
+        {(fields ?? [])
+          .filter((field: any) => Array.isArray(field.options))
+          .map((field: any) => (
+            <select
+              key={field.key}
+              aria-label={field.label}
+              data-testid={`field-options-${field.key}`}
+            >
+              {field.options.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ))}
+        {showEditIcon ? (
+          <button
+            type="button"
+            onClick={() => {
+              // The real EditableAccordion.handleSave awaits onSave inside its
+              // own try/catch and only exits edit mode on the resolved path -
+              // mirror that here so a rejected save doesn't surface as an
+              // unhandled promise rejection in this mock.
+              Promise.resolve(onSave(editableSavePayloads[title] ?? {})).catch(() => {});
+            }}
           >
-            {field.options.map((option: any) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        ))}
-      {showEditIcon ? (
-        <button type="button" onClick={() => onSave(editableSavePayloads[title] ?? {})}>
-          {`save-${title}`}
-        </button>
-      ) : null}
-    </div>
-  ),
+            {`save-${title}`}
+          </button>
+        ) : null}
+      </div>
+    );
+  },
 }));
 
 jest.mock('@/app/features/appointments/components/Availability/Availability', () => ({
@@ -796,6 +813,37 @@ describe('TeamInfo', () => {
       expect.objectContaining({ text: 'Enter both a first and last name.' })
     );
     expect(notifyMock).not.toHaveBeenCalledWith('success', expect.anything());
+  });
+
+  it('rejects the save promise on an incomplete name so the accordion stays in edit mode', async () => {
+    editableSavePayloads['Personal details'] = { name: '', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+    await screen.findByText(/FULL_TIME/);
+
+    // EditableAccordion.handleSave only calls setEditingState(false) when
+    // onSave's promise resolves - asserting the rejection directly is what
+    // proves edit mode is retained, since this mock has no editing-state
+    // concept of its own to assert against.
+    await expect(
+      capturedOnSaves['Personal details'](editableSavePayloads['Personal details'])
+    ).rejects.toThrow('NAME_INCOMPLETE');
+  });
+
+  it('rejects the save promise when the name update fails on the server, so the accordion stays in edit mode', async () => {
+    editableSavePayloads['Personal details'] = { name: 'Tim Apple' };
+    (updateUser as jest.Mock).mockRejectedValue(new Error('name update failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+    await screen.findByText(/FULL_TIME/);
+
+    await expect(
+      capturedOnSaves['Personal details'](editableSavePayloads['Personal details'])
+    ).rejects.toThrow('name update failed');
   });
 
   it('persists a name change for a self member with no profile yet (pre-onboarding)', async () => {
