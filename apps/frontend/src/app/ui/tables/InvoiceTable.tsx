@@ -215,12 +215,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
             title="Open appointment finance"
           >
             {formatDateLabel(appointment.appointmentDate)}
-            <IoOpenOutline
-              size={12}
-              style={{ color: 'var(--ink-faint)' }}
-              className="shrink-0"
-              aria-hidden="true"
-            />
+            <IoOpenOutline size={12} className="shrink-0" aria-hidden="true" />
           </button>
         )}
       </div>
