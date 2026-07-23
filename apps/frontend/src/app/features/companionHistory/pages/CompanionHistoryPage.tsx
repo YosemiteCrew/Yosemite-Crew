@@ -548,9 +548,7 @@ const CompanionHistoryDesktopBody = ({
           >
             <IoIosArrowBack size={16} aria-hidden="true" />
           </button>
-          <h1 className="font-newsreader text-[26px] font-normal leading-[1.1] tracking-[-0.015em] text-[var(--ink)]">
-            {title}
-          </h1>
+          <h1 className="text-page-title">{title}</h1>
           <div className="flex flex-wrap items-center gap-1.5">
             {companionAlerts.map((alert) => (
               <AlertPill
