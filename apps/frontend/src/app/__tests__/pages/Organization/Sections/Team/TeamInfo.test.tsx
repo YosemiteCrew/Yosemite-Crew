@@ -412,6 +412,28 @@ describe('TeamInfo', () => {
     );
   });
 
+  it('falls back to the speciality name when the mapping API omits _id', async () => {
+    // The org/mapping API returns raw specialities keyed by `id`, not `_id`
+    // (see Speciality._id), so this reproduces that shape and asserts the
+    // Department field resolves to the name instead of a blank/undefined id.
+    const teamWithoutSpecialityId = {
+      ...activeTeam,
+      speciality: [{ name: 'Surgery' }, { name: 'Dental' }],
+    };
+
+    render(
+      <TeamInfo
+        showModal
+        setShowModal={setShowModal}
+        activeTeam={teamWithoutSpecialityId}
+        canEditTeam={true}
+      />
+    );
+
+    const orgDetails = await screen.findByTestId('editable-Org details');
+    expect(within(orgDetails).getByText(/"speciality":\["Surgery","Dental"\]/)).toBeInTheDocument();
+  });
+
   it('shows an error notification when member update fails', async () => {
     editableSavePayloads['Org details'] = {
       role: 'OWNER',
