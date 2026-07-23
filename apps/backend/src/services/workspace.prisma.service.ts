@@ -8,6 +8,7 @@ import {
 } from "./finance/events";
 import { InvoiceService, InvoiceServiceError } from "./invoice.service";
 import { documentWhereForOrg } from "./document-scope";
+import logger from "src/utils/logger";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { roundMoney } from "./finance/pricing";
 import type {
@@ -1654,30 +1655,42 @@ const ensureRenderedTaskSchedules = async (
   }>,
 ) => {
   for (const schedule of schedules) {
-    const existing = await prisma.renderedDocument.findFirst({
-      where: {
-        organisationId,
-        sourceKind: "TASK_SCHEDULE" as never,
-        sourceId: schedule.id,
-      },
-      select: { id: true },
-    });
+    // Rendering the schedule PDF is a convenience, but this runs inside the
+    // workspace aggregate that every chart read goes through - viewing, signing
+    // and discharging all depend on it. A render that throws must therefore not
+    // take the chart down with it, so each schedule is isolated and only logged.
+    // Nothing is persisted on failure, so the next load simply retries.
+    try {
+      const existing = await prisma.renderedDocument.findFirst({
+        where: {
+          organisationId,
+          sourceKind: "TASK_SCHEDULE" as never,
+          sourceId: schedule.id,
+        },
+        select: { id: true },
+      });
 
-    if (existing) {
-      continue;
+      if (existing) {
+        continue;
+      }
+
+      await createRenderedDocumentRecord({
+        title: "Inpatient Schedule",
+        source: {
+          sourceKind: "TASK_SCHEDULE",
+          sourceId: schedule.id,
+          organisationId,
+          templateKind: "INPATIENT_SCHEDULE",
+          templateId: schedule.templateId,
+          templateVersion: schedule.templateVersion,
+        },
+      });
+    } catch (error) {
+      logger.error(
+        `[Workspace] Could not render the inpatient schedule document for schedule ${schedule.id} (organisation ${organisationId}). The workspace still loads without it.`,
+        error,
+      );
     }
-
-    await createRenderedDocumentRecord({
-      title: "Inpatient Schedule",
-      source: {
-        sourceKind: "TASK_SCHEDULE",
-        sourceId: schedule.id,
-        organisationId,
-        templateKind: "INPATIENT_SCHEDULE",
-        templateId: schedule.templateId,
-        templateVersion: schedule.templateVersion,
-      },
-    });
   }
 };
 

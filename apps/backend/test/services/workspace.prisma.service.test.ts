@@ -7,6 +7,7 @@ import {
   dedupeTreatmentItemsByPrescription,
 } from "../../src/services/workspace.prisma.service";
 import { InvoiceService } from "src/services/invoice.service";
+import { createRenderedDocumentRecord } from "src/services/rendered-document.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -67,6 +68,11 @@ jest.mock("src/services/invoice.service", () => ({
       this.name = "InvoiceServiceError";
     }
   },
+}));
+
+jest.mock("src/services/rendered-document.service", () => ({
+  __esModule: true,
+  createRenderedDocumentRecord: jest.fn(),
 }));
 
 jest.mock("src/services/clinical-artifact.service", () => ({
@@ -1893,6 +1899,45 @@ describe("WorkspaceService", () => {
         kind: "SOAP_NOTE",
       }),
     ]);
+  });
+
+  it("still loads the chart when an inpatient schedule fails to render", async () => {
+    // Regression: the schedule PDF render runs inside the aggregate that every
+    // chart read goes through, so a throw there used to surface as a 500 and made
+    // the appointment impossible to open, sign or discharge - permanently, because
+    // a failed render persists nothing and so is retried on every load.
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-1",
+      organisationId: "org-1",
+      status: "IN_PROGRESS",
+      appointmentKind: "INPATIENT",
+      concern: "Ward stay",
+      encounterId: "enc-1",
+      caseId: "case-1",
+      patient: { id: "patient-1", parent: { id: "parent-1" } },
+    });
+    mockedPrisma.taskSchedule.findMany.mockResolvedValue([
+      {
+        id: "sched-1",
+        templateId: "tmpl-1",
+        templateVersion: 1,
+        templateKind: "INPATIENT_SCHEDULE",
+        appointmentId: "appt-1",
+        encounterId: "enc-1",
+      },
+    ]);
+    mockedPrisma.renderedDocument.findFirst.mockResolvedValue(null);
+    (createRenderedDocumentRecord as jest.Mock).mockRejectedValue(
+      new Error("pdf renderer exploded"),
+    );
+
+    const result = await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-1" },
+      ["appointments:view:any", "tasks:view:any"],
+    );
+
+    expect(result).toBeDefined();
+    expect(createRenderedDocumentRecord).toHaveBeenCalled();
   });
 });
 
