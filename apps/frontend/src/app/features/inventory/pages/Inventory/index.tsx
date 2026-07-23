@@ -214,7 +214,10 @@ export const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryR
     requestType,
     invoiceId: req.invoiceId ?? undefined,
     paymentStatus: req.paymentStatus ?? undefined,
-    timeDispensed: req.reviewedAt ?? undefined,
+    // reviewedAt marks when the request was reviewed (dispensed OR marked not
+    // dispensed) - only surface it as "Dispensed" when it was actually dispensed,
+    // otherwise a "Not dispensed" row wrongly shows a dispensed timestamp (bug #1968).
+    timeDispensed: req.status === 'DISPENSED' ? (req.reviewedAt ?? undefined) : undefined,
     items: req.medications.map((m) => {
       const metadataDoseUnit =
         typeof m.metadata?.doseUnit === 'string' ? m.metadata.doseUnit : undefined;
