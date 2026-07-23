@@ -1110,7 +1110,8 @@ const useInvoiceStepContent = ({
         // totals the full (line-discounted) amount while runManualCollection collects
         // computeInvoiceTotalCents (which DOES subtract the overall discount), leaving
         // the difference as a receivable that can never be settled. Omitted entirely at
-        // 0 so an undiscounted invoice keeps a null discount type/value as it does today.
+        // 0 (a conditional spread, not `: undefined`, so the key is absent - a test
+        // pins that) so an undiscounted invoice keeps a null discount type/value.
         ...(encounter.overallDiscountPercent > 0
           ? {
               invoiceDiscount: {

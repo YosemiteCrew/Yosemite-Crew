@@ -18,12 +18,11 @@ const discountSettingsPath = (organisationId: string) =>
   `${FINANCE_BASE_PATH}/organisation/${organisationId}/discount-settings`;
 
 const unwrapFinanceData = <T>(value: T | FinanceEnvelope<T>): T => {
-  if (
-    value &&
-    typeof value === 'object' &&
-    'data' in value &&
-    ('meta' in value || 'error' in value)
-  ) {
+  // The finance API wraps every success as { data, meta, error }; the settings
+  // payload itself never carries a `data` key, so its presence is what marks an
+  // envelope. (Do not also require meta/error - a { data } with neither would
+  // slip through and be parsed as raw settings.)
+  if (value && typeof value === 'object' && 'data' in value) {
     const envelope = value;
     if (envelope.error) {
       throw new Error(envelope.error.message || envelope.error.code || 'Finance request failed');
