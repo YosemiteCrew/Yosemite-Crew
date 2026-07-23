@@ -622,18 +622,27 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     setLatestOrder(order);
   }, []);
 
+  const findTestByValue = useCallback(
+    (value: string) => tests.find((test) => test.code === value || test._id === value),
+    [tests]
+  );
+
+  // Single source of truth for "put this test in the queue, deduped by code" -
+  // both the direct-add and confirm-pending paths below route through it so
+  // they can't diverge.
+  const queueTest = useCallback((test: IdexxTest) => {
+    setSelectedTests((prev) => (prev.some((t) => t.code === test.code) ? prev : [...prev, test]));
+  }, []);
+
   const addTest = useCallback(
     (value: string) => {
-      const match = tests.find((test) => test.code === value || test._id === value);
+      const match = findTestByValue(value);
       if (!match) return;
       setSelectedTestLabel('');
       setQuery('');
-      setSelectedTests((prev) => {
-        if (prev.some((test) => test.code === match.code)) return prev;
-        return [...prev, match];
-      });
+      queueTest(match);
     },
-    [tests]
+    [findTestByValue, queueTest]
   );
 
   const removeTest = useCallback((code: string) => {
@@ -645,27 +654,22 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   // below before a searched test lands in the Test Queue (bug #1973).
   const selectSearchResult = useCallback(
     (value: string) => {
-      const match = tests.find((test) => test.code === value || test._id === value);
+      const match = findTestByValue(value);
       if (!match) return;
       setPendingTest(match);
       const label = `${match.display} (${match.code})`;
       setSelectedTestLabel(label);
       setQuery(label);
     },
-    [tests]
+    [findTestByValue]
   );
 
   const confirmPendingTest = useCallback(() => {
-    setPendingTest((current) => {
-      if (!current) return current;
-      setSelectedTests((prev) =>
-        prev.some((test) => test.code === current.code) ? prev : [...prev, current]
-      );
-      return null;
-    });
+    if (pendingTest) queueTest(pendingTest);
+    setPendingTest(null);
     setSelectedTestLabel('');
     setQuery('');
-  }, []);
+  }, [pendingTest, queueTest]);
 
   const cancelPendingTest = useCallback(() => {
     setPendingTest(null);
