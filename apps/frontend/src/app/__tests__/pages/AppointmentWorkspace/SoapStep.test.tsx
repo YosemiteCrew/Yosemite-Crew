@@ -97,10 +97,10 @@ describe('SoapStep', () => {
     expect(screen.getByText('Speciality')).toBeInTheDocument();
     expect(screen.getByText(APPOINTMENT_SPECIALITY)).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Chief complaint' })).not.toBeInTheDocument();
-    expect(screen.getByText('S · Subjective')).toBeInTheDocument();
-    expect(screen.getByText('O · Objective')).toBeInTheDocument();
-    expect(screen.getByText('A · Assessment')).toBeInTheDocument();
-    expect(screen.getAllByText('P · Plan').length).toBeGreaterThan(0);
+    expect(screen.getByText('Subjective (History)')).toBeInTheDocument();
+    expect(screen.getByText('Objective (Examination)')).toBeInTheDocument();
+    expect(screen.getByText('Assessment (Differential)')).toBeInTheDocument();
+    expect(screen.getAllByText('Plan').length).toBeGreaterThan(0);
   });
 
   it('shows an empty state when no SOAP notes have been recorded', () => {
@@ -115,7 +115,7 @@ describe('SoapStep', () => {
     renderSoapStep(encounter);
     const chiefComplaint = screen.getByText('Chief complaint');
     const search = screen.getByLabelText(/search for soap template/i);
-    const subjective = screen.getByText('S · Subjective');
+    const subjective = screen.getByText('Subjective (History)');
     expect(chiefComplaint.compareDocumentPosition(search)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(search.compareDocumentPosition(subjective)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
@@ -379,7 +379,7 @@ describe('SoapStep', () => {
     const enc = { ...useAppointmentWorkspaceStore.getState().getEncounter(APPT)!, viewOnly: true };
     renderSoapStep(enc);
     expect(screen.queryByLabelText(/search for soap template/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('S · Subjective')).not.toBeInTheDocument();
+    expect(screen.queryByText('Subjective (History)')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save & Next' })).not.toBeInTheDocument();
     expect(screen.getByText('All SOAP notes')).toBeInTheDocument();
     expect(screen.getByText(/By Dr Tim/)).toBeInTheDocument();
@@ -486,7 +486,7 @@ describe('SoapStep', () => {
     );
 
     // The custom structure REPLACES the four native editors.
-    expect(screen.queryByText('S · Subjective')).not.toBeInTheDocument();
+    expect(screen.queryByText('Subjective (History)')).not.toBeInTheDocument();
     expect(screen.getByText('Gait quality')).toBeInTheDocument();
 
     // A required custom field left empty blocks the save with a validation alert.

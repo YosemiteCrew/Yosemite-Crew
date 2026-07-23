@@ -1,3 +1,4 @@
+import { useRouter } from 'next/navigation';
 import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
@@ -66,10 +67,18 @@ type ProviderOption = {
   label: string;
   available: boolean;
   unavailableReason?: string;
+  /** Provider hub to open on click. IDEXX is always the selected provider, so
+   *  without this the logo looks clickable but nothing happens. */
+  workspaceHref?: string;
 };
 
 const PROVIDERS: ProviderOption[] = [
-  { key: 'IDEXX', label: 'IDEXX', available: true },
+  {
+    key: 'IDEXX',
+    label: 'IDEXX',
+    available: true,
+    workspaceHref: '/appointments/idexx-workspace',
+  },
   {
     key: 'RAD_ANALYZER',
     label: 'RadAnalyzer',
@@ -106,37 +115,44 @@ const IntegrationPills = ({
 }: {
   selected: DiagnosticProvider;
   onSelect: (provider: DiagnosticProvider) => void;
-}) => (
-  <div className="flex flex-wrap items-center gap-3">
-    {PROVIDERS.map((provider) => {
-      const active = selected === provider.key;
-      const disabled = !provider.available;
-      return (
-        <button
-          key={provider.key}
-          type="button"
-          aria-pressed={active}
-          disabled={disabled}
-          title={disabled ? provider.unavailableReason : undefined}
-          onClick={() => {
-            if (!disabled) onSelect(provider.key);
-          }}
-          className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
-            disabled,
-            active
-          )}`}
-        >
-          <ProviderContent provider={provider} />
-          {disabled ? (
-            <span className="text-caption-2 text-text-secondary">Coming soon</span>
-          ) : (
-            active && <IoOpenOutline size={14} aria-hidden="true" />
-          )}
-        </button>
-      );
-    })}
-  </div>
-);
+}) => {
+  const router = useRouter();
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {PROVIDERS.map((provider) => {
+        const active = selected === provider.key;
+        const disabled = !provider.available;
+        return (
+          <button
+            key={provider.key}
+            type="button"
+            aria-pressed={active}
+            disabled={disabled}
+            title={disabled ? provider.unavailableReason : undefined}
+            aria-label={provider.workspaceHref ? `Open the ${provider.label} workspace` : undefined}
+            onClick={() => {
+              if (disabled) return;
+              onSelect(provider.key);
+              if (provider.workspaceHref) router.push(provider.workspaceHref);
+            }}
+            className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
+              disabled,
+              active
+            )}`}
+          >
+            <ProviderContent provider={provider} />
+            {disabled ? (
+              <span className="text-caption-2 text-text-secondary">Coming soon</span>
+            ) : (
+              active && <IoOpenOutline size={14} aria-hidden="true" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 /**
  * Maps a lab order / result status string to the shared design-system pill

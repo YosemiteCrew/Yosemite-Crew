@@ -16,6 +16,13 @@ expect.extend(toHaveNoViolations);
 // ---- module-under-mock: the real IDEXX backend hook + exported helpers ----
 const mockUseLabTests = jest.fn();
 
+const mockRouterPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush, replace: jest.fn(), prefetch: jest.fn() }),
+  useSearchParams: () => ({ get: jest.fn(() => null), entries: jest.fn(() => [].entries()) }),
+  usePathname: () => '/',
+}));
+
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests',
   () => ({
@@ -226,7 +233,10 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   it('renders provider pills with IDEXX selected and the order builder/queue/results sections', () => {
     renderStep();
 
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     expect(screen.getByRole('img', { name: 'IDEXX' })).toBeInTheDocument();
     expect(screen.getByText('Order Builder')).toBeInTheDocument();
     expect(screen.getByText('Test Queue')).toBeInTheDocument();
@@ -265,7 +275,10 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     // Clicking the disabled provider does not switch away from the IDEXX builder.
     fireEvent.click(radButton);
     expect(screen.getByText('Order Builder')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
   it('keeps diagnostic history visible but hides new-order controls when read-only', () => {
@@ -553,14 +566,18 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     printSpy.mockRestore();
   });
 
-  it('keeps IDEXX selected when its already-active pill is clicked', () => {
+  it('opens the IDEXX workspace when the logo pill is clicked', () => {
     renderStep();
 
-    // Clicking the enabled IDEXX pill runs the onSelect path (setSelectedProvider).
-    fireEvent.click(screen.getByRole('button', { name: 'IDEXX' }));
+    // IDEXX is always the selected provider, so selection alone left the logo
+    // looking clickable while doing nothing visible. It now opens the hub.
+    fireEvent.click(screen.getByRole('button', { name: 'Open the IDEXX workspace' }));
 
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('Order Builder')).toBeInTheDocument();
+    expect(mockRouterPush).toHaveBeenCalledWith('/appointments/idexx-workspace');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
   it('labels a non-submitted, non-created order "Open IDEXX" and opens it as an order source', () => {
