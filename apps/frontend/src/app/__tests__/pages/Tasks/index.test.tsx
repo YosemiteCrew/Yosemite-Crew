@@ -368,6 +368,14 @@ describe('Tasks page', () => {
     expect(addTaskSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
   });
 
+  it('hides the header New task CTA on phone, leaving creation to the shell FAB', () => {
+    useIsPhoneMock.mockReturnValue(true);
+    render(<ProtectedTasks />);
+
+    // The phone FAB owns creation there, so a second header button would duplicate it.
+    expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
+  });
+
   it('openAddTask: clicking the header New task CTA calls openAddTask', async () => {
     render(<ProtectedTasks />);
 

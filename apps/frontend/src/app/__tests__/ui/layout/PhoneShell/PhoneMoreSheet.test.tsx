@@ -36,6 +36,7 @@ const links: PhoneMoreLink[] = [
 const setup = (props: Partial<React.ComponentProps<typeof PhoneMoreSheet>> = {}) => {
   const onClose = jest.fn();
   const onNavigate = jest.fn();
+  const onSignOut = jest.fn();
   const utils = render(
     <PhoneMoreSheet
       open
@@ -43,13 +44,21 @@ const setup = (props: Partial<React.ComponentProps<typeof PhoneMoreSheet>> = {})
       sections={sections}
       links={links}
       onNavigate={onNavigate}
+      onSignOut={onSignOut}
       {...props}
     />
   );
-  return { ...utils, onClose, onNavigate };
+  return { ...utils, onClose, onNavigate, onSignOut };
 };
 
 describe('PhoneMoreSheet', () => {
+  it('signs out and closes when the sign out row is tapped', () => {
+    const { onClose, onSignOut } = setup();
+    fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('renders nothing when closed', () => {
     const { container } = render(
       <PhoneMoreSheet
@@ -58,6 +67,7 @@ describe('PhoneMoreSheet', () => {
         sections={sections}
         links={links}
         onNavigate={jest.fn()}
+        onSignOut={jest.fn()}
       />
     );
     expect(container.querySelector('.yc-phone-sheet')).not.toBeInTheDocument();

@@ -364,6 +364,15 @@
     color: var(--cyan-text);
   }
 
+  /* Sign out is the one destructive row in the sheet, so it reads in danger. */
+  .yc-phone-more-row-icon-signout {
+    color: var(--danger-text);
+  }
+
+  .yc-phone-more-row-signout .yc-phone-more-row-label {
+    color: var(--danger-text);
+  }
+
   .yc-phone-more-row-label {
     flex: 1;
     min-width: 0;
