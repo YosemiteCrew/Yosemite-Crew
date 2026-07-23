@@ -76,7 +76,17 @@ type AssigneeOption = { label: string; value: string };
 
 // Include COMPLETED tasks: the backend list excludes them by default, which would
 // drop completed rows from the panel and the Schedule timeline after a refresh.
-const WORKSPACE_TASK_LOAD = { force: true, silent: true, filters: { includeCompleted: true } };
+// Also request both audiences explicitly: the backend's org task list defaults
+// to EMPLOYEE_TASK when no audience is given, which silently excluded every
+// Parent task from this panel (bug #1967).
+const WORKSPACE_TASK_LOAD = {
+  force: true,
+  silent: true,
+  filters: {
+    includeCompleted: true,
+    audience: ['EMPLOYEE_TASK', 'PARENT_TASK'] as Task['audience'][],
+  },
+};
 
 const taskStatusToScheduleStatus = (status: Task['status']): ScheduleTaskStatus => {
   if (status === 'COMPLETED') return 'COMPLETED';
