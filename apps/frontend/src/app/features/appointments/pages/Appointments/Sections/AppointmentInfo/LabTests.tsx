@@ -199,6 +199,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [query, setQuery] = useState('');
   const [selectedTestLabel, setSelectedTestLabel] = useState('');
   const [selectedTests, setSelectedTests] = useState<IdexxTest[]>([]);
+  const [pendingTest, setPendingTest] = useState<IdexxTest | null>(null);
   const [appointmentOrders, setAppointmentOrders] = useState<LabOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [modality, setModality] = useState<'REFERENCE_LAB' | 'INHOUSE'>('REFERENCE_LAB');
@@ -639,6 +640,39 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     setSelectedTests((prev) => prev.filter((test) => test.code !== code));
   }, []);
 
+  // Search selection only stages a candidate test - it does not queue it. The
+  // workspace Diagnostics step requires the explicit "Add to Queue" action
+  // below before a searched test lands in the Test Queue (bug #1973).
+  const selectSearchResult = useCallback(
+    (value: string) => {
+      const match = tests.find((test) => test.code === value || test._id === value);
+      if (!match) return;
+      setPendingTest(match);
+      const label = `${match.display} (${match.code})`;
+      setSelectedTestLabel(label);
+      setQuery(label);
+    },
+    [tests]
+  );
+
+  const confirmPendingTest = useCallback(() => {
+    setPendingTest((current) => {
+      if (!current) return current;
+      setSelectedTests((prev) =>
+        prev.some((test) => test.code === current.code) ? prev : [...prev, current]
+      );
+      return null;
+    });
+    setSelectedTestLabel('');
+    setQuery('');
+  }, []);
+
+  const cancelPendingTest = useCallback(() => {
+    setPendingTest(null);
+    setSelectedTestLabel('');
+    setQuery('');
+  }, []);
+
   const handleCreateOrder = useCallback(async () => {
     if (!primaryOrgId || !companionId || selectedTests.length === 0) return;
     setCreatingOrder(true);
@@ -658,6 +692,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
       setLatestOrder(created);
       upsertAppointmentOrder(created);
       setSelectedTests([]);
+      setPendingTest(null);
       setSelectedTestLabel('');
       setQuery('');
       setNotes('');
@@ -772,6 +807,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     selectedTestLabel,
     setSelectedTestLabel,
     selectedTests,
+    pendingTest,
     modality,
     setModality,
     selectedIvls,
@@ -823,6 +859,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     openOrderAcknowledgement,
     setActiveOrderForActions,
     addTest,
+    selectSearchResult,
+    confirmPendingTest,
+    cancelPendingTest,
     removeTest,
     handleCreateOrder,
     handleAddToCensus,

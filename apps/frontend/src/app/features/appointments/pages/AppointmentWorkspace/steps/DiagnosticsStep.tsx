@@ -292,6 +292,32 @@ const TestTypeSelect = ({ s }: { s: UseLabTestsReturn }) => (
   />
 );
 
+const PendingTestConfirmation = ({ s }: { s: UseLabTestsReturn }) => {
+  if (!s.pendingTest) return null;
+  const test = s.pendingTest;
+  return (
+    <div
+      data-testid="pending-test-confirmation"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4"
+    >
+      <div className="flex flex-col gap-1">
+        <span className="text-body-4 font-medium text-text-primary">{test.display}</span>
+        <span className="text-caption-1 text-text-secondary">
+          Code: {test.code} · {formatTestPrice(test)}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Secondary text="Cancel" onClick={s.cancelPendingTest} />
+        <Primary
+          text="Add to Queue"
+          icon={<IoCheckmarkOutline aria-hidden="true" />}
+          onClick={s.confirmPendingTest}
+        />
+      </div>
+    </div>
+  );
+};
+
 const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   <div className="grid items-stretch gap-5 lg:grid-cols-[1fr_320px]">
     <div className="flex flex-col gap-4">
@@ -302,7 +328,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
           label: `${test.display} (${test.code})`,
           meta: test,
         }))}
-        onSelect={s.addTest}
+        onSelect={s.selectSearchResult}
         query={s.selectedTestLabel || s.query}
         setQuery={(value: string) => {
           s.setSelectedTestLabel(value);
@@ -329,6 +355,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
           );
         }}
       />
+      <PendingTestConfirmation s={s} />
       <p className="max-w-2xl text-body-4 text-text-secondary">
         IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
         this contract. Use reference lab for external IDEXX ordering.
@@ -337,7 +364,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         <FormDesc
           intype="text"
           inname="lab-notes"
-          inlabel="Notes"
+          inlabel="Order notes"
           value={s.notes}
           onChange={(e) => s.setNotes(e.target.value)}
         />
@@ -555,6 +582,13 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                       <MetaPill label={formatModality(order.modality) as string} />
                     )}
                   </span>
+                  {/* Order notes are saved at the order level (IDEXX has no per-test notes),
+                      shown here so they remain visible after refreshing or reopening (bug #1973). */}
+                  {order.notes && (
+                    <span className="truncate text-caption-1 text-text-secondary">
+                      <strong>Order notes:</strong> {order.notes}
+                    </span>
+                  )}
                 </span>
                 <span className="truncate text-body-4 text-text-secondary">
                   {formatDateTimeLocal(order.updatedAt ?? order.createdAt, '-')}
