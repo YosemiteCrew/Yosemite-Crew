@@ -612,6 +612,53 @@ describe('HomeScreen', () => {
       expect(getByText('Spend: 500')).toBeTruthy();
     });
 
+    it('shrinks the greeting text on narrow screens instead of pushing the header actions off-screen', () => {
+      const store = createStore();
+      const {getByText, getByLabelText, getByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      const greetingName = getByText('Hello, John');
+      expect(greetingName.props.numberOfLines).toBe(1);
+      expect(greetingName.props.adjustsFontSizeToFit).toBe(true);
+      expect(greetingName.props.minimumFontScale).toBe(0.7);
+
+      const greetingTitle = getByText('Your companions');
+      expect(greetingTitle.props.numberOfLines).toBe(1);
+      expect(greetingTitle.props.adjustsFontSizeToFit).toBe(true);
+      expect(greetingTitle.props.minimumFontScale).toBe(0.7);
+
+      // The greeting text block must be allowed to shrink so it never
+      // forces the header actions off-screen.
+      const greetingTextBlockStyle = [
+        getByTestId('greeting-text-block').props.style,
+      ].flat(Infinity);
+      expect(
+        greetingTextBlockStyle.some((style: any) => style?.flexShrink === 1),
+      ).toBe(true);
+
+      // The profile button (avatar + greeting) must shrink to make room...
+      const profileButtonStyle = [
+        getByLabelText('Your profile').props.style,
+      ].flat(Infinity);
+      expect(profileButtonStyle.some((style: any) => style?.flex === 1)).toBe(
+        true,
+      );
+      expect(
+        profileButtonStyle.some((style: any) => style?.flexShrink === 1),
+      ).toBe(true);
+
+      // ...while the header action icons never shrink, staying fully visible.
+      const headerActionsStyle = [
+        getByTestId('header-actions').props.style,
+      ].flat(Infinity);
+      expect(
+        headerActionsStyle.some((style: any) => style?.flexShrink === 0),
+      ).toBe(true);
+    });
+
     it('labels the emergency and notifications header buttons for screen readers', () => {
       const store = createStore();
       const {getByLabelText} = renderAndWait(

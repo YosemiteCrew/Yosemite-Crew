@@ -84,7 +84,7 @@ const NavButton = ({
         <Icon size={20} />
       </span>
       <span
-        className={`text-[12px] leading-[120%] ${active ? 'font-bold text-blue-text' : 'font-medium text-neutral-700'}`}
+        className={`text-caption-2 ${active ? 'font-bold text-blue-text' : 'text-neutral-700'}`}
       >
         {item.label}
       </span>
@@ -118,6 +118,7 @@ const QuickActionsModal = ({
         if (!next) onClose();
       }}
       onClose={onClose}
+      size="lg"
     >
       <div className="flex h-full flex-col gap-4">
         <ModalHeader title="Quick actions" onClose={onClose} />
@@ -157,8 +158,8 @@ const QuickActionsModal = ({
               />
             </span>
             <span
-              className={`text-[12px] leading-[120%] ${
-                activeAction === 'MSD' ? 'font-bold text-blue-text' : 'font-medium text-neutral-700'
+              className={`text-caption-2 ${
+                activeAction === 'MSD' ? 'font-bold text-blue-text' : 'text-neutral-700'
               }`}
             >
               {MSD_LABEL}

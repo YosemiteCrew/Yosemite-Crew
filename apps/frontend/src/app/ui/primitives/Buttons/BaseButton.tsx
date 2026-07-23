@@ -23,6 +23,12 @@ export type BaseButtonProps = {
   size?: ButtonSize;
   type?: 'button' | 'submit' | 'reset';
   ariaLabel?: string;
+  /**
+   * Set on buttons that toggle a state rather than perform an action, so a
+   * screen reader announces the state the way the raw `<button>` these replaced
+   * did. Only meaningful on the button branch; a link has no pressed state.
+   */
+  ariaPressed?: boolean;
   sizeClasses: Record<ButtonSize, string>;
   baseClasses: string;
 };
@@ -49,6 +55,7 @@ const BaseButton = ({
   size = 'default',
   type = 'button',
   ariaLabel,
+  ariaPressed,
   sizeClasses,
   baseClasses,
 }: Readonly<BaseButtonProps>) => {
@@ -101,6 +108,7 @@ const BaseButton = ({
       disabled={isDisabled}
       aria-disabled={isDisabled}
       aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       className={classes}
       onClick={onClick}
       onPointerDown={updateInteractionPosition}

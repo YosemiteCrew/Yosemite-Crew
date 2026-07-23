@@ -27,7 +27,7 @@ const InviteCard = ({ invite, handleAccept, handleReject, disabled = false }: In
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="invite-picker-name truncate">{invite.organisationName}</span>
-          <Badge tone="neutral" className="invite-picker-badge shrink-0 px-2! py-0.5! text-[9px]!">
+          <Badge tone="neutral" className="invite-picker-badge shrink-0">
             INVITED
           </Badge>
         </span>

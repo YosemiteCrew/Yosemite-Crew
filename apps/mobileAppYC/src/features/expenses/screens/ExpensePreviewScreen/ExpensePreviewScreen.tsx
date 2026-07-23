@@ -715,7 +715,7 @@ const createStyles = (theme: any) =>
     },
     paymentButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
       fontWeight: '600',
     },

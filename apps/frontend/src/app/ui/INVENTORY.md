@@ -56,7 +56,7 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 | Card                 | `Card.tsx`                                         | ✅ Approved     | 3 variants: default / bordered / subtle                 |
 | Accordion            | `primitives/Accordion/Accordion.tsx`               | ✅ Approved     | Semantic buttons for expand/edit/delete. Stories added. |
 | EditableAccordion    | `primitives/Accordion/EditableAccordion.tsx`       | 🔄 In migration | Wraps Accordion - audit once Accordion is stable        |
-| AccordionButton      | `primitives/Accordion/AccordionButton.tsx`         | ⚠️ Legacy       | Review vs Accordion primitive                           |
+| SectionCard          | `primitives/SectionCard/SectionCard.tsx`           | ✅ Current      | Flat titled section for the organisation page           |
 | SmallAccordionButton | `primitives/Accordion/SmallAccordionButton.tsx`    | ⚠️ Legacy       | Potentially redundant                                   |
 | Primary (button)     | `primitives/Buttons/Primary.tsx`                   | ✅ Approved     | Internal - use Button wrapper                           |
 | Secondary (button)   | `primitives/Buttons/Secondary.tsx`                 | ✅ Approved     | Internal - use Button wrapper                           |

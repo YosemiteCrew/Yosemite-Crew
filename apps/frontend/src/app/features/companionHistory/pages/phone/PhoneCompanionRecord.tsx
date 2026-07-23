@@ -22,6 +22,7 @@ import type {
 import { buildCompanionDetails } from '@/app/lib/companionWorkspaceDetails';
 import { formatCompanionAge } from '@/app/lib/date';
 import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type PhoneCompanionRecordProps = {
   companionId: string;
@@ -147,10 +148,19 @@ const PhoneRecordIdentity = ({
           onRemove={onRemoveAlert}
         />
       ))}
-      <span className="inline-flex items-center gap-1 rounded-full border border-(--status-completed-border) bg-(--status-completed-bg) px-2.5 py-1 text-[9.5px] font-bold text-(--status-completed-text)">
-        Dues cleared
-        <IoCheckmarkOutline size={10} aria-hidden="true" />
-      </span>
+      <StatusPill
+        label={
+          <>
+            Dues cleared
+            <IoCheckmarkOutline size={10} aria-hidden="true" />
+          </>
+        }
+        tokens={{
+          bg: 'var(--status-completed-bg)',
+          text: 'var(--status-completed-text)',
+          border: 'var(--status-completed-border)',
+        }}
+      />
       <button
         type="button"
         aria-label={addAlertLabel}

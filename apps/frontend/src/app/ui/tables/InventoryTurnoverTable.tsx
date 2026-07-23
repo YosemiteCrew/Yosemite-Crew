@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { InventoryTurnoverItem } from '@/app/features/inventory/pages/Inventory/types';
 import InventoryTurnoverCard from '@/app/ui/cards/InventoryTurnoverCard';
 
@@ -96,9 +97,10 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       key: 'status',
       width: '100px',
       render: (item: InventoryTurnoverItem) => (
-        <div className="appointment-status" style={getInventoryTurnoverStatusStyle(item.status)}>
-          {formatTurnoverStatus(item.status)}
-        </div>
+        <StatusPill
+          style={getInventoryTurnoverStatusStyle(item.status)}
+          label={formatTurnoverStatus(item.status)}
+        />
       ),
     },
   ];

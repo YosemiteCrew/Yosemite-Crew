@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getInvoiceItemNames, getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
 import { Invoice } from '@yosemite-crew/types';
 import { formatDateLabel } from '@/app/lib/forms';
@@ -70,9 +71,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
           {formatMoney(invoice.totalAmount, currency)}
         </div>
       </div>
-      <div style={getInvoiceStatusStyle(invoice.status)} className="appointment-status">
-        {toTitle(invoice?.status)}
-      </div>
+      <StatusPill style={getInvoiceStatusStyle(invoice.status)} label={toTitle(invoice?.status)} />
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Payment:</div>
         <div className="text-caption-1 text-text-primary">

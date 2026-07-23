@@ -6,7 +6,7 @@ import {
   computeEffectivePermissions,
   uniq,
 } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
-import { Permission, PERMISSIONS } from '@/app/lib/permissions';
+import { Permission, PERMISSIONS, ROLE_PERMISSIONS } from '@/app/lib/permissions';
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
@@ -110,6 +110,60 @@ describe('PermissionsEditor component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('restores both analytics view permissions when the row is re-enabled', async () => {
+    // ADMIN holds analytics:view:any and analytics:view:clinical together.
+    // Turning the row off drops both; turning it back on must return both,
+    // not just the first - otherwise view:clinical is unrecoverable from the UI.
+    render(
+      <PermissionsEditor role={adminRole} value={ROLE_PERMISSIONS.ADMIN} onSave={mockOnSave} />
+    );
+
+    const analyticsView = screen.getByLabelText('Analytics view permission');
+    fireEvent.click(analyticsView); // off
+    fireEvent.click(analyticsView); // back on
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockOnSave).toHaveBeenCalled());
+    const saved = mockOnSave.mock.calls.at(-1)?.[0];
+    expect(saved.revokedPermissions).not.toContain(PERMISSIONS.ANALYTICS_VIEW_CLINICAL);
+    expect(saved.revokedPermissions).not.toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
+  });
+
+  it('locks Teams and Organization for an owner and never revokes them', async () => {
+    // An owner must keep the permissions that gate the screens they would use
+    // to reverse a change; the checkboxes are disabled and the save can't drop them.
+    const ownerValue = ROLE_PERMISSIONS.OWNER.filter(
+      (p) => p !== PERMISSIONS.TEAMS_EDIT_ANY && p !== PERMISSIONS.ORG_EDIT
+    );
+    render(<PermissionsEditor role={'OWNER' as const} value={ownerValue} onSave={mockOnSave} />);
+
+    const teamsEdit = screen.getByLabelText('Teams edit permission') as HTMLInputElement;
+    const orgEdit = screen.getByLabelText('Organization edit permission') as HTMLInputElement;
+    expect(teamsEdit).toBeDisabled();
+    expect(teamsEdit).toBeChecked();
+    expect(orgEdit).toBeDisabled();
+
+    // Make an UNRELATED change so the form is dirty while Teams/Org stay out of
+    // the draft. Without the save guard those would be revoked; with it they are
+    // protected and even heal from the incoming revoked state.
+    fireEvent.click(screen.getByLabelText('Inventory view permission'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mockOnSave).toHaveBeenCalled());
+    const saved = mockOnSave.mock.calls.at(-1)?.[0];
+    expect(saved.revokedPermissions).not.toContain(PERMISSIONS.TEAMS_EDIT_ANY);
+    expect(saved.revokedPermissions).not.toContain(PERMISSIONS.ORG_EDIT);
+    expect(saved.revokedPermissions).toContain(PERMISSIONS.INVENTORY_VIEW_ANY);
+  });
+
+  it('leaves Teams and Organization editable for a non-owner', () => {
+    render(
+      <PermissionsEditor role={adminRole} value={ROLE_PERMISSIONS.ADMIN} onSave={mockOnSave} />
+    );
+    expect(screen.getByLabelText('Teams edit permission')).not.toBeDisabled();
+    expect(screen.getByLabelText('Organization edit permission')).not.toBeDisabled();
   });
 
   it('renders permissions accordion', () => {

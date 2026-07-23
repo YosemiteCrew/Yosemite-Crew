@@ -38,6 +38,7 @@ import {
   toStatusLabel,
 } from '@/app/lib/appointments';
 import { getStatusStyle } from '@/app/config/statusConfig';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { toAssignableRoomOptions } from '@/app/features/appointments/lib/roomUnitAvailability';
@@ -905,18 +906,10 @@ const useAppointmentInfoView = ({
                       className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border"
                     >
                       <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
-                      <span
-                        className="text-caption-3 inline-flex items-center justify-center border px-2.5 py-1 rounded-full! whitespace-nowrap"
-                        style={{
-                          backgroundColor: statusStyle.backgroundColor,
-                          color: statusStyle.color,
-                          borderWidth: '1px',
-                          borderStyle: 'solid',
-                          borderColor: statusStyle.borderColor,
-                        }}
-                      >
-                        {toStatusLabel(activeAppointment.status)}
-                      </span>
+                      <StatusPill
+                        style={statusStyle}
+                        label={toStatusLabel(activeAppointment.status)}
+                      />
                     </div>
                   );
                 }

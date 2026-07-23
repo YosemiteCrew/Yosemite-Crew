@@ -1326,15 +1326,25 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 </Text>
               )}
             </View>
-            <View>
-              <Text style={styles.greetingName}>Hello, {displayName}</Text>
-              <Text style={styles.greetingTitle}>
+            <View style={styles.greetingTextBlock} testID="greeting-text-block">
+              <Text
+                style={styles.greetingName}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}>
+                Hello, {displayName}
+              </Text>
+              <Text
+                style={styles.greetingTitle}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}>
                 {hasCompanions ? 'Your companions' : 'Welcome'}
               </Text>
             </View>
           </PressableOpacity>
 
-          <View style={styles.headerActions}>
+          <View style={styles.headerActions} testID="header-actions">
             <View style={styles.actionIconShadowWrapper}>
               <LiquidGlassIconButton
                 onPress={handleEmergencyPress}
@@ -1573,6 +1583,11 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['3.5'],
+      flex: 1,
+      flexShrink: 1,
+    },
+    greetingTextBlock: {
+      flexShrink: 1,
     },
     avatar: {
       width: theme.spacing['12'],
@@ -1608,6 +1623,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['3'],
+      flexShrink: 0,
     },
     actionIconShadowWrapper: {
       borderRadius: theme.borderRadius.full,
@@ -1820,7 +1836,7 @@ const createStyles = (theme: any) =>
     },
     reviewButtonText: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     upcomingFooter: {
       gap: theme.spacing['2'],

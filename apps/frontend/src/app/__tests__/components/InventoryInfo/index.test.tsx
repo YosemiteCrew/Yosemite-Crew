@@ -173,10 +173,13 @@ jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
   __esModule: true,
-  default: ({ title, onClose }: any) => (
+  default: ({ title, meta, eyebrow, actions, onClose }: any) => (
     <div>
+      {eyebrow && <div>{eyebrow}</div>}
       <span>{title}</span>
-      <button data-testid="modal-header-close" onClick={onClose}>
+      {meta && <div>{meta}</div>}
+      {actions}
+      <button type="button" aria-label="close" data-testid="modal-header-close" onClick={onClose}>
         Close Header
       </button>
     </div>
@@ -202,15 +205,6 @@ jest.mock('@/app/ui/widgets/Labels/Labels', () => ({
         </button>
       ))}
     </div>
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: ({ onClick }: any) => (
-    <button onClick={onClick} data-testid="close-icon">
-      X
-    </button>
   ),
 }));
 
@@ -623,7 +617,7 @@ describe('InventoryInfo Component', () => {
   it('closes the modal from the top-right close icon', () => {
     render(<InventoryInfo {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId('close-icon'));
+    fireEvent.click(screen.getByTestId('modal-header-close'));
 
     expect(mockSetShowModal).toHaveBeenCalledWith(false);
   });
@@ -650,7 +644,9 @@ describe('InventoryInfo Component', () => {
       fireEvent.click(screen.getByTestId('primary-btn'));
     });
 
-    fireEvent.click(screen.getByTestId('modal-header-close'));
+    // The drawer and the delete confirmation each render a ModalHeader; the
+    // confirmation's is the second one in the tree.
+    fireEvent.click(screen.getAllByTestId('modal-header-close')[1]);
 
     expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
   });

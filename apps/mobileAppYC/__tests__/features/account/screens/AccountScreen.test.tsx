@@ -200,7 +200,8 @@ jest.mock(
             <TouchableOpacity
               key={item.id}
               onPress={() => onItemPress(item.id)}
-              testID={`menu-item-${item.id}`}>
+              testID={`menu-item-${item.id}`}
+              accessibilityValue={{text: String(item.tintIcon)}}>
               <Text>{item.label}</Text>
             </TouchableOpacity>
           ))}
@@ -636,6 +637,17 @@ describe('AccountScreen', () => {
 
     fireEvent.press(screen.getByTestId('menu-item-contact'));
     expect(mockNavigate).toHaveBeenCalledWith('ContactUs');
+  });
+
+  it('opts the FAQ icon out of tinting since its bitmap has an opaque background', () => {
+    renderScreen();
+
+    expect(
+      screen.getByTestId('menu-item-faqs').props.accessibilityValue,
+    ).toEqual({text: 'false'});
+    expect(
+      screen.getByTestId('menu-item-preferences').props.accessibilityValue,
+    ).toEqual({text: 'undefined'});
   });
 
   it('opens external link for About Us', () => {

@@ -1,4 +1,5 @@
 import { Appointment } from '@yosemite-crew/types';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   createInvoiceByAppointmentId,
   getAppointmentPaymentDisplay,
@@ -13,15 +14,14 @@ const AppointmentPaymentBadge = ({
 }) => {
   const payment = getAppointmentPaymentDisplay(appointment, invoicesByAppointmentId);
   return (
-    <div
-      className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium font-satoshi"
+    <StatusPill
+      label={payment.label}
       style={{
         backgroundColor: payment.badgeBackgroundColor,
         color: payment.badgeTextColor,
+        borderColor: payment.badgeBackgroundColor,
       }}
-    >
-      {payment.label}
-    </div>
+    />
   );
 };
 

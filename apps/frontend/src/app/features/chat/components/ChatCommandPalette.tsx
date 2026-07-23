@@ -28,7 +28,17 @@ export function ChatCommandPalette({
   client,
   filters,
   onJump,
-}: Readonly<{ client: StreamChat; filters: ChannelFilters; onJump: (id: string) => void }>) {
+  channelBelongsToOrg,
+}: Readonly<{
+  client: StreamChat;
+  filters: ChannelFilters;
+  onJump: (id: string) => void;
+  // Stream has no server-side organisation scope, so the palette drops the
+  // conversations that belong to another organisation the same way the sidebar
+  // list does. Jumping to one of those would open a channel the active
+  // organisation cannot otherwise see.
+  channelBelongsToOrg?: (channel: Channel) => boolean;
+}>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -66,7 +76,7 @@ export function ChatCommandPalette({
     client
       .queryChannels(filters, PALETTE_SORT, { limit: 30 })
       .then((res) => {
-        if (active) setChannels(res);
+        if (active) setChannels(channelBelongsToOrg ? res.filter(channelBelongsToOrg) : res);
       })
       .catch(() => {
         if (active) setChannels([]);
@@ -74,7 +84,7 @@ export function ChatCommandPalette({
     return () => {
       active = false;
     };
-  }, [open, client, filters]);
+  }, [open, client, filters, channelBelongsToOrg]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();

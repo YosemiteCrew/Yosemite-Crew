@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import Image from 'next/image';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { IoEye, IoOpenOutline } from 'react-icons/io5';
@@ -72,9 +73,7 @@ const renderServices = (item: Invoice) => (
 );
 
 const renderStatus = (item: Invoice) => (
-  <div className="appointment-status" style={getInvoiceStatusStyle(item?.status)}>
-    {toTitle(item?.status)}
-  </div>
+  <StatusPill style={getInvoiceStatusStyle(item?.status)} label={toTitle(item?.status)} />
 );
 
 const renderPayment = (item: Invoice) => (

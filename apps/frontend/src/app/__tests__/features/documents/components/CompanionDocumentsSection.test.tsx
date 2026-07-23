@@ -23,13 +23,13 @@ jest.mock('@/app/ui/overlays/Modal', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),
-  Secondary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
+  Secondary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),

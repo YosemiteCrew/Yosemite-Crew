@@ -105,6 +105,13 @@ const ModalBase = ({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (ignoreOutsideClickRef.current?.(target)) return;
+      // Every modal portals to document.body, so a modal opened from inside
+      // another one is its sibling in the DOM rather than its descendant. A
+      // click in the child would otherwise read as "outside" to the parent and
+      // dismiss it - taking the child down with it. Interacting with any dialog
+      // is never a dismissal of a different one; the backdrop sits outside
+      // .yc-modal-dialog, so click-to-dismiss still works.
+      if (target?.closest('.yc-modal-dialog')) return;
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         closeModalRef.current();
       }

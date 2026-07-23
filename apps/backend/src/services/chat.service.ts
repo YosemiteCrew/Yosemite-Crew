@@ -33,6 +33,10 @@ type YosemiteChannelData = ChannelData & {
   name?: string;
   appointmentId?: string;
   organisationId?: string;
+  // Every organisation the channel belongs to. Clients scope their channel list
+  // by this field, so a channel without it shows up in every organisation the
+  // member belongs to. Cross-clinic chats carry both sides.
+  organisationIds?: string[];
   patientId?: string;
   parentId?: string;
   vetId?: string | null;
@@ -297,6 +301,7 @@ export const ChatService = {
       name: `Appointment Chat`,
       appointmentId,
       organisationId: orgId,
+      organisationIds: [orgId],
       patientId,
       parentId,
       vetId,
@@ -372,12 +377,14 @@ export const ChatService = {
 
     const channelId = `od_${hash}`;
 
-    await streamServer
-      .channel("team", channelId, {
-        members,
-        created_by_id: userA,
-      })
-      .create();
+    const directChannelData: YosemiteChannelData = {
+      members,
+      created_by_id: userA,
+      organisationId,
+      organisationIds: [organisationId],
+    };
+
+    await streamServer.channel("team", channelId, directChannelData).create();
 
     const session = await prisma.chatSession.create({
       data: {
@@ -440,6 +447,8 @@ export const ChatService = {
       isPrivate,
       members,
       created_by_id: createdBy,
+      organisationId,
+      organisationIds: [organisationId],
     };
 
     await streamServer.channel("team", channelId, channelData).create();

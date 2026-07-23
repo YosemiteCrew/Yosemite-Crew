@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useReducer, useState} from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,10 @@ import {
   startFormSigning,
   fetchAppointmentForms,
 } from '@/features/forms';
+import {
+  stripHtmlToPlainText,
+  wrapPlainTextAsHtml,
+} from '@/features/forms/utils';
 import type {FormField} from '@yosemite-crew/types';
 import {createFormStyles} from '@/shared/utils/formStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
@@ -64,6 +68,16 @@ const isTruthy = (val: any): boolean => {
   return val !== undefined && val !== null && `${val}`.trim?.() !== '';
 };
 
+// A richtext answer is HTML (e.g. "<p></p>"), which is a non-empty string
+// even when it renders as no content — check the stripped plain text instead
+// of the raw markup so blank-only answers aren't treated as filled.
+const isFieldFilled = (field: FormField, val: any): boolean => {
+  if (field.type === 'richtext') {
+    return isTruthy(stripHtmlToPlainText(val));
+  }
+  return isTruthy(val);
+};
+
 const textIncludes = (haystack: string | undefined, needles: string[]) => {
   if (!haystack) {
     return false;
@@ -82,6 +96,102 @@ const cleanPlaceholder = (value?: string | null): string | undefined => {
 const cleanLabel = (value?: string | null): string | undefined => {
   if (!value) return value ?? undefined;
   return value.replaceAll(/pet/gi, 'Companion');
+};
+
+type PrefillContext = {
+  isAlreadyFilled: boolean;
+  today: Date;
+  ownerFullName: string;
+  companionName: string;
+  lockNonCheckboxInputs: boolean;
+  shouldPrefillOwner: (field: FormField) => boolean;
+  shouldPrefillCompanion: (field: FormField) => boolean;
+};
+
+// Extracted from the prefill useEffect's `fill` walker to keep its cognitive
+// complexity within the Sonar-enforced limit — this resolves a single
+// non-group, non-checkbox field's prefill value, independent of tree walking.
+const resolveFieldPrefillValue = (
+  field: FormField,
+  ctx: PrefillContext,
+): unknown => {
+  if (field.type === 'date' && !ctx.isAlreadyFilled) {
+    return ctx.today;
+  }
+  if (ctx.isAlreadyFilled) {
+    return undefined;
+  }
+  if (ctx.shouldPrefillOwner(field) && ctx.ownerFullName) {
+    return ctx.ownerFullName;
+  }
+  if (ctx.shouldPrefillCompanion(field) && ctx.companionName) {
+    return ctx.companionName;
+  }
+  const metaDefaultValue = (field as any).meta?.defaultValue;
+  if (typeof metaDefaultValue === 'string' && metaDefaultValue.trim()) {
+    return metaDefaultValue;
+  }
+  if (ctx.lockNonCheckboxInputs) {
+    const placeholderVal =
+      (field as any).placeholder ?? (field as any).text ?? '';
+    if (placeholderVal) {
+      return cleanPlaceholder(placeholderVal);
+    }
+  }
+  return undefined;
+};
+
+// values, richTextDrafts, and isDirty are reset together whenever the
+// submission changes and updated together on most edits — combined into one
+// reducer so those updates redraw the screen once, not once per setState call.
+type FormEditState = {
+  values: Record<string, any>;
+  richTextDrafts: Record<string, string>;
+  isDirty: boolean;
+};
+
+type FormEditAction =
+  | {type: 'reset'; values: Record<string, any>}
+  | {
+      type: 'mergeValues';
+      updater: (prev: Record<string, any>) => Record<string, any>;
+    }
+  | {type: 'setFieldValue'; fieldId: string; value: any}
+  | {type: 'setRichTextValue'; fieldId: string; draftText: string; value: any}
+  | {type: 'setDirty'; dirty: boolean};
+
+const formEditReducer = (
+  state: FormEditState,
+  action: FormEditAction,
+): FormEditState => {
+  switch (action.type) {
+    case 'reset':
+      return {values: action.values, richTextDrafts: {}, isDirty: false};
+    case 'mergeValues': {
+      const nextValues = action.updater(state.values);
+      return nextValues === state.values
+        ? state
+        : {...state, values: nextValues};
+    }
+    case 'setFieldValue':
+      return {
+        ...state,
+        values: {...state.values, [action.fieldId]: action.value},
+        isDirty: true,
+      };
+    case 'setRichTextValue':
+      return {
+        ...state,
+        values: {...state.values, [action.fieldId]: action.value},
+        richTextDrafts: {
+          ...state.richTextDrafts,
+          [action.fieldId]: action.draftText,
+        },
+        isDirty: true,
+      };
+    case 'setDirty':
+      return {...state, isDirty: action.dirty};
+  }
 };
 
 export const AppointmentFormScreen: React.FC = () => {
@@ -117,11 +227,18 @@ export const AppointmentFormScreen: React.FC = () => {
   );
   const signedPdfUrl = entry?.submission?.signing?.pdf?.url;
 
-  const [values, setValues] = useState<Record<string, any>>(
-    entry?.submission?.answers ?? {},
-  );
+  const [formEditState, dispatchFormEdit] = useReducer(formEditReducer, {
+    values: entry?.submission?.answers ?? {},
+    // Once a richtext field has been typed in, its raw (untrimmed) keystrokes
+    // are kept here and shown verbatim instead of re-deriving the controlled
+    // value from stripHtmlToPlainText(values[field.id]) every render — that
+    // round-trip's trailing .trim() would otherwise eat a just-typed trailing
+    // newline (e.g. pressing Return at the end) before the next keystroke.
+    richTextDrafts: {},
+    isDirty: false,
+  });
+  const {values, richTextDrafts, isDirty} = formEditState;
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isDirty, setIsDirty] = useState(false);
 
   const isReadOnly = Boolean(
     entry?.submission &&
@@ -163,7 +280,7 @@ export const AppointmentFormScreen: React.FC = () => {
         return;
       }
       total += 1;
-      if (isTruthy(values[field.id])) {
+      if (isFieldFilled(field, values[field.id])) {
         filled += 1;
       }
     };
@@ -172,8 +289,7 @@ export const AppointmentFormScreen: React.FC = () => {
   }, [entry?.form?.schema, values]);
 
   useEffect(() => {
-    setValues(entry?.submission?.answers ?? {});
-    setIsDirty(false);
+    dispatchFormEdit({type: 'reset', values: entry?.submission?.answers ?? {}});
   }, [entry?.submission]);
 
   useEffect(() => {
@@ -217,51 +333,40 @@ export const AppointmentFormScreen: React.FC = () => {
       textIncludes(field.id, ['companion', 'patient', 'pet', 'animal']) ||
       textIncludes(field.label, ['companion', 'patient', 'pet', 'animal']);
 
-    setValues(prev => {
-      const next = {...prev};
-      let updated = false;
+    dispatchFormEdit({
+      type: 'mergeValues',
+      updater: prev => {
+        const next = {...prev};
+        let updated = false;
 
-      const fill = (field: FormField) => {
-        if (field.type === 'group') {
-          if (Array.isArray((field as any).fields)) {
-            (field as any).fields.forEach(fill);
+        const fill = (field: FormField) => {
+          if (field.type === 'group') {
+            if (Array.isArray((field as any).fields)) {
+              (field as any).fields.forEach(fill);
+            }
+            return;
           }
-          return;
-        }
-        const isCheckboxField = field.type === 'checkbox';
-        if (isCheckboxField) {
-          return;
-        }
-        if (field.type === 'date' && !isTruthy(next[field.id])) {
-          next[field.id] = today;
-          updated = true;
-          return;
-        }
-        if (isTruthy(next[field.id])) {
-          return;
-        }
-        if (shouldPrefillOwner(field) && ownerFullName) {
-          next[field.id] = ownerFullName;
-          updated = true;
-          return;
-        }
-        if (shouldPrefillCompanion(field) && companionName) {
-          next[field.id] = companionName;
-          updated = true;
-          return;
-        }
-        if (lockNonCheckboxInputs) {
-          const placeholderVal =
-            (field as any).placeholder ?? (field as any).text ?? '';
-          if (placeholderVal) {
-            next[field.id] = cleanPlaceholder(placeholderVal);
+          if (field.type === 'checkbox') {
+            return;
+          }
+          const resolved = resolveFieldPrefillValue(field, {
+            isAlreadyFilled: isFieldFilled(field, next[field.id]),
+            today,
+            ownerFullName,
+            companionName,
+            lockNonCheckboxInputs,
+            shouldPrefillOwner,
+            shouldPrefillCompanion,
+          });
+          if (resolved !== undefined) {
+            next[field.id] = resolved;
             updated = true;
           }
-        }
-      };
+        };
 
-      entry.form.schema.forEach(fill);
-      return updated ? next : prev;
+        entry.form.schema.forEach(fill);
+        return updated ? next : prev;
+      },
     });
   }, [
     companion?.name,
@@ -290,9 +395,8 @@ export const AppointmentFormScreen: React.FC = () => {
   }, [appointment, appointmentId, dispatch, entry, isFocused]);
 
   const handleChange = (fieldId: string, value: any) => {
-    setValues(prev => ({...prev, [fieldId]: value}));
+    dispatchFormEdit({type: 'setFieldValue', fieldId, value});
     setErrors(prev => ({...prev, [fieldId]: ''}));
-    setIsDirty(true);
   };
 
   const validateField = (field: FormField): boolean => {
@@ -315,7 +419,7 @@ export const AppointmentFormScreen: React.FC = () => {
       return true;
     }
     const val = values[field.id];
-    const ok = isTruthy(val);
+    const ok = isFieldFilled(field, val);
     if (!ok) {
       setErrors(prev => ({...prev, [field.id]: 'Required'}));
     }
@@ -346,7 +450,7 @@ export const AppointmentFormScreen: React.FC = () => {
           companionId: appointment?.companionId ?? null,
         }),
       ).unwrap();
-      setIsDirty(false);
+      dispatchFormEdit({type: 'setDirty', dirty: false});
 
       if (activeEntry.signingRequired) {
         if (!result.submission?._id) {
@@ -552,9 +656,59 @@ export const AppointmentFormScreen: React.FC = () => {
           label={cleanLabel(field.label)}
           value={displayWithFallback}
           editable={false}
-          multiline={field.type === 'textarea'}
-          inputStyle={field.type === 'textarea' ? styles.textArea : undefined}
+          multiline={field.type === 'textarea' || field.type === 'richtext'}
+          inputStyle={
+            field.type === 'textarea' || field.type === 'richtext'
+              ? styles.textArea
+              : undefined
+          }
           containerStyle={styles.readOnlyInputContainer}
+        />
+      </View>
+    );
+  };
+
+  // No WYSIWYG editor on mobile: edit the HTML answer as plain text and
+  // re-wrap it into simple <p> HTML on change so the stored value stays
+  // valid HTML for the web RichTextRenderer, instead of overwriting it with
+  // unwrapped plain text. Once the user has typed, show their raw draft
+  // rather than re-deriving from stripHtmlToPlainText(value) — that
+  // round-trip's .trim() would otherwise eat a trailing newline (e.g.
+  // pressing Return) before the next keystroke can be entered. Extracted
+  // out of renderEditableField's switch to keep its cognitive complexity
+  // within the Sonar-enforced limit.
+  const renderRichTextField = (
+    field: FormField,
+    value: any,
+    error: string,
+    labelText?: string,
+  ) => {
+    const displayValue = Object.hasOwn(richTextDrafts, field.id)
+      ? richTextDrafts[field.id]
+      : stripHtmlToPlainText(value);
+    return (
+      <View key={field.id} style={styles.fieldContainer}>
+        <Input
+          label={labelText}
+          value={displayValue}
+          placeholder={
+            lockNonCheckboxInputs
+              ? undefined
+              : cleanPlaceholder((field as any).placeholder)
+          }
+          onChangeText={text => {
+            dispatchFormEdit({
+              type: 'setRichTextValue',
+              fieldId: field.id,
+              draftText: text,
+              value: wrapPlainTextAsHtml(text),
+            });
+            setErrors(prev => ({...prev, [field.id]: ''}));
+          }}
+          multiline
+          inputStyle={styles.textArea}
+          error={error}
+          editable={!lockNonCheckboxInputs}
         />
       </View>
     );
@@ -588,6 +742,8 @@ export const AppointmentFormScreen: React.FC = () => {
             />
           </View>
         );
+      case 'richtext':
+        return renderRichTextField(field, value, error, labelText);
       case 'boolean':
         return (
           <View key={field.id} style={styles.fieldContainer}>
@@ -756,9 +912,11 @@ export const AppointmentFormScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}>
       <PressableOpacity
+        testID="dismiss-keyboard-wrapper"
         activeOpacity={1}
         onPress={Keyboard.dismiss}
-        accessible={false}>
+        accessible={false}
+        style={styles.flex}>
         <LiquidGlassHeaderScreen
           header={headerNode}
           contentPadding={theme.spacing['3']}>
@@ -885,6 +1043,9 @@ const renderValueForDisplay = (field: FormField, value: any): string => {
   }
   if (field.type === 'boolean') {
     return value ? 'Yes' : 'No';
+  }
+  if (field.type === 'richtext') {
+    return stripHtmlToPlainText(value) || '—';
   }
   if (Array.isArray(value)) {
     return value.map(v => `${v}`).join(', ') || '—';

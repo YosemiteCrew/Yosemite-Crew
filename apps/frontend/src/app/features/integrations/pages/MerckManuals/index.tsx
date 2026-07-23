@@ -42,6 +42,7 @@ import {
   IoOptionsOutline,
   IoSearchOutline,
 } from 'react-icons/io5';
+import StatusPill, { StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type MerckManualsPageProps = {
   embedded?: boolean;
@@ -521,15 +522,22 @@ const MerckSearchPanel = ({
   </div>
 );
 
-const READER_AUDIENCE_META: Record<MerckAudience, { label: string; className: string }> = {
+const READER_AUDIENCE_META: Record<MerckAudience, { label: string; tokens: StatusPillTokens }> = {
   PROV: {
     label: 'PROFESSIONAL',
-    className:
-      'bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]',
+    tokens: {
+      bg: 'var(--status-upcoming-bg)',
+      text: 'var(--status-upcoming-text)',
+      border: 'var(--status-upcoming-border)',
+    },
   },
   PAT: {
     label: 'PET PARENT',
-    className: 'bg-blue-soft text-blue-text border-[var(--status-upcoming-border)]',
+    tokens: {
+      bg: 'var(--blue-soft)',
+      text: 'var(--blue-text)',
+      border: 'var(--status-upcoming-border)',
+    },
   },
 };
 
@@ -623,11 +631,11 @@ const MerckReaderPortal = ({
             >
               {readerTitle}
             </div>
-            <span
-              className={`inline-flex flex-none items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold tracking-[0.06em] ${audienceMeta.className}`}
-            >
-              {audienceMeta.label}
-            </span>
+            <StatusPill
+              label={audienceMeta.label}
+              tokens={audienceMeta.tokens}
+              className="flex-none"
+            />
           </div>
           <div className="flex flex-none items-center gap-2">
             <button

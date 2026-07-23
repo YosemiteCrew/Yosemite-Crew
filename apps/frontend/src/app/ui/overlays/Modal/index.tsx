@@ -27,7 +27,7 @@ type ModalProps = {
   canClose?: () => boolean;
   /** Defaults to the current right-side drawer. Pass `centered` to opt into the centered panel. */
   variant?: ModalVariant;
-  /** Centered-panel width. Ignored for the drawer. */
+  /** Panel width. Both variants have their own scale; see the width maps below. */
   size?: ModalSize;
   'aria-label'?: string;
   'aria-labelledby'?: string;
@@ -38,6 +38,18 @@ const CENTERED_WIDTHS: Record<ModalSize, string> = {
   sm: 'sm:w-[480px]',
   md: 'sm:w-[680px]',
   lg: 'sm:w-[840px]',
+};
+
+/**
+ * Drawer widths. The design sizes a drawer to its content rather than using one
+ * width everywhere: 360px for a detail peek (Records "Record detail"), 470px for
+ * a form (Inventory "Restock"). `lg` keeps the 530px every panel used before, so
+ * a caller that names no size renders exactly as it did.
+ */
+const DRAWER_WIDTHS: Record<ModalSize, string> = {
+  sm: 'sm:w-[360px]',
+  md: 'sm:w-[470px]',
+  lg: 'sm:w-[530px]',
 };
 
 /**
@@ -74,10 +86,16 @@ const Modal = ({
   onClose,
   canClose,
   variant = 'drawer',
-  size = 'md',
+  size,
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
 }: ModalProps) => {
+  // The two variants have different natural widths, so each falls back to its
+  // own default: the centered panel to `md` (680px, its documented default) and
+  // the drawer to `lg` (530px, the single width every drawer had before sizes
+  // existed). A caller that names no size therefore renders unchanged.
+  const centeredSize = size ?? 'md';
+  const drawerSize = size ?? 'lg';
   // `false` during SSR and the first client render, so the tablet/desktop markup
   // below is what renders everywhere until the phone media query is measured.
   const isPhone = useIsPhone();
@@ -125,7 +143,7 @@ const Modal = ({
         overlayStyle={{ backgroundColor: 'var(--sh55)' }}
         containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-[26px] py-5
         flex flex-col overflow-hidden max-h-[calc(100%-1.5rem)]
-        w-[calc(100%-1.5rem)] ${CENTERED_WIDTHS[size]}
+        w-[calc(100%-1.5rem)] ${CENTERED_WIDTHS[centeredSize]}
         bg-neutral-0 rounded-[22px] z-[1200]
         shadow-[0_40px_110px_rgba(0,0,0,0.42)]
         transition-opacity duration-300 ease-in-out
@@ -149,7 +167,7 @@ const Modal = ({
         showModal
       )}`}
       overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
-      containerClassName={`fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] sm:w-[530px]
+      containerClassName={`fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] ${DRAWER_WIDTHS[drawerSize]}
         bg-neutral-0 border border-card-border rounded-2xl z-[1200]
         shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)]
         transition-transform duration-300 ease-in-out

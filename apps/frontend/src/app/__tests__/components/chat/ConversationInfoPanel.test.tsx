@@ -186,7 +186,7 @@ describe('ConversationInfoPanel', () => {
     fireEvent.click(screen.getByText('Archive conversation'));
     expect(onArchive).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByLabelText('Close conversation info'));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

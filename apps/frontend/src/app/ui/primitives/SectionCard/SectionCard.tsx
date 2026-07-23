@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { IoIosArrowDown, IoIosWarning } from 'react-icons/io';
+import { IoIosWarning } from 'react-icons/io';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { getStripeBillingPortal } from '@/app/features/billing/services/billingService';
 import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
@@ -8,58 +8,32 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Upgrade from '@/app/ui/widgets/Upgrade';
 
-interface AccordionButtonProps {
+interface SectionCardProps {
   title: string;
   children?: React.ReactNode;
-  defaultOpen?: boolean;
   buttonTitle?: string;
   /** Leading icon for the section action, e.g. the design's `+` on an "Add" pill. */
   buttonIcon?: React.ReactNode;
   buttonClick?: any;
   showButton?: boolean;
   finance?: boolean;
-  keepMounted?: boolean;
   actions?: React.ReactNode;
 }
 
-type PaddingArgs = {
-  finance: boolean;
-  hasFinanceAction: boolean;
-  hasCustomerId: boolean;
-  plan?: string;
-  showButton: boolean;
-};
-
-const getAccordionPaddingYClass = ({
-  finance,
-  hasFinanceAction,
-  hasCustomerId,
-  plan,
-  showButton,
-}: PaddingArgs): string => {
-  if (showButton || hasFinanceAction) {
-    return 'py-2';
-  }
-
-  if (finance) {
-    // Keep finance accordions visually aligned with other sections.
-    if (plan === 'free' || (plan === 'business' && hasCustomerId)) {
-      return 'py-[20px]';
-    }
-  }
-  return 'py-[20px]';
-};
-
-const AccordionButton: React.FC<AccordionButtonProps> = ({
+/**
+ * A titled section of the organisation page. The design lays these out flat -
+ * every section open, its title a plain heading - so this deliberately has no
+ * collapse: it replaced an accordion whose chevron was the only thing standing
+ * between the page and the design.
+ */
+const SectionCard: React.FC<SectionCardProps> = ({
   title,
   children,
-  defaultOpen = false,
   buttonTitle,
   buttonIcon,
   buttonClick,
   showButton = true,
   finance = false,
-  keepMounted = false,
   actions,
 }) => {
   const subscription = useSubscriptionForPrimaryOrg();
@@ -68,16 +42,9 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   const plan = subscription?.plan;
   const hasCustomerId = Boolean(subscription?.stripeCustomerId);
   const hasFinanceAction = canEditSubscription && finance && (hasCustomerId || plan === 'free');
-  const [open, setOpen] = useState(defaultOpen);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const paddingYClass = getAccordionPaddingYClass({
-    finance,
-    hasFinanceAction,
-    hasCustomerId,
-    plan,
-    showButton,
-  });
+  const paddingYClass = showButton || hasFinanceAction ? 'py-2' : 'py-[20px]';
 
   const handleBillingPortal = async () => {
     setError(null);
@@ -109,20 +76,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
       className={`flex flex-col gap-3 rounded-2xl border border-card-border px-6 ${paddingYClass}`}
     >
       <div className="flex items-center gap-x-4 gap-y-2">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-center gap-2 text-left cursor-pointer"
-          onClick={() => setOpen(!open)}
-          aria-label={title}
-          aria-expanded={open}
-        >
-          <IoIosArrowDown
-            size={22}
-            color="var(--color-neutral-900)"
-            className={`text-black-text transition-transform shrink-0 ${open ? 'rotate-0' : '-rotate-90'}`}
-          />
-          <span className="text-heading-3 text-text-primary">{title}</span>
-        </button>
+        <h2 className="min-w-0 flex-1 text-heading-3 text-text-primary">{title}</h2>
         <div className="flex shrink-0 items-center gap-3 flex-wrap">
           {error && (
             <div className="flex items-center gap-1 px-4 text-caption-2 text-text-error">
@@ -156,17 +110,9 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
         </div>
       </div>
 
-      {(open || keepMounted) && (
-        <div
-          className={open ? 'cursor-default' : 'hidden'}
-          aria-hidden={!open}
-          data-accordion-click-ignore="true"
-        >
-          {children}
-        </div>
-      )}
+      <div>{children}</div>
     </div>
   );
 };
 
-export default AccordionButton;
+export default SectionCard;
