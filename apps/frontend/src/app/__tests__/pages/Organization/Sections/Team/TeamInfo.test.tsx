@@ -691,6 +691,10 @@ describe('TeamInfo', () => {
 
   it('saves personal details for the current member', async () => {
     editableSavePayloads['Personal details'] = {
+      // The real accordion always submits the pre-filled name alongside any
+      // edited fields, so an unchanged name must match activeTeam.name here
+      // too - otherwise it looks like the user cleared it.
+      name: activeTeam.name,
       gender: 'FEMALE',
       dateOfBirth: '1985-05-05',
       phoneNumber: '999888777',
@@ -772,6 +776,53 @@ describe('TeamInfo', () => {
     );
   });
 
+  it('rejects a cleared name instead of reporting success', async () => {
+    editableSavePayloads['Personal details'] = { name: '', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ text: 'Enter both a first and last name.' })
+    );
+    expect(notifyMock).not.toHaveBeenCalledWith('success', expect.anything());
+  });
+
+  it('persists a name change for a self member with no profile yet (pre-onboarding)', async () => {
+    (getProfileForUserForPrimaryOrg as jest.Mock).mockResolvedValue(null);
+    editableSavePayloads['Personal details'] = { name: 'Tim Apple', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await waitFor(() => {
+      expect(getProfileForUserForPrimaryOrg).toHaveBeenCalled();
+    });
+    const personalBtn = await screen.findByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith('Tim', 'Apple');
+    expect(useTeamStore.getState().teamsById['team-1'].name).toBe('Tim Apple');
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Personal details updated' })
+    );
+  });
+
   it('shows an error notification when the name update fails', async () => {
     editableSavePayloads['Personal details'] = { name: 'Tim Apple' };
     (updateUser as jest.Mock).mockRejectedValue(new Error('name update failed'));
@@ -794,7 +845,7 @@ describe('TeamInfo', () => {
   });
 
   it('shows an error notification when saving personal details fails', async () => {
-    editableSavePayloads['Personal details'] = { gender: 'FEMALE' };
+    editableSavePayloads['Personal details'] = { name: activeTeam.name, gender: 'FEMALE' };
     (upsertUserProfile as jest.Mock).mockRejectedValue(new Error('personal failed'));
 
     render(

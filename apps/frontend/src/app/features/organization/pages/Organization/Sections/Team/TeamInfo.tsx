@@ -300,19 +300,33 @@ const useTeamProfileSections = ({
 
   const handlePersonalSave = async (values: any) => {
     try {
-      if (!profile?.profile) return;
-
       // Unlike the other personal-details fields, "Name" lives on the user
-      // record (not the profile), so it needs its own persistence call - see
-      // splitFullName.
+      // record, not the profile - it must persist even for a self member who
+      // hasn't completed a UserProfile yet (getProfileForUserForPrimaryOrg
+      // returns null for that expected pre-onboarding 404), so this runs
+      // before the profile-existence guard below. See splitFullName.
       const nextName = typeof values.name === 'string' ? values.name.trim() : '';
-      if (nextName && nextName !== activeTeam.name) {
-        const parts = splitFullName(nextName);
+      let nameChanged = false;
+      if (nextName !== activeTeam.name) {
+        // An emptied name is incomplete too - reject it rather than silently
+        // keeping the old server-side name while reporting success.
+        const parts = nextName ? splitFullName(nextName) : null;
         if (!parts) {
           throw new Error('NAME_INCOMPLETE');
         }
         await updateUser(parts.firstName, parts.lastName);
         useTeamStore.getState().updateTeam({ ...activeTeam, name: nextName });
+        nameChanged = true;
+      }
+
+      if (!profile?.profile) {
+        if (nameChanged) {
+          notify('success', {
+            title: 'Personal details updated',
+            text: 'Personal details have been updated successfully.',
+          });
+        }
+        return;
       }
 
       const payload: UserProfile = {

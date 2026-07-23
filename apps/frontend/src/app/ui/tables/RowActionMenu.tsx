@@ -44,19 +44,34 @@ const RowActionMenu = ({
   );
 
   // Positions the panel below the trigger by default. Once the panel has a
-  // real height (second pass, below), flips it above the trigger instead when
-  // there isn't enough room under it in the viewport - rows near the bottom of
-  // the table no longer open a menu that runs off the page (bug #1979).
+  // real height (second pass, below), flips to whichever side has more room
+  // when below doesn't fully fit, and clamps the panel to that available
+  // space (scrollable) so it can never run off the viewport even when
+  // neither side has enough room - e.g. a menu with many actions at a short
+  // viewport or high zoom (bug #1979).
   const position = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = 224;
-    const left = Math.max(8, rect.right - width);
+    const margin = 8;
+    const left = Math.max(margin, rect.right - width);
     const panelHeight = panelRef.current?.offsetHeight ?? 0;
-    const spaceBelow = globalThis.window.innerHeight - rect.bottom;
-    const flipUp = panelHeight > 0 && spaceBelow < panelHeight + 12 && rect.top >= panelHeight + 12;
-    const top = flipUp ? Math.max(8, rect.top - panelHeight - 6) : rect.bottom + 6;
-    setStyle({ position: 'fixed', top, left, width, zIndex: 5000 });
+    const spaceBelow = globalThis.window.innerHeight - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const flipUp = panelHeight > 0 && spaceBelow < panelHeight && spaceAbove > spaceBelow;
+    const availableHeight = Math.max(flipUp ? spaceAbove : spaceBelow, 80);
+    const top = flipUp
+      ? Math.max(margin, rect.top - Math.min(panelHeight, availableHeight) - 6)
+      : rect.bottom + 6;
+    setStyle({
+      position: 'fixed',
+      top,
+      left,
+      width,
+      zIndex: 5000,
+      maxHeight: availableHeight,
+      overflowY: 'auto',
+    });
   }, []);
 
   useLayoutEffect(() => {
@@ -94,27 +109,19 @@ const RowActionMenu = ({
       closeMenuRef.current();
     };
     const handleScroll = () => closeMenuRef.current();
-    // Escape closes and returns focus to the trigger; Tab/Shift+Tab wraps
-    // within the menu so focus never escapes it while it's open (bug #1979).
+    // Escape closes and returns focus to the trigger. Tab closes the menu too
+    // (it isn't a modal - trapping Tab inside it would strand keyboard users
+    // who can no longer reach the rest of the page) and, deliberately, does
+    // NOT preventDefault, so the browser's normal Tab order continues from
+    // wherever it would have gone next.
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeMenuRef.current();
         buttonRef.current?.focus();
         return;
       }
-      if (event.key !== 'Tab') return;
-      const items = panelRef.current
-        ? Array.from(panelRef.current.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
-        : [];
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
+      if (event.key === 'Tab') {
+        closeMenuRef.current();
       }
     };
     document.addEventListener('mousedown', handlePointer);

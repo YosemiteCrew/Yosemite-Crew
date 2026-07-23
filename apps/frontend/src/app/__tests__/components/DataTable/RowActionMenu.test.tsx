@@ -10,17 +10,15 @@ const actions = (): RowMenuAction[] => [
 ];
 
 const mockButtonRect = (rect: Partial<DOMRect>) => {
-  jest
-    .spyOn(HTMLButtonElement.prototype, 'getBoundingClientRect')
-    .mockReturnValue({
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      width: 0,
-      height: 0,
-      ...rect,
-    } as DOMRect);
+  jest.spyOn(HTMLButtonElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    ...rect,
+  } as DOMRect);
 };
 
 const mockPanelHeight = (height: number) => {
@@ -83,9 +81,11 @@ describe('RowActionMenu', () => {
     expect(panel.style.top).toBe('144px');
   });
 
-  it('does not flip up when flipping would run off the top of the viewport', () => {
+  it('positions on the side with more room and clamps height when neither side fully fits', () => {
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 400 });
-    // Not enough room below (bottom near the edge) AND not enough room above either.
+    // Below has 12px free, above has 42px free - neither fits a 200px panel,
+    // but above has more room, so it should flip there and clamp+scroll
+    // rather than run off the bottom of the viewport (bug #1979 follow-up).
     mockButtonRect({ top: 50, bottom: 380, right: 300 });
     mockPanelHeight(200);
 
@@ -93,7 +93,9 @@ describe('RowActionMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Row actions' }));
 
     const panel = screen.getByRole('menu');
-    expect(panel.style.top).toBe('386px'); // falls back to rect.bottom + 6
+    expect(panel.style.top).toBe('8px');
+    expect(panel.style.maxHeight).toBe('80px');
+    expect(panel.style.overflowY).toBe('auto');
   });
 
   it('focuses the first action when the menu opens', async () => {
@@ -116,20 +118,32 @@ describe('RowActionMenu', () => {
     expect(trigger).toHaveFocus();
   });
 
-  it('wraps Tab from the last item to the first, and Shift+Tab from the first to the last', () => {
+  it('closes on Tab instead of trapping focus - this is a non-modal menu', () => {
+    render(<RowActionMenu actions={actions()} label="Row actions" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    // fireEvent wraps dispatch in act(), unlike a raw document.dispatchEvent,
+    // so the resulting setOpen(false) is flushed before the assertion below.
+    // Its return value mirrors dispatchEvent's: false only if a cancelable
+    // event's default was prevented - so `true` here doubles as proof Tab's
+    // default wasn't prevented and the browser's normal focus order continues.
+    const notPrevented = fireEvent.keyDown(document, {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    });
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(notPrevented).toBe(true);
+  });
+
+  it('closes on Shift+Tab too', () => {
     render(<RowActionMenu actions={actions()} label="Row actions" />);
     fireEvent.click(screen.getByRole('button', { name: 'Row actions' }));
 
-    const view = screen.getByText('View').closest('button')!;
-    const del = screen.getByText('Delete').closest('button')!;
-
-    del.focus();
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(view).toHaveFocus();
-
-    view.focus();
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-    expect(del).toHaveFocus();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('leaves the menu unpositioned when the trigger has no measurable rect', () => {

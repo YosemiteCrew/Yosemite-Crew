@@ -149,14 +149,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       getAppointmentCompanionPhotoUrl(companion),
       (companion?.species as ImageType) ?? 'other'
     );
-    // The Services and Date columns already carry the appointment type, time
-    // and date, so the desktop sub-line stays empty — no duplication. On
-    // tablet those columns are dropped, so their content folds back in here.
+    // The Services column already carries the appointment type, and the Date
+    // column carries the date, but neither shows the time — so the desktop
+    // sub-line keeps just the time (not the type, which really is duplicated).
+    // On tablet, Services/Date are dropped entirely, so their content folds
+    // back in here alongside the time.
     const foldedDate =
       foldMeta && appointment ? formatDateLabel(appointment.appointmentDate) : undefined;
     const appointmentSubtitle = appointment
       ? buildAppointmentSubtitle(
-          appointment.appointmentType?.name,
+          foldMeta ? appointment.appointmentType?.name : undefined,
           formatTimeLabel(appointment.startTime ?? appointment.appointmentDate),
           foldedDate
         )
@@ -164,7 +166,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     // Tablet drops the Services and Date columns, so their content folds here.
     const subtitle = foldMeta
       ? joinMeta(appointmentSubtitle, getInvoiceItemNames(item.items))
-      : undefined;
+      : appointmentSubtitle;
     // Design rings the row avatar in the companion's species tint, not a flat
     // neutral disc — the tint is what shows through an initials fallback.
     const avatarPalette = getAvatarPalette(companion?.id || companionName);

@@ -585,7 +585,10 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                   {/* Order notes are saved at the order level (IDEXX has no per-test notes),
                       shown here so they remain visible after refreshing or reopening (bug #1973). */}
                   {order.notes && (
-                    <span className="truncate text-caption-1 text-text-secondary">
+                    <span
+                      className="truncate text-caption-1 text-text-secondary"
+                      title={order.notes}
+                    >
                       <strong>Order notes:</strong> {order.notes}
                     </span>
                   )}

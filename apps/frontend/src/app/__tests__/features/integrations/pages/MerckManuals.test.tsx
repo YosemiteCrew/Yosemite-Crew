@@ -44,8 +44,8 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
+  Primary: ({ text, onClick, isDisabled, className }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled} className={className}>
       {text}
     </button>
   ),
@@ -168,6 +168,18 @@ describe('MerckManuals page', () => {
     );
     expect(screen.getByText('Canine Fever')).toBeInTheDocument();
     expect(screen.getByText('Open')).toBeInTheDocument();
+  });
+
+  it('aligns the search row along the bottom with a 48px Search button, matching the field height (regression for search-row alignment)', () => {
+    render(<ProtectedMerckManuals />);
+
+    const searchInput = screen.getByLabelText('Search manuals');
+    const row = searchInput.closest('.items-end');
+    expect(row).not.toBeNull();
+
+    const searchButton = screen.getByRole('button', { name: 'Search' });
+    expect(row).toContainElement(searchButton);
+    expect(searchButton.className).toContain('h-12!');
   });
 
   it('filters out disallowed results', async () => {
