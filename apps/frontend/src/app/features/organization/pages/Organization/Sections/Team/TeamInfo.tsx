@@ -38,6 +38,8 @@ import { upsertTeamAvailability } from '@/app/features/organization/services/ava
 import { useNotify } from '@/app/hooks/useNotify';
 import { logger } from '@/app/lib/logger';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
+import { updateUser } from '@/app/features/users/services/userService';
+import { useTeamStore } from '@/app/stores/teamStore';
 import { IoTrash } from 'react-icons/io5';
 
 type TeamInfoProps = {
@@ -121,6 +123,19 @@ const normalizeId = (value?: string) =>
     .split('/')
     .pop()
     ?.toLowerCase() ?? '';
+
+// The "Name" field is a single text input, but the underlying user record
+// stores firstName/lastName separately (see UserController.updateName), so a
+// save has to split it back into both parts before it can persist.
+const splitFullName = (fullName: string): { firstName: string; lastName: string } | null => {
+  const trimmed = fullName.trim().replace(/\s+/g, ' ');
+  const spaceIndex = trimmed.indexOf(' ');
+  if (spaceIndex === -1) return null;
+  return {
+    firstName: trimmed.slice(0, spaceIndex),
+    lastName: trimmed.slice(spaceIndex + 1),
+  };
+};
 
 /**
  * The member's working hours: the editable grid, the in-flight flag and the
@@ -283,29 +298,54 @@ const useTeamProfileSections = ({
       },
     });
 
-  const handlePersonalSave = (values: any) =>
-    saveProfileSection({
-      buildPayload: (current) => ({
-        ...current,
-        _id: current._id,
+  const handlePersonalSave = async (values: any) => {
+    try {
+      if (!profile?.profile) return;
+
+      // Unlike the other personal-details fields, "Name" lives on the user
+      // record (not the profile), so it needs its own persistence call - see
+      // splitFullName.
+      const nextName = typeof values.name === 'string' ? values.name.trim() : '';
+      if (nextName && nextName !== activeTeam.name) {
+        const parts = splitFullName(nextName);
+        if (!parts) {
+          throw new Error('NAME_INCOMPLETE');
+        }
+        await updateUser(parts.firstName, parts.lastName);
+        useTeamStore.getState().updateTeam({ ...activeTeam, name: nextName });
+      }
+
+      const payload: UserProfile = {
+        ...profile.profile,
+        _id: profile.profile?._id,
         personalDetails: {
-          ...current.personalDetails,
+          ...profile.profile.personalDetails,
           gender: values.gender,
           dateOfBirth: values.dateOfBirth,
           phoneNumber: values.phoneNumber,
           address: {
-            ...current.personalDetails?.address,
+            ...profile.profile.personalDetails?.address,
             country: values.country,
           },
         },
-      }),
-      messages: {
-        successTitle: 'Personal details updated',
-        successText: 'Personal details have been updated successfully.',
-        errorTitle: 'Unable to update personal details',
-        errorText: 'Failed to update personal details. Please try again.',
-      },
-    });
+      };
+      await upsertUserProfile(payload);
+      setProfile((prev: any) => ({ ...prev, profile: payload }));
+      notify('success', {
+        title: 'Personal details updated',
+        text: 'Personal details have been updated successfully.',
+      });
+    } catch (error) {
+      logger.error('Failed to update personal details', error);
+      const isIncompleteName = error instanceof Error && error.message === 'NAME_INCOMPLETE';
+      notify('error', {
+        title: 'Unable to update personal details',
+        text: isIncompleteName
+          ? 'Enter both a first and last name.'
+          : 'Failed to update personal details. Please try again.',
+      });
+    }
+  };
 
   const handleProfessionalSave = (values: any) =>
     saveProfileSection({

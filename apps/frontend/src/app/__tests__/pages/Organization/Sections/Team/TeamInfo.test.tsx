@@ -13,6 +13,8 @@ import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { upsertTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
+import { updateUser } from '@/app/features/users/services/userService';
+import { useTeamStore } from '@/app/stores/teamStore';
 import { hasAtLeastOneAvailability } from '@/app/features/appointments/components/Availability/utils';
 
 const editableSavePayloads: Record<string, any> = {};
@@ -255,6 +257,10 @@ jest.mock('@/app/features/organization/services/profileService', () => ({
   upsertUserProfile: jest.fn(),
 }));
 
+jest.mock('@/app/features/users/services/userService', () => ({
+  updateUser: jest.fn(),
+}));
+
 jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
   AvailabilityState: {},
   DEFAULT_INTERVAL: { start: '09:00', end: '17:00' },
@@ -310,7 +316,9 @@ describe('TeamInfo', () => {
     (useNotify as jest.Mock).mockReturnValue({ notify: notifyMock });
     (upsertTeamAvailability as jest.Mock).mockResolvedValue(undefined);
     (upsertUserProfile as jest.Mock).mockResolvedValue(undefined);
+    (updateUser as jest.Mock).mockResolvedValue(undefined);
     (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(true);
+    useTeamStore.setState({ teamsById: { 'team-1': activeTeam }, teamIdsByOrgId: {} });
   });
 
   it('loads the member profile and closes the modal', async () => {
@@ -713,6 +721,75 @@ describe('TeamInfo', () => {
     expect(notifyMock).toHaveBeenCalledWith(
       'success',
       expect.objectContaining({ title: 'Personal details updated' })
+    );
+  });
+
+  it('persists a name change via updateUser and updates the team store', async () => {
+    editableSavePayloads['Personal details'] = {
+      name: 'Tim Apple',
+      gender: 'FEMALE',
+      dateOfBirth: '1985-05-05',
+      phoneNumber: '999888777',
+      country: 'United States',
+    };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith('Tim', 'Apple');
+    expect(useTeamStore.getState().teamsById['team-1'].name).toBe('Tim Apple');
+    expect(notifyMock).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Personal details updated' })
+    );
+  });
+
+  it('rejects a name with no last name without calling updateUser or upsertUserProfile', async () => {
+    editableSavePayloads['Personal details'] = { name: 'Tim', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ text: 'Enter both a first and last name.' })
+    );
+  });
+
+  it('shows an error notification when the name update fails', async () => {
+    editableSavePayloads['Personal details'] = { name: 'Tim Apple' };
+    (updateUser as jest.Mock).mockRejectedValue(new Error('name update failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ title: 'Unable to update personal details' })
     );
   });
 
