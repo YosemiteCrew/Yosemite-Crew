@@ -19,7 +19,9 @@ import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import YosemiteLoader from '@/app/ui/overlays/Loader/YosemiteLoader';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
+  COMPLETED_PILL_TOKENS,
   avatarAccentFor,
   humanize,
   initialsOf,
@@ -59,9 +61,6 @@ const TYPE_LABELS: Record<string, string> = {
 /** Design column template for the speciality service table. */
 const GRID_COLS = 'grid-cols-[1.7fr_1fr_90px_90px_100px_120px_44px]';
 
-const STATUS_PILL_CLASS =
-  'inline-flex items-center rounded-full border px-[9px] py-[2px] text-[9.5px] font-bold uppercase bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]';
-
 /**
  * The design's status micro-badge. The catalog status arrives as a backend enum
  * (`ACTIVE`, `ARCHIVED`, ...) which must never reach UI copy, so it is humanized
@@ -69,8 +68,8 @@ const STATUS_PILL_CLASS =
  * `text-transform`. Shared by the wide row and the compact row so the two can
  * never drift apart.
  */
-const StatusPill = ({ status }: { status: string }) => (
-  <span className={STATUS_PILL_CLASS}>{humanize(status)}</span>
+const ServiceStatusPill = ({ status }: { status: string }) => (
+  <StatusPill label={humanize(status)} tokens={COMPLETED_PILL_TOKENS} />
 );
 
 const BookableCell = ({ isBookable }: { isBookable: boolean }) =>
@@ -278,7 +277,7 @@ const ServiceRow = ({
           <BookableCell isBookable={service.isBookable} />
         </span>
         <span>
-          <StatusPill status={service.status} />
+          <ServiceStatusPill status={service.status} />
         </span>
         <RowActionsMenu serviceName={service.name} onEdit={onEdit} onArchive={onArchive} />
       </div>
@@ -289,7 +288,7 @@ const ServiceRow = ({
           <div className="min-w-0 flex-1">
             <ServiceNameCell service={service} expanded={expanded} onToggle={toggle} />
           </div>
-          <StatusPill status={service.status} />
+          <ServiceStatusPill status={service.status} />
           <RowActionsMenu serviceName={service.name} onEdit={onEdit} onArchive={onArchive} />
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

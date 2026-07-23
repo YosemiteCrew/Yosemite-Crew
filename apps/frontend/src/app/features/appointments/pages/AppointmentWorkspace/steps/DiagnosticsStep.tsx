@@ -712,7 +712,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   return createPortal(
     <div
-      className="fixed inset-0 z-5000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
       data-signing-overlay="true"
     >
       <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
@@ -726,14 +726,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
               </span>
             ) : null}
           </span>
-          <button
-            type="button"
-            onClick={s.closeOrderIframeManually}
-            className="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/5"
-            aria-label="Close IDEXX order frame"
-          >
-            <Close iconOnly />
-          </button>
+          <Close onClick={s.closeOrderIframeManually} />
         </div>
         <div className="relative flex-1">
           {loaded ? null : (

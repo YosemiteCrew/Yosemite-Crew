@@ -91,7 +91,7 @@ describe('HistoryRecordDrawer', () => {
     fireEvent.click(screen.getByText('Annual check-up'));
     expect(props.onOpenLinked).toHaveBeenCalledWith(baseEntry);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close record detail' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -138,15 +138,22 @@ describe('HistoryRecordDrawer', () => {
     expect(props.onView).not.toHaveBeenCalled();
   });
 
-  it('closes on backdrop click but not when the panel is clicked', () => {
+  it('closes on outside click but not when the panel is clicked', () => {
     const props = buildProps();
     render(<HistoryRecordDrawer {...props} />);
 
-    fireEvent.click(screen.getByRole('dialog'));
+    fireEvent.mouseDown(screen.getByRole('dialog'));
     expect(props.onClose).not.toHaveBeenCalled();
 
-    const backdrop = document.querySelector('[data-history-record-drawer="true"]') as HTMLElement;
-    fireEvent.click(backdrop);
+    fireEvent.mouseDown(document.body);
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes on Escape', () => {
+    const props = buildProps();
+    render(<HistoryRecordDrawer {...props} />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 

@@ -5,6 +5,7 @@ import {
   getCompanionDocumentSubcategoryLabel,
 } from '@/app/features/documents/types/companionDocuments';
 import { formatDateLabel } from '@/app/lib/forms';
+import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   RecordStatusTone,
   getAttachmentSummary,
@@ -18,11 +19,18 @@ type CompanionRecordRowProps = {
   onOpen: () => void;
 };
 
-const STATUS_PILL_CLASSES: Record<RecordStatusTone, string> = {
-  success:
-    'bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]',
-  warning: 'bg-[var(--warn-bg)] text-[var(--warn-text)] border-[var(--warn-border)]',
-  info: 'bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]',
+const STATUS_PILL_TOKENS: Record<RecordStatusTone, StatusPillTokens> = {
+  success: {
+    bg: 'var(--status-completed-bg)',
+    text: 'var(--status-completed-text)',
+    border: 'var(--status-completed-border)',
+  },
+  warning: { bg: 'var(--warn-bg)', text: 'var(--warn-text)', border: 'var(--warn-border)' },
+  info: {
+    bg: 'var(--status-upcoming-bg)',
+    text: 'var(--status-upcoming-text)',
+    border: 'var(--status-upcoming-border)',
+  },
 };
 
 /**
@@ -64,12 +72,7 @@ const CompanionRecordRow = ({ doc, onOpen }: CompanionRecordRowProps) => {
       </span>
       <span className="flex flex-none flex-wrap items-center justify-end gap-1.5">
         {pills.map((pill) => (
-          <span
-            key={pill.label}
-            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold uppercase ${STATUS_PILL_CLASSES[pill.tone]}`}
-          >
-            {pill.label}
-          </span>
+          <StatusPill key={pill.label} label={pill.label} tokens={STATUS_PILL_TOKENS[pill.tone]} />
         ))}
       </span>
       <IoChevronForwardOutline

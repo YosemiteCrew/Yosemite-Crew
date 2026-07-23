@@ -14,8 +14,9 @@ import {
   publishTemplateForm,
   saveTemplateFormDraft,
 } from '@/app/features/forms/services/templateFormsService';
-import Close from '@/app/ui/primitives/Icons/Close';
-import { Secondary } from '@/app/ui/primitives/Buttons';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
@@ -217,65 +218,57 @@ const AddForm = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
       <div className="flex h-full flex-col gap-4">
-        {/* Header: title + details summary + preview / MSD / save / close actions */}
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <div className="truncate text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]">
-              {isEditing ? 'Edit template' : 'Add template'}
-              {formData.name ? ` · ${formData.name}` : ''}
-            </div>
-            <div className="truncate text-[12.5px] text-[var(--ink-muted)]">{detailsSummary}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-pressed={view === 'preview'}
-              onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'preview' })}
-              className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
-                view === 'preview'
-                  ? 'border-[var(--blue)] text-[var(--blue-text)]'
-                  : 'border-[var(--divider)] text-text-secondary'
-              }`}
-            >
-              <IoEyeOutline size={15} aria-hidden="true" />
-              {view === 'preview' ? 'Back to builder' : 'Preview as parent'}
-            </button>
-            {merckEnabled && (
-              <button
-                type="button"
-                aria-pressed={view === 'merck'}
-                onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'merck' })}
-                className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
-                  view === 'merck'
-                    ? 'border-[var(--blue)] text-[var(--blue-text)]'
-                    : 'border-[var(--divider)] text-text-secondary'
-                }`}
-              >
-                <Image
-                  src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
-                  alt=""
-                  width={20}
-                  height={20}
-                  className="object-contain"
+        <ModalHeader
+          title={`${isEditing ? 'Edit template' : 'Add template'}${
+            formData.name ? ` · ${formData.name}` : ''
+          }`}
+          meta={<span className="block truncate">{detailsSummary}</span>}
+          onClose={closeModal}
+          actions={
+            <>
+              <Secondary
+                href="#"
+                size="small"
+                className="whitespace-nowrap"
+                icon={<IoEyeOutline size={15} aria-hidden="true" />}
+                text={view === 'preview' ? 'Back to builder' : 'Preview as parent'}
+                ariaPressed={view === 'preview'}
+                onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'preview' })}
+              />
+              {merckEnabled && (
+                <Secondary
+                  href="#"
+                  size="small"
+                  className="whitespace-nowrap"
+                  icon={
+                    <Image
+                      src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
+                      alt=""
+                      width={16}
+                      height={16}
+                      className="object-contain"
+                    />
+                  }
+                  text="MSD Veterinary Manual"
+                  ariaPressed={view === 'merck'}
+                  onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'merck' })}
                 />
-                MSD Veterinary Manual
-              </button>
-            )}
-            {/* Design places the primary save as a compact cta pill in the header, beside
-                the preview toggle; the preview view supplies its own actions via Review. */}
-            {effectiveView !== 'preview' && (
-              <button
-                type="button"
-                onClick={handlePublish}
-                disabled={isSaving}
-                className="flex h-9 shrink-0 items-center whitespace-nowrap rounded-full bg-[var(--cta)] px-4 text-[12.5px] font-semibold text-[var(--cta-text)] transition-colors disabled:opacity-60"
-              >
-                {isEditing ? 'Update & publish' : 'Save template'}
-              </button>
-            )}
-            <Close onClick={closeModal} />
-          </div>
-        </div>
+              )}
+              {/* Design places the primary save as a compact cta pill in the header, beside
+                  the preview toggle; the preview view supplies its own actions via Review. */}
+              {effectiveView !== 'preview' && (
+                <Primary
+                  href="#"
+                  size="small"
+                  className="whitespace-nowrap"
+                  text={isEditing ? 'Update & publish' : 'Save template'}
+                  onClick={handlePublish}
+                  isDisabled={isSaving}
+                />
+              )}
+            </>
+          }
+        />
 
         {/* Body */}
         <div className="flex min-h-0 flex-1 flex-col">
@@ -351,15 +344,15 @@ const AddForm = ({
 
         {/* Footer: draft-only (publish lives in the header cta; preview uses Review's own actions). */}
         {effectiveView !== 'preview' && (
-          <div className="flex justify-end border-t border-[var(--hairline)] pt-3">
+          <ModalFooter>
             <Secondary
               href="#"
+              size="large"
               text={isEditing ? 'Update draft' : 'Save as draft'}
-              className="max-h-12! text-lg! tracking-[-0.36px]!"
               onClick={handleSaveDraft}
               isDisabled={isSaving}
             />
-          </div>
+          </ModalFooter>
         )}
       </div>
     </Modal>

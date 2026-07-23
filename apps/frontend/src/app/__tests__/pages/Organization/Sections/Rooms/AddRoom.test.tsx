@@ -30,7 +30,17 @@ jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
   __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
+  default: ({ title, eyebrow, meta, actions, onClose }: any) => (
+    <div>
+      {eyebrow && <div>{eyebrow}</div>}
+      <div>{title}</div>
+      {meta && <div>{meta}</div>}
+      {actions}
+      <button type="button" aria-label="close" onClick={onClose}>
+        {`close-${title}`}
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
@@ -363,13 +373,13 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Dirty room' },
     });
-    fireEvent.click(screen.getByText('Close'));
+    fireEvent.click(screen.getByText('close-Adding new room'));
     expect(screen.getByText('Discard changes?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Keep editing'));
     expect(setShowModal).not.toHaveBeenCalledWith(false);
 
-    fireEvent.click(screen.getByText('Close'));
+    fireEvent.click(screen.getByText('close-Adding new room'));
     fireEvent.click(screen.getByText('Discard'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
@@ -397,7 +407,7 @@ describe('AddRoom', () => {
     const setShowModal = jest.fn();
     render(<AddRoom showModal setShowModal={setShowModal} />);
 
-    fireEvent.click(screen.getByText('Close'));
+    fireEvent.click(screen.getByText('close-Adding new room'));
 
     expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
     expect(setShowModal).toHaveBeenCalledWith(false);

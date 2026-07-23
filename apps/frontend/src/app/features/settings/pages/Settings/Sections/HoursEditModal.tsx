@@ -1,7 +1,8 @@
 import React, { useEffect, useState, startTransition } from 'react';
 import { IoGlobeOutline } from 'react-icons/io5';
 import Modal from '@/app/ui/overlays/Modal';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Availability from '@/app/features/appointments/components/Availability/Availability';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import {
@@ -175,38 +176,30 @@ const HoursEditModal = ({ showModal, setShowModal }: HoursEditModalProps) => {
       size="lg"
       aria-labelledby="settings-hours-modal-title"
     >
-      <div className="flex items-start justify-between gap-3 pb-3 border-b border-[var(--hairline)]">
-        <div className="min-w-0">
-          <div
-            id="settings-hours-modal-title"
-            className="text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]"
-          >
-            Availability &amp; consultation hours
-          </div>
-          <span className="yc-settings-editor-subtitle">{subtitle}</span>
-        </div>
-        <Close onClick={() => setShowModal(false)} />
-      </div>
+      <ModalHeader
+        title="Availability & consultation hours"
+        meta={subtitle}
+        titleId="settings-hours-modal-title"
+        onClose={() => setShowModal(false)}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-1">
         <Availability availability={availability} setAvailability={setAvailability} />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[var(--hairline)]">
-        <span className="yc-settings-tz-note">
+      <ModalFooter>
+        <span className="yc-settings-tz-note mr-auto">
           <IoGlobeOutline size={14} aria-hidden="true" className="yc-settings-tz-note-icon" />
           {getPreferredTimeZone()} · booking slots follow each service&apos;s duration
         </span>
-        <span className="flex items-center gap-2">
-          <Secondary text="Cancel" href="#" onClick={() => setShowModal(false)} />
-          <Primary
-            href="#"
-            text={isSavingAvailability ? 'Saving...' : 'Save availability'}
-            onClick={handleSaveAvailability}
-            isDisabled={isSavingAvailability}
-          />
-        </span>
-      </div>
+        <Secondary text="Cancel" href="#" onClick={() => setShowModal(false)} />
+        <Primary
+          href="#"
+          text={isSavingAvailability ? 'Saving...' : 'Save availability'}
+          onClick={handleSaveAvailability}
+          isDisabled={isSavingAvailability}
+        />
+      </ModalFooter>
     </Modal>
   );
 };

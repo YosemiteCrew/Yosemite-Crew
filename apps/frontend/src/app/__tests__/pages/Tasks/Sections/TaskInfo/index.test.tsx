@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import TaskInfo from '@/app/features/tasks/pages/Tasks/Sections/TaskInfo';
 import { updateTask } from '@/app/features/tasks/services/taskService';
+import { formatDisplayDate } from '@/app/lib/date';
 
 jest.mock('@/app/features/tasks/services/taskService', () => ({
   updateTask: jest.fn().mockResolvedValue(undefined),
@@ -94,6 +95,21 @@ describe('TaskInfo', () => {
     expect(screen.getByText('Task details')).toBeInTheDocument();
     expect(screen.getByTestId('assigned-by')).toHaveTextContent('Dr. Who');
     expect(screen.getByTestId('assigned-to')).toHaveTextContent('Dr. Who');
+  });
+
+  it('names the task in the panel header and carries the due date as meta', () => {
+    render(<TaskInfo showModal setShowModal={jest.fn()} activeTask={baseTask as any} />);
+
+    expect(screen.getByRole('heading', { name: 'Task A' })).toBeInTheDocument();
+    expect(screen.getByText(`Due ${formatDisplayDate(baseTask.dueAt)}`)).toBeInTheDocument();
+  });
+
+  it('falls back to the panel name when the task is unnamed', () => {
+    render(
+      <TaskInfo showModal setShowModal={jest.fn()} activeTask={{ ...baseTask, name: '' } as any} />
+    );
+
+    expect(screen.getByRole('heading', { name: 'View task' })).toBeInTheDocument();
   });
 
   it('shows no edit icon when current user is neither assigner nor assignee', () => {

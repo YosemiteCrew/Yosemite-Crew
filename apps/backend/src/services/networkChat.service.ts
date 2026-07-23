@@ -1,5 +1,5 @@
 // src/services/networkChat.service.ts
-import { StreamChat } from "stream-chat";
+import { ChannelData, StreamChat } from "stream-chat";
 import crypto from "node:crypto";
 
 import { ChatServiceError } from "./chat.service";
@@ -277,12 +277,15 @@ export const NetworkChatService = {
     );
     const channelId = `nd_${hash}`;
 
-    await streamServer
-      .channel("team", channelId, {
-        members,
-        created_by_id: requesterUserId,
-      })
-      .create();
+    // Both clinics list this conversation, so it is scoped to the pair rather
+    // than to the requester alone.
+    const channelData: ChannelData & { organisationIds: string[] } = {
+      members,
+      created_by_id: requesterUserId,
+      organisationIds: [requesterOrgId, otherOrgId],
+    };
+
+    await streamServer.channel("team", channelId, channelData).create();
 
     const session = await prisma.chatSession.create({
       data: {

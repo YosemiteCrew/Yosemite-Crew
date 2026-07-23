@@ -8,6 +8,7 @@ import {
   IoSearchOutline,
 } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { getStatusStyle } from '@/app/config/statusConfig';
@@ -89,12 +90,11 @@ const StatusPillSelect = ({
 
   if (locked) {
     return (
-      <span
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
-        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
-      >
-        {formatStatusLabel(status)}
-      </span>
+      <StatusPill
+        style={statusPillStyle(status)}
+        label={formatStatusLabel(status)}
+        className="w-fit"
+      />
     );
   }
 
@@ -107,14 +107,20 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setOpen(false)}
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
+        className="w-fit rounded-full! transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
-        {formatStatusLabel(status)}
-        <IoChevronDownOutline
-          size={10}
-          aria-hidden="true"
-          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        <StatusPill
+          style={statusPillStyle(status)}
+          label={
+            <>
+              {formatStatusLabel(status)}
+              <IoChevronDownOutline
+                size={10}
+                aria-hidden="true"
+                className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              />
+            </>
+          }
         />
       </button>
       {open && (

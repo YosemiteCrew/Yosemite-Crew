@@ -14,7 +14,6 @@ import type { Channel as StreamChannel } from 'stream-chat';
 import {
   IoArchiveOutline,
   IoArrowForward,
-  IoClose,
   IoDocumentTextOutline,
   IoImageOutline,
   IoNotificationsOffOutline,
@@ -23,6 +22,8 @@ import {
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import { ChatAvatar } from './ChatAvatar';
 import {
   deriveConversationAttachments,
@@ -30,6 +31,8 @@ import {
   deriveConversationPinned,
 } from './conversationInfoPanelUtils';
 import type { ConversationInfoFile } from './conversationInfoPanelUtils';
+
+const TITLE_ID = 'chat-conversation-info-title';
 
 /** Design: 10.5px / 700 / 0.1em uppercase --ink-faint, with an optional action. */
 function SectionHeading({ label, action }: Readonly<{ label: string; action?: ReactNode }>) {
@@ -149,19 +152,9 @@ export function ConversationInfoPanel({
   const pinned = useMemo(() => deriveConversationPinned(channel), [channel]);
 
   return (
-    <aside className="chat-conversation-info" aria-label="Conversation info">
-      <div className="flex shrink-0 items-center justify-between border-b border-[var(--hairline)] px-5 py-3.5">
-        <Text as="span" variant="body-3-emphasis" className="text-sm font-bold text-[var(--ink)]">
-          Conversation info
-        </Text>
-        <button
-          type="button"
-          aria-label="Close conversation info"
-          onClick={onClose}
-          className="inline-flex size-[30px] items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)] hover:bg-[var(--screen-2)]"
-        >
-          <IoClose className="h-3.5 w-3.5" />
-        </button>
+    <aside className="chat-conversation-info" aria-labelledby={TITLE_ID}>
+      <div className="shrink-0 border-b border-[var(--hairline)] px-5 py-3.5">
+        <ModalHeader title="Conversation info" onClose={onClose} titleId={TITLE_ID} />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 py-4">
@@ -268,14 +261,12 @@ export function ConversationInfoPanel({
       </div>
 
       <div className="flex shrink-0 items-center gap-3 border-t border-[var(--hairline)] bg-[var(--screen-2)] px-5 py-3">
-        <button
-          type="button"
+        <Secondary
+          size="compact"
+          text="Archive conversation"
+          icon={<IoArchiveOutline aria-hidden="true" />}
           onClick={onArchive}
-          className="flex items-center gap-[7px] text-xs font-semibold text-[var(--ink-body)]"
-        >
-          <IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-faint)]" />
-          Archive conversation
-        </button>
+        />
         <Text
           as="span"
           variant="caption-2"

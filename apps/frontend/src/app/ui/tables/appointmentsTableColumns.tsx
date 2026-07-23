@@ -1,4 +1,5 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import Image from 'next/image';
 import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle, IoIosCalendar } from 'react-icons/io';
@@ -224,16 +225,14 @@ export const buildAppointmentColumns = ({
 
       return (
         <div className="appointment-profile-two">
-          <div
-            className="appointment-status"
+          <StatusPill
             style={{
               ...statusStyle,
               borderWidth: '1px',
               borderStyle: 'solid',
             }}
-          >
-            {toTitle(displayStatus)}
-          </div>
+            label={toTitle(displayStatus)}
+          />
           <div
             className="mt-1 text-[11px] leading-4 font-medium text-center font-satoshi"
             style={{ color: payment.textColor }}

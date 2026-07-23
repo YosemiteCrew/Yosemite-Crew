@@ -2,9 +2,10 @@ import React from 'react';
 import {act, render, screen, fireEvent} from '@testing-library/react-native';
 import {mockTheme} from '../../../../../__tests__/setup/mockTheme';
 import {BusinessCard} from '@/features/appointments/components/BusinessCard/BusinessCard';
+import {useTheme} from '@/hooks';
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
 }));
 
 jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
@@ -21,11 +22,13 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => ({
-    LiquidGlassButton: ({title, onPress}: any) => {
+    LiquidGlassButton: ({title, onPress, textStyle}: any) => {
       const {Text, TouchableOpacity} = require('react-native');
       return (
         <TouchableOpacity testID="liquid-glass-button" onPress={onPress}>
-          <Text testID="button-title">{title}</Text>
+          <Text testID="button-title" style={textStyle}>
+            {title}
+          </Text>
         </TouchableOpacity>
       );
     },
@@ -47,6 +50,30 @@ const baseProps = {
 describe('BusinessCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme, isDark: false});
+  });
+
+  it('applies the light-theme cta text color to the Book button', () => {
+    render(<BusinessCard {...baseProps} onBook={jest.fn()} />);
+    expect(screen.getByTestId('button-title').props.style).toEqual(
+      expect.objectContaining({color: mockTheme.colors.ctaText}),
+    );
+  });
+
+  it('applies the dark-theme cta text color to the Book button', () => {
+    const darkCtaText = '#201C18';
+    (useTheme as jest.Mock).mockReturnValue({
+      theme: {
+        ...mockTheme,
+        colors: {...mockTheme.colors, ctaText: darkCtaText},
+      },
+      isDark: true,
+    });
+
+    render(<BusinessCard {...baseProps} onBook={jest.fn()} />);
+    expect(screen.getByTestId('button-title').props.style).toEqual(
+      expect.objectContaining({color: darkCtaText}),
+    );
   });
 
   it('renders the business name', () => {

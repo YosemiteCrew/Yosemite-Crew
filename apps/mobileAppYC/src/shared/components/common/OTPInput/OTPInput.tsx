@@ -160,6 +160,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
+      width: '100%',
       alignItems: 'center',
       marginVertical: theme.spacing['5'],
     },
@@ -167,11 +168,12 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'center',
       width: '100%',
-      gap: theme.spacing['2'] * 2,
+      gap: theme.spacing['2'],
       paddingHorizontal: theme.spacing['2.5'],
     },
     input: {
-      width: 50,
+      flex: 1,
+      maxWidth: 50,
       height: 60,
       borderWidth: 1.5,
       borderRadius: 14,

@@ -6,6 +6,8 @@ import type {
 import type { PackagesTabHandle } from '@/app/features/organization/pages/Specialities/PackagesTab';
 import { IoIosArrowDown } from 'react-icons/io';
 import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { COMPLETED_PILL_TOKENS } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
 import ArchiveTab from '@/app/features/organization/pages/Specialities/ArchiveTab';
@@ -26,10 +28,6 @@ type SpecialityAccordionRevampProps = {
   speciality: SpecialityRevamp;
   defaultOpen?: boolean;
 };
-
-/** Design's uppercase micro-badge for a speciality that is in service. */
-const SPECIALITY_STATUS_PILL_CLASS =
-  'inline-flex shrink-0 items-center rounded-full border px-[9px] py-[2px] text-[9.5px] font-bold bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]';
 
 type SpecialityAccordionHeaderProps = {
   speciality: SpecialityRevamp;
@@ -143,7 +141,7 @@ const SpecialityAccordionHeader = ({
             />
           </div>
         )}
-        {!open && <span className={SPECIALITY_STATUS_PILL_CLASS}>ACTIVE</span>}
+        {!open && <StatusPill label="ACTIVE" tokens={COMPLETED_PILL_TOKENS} />}
         {open && activeTab !== 'archive' && (
           <div className="shrink-0 w-full sm:w-auto">
             <Primary

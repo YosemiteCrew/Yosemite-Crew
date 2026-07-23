@@ -1,5 +1,6 @@
 import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import React, { useMemo, useState } from 'react';
 import { UnitCapableRoomTypes } from '@/app/features/organization/pages/Organization/types';
@@ -8,7 +9,6 @@ import { OrganisationRoom, RoomReferenceMapping } from '@yosemite-crew/types';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { createRoom } from '@/app/features/organization/services/roomService';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { useNotify } from '@/app/hooks/useNotify';
 import { IoCheckmarkOutline } from 'react-icons/io5';
 import {
@@ -325,10 +325,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
         }}
       >
         <div className="flex h-full flex-col gap-5">
-          <div className="flex items-center justify-between border-b border-card-border pb-4">
-            <h2 className="text-body-1 text-text-primary">Adding new room</h2>
-            <Close onClick={requestClose} />
-          </div>
+          <ModalHeader title="Adding new room" onClose={requestClose} />
 
           <div className="flex flex-1 flex-col gap-6 overflow-y-auto pr-1 scrollbar-hidden">
             <BasicDetailsSection
@@ -368,14 +365,14 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
             />
           </div>
 
-          <div className="flex justify-start border-t border-card-border pt-4">
+          <ModalFooter align="start">
             <Primary
               href="#"
               text={saving ? 'Adding room...' : 'Add room'}
               onClick={handleSave}
               icon={<IoCheckmarkOutline size={16} aria-hidden="true" />}
             />
-          </div>
+          </ModalFooter>
         </div>
       </Modal>
 

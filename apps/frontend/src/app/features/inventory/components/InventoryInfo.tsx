@@ -30,8 +30,8 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import InfoSection from '@/app/features/inventory/components/InfoSection';
-import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 import {
@@ -184,7 +184,7 @@ const NewBatchesSection = ({
           {newBatches.length > 1 && !disableEditing && (
             <button
               type="button"
-              className="text-red-500 text-sm font-semibold"
+              className="text-caption-1 text-[var(--danger-text)]"
               onClick={() => removeBatch(batchIdx)}
             >
               Remove
@@ -482,9 +482,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div className="font-satoshi text-black-text text-[23px] font-medium">
-        Batch / Lot details
-      </div>
+      <div className="text-heading-2 text-text-primary">Batch / Lot details</div>
       <Accordion
         title="Batch / Lot details"
         defaultOpen
@@ -577,8 +575,8 @@ const PreviewField = ({ field, batchData }: { field: any; batchData: BatchValues
   const finalValue = formatFinalValue(display);
   return (
     <div className="flex flex-col gap-1">
-      <div className="font-satoshi font-semibold text-grey-bg text-[14px]">{displayLabel}</div>
-      <div className="font-satoshi font-semibold text-black-text text-[15px] overflow-scroll scrollbar-hidden">
+      <div className="text-caption-1 text-text-secondary">{displayLabel}</div>
+      <div className="text-body-4-emphasis text-text-primary overflow-scroll scrollbar-hidden">
         {finalValue}
       </div>
     </div>
@@ -836,22 +834,15 @@ const InventoryInfo = ({
 
   return (
     <>
-      <Modal showModal={showModal} setShowModal={setShowModal}>
+      <Modal showModal={showModal} setShowModal={setShowModal} size="md">
         <div className="flex flex-col h-full gap-6">
-          <div className="flex items-center justify-between border-b border-card-border pb-4">
-            <div className="min-w-0">
-              <div className="truncate text-body-1 text-text-primary">
-                {activeInventory?.basicInfo.name}
-              </div>
-              <div className="text-caption-1 text-text-secondary">
-                {activeInventory?.basicInfo.category || 'Inventory item'}
-                {activeInventory?.basicInfo.skuCode
-                  ? ` · ${activeInventory.basicInfo.skuCode}`
-                  : ''}
-              </div>
-            </div>
-            <Close onClick={() => setShowModal(false)} />
-          </div>
+          <ModalHeader
+            title={activeInventory?.basicInfo.name ?? ''}
+            meta={`${activeInventory?.basicInfo.category || 'Inventory item'}${
+              activeInventory?.basicInfo.skuCode ? ` · ${activeInventory.basicInfo.skuCode}` : ''
+            }`}
+            onClose={() => setShowModal(false)}
+          />
 
           <Labels
             labels={modalSections}
@@ -892,15 +883,12 @@ const InventoryInfo = ({
             )}
           </div>
 
-          <div
-            className={`grid gap-3 ${canEdit || inEditMode ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
-          >
+          <ModalFooter align="stretch">
             <Secondary
               href="#"
               text={inEditMode ? 'Cancel' : 'Close'}
               onClick={handleSecondaryAction}
               isDisabled={isUpdating || isHiding}
-              className="h-12! text-lg! tracking-[-0.36px]!"
             />
             {(canEdit || inEditMode) && (
               <Primary
@@ -910,10 +898,9 @@ const InventoryInfo = ({
                 isDisabled={
                   (inEditMode && isUpdating) || (!inEditMode && (isHiding || !activeInventory?.id))
                 }
-                className="h-12! text-lg! tracking-[-0.36px]!"
               />
             )}
-          </div>
+          </ModalFooter>
         </div>
       </Modal>
 

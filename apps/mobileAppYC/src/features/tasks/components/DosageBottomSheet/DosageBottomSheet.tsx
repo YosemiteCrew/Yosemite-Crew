@@ -360,7 +360,7 @@ const createStyles = (theme: any) =>
     },
     saveButtonText: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
   });
 

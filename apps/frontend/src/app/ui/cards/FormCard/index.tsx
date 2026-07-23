@@ -1,3 +1,4 @@
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { FormsProps, getFormCategoryDisplayLabel } from '@/app/features/forms/types/forms';
 import React from 'react';
 import { getFormsStatusStyle } from '@/app/ui/tables/tableUtils';
@@ -41,9 +42,7 @@ const FormCard = ({ form, handleViewForm, getUserName, orgType }: FormCardProps)
         <div className="text-caption-1 text-text-extra">Last updated:</div>
         <div className="text-caption-1 text-text-primary">{form.lastUpdated}</div>
       </div>
-      <div style={getFormsStatusStyle(form.status || '')} className="appointment-status">
-        {form.status}
-      </div>
+      <StatusPill style={getFormsStatusStyle(form.status || '')} label={form.status} />
       <div className="flex gap-3 w-full">
         <Secondary href="#" onClick={() => handleViewForm(form)} text="View" className="w-full" />
       </div>

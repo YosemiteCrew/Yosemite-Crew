@@ -46,12 +46,12 @@ describe('orgDisplay helpers', () => {
     it('maps off-duty to OFF DUTY muted', () => {
       const pill = teamStatusPill('Off-Duty');
       expect(pill.label).toBe('OFF DUTY');
-      expect(pill.className).toMatch(/band/);
+      expect(pill.tokens.bg).toMatch(/band/);
     });
 
-    it('uppercases other statuses as active', () => {
-      expect(teamStatusPill('Available').label).toBe('AVAILABLE');
-      expect(teamStatusPill('Available').className).toMatch(/status-completed/);
+    it('keeps other statuses as the completed pill', () => {
+      expect(teamStatusPill('Available').label).toBe('Available');
+      expect(teamStatusPill('Available').tokens.bg).toMatch(/status-completed/);
     });
 
     it('defaults to ACTIVE when status is missing', () => {
@@ -61,8 +61,8 @@ describe('orgDisplay helpers', () => {
   });
 
   describe('orgTypePillLabel', () => {
-    it('uppercases a provided type', () => {
-      expect(orgTypePillLabel('Hospital')).toBe('HOSPITAL');
+    it('trims a provided type', () => {
+      expect(orgTypePillLabel('Hospital')).toBe('Hospital');
     });
 
     it('falls back to CLINIC', () => {

@@ -1028,6 +1028,14 @@ const useChatContainerView = ({
   const [orgUsersStatus, setOrgUsersStatus] = useState<'idle' | 'loading' | 'loaded'>('idle');
   const orgUsersLoading = orgUsersStatus === 'loading';
   const [chatSessionChannels, setChatSessionChannels] = useState<any[]>([]);
+  // Stream returns every channel the signed-in user belongs to, across all of
+  // their organisations, so the list is scoped against the channels the backend
+  // reports for the active organisation. Tagged with the org it was loaded for
+  // so a stale response is never applied to the org switched into.
+  const [orgChannelIds, setOrgChannelIds] = useState<{
+    orgId: string;
+    ids: Set<string>;
+  } | null>(null);
   const [directSearch, setDirectSearch] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [shareChannelId, setShareChannelId] = useState<string | null>(null);
@@ -1095,14 +1103,27 @@ const useChatContainerView = ({
 
   const refreshStatuses = useCallback(() => {
     if (!primaryOrgId) return;
-    getChatSessions(primaryOrgId, { includeClosed: true })
+    const requestedOrgId = primaryOrgId;
+    getChatSessions(requestedOrgId, { includeClosed: true })
       .then((response) => {
         const payload: any = response ?? {};
         const channels = getSessionChannels(payload);
         setChatSessionChannels(channels);
+        setOrgChannelIds({
+          orgId: requestedOrgId,
+          ids: new Set<string>(
+            channels
+              .map((session: any) => String(session?.channelId ?? ''))
+              .filter((channelId: string) => channelId.length > 0)
+          ),
+        });
       })
       .catch((err) => {
         console.error('Failed to load chat session statuses:', err);
+        // Without the organisation's session list there is nothing to scope the
+        // channel list by, so drop the allow-list rather than emptying the
+        // sidebar on a transient API failure.
+        setOrgChannelIds(null);
       });
   }, [getSessionChannels, primaryOrgId]);
 
@@ -1343,6 +1364,27 @@ const useChatContainerView = ({
     [handlePreviewSelect, client?.userID, showArchived]
   );
 
+  const belongsToPrimaryOrg = useCallback(
+    (chan: StreamChannel) => {
+      /* v8 ignore next -- unreachable: the Stream client is only created once an org is selected, and nothing that uses this predicate renders until the client exists */
+      if (!primaryOrgId) return true;
+      const data = chan.data as { organisationId?: string; organisationIds?: string[] } | undefined;
+      // Cross-clinic conversations belong to both sides, so the stamp is a
+      // list; single-org channels written before it existed carry the scalar.
+      const declaredOrgIds = data?.organisationIds ?? [];
+      const stamped = declaredOrgIds.length
+        ? declaredOrgIds
+        : [data?.organisationId].filter(Boolean);
+      if (stamped.length) return stamped.includes(primaryOrgId);
+      // Channels created before the stamp fall back to the backend's org-scoped
+      // session list, which is only trusted once it has loaded for the
+      // organisation currently selected.
+      if (orgChannelIds?.orgId !== primaryOrgId) return true;
+      return orgChannelIds.ids.has(chan.id ?? '');
+    },
+    [primaryOrgId, orgChannelIds]
+  );
+
   const channelFilter = useCallback<NonNullable<ChannelListProps['channelRenderFilterFn']>>(
     (channels) => {
       const scopeMatches = (chan: StreamChannel) => {
@@ -1382,9 +1424,11 @@ const useChatContainerView = ({
           .join(' ');
         return name.includes(q) || members.includes(q);
       };
-      return channels.filter((chan) => scopeMatches(chan) && searchMatches(chan));
+      return channels.filter(
+        (chan) => belongsToPrimaryOrg(chan) && scopeMatches(chan) && searchMatches(chan)
+      );
     },
-    [scope, searchTerm]
+    [scope, searchTerm, belongsToPrimaryOrg]
   );
 
   const shareContextValue = useMemo(
@@ -1948,7 +1992,12 @@ const useChatContainerView = ({
           />
         }
       />
-      <ChatCommandPalette client={client} filters={filters} onJump={activateChannelById} />
+      <ChatCommandPalette
+        client={client}
+        filters={filters}
+        onJump={activateChannelById}
+        channelBelongsToOrg={belongsToPrimaryOrg}
+      />
     </>
   );
 

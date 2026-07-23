@@ -3,7 +3,11 @@ import Image from 'next/image';
 import { IoCreateOutline, IoShieldCheckmark } from 'react-icons/io5';
 import { Organisation } from '@yosemite-crew/types';
 import { getSafeImageUrl } from '@/app/lib/urls';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
+  COMPLETED_PILL_TOKENS,
+  REQUESTED_PILL_TOKENS,
+  UPCOMING_PILL_TOKENS,
   initialsOf,
   orgTypePillLabel,
 } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
@@ -72,18 +76,19 @@ const OrgProfileBand = ({ org, canEdit, onEdit }: OrgProfileBandProps) => {
             {org.name || 'Organization'}
           </span>
           {org.isVerified ? (
-            <span className="inline-flex items-center gap-[5px] rounded-full border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[10px] py-[3px] text-[10px] font-bold text-[var(--status-completed-text)]">
-              <IoShieldCheckmark size={10} aria-hidden="true" />
-              VERIFIED
-            </span>
+            <StatusPill
+              tokens={COMPLETED_PILL_TOKENS}
+              label={
+                <>
+                  <IoShieldCheckmark size={10} aria-hidden="true" />
+                  VERIFIED
+                </>
+              }
+            />
           ) : (
-            <span className="inline-flex items-center rounded-full border border-[var(--status-requested-border)] bg-[var(--status-requested-bg)] px-[10px] py-[3px] text-[10px] font-bold text-[var(--status-requested-text)]">
-              PENDING
-            </span>
+            <StatusPill label="PENDING" tokens={REQUESTED_PILL_TOKENS} />
           )}
-          <span className="inline-flex items-center rounded-full border border-[var(--status-upcoming-border)] bg-[var(--status-upcoming-bg)] px-[10px] py-[3px] text-[10px] font-bold text-[var(--status-upcoming-text)]">
-            {orgTypePillLabel(org.type)}
-          </span>
+          <StatusPill label={orgTypePillLabel(org.type)} tokens={UPCOMING_PILL_TOKENS} />
         </span>
         {primaryMeta && <span className="text-[13px] text-[var(--ink-muted)]">{primaryMeta}</span>}
         {secondaryMeta && (

@@ -211,7 +211,7 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['2'],
     },
     buttonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       fontFamily: theme.typography.titleSmall.fontFamily,
       fontSize: theme.typography.titleSmall.fontSize,
       fontWeight: '500',

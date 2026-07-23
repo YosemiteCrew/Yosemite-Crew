@@ -17,6 +17,7 @@ import {
   IoSearchOutline,
 } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Search from '@/app/ui/inputs/Search';
 import Datepicker from '@/app/ui/inputs/Datepicker';
@@ -221,20 +222,7 @@ const signingStatusStyleKey = (signingStatus?: string | null): string => {
 
 const SigningStatusPill = ({ signingStatus }: { signingStatus?: string | null }) => {
   const style = getStatusStyle(signingStatusStyleKey(signingStatus));
-  return (
-    <span
-      className="text-caption-3 inline-flex w-fit items-center rounded-full! border px-2.5 py-1"
-      style={{
-        color: style.color,
-        backgroundColor: style.backgroundColor,
-        borderColor: style.borderColor,
-        borderWidth: '1px',
-        borderStyle: 'solid',
-      }}
-    >
-      {humanizeToken(signingStatus)}
-    </span>
-  );
+  return <StatusPill style={style} label={humanizeToken(signingStatus)} className="w-fit" />;
 };
 
 const downloadDocumentUrl = (url: string) => {

@@ -1,4 +1,4 @@
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import SpecialitiesTableRevamp from '@/app/ui/tables/SpecialitiesTableRevamp';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -67,7 +67,7 @@ const Specialities = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}>
-      <AccordionButton
+      <SectionCard
         title="Specialties, services & packages"
         buttonTitle="Manage"
         buttonClick={() => router.push('/organization/specialities')}
@@ -80,7 +80,7 @@ const Specialities = () => {
             setViewPopup(true);
           }}
         />
-      </AccordionButton>
+      </SectionCard>
       {activeSpeciality && (
         <SpecialityInfo
           showModal={viewPopup}

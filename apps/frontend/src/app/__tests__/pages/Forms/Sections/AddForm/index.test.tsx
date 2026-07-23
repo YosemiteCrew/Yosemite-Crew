@@ -163,14 +163,14 @@ describe('AddForm single-screen builder', () => {
   it('renders the builder view with palette/canvas Build and the details fold by default', () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    const title = screen.getByText('Add template');
+    const title = screen.getByRole('heading', { name: 'Add template' });
     expect(title).toBeInTheDocument();
     // Single-line ellipsis keeps the header title/subtitle from fragmenting
     // word-by-word in the narrow drawer (#1952).
     expect(title).toHaveClass('truncate');
     const subtitle = screen.getByText(/Uncategorised/);
     expect(subtitle).toHaveClass('truncate');
-    expect(title.parentElement).toHaveClass('flex-1', 'min-w-0');
+    expect(title.parentElement).toHaveClass('min-w-0');
     expect(screen.getByText('Build Step')).toBeInTheDocument();
     // Details is always mounted (hidden) so its validator is registered; it is passed hideNext.
     expect(screen.getByText('Details Step')).toBeInTheDocument();

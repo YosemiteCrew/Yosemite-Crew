@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { Team } from '@/app/features/organization/types/team';
 import { getSafeImageUrl } from '@/app/lib/urls';
@@ -54,9 +55,7 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           {formatWeeklyWorkingHours(team.weeklyWorkingHours)}
         </div>
       </div>
-      <div style={getAvailabilityStatusStyle(team.status)} className="appointment-status">
-        {team.status}
-      </div>
+      <StatusPill style={getAvailabilityStatusStyle(team.status)} label={team.status} />
       <Secondary href="#" onClick={() => handleViewTeam(team)} text="View" className="w-full" />
     </div>
   );

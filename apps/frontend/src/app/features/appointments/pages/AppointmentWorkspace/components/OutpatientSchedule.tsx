@@ -3,6 +3,7 @@ import React from 'react';
 import { IoAddOutline, IoEllipsisHorizontal, IoPaperPlaneOutline } from 'react-icons/io5';
 import './OutpatientSchedule.css';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import type {
   OutpatientScheduleModel,
@@ -47,23 +48,13 @@ const dayMarker = (iso: string): { weekday: string; day: string } => {
   return { weekday: WEEKDAYS[date.getDay()], day: String(date.getDate()) };
 };
 
-const StatusPill = ({ status }: { status: OutpatientVisitStatus }) => {
-  const style = getStatusStyle(STATUS_STYLE_KEY[status]);
-  return (
-    <span
-      className="text-caption-3 inline-flex w-fit items-center rounded-full! border px-2.5 py-1"
-      style={{
-        color: style.color,
-        backgroundColor: style.backgroundColor,
-        borderColor: style.borderColor,
-        borderWidth: '1px',
-        borderStyle: 'solid',
-      }}
-    >
-      {STATUS_LABEL[status]}
-    </span>
-  );
-};
+const StatusPill = ({ status }: { status: OutpatientVisitStatus }) => (
+  <SharedStatusPill
+    style={getStatusStyle(STATUS_STYLE_KEY[status])}
+    label={STATUS_LABEL[status]}
+    className="w-fit"
+  />
+);
 
 /**
  * "Laser therapy · session 2 of 6" — the design's session suffix. Only appended

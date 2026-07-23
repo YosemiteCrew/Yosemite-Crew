@@ -19,7 +19,7 @@ import Audit from '@/app/features/appointments/pages/Appointments/Sections/Appoi
 import Plan from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan';
 import { Appointment, FormSubmission, Organisation } from '@yosemite-crew/types';
 import { createSubmission } from '@/app/features/appointments/services/soapService';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import {
@@ -37,6 +37,7 @@ import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { useLoadFormsForPrimaryOrg } from '@/app/hooks/useForms';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { SoapNoteSubmission } from '@/app/features/appointments/types/soap';
 import SignatureActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions';
@@ -61,7 +62,12 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildAppointmentCompanionHistoryHref } from '@/app/lib/companionHistoryRoute';
 import AppointmentStatusPill from '@/app/features/appointments/components/AppointmentStatusPill';
 import { buildWorkspaceHrefForIntent } from '@/app/lib/appointmentWorkspace';
-import { IoCardOutline, IoDocumentTextOutline, IoFlaskOutline } from 'react-icons/io5';
+import {
+  IoCardOutline,
+  IoDocumentTextOutline,
+  IoFlaskOutline,
+  IoPawOutline,
+} from 'react-icons/io5';
 
 const COMPANION_IMAGE_TYPES = new Set<ImageType>(['dog', 'cat', 'horse', 'other']);
 
@@ -181,7 +187,7 @@ type CustomFormsSectionProps = {
 };
 
 const FormBadge: React.FC<{ label: string; badgeClass: string }> = ({ label, badgeClass }) => (
-  <span className={`text-label-xsmall px-2 py-1 rounded ${badgeClass}`}>{label}</span>
+  <StatusPill label={label} tone={badgeClass.startsWith('bg-green-50') ? 'success' : 'warning'} />
 );
 
 const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
@@ -973,6 +979,28 @@ type AppointmentInfoModalHeaderProps = {
   setActiveSubLabel: React.Dispatch<React.SetStateAction<string>>;
 };
 
+const HeaderLinkButton = ({
+  label,
+  ariaLabel,
+  icon,
+  onClick,
+}: {
+  label: string;
+  ariaLabel: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    aria-label={ariaLabel}
+    onClick={onClick}
+    className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
+
 const AppointmentInfoModalHeader = ({
   companionImageSrc,
   companion,
@@ -991,8 +1019,11 @@ const AppointmentInfoModalHeader = ({
   setActiveSubLabel,
 }: AppointmentInfoModalHeaderProps) => (
   <div className="flex flex-col gap-3">
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 flex items-start gap-3">
+    <ModalHeader
+      title={formatCompanionNameWithOwnerLastName(companion.name, companion.parent)}
+      meta={companion.breed}
+      onClose={() => setShowModal(false)}
+      icon={
         <Image
           alt="pet image"
           src={companionImageSrc}
@@ -1000,68 +1031,52 @@ const AppointmentInfoModalHeader = ({
           height={40}
           width={40}
         />
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="text-body-1 text-text-primary cursor-pointer text-left hover:underline underline-offset-2"
-              onClick={() => {
-                router.push(
-                  buildAppointmentCompanionHistoryHref(
-                    activeAppointment?.id,
-                    companion.id,
-                    '/appointments'
-                  )
-                );
-                setShowModal(false);
-              }}
-            >
-              {formatCompanionNameWithOwnerLastName(companion.name, companion.parent)}
-            </button>
-            {activeAppointment ? (
-              <AppointmentStatusPill
-                appointment={activeAppointment}
-                canEdit={canEditAppointments}
-              />
-            ) : null}
-          </div>
-          <div className="text-body-4 text-text-primary mt-1">{companion.breed}</div>
-          <div className="mt-2 max-w-3xl rounded-2xl border border-card-border bg-card-bg px-3 py-2 text-caption-1 text-text-secondary">
-            <span className="font-medium text-text-primary">{statusLabel}:</span> {statusSummary}
-          </div>
-        </div>
-      </div>
-      <Close onClick={() => setShowModal(false)} />
+      }
+      actions={
+        activeAppointment ? (
+          <AppointmentStatusPill appointment={activeAppointment} canEdit={canEditAppointments} />
+        ) : null
+      }
+    />
+
+    <div className="max-w-3xl rounded-2xl border border-card-border bg-card-bg px-3 py-2 text-caption-1 text-text-secondary">
+      <span className="font-medium text-text-primary">{statusLabel}:</span> {statusSummary}
     </div>
 
     <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        aria-label="Open medical records in workspace"
+      <HeaderLinkButton
+        label="Companion history"
+        ariaLabel="Open companion history"
+        icon={<IoPawOutline size={16} aria-hidden="true" />}
+        onClick={() => {
+          router.push(
+            buildAppointmentCompanionHistoryHref(
+              activeAppointment?.id,
+              companion.id,
+              '/appointments'
+            )
+          );
+          setShowModal(false);
+        }}
+      />
+      <HeaderLinkButton
+        label="Medical records"
+        ariaLabel="Open medical records in workspace"
+        icon={<IoDocumentTextOutline size={16} aria-hidden="true" />}
         onClick={() => openWorkspaceIntent(clinicalWorkspaceIntent)}
-        className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
-      >
-        <IoDocumentTextOutline size={16} aria-hidden="true" />
-        <span>Medical records</span>
-      </button>
-      <button
-        type="button"
-        aria-label="Open finance in workspace"
+      />
+      <HeaderLinkButton
+        label="Finance"
+        ariaLabel="Open finance in workspace"
+        icon={<IoCardOutline size={16} aria-hidden="true" />}
         onClick={() => openWorkspaceIntent({ label: 'finance', subLabel: 'summary' })}
-        className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
-      >
-        <IoCardOutline size={16} aria-hidden="true" />
-        <span>Finance</span>
-      </button>
-      <button
-        type="button"
-        aria-label="Open labs in workspace"
+      />
+      <HeaderLinkButton
+        label="Labs"
+        ariaLabel="Open labs in workspace"
+        icon={<IoFlaskOutline size={16} aria-hidden="true" />}
         onClick={() => openWorkspaceIntent({ label: 'labs', subLabel: 'idexx-labs' })}
-        className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
-      >
-        <IoFlaskOutline size={16} aria-hidden="true" />
-        <span>Labs</span>
-      </button>
+      />
     </div>
 
     <Labels
@@ -1339,7 +1354,7 @@ const AppoitmentInfo = ({
   );
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="lg">
       <SigningOverlay />
       <div className={`flex flex-col h-full ${resolvedActiveLabel === 'labs' ? 'gap-1' : 'gap-3'}`}>
         <AppointmentInfoModalHeader

@@ -111,13 +111,13 @@ jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
+  Primary: ({ text, onClick, isDisabled, ariaLabel }: any) => (
+    <button type="button" aria-label={ariaLabel} onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),
-  Secondary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
+  Secondary: ({ text, onClick, isDisabled, ariaLabel }: any) => (
+    <button type="button" aria-label={ariaLabel} onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),
