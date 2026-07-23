@@ -108,6 +108,11 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </a>
   ),
+  Secondary: ({ href, text, ariaLabel }: any) => (
+    <a href={href} aria-label={ariaLabel}>
+      {text}
+    </a>
+  ),
 }));
 
 jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
