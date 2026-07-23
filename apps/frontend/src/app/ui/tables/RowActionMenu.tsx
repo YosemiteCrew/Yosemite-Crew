@@ -31,6 +31,9 @@ const RowActionMenu = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [style, setStyle] = useState<React.CSSProperties | null>(null);
+  // Guards the re-measure pass below so it only runs once per open cycle,
+  // right after the panel has actually mounted and has a real height.
+  const measuredRef = useRef(false);
 
   const changeOpen = useCallback(
     (next: boolean) => {
@@ -40,21 +43,42 @@ const RowActionMenu = ({
     [onOpenChange]
   );
 
+  // Positions the panel below the trigger by default. Once the panel has a
+  // real height (second pass, below), flips it above the trigger instead when
+  // there isn't enough room under it in the viewport - rows near the bottom of
+  // the table no longer open a menu that runs off the page (bug #1979).
   const position = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = 224;
     const left = Math.max(8, rect.right - width);
-    setStyle({ position: 'fixed', top: rect.bottom + 6, left, width, zIndex: 5000 });
+    const panelHeight = panelRef.current?.offsetHeight ?? 0;
+    const spaceBelow = globalThis.window.innerHeight - rect.bottom;
+    const flipUp = panelHeight > 0 && spaceBelow < panelHeight + 12 && rect.top >= panelHeight + 12;
+    const top = flipUp ? Math.max(8, rect.top - panelHeight - 6) : rect.bottom + 6;
+    setStyle({ position: 'fixed', top, left, width, zIndex: 5000 });
   }, []);
 
   useLayoutEffect(() => {
     if (!open) {
       setStyle(null);
+      measuredRef.current = false;
       return;
     }
     position();
   }, [open, position]);
+
+  // Second pass: runs after the panel above has actually mounted (style is no
+  // longer null), so panelRef now reports its real height. Re-measures once so
+  // the flip-up decision uses the true panel height instead of 0, then moves
+  // keyboard focus into the menu so keyboard users land directly on the first
+  // action instead of on an invisible portal node (bug #1979).
+  useLayoutEffect(() => {
+    if (!open || measuredRef.current || !panelRef.current) return;
+    measuredRef.current = true;
+    position();
+    panelRef.current.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  });
 
   // Keep the latest close action in a ref so the dismiss listeners subscribe
   // once per open (deps: [open]) instead of re-subscribing whenever the parent
@@ -70,11 +94,36 @@ const RowActionMenu = ({
       closeMenuRef.current();
     };
     const handleScroll = () => closeMenuRef.current();
+    // Escape closes and returns focus to the trigger; Tab/Shift+Tab wraps
+    // within the menu so focus never escapes it while it's open (bug #1979).
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenuRef.current();
+        buttonRef.current?.focus();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = panelRef.current
+        ? Array.from(panelRef.current.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+        : [];
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKeyDown);
     globalThis.window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
     globalThis.window.addEventListener('resize', handleScroll);
     return () => {
       document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKeyDown);
       globalThis.window.removeEventListener('scroll', handleScroll, { capture: true });
       globalThis.window.removeEventListener('resize', handleScroll);
     };
