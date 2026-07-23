@@ -30,8 +30,8 @@ const model = (over: Partial<OutpatientScheduleModel> = {}): OutpatientScheduleM
 describe('OutpatientSchedule', () => {
   it('renders the empty state when there are no visits', () => {
     render(<OutpatientSchedule schedule={model()} />);
-    expect(screen.getByText('No scheduled visits for this companion.')).toBeInTheDocument();
-    expect(screen.getByText('Scheduled outpatient visits · 0')).toBeInTheDocument();
+    expect(screen.getByText('No scheduled tasks for this companion.')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled outpatient tasks · 0')).toBeInTheDocument();
   });
 
   it('renders this-week and next-week groups with visit detail', () => {
@@ -80,7 +80,7 @@ describe('OutpatientSchedule', () => {
         onAddVisit={onAddVisit}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Add visit/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add task/ }));
     expect(onAddVisit).toHaveBeenCalledTimes(1);
   });
 
@@ -92,9 +92,9 @@ describe('OutpatientSchedule', () => {
         readOnly
       />
     );
-    expect(screen.getByRole('button', { name: /Add visit/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Add task/ })).toBeDisabled();
     rerender(<OutpatientSchedule schedule={model({ thisWeek: [visit({})], total: 1 })} />);
-    expect(screen.queryByRole('button', { name: /Add visit/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add task/ })).not.toBeInTheDocument();
   });
 
   it('renders a placeholder marker for an unparseable start', () => {

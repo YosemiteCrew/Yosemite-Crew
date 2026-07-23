@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { IoPrintOutline, IoSaveOutline } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import ServicesPackagesEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/ServicesPackagesEditor';
@@ -56,7 +55,6 @@ import {
   resolveScheduleTasksFromTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
-import { startRouteLoader } from '@/app/lib/routeLoader';
 import type { PrescriptionTemplateOption } from '@/app/features/appointments/services/workspaceTemplateService';
 import type { TemplateLike } from '@yosemite-crew/types';
 import {
@@ -700,7 +698,6 @@ const TreatmentStep = ({
   // -only + "Billed" badge + no delete); adding new items always stays allowed.
   const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
   const isInpatient = encounter.mode === 'INPATIENT';
-  const router = useRouter();
   const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
   // The outpatient visit schedule is built from the companion's real upcoming
   // appointments already in the store (there is no dedicated outpatient "series" data
@@ -907,10 +904,9 @@ const TreatmentStep = ({
           <OutpatientSchedule
             schedule={outpatientSchedule}
             readOnly={readOnly}
-            onAddVisit={() => {
-              startRouteLoader();
-              router.push('/appointments');
-            }}
+            // Same as inpatient's "+": stay in the workspace and open the Quick
+            // Actions Tasks side modal instead of routing away to /appointments.
+            onAddVisit={() => setActiveSideAction('TASKS')}
           />
         )}
         {scheduleError && <p className="text-caption-1 text-red-600">{scheduleError}</p>}

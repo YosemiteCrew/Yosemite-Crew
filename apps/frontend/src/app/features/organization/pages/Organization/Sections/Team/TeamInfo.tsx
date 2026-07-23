@@ -38,6 +38,8 @@ import { upsertTeamAvailability } from '@/app/features/organization/services/ava
 import { useNotify } from '@/app/hooks/useNotify';
 import { logger } from '@/app/lib/logger';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
+import { updateUser } from '@/app/features/users/services/userService';
+import { useTeamStore } from '@/app/stores/teamStore';
 import { IoTrash } from 'react-icons/io5';
 
 type TeamInfoProps = {
@@ -121,6 +123,19 @@ const normalizeId = (value?: string) =>
     .split('/')
     .pop()
     ?.toLowerCase() ?? '';
+
+// The "Name" field is a single text input, but the underlying user record
+// stores firstName/lastName separately (see UserController.updateName), so a
+// save has to split it back into both parts before it can persist.
+const splitFullName = (fullName: string): { firstName: string; lastName: string } | null => {
+  const trimmed = fullName.trim().replace(/\s+/g, ' ');
+  const spaceIndex = trimmed.indexOf(' ');
+  if (spaceIndex === -1) return null;
+  return {
+    firstName: trimmed.slice(0, spaceIndex),
+    lastName: trimmed.slice(spaceIndex + 1),
+  };
+};
 
 /**
  * The member's working hours: the editable grid, the in-flight flag and the
@@ -283,29 +298,73 @@ const useTeamProfileSections = ({
       },
     });
 
-  const handlePersonalSave = (values: any) =>
-    saveProfileSection({
-      buildPayload: (current) => ({
-        ...current,
-        _id: current._id,
+  const handlePersonalSave = async (values: any) => {
+    try {
+      // Unlike the other personal-details fields, "Name" lives on the user
+      // record, not the profile - it must persist even for a self member who
+      // hasn't completed a UserProfile yet (getProfileForUserForPrimaryOrg
+      // returns null for that expected pre-onboarding 404), so this runs
+      // before the profile-existence guard below. See splitFullName.
+      const nextName = typeof values.name === 'string' ? values.name.trim() : '';
+      let nameChanged = false;
+      if (nextName !== activeTeam.name) {
+        // An emptied name is incomplete too - reject it rather than silently
+        // keeping the old server-side name while reporting success.
+        const parts = nextName ? splitFullName(nextName) : null;
+        if (!parts) {
+          throw new Error('NAME_INCOMPLETE');
+        }
+        await updateUser(parts.firstName, parts.lastName);
+        useTeamStore.getState().updateTeam({ ...activeTeam, name: nextName });
+        nameChanged = true;
+      }
+
+      if (!profile?.profile) {
+        if (nameChanged) {
+          notify('success', {
+            title: 'Personal details updated',
+            text: 'Personal details have been updated successfully.',
+          });
+        }
+        return;
+      }
+
+      const payload: UserProfile = {
+        ...profile.profile,
+        _id: profile.profile?._id,
         personalDetails: {
-          ...current.personalDetails,
+          ...profile.profile.personalDetails,
           gender: values.gender,
           dateOfBirth: values.dateOfBirth,
           phoneNumber: values.phoneNumber,
           address: {
-            ...current.personalDetails?.address,
+            ...profile.profile.personalDetails?.address,
             country: values.country,
           },
         },
-      }),
-      messages: {
-        successTitle: 'Personal details updated',
-        successText: 'Personal details have been updated successfully.',
-        errorTitle: 'Unable to update personal details',
-        errorText: 'Failed to update personal details. Please try again.',
-      },
-    });
+      };
+      await upsertUserProfile(payload);
+      setProfile((prev: any) => ({ ...prev, profile: payload }));
+      notify('success', {
+        title: 'Personal details updated',
+        text: 'Personal details have been updated successfully.',
+      });
+    } catch (error) {
+      logger.error('Failed to update personal details', error);
+      const isIncompleteName = error instanceof Error && error.message === 'NAME_INCOMPLETE';
+      notify('error', {
+        title: 'Unable to update personal details',
+        text: isIncompleteName
+          ? 'Enter both a first and last name.'
+          : 'Failed to update personal details. Please try again.',
+      });
+      // Re-throw so EditableAccordion.handleSave's own catch keeps the
+      // accordion in edit mode instead of exiting on a resolved promise -
+      // otherwise the rejected/unsaved formValues render over the stored
+      // data as if the save had succeeded.
+      throw error;
+    }
+  };
 
   const handleProfessionalSave = (values: any) =>
     saveProfileSection({
@@ -538,7 +597,10 @@ const useTeamMemberRecord = ({
   const orgInfoData = useMemo(
     () => ({
       role: activeTeam?.role ?? '',
-      speciality: activeTeam?.speciality.map((s) => s._id) ?? '',
+      // The org/mapping API returns raw specialities without a matching `_id`
+      // (see Speciality._id), so fall back to the name we already have inline
+      // rather than showing an unresolved, blank comma-joined list.
+      speciality: activeTeam?.speciality.map((s) => s._id || s.name) ?? '',
       employmentType: profile?.profile?.personalDetails?.employmentType ?? '',
     }),
     [profile, activeTeam]

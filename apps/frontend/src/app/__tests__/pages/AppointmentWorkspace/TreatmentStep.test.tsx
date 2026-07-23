@@ -2060,7 +2060,7 @@ describe('TreatmentStep', () => {
     errorSpy.mockRestore();
   });
 
-  it('starts the route loader and navigates when adding an outpatient visit', () => {
+  it('opens Quick Actions Tasks instead of navigating when adding an outpatient visit', () => {
     useRouteLoaderStore.setState({ isLoading: false });
     const enc = seedAndGet();
     render(
@@ -2072,9 +2072,11 @@ describe('TreatmentStep', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /add visit/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add task/i }));
 
-    expect(useRouteLoaderStore.getState().isLoading).toBe(true);
+    // Same as inpatient's "+": stays in the workspace rather than routing to /appointments.
+    expect(useAppointmentWorkspaceStore.getState().activeSideAction).toBe('TASKS');
+    expect(useRouteLoaderStore.getState().isLoading).toBe(false);
   });
 
   it('has no axe accessibility violations', async () => {

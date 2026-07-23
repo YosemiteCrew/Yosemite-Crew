@@ -31,16 +31,20 @@ const TimedEventMarker = ({ ev, yScale, zoomMode, ...interaction }: TimedEventMa
   const companionDisplayName = getCompanionDisplayName(ev);
   const markerTitle = subtitle ? `${companionDisplayName} • ${subtitle}` : companionDisplayName;
   const buttonProps = getMarkerButtonProps(ev, interaction, markerTitle);
+  const renderedHeight = Math.max(
+    ev.heightPx * yScale - (isZoomOut ? 0 : verticalGapPx),
+    isZoomOut ? 3 : 40
+  );
+  // Below this, not even a single line of the smallest legible label fits -
+  // an extremely short or heavily overlapping slot stays a color-only sliver.
+  const canShowZoomOutLabel = isZoomOut && renderedHeight >= 11;
 
   return (
     <div
       className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! p-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
       style={{
         top: ev.topPx * yScale,
-        height: Math.max(
-          ev.heightPx * yScale - (isZoomOut ? 0 : verticalGapPx),
-          isZoomOut ? 3 : 40
-        ),
+        height: renderedHeight,
         left: `calc(${leftPercent}% + ${horizontalGapPx}px)`,
         width: `calc(${widthPercent}% - ${horizontalGapPx * 2}px)`,
         ...(isZoomOut
@@ -62,6 +66,19 @@ const TimedEventMarker = ({ ev, yScale, zoomMode, ...interaction }: TimedEventMa
             backgroundColor: statusStyle.backgroundColor,
           }}
         />
+      )}
+      {/* Zoomed-out cards still need at least the patient name visible, not
+          just a color sliver - hover/focus (native `title` on the button below)
+          surfaces the fuller time/service/status detail. Sized to the real
+          slot bounds, not the button's enlarged hit target below. */}
+      {canShowZoomOutLabel && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-1 right-1 flex items-center truncate text-[8px] font-bold leading-none"
+          style={{ color: statusStyle.color }}
+        >
+          {companionDisplayName}
+        </span>
       )}
       <button
         type="button"

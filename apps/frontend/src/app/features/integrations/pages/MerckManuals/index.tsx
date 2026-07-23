@@ -430,7 +430,7 @@ const MerckSearchPanel = ({
   disabled?: boolean;
 }) => (
   <div className="flex flex-col gap-3.5">
-    <div className="flex items-center gap-2 flex-nowrap">
+    <div className="flex items-end gap-2 flex-nowrap">
       <div className="flex-1 min-w-0">
         <FormInput
           intype="text"
@@ -447,6 +447,7 @@ const MerckSearchPanel = ({
           text={loading ? 'Searching...' : 'Search'}
           onClick={() => void performSearch(undefined, true)}
           isDisabled={loading || !query.trim()}
+          className="h-12!"
         />
         <button
           type="button"
