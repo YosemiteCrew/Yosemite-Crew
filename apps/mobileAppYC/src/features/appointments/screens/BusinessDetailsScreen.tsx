@@ -59,8 +59,7 @@ export const BusinessDetailsScreen: React.FC = () => {
   const businessId = route.params?.businessId as string;
   const paramDistanceMi = route.params?.distanceMi as number | undefined;
   const returnTo = route.params?.returnTo as
-    | {tab?: keyof TabParamList; screen?: string}
-    | undefined;
+    {tab?: keyof TabParamList; screen?: string} | undefined;
   const reduxBusiness = useSelector((s: RootState) =>
     s.businesses.businesses.find(b => b.id === businessId),
   );

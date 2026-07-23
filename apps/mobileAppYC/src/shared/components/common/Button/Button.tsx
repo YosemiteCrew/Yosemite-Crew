@@ -10,12 +10,7 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {useTheme} from '@/hooks';
 
 type ButtonVariant =
-  | 'primary'
-  | 'secondary'
-  | 'outline'
-  | 'ghost'
-  | 'danger'
-  | 'dangerGhost';
+  'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'dangerGhost';
 
 interface ButtonProps {
   title: string;

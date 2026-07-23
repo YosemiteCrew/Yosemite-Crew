@@ -15,7 +15,7 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import { useCurrencyForPrimaryOrg, useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { computeFinanceMetrics } from '@/app/lib/financeMetrics';
 import { formatMoney } from '@/app/lib/money';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
@@ -176,6 +176,11 @@ const Finance = () => {
                   activeStatus={activeStatus}
                   setActiveStatus={setActiveStatus}
                   className="flex-wrap justify-end"
+                />
+                <Secondary
+                  href="/finance/discounts"
+                  text="Discounts"
+                  ariaLabel="Manage discounts"
                 />
                 <StripeStatusPill />
               </div>

@@ -31,6 +31,22 @@ const financeAppointmentLimiter = rateLimit({
 });
 
 router.get(
+  "/organisation/:organisationId/discount-settings",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.getDiscountSettings,
+);
+
+router.put(
+  "/organisation/:organisationId/discount-settings",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.updateDiscountSettings,
+);
+
+router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
   requireWebAuth,
   withOrgPermissions(),

@@ -9,6 +9,10 @@ import {
   FinanceEventService,
   resolveActorDisplayName,
 } from "src/services/finance/events";
+import {
+  FinanceDiscountSettingsError,
+  FinanceDiscountSettingsService,
+} from "src/services/finance/discount-settings";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
 import {
@@ -52,6 +56,10 @@ const CreateInvoiceBodySchema = z.object({
     })
     .optional(),
   notes: z.string().trim().min(1).optional(),
+});
+
+const UpdateDiscountSettingsBodySchema = z.object({
+  maxOverallDiscountPercent: z.number().min(0).max(100).nullable(),
 });
 
 const FinalizeInvoiceBodySchema = z.object({
@@ -257,6 +265,61 @@ const resolveInvoiceScope = async (req: Request) => {
 };
 
 export const FinanceController = {
+  async getDiscountSettings(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = req.params.organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const settings =
+        await FinanceDiscountSettingsService.getForOrganisation(organisationId);
+      return res.status(200).json(toFinanceSuccess(settings));
+    } catch (error) {
+      const statusCode =
+        error instanceof FinanceDiscountSettingsError ? error.statusCode : 500;
+      const message =
+        error instanceof FinanceDiscountSettingsError
+          ? error.message
+          : "Internal server error";
+
+      logger.error("Error fetching organisation discount settings", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async updateDiscountSettings(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = req.params.organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const body = UpdateDiscountSettingsBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const settings =
+        await FinanceDiscountSettingsService.updateForOrganisation(
+          organisationId,
+          { maxOverallDiscountPercent: body.data.maxOverallDiscountPercent },
+        );
+
+      return res.status(200).json(toFinanceSuccess(settings));
+    } catch (error) {
+      const statusCode =
+        error instanceof FinanceDiscountSettingsError ? error.statusCode : 500;
+      const message =
+        error instanceof FinanceDiscountSettingsError
+          ? error.message
+          : "Internal server error";
+
+      logger.error("Error updating organisation discount settings", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
   async createInvoice(this: void, req: Request, res: Response) {
     try {
       const body = CreateInvoiceBodySchema.safeParse(req.body);

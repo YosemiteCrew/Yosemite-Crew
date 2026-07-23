@@ -108,6 +108,11 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </a>
   ),
+  Secondary: ({ href, text, ariaLabel }: any) => (
+    <a href={href} aria-label={ariaLabel}>
+      {text}
+    </a>
+  ),
 }));
 
 jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
@@ -330,6 +335,15 @@ describe('Finance page', () => {
 
     expect(screen.getByText(/collected this week/)).toHaveTextContent(
       '$4,820 collected this week · $214 outstanding'
+    );
+  });
+  it('links to the Discounts page from the finance header controls', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    render(<ProtectedFinance />);
+
+    expect(screen.getByRole('link', { name: 'Manage discounts' })).toHaveAttribute(
+      'href',
+      '/finance/discounts'
     );
   });
 });
