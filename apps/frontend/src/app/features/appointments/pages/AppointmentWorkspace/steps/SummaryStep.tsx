@@ -838,9 +838,12 @@ const useSummaryStepContent = ({
                   }}
                 />
                 <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-                  {/* Same Datepicker container as edit mode, rendered non-interactive. */}
+                  {/* Same Datepicker container as edit mode, rendered non-interactive.
+                  Dimmed to match the other read-only state below: without it the
+                  field still reads as an editable input, so the date looks broken
+                  rather than locked (the Edit pencil above reopens it). */}
                   <div
-                    className="pointer-events-none w-full select-none sm:max-w-72"
+                    className="pointer-events-none w-full select-none opacity-60 sm:max-w-72"
                     aria-disabled="true"
                   >
                     <Datepicker
