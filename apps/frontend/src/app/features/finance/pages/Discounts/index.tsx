@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -54,13 +54,11 @@ const DiscountsContent = () => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Re-sync the field when the loaded/saved cap changes (render-phase sync, matching
-  // AppointmentLockWindowPreference) so the input always reflects server truth.
-  const [prevCap, setPrevCap] = useState<number | null | undefined>(undefined);
-  if (!loading && prevCap !== maxOverallDiscountPercent) {
-    setPrevCap(maxOverallDiscountPercent);
-    setCapInput(capToInput(maxOverallDiscountPercent));
-  }
+  // Re-sync the field whenever the loaded/saved cap changes so the input always
+  // reflects server truth. Keyed on the cap value, so a local edit is not clobbered.
+  useEffect(() => {
+    if (!loading) setCapInput(capToInput(maxOverallDiscountPercent));
+  }, [loading, maxOverallDiscountPercent]);
 
   const handleSave = async () => {
     if (!primaryOrgId) return;
@@ -76,7 +74,6 @@ const DiscountsContent = () => {
         maxOverallDiscountPercent: parsed.value,
       });
       setCap(settings.maxOverallDiscountPercent);
-      setPrevCap(settings.maxOverallDiscountPercent);
       setCapInput(capToInput(settings.maxOverallDiscountPercent));
       notify('success', {
         title: 'Discount cap updated',

@@ -1602,7 +1602,7 @@ describe('<InvoiceStep /> component', () => {
       expect(createArgs.invoiceDiscount).toEqual({ type: 'PERCENTAGE', value: 20 });
     });
 
-    it('omits invoiceDiscount entirely when no overall discount is applied', async () => {
+    it('leaves invoiceDiscount undefined when no overall discount is applied', async () => {
       renderInvoiceStep({
         invoiceLineItems: [invoiceLine('Consultation')],
         overallDiscountPercent: 0,
@@ -1616,7 +1616,9 @@ describe('<InvoiceStep /> component', () => {
 
       await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
       const createArgs = invoiceServiceMock.createFinanceInvoice.mock.calls[0][0];
-      expect(createArgs).not.toHaveProperty('invoiceDiscount');
+      // undefined, so JSON.stringify drops it from the request body - the backend
+      // sees no overall discount, same as omitting the key.
+      expect(createArgs.invoiceDiscount).toBeUndefined();
     });
 
     it('surfaces the API 409 when the discount exceeds the cap server-side', async () => {

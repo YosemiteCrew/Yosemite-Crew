@@ -1109,17 +1109,13 @@ const useInvoiceStepContent = ({
         // Send the overall discount so it reaches the ledger. Without it the invoice
         // totals the full (line-discounted) amount while runManualCollection collects
         // computeInvoiceTotalCents (which DOES subtract the overall discount), leaving
-        // the difference as a receivable that can never be settled. Omitted entirely at
-        // 0 (a conditional spread, not `: undefined`, so the key is absent - a test
-        // pins that) so an undiscounted invoice keeps a null discount type/value.
-        ...(encounter.overallDiscountPercent > 0
-          ? {
-              invoiceDiscount: {
-                type: 'PERCENTAGE' as const,
-                value: encounter.overallDiscountPercent,
-              },
-            }
-          : {}),
+        // the difference as a receivable that can never be settled. undefined at 0,
+        // which JSON drops from the request body, so an undiscounted invoice keeps a
+        // null discount type/value exactly as before.
+        invoiceDiscount:
+          encounter.overallDiscountPercent > 0
+            ? { type: 'PERCENTAGE' as const, value: encounter.overallDiscountPercent }
+            : undefined,
       });
     }
     if (invoice?.id && finalize) {
