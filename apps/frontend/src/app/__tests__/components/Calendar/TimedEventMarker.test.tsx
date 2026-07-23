@@ -93,7 +93,7 @@ describe('TimedEventMarker', () => {
     expect(defaultProps.onMarkerContextMenu).toHaveBeenCalledWith(expect.any(Object), baseEvent);
   });
 
-  it('renders compact zoom-out markers with a screen-reader label', () => {
+  it('renders compact zoom-out markers with a visible name label and a fuller screen-reader label', () => {
     render(
       <TimedEventMarker
         {...defaultProps}
@@ -102,8 +102,29 @@ describe('TimedEventMarker', () => {
       />
     );
 
+    // Accessible name comes from the sr-only span (name + subtitle, when present).
     expect(screen.getByRole('button', { name: 'Maple Rivera' })).toBeInTheDocument();
     expect(screen.queryByText('Wellness • Vaccines')).not.toBeInTheDocument();
+    // Bug #1942: the compact card must still show the patient name, not just a
+    // color sliver - there are now two "Maple Rivera" nodes (visible label +
+    // sr-only accessible name), so assert via count rather than getByText.
+    expect(screen.getAllByText('Maple Rivera')).toHaveLength(2);
+  });
+
+  it('hides the zoom-out label when the slot is too short for even one line of text', () => {
+    render(
+      <TimedEventMarker
+        {...defaultProps}
+        zoomMode="out"
+        yScale={0.05}
+        ev={{ ...baseEvent, appointmentType: { name: ' ' }, concern: ' ' } as LaidOutEvent}
+      />
+    );
+
+    // The button still carries the full accessible name via its sr-only span...
+    expect(screen.getByRole('button', { name: 'Maple Rivera' })).toBeInTheDocument();
+    // ...but only that one (hidden) node - no visible label rendered for a sliver-sized slot.
+    expect(screen.getAllByText('Maple Rivera')).toHaveLength(1);
   });
 
   it('sets draggable state, drag payload, cursor cleanup, and optional callbacks', () => {
