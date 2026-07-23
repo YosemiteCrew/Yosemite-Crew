@@ -12,8 +12,8 @@ const shimmer = 'animate-pulse bg-card-hover rounded-xl';
 const TILE_IDS = ['tile-a', 'tile-b', 'tile-c'];
 const GENERIC_ROWS = [
   { id: 'row-a', opacity: 1 },
-  { id: 'row-b', opacity: 0.7 },
-  { id: 'row-c', opacity: 0.45 },
+  { id: 'row-b', opacity: 0.8 },
+  { id: 'row-c', opacity: 0.6 },
 ];
 
 const PlannerSkeleton = () => (
@@ -95,31 +95,31 @@ const DashboardSkeleton = () => (
 // eyebrow, a title bar, a 3-col tile grid and stacked rows that shimmer via the
 // ycShimmer keyframe (see globals.css). No spinners — the shape mirrors the page.
 const GenericSkeleton = () => (
-  <div className="mx-auto my-8 flex w-full max-w-[460px] flex-col gap-4 rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] p-6 shadow-[0_1px_2px_var(--sh05),0_12px_30px_var(--sh08)]">
-    <div className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+  <div className="mx-auto my-8 flex w-full max-w-[460px] flex-col gap-[14px] rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-[22px] shadow-[0_2px_6px_var(--sh05),0_18px_48px_var(--sh08)]">
+    <div className="text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
       Page loading · skeleton
     </div>
     <div className="yc-shimmer h-[22px] w-[180px] rounded-lg bg-[var(--inset)]" />
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-[10px]">
       {TILE_IDS.map((id, index) => (
         <div
           key={id}
-          className="yc-shimmer h-[74px] rounded-xl bg-[var(--inset)]"
-          style={{ animationDelay: `${index * 0.12}s` }}
+          className="yc-shimmer h-[74px] rounded-[14px] bg-[var(--inset)]"
+          style={{ animationDelay: `${(index + 1) * 0.1}s` }}
         />
       ))}
     </div>
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2">
       {GENERIC_ROWS.map((row, index) => (
         <div key={row.id} style={{ opacity: row.opacity }}>
           <div
             className="yc-shimmer h-[46px] rounded-xl bg-[var(--inset)]"
-            style={{ animationDelay: `${index * 0.16}s` }}
+            style={{ animationDelay: `${0.15 + index * 0.1}s` }}
           />
         </div>
       ))}
     </div>
-    <div className="text-center text-[12px] text-[var(--ink-muted)]">
+    <div className="text-[11px] text-[var(--ink-faint)]">
       Structure mirrors the loaded page. No spinners for full-page loads.
     </div>
   </div>

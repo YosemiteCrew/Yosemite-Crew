@@ -54,6 +54,7 @@ jest.mock('@/app/lib/validators', () => ({
 jest.mock('react-icons/io5', () => ({
   IoCalendarOutline: () => <span>calendar-icon</span>,
   IoCheckmarkDoneOutline: () => <span>task-icon</span>,
+  IoChevronBackOutline: () => <span>chevron-back-icon</span>,
   IoChevronForwardOutline: () => <span>chevron-icon</span>,
   IoEllipsisHorizontal: () => <span>kebab-icon</span>,
   IoPersonOutline: () => <span>person-icon</span>,

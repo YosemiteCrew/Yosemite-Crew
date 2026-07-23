@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import PhoneHeader from './PhoneHeader';
 import PhoneTabBar, { type PhoneTabItem } from './PhoneTabBar';
@@ -9,6 +10,8 @@ import PhoneMoreSheet, { type PhoneMoreSection } from './PhoneMoreSheet';
 import { useIsPhone } from './useIsPhone';
 import { usePhoneNavGate } from './usePhoneNavGate';
 import { usePhoneShellStore } from './phoneShellStore';
+import { useSignOut } from '@/app/hooks/useAuth';
+import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import {
   PHONE_MORE_LINKS,
   PHONE_MORE_SECTIONS,
@@ -38,9 +41,24 @@ const handleFabAction = (action: FabAction) => {
  */
 const PhoneShell = () => {
   const isPhone = useIsPhone();
+  const router = useRouter();
+  const { signOut } = useSignOut();
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname, isRouteEnabled, isActive, navigate } = usePhoneNavGate();
   const chatUnread = usePhoneShellStore((s) => s.chatUnread);
+
+  // Mirrors the desktop avatar-menu logout: sign out, then land on the sign-in
+  // route for the surface the user was in.
+  const handleSignOut = async () => {
+    startRouteLoader();
+    try {
+      await signOut();
+      router.replace(pathname.startsWith('/developers') ? '/developers/signin' : '/signin');
+    } catch (error) {
+      console.error('⚠️ Signout error:', error);
+      stopRouteLoader();
+    }
+  };
 
   // Close the More sheet whenever the route changes, adjusting state during render
   // (tracking the previous pathname) instead of via an effect.
@@ -56,6 +74,7 @@ const PhoneShell = () => {
     key: tab.key,
     label: tab.label,
     icon: tab.icon,
+    activeIcon: tab.activeIcon,
     href: tab.href,
     active: tab.isMore ? isActive(tab.activePrefixes) && !moreOpen : isActive(tab.activePrefixes),
     disabled: !isRouteEnabled(tab.routeName),
@@ -91,6 +110,7 @@ const PhoneShell = () => {
         sections={moreSections}
         links={PHONE_MORE_LINKS}
         onNavigate={navigate}
+        onSignOut={handleSignOut}
       />
     </>
   );

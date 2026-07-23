@@ -7,6 +7,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import type { Organisation } from '@yosemite-crew/types';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
+import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 
 // --- Mocks ---
 
@@ -123,8 +124,8 @@ describe('UserHeader Component', () => {
 
     render(<UserHeader />);
 
-    // Notification Icon
-    expect(screen.getByTestId('IoNotifications')).toBeInTheDocument();
+    // Notification Icon (design uses the outline bell glyph)
+    expect(screen.getByTestId('IoNotificationsOutline')).toBeInTheDocument();
 
     // The account control is the header's own nav affordance
     expect(screen.getByRole('button', { name: /account/i })).toBeInTheDocument();
@@ -156,6 +157,58 @@ describe('UserHeader Component', () => {
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search patients')).toBeInTheDocument();
     });
+  });
+
+  it('renders a blue-soft monogram chip when the organization has no logo', () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore
+      .getState()
+      .setOrgs([{ _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL' } as Organisation], {
+        keepPrimaryIfPresent: false,
+      });
+
+    const { container } = render(<UserHeader />);
+
+    const chip = container.querySelector('.yc-header-org-chip');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveTextContent('A');
+    expect(container.querySelector('.yc-header-org-trigger .yc-header-avatar')).toBeNull();
+  });
+
+  it('falls back to "O" on the monogram chip when the organization name is blank', () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore
+      .getState()
+      .setOrgs([{ _id: 'org-1', name: '  ', type: 'HOSPITAL' } as Organisation], {
+        keepPrimaryIfPresent: false,
+      });
+
+    const { container } = render(<UserHeader />);
+
+    expect(container.querySelector('.yc-header-org-chip')).toHaveTextContent('O');
+  });
+
+  it('renders the organization logo when one is set', () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore.getState().setOrgs(
+      [
+        {
+          _id: 'org-1',
+          name: 'Alpha Vet',
+          type: 'HOSPITAL',
+          imageURL: 'https://example.com/org.png',
+        } as Organisation,
+      ],
+      { keepPrimaryIfPresent: false }
+    );
+
+    const { container } = render(<UserHeader />);
+
+    expect(container.querySelector('.yc-header-org-chip')).toBeNull();
+    expect(screen.getAllByTestId('next-image')[0]).toHaveAttribute(
+      'data-src',
+      'https://example.com/org.png'
+    );
   });
 
   // --- 3. Sign Out Logic ---
@@ -249,6 +302,89 @@ describe('UserHeader Component', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('org switch fullscreen loader', () => {
+    const seedTwoOrgs = () => {
+      useOrgStore
+        .getState()
+        .setOrgs(
+          [
+            { _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL' } as Organisation,
+            { _id: 'org-2', name: 'Beta Vet', type: 'HOSPITAL' } as Organisation,
+          ],
+          { keepPrimaryIfPresent: false }
+        );
+      useOrgStore
+        .getState()
+        .setUserOrgMappings([
+          { organizationReference: 'org-1', roleDisplay: 'OWNER' } as any,
+          { organizationReference: 'org-2', roleDisplay: 'OWNER' } as any,
+        ]);
+    };
+
+    const switchToBetaVet = async () => {
+      const orgTrigger = screen
+        .getAllByRole('button', { name: /organization/i })
+        .find((element) => !element.className.includes('yc-mobile-org-trigger'));
+
+      await act(async () => {
+        fireEvent.click(orgTrigger!);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getAllByRole('menuitem', { name: 'Beta Vet' })[0]);
+      });
+    };
+
+    afterEach(() => {
+      useFullscreenLoaderStore.getState().clear();
+      globalThis.window.history.pushState({}, '', '/');
+    });
+
+    it('releases the loader when the org resolves to the route already shown', async () => {
+      globalThis.window.history.pushState({}, '', '/dashboard');
+      (usePathname as jest.Mock).mockReturnValue('/dashboard');
+      (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/dashboard');
+      seedTwoOrgs();
+      render(<UserHeader />);
+
+      await switchToBetaVet();
+
+      // RouteLoaderOverlay only clears this on a pathname/query change, and
+      // pushing the current route fires neither.
+      await waitFor(() => {
+        expect(useFullscreenLoaderStore.getState().activeSources['org-switch']).toBeUndefined();
+      });
+    });
+
+    it('leaves the loader up when the org switch actually navigates away', async () => {
+      globalThis.window.history.pushState({}, '', '/dashboard');
+      (usePathname as jest.Mock).mockReturnValue('/dashboard');
+      (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/team-onboarding?orgId=org-2');
+      seedTwoOrgs();
+      render(<UserHeader />);
+
+      await switchToBetaVet();
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/team-onboarding?orgId=org-2');
+      });
+      expect(useFullscreenLoaderStore.getState().activeSources['org-switch']).toBe(true);
+    });
+
+    it('releases the loader when resolving the next route fails', async () => {
+      globalThis.window.history.pushState({}, '', '/dashboard');
+      (usePathname as jest.Mock).mockReturnValue('/dashboard');
+      (resolveOrgScopedRedirect as jest.Mock).mockRejectedValue(new Error('resolve failed'));
+      seedTwoOrgs();
+      render(<UserHeader />);
+
+      await switchToBetaVet();
+
+      await waitFor(() => {
+        expect(useFullscreenLoaderStore.getState().activeSources['org-switch']).toBeUndefined();
+      });
     });
   });
 

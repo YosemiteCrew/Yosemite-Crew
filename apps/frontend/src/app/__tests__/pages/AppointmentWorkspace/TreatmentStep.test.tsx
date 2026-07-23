@@ -465,6 +465,70 @@ describe('TreatmentStep', () => {
     expect(screen.queryByText('Medication')).not.toBeInTheDocument();
   });
 
+  it('locks a finalized (unbilled) prescription so its edits cannot be silently dropped', () => {
+    // The save loop skips re-saving finalized rows, so their fields must be read-only - otherwise a
+    // clinician's edits would never persist yet still show/invoice (Codex P1 on #1909).
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          frequency: 'BID (twice daily)',
+          durationDays: '5',
+          durationUnit: 'days',
+          qty: '10',
+          refill: '2',
+          fulfillment: 'IN_HOUSE' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    // The locked state is surfaced, and the row's controls are read-only.
+    expect(screen.getByText('Finalized')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /fulfillment/i })).toBeDisabled();
+  });
+
+  it('does not block Save Treatment on a finalized row missing a now-required field', async () => {
+    // A finalized record hydrated from older/external data may lack a currently-required field. It
+    // is read-only and skipped by the save loop, so it must not wedge the save behind a validation
+    // error the clinician cannot fix (Codex P2 on #1909).
+    const onOpenInvoice = jest.fn();
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          // Deliberately missing frequency/duration/quantity (required on a fresh row).
+          fulfillment: 'PRESCRIPTION_ONLY' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    // Validation skips the finalized row, so the save advances to billing...
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    // ...and the finalized row is never re-saved.
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    expect(savedIds).not.toContain('rx-final');
+  });
+
   it('adds and removes services from the workspace store', () => {
     const enc = seedAndGet();
     render(
@@ -1039,6 +1103,42 @@ describe('TreatmentStep', () => {
     );
   });
 
+  // #1909: an already-finalized prescription (a locked clinical record) must NOT be re-saved on the
+  // next Save Treatment - re-POSTing/PATCHing it returns 409 and would fail the whole save. It is
+  // skipped while fresh rows still persist and the step advances to billing.
+  it('skips re-saving a finalized prescription while still saving fresh rows', async () => {
+    const onOpenInvoice = jest.fn();
+    seedAndGet();
+    // Mark rx-1 as an already-finalized record; rx-2 stays a fresh (savable) row.
+    const store = useAppointmentWorkspaceStore.getState();
+    const seeded = store.getEncounter(APPT)!.prescription;
+    store.setPrescriptions(
+      APPT,
+      seeded.map((rx) => (rx.id === 'rx-1' ? { ...rx, finalized: true } : rx))
+    );
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    // The finalized row is never re-saved; the fresh row still is.
+    expect(savedIds).not.toContain('rx-1');
+    expect(savedIds).toContain('rx-2');
+    // The finalized row is not re-dispensed either.
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1');
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+  });
+
   it('blocks the invoice and shows an error when treatment persistence fails', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     (persistTreatmentItems as jest.Mock).mockRejectedValueOnce(new Error('save failed'));
@@ -1056,7 +1156,9 @@ describe('TreatmentStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    // #1909: a non-409 failure now surfaces the backend/error reason instead of the
+    // generic "Unable to save treatment items" copy.
+    expect(await screen.findByText(/save failed/)).toBeInTheDocument();
     expect(onOpenInvoice).not.toHaveBeenCalled();
     expect(
       useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
@@ -1102,11 +1204,14 @@ describe('TreatmentStep', () => {
     errorSpy.mockRestore();
   });
 
-  // Guards the other direction: a transport-level failure has no response/status and stays
-  // retryable, so the 409 mapping must not swallow every prescription-save failure.
-  it('keeps the generic retry copy when the prescription save fails without a 409', async () => {
+  // Guards the fallback: a raw axios transport failure carries no backend reason (its
+  // message is the meaningless "Request failed with status code N"), so the generic
+  // retry copy is shown rather than dumping the raw status text.
+  it('keeps the generic retry copy when the prescription save fails with no backend reason', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce(
+      new Error('Request failed with status code 500')
+    );
     const onOpenInvoice = jest.fn();
     const enc = seedAndGet();
     render(
@@ -1122,6 +1227,43 @@ describe('TreatmentStep', () => {
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
     expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/already finalized and can no longer be edited/i)
+    ).not.toBeInTheDocument();
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  // #1909: a non-409 backend rejection (e.g. a 400 validation failure) must surface the
+  // backend's specific `{ message }` instead of the generic "please try again" copy, so
+  // the clinician learns which field/rule failed.
+  it('surfaces the backend reason when a non-409 save fails with a message', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: { message: 'Dosage exceeds the maximum allowed for this species.' },
+      },
+    });
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(
+      await screen.findByText(/Dosage exceeds the maximum allowed for this species\./i)
+    ).toBeInTheDocument();
+    // Neither the generic copy nor the 409 finalized copy should be shown.
+    expect(screen.queryByText(/Unable to save treatment items/)).not.toBeInTheDocument();
     expect(
       screen.queryByText(/already finalized and can no longer be edited/i)
     ).not.toBeInTheDocument();

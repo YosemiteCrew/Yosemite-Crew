@@ -115,7 +115,11 @@ jest.mock('@/shared/hooks/useFormScreen', () => ({
   useCompanionFormScreen: jest.fn(() => ({
     theme: {spacing: {'3': 12}, colors: {}, borderRadius: {}, typography: {}},
     dispatch: mockAppDispatch,
-    navigation: {goBack: mockGoBack, canGoBack: mockCanGoBack, dispatch: mockNavDispatch},
+    navigation: {
+      goBack: mockGoBack,
+      canGoBack: mockCanGoBack,
+      dispatch: mockNavDispatch,
+    },
     formSheets: {
       refs: mockFormSheetRefs,
       openSheet: jest.fn(),
@@ -124,7 +128,9 @@ jest.mock('@/shared/hooks/useFormScreen', () => ({
     handleGoBack: mockHandleGoBack,
     discardSheetRef: {current: {open: mockDiscardSheetOpen}},
     markAsChanged: mockMarkAsChanged,
-    companions: mockState?.companion?.companions ?? [{id: 'comp-1', name: 'Fluffy'}],
+    companions: mockState?.companion?.companions ?? [
+      {id: 'comp-1', name: 'Fluffy'},
+    ],
     selectedCompanionId: mockState?.companion?.selectedCompanionId ?? null,
   })),
   useFormFileOperations: jest.fn(() => ({
@@ -145,17 +151,20 @@ jest.mock('@/features/expenses/components', () => {
   };
 });
 
-jest.mock('@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen', () => {
-  const {View} = require('react-native');
-  return {
-    LiquidGlassHeaderScreen: ({header, children}: any) => (
-      <View testID="liquid-glass-header-screen">
-        {header}
-        {typeof children === 'function' ? children(null) : children}
-      </View>
-    ),
-  };
-});
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <View testID="liquid-glass-header-screen">
+          {header}
+          {typeof children === 'function' ? children(null) : children}
+        </View>
+      ),
+    };
+  },
+);
 
 const mockDiscardSheetOpen = jest.fn();
 jest.mock(
@@ -291,6 +300,18 @@ describe('AddExpenseScreen', () => {
 
     expect(mockCanGoBack).toHaveBeenCalledTimes(1);
     expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not navigate back from discard sheet when navigation cannot go back', () => {
+    mockCanGoBack.mockReturnValue(false);
+    const {getByTestId} = renderComponent();
+    const bottomSheet = getByTestId('mock-discard-sheet');
+
+    // Trigger discard directly; canGoBack() is false so goBack must not fire
+    bottomSheet.props.onDiscard();
+
+    expect(mockCanGoBack).toHaveBeenCalledTimes(1);
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 
   it('does not call goBack if navigation cannot go back (no changes)', () => {

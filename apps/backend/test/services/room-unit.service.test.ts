@@ -13,6 +13,7 @@ jest.mock("../../src/config/prisma", () => ({
     roomUnit: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -186,7 +187,7 @@ describe("RoomUnitService", () => {
   });
 
   it("updates a room unit without changing its group membership", async () => {
-    mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+    mockedPrisma.roomUnit.findFirst.mockResolvedValue({
       id: "unit_1",
       organisationId: "org_1",
       roomId: "room_1",
@@ -213,10 +214,13 @@ describe("RoomUnitService", () => {
       updatedAt: new Date(),
     });
 
-    const result = await RoomUnitService.update("unit_1", {
+    const result = await RoomUnitService.update("unit_1", "org_1", {
       displayName: "Kennel 1 Updated",
     });
 
+    expect(mockedPrisma.roomUnit.findFirst).toHaveBeenCalledWith({
+      where: { id: "unit_1", organisationId: "org_1" },
+    });
     expect(mockedPrisma.roomUnitGroup.findUnique).not.toHaveBeenCalled();
     expect(mockedPrisma.roomUnit.update).toHaveBeenCalledWith({
       where: { id: "unit_1" },
@@ -270,16 +274,18 @@ describe("RoomUnitService", () => {
   });
 
   it("rejects missing units and unit group mismatches", async () => {
-    mockedPrisma.roomUnit.findUnique.mockResolvedValueOnce(null);
+    mockedPrisma.roomUnit.findFirst.mockResolvedValueOnce(null);
 
     await expect(
-      RoomUnitService.update("unit_missing", { displayName: "Updated" }),
+      RoomUnitService.update("unit_missing", "org_1", {
+        displayName: "Updated",
+      }),
     ).rejects.toMatchObject({
       message: "Room unit not found.",
       statusCode: 404,
     });
 
-    mockedPrisma.roomUnit.findUnique.mockResolvedValueOnce({
+    mockedPrisma.roomUnit.findFirst.mockResolvedValueOnce({
       id: "unit_1",
       organisationId: "org_1",
       roomId: "room_1",
@@ -299,11 +305,81 @@ describe("RoomUnitService", () => {
     });
 
     await expect(
-      RoomUnitService.update("unit_1", { unitGroupId: "group_1" }),
+      RoomUnitService.update("unit_1", "org_1", { unitGroupId: "group_1" }),
     ).rejects.toMatchObject({
       message: "Room unit group room mismatch.",
       statusCode: 409,
     });
+  });
+
+  it("does not update a unit owned by another organisation", async () => {
+    mockedPrisma.roomUnit.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      RoomUnitService.update("unit_1", "org_2", { displayName: "Taken over" }),
+    ).rejects.toMatchObject({
+      message: "Room unit not found.",
+      statusCode: 404,
+    });
+
+    expect(mockedPrisma.roomUnit.findFirst).toHaveBeenCalledWith({
+      where: { id: "unit_1", organisationId: "org_2" },
+    });
+    expect(mockedPrisma.roomUnit.update).not.toHaveBeenCalled();
+  });
+
+  it("never reassigns the organisation of an updated unit", async () => {
+    mockedPrisma.roomUnit.findFirst.mockResolvedValueOnce({
+      id: "unit_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      unitGroupId: null,
+      code: "KEN-01",
+      displayName: "Kennel 1",
+      size: "M",
+      speciesConstraints: [],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.roomUnit.update.mockResolvedValue({
+      id: "unit_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      unitGroupId: null,
+      code: "KEN-01",
+      displayName: "Kennel 1",
+      size: "M",
+      speciesConstraints: [],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await RoomUnitService.update("unit_1", "org_1", {
+      organisationId: "org_2",
+      displayName: "Kennel 1",
+    });
+
+    expect(mockedPrisma.roomUnit.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "unit_1" },
+        data: expect.not.objectContaining({
+          organisationId: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("requires an organisation to list units", async () => {
+    await expect(
+      RoomUnitService.list({ organisationId: "" }),
+    ).rejects.toMatchObject({
+      message: "organisationId is required.",
+      statusCode: 400,
+    });
+
+    expect(mockedPrisma.roomUnit.findMany).not.toHaveBeenCalled();
   });
 
   it("rejects delete org mismatches", async () => {

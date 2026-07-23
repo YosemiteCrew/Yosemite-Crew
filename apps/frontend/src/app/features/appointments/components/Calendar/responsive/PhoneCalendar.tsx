@@ -11,12 +11,14 @@ import { useLoadTasksForPrimaryOrg, useTasksAssignedToUser } from '@/app/hooks/u
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
-import { getPreferredTimeZone } from '@/app/lib/timezone';
+import { buildPreferredTimeZoneDayInstant, getPreferredTimeZone } from '@/app/lib/timezone';
 import { useNotify } from '@/app/hooks/useNotify';
 import type { Task } from '@/app/features/tasks/types/task';
 import type { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 
 import PhoneDayRail from './PhoneDayRail';
+import { DEFAULT_DAY_RAIL_WINDOW } from './dayRailLayout';
+import PhoneDayStrip from './PhoneDayStrip';
 import PhoneWeekOverview from './PhoneWeekOverview';
 import PhoneMonthOverview from './PhoneMonthOverview';
 import PhoneMyDayRail from './PhoneMyDayRail';
@@ -83,7 +85,10 @@ const startOfLocalDay = (date: Date): Date =>
 
 const parseDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  // Anchor at local noon in the preferred timezone so the key round-trips through
+  // getDateKeyInPreferredTimeZone for every zone - a UTC-noon anchor lands on the next day
+  // for zones 12+ hours ahead of UTC (e.g. Pacific/Auckland).
+  return buildPreferredTimeZoneDayInstant(year, month, day);
 };
 
 const minutesOfDay = (date: Date): number => date.getHours() * 60 + date.getMinutes();
@@ -165,6 +170,28 @@ const PhoneCalendar = ({
     [dayEvents, currentUserPractitionerId]
   );
 
+  // The rail defaults to the 08:00-16:00 clinic day, but appointments booked
+  // outside those hours would silently drop off it (the count and the rail would
+  // disagree). Expand the window to cover any out-of-hours appointment.
+  const dayWindow = useMemo(() => {
+    let startHour = DEFAULT_DAY_RAIL_WINDOW.startHour;
+    let endHour = DEFAULT_DAY_RAIL_WINDOW.endHour;
+    dayEvents.forEach((appointment) => {
+      const startDate = new Date(appointment.startTime);
+      const endDate = new Date(appointment.endTime);
+      const start = minutesOfDay(startDate);
+      const rawEnd = minutesOfDay(endDate);
+      // Overnight appointments (the end rolls past midnight) run to end-of-day on
+      // this rail, matching dayRailLayout; a zero/negative span keeps a 1h block.
+      let end = start + 60;
+      if (rawEnd > start) end = rawEnd;
+      else if (endDate.getTime() > startDate.getTime()) end = 24 * 60;
+      startHour = Math.min(startHour, Math.floor(start / 60));
+      endHour = Math.max(endHour, Math.ceil(end / 60));
+    });
+    return { startHour: Math.max(0, startHour), endHour: Math.min(24, endHour) };
+  }, [dayEvents]);
+
   // Only 'day' and 'week' exist on the shared union — 'month' stays phone-local.
   const applyClinicView = useCallback(
     (next: PhoneClinicView) => {
@@ -197,8 +224,12 @@ const PhoneCalendar = ({
 
   const handleBookFold = useCallback(
     (fold: DayRailFold) => {
+      // Pass currentDate straight through (the booking path reads its day in the PREFERRED
+      // timezone via buildDateInPreferredTimeZone). Do NOT re-project through startOfLocalDay,
+      // whose device-local getters shift the day when the preferred zone is ahead of the device
+      // (e.g. opening 7 Jul in Pacific/Auckland from a US/Pacific browser prefilled 6 Jul).
       onCreateFromCalendarSlot?.({
-        date: startOfLocalDay(currentDate),
+        date: currentDate,
         minuteOfDay: fold.startMinutes,
       });
     },
@@ -281,7 +312,7 @@ const PhoneCalendar = ({
           view="month"
           onViewChange={applyClinicView}
           onMonthChange={setMonthAnchor}
-          onSelectDay={(cell: PhoneMonthCell) => setCurrentDate(cell.date)}
+          onSelectDay={(cell: PhoneMonthCell) => setCurrentDate(parseDateKey(cell.dateKey))}
           onOpenDay={(dateKey: string) => openDay(parseDateKey(dateKey))}
         />
       </div>
@@ -307,9 +338,19 @@ const PhoneCalendar = ({
           ariaLabel="Calendar view"
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* The frame gives the phone day view its own date strip rather than a
+          shrunken week header, so the week stays one tap away from the rail. */}
+      <PhoneDayStrip
+        weekStart={weekStart}
+        appointments={appointments}
+        selectedDate={currentDate}
+        today={referenceNow}
+        onSelectDay={setCurrentDate}
+      />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <PhoneDayRail
           appointments={dayEvents}
+          dayWindow={dayWindow}
           nowMinutes={minutesOfDay(referenceNow)}
           onSelectAppointment={onSelectAppointment}
           onStartVisit={onOpenWorkspace}

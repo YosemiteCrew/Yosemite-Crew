@@ -50,14 +50,24 @@ const ROLE_LABEL_MAP: Record<string, string> = {
 
 // Per-type spine icon. Appointments/vaccines reuse the medical kit glyph, records
 // use the document glyph, diagnostics the flask, billing the receipt.
+const TYPE_ICON_SIZE = 15;
+
 const getTypeIcon = (type: HistoryEntryType): React.ReactNode => {
-  if (type === 'LAB_RESULT') return <IoFlaskOutline size={15} aria-hidden="true" />;
-  if (type === 'INVOICE') return <IoReceiptOutline size={15} aria-hidden="true" />;
-  if (type === 'TASK') return <IoClipboardOutline size={15} aria-hidden="true" />;
+  if (type === 'LAB_RESULT') return <IoFlaskOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
+  if (type === 'INVOICE') return <IoReceiptOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
+  if (type === 'TASK') return <IoClipboardOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
   if (type === 'DOCUMENT' || type === 'FORM_SUBMISSION') {
-    return <IoDocumentTextOutline size={15} aria-hidden="true" />;
+    return <IoDocumentTextOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
   }
-  return <IoMedkitOutline size={15} aria-hidden="true" />;
+  return <IoMedkitOutline size={TYPE_ICON_SIZE} aria-hidden="true" />;
+};
+
+// The record open in the detail drawer takes the design's selected-row chrome:
+// the soft surface plus a blue hairline and a 3px blue focus ring.
+const ACTIVE_ROW_STYLE: React.CSSProperties = {
+  background: 'var(--surface-soft)',
+  borderColor: 'var(--blue)',
+  boxShadow: '0 0 0 3px rgba(37,123,237,0.10)',
 };
 
 const formatStatusLabel = (status?: string): string => {
@@ -135,7 +145,7 @@ const getAttachmentChips = (entry: HistoryEntry): AttachmentChip[] => {
   if (fileName) {
     chips.push({
       key: 'file',
-      icon: <IoDocumentTextOutline size={11} aria-hidden="true" />,
+      icon: <IoDocumentTextOutline size={10} aria-hidden="true" />,
       label: fileName,
     });
   }
@@ -146,7 +156,7 @@ const getAttachmentChips = (entry: HistoryEntry): AttachmentChip[] => {
     if (label) {
       chips.push({
         key: `attachment-${index}`,
-        icon: <IoDocumentTextOutline size={11} aria-hidden="true" />,
+        icon: <IoDocumentTextOutline size={10} aria-hidden="true" />,
         label,
       });
     }
@@ -156,7 +166,7 @@ const getAttachmentChips = (entry: HistoryEntry): AttachmentChip[] => {
   if (invoiceNumber) {
     chips.push({
       key: 'invoice',
-      icon: <IoReceiptOutline size={11} aria-hidden="true" />,
+      icon: <IoReceiptOutline size={10} aria-hidden="true" />,
       label: `Invoice #${invoiceNumber}`,
     });
   }
@@ -204,14 +214,15 @@ const HistoryEntryCard = ({
 
   return (
     <li
-      className={`flex gap-[14px] font-satoshi ${
-        active ? 'rounded-[14px] bg-[var(--surface-soft)] px-2 py-1.5' : ''
+      className={`flex gap-[11px] font-satoshi md:gap-[14px] ${
+        active ? 'rounded-[14px] border px-2 py-1.5' : ''
       }`}
+      style={active ? ACTIVE_ROW_STYLE : undefined}
     >
       <span className="flex flex-none flex-col items-center">
         <span
           aria-hidden="true"
-          className="flex size-[34px] items-center justify-center rounded-full border"
+          className="flex size-[30px] items-center justify-center rounded-full border md:size-[34px]"
           style={tint}
         >
           {getTypeIcon(entry.type)}
@@ -219,13 +230,13 @@ const HistoryEntryCard = ({
         {isLast ? null : (
           <span
             aria-hidden="true"
-            className="my-1 flex-1"
+            className="my-[3px] flex-1 md:my-1"
             style={{ width: '1.5px', background: 'var(--hairline)' }}
           />
         )}
       </span>
 
-      <div className={isLast ? 'min-w-0 flex-1' : 'min-w-0 flex-1 pb-4'}>
+      <div className={isLast ? 'min-w-0 flex-1' : 'min-w-0 flex-1 pb-3 md:pb-4'}>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -233,7 +244,7 @@ const HistoryEntryCard = ({
             onClick={() => onOpen(entry)}
             className="group inline-flex w-fit max-w-full items-center text-left"
           >
-            <span className="truncate text-[14px] font-bold leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--blue-text)] group-hover:underline">
+            <span className="truncate text-[13px] font-bold leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--blue-text)] group-hover:underline md:text-[14px]">
               {entry.title}
             </span>
           </button>
@@ -241,24 +252,28 @@ const HistoryEntryCard = ({
             (statusLabel ? (
               <Badge tone={getHistoryStatusBadgeTone(entry.status)}>{statusLabel}</Badge>
             ) : null)}
-          {meta ? <span className="text-[12px] text-[var(--ink-faint)]">{meta}</span> : null}
+          {meta ? (
+            <span className="text-[11px] text-[var(--ink-faint)] md:text-[12px]">{meta}</span>
+          ) : null}
         </div>
 
         {subtitle ? (
-          <span className="mt-[3px] block text-[12.5px] text-[var(--ink-muted)]">{subtitle}</span>
+          <span className="mt-[1px] block text-[11px] text-[var(--ink-faint)] md:mt-[3px] md:text-[12.5px] md:text-[color:var(--ink-muted)]">
+            {subtitle}
+          </span>
         ) : null}
         {entry.summary ? (
-          <span className="mt-[3px] block text-[12.5px] text-[var(--ink-muted)]">
+          <span className="mt-[1px] block text-[11px] text-[var(--ink-faint)] md:mt-[3px] md:text-[12.5px] md:text-[color:var(--ink-muted)]">
             {entry.summary}
           </span>
         ) : null}
 
         {attachmentChips.length > 0 || actions ? (
-          <span className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="mt-[6px] flex flex-wrap items-center gap-[5px] md:mt-2 md:gap-1.5">
             {attachmentChips.map((chip) => (
               <span
                 key={`${entry.id}-${chip.key}`}
-                className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-1 text-[11px] font-semibold text-[var(--ink-body)]"
+                className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-[5px] text-[10.5px] font-semibold text-[var(--ink-body)] md:py-1 md:text-[11px]"
                 style={{ background: 'var(--inset)' }}
               >
                 <span aria-hidden="true" className="inline-flex text-[var(--blue-text)]">
@@ -278,7 +293,7 @@ const HistoryEntryCard = ({
             {tags.map((tag) => (
               <span
                 key={`${entry.id}-${tag}`}
-                className="rounded-full bg-card-hover px-2 py-0.5 text-[11px] text-[var(--ink-muted)]"
+                className="rounded-full bg-[var(--inset)] px-2 py-0.5 text-[11px] text-[var(--ink-muted)]"
               >
                 {tag}
               </span>

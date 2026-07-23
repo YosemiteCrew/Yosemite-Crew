@@ -84,10 +84,8 @@ const DeveloperApiKeys = () => {
       <div className="OperationsWrapper">
         <div className="TitleContainer">
           <div className="dev-keys-heading">
-            <h1 className="text-page-title text-text-primary">API keys</h1>
-            <p className="text-body-3 text-text-secondary">
-              Keys are scoped per environment and shown only once
-            </p>
+            <h1 className="text-page-title">API keys</h1>
+            <p className="dev-keys-subtitle">Keys are scoped per environment and shown only once</p>
           </div>
           <Primary
             text="Create key"
@@ -141,27 +139,31 @@ const DeveloperApiKeys = () => {
               <span>Created</span>
               <span>Last used</span>
               <span>Status</span>
+              <span />
             </div>
-            {SAMPLE_KEYS.map((row) => (
+            {SAMPLE_KEYS.map((row, index) => (
               <div
                 key={row.id}
-                className={`dev-keys-row ${row.status === 'revoked' ? 'is-revoked' : ''}`}
+                className={`dev-keys-row ${row.status === 'revoked' ? 'is-revoked' : ''} ${
+                  showReveal && index === 0 ? 'is-new' : ''
+                }`}
               >
-                <span className="dev-key-name text-body-4-emphasis text-text-primary">
-                  {row.name}
-                </span>
+                <span className="dev-key-name">{row.name}</span>
                 <span className="dev-key-value">{row.maskedKey}</span>
                 <span>
-                  <span className={`dev-env-badge ${row.environment} text-caption-2`}>
+                  <span className={`dev-env-badge ${row.environment} text-caption-3`}>
                     {ENVIRONMENT_LABEL[row.environment]}
                   </span>
                 </span>
-                <span className="dev-key-muted text-body-4">{row.created}</span>
-                <span className="dev-key-muted text-body-4">{row.lastUsed}</span>
+                <span className="dev-key-muted">{row.created}</span>
+                <span className="dev-key-muted">{row.lastUsed}</span>
                 <span>
-                  <span className={`dev-key-status ${row.status} text-caption-2`}>
+                  <span className={`dev-key-status ${row.status} text-caption-3`}>
                     {STATUS_LABEL[row.status]}
                   </span>
+                </span>
+                <span className="dev-key-actions" aria-hidden="true">
+                  <Icon icon="ion:ellipsis-horizontal" width={16} height={16} />
                 </span>
               </div>
             ))}
@@ -169,10 +171,12 @@ const DeveloperApiKeys = () => {
             <div className="dev-keys-usage">
               <span className="dev-keys-usage-label text-caption-2">Requests · 7 days</span>
               <span className="dev-keys-usage-bars" aria-hidden="true">
-                {USAGE_BARS.map((bar) => (
+                {USAGE_BARS.map((bar, index) => (
                   <span
                     key={bar.day}
-                    className="dev-keys-usage-bar"
+                    className={`dev-keys-usage-bar ${
+                      index >= USAGE_BARS.length - 2 ? 'is-recent' : ''
+                    }`}
                     style={{ height: `${bar.value}%` }}
                   />
                 ))}

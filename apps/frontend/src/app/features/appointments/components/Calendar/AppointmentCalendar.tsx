@@ -19,6 +19,8 @@ import { filterAppointmentsForWeek } from '@/app/features/appointments/component
 import { useAppointmentCalendarDrag } from '@/app/features/appointments/components/Calendar/useAppointmentCalendarDrag';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import PhoneCalendar from '@/app/features/appointments/components/Calendar/responsive/PhoneCalendar';
+import useIsTabletCalendar from '@/app/features/appointments/components/Calendar/responsive/useIsTabletCalendar';
+import TabletCalendarTitleBand from '@/app/features/appointments/components/Calendar/responsive/TabletCalendarTitleBand';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -80,6 +82,7 @@ const AppointmentCalendar = ({
 }: AppointmentCalendarProps) => {
   const { notify } = useNotify();
   const isPhone = useIsPhone();
+  const isTablet = useIsTabletCalendar();
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
   const teams = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
@@ -239,10 +242,19 @@ const AppointmentCalendar = ({
   }
 
   return (
-    <div className="h-full min-h-0 border border-card-border rounded-2xl overflow-hidden w-full flex flex-col">
+    <div
+      className="h-full min-h-0 w-full flex flex-col overflow-hidden rounded-[18px] border"
+      style={{
+        borderColor: 'var(--hairline)',
+        backgroundColor: 'var(--screen)',
+        boxShadow: '0 1px 2px var(--sh03), 0 8px 22px var(--sh05)',
+      }}
+    >
       <Header
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
+        weekStart={weekStart}
+        setWeekStart={setWeekStart}
         zoomMode={zoomMode}
         setZoomMode={setZoomMode}
         activeCalendar={activeCalendar}
@@ -261,6 +273,16 @@ const AppointmentCalendar = ({
         <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">
           {dragError}
         </div>
+      ) : null}
+      {/* The tablet frame names the visible period above the grid and carries
+          the status legend there; desktop keeps the header alone. */}
+      {isTablet ? (
+        <TabletCalendarTitleBand
+          activeCalendar={activeCalendar}
+          currentDate={currentDate}
+          weekStart={weekStart}
+          appointmentCount={activeCalendar === 'week' ? weekEvents.length : dayEvents.length}
+        />
       ) : null}
       {activeCalendar === 'day' && (
         <DayCalendar

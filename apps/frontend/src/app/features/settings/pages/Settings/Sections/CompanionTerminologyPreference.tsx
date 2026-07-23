@@ -17,6 +17,7 @@ import {
   isValidAnimalTerminology,
   normalizePmsPreferences,
 } from '@/app/features/settings/utils/pmsPreferences';
+import { PreferenceRow } from './PreferenceGroup';
 
 // Short single-word (plural) labels for the inline pill, derived from the shared
 // "Singular / Plural" option labels (e.g. "Companion / Companions" -> "Companions").
@@ -96,26 +97,19 @@ const CompanionTerminologyPreference = () => {
   };
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
-        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-          Companion terminology
-        </div>
+    <PreferenceRow
+      label="Companion terminology"
+      description="How patients are named across the app"
+    >
+      <div data-terminology-lock="true">
+        <SegmentedPill
+          options={TERMINOLOGY_PILL_OPTIONS}
+          value={selection}
+          onChange={handleSelect}
+          ariaLabel="Companion terminology"
+        />
       </div>
-      <div className="flex items-center justify-between gap-4 px-5! py-5!">
-        <div className="text-[12.5px] text-[var(--ink-faint)]">
-          How companions are named across the app.
-        </div>
-        <div data-terminology-lock="true">
-          <SegmentedPill
-            options={TERMINOLOGY_PILL_OPTIONS}
-            value={selection}
-            onChange={handleSelect}
-            ariaLabel="Companion terminology"
-          />
-        </div>
-      </div>
-    </div>
+    </PreferenceRow>
   );
 };
 

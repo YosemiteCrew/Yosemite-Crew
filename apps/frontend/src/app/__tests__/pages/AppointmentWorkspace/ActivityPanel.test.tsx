@@ -20,9 +20,11 @@ jest.mock('@/app/ui/overlays/Fallback', () => ({
   default: () => <div data-testid="fallback" />,
 }));
 
-// react-icons stubbed as a span (never a button) so timeline chips stay inert.
+// react-icons stubbed as spans (never buttons) so timeline chips stay inert.
 jest.mock('react-icons/io5', () => ({
-  IoReaderOutline: () => <span data-testid="reader-icon" />,
+  IoChatbubbleEllipsesOutline: () => <span data-testid="chat-icon" />,
+  IoFlaskOutline: () => <span data-testid="flask-icon" />,
+  IoLogInOutline: () => <span data-testid="login-icon" />,
 }));
 
 const mockGetAuditTrail = getAppointmentAuditTrail as jest.Mock;
@@ -101,7 +103,12 @@ describe('ActivityPanel timeline', () => {
     // One row per entry.
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
     // Connector spine on every row except the last.
-    expect(container.querySelectorAll('.bg-card-border')).toHaveLength(3);
+    expect(container.querySelectorAll('.w-\\[1\\.5px\\]')).toHaveLength(3);
+    // Per-actor chips: initials for a team member, a chat glyph for the parent and
+    // the neutral login glyph for unknown/absent actor types.
+    expect(screen.getByText('DW')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-icon')).toBeInTheDocument();
+    expect(screen.getAllByTestId('login-icon')).toHaveLength(2);
   });
 
   it('shows the empty state when the audit trail is an empty array', async () => {

@@ -175,11 +175,11 @@ describe('Filters', () => {
     expect(screen.getByRole('button', { name: 'Busy' })).toBeInTheDocument();
   });
 
-  it('shows the neutral "Status" trigger when the active status has no colour tokens', () => {
+  it('shows the neutral "All statuses" trigger when the active status is all', () => {
     render(
       <Filters
         statusOptions={[
-          { key: 'all', name: 'All' },
+          { key: 'all', name: 'All', bg: '#eee' },
           { key: 'open', name: 'Open' },
         ]}
         activeStatus="all"
@@ -187,7 +187,11 @@ describe('Filters', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument();
+    // Even when the "all" option carries a colour token, the trigger stays
+    // neutral (no tint) and reads "All statuses".
+    const trigger = screen.getByRole('button', { name: 'All statuses' });
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).not.toHaveStyle({ backgroundColor: '#eee' });
   });
 
   it('closes the status dropdown when clicking outside of it', () => {
@@ -205,7 +209,6 @@ describe('Filters', () => {
   it('uses readable dropdown text when status pills use light text tokens', () => {
     render(
       <Filters
-        filterOptions={filterOptions}
         statusOptions={[
           {
             key: 'pending',
@@ -215,9 +218,7 @@ describe('Filters', () => {
             dropdownText: 'var(--color-badge-slate-bg)',
           },
         ]}
-        activeFilter="all"
         activeStatus="pending"
-        setActiveFilter={jest.fn()}
         setActiveStatus={jest.fn()}
       />
     );
@@ -226,6 +227,89 @@ describe('Filters', () => {
 
     expect(screen.getAllByText('Pending')[1]).toHaveStyle({
       color: 'var(--color-badge-slate-bg)',
+    });
+  });
+
+  // --- Inline status pill row (list toolbars) ---
+
+  describe('inline status pills', () => {
+    const listStatusOptions = [
+      { key: 'all', name: 'All statuses' },
+      {
+        key: 'upcoming',
+        name: 'Upcoming',
+        bg: 'var(--status-upcoming-bg)',
+        text: 'var(--status-upcoming-text)',
+        border: 'var(--status-upcoming-border)',
+      },
+      { key: 'cancelled', name: 'Cancelled', bg: 'var(--status-cancelled-bg)' },
+    ];
+
+    const renderListToolbar = (activeStatus: string, setActiveStatus = jest.fn()) => {
+      render(
+        <Filters
+          filterOptions={[{ key: 'emergencies', name: 'Emergencies' }]}
+          statusOptions={listStatusOptions}
+          activeFilter="all"
+          activeStatus={activeStatus}
+          setActiveFilter={jest.fn()}
+          setActiveStatus={setActiveStatus}
+        />
+      );
+      return setActiveStatus;
+    };
+
+    it('renders every status as a pill instead of a dropdown when filter chips are present', () => {
+      renderListToolbar('upcoming');
+
+      // All statuses are visible up-front: no trigger to open, nothing hidden.
+      for (const { name } of listStatusOptions) {
+        expect(screen.getByRole('button', { name })).toBeInTheDocument();
+      }
+    });
+
+    it('selects a status directly from its pill', () => {
+      const setActiveStatus = renderListToolbar('upcoming');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelled' }));
+      expect(setActiveStatus).toHaveBeenCalledWith('cancelled');
+    });
+
+    it('tints the active pill with its own status tokens and marks it pressed', () => {
+      renderListToolbar('upcoming');
+
+      const active = screen.getByRole('button', { name: 'Upcoming' });
+      expect(active).toHaveAttribute('aria-pressed', 'true');
+      expect(active).toHaveStyle({
+        backgroundColor: 'var(--status-upcoming-bg)',
+        borderColor: 'var(--status-upcoming-border)',
+        color: 'var(--status-upcoming-text)',
+      });
+
+      const inactive = screen.getByRole('button', { name: 'Cancelled' });
+      expect(inactive).toHaveAttribute('aria-pressed', 'false');
+      expect(inactive).toHaveStyle({
+        borderColor: 'var(--hairline)',
+        color: 'var(--ink-muted)',
+      });
+    });
+
+    it('gives the active "all" pill the neutral treatment rather than a status tint', () => {
+      renderListToolbar('all');
+
+      expect(screen.getByRole('button', { name: 'All statuses' })).toHaveStyle({
+        backgroundColor: 'var(--inset)',
+        borderColor: 'var(--divider)',
+        color: 'var(--ink)',
+      });
+    });
+
+    it('falls back to the border colour when an active status omits one', () => {
+      renderListToolbar('cancelled');
+
+      expect(screen.getByRole('button', { name: 'Cancelled' })).toHaveStyle({
+        borderColor: 'var(--status-cancelled-bg)',
+      });
     });
   });
 });

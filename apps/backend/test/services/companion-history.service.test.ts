@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import { CompanionHistoryService } from "../../src/services/companion-history.service";
 import { AppointmentService } from "../../src/services/appointment.service";
 import { TaskService } from "../../src/services/task.service";
@@ -27,7 +26,7 @@ jest.mock("../../src/config/prisma", () => ({
 }));
 
 describe("CompanionHistoryService", () => {
-  const organisationId = new Types.ObjectId().toHexString();
+  const organisationId = "org-1";
   const companionId = "507f191e810c19729de860ea";
 
   beforeEach(() => {
@@ -87,7 +86,7 @@ describe("CompanionHistoryService", () => {
       },
     ]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -141,7 +140,7 @@ describe("CompanionHistoryService", () => {
       },
     ]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -231,7 +230,7 @@ describe("CompanionHistoryService", () => {
       AppointmentService.getAppointmentsForCompanionByOrganisation as jest.Mock
     ).mockResolvedValue([]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -405,14 +404,6 @@ describe("CompanionHistoryService", () => {
         currency: "USD",
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
       },
-      {
-        id: "inv-2",
-        organisationId: "other",
-        status: "PAID",
-        totalAmount: 50,
-        currency: "USD",
-        createdAt: new Date("2024-01-01T00:00:00.000Z"),
-      },
     ]);
 
     const result = await CompanionHistoryService.listForCompanion({
@@ -421,6 +412,11 @@ describe("CompanionHistoryService", () => {
       types: ["INVOICE"],
     });
 
+    // The organisation filter is a query predicate now, not a post-fetch filter.
+    expect(InvoiceService.listForCompanion).toHaveBeenCalledWith(
+      companionId,
+      organisationId,
+    );
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].link.id).toBe("inv-1");
   });

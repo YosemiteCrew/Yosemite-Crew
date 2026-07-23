@@ -107,8 +107,14 @@ export function useDropdownKeyboardNav({
           event.preventDefault();
           setActiveIndex(optionCount - 1);
           return;
-        case 'Enter':
         case ' ':
+          // In a searchable dropdown the same handler is bound to the query input,
+          // where Space has to type rather than select.
+          if ((event.target as HTMLElement)?.tagName === 'INPUT') return;
+          event.preventDefault();
+          handleConfirmKey();
+          return;
+        case 'Enter':
           event.preventDefault();
           handleConfirmKey();
           return;

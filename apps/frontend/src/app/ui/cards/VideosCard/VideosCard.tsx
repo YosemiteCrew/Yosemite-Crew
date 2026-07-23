@@ -8,6 +8,8 @@ import VideoPlayerModal from '@/app/ui/overlays/Modal/VideoPlayerModal';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 
+import './VideosCard.css';
+
 const previewVideos = guidesData.slice(0, 3);
 const STORAGE_KEY = 'yc_dashboard_videos_hidden';
 
@@ -46,34 +48,32 @@ const VideosCard = () => {
             <Primary
               text="View more"
               href="/guides"
-              className="px-5! py-2! text-body-4 whitespace-nowrap"
+              className="min-h-9! h-9! px-[18px]! py-0! text-[12.5px] font-semibold whitespace-nowrap"
             />
             <Close onClick={handleClose} />
           </div>
         </div>
-        <div className="text-body-3 text-text-tertiary">
-          Here’s everything you can explore and prepare.
-        </div>
+        <div className="videos-card-subtitle">Here’s everything you can explore and prepare.</div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {previewVideos.map((video) => (
           <button
             type="button"
-            className="rounded-2xl! border border-card-border bg-neutral-0 flex flex-col cursor-pointer text-left"
+            className="videos-card-tile border border-card-border bg-neutral-0 flex flex-col cursor-pointer text-left overflow-hidden"
             key={video.id}
             onClick={() => handleOpenVideo(video)}
             aria-label={`Play video: ${video.title}`}
           >
             <div
               style={{ backgroundImage: `url(${video.thumbnailUrl})` }}
-              className="min-h-[200px] sm:min-h-[240px] md:min-h-[190px] relative bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center"
+              className="min-h-[200px] sm:min-h-[240px] md:min-h-[190px] relative bg-no-repeat bg-cover bg-center w-full flex items-center justify-center"
             >
-              <div className="absolute inset-0 bg-black/40 rounded-t-2xl"></div>
+              <div className="absolute inset-0 bg-black/40"></div>
               <div className="relative">
                 <IoPlayCircle size={50} color="var(--color-neutral-0)" />
               </div>
             </div>
-            <div className="px-3 py-[20px] text-body-2 text-text-primary">{video.title}</div>
+            <div className="videos-card-caption">{video.title}</div>
           </button>
         ))}
       </div>

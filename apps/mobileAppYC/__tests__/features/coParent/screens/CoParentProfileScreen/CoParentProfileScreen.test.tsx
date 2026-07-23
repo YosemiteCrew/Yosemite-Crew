@@ -74,9 +74,13 @@ jest.mock('@/hooks', () => ({
 }));
 
 jest.mock('@/shared/components/common', () => ({
-  GifLoader: () => {
+  SkeletonDetail: () => {
     const {View} = require('react-native');
-    return <View testID="gif-loader" />;
+    return <View testID="skeleton-detail" />;
+  },
+  Badge: ({label, tone}: any) => {
+    const {Text} = require('react-native');
+    return <Text testID={`badge-${tone}`}>{label}</Text>;
   },
 }));
 
@@ -165,6 +169,7 @@ describe('CoParentProfileScreen', () => {
     email: 'john@example.com',
     phoneNumber: '1234567890',
     profilePicture: 'http://profile.pic',
+    companionId: 'c1',
     companions: [
       {
         companionId: 'c1',
@@ -208,11 +213,12 @@ describe('CoParentProfileScreen', () => {
 
   it('renders correctly with full data', () => {
     // Removed getAllByImage as it is not standard and was flagged as error
-    const {getByText} = render(
+    const {getByText, getAllByText} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
 
-    expect(getByText('John Doe')).toBeTruthy();
+    // Name appears twice: hero title + the "Name" detail row.
+    expect(getAllByText('John Doe').length).toBeGreaterThan(0);
     expect(getByText('john@example.com')).toBeTruthy();
     expect(getByText('1234567890')).toBeTruthy();
     expect(getByText('Buddy')).toBeTruthy();
@@ -235,7 +241,7 @@ describe('CoParentProfileScreen', () => {
     expect(getByText('Co-Parent not found')).toBeTruthy();
   });
 
-  it('renders loader while co-parent data is loading', () => {
+  it('renders skeleton while co-parent data is loading', () => {
     mockState.coParent.coParents = [];
     mockState.coParent.loading = true;
 
@@ -243,19 +249,19 @@ describe('CoParentProfileScreen', () => {
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
 
-    expect(getByTestId('gif-loader')).toBeTruthy();
+    expect(getByTestId('skeleton-detail')).toBeTruthy();
     expect(queryByText('Co-Parent not found')).toBeNull();
   });
 
   it('renders selected co-parent while co-parent data is refreshing', () => {
     mockState.coParent.loading = true;
 
-    const {getByText, queryByTestId} = render(
+    const {getAllByText, queryByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
 
-    expect(getByText('John Doe')).toBeTruthy();
-    expect(queryByTestId('gif-loader')).toBeNull();
+    expect(getAllByText('John Doe').length).toBeGreaterThan(0);
+    expect(queryByTestId('skeleton-detail')).toBeNull();
   });
 
   it('renders initials when profile picture is missing', () => {
@@ -365,6 +371,25 @@ describe('CoParentProfileScreen', () => {
     expect(mockInviteFlow.addCoParentSheetRef.current.open).toHaveBeenCalled();
   });
 
+  it('does not crash on invite success when the sheet ref is detached', async () => {
+    const originalRef = mockInviteFlow.addCoParentSheetRef.current;
+    mockInviteFlow.addCoParentSheetRef.current = null;
+    try {
+      const {getByTestId} = render(
+        <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
+      );
+
+      await act(async () => {
+        fireEvent.press(getByTestId('send-invite-btn'));
+      });
+
+      expect(mockActions.addCoParent).toHaveBeenCalled();
+      expect(mockUnwrap).toHaveBeenCalled();
+    } finally {
+      mockInviteFlow.addCoParentSheetRef.current = originalRef;
+    }
+  });
+
   it('handles invite complete callback navigation', () => {
     render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
@@ -405,8 +430,9 @@ describe('CoParentProfileScreen', () => {
     }
   });
 
-  it('alerts if no companion is selected (Branch: !companionId)', () => {
-    mockState.companion.companions = [];
+  it('alerts if the co-parent record has no companionId (Branch: !companionId)', () => {
+    const noCompanionIdCoParent = {...mockCoParent, companionId: undefined};
+    mockState.coParent.coParents = [noCompanionIdCoParent];
 
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
@@ -424,6 +450,23 @@ describe('CoParentProfileScreen', () => {
   it('alerts if co-parent has no email (Branch: !inviteEmail)', () => {
     const noEmailCoParent = {...mockCoParent, email: '  '};
     mockState.coParent.coParents = [noEmailCoParent];
+
+    const {getByTestId} = render(
+      <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    fireEvent.press(getByTestId('send-invite-btn'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Missing email',
+      expect.any(String),
+    );
+    expect(mockActions.addCoParent).not.toHaveBeenCalled();
+  });
+
+  it('alerts if co-parent email is null (Branch: optional-chain email)', () => {
+    const nullEmailCoParent = {...mockCoParent, email: null};
+    mockState.coParent.coParents = [nullEmailCoParent];
 
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
@@ -457,8 +500,14 @@ describe('CoParentProfileScreen', () => {
     );
   });
 
-  it('extracts companion ID from "id" property', async () => {
-    mockState.companion.companions = [{id: 'id-123', name: 'C1'}];
+  it("resends the invite for the companion this co-parent record is actually for, not the account's first companion", async () => {
+    // The global companion list's first entry ('comp-1') deliberately
+    // differs from the co-parent's own companionId ('c1') to prove the
+    // resend targets the correct pet, not just companions[0].
+    mockState.companion.companions = [
+      {id: 'comp-1', name: 'Wrong Pet', profileImage: 'wrong.png'},
+    ];
+
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
@@ -467,13 +516,24 @@ describe('CoParentProfileScreen', () => {
 
     expect(mockActions.addCoParent).toHaveBeenCalledWith(
       expect.objectContaining({
-        inviteRequest: expect.objectContaining({companionId: 'id-123'}),
+        inviteRequest: expect.objectContaining({companionId: 'c1'}),
+        companionName: 'Buddy',
+        companionImage: 'http://dog.pic',
       }),
     );
   });
 
-  it('extracts companion ID from "_id" property', async () => {
-    mockState.companion.companions = [{_id: 'underscore-id', name: 'C1'}];
+  it('falls back to the global companion list when the co-parent record has no matching companion entry', async () => {
+    const coParentWithUnmatchedCompanions = {
+      ...mockCoParent,
+      companionId: 'comp-1',
+      companions: [],
+    };
+    mockState.coParent.coParents = [coParentWithUnmatchedCompanions];
+    mockState.companion.companions = [
+      {id: 'comp-1', name: 'Fallback Pet', profileImage: 'fallback.png'},
+    ];
+
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
@@ -482,13 +542,101 @@ describe('CoParentProfileScreen', () => {
 
     expect(mockActions.addCoParent).toHaveBeenCalledWith(
       expect.objectContaining({
-        inviteRequest: expect.objectContaining({companionId: 'underscore-id'}),
+        inviteRequest: expect.objectContaining({companionId: 'comp-1'}),
+        companionName: 'Fallback Pet',
+        companionImage: 'fallback.png',
       }),
     );
   });
 
-  it('extracts companion ID from "companionId" property', async () => {
-    mockState.companion.companions = [{companionId: 'prop-id', name: 'C1'}];
+  it('renders a success-tone status badge when status is active', () => {
+    const activeCoParent = {...mockCoParent, status: 'Active'};
+    mockState.coParent.coParents = [activeCoParent];
+
+    const {getByText, getByTestId} = render(
+      <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    expect(getByText('ACTIVE')).toBeTruthy();
+    expect(getByTestId('badge-success')).toBeTruthy();
+  });
+
+  it('renders Access chips for granted permissions', () => {
+    const permissionedCoParent = {
+      ...mockCoParent,
+      permissions: {
+        appointments: true,
+        documents: false,
+        tasks: true,
+        expenses: false,
+        chatWithVet: true,
+        emergencyBasedPermissions: true,
+      },
+    };
+    mockState.coParent.coParents = [permissionedCoParent];
+
+    const {getByText, queryByText} = render(
+      <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    expect(getByText('Access')).toBeTruthy();
+    expect(getByText('Appointments')).toBeTruthy();
+    expect(getByText('Tasks')).toBeTruthy();
+    expect(getByText('Chat with vet')).toBeTruthy();
+    expect(getByText('Emergency')).toBeTruthy();
+    expect(queryByText('Documents')).toBeNull();
+    expect(queryByText('Expenses')).toBeNull();
+  });
+
+  it('omits companions with an empty name from the hero subtitle', () => {
+    const mixedCoParent = {
+      ...mockCoParent,
+      companions: [
+        {
+          companionId: 'c1',
+          companionName: 'Buddy',
+          breed: 'Retriever',
+          profileImage: 'http://dog.pic',
+        },
+        {
+          companionId: 'c9',
+          companionName: '',
+          breed: 'Cat',
+          profileImage: 'http://cat.pic',
+        },
+      ],
+    };
+    mockState.coParent.coParents = [mixedCoParent];
+
+    const {getByText} = render(
+      <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    expect(getByText('Caring for Buddy')).toBeTruthy();
+  });
+
+  it('renders no hero subtitle when there are no companions', () => {
+    const noCompanionsCoParent = {...mockCoParent, companions: []};
+    mockState.coParent.coParents = [noCompanionsCoParent];
+
+    const {getAllByText, queryByText} = render(
+      <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    expect(getAllByText('John Doe').length).toBeGreaterThan(0);
+    expect(queryByText(/Caring for/)).toBeNull();
+    expect(queryByText('Companion details')).toBeNull();
+  });
+
+  it('falls back on missing names and phone when sending an invite', async () => {
+    const nullFieldsCoParent = {
+      ...mockCoParent,
+      firstName: null,
+      lastName: null,
+      phoneNumber: null,
+    };
+    mockState.coParent.coParents = [nullFieldsCoParent];
+
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
@@ -497,8 +645,34 @@ describe('CoParentProfileScreen', () => {
 
     expect(mockActions.addCoParent).toHaveBeenCalledWith(
       expect.objectContaining({
-        inviteRequest: expect.objectContaining({companionId: 'prop-id'}),
+        inviteRequest: expect.objectContaining({
+          candidateName: 'john@example.com',
+          phoneNumber: '',
+        }),
       }),
     );
+  });
+
+  it('shows "Sending..." title while the invite request is in flight', async () => {
+    let resolvePending: (value?: unknown) => void = () => {};
+    mockUnwrap.mockReturnValueOnce(
+      new Promise(resolve => {
+        resolvePending = resolve;
+      }),
+    );
+
+    const {getByTestId, getByText} = render(
+      <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getByTestId('send-invite-btn'));
+    });
+
+    expect(getByText('Sending...')).toBeTruthy();
+
+    await act(async () => {
+      resolvePending({});
+    });
   });
 });

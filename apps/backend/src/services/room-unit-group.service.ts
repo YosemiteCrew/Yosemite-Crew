@@ -43,9 +43,12 @@ type RoomUnitGroupDelegate = {
     };
   }): Promise<RoomUnitGroupRow>;
   findUnique(args: { where: { id: string } }): Promise<RoomUnitGroupRow | null>;
+  findFirst(args: {
+    where: { id: string; organisationId: string };
+  }): Promise<RoomUnitGroupRow | null>;
   findMany(args: {
     where: {
-      organisationId?: string;
+      organisationId: string;
       roomId?: string;
       isActive?: boolean;
     };
@@ -193,12 +196,17 @@ export const RoomUnitGroupService = {
 
   async update(
     id: string,
+    organisationIdInput: string,
     input: Partial<RoomUnitGroup>,
   ): Promise<RoomUnitGroup> {
     try {
       const groupId = requireString(id, "groupId");
-      const current = await getRoomUnitGroupDelegate().findUnique({
-        where: { id: groupId },
+      const organisationId = requireString(
+        organisationIdInput,
+        "organisationId",
+      );
+      const current = await getRoomUnitGroupDelegate().findFirst({
+        where: { id: groupId, organisationId },
       });
 
       if (!current) {
@@ -206,7 +214,7 @@ export const RoomUnitGroupService = {
       }
 
       const roomId = optionalNonEmptyString(input.roomId) ?? current.roomId;
-      await assertRoomExists(roomId, current.organisationId);
+      await assertRoomExists(roomId, organisationId);
 
       const unitCount =
         input.unitCount == null
@@ -261,13 +269,13 @@ export const RoomUnitGroupService = {
   },
 
   async list(filters: {
-    organisationId?: string;
+    organisationId: string;
     roomId?: string;
     isActive?: boolean;
   }): Promise<RoomUnitGroup[]> {
     const rows = await getRoomUnitGroupDelegate().findMany({
       where: {
-        organisationId: normalizeOptionalString(filters.organisationId),
+        organisationId: requireString(filters.organisationId, "organisationId"),
         roomId: normalizeOptionalString(filters.roomId),
         isActive: filters.isActive,
       },
@@ -277,8 +285,12 @@ export const RoomUnitGroupService = {
     return rows.map(toDomain);
   },
 
-  async delete(id: string, organisationId?: string): Promise<RoomUnitGroup> {
+  async delete(
+    id: string,
+    organisationIdInput: string,
+  ): Promise<RoomUnitGroup> {
     const groupId = requireString(id, "groupId");
+    const organisationId = requireString(organisationIdInput, "organisationId");
     const existing = await getRoomUnitGroupDelegate().findUnique({
       where: { id: groupId },
     });
@@ -287,7 +299,7 @@ export const RoomUnitGroupService = {
       throw new RoomUnitGroupServiceError("Room unit group not found.", 404);
     }
 
-    if (organisationId && existing.organisationId !== organisationId) {
+    if (existing.organisationId !== organisationId) {
       throw new RoomUnitGroupServiceError("Room organisation mismatch.", 409);
     }
 

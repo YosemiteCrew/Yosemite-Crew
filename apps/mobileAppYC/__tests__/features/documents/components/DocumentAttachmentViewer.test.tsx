@@ -56,6 +56,7 @@ jest.mock('react-native-pdf', () => {
 
 jest.mock('react-native-fs', () => ({
   mkdir: jest.fn(() => Promise.resolve()),
+  copyFile: jest.fn(() => Promise.resolve()),
   downloadFile: jest.fn(() => ({
     promise: Promise.resolve(),
   })),
@@ -204,16 +205,16 @@ describe('DocumentAttachmentViewer', () => {
       fireEvent.press(getAllByLabelText('Download attachment')[0]);
     });
 
-    expect(RNFS.mkdir).toHaveBeenCalledWith('/downloads');
+    expect(RNFS.mkdir).toHaveBeenCalledWith('/documents/Downloads');
     expect(RNFS.downloadFile).toHaveBeenCalledWith(
       expect.objectContaining({
         fromUrl: 'http://test.com/test.pdf',
-        toFile: '/downloads/test.pdf',
+        toFile: '/documents/Downloads/test.pdf',
       }),
     );
     expect(alertSpy).toHaveBeenCalledWith(
       'Download complete',
-      expect.stringContaining('/downloads/test.pdf'),
+      expect.stringContaining('/documents/Downloads/test.pdf'),
     );
   });
 
@@ -302,7 +303,7 @@ describe('DocumentAttachmentViewer', () => {
     expect(RNFS.downloadFile).not.toHaveBeenCalled();
   });
 
-  it('requests storage permission on legacy android and stops when denied', async () => {
+  it('does not request storage permission on legacy android (app-scoped storage needs none)', async () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       value: 'android',
@@ -311,9 +312,6 @@ describe('DocumentAttachmentViewer', () => {
       configurable: true,
       value: 30,
     });
-    (PermissionsAndroid.request as jest.Mock).mockResolvedValueOnce(
-      PermissionsAndroid.RESULTS.DENIED,
-    );
 
     const {getAllByLabelText} = render(
       <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
@@ -323,19 +321,34 @@ describe('DocumentAttachmentViewer', () => {
       fireEvent.press(getAllByLabelText('Download attachment')[0]);
     });
 
-    expect(PermissionsAndroid.request).toHaveBeenCalledWith(
-      PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+    expect(PermissionsAndroid.request).not.toHaveBeenCalled();
+    expect(RNFS.mkdir).toHaveBeenCalledWith('/documents/Downloads');
+    expect(RNFS.downloadFile).toHaveBeenCalledWith(
+      expect.objectContaining({toFile: '/documents/Downloads/test.pdf'}),
     );
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Permission needed',
-      'Please grant storage permission to download files.',
+  });
+
+  it('copies (not downloads) a local file:// source uri', async () => {
+    jest
+      .spyOn(AttachmentUtils, 'resolveSourceUri')
+      .mockReturnValue('file:///storage/emulated/0/picked.pdf');
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(RNFS.copyFile).toHaveBeenCalledWith(
+      'file:///storage/emulated/0/picked.pdf',
+      '/documents/Downloads/test.pdf',
     );
     expect(RNFS.downloadFile).not.toHaveBeenCalled();
   });
 
-  it('falls back to document directory and inferred extension when downloading unknown file types', async () => {
-    (RNFS as any).DownloadDirectoryPath = undefined;
-
+  it('falls back to inferred extension when downloading unknown file types', async () => {
     const {getAllByLabelText} = render(
       <DocumentAttachmentViewer
         attachments={[
@@ -353,10 +366,10 @@ describe('DocumentAttachmentViewer', () => {
       fireEvent.press(getAllByLabelText('Download attachment')[0]);
     });
 
-    expect(RNFS.mkdir).toHaveBeenCalledWith('/documents');
+    expect(RNFS.mkdir).toHaveBeenCalledWith('/documents/Downloads');
     expect(RNFS.downloadFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        toFile: '/documents/folder_report.custom-type',
+        toFile: '/documents/Downloads/folder_report.custom-type',
       }),
     );
   });
@@ -391,7 +404,7 @@ describe('DocumentAttachmentViewer', () => {
     expect(PermissionsAndroid.request).not.toHaveBeenCalled();
     expect(RNFS.downloadFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        toFile: '/downloads/document.bin',
+        toFile: '/documents/Downloads/document.bin',
       }),
     );
   });

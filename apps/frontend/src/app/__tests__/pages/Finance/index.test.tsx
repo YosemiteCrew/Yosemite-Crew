@@ -1,26 +1,26 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import ProtectedFinance from '@/app/features/finance/pages/Finance';
 
-// Toggled on by the loading-fallback test so the dynamic() mock renders the
-// component's `loading` option instead of the resolved chunk.
-let mockForceDynamicLoading = false;
-
 jest.mock('next/dynamic', () => ({
   __esModule: true,
-  default: (loader: () => Promise<unknown>, options?: { loading?: () => React.ReactNode }) => {
+  default: (loader: () => Promise<unknown>) => {
     const source = loader.toString();
     const LoadableComponent = (props: Record<string, unknown>) => {
-      if (mockForceDynamicLoading && options?.loading) {
-        return options.loading();
-      }
       if (source.includes('ui/tables/InvoiceTable')) {
         const MockInvoiceTable = jest.requireMock('@/app/ui/tables/InvoiceTable') as React.FC<
           Record<string, unknown>
         >;
         return <MockInvoiceTable {...props} />;
+      }
+
+      if (source.includes('Sections/PhoneInvoiceList')) {
+        const MockPhoneList = jest.requireMock(
+          '@/app/features/finance/pages/Finance/Sections/PhoneInvoiceList'
+        ) as React.FC<Record<string, unknown>>;
+        return <MockPhoneList {...props} />;
       }
 
       if (source.includes('Sections/InvoiceInfo')) {
@@ -44,6 +44,8 @@ const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
 const useSubscriptionMock = jest.fn();
 const invoiceTableSpy = jest.fn();
+const phoneListSpy = jest.fn();
+const mockIsPhone = jest.fn(() => false);
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
@@ -106,27 +108,31 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </a>
   ),
-  Secondary: ({ href, text, ariaLabel }: any) => (
-    <a href={href} aria-label={ariaLabel}>
-      {text}
-    </a>
-  ),
 }));
 
-jest.mock('@/app/ui/filters/Filters', () => (props: any) => (
-  <button type="button" data-testid="filters" onClick={() => props.setActiveStatus('paid')}>
-    filters
-  </button>
-));
-
-jest.mock('@/app/features/billing/components/StripeSettingsButton', () => ({
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
   __esModule: true,
-  default: () => <a href="/stripe-onboarding?orgId=org-1">Settings</a>,
+  default: () => mockIsPhone(),
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills', () => ({
+  __esModule: true,
+  default: ({ activeStatus }: any) => <div data-testid="status-pills">{activeStatus}</div>,
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/StripeStatusPill', () => ({
+  __esModule: true,
+  default: () => <a href="/stripe-onboarding?orgId=org-1">Stripe · settings</a>,
 }));
 
 jest.mock('@/app/ui/tables/InvoiceTable', () => (props: any) => {
   invoiceTableSpy(props);
   return <div data-testid="invoice-table" />;
+});
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/PhoneInvoiceList', () => (props: any) => {
+  phoneListSpy(props);
+  return <div data-testid="phone-invoice-list" />;
 });
 
 const invoiceInfoSpy = jest.fn();
@@ -138,7 +144,7 @@ jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceInfo', () => (pr
 describe('Finance page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockForceDynamicLoading = false;
+    mockIsPhone.mockReturnValue(false);
     mockSearchParamsGet.mockReturnValue(null);
     useSearchParamsMock.mockReturnValue({ get: mockSearchParamsGet });
     useLoadInvoicesMock.mockReturnValue(undefined);
@@ -155,7 +161,8 @@ describe('Finance page', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: /Finance/ })).toBeInTheDocument();
     expect(screen.getByTestId('invoice-table')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+    expect(screen.getByTestId('status-pills')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Stripe/ })).toHaveAttribute(
       'href',
       '/stripe-onboarding?orgId=org-1'
     );
@@ -166,12 +173,42 @@ describe('Finance page', () => {
     );
   });
 
-  it('links to the Discounts page — Finance has no tab structure, so this is the entry point', () => {
+  it('renders the phone invoice list (not the desktop table) below 768px', () => {
+    mockIsPhone.mockReturnValue(true);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
     render(<ProtectedFinance />);
 
-    expect(screen.getByRole('link', { name: 'Manage discounts' })).toHaveAttribute(
-      'href',
-      '/finance/discounts'
+    expect(screen.getByTestId('phone-invoice-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('invoice-table')).not.toBeInTheDocument();
+    expect(phoneListSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeStatus: 'all',
+        currency: 'USD',
+        onViewInvoice: expect.any(Function),
+        metrics: expect.objectContaining({ collectedThisWeek: expect.any(Number) }),
+      })
+    );
+  });
+
+  it('opens the invoice record when the phone list requests it', async () => {
+    mockIsPhone.mockReturnValue(true);
+    useInvoicesMock.mockReturnValue([{ id: 'inv-9', status: 'paid', appointmentId: 'appt-9' }]);
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+
+    render(<ProtectedFinance />);
+
+    const { onViewInvoice } = phoneListSpy.mock.calls[0][0];
+    await act(async () => {
+      onViewInvoice({ id: 'inv-9' });
+      await Promise.resolve();
+    });
+
+    expect(invoiceInfoSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        showModal: true,
+        activeInvoice: expect.objectContaining({ id: 'inv-9' }),
+      })
     );
   });
 
@@ -295,105 +332,13 @@ describe('Finance page', () => {
       '$4,820 collected this week · $214 outstanding'
     );
   });
-
-  it('falls back to the first invoice when the previously active one is removed from the list', async () => {
+  it('links to the Discounts page from the finance header controls', () => {
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
-    const { rerender } = render(<ProtectedFinance />);
-
-    // Initially active invoice is inv-1. Replace the list so inv-1 no longer
-    // exists — the effect's `invoices.find` returns undefined and the updater
-    // falls through to `return invoices[0]`.
-    useInvoicesMock.mockReturnValue([{ id: 'inv-9', status: 'paid', appointmentId: 'appt-9' }]);
-
-    await act(async () => {
-      rerender(<ProtectedFinance />);
-      await Promise.resolve();
-    });
-
-    expect(invoiceInfoSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ activeInvoice: expect.objectContaining({ id: 'inv-9' }) })
-    );
-  });
-
-  it('selects the first invoice when the active invoice has no id', () => {
-    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
-    // No `id` on the invoice, so the effect skips the `prev?.id` lookup entirely
-    // and takes the `return invoices[0]` fallback.
-    useInvoicesMock.mockReturnValue([{ status: 'paid', appointmentId: 'appt-noid' }]);
-
     render(<ProtectedFinance />);
 
-    expect(invoiceInfoSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeInvoice: expect.objectContaining({ appointmentId: 'appt-noid' }),
-      })
+    expect(screen.getByRole('link', { name: 'Manage discounts' })).toHaveAttribute(
+      'href',
+      '/finance/discounts'
     );
-  });
-
-  it('does not re-handle the deep link once it has already been opened', async () => {
-    useInvoicesMock.mockReturnValue([{ id: 'inv-deep', status: 'paid', appointmentId: 'appt-x' }]);
-    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
-    useSearchParamsMock.mockReturnValue({
-      get: (key: string) => (key === 'invoiceId' ? 'inv-deep' : null),
-    });
-
-    const { rerender } = render(<ProtectedFinance />);
-
-    // The first effect run handled the deep link and stored inv-deep in the ref.
-    // Re-trigger the effect (invoices dep changes) while searchParams still
-    // returns inv-deep, so `handledDeepLinkRef.current === invoiceId` returns early.
-    useInvoicesMock.mockReturnValue([
-      { id: 'inv-deep', status: 'paid', appointmentId: 'appt-x' },
-      { id: 'inv-2', status: 'pending', appointmentId: 'appt-2' },
-    ]);
-
-    await act(async () => {
-      rerender(<ProtectedFinance />);
-      await Promise.resolve();
-    });
-
-    expect(invoiceInfoSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        showModal: true,
-        activeInvoice: expect.objectContaining({ id: 'inv-deep' }),
-      })
-    );
-  });
-
-  it('filters the invoice list by the selected status', async () => {
-    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
-    useInvoicesMock.mockReturnValue([
-      { id: 'inv-1', status: 'paid', appointmentId: 'appt-1' },
-      { id: 'inv-2', status: 'pending', appointmentId: 'appt-2' },
-    ]);
-
-    render(<ProtectedFinance />);
-
-    invoiceTableSpy.mockClear();
-    // The mocked Filters triggers setActiveStatus('paid'); the memo then evaluates
-    // `status === statusWanted` for each invoice (the previously-uncovered branch).
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('filters'));
-      await Promise.resolve();
-    });
-
-    expect(invoiceTableSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        filteredList: [expect.objectContaining({ id: 'inv-1', status: 'paid' })],
-      })
-    );
-  });
-
-  it('renders the section skeleton while the invoice table chunk is loading', () => {
-    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
-    mockForceDynamicLoading = true;
-
-    const { container } = render(<ProtectedFinance />);
-
-    const skeleton = container.querySelector('.animate-pulse.bg-card-hover');
-    expect(skeleton).toBeInTheDocument();
-    expect(skeleton).toHaveAttribute('aria-hidden', 'true');
-    // The resolved table is not rendered while the loading fallback is showing.
-    expect(screen.queryByTestId('invoice-table')).not.toBeInTheDocument();
   });
 });

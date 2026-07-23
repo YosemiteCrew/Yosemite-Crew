@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoCaretDown } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
@@ -9,6 +9,7 @@ import {
   toStatusLabel,
 } from '@/app/lib/appointments';
 import { getStatusStyle } from '@/app/config/statusConfig';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
 import type { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 
@@ -21,20 +22,6 @@ type AppointmentStatusPillProps = {
   /** Keeps the open menu anchored to a scroll/hover container. */
   registerAnchorEl?: (el: HTMLElement | null) => () => void;
 };
-
-// Colours only — typography + shape come from the `.text-caption-3` DS
-// micro-badge class and the shared pill utility classes below.
-const basePillStyle = (style: ReturnType<typeof getStatusStyle>): React.CSSProperties => ({
-  backgroundColor: style.backgroundColor,
-  color: style.color,
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  borderColor: style.borderColor,
-});
-
-// DS status micro-badge: ALL-CAPS 10px/700/0.08em, pad 4px 10px, fully round.
-const PILL_CLASS =
-  'text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 whitespace-nowrap';
 
 /**
  * Shared appointment status pill. Renders a static badge, or — when the status
@@ -63,11 +50,6 @@ const AppointmentStatusPill = ({
     !isRequestedLikeStatus(appointment.status) &&
     canShowStatusChangeAction(appointment.status) &&
     allowedTransitions.length > 0;
-
-  const triggerStyle = useMemo<React.CSSProperties>(
-    () => ({ ...basePillStyle(statusStyle), opacity: saving ? 0.6 : 1 }),
-    [statusStyle, saving]
-  );
 
   const positionMenu = () => {
     if (!triggerRef.current) return;
@@ -124,9 +106,7 @@ const AppointmentStatusPill = ({
 
   if (!canChange) {
     return (
-      <span className={PILL_CLASS} style={basePillStyle(statusStyle)}>
-        {toStatusLabel(appointment.status)}
-      </span>
+      <StatusPill style={statusStyle} label={toStatusLabel(appointment.status)} className="w-fit" />
     );
   }
 
@@ -142,13 +122,20 @@ const AppointmentStatusPill = ({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
-        className={PILL_CLASS}
-        style={triggerStyle}
+        className="w-fit rounded-full!"
+        style={{ opacity: saving ? 0.6 : 1 }}
       >
-        <span>{saving ? 'Saving…' : toStatusLabel(appointment.status)}</span>
-        <IoCaretDown
-          size={8}
-          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        <StatusPill
+          style={statusStyle}
+          label={
+            <>
+              <span>{saving ? 'Saving…' : toStatusLabel(appointment.status)}</span>
+              <IoCaretDown
+                size={8}
+                className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              />
+            </>
+          }
         />
       </button>
 

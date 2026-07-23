@@ -3,13 +3,16 @@ import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import {
   IoBulbOutline,
+  IoCalendarClearOutline,
   IoCartOutline,
+  IoChevronDownOutline,
   IoCubeOutline,
   IoTrendingDownOutline,
   IoTrendingUpOutline,
 } from 'react-icons/io5';
 import { useDashboardAnalytics } from '@/app/features/dashboard/hooks/useDashboardAnalytics';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   InventoryItem,
   InventoryTurnoverItem,
@@ -39,6 +42,7 @@ type TurnoverAnalyticsProps = {
   inventory: InventoryItem[];
   setActiveView: (view: InventoryView) => void;
   onReorder: (item: InventoryItem) => void;
+  onViewHistory: (item: InventoryItem) => void;
 };
 
 const SEGMENTS: { key: InventoryView; label: string }[] = [
@@ -49,6 +53,10 @@ const SEGMENTS: { key: InventoryView; label: string }[] = [
 
 const cardClass =
   'rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03)]';
+// The wide chart / detail cards sit on the ambient two-layer lift; the KPI
+// mini-cards keep the single tight layer.
+const largeCardClass =
+  'rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
 const kpiCardClass = `${cardClass} flex flex-col gap-[3px] px-4 py-3.5`;
 const kpiLabelClass = 'text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]';
 const kpiValueClass = 'text-[22px] font-bold tracking-[-0.02em] tabular-nums text-[var(--ink)]';
@@ -115,8 +123,10 @@ const SubNav = ({ setActiveView }: { setActiveView: (view: InventoryView) => voi
         })}
       </div>
     </div>
-    <span className="rounded-full border border-[var(--hairline)] px-3.5 py-[7px] text-[12px] font-semibold text-[var(--ink-muted)]">
+    <span className="flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3.5 py-[7px] text-[12px] font-semibold text-[var(--ink-muted)]">
+      <IoCalendarClearOutline size={12} aria-hidden="true" />
       2026 · year to date
+      <IoChevronDownOutline size={12} aria-hidden="true" />
     </span>
   </div>
 );
@@ -147,7 +157,7 @@ const KpiCards = ({
       <span className={kpiLabelClass}>Annual turnover</span>
       <span className={kpiValueClass}>{formatTurns(annualTurnover)}</span>
       {annualDelta !== null ? (
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-[var(--success-text)]">
+        <span className="flex items-center gap-1 text-[11px] font-semibold text-[var(--success)]">
           {annualDelta >= 0 ? (
             <IoTrendingUpOutline size={12} aria-hidden="true" />
           ) : (
@@ -186,7 +196,7 @@ const KpiCards = ({
 );
 
 const MonthChart = ({ monthly }: { monthly: MonthlyTurnover }) => (
-  <div className={`${cardClass} flex flex-col gap-3 px-5 pb-3.5 pt-4`}>
+  <div className={`${largeCardClass} flex flex-col gap-3 px-5 pb-3.5 pt-4`}>
     <div className="flex items-center justify-between">
       <span className="text-[14px] font-bold text-[var(--ink)]">Turnover by month</span>
       <span className="flex items-center gap-3 text-[11px] text-[var(--ink-faint)]">
@@ -255,38 +265,47 @@ const AbcTable = ({ rows, onSelectClass }: AbcTableProps) => (
         No ABC-classified products yet
       </div>
     ) : (
-      rows.map((row) => (
-        <button
-          key={row.label}
-          type="button"
-          onClick={() => onSelectClass(row.label)}
-          className="grid grid-cols-[44px_1fr_auto] items-center gap-3 border-t border-[var(--hairline)] px-[18px] py-2.5 text-left text-[12.5px] transition-colors hover:bg-[var(--inset)] sm:grid-cols-[64px_1fr_120px_110px_110px]"
-        >
-          <span
-            className={`flex size-[30px] items-center justify-center rounded-[9px] font-extrabold ${abcTileClass[row.label]}`}
+      <>
+        <div className="hidden grid-cols-[64px_1fr_130px_120px_110px] gap-2.5 bg-[var(--screen-2)] px-[18px] py-[9px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)] sm:grid">
+          <span>Class</span>
+          <span>Share of value</span>
+          <span>Products</span>
+          <span>Turnover</span>
+          <span>Policy</span>
+        </div>
+        {rows.map((row) => (
+          <button
+            key={row.label}
+            type="button"
+            onClick={() => onSelectClass(row.label)}
+            className="grid grid-cols-[44px_1fr_auto] items-center gap-2.5 border-t border-[var(--hairline)] px-[18px] py-2.5 text-left text-[12.5px] transition-colors hover:bg-[var(--inset)] sm:grid-cols-[64px_1fr_130px_120px_110px]"
           >
-            {row.label.replace('Class ', '')}
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="h-[7px] flex-1 overflow-hidden rounded-full bg-[var(--inset)]">
-              <span
-                className="block h-full bg-[var(--blue)]"
-                style={{ width: `${Math.min(100, row.sharePercent)}%` }}
-              />
+            <span
+              className={`flex size-[30px] items-center justify-center rounded-[9px] font-extrabold ${abcTileClass[row.label]}`}
+            >
+              {row.label.replace('Class ', '')}
             </span>
-            <span className="font-bold tabular-nums text-[var(--ink)]">
-              {Math.round(row.sharePercent)}%
+            <span className="flex items-center gap-2">
+              <span className="h-[7px] flex-1 overflow-hidden rounded-full bg-[var(--inset)]">
+                <span
+                  className="block h-full bg-[var(--blue)]"
+                  style={{ width: `${Math.min(100, row.sharePercent)}%` }}
+                />
+              </span>
+              <span className="font-bold tabular-nums text-[var(--ink)]">
+                {Math.round(row.sharePercent)}%
+              </span>
             </span>
-          </span>
-          <span className="tabular-nums text-[var(--ink-muted)]">{row.count} products</span>
-          <span className="hidden font-bold tabular-nums text-[var(--ink)] sm:block">
-            {formatTurns(row.turns)}
-          </span>
-          <span className="hidden text-[11.5px] text-[var(--ink-muted)] sm:block">
-            {row.policy}
-          </span>
-        </button>
-      ))
+            <span className="tabular-nums text-[var(--ink-muted)]">{row.count} products</span>
+            <span className="hidden font-bold tabular-nums text-[var(--ink)] sm:block">
+              {formatTurns(row.turns)}
+            </span>
+            <span className="hidden text-[11.5px] text-[var(--ink-muted)] sm:block">
+              {row.policy}
+            </span>
+          </button>
+        ))}
+      </>
     )}
   </div>
 );
@@ -297,9 +316,18 @@ type ProductPanelProps = {
   onReorder: () => void;
 };
 
-const ProductDetailPanel = ({ panel, reorderLabel, onReorder }: ProductPanelProps) => (
+type ProductDetailPanelProps = ProductPanelProps & {
+  onHistory: () => void;
+};
+
+const ProductDetailPanel = ({
+  panel,
+  reorderLabel,
+  onReorder,
+  onHistory,
+}: ProductDetailPanelProps) => (
   <div
-    className={`${cardClass} flex w-full flex-col overflow-hidden xl:max-w-[380px] xl:flex-1`}
+    className={`${largeCardClass} flex w-full flex-col overflow-hidden xl:max-w-[380px] xl:flex-1`}
     data-testid="product-panel"
   >
     <div className="flex items-center justify-between border-b border-[var(--hairline)] px-[18px] pb-3 pt-3.5">
@@ -307,11 +335,7 @@ const ProductDetailPanel = ({ panel, reorderLabel, onReorder }: ProductPanelProp
         <span className="text-[14px] font-bold text-[var(--ink)]">{panel.name}</span>
         <span className="text-[11px] text-[var(--ink-faint)]">{panel.subtitle}</span>
       </span>
-      {panel.isLowStock && (
-        <span className="inline-flex items-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-2.5 py-[3px] text-[9.5px] font-bold text-[var(--danger-text)]">
-          LOW STOCK
-        </span>
-      )}
+      {panel.isLowStock && <StatusPill label="LOW STOCK" tone="danger" />}
     </div>
     <div className="flex flex-col gap-3 px-[18px] py-3.5">
       <div className="grid grid-cols-2 gap-2.5">
@@ -357,6 +381,13 @@ const ProductDetailPanel = ({ panel, reorderLabel, onReorder }: ProductPanelProp
         <IoCartOutline size={14} aria-hidden="true" />
         {reorderLabel}
       </button>
+      <button
+        type="button"
+        onClick={onHistory}
+        className="flex h-10 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] px-[15px] text-[12px] font-semibold text-[var(--ink-body)]"
+      >
+        History
+      </button>
     </div>
   </div>
 );
@@ -400,6 +431,7 @@ const TurnoverAnalytics = ({
   inventory,
   setActiveView,
   onReorder,
+  onViewHistory,
 }: TurnoverAnalyticsProps) => {
   const analytics = useDashboardAnalytics('last_1_year');
   const isPhone = useIsPhone();
@@ -464,6 +496,10 @@ const TurnoverAnalytics = ({
     if (selectedProduct) onReorder(selectedProduct);
   };
 
+  const handleHistory = () => {
+    if (selectedProduct) onViewHistory(selectedProduct);
+  };
+
   const reorderLabel =
     panel?.suggestedOrder != null ? `Reorder ${panel.suggestedOrder}` : 'Reorder';
 
@@ -489,7 +525,12 @@ const TurnoverAnalytics = ({
         </div>
 
         {panel && !isPhone && (
-          <ProductDetailPanel panel={panel} reorderLabel={reorderLabel} onReorder={handleReorder} />
+          <ProductDetailPanel
+            panel={panel}
+            reorderLabel={reorderLabel}
+            onReorder={handleReorder}
+            onHistory={handleHistory}
+          />
         )}
       </div>
 

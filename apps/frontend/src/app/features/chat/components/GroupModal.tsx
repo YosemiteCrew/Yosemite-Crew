@@ -11,13 +11,12 @@
 import { type FC } from 'react';
 import type { Channel as StreamChannel } from 'stream-chat';
 import { IoIosAddCircleOutline } from 'react-icons/io';
-import { IoTrash } from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
-import { Badge } from '@/app/ui';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { ChatAvatar } from './ChatAvatar';
 
 export type OrgUserOption = {
@@ -53,6 +52,8 @@ export interface GroupModalProps {
   onRemoveMember: (userId: string) => Promise<void>;
   onDelete: () => Promise<void>;
 }
+
+const TITLE_ID = 'chat-group-modal-title';
 
 /** Resolves whether the current user may modify the group (creator in edit mode). */
 function resolveIsCreator(
@@ -163,17 +164,24 @@ export const GroupModal: FC<GroupModalProps> = ({
   };
 
   return (
-    <Modal showModal={open} setShowModal={() => undefined} onClose={handleClose}>
+    <Modal
+      showModal={open}
+      setShowModal={() => undefined}
+      onClose={handleClose}
+      size="md"
+      aria-labelledby={TITLE_ID}
+    >
       <div className="flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between">
-          <div className="text-body-1 text-text-primary">
-            {mode === 'create' ? 'Create group' : `Group chat · ${placeholder.trim() || 'group'}`}
-          </div>
-          <Close onClick={handleClose} />
-        </div>
+        <ModalHeader
+          title={
+            mode === 'create' ? 'Create group' : `Group chat · ${placeholder.trim() || 'group'}`
+          }
+          onClose={handleClose}
+          titleId={TITLE_ID}
+        />
 
         <div className="flex-1 flex flex-col overflow-hidden gap-6">
-          <div className="flex-1 overflow-y-auto flex flex-col gap-6 pt-1 scrollbar-hidden pr-1 px-3">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-6 pt-1 scrollbar-hidden pr-1">
             {(mode === 'create' || isCreator) && (
               <div className="flex flex-col gap-3">
                 <FormInput
@@ -216,19 +224,26 @@ export const GroupModal: FC<GroupModalProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {mode === 'edit' && m.id === ownerId && <Badge tone="brand">Owner</Badge>}
+                        {/* Design (group chat modal): the owner marker is a soft-blue
+                            pill, not the solid brand badge. */}
+                        {mode === 'edit' && m.id === ownerId && (
+                          <span className="inline-flex items-center rounded-full border border-[var(--hairline)] bg-[var(--blue-soft)] px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[var(--blue-text)]">
+                            Owner
+                          </span>
+                        )}
+                        {/* Design: an inline "Remove" text link, not a trash icon. */}
                         {isCreator && m.id !== ownerId && (
                           <button
                             type="button"
                             aria-label={`Remove ${m.name} from group`}
                             onClick={() => handleRemoveMemberClick(m.id)}
                             disabled={busy}
-                            className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${
+                            className={`rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-[var(--danger-text)] transition-all duration-200 hover:bg-chat-surface-soft ${
                               busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                             }`}
                             title="Remove member"
                           >
-                            <IoTrash size={20} color="var(--color-danger-600)" />
+                            Remove
                           </button>
                         )}
                       </div>
@@ -307,22 +322,24 @@ export const GroupModal: FC<GroupModalProps> = ({
             )}
           </div>
 
-          <div className="flex justify-center gap-3 pb-1 px-3">
-            {mode === 'create' && (
+          {mode === 'create' && (
+            <ModalFooter align="stretch">
               <Primary
                 text={busy ? 'Creating...' : 'Create Group'}
                 onClick={handleCreate}
                 isDisabled={busy || !title.trim() || members.length === 0}
               />
-            )}
-            {mode === 'edit' && isCreator && (
+            </ModalFooter>
+          )}
+          {mode === 'edit' && isCreator && (
+            <ModalFooter align="stretch">
               <Delete
                 text={busy ? 'Deleting...' : 'Delete Group'}
                 onClick={onDelete}
                 isDisabled={busy}
               />
-            )}
-          </div>
+            </ModalFooter>
+          )}
         </div>
       </div>
     </Modal>

@@ -177,6 +177,31 @@ describe('DispensaryTable', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
+  it('formats Requested/Dispensed timestamps in the viewer local timezone (never forced UTC)', () => {
+    const dateSpy = jest.spyOn(Date.prototype, 'toLocaleDateString');
+    const timeSpy = jest.spyOn(Date.prototype, 'toLocaleTimeString');
+    const record = { ...baseRecord, timeDispensed: '2026-06-30T15:29:25.223Z' };
+
+    render(<DispensaryTable filteredList={[record]} />);
+
+    // Both the date and time formatters must run for the rendered timestamps...
+    expect(dateSpy).toHaveBeenCalled();
+    expect(timeSpy).toHaveBeenCalled();
+    // ...and must format in the viewer's OWN resolved timezone rather than a
+    // hardcoded literal (the #1879 bug pinned every viewer to 'UTC'). When the
+    // runner itself is in UTC (e.g. CI) the resolved zone is legitimately 'UTC';
+    // what matters is that the passed zone equals the viewer's resolved zone,
+    // never a constant. A wrong hardcoded zone would differ on a non-UTC runner.
+    const viewerZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    for (const [, options] of [...dateSpy.mock.calls, ...timeSpy.mock.calls]) {
+      const zone = (options as Intl.DateTimeFormatOptions | undefined)?.timeZone;
+      expect(zone).toBe(viewerZone);
+    }
+
+    dateSpy.mockRestore();
+    timeSpy.mockRestore();
+  });
+
   it('applies the success color class when timeDispensed is present', () => {
     const record = { ...baseRecord, timeDispensed: '2026-06-30T15:29:25.223Z' };
     const { container } = render(<DispensaryTable filteredList={[record]} />);
@@ -200,7 +225,7 @@ describe('DispensaryTable', () => {
     const pager = () => tableBranch(container);
 
     expect(pager().getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
-    expect(pager().getByText('1 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 1')).toHaveAttribute('aria-current', 'page');
 
     const prev = pager().getByRole('button', { name: 'Previous' });
     const next = pager().getByRole('button', { name: 'Next' });
@@ -209,7 +234,7 @@ describe('DispensaryTable', () => {
 
     fireEvent.click(next);
     expect(pager().getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
-    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
     expect(pager().getByRole('button', { name: 'Next' })).toBeDisabled();
     // The card branch is the only one visible below 1023 — it must page in step.
     expect(cardBranch(container).getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
@@ -227,7 +252,7 @@ describe('DispensaryTable', () => {
 
     const { rerender, container } = render(<DispensaryTable filteredList={many} />);
     fireEvent.click(tableBranch(container).getByRole('button', { name: 'Next' }));
-    expect(tableBranch(container).getByText('2 / 2')).toBeInTheDocument();
+    expect(tableBranch(container).getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
 
     rerender(<DispensaryTable filteredList={[baseRecord]} />);
     expect(tableBranch(container).getByText('Showing 1–1 of 1 requests')).toBeInTheDocument();

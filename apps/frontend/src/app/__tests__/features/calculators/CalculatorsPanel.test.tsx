@@ -9,16 +9,19 @@ jest.mock('@/app/stores/companionStore', () => ({
 
 type Record = { type?: string; currentWeight?: number };
 
-const mockCompanion = (record: Record | undefined) => {
+const mockCompanion = (record: Record | undefined, id = 'c1') => {
   (useCompanionStore as unknown as jest.Mock).mockImplementation(
     (selector: (s: unknown) => unknown) =>
-      selector({ companionsById: record ? { c1: record } : {} })
+      selector({ companionsById: record ? { [id]: record } : {} })
   );
 };
 
-const appointment = {
-  companion: { id: 'c1', name: 'Doggy', species: 'Canine', parent: { id: 'p1', name: 'Owner' } },
-} as unknown as Appointment;
+const appointmentFor = (id: string, name: string) =>
+  ({
+    companion: { id, name, species: 'Canine', parent: { id: 'p1', name: 'Owner' } },
+  }) as unknown as Appointment;
+
+const appointment = appointmentFor('c1', 'Doggy');
 
 describe('CalculatorsPanel', () => {
   it('pre-fills weight (converted to kg) and species from the patient', () => {
@@ -53,5 +56,31 @@ describe('CalculatorsPanel', () => {
     render(<CalculatorsPanel appointment={appointment} />);
 
     expect(screen.queryByText(/Pre-filled from/i)).not.toBeInTheDocument();
+  });
+
+  it('does not keep the previous patient values when the patient changes', () => {
+    // The panel survives a patient change (the side action is global state) and the
+    // calculator form seeds its inputs from props on mount only — a stale weight here
+    // would be a dosing hazard.
+    mockCompanion({ type: 'dog', currentWeight: 15 });
+    const { rerender } = render(<CalculatorsPanel appointment={appointment} />);
+    expect(screen.getByLabelText('Weight (kg)')).toHaveValue(6.8);
+
+    mockCompanion({ type: 'dog', currentWeight: 30 }, 'c2');
+    rerender(<CalculatorsPanel appointment={appointmentFor('c2', 'Rex')} />);
+
+    expect(screen.getByText(/Pre-filled from Rex: 30 lbs \(13\.61 kg\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Weight (kg)')).toHaveValue(13.61);
+  });
+
+  it('applies the pre-fill once the companion record hydrates', () => {
+    mockCompanion(undefined);
+    const { rerender } = render(<CalculatorsPanel appointment={appointment} />);
+    expect(screen.getByLabelText('Weight (kg)')).toHaveValue(null);
+
+    mockCompanion({ type: 'dog', currentWeight: 15 });
+    rerender(<CalculatorsPanel appointment={appointment} />);
+
+    expect(screen.getByLabelText('Weight (kg)')).toHaveValue(6.8);
   });
 });

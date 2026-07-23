@@ -60,21 +60,21 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
     >
       <button
         aria-pressed="false"
-        class="rounded-full! px-3 py-[5px] text-[11.5px] transition-colors cursor-pointer font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        class="rounded-full! px-[13px] py-[5px] text-[11.5px] transition-colors cursor-pointer font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]"
         type="button"
       >
         Day
       </button>
       <button
         aria-pressed="false"
-        class="rounded-full! px-3 py-[5px] text-[11.5px] transition-colors cursor-pointer font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        class="rounded-full! px-[13px] py-[5px] text-[11.5px] transition-colors cursor-pointer font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]"
         type="button"
       >
         Week
       </button>
       <button
         aria-pressed="true"
-        class="rounded-full! px-3 py-[5px] text-[11.5px] transition-colors cursor-pointer bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]"
+        class="rounded-full! px-[13px] py-[5px] text-[11.5px] transition-colors cursor-pointer bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]"
         type="button"
       >
         Month

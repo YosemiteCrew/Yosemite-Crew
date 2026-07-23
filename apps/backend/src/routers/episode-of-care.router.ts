@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { requireWebAuth } from "src/middlewares/auth";
-import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  withCaseOrgPermissions,
+  withOrgPermissions,
+} from "src/middlewares/rbac";
 import { CaseController } from "src/controllers/web/case-encounter.controller";
 
 const router = Router();
@@ -16,7 +20,7 @@ router.post(
 router.patch(
   "/:id",
   requireWebAuth,
-  withOrgPermissions(),
+  withCaseOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CaseController.update,
 );
@@ -24,7 +28,7 @@ router.patch(
 router.get(
   "/:id",
   requireWebAuth,
-  withOrgPermissions(),
+  withCaseOrgPermissions(),
   requirePermission("appointments:view:any"),
   CaseController.getById,
 );

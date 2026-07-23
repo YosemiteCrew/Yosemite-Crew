@@ -19,54 +19,41 @@ const formatStamp = (iso?: string): string => {
 };
 
 /**
- * Ready-for-Billing / Ready-for-Discharge toggle. Unselected = neutral pill +
- * empty checkbox; selected = green pill + check, with the acting employee's
- * name and timestamp shown below.
+ * Ready-for-Billing / Ready-for-Discharge toggle. A bare 18px checkbox plus its
+ * label — unchecked is a hairline box on muted ink; checked fills the box with
+ * the success green and appends the acting employee + timestamp inline
+ * ("Ready for billing · Dr. Weber 09:14").
  */
 const ReadyToggle = ({ label, state, disabled = false, onToggle }: ReadyToggleProps) => {
   const checked = state.value;
   const showStamp = checked && Boolean(state.byName || state.at);
+  const stampParts = [state.byName ?? 'Clinical team', formatStamp(state.at)].filter(Boolean);
 
   return (
-    // The stamp sits in normal flow below the pill (not absolutely positioned) so the toggle
-    // reserves its own height — at any screen width the two-line stamp can never overlap the
-    // adjacent row/button. `min-w-44` keeps room for the two-line stamp.
-    <div className="flex min-w-44 flex-col gap-1">
-      <button
-        type="button"
-        aria-pressed={checked}
-        disabled={disabled}
-        onClick={onToggle}
-        className={`flex h-8 items-center gap-2 rounded-2xl px-3 leading-[120%] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60 ${
-          checked
-            ? 'border border-transparent bg-pill-success-bg text-pill-success-text'
-            : 'border border-neutral-300 bg-neutral-100 text-neutral-700'
-        }`}
+    <button
+      type="button"
+      aria-pressed={checked}
+      disabled={disabled}
+      onClick={onToggle}
+      className="flex items-center gap-[7px] text-left text-[12.5px] font-semibold leading-[120%] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60"
+      style={{ color: checked ? 'var(--success)' : 'var(--ink-muted)' }}
+    >
+      <span
+        aria-hidden="true"
+        className="flex size-[18px] shrink-0 items-center justify-center rounded-[6px] border-[1.5px] transition-colors duration-150"
+        style={{
+          background: checked ? 'var(--success)' : 'transparent',
+          borderColor: checked ? 'var(--success)' : 'var(--divider)',
+          color: '#ffffff',
+        }}
       >
-        <span
-          aria-hidden="true"
-          className={`flex size-4 items-center justify-center rounded-sm border transition-colors duration-150 ${
-            checked
-              ? 'border-pill-success-text bg-pill-success-text text-neutral-0'
-              : 'border-neutral-400'
-          }`}
-        >
-          {checked && <IoCheckmarkOutline size={9} />}
-        </span>
-        <span className="text-body-4 font-medium">{label}</span>
-      </button>
-      {/* Stamp below the pill (normal flow) — reserves height so it never overlaps the next row. */}
-      {showStamp && (
-        <div className="flex flex-col items-start px-3 leading-[120%]">
-          <span className="text-[12px] font-bold text-neutral-900">
-            By {state.byName ?? 'Clinical team'}
-          </span>
-          {state.at && (
-            <span className="text-[12px] font-medium text-text-brand">{formatStamp(state.at)}</span>
-          )}
-        </div>
-      )}
-    </div>
+        {checked && <IoCheckmarkOutline size={12} />}
+      </span>
+      <span>
+        {label}
+        {showStamp ? ` · ${stampParts.join(' ')}` : ''}
+      </span>
+    </button>
   );
 };
 

@@ -144,4 +144,25 @@ describe('middleware', () => {
       })
     );
   });
+
+  it.each([
+    '/signin',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email',
+    '/payment-status',
+    '/developers/signin',
+    '/developers/signup',
+  ])('serves %s with a nonce CSP instead of unsafe-inline scripts', (pathname) => {
+    const response = middleware(createRequest(pathname)) as ReturnType<typeof createResponse>;
+    const nextOptions = mockNext.mock.calls[0][0];
+    const requestHeaders = nextOptions.request.headers as Headers;
+    const csp = response.headers.get('Content-Security-Policy') ?? '';
+    const scriptSrc = csp.split('; ').find((directive) => directive.startsWith('script-src'));
+
+    expect(requestHeaders.get('x-nonce')).toBe('fixed-nonce');
+    expect(scriptSrc).toContain("'nonce-fixed-nonce'");
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+  });
 });

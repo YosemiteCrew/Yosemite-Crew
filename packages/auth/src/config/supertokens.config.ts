@@ -138,6 +138,22 @@ function buildThirdPartyProviders(): ProviderInput[] {
     });
   }
 
+  if (process.env.AUTH_GITHUB_CLIENT_ID) {
+    // Powers the developer "Continue with GitHub" button. SuperTokens ships a
+    // built-in GitHub provider; the frontend gate is NEXT_PUBLIC_AUTH_GITHUB_ENABLED.
+    providers.push({
+      config: {
+        thirdPartyId: 'github',
+        clients: [
+          {
+            clientId: requireEnv('AUTH_GITHUB_CLIENT_ID'),
+            clientSecret: process.env.AUTH_GITHUB_CLIENT_SECRET,
+          },
+        ],
+      },
+    });
+  }
+
   return providers;
 }
 

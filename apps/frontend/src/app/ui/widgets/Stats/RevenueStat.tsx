@@ -22,6 +22,11 @@ const RevenueStat = () => {
     : (durationOptions[0] ?? 'Last week');
   if (effectiveDuration !== selectedDuration) setSelectedDuration(effectiveDuration);
 
+  /* The design surfaces the period total in success green beside the card title.
+     There is no period-over-period delta in the analytics payload, so only the
+     total is shown. */
+  const periodTotal = analytics.charts.revenue.reduce((sum, point) => sum + point.Revenue, 0);
+
   return (
     <div className="flex flex-col gap-2">
       <CardHeader
@@ -34,12 +39,21 @@ const RevenueStat = () => {
         data={analytics.charts.revenue}
         isEmpty={analytics.emptyState.revenueChart}
         keys={[{ name: 'Revenue', color: 'var(--blue)' }]}
+        hideKeys
         yTickFormatter={(value) => formatMoney(value, currency)}
-        yAxisWidth={48}
-        barSize={16}
-        xAxisLabel="Time"
-        yAxisLabel="Revenue"
+        chartHeight={150}
+        hideYAxis
+        barSize={22}
         compactMonthAxis={selectedDuration === 'Last month'}
+        headerContent={
+          periodTotal > 0 ? (
+            <div className="flex w-full justify-end">
+              <span className="text-[12px] font-semibold text-[var(--success)]">
+                {formatMoney(periodTotal, currency)}
+              </span>
+            </div>
+          ) : null
+        }
       />
     </div>
   );

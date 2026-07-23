@@ -3,9 +3,20 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InventoryTable from '@/app/ui/tables/InventoryTable';
 
+const mockAllowedImageHosts = new Set(['cdn.example.com']);
+
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, src }: any) => React.createElement('img', { alt, src }),
+  default: ({ alt, src }: any) => {
+    // Real next/image throws for any host missing from next.config's allowlist.
+    const { hostname } = new URL(src);
+    if (!mockAllowedImageHosts.has(hostname)) {
+      throw new Error(
+        `Invalid src prop (${src}) on \`next/image\`, hostname "${hostname}" is not configured under images in your next.config.js`
+      );
+    }
+    return React.createElement('img', { alt, src });
+  },
 }));
 
 // Auto-stub every io5 icon so any icon the source imports (and the pagination
@@ -29,10 +40,20 @@ jest.mock(
     )
 );
 
+// Mirrors the real pair: bare s3 keys resolve to the org CDN, while a full https
+// URL is passed straight through whatever its host.
+jest.mock('@/app/constants/mediaSources', () => ({
+  MEDIA_SOURCES: {
+    organization: { fromS3Key: (key: string) => `https://cdn.example.com/${key}` },
+  },
+}));
+
 jest.mock('@/app/lib/urls', () => ({
-  getSafeOrgImageUrl: jest.fn((src: string) =>
-    typeof src === 'string' && src.startsWith('inventory/') ? `https://cdn.example.com/${src}` : ''
-  ),
+  getSafeOrgImageUrl: jest.fn((src: string) => {
+    if (typeof src !== 'string' || !src) return '';
+    if (/^https:\/\/.+/i.test(src)) return src;
+    return `https://cdn.example.com/${src}`;
+  }),
 }));
 
 jest.mock('@/app/ui/cards/InventoryCard', () => ({
@@ -82,6 +103,7 @@ describe('InventoryTable', () => {
     },
     stock: {
       current: 2,
+      available: 4,
       stockLocation: 'Shelf A',
     },
     pricing: {
@@ -115,7 +137,9 @@ describe('InventoryTable', () => {
     expect(screen.getAllByText('Vaccine').length).toBeGreaterThan(0);
     // The rest of the columns only render in the desktop card-table.
     expect(screen.getByText('Medicine')).toBeInTheDocument();
-    expect(screen.getByText('2 units')).toBeInTheDocument();
+    // On hand + available render with the abbreviated unit ("u").
+    expect(screen.getByText('2 u')).toBeInTheDocument();
+    expect(screen.getByText('4 u')).toBeInTheDocument();
     expect(screen.getByText('$ 5')).toBeInTheDocument();
     expect(screen.getByText('$ 10')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
@@ -197,7 +221,7 @@ describe('InventoryTable', () => {
     fireEvent.click(restockBtn);
     expect(onRestock).toHaveBeenCalledWith(item);
     // A healthy item keeps the neutral (non-highlighted) restock treatment.
-    expect(restockBtn.className).toContain('border-card-border');
+    expect(restockBtn.className).toContain('grid-row-action');
   });
 
   it('exposes accessible labels for the action icons (tooltip triggers)', () => {
@@ -237,6 +261,30 @@ describe('InventoryTable', () => {
     );
   });
 
+  it('falls back to the category emoji when the image is on an unconfigured host', () => {
+    const itemWithForeignImage = {
+      ...item,
+      basicInfo: {
+        ...item.basicInfo,
+        imageUrl: 'https://images.example.org/not-allowlisted.png',
+      },
+    };
+
+    expect(() =>
+      render(
+        <InventoryTable
+          filteredList={[itemWithForeignImage]}
+          setActiveInventory={jest.fn()}
+          setViewInventory={jest.fn()}
+        />
+      )
+    ).not.toThrow();
+
+    expect(screen.queryByAltText('')).not.toBeInTheDocument();
+    // The mocked mobile card renders no emoji, so the fallback is unique to the desktop row.
+    expect(screen.getByText('💊')).toBeInTheDocument();
+  });
+
   it('resolves the image from the top-level imageUrl when basicInfo lacks one', () => {
     const topImg = makeItem({ imageUrl: 'inventory/top.jpg' });
 
@@ -266,8 +314,8 @@ describe('InventoryTable', () => {
     );
 
     expect(screen.getByText('Expired')).toBeInTheDocument();
-    // The expiry cell switches to the danger colour only for expired rows.
-    expect(container.querySelector('.text-\\[var\\(--color-danger-600\\)\\]')).toBeInTheDocument();
+    // The expiry cell switches to the theme-aware danger ink only for expired rows.
+    expect(container.querySelector('.cell-ink-danger')).toBeInTheDocument();
   });
 
   it('applies low-stock styling and the restock highlight when the status is low stock', () => {
@@ -284,13 +332,47 @@ describe('InventoryTable', () => {
     );
 
     expect(screen.getByText('Low stock')).toBeInTheDocument();
-    // The available column emphasises low stock with the warning colour.
-    expect(
-      container.querySelector('.text-\\[var\\(--color-pill-warning-text\\)\\]')
-    ).toBeInTheDocument();
+    // The available column emphasises low stock with the amber warn ink.
+    expect(container.querySelector('.cell-ink-warn')).toBeInTheDocument();
     // The restock button gains the active-nav highlight for low-stock rows.
     const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
     expect(restockBtn.className).toContain('bg-[var(--nav-active-bg)]');
+  });
+
+  it('abbreviates box units as "bx" when the product name reads as a box', () => {
+    const boxed = makeItem({ basicInfo: { name: 'Vaccine box' } });
+
+    render(
+      <InventoryTable
+        filteredList={[boxed]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('2 bx')).toBeInTheDocument();
+    expect(screen.getByText('4 bx')).toBeInTheDocument();
+  });
+
+  it('keeps an accurate restock action for expired rows (no disposal workflow)', () => {
+    const onRestock = jest.fn();
+    const expiredItem = makeItem({ basicInfo: { status: 'Expired' } });
+
+    render(
+      <InventoryTable
+        filteredList={[expiredItem]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+        onRestock={onRestock}
+      />
+    );
+
+    // The action never disposes stock, so it must not claim to; expired rows keep
+    // the restock label (their danger tint carries the "expired" signal instead).
+    expect(screen.queryByRole('button', { name: 'Dispose Vaccine' })).not.toBeInTheDocument();
+    const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
+    fireEvent.click(restockBtn);
+    expect(onRestock).toHaveBeenCalledWith(expiredItem);
   });
 
   it('renders the margin placeholder when the margin is undefined', () => {
@@ -480,7 +562,7 @@ describe('InventoryTable', () => {
     const pager = () => tableBranch(container);
 
     expect(pager().getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
-    expect(pager().getByText('1 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 1')).toHaveAttribute('aria-current', 'page');
 
     const prev = pager().getByRole('button', { name: 'Previous' });
     const next = pager().getByRole('button', { name: 'Next' });
@@ -489,7 +571,7 @@ describe('InventoryTable', () => {
 
     fireEvent.click(next);
     expect(pager().getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
-    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
     expect(pager().getByRole('button', { name: 'Next' })).toBeDisabled();
     // Paging is shared state: the card branch must land on the same short last page.
     expect(cardBranch(container).getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
@@ -512,7 +594,7 @@ describe('InventoryTable', () => {
     );
 
     fireEvent.click(tableBranch(container).getByRole('button', { name: 'Next' }));
-    expect(tableBranch(container).getByText('2 / 2')).toBeInTheDocument();
+    expect(tableBranch(container).getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
 
     rerender(
       <InventoryTable

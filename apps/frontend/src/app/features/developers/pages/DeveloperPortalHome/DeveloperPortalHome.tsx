@@ -6,6 +6,8 @@ import { Icon } from '@iconify/react';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useAuthStore } from '@/app/stores/authStore';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
+import PhoneDevHome from '@/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome';
 
 import './DeveloperPortalHome.css';
 import '@/app/features/organizations/styles/Organizations.css';
@@ -17,7 +19,7 @@ type QuickLink = {
   external?: boolean;
 };
 
-type ActivityEntry = {
+export type ActivityEntry = {
   method: string;
   path: string;
   status: string;
@@ -49,6 +51,7 @@ const RECENT_ACTIVITY: ActivityEntry[] = [
 
 const DeveloperPortalHome = () => {
   const { attributes } = useAuthStore();
+  const isPhone = useIsPhone();
 
   const displayName = useMemo(() => {
     const name = `${attributes?.given_name || ''} ${attributes?.family_name || ''}`.trim();
@@ -57,21 +60,26 @@ const DeveloperPortalHome = () => {
     return 'Developer';
   }, [attributes?.email, attributes?.family_name, attributes?.given_name]);
 
+  if (isPhone) {
+    return (
+      <DevRouteGuard>
+        <div className="OperationsWrapper">
+          <PhoneDevHome displayName={displayName} recentActivity={RECENT_ACTIVITY} />
+        </div>
+      </DevRouteGuard>
+    );
+  }
+
   return (
     <DevRouteGuard>
       <div className="OperationsWrapper">
         <div className="TitleContainer dev-home-head">
           <div className="dev-portal-intro">
             <h1 className="dev-greet-name text-text-primary font-newsreader">
-              <span
-                className="block text-body-2 italic-newsreader dev-greet-eyebrow"
-                style={{ color: 'var(--color-cyan-text)' }}
-              >
-                Welcome back,
-              </span>
+              <span className="block italic-newsreader dev-greet-eyebrow">Welcome back,</span>
               {displayName}
             </h1>
-            <p className="text-body-3 text-text-secondary dev-hero-subtext">
+            <p className="dev-hero-subtext">
               Build, customise, and launch apps for the animal health ecosystem
             </p>
           </div>
@@ -86,11 +94,11 @@ const DeveloperPortalHome = () => {
         <section className="DevPortalHome">
           <div className="dev-portal-hero">
             <div className="dev-hero-copy">
-              <span className="dev-badge text-caption-2">FHIR-NATIVE API</span>
+              <span className="dev-badge text-caption-3">FHIR-NATIVE API</span>
               <p className="dev-hero-headline text-text-primary">
                 One API for appointments, patients, and records. The same one the PIMS runs on.
               </p>
-              <p className="text-body-3 text-text-secondary dev-hero-subtext">
+              <p className="dev-hero-subtext">
                 Access APIs, SDKs, and starter templates. Ship a plugin to every clinic on the
                 platform, or build your own surface on top.
               </p>
@@ -128,8 +136,8 @@ const DeveloperPortalHome = () => {
           <div className="dev-portal-grid">
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h2 className="text-heading-3 text-text-primary">Quick links</h2>
-                <span className="dev-card-pill secondary text-caption-2">Resources</span>
+                <h2 className="dev-card-title">Quick links</h2>
+                <span className="dev-card-pill secondary text-caption-3">Resources</span>
               </div>
               <div className="dev-links">
                 {QUICK_LINKS.map((link) => {
@@ -152,18 +160,14 @@ const DeveloperPortalHome = () => {
                         href={link.href}
                         target="_blank"
                         rel="noreferrer"
-                        className="dev-link text-body-4-emphasis text-text-primary"
+                        className="dev-link"
                       >
                         {linkContent}
                       </a>
                     );
                   }
                   return (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="dev-link text-body-4-emphasis text-text-primary"
-                    >
+                    <Link key={link.href} href={link.href} className="dev-link">
                       {linkContent}
                     </Link>
                   );
@@ -173,26 +177,24 @@ const DeveloperPortalHome = () => {
 
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h2 className="text-heading-3 text-text-primary">Your plugin</h2>
-                <span className="dev-status-badge in-review text-caption-2">In review</span>
+                <h2 className="dev-card-title">Your plugin</h2>
+                <span className="dev-status-badge in-review text-caption-3">In review</span>
               </div>
               <div className="dev-plugin-row">
                 <span className="dev-plugin-icon" aria-hidden="true">
                   <Icon icon="ion:pulse-outline" width={18} height={18} />
                 </span>
                 <span className="dev-plugin-titles">
-                  <span className="dev-plugin-name text-body-4-emphasis text-text-primary">
-                    Anesthesia monitor sync
-                  </span>
+                  <span className="dev-plugin-name">Anesthesia monitor sync</span>
                   <span className="dev-plugin-meta text-caption-2 text-text-tertiary">
                     v0.4.1 · submitted 04 Jul
                   </span>
                 </span>
               </div>
-              <p className="text-body-4 text-text-secondary dev-plugin-desc">
+              <p className="dev-plugin-desc">
                 Streams vitals from Mindray monitors into the appointment workspace.
               </p>
-              <Link href="/developers/plugins" className="dev-card-action text-body-4-emphasis">
+              <Link href="/developers/plugins" className="dev-card-action">
                 Review status
                 <Icon icon="ion:arrow-forward" width={14} height={14} aria-hidden="true" />
               </Link>
@@ -200,13 +202,13 @@ const DeveloperPortalHome = () => {
 
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h2 className="text-heading-3 text-text-primary">Recent activity</h2>
-                <span className="dev-card-pill secondary text-caption-2">Sandbox</span>
+                <h2 className="dev-card-title">Recent activity</h2>
+                <span className="dev-card-pill secondary text-caption-3">Sandbox</span>
               </div>
               <ul className="dev-activity">
                 {RECENT_ACTIVITY.map((entry) => (
                   <li key={`${entry.method}-${entry.path}`}>
-                    <span className="dev-req-path text-body-4-emphasis text-text-primary">
+                    <span className="dev-req-path">
                       {entry.method} {entry.path}
                     </span>
                     <span className={`dev-req-status dev-tabular ${entry.ok ? 'ok' : 'err'}`}>

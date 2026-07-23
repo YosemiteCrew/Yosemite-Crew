@@ -1,4 +1,5 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
@@ -120,9 +121,7 @@ const Tasks = ({
       key: 'status',
       width: '130px',
       render: (item: Task) => (
-        <div className="appointment-status" style={getTaskStatusStyle(item.status)}>
-          {toTitleCase(item.status)}
-        </div>
+        <StatusPill style={getTaskStatusStyle(item.status)} label={toTitleCase(item.status)} />
       ),
     },
     {
@@ -137,7 +136,7 @@ const Tasks = ({
                 type="button"
                 onClick={() => handleViewTask(item)}
                 aria-label={`View task ${item.name}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                 title="View task"
               >
                 <IoEyeOutline size={18} color="var(--color-neutral-900)" />
@@ -149,7 +148,7 @@ const Tasks = ({
                   type="button"
                   onClick={() => handleChangeStatusTask(item)}
                   aria-label={`Change status for ${item.name}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
                   <IoSyncOutline size={18} color="var(--color-neutral-900)" />
@@ -162,7 +161,7 @@ const Tasks = ({
                   type="button"
                   onClick={() => handleRescheduleTask(item)}
                   aria-label={`Reschedule ${item.name}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                   title="Reschedule"
                 >
                   <IoIosCalendar size={18} color="var(--color-neutral-900)" />

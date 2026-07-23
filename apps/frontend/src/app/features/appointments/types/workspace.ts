@@ -280,6 +280,9 @@ export type PrescriptionItem = {
   billedAt?: string;
   /** Who finalized/charged the item (display only). */
   billedByName?: string;
+  /** True once the item is persisted as a finalized clinical record (status COMPLETED/SIGNED).
+   * A finalized row must not be re-POSTed on the next save - the backend rejects it with 409. */
+  finalized?: boolean;
 };
 
 /** Full employee + schedule task category set. */
@@ -351,6 +354,11 @@ export type InvoiceLineItem = {
   sourcePrescriptionId?: string;
   /** Inventory item of the source prescription, used to resolve the linked treatment-item delete. */
   sourceInventoryItemId?: string;
+  /**
+   * Source treatment row this bill line was seeded from. Two rows can share a
+   * name, so settlement matches on this rather than on the display name.
+   */
+  sourceServiceLineId?: string;
   /**
    * False for lines that must not be removed from the bill — e.g. the appointment's booked
    * service/consultation. Undefined/true means the line can be removed. Display-only.
@@ -439,6 +447,14 @@ export type AppointmentEncounter = {
   schedule: ScheduleTask[];
   roomId?: string;
   unitId?: string;
+  /**
+   * Real actual-start of the visit (`encounter.periodStart`), stamped by the
+   * backend when the encounter transitions to In Progress. Drives the "In room"
+   * visit timer for both outpatient and inpatient. Distinct from `admittedAt`
+   * (inpatient admission only); preferred over it so the timer starts as soon as
+   * the visit does, not only after an inpatient admission.
+   */
+  startedAt?: string;
   admittedAt?: string;
   dischargedAt?: string;
   invoiceLineItems: InvoiceLineItem[];

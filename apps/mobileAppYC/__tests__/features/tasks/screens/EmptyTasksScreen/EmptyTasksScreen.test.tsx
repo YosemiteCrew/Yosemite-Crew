@@ -1,63 +1,134 @@
 import React from 'react';
-import {render} from '@testing-library/react-native';
+import {render, fireEvent} from '@testing-library/react-native';
 // Path: 5 levels up from __tests__/features/tasks/screens/EmptyTasksScreen/ to project root
 import {EmptyTasksScreen} from '../../../../../src/features/tasks/screens/EmptyTasksScreen/EmptyTasksScreen';
-import {Images} from '@/assets/images';
+import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
-// 1. Mock Images
-jest.mock('@/assets/images', () => ({
-  Images: {
-    emptyDocuments: {uri: 'test-empty-image-uri'},
-  },
+const mockNavigate = jest.fn();
+const mockParentNavigate = jest.fn();
+
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// 2. Mock GenericEmptyScreen
-// We use a mock function to verify props passed to it
-const MockGenericEmptyScreen = jest.fn(
-  ({title, subtitle, headerTitle}: any) => {
-    const {View, Text} = require('react-native');
-    return (
-      <View testID="generic-empty-screen">
-        <Text>{headerTitle}</Text>
+const TASKS_TRANSLATIONS: Record<string, string> = {
+  'tasks.title': 'Tasks',
+  'tasks.emptyNoCompanionTitle': 'Add a companion to get started',
+  'tasks.emptyNoCompanionDescription':
+    'Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks.',
+  'tasks.emptyNoCompanionAction': 'Add a companion',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => TASKS_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    getParent: () => ({navigate: mockParentNavigate}),
+  }),
+}));
+
+jest.mock('@/shared/components/common/Header/Header', () => {
+  const {View, Text} = require('react-native');
+  return {
+    Header: ({title, showBackButton}: any) => (
+      <View testID="header">
         <Text>{title}</Text>
-        <Text>{subtitle}</Text>
+        {showBackButton ? <Text>Back</Text> : null}
       </View>
-    );
+    ),
+  };
+});
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children, containerStyle}: any) => (
+        <View testID="screen-layout" style={containerStyle}>
+          {header}
+          {typeof children === 'function' ? children({}) : children}
+        </View>
+      ),
+    };
   },
 );
 
-jest.mock('@/shared/screens/common/GenericEmptyScreen', () => ({
-  GenericEmptyScreen: (props: any) => MockGenericEmptyScreen(props),
-}));
-
 describe('EmptyTasksScreen', () => {
   beforeEach(() => {
-    MockGenericEmptyScreen.mockClear();
+    jest.clearAllMocks();
   });
 
-  it('renders correctly using GenericEmptyScreen', () => {
+  it('renders the warm-bone empty state with the design copy', () => {
+    const {getByText, getByTestId} = render(<EmptyTasksScreen />);
+
+    expect(getByText('Tasks')).toBeTruthy();
+    expect(getByTestId('empty-tasks')).toBeTruthy();
+    expect(getByText('Add a companion to get started')).toBeTruthy();
+    expect(
+      getByText(
+        'Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks.',
+      ),
+    ).toBeTruthy();
+    expect(getByText('Add a companion')).toBeTruthy();
+  });
+
+  it('does not render a back button (tab root)', () => {
+    const {queryByText} = render(<EmptyTasksScreen />);
+    expect(queryByText('Back')).toBeNull();
+  });
+
+  it('applies correct theme styles to components', () => {
     const {getByTestId, getByText} = render(<EmptyTasksScreen />);
 
-    // Verify the wrapper component is rendered
-    expect(getByTestId('generic-empty-screen')).toBeTruthy();
-
-    // Verify visible text content
-    expect(getByText('Tasks')).toBeTruthy(); // headerTitle
-    expect(getByText('No tasks yet!')).toBeTruthy(); // title
-
-    // Verify exact props passed to the component
-    // This ensures image, subtitle logic, and flags are correct
-    expect(MockGenericEmptyScreen).toHaveBeenCalledWith(
+    // Screen container background (warm screen token)
+    const screenLayout = getByTestId('screen-layout');
+    const layoutStyle = Array.isArray(screenLayout.props.style)
+      ? screenLayout.props.style.filter(Boolean)[0]
+      : screenLayout.props.style;
+    expect(layoutStyle).toEqual(
       expect.objectContaining({
-        headerTitle: 'Tasks',
-        emptyImage: Images.emptyDocuments,
-        title: 'No tasks yet!',
-        // Verify the raw string exactly as defined in the component
-        subtitle: String.raw`Add a companion first to start creating tasks\nfor their health, hygiene, and care!`,
-        showBackButton: false,
+        backgroundColor: mockTheme.colors.screen,
+        flex: 1,
       }),
     );
+
+    // Title styles (emptyStateTitle typography + ink color)
+    const title = getByText('Add a companion to get started');
+    expect(title.props.style).toEqual(
+      expect.objectContaining({
+        fontSize: mockTheme.typography.emptyStateTitle.fontSize,
+        color: mockTheme.colors.ink,
+        textAlign: 'center',
+      }),
+    );
+
+    // Description styles (muted ink, centered)
+    const description = getByText(
+      'Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks.',
+    );
+    expect(description.props.style).toEqual(
+      expect.objectContaining({
+        color: mockTheme.colors.inkMuted,
+        textAlign: 'center',
+      }),
+    );
+  });
+
+  it('navigates to add a companion when the CTA is pressed', () => {
+    const {getByTestId} = render(<EmptyTasksScreen />);
+
+    fireEvent.press(getByTestId('empty-tasks-action'));
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
+      screen: 'AddCompanion',
+    });
   });
 });

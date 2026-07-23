@@ -1,6 +1,7 @@
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
-import Close from '@/app/ui/primitives/Icons/Close';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { changeTaskStatus, updateTask } from '@/app/features/tasks/services/taskService';
 import { Task } from '@/app/features/tasks/types/task';
@@ -20,6 +21,7 @@ import {
   getInvalidTaskStatusTransitionMessage,
 } from '@/app/lib/tasks';
 import { useNotify } from '@/app/hooks/useNotify';
+import { formatDisplayDate } from '@/app/lib/date';
 import { useTaskEditMode } from './useTaskEditMode';
 import { useTaskInfoFields } from './useTaskInfoFields';
 
@@ -44,6 +46,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
   const [scopeBusy, setScopeBusy] = useState(false);
   const isCompletedTask = activeTask.status === 'COMPLETED';
   const effectiveEditMode = isCompletedTask ? ('NONE' as const) : editMode;
+  const dueDateLabel = formatDisplayDate(activeTask.dueAt);
   const {
     assigneeOptions,
     canChangeTaskStatus,
@@ -147,6 +150,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         name: values.name,
         description: values.description,
         category: values.category,
+        priority: (values.priority ?? activeTask.priority) as Task['priority'],
         assignedTo: resolveAssigneeId(),
         dueAt: nextDueAt,
         timezone: activeTask.timezone || getPreferredTimeZone(),
@@ -222,15 +226,14 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
 
   return (
     <>
-      <Modal showModal={showModal} setShowModal={setShowModal}>
+      <Modal showModal={showModal} setShowModal={setShowModal} size="md">
         <div className="flex flex-col h-full gap-6">
-          <div className="flex justify-between items-center">
-            <div className="size-8" aria-hidden="true" />
-            <div className="flex justify-center items-center gap-2">
-              <div className="text-body-1 text-text-primary">View task</div>
-            </div>
-            <Close onClick={() => setShowModal(false)} />
-          </div>
+          <ModalHeader
+            eyebrow="Task"
+            title={activeTask.name || 'View task'}
+            meta={`Due ${dueDateLabel}`}
+            onClose={() => setShowModal(false)}
+          />
           <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
             <div className="flex w-full flex-col gap-3">
               <EditableAccordion
@@ -254,14 +257,14 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
             </div>
           </div>
           {isCompletedTask && (
-            <div className="flex justify-end">
+            <ModalFooter>
               <Primary
                 href="#"
                 text={isReusing ? 'Reusing...' : 'Reuse task'}
                 className="w-auto min-w-35"
                 onClick={handleReuseTask}
               />
-            </div>
+            </ModalFooter>
           )}
         </div>
       </Modal>

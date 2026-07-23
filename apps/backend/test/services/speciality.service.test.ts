@@ -1,17 +1,10 @@
-import { Types } from "mongoose";
 import { SpecialityService } from "../../src/services/speciality.service";
-import SpecialityModel from "../../src/models/speciality";
-import UserModel from "../../src/models/user";
-import OrganizationModel from "../../src/models/organization";
 import { ServiceService } from "../../src/services/service.service";
 import * as EmailUtils from "../../src/utils/email";
 import logger from "../../src/utils/logger";
 import { prisma } from "src/config/prisma";
 
 // --- Mocks ---
-jest.mock("../../src/models/speciality");
-jest.mock("../../src/models/user");
-jest.mock("../../src/models/organization");
 jest.mock("../../src/services/service.service");
 jest.mock("../../src/utils/email");
 jest.mock("../../src/utils/logger");
@@ -21,11 +14,9 @@ jest.mock("src/config/prisma", () => ({
     speciality: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
-      deleteMany: jest.fn(),
-    },
-    organisationRoom: {
-      findMany: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
+      deleteMany: jest.fn(),
     },
     organisationRoomSpeciality: {
       deleteMany: jest.fn(),
@@ -48,28 +39,15 @@ jest.mock("@yosemite-crew/types", () => ({
   toSpecialityResponseDTO: jest.fn((domain) => domain),
 }));
 
-// --- Helper: Mongoose Chain Mock ---
-const mockChain = (result: any = null) => {
-  const chain = {
-    select: jest.fn().mockReturnThis(),
-    lean: jest.fn().mockResolvedValue(result),
-    sort: jest.fn().mockReturnThis(),
-    exec: jest.fn().mockResolvedValue(result),
-    then: (resolve: any) => Promise.resolve(result).then(resolve),
-  };
-  return chain as any;
-};
-
-// --- Helper: Mock Document ---
-const mockDoc = (data: any) => ({
-  ...data,
-  toObject: jest.fn(() => data),
-});
+const hexId = () =>
+  Array.from({ length: 24 }, () =>
+    Math.floor(Math.random() * 16).toString(16),
+  ).join("");
 
 const createPrismaSpeciality = (overrides: any = {}) => ({
-  id: new Types.ObjectId().toHexString(),
+  id: hexId(),
   fhirId: null,
-  organisationId: new Types.ObjectId().toHexString(),
+  organisationId: hexId(),
   departmentMasterId: null,
   name: "Cardiology",
   description: null,
@@ -84,91 +62,148 @@ const createPrismaSpeciality = (overrides: any = {}) => ({
 });
 
 describe("SpecialityService", () => {
-  let mockOrgId: Types.ObjectId;
-  let mockSpecId: Types.ObjectId;
+  let mockOrgId: string;
+  let mockSpecId: string;
   let validPayload: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockOrgId = new Types.ObjectId();
-    mockSpecId = new Types.ObjectId();
+    mockOrgId = hexId();
+    mockSpecId = hexId();
 
     validPayload = {
       resourceType: "Organization",
-      id: mockSpecId.toHexString(),
-      organisationId: mockOrgId.toHexString(),
+      id: mockSpecId,
+      organisationId: mockOrgId,
       name: "Cardiology",
       headUserId: "user-123",
       active: true,
     };
 
-    // Default Mongoose Mocks
-    (SpecialityModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
-    (SpecialityModel.find as jest.Mock).mockReturnValue(mockChain([]));
-    (SpecialityModel.create as jest.Mock).mockResolvedValue(
-      mockDoc({ ...validPayload, _id: mockSpecId }),
+    // Default Prisma mocks
+    (prisma.speciality.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.speciality.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.speciality.create as jest.Mock).mockResolvedValue(
+      createPrismaSpeciality({ id: mockSpecId, headUserId: null }),
     );
-    (OrganizationModel.findById as jest.Mock).mockReturnValue(
-      mockChain({ name: "Test Org" }),
+    (prisma.speciality.update as jest.Mock).mockResolvedValue(
+      createPrismaSpeciality({ id: mockSpecId, headUserId: null }),
     );
-    (UserModel.findOne as jest.Mock).mockReturnValue(
-      mockChain({ email: "doc@test.com", firstName: "Dr." }),
-    );
+    (prisma.speciality.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+    (
+      prisma.organisationRoomSpeciality.deleteMany as jest.Mock
+    ).mockResolvedValue({ count: 0 });
+    (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+      name: "Test Org",
+    });
+    (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+      email: "doc@test.com",
+      firstName: "Dr.",
+      lastName: "Who",
+    });
   });
 
-  describe("Postgres branches", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.speciality.findFirst as jest.Mock).mockReset();
-      (prisma.speciality.findMany as jest.Mock).mockReset();
-      (prisma.speciality.deleteMany as jest.Mock).mockReset();
-      (prisma.organisationRoom.findMany as jest.Mock).mockReset();
-      (prisma.organisationRoom.update as jest.Mock).mockReset();
-      (prisma.organisationRoomSpeciality.deleteMany as jest.Mock).mockReset();
-      (prisma.organization.findFirst as jest.Mock).mockReset();
-      (prisma.user.findFirst as jest.Mock).mockReset();
+  describe("Validation & Internals", () => {
+    it("should throw error for invalid FHIR resource type", async () => {
+      await expect(
+        SpecialityService.createOne({ resourceType: "Patient" } as any),
+      ).rejects.toThrow("Invalid payload. Expected FHIR Organization resource");
     });
 
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+    it("should throw error if Organization ID has invalid characters", async () => {
+      const invalid = { ...validPayload, organisationId: "invalid$id" };
+      await expect(SpecialityService.createOne(invalid)).rejects.toThrow(
+        "Invalid character in Organisation identifier",
+      );
     });
 
-    it("getById returns mapped speciality", async () => {
-      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
-        createPrismaSpeciality({
-          id: mockSpecId.toHexString(),
-          headUserId: "head-only",
-          memberUserIds: [],
-        }),
+    it("should throw error if Name is missing", async () => {
+      const invalid = { ...validPayload, name: null };
+      await expect(SpecialityService.createOne(invalid)).rejects.toThrow(
+        "Speciality name is required",
+      );
+    });
+
+    it("should handle nested pruning of arrays and objects", async () => {
+      const complexPayload = {
+        ...validPayload,
+        services: [undefined, "Service A", null],
+        metadata: { key: undefined, val: "B" },
+      };
+
+      await SpecialityService.createOne(complexPayload);
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.services).toEqual(["Service A"]);
+    });
+  });
+
+  describe("createOne", () => {
+    it("should create new speciality and return response", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.speciality.create as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId }),
       );
 
-      const res = (await SpecialityService.getById(
-        mockSpecId.toHexString(),
-      )) as any;
-      expect(res).not.toBeNull();
-      expect(res.teamMemberIds).toEqual(["head-only"]);
-      expect(prisma.speciality.findFirst).toHaveBeenCalled();
+      const res = await SpecialityService.createOne(validPayload);
+
+      expect(prisma.speciality.create).toHaveBeenCalled();
+      expect(res.created).toBe(true);
+      expect((res.response as any)._id).toBeDefined();
     });
 
-    it("getAllByOrganizationId returns mapped entries", async () => {
-      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
-        createPrismaSpeciality({ id: mockSpecId.toHexString() }),
-      ]);
-      (ServiceService.listBySpeciality as jest.Mock).mockResolvedValueOnce([
-        "Service A",
-      ]);
-
-      const res = await SpecialityService.getAllByOrganizationId(
-        mockOrgId.toHexString(),
+    it("should upsert existing speciality (Update by ID)", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockSpecId,
+        headUserId: "old-head",
+      });
+      (prisma.speciality.update as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "new-head" }),
       );
-      expect(res).toHaveLength(1);
-      expect(res[0].services).toEqual(["Service A"]);
+
+      const res = await SpecialityService.createOne(validPayload);
+
+      expect(prisma.speciality.update).toHaveBeenCalled();
+      expect(res.created).toBe(false);
     });
 
-    it("createOne sends email using prisma user/org data", async () => {
+    it("should trigger email if head user changes during creation", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.speciality.create as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "user-123" }),
+      );
+
+      await SpecialityService.createOne(validPayload);
+
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(EmailUtils.sendEmailTemplate).toHaveBeenCalledWith(
+        expect.objectContaining({ templateId: "specialityHeadAssigned" }),
+      );
+    });
+
+    it("should NOT trigger email if head user is same", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockSpecId,
+        headUserId: "user-123",
+      });
+      (prisma.speciality.update as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "user-123" }),
+      );
+
+      await SpecialityService.createOne(validPayload);
+
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(EmailUtils.sendEmailTemplate).not.toHaveBeenCalled();
+    });
+
+    it("sends email using prisma user/org data", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.speciality.create as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "user-123" }),
+      );
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
         name: "Test Org",
       });
@@ -187,100 +222,9 @@ describe("SpecialityService", () => {
     });
   });
 
-  describe("Validation & Internals", () => {
-    it("should throw error for invalid FHIR resource type", async () => {
-      await expect(
-        SpecialityService.createOne({ resourceType: "Patient" } as any),
-      ).rejects.toThrow("Invalid payload. Expected FHIR Organization resource");
-    });
-
-    it("should throw error if Organization ID is invalid", async () => {
-      // Use "invalid id" (space) to fail the regex AND not be a valid ObjectId
-      const invalid = { ...validPayload, organisationId: "invalid id" };
-      await expect(SpecialityService.createOne(invalid)).rejects.toThrow(
-        "Invalid organisation identifier format",
-      );
-    });
-
-    it("should throw error if Name is missing", async () => {
-      const invalid = { ...validPayload, name: null };
-      await expect(SpecialityService.createOne(invalid)).rejects.toThrow(
-        "Speciality name is required",
-      );
-    });
-
-    it("should handle nested pruning of arrays and objects", async () => {
-      const complexPayload = {
-        ...validPayload,
-        services: [undefined, "Service A", null],
-        metadata: { key: undefined, val: "B" },
-      };
-
-      const createSpy = SpecialityModel.create as jest.Mock;
-
-      await SpecialityService.createOne(complexPayload);
-
-      const persisted = createSpy.mock.calls[0][0];
-      expect(persisted.services).toEqual(["Service A"]);
-    });
-  });
-
-  describe("createOne", () => {
-    it("should create new speciality and return response", async () => {
-      const res = await SpecialityService.createOne(validPayload);
-
-      expect(SpecialityModel.create).toHaveBeenCalled();
-      expect(res.created).toBe(true);
-      expect((res.response as any)._id).toBeDefined();
-    });
-
-    it("should upsert existing speciality (Update by ID)", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ headUserId: "old-head" }),
-      );
-
-      (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, headUserId: "new-head", _id: mockSpecId }),
-      );
-
-      const res = await SpecialityService.createOne(validPayload);
-
-      expect(SpecialityModel.findOneAndUpdate).toHaveBeenCalled();
-      expect(res.created).toBe(false);
-    });
-
-    it("should trigger email if head user changes during creation", async () => {
-      await SpecialityService.createOne(validPayload);
-
-      await new Promise((resolve) => setImmediate(resolve));
-
-      expect(EmailUtils.sendEmailTemplate).toHaveBeenCalledWith(
-        expect.objectContaining({ templateId: "specialityHeadAssigned" }),
-      );
-    });
-
-    it("should NOT trigger email if head user is same", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ headUserId: "user-123" }),
-      );
-
-      (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, headUserId: "user-123", _id: mockSpecId }),
-      );
-
-      await SpecialityService.createOne(validPayload);
-
-      await new Promise((resolve) => setImmediate(resolve));
-      expect(EmailUtils.sendEmailTemplate).not.toHaveBeenCalled();
-    });
-  });
-
   describe("createMany", () => {
     it("should create multiple specialities", async () => {
-      const payloads = [
-        validPayload,
-        { ...validPayload, id: new Types.ObjectId().toHexString() },
-      ];
+      const payloads = [validPayload, { ...validPayload, id: hexId() }];
       const res = await SpecialityService.createMany(payloads);
       expect(res).toHaveLength(2);
     });
@@ -294,17 +238,15 @@ describe("SpecialityService", () => {
 
   describe("update", () => {
     it("should update existing speciality", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ headUserId: "old" }),
-      );
-      (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, _id: mockSpecId }),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockSpecId,
+        headUserId: "old",
+      });
+      (prisma.speciality.update as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId }),
       );
 
-      const res = await SpecialityService.update(
-        mockSpecId.toHexString(),
-        validPayload,
-      );
+      const res = await SpecialityService.update(mockSpecId, validPayload);
       expect(res).toBeDefined();
     });
 
@@ -314,51 +256,44 @@ describe("SpecialityService", () => {
         teamMemberIds: ["member-1", "member-2", "member-1"],
       };
 
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ headUserId: "old" }),
-      );
-      (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({
-          ...validPayload,
-          _id: mockSpecId,
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockSpecId,
+        headUserId: "old",
+      });
+      (prisma.speciality.update as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({
+          id: mockSpecId,
           memberUserIds: ["member-1", "member-2"],
         }),
       );
 
-      await SpecialityService.update(
-        mockSpecId.toHexString(),
-        payloadWithMembers as any,
-      );
+      await SpecialityService.update(mockSpecId, payloadWithMembers as any);
 
-      expect(SpecialityModel.findOneAndUpdate).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(prisma.speciality.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          $set: expect.objectContaining({
+          data: expect.objectContaining({
             memberUserIds: ["member-1", "member-2"],
           }),
         }),
-        expect.anything(),
       );
     });
 
     it("should return null if not found", async () => {
-      (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
-      const res = await SpecialityService.update(
-        mockSpecId.toHexString(),
-        validPayload,
-      );
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      const res = await SpecialityService.update(mockSpecId, validPayload);
       expect(res).toBeNull();
     });
 
     it("should trigger email on head change", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ headUserId: "old" }),
-      );
-      (SpecialityModel.findOneAndUpdate as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, headUserId: "new", _id: mockSpecId }),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockSpecId,
+        headUserId: "old",
+      });
+      (prisma.speciality.update as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "new" }),
       );
 
-      await SpecialityService.update(mockSpecId.toHexString(), validPayload);
+      await SpecialityService.update(mockSpecId, validPayload);
       await new Promise((resolve) => setImmediate(resolve));
 
       expect(EmailUtils.sendEmailTemplate).toHaveBeenCalled();
@@ -366,65 +301,55 @@ describe("SpecialityService", () => {
   });
 
   describe("getById", () => {
-    it("should resolve by Mongo ID", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc({ ...validPayload, _id: mockSpecId })),
+    it("should resolve by ID", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId }),
       );
-      const res = await SpecialityService.getById(mockSpecId.toHexString());
+      const res = await SpecialityService.getById(mockSpecId);
       expect(res).not.toBeNull();
     });
 
     it("should include the head user in team members when head is the only member", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(
-          mockDoc({
-            ...validPayload,
-            _id: mockSpecId,
-            headUserId: "head-only",
-            memberUserIds: [],
-          }),
-        ),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({
+          id: mockSpecId,
+          headUserId: "head-only",
+          memberUserIds: [],
+        }),
       );
 
-      const res = (await SpecialityService.getById(
-        mockSpecId.toHexString(),
-      )) as any;
+      const res = (await SpecialityService.getById(mockSpecId)) as any;
 
       expect(res).not.toBeNull();
       expect(res.teamMemberIds).toEqual(["head-only"]);
     });
 
     it("should not duplicate the head user in team members", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(
-          mockDoc({
-            ...validPayload,
-            _id: mockSpecId,
-            headUserId: "head-user",
-            memberUserIds: ["head-user", "member-2"],
-          }),
-        ),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({
+          id: mockSpecId,
+          headUserId: "head-user",
+          memberUserIds: ["head-user", "member-2"],
+        }),
       );
 
-      const res = (await SpecialityService.getById(
-        mockSpecId.toHexString(),
-      )) as any;
+      const res = (await SpecialityService.getById(mockSpecId)) as any;
 
       expect(res).not.toBeNull();
       expect(res.teamMemberIds).toEqual(["head-user", "member-2"]);
     });
 
     it("should resolve by FHIR ID (string)", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(mockDoc({ ...validPayload, _id: mockSpecId })),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, fhirId: "fhir-123" }),
       );
       const res = await SpecialityService.getById("fhir-123");
       expect(res).not.toBeNull();
     });
 
     it("should return null if not found", async () => {
-      (SpecialityModel.findOne as jest.Mock).mockReturnValue(mockChain(null));
-      const res = await SpecialityService.getById(mockSpecId.toHexString());
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      const res = await SpecialityService.getById(mockSpecId);
       expect(res).toBeNull();
     });
 
@@ -437,16 +362,14 @@ describe("SpecialityService", () => {
 
   describe("getAllByOrganizationId", () => {
     it("should aggregate specialities and services", async () => {
-      (SpecialityModel.find as jest.Mock).mockReturnValue(
-        mockChain([mockDoc({ ...validPayload, _id: mockSpecId })]),
-      );
-      (ServiceService.listBySpeciality as jest.Mock).mockResolvedValue([
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        createPrismaSpeciality({ id: mockSpecId }),
+      ]);
+      (ServiceService.listBySpeciality as jest.Mock).mockResolvedValueOnce([
         "Service A",
       ]);
 
-      const res = await SpecialityService.getAllByOrganizationId(
-        mockOrgId.toHexString(),
-      );
+      const res = await SpecialityService.getAllByOrganizationId(mockOrgId);
 
       expect(res).toHaveLength(1);
       expect(res[0].services).toEqual(["Service A"]);
@@ -455,72 +378,57 @@ describe("SpecialityService", () => {
 
   describe("Delete Operations", () => {
     it("deleteAllByOrganizationId should call deleteMany", async () => {
-      const exec = jest.fn();
-      (SpecialityModel.deleteMany as jest.Mock).mockReturnValue({ exec });
-
-      await SpecialityService.deleteAllByOrganizationId(
-        mockOrgId.toHexString(),
+      await SpecialityService.deleteAllByOrganizationId(mockOrgId);
+      expect(prisma.speciality.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organisationId: mockOrgId }),
+        }),
       );
-      expect(exec).toHaveBeenCalled();
     });
 
     it("deleteSpeciality should perform cascading delete", async () => {
-      (SpecialityModel.findOneAndDelete as jest.Mock).mockResolvedValue(
-        mockDoc({ _id: mockSpecId }),
-      );
-      (prisma.organisationRoom.findMany as jest.Mock).mockResolvedValue([
-        {
-          id: "room_1",
-          assignedSpecialiteis: [mockSpecId.toHexString()],
-        },
-      ]);
-      (prisma.organisationRoom.update as jest.Mock).mockResolvedValue({
-        id: "room_1",
-      });
-      (
-        prisma.organisationRoomSpeciality.deleteMany as jest.Mock
-      ).mockResolvedValue({
-        count: 1,
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: mockSpecId,
       });
 
-      await SpecialityService.deleteSpeciality(
-        mockSpecId.toHexString(),
-        mockOrgId.toHexString(),
-      );
+      await SpecialityService.deleteSpeciality(mockSpecId, mockOrgId);
 
       expect(ServiceService.deleteAllBySpecialityId).toHaveBeenCalledWith(
-        mockSpecId.toString(),
+        mockSpecId,
+      );
+      expect(prisma.speciality.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: mockSpecId }),
+        }),
       );
       expect(prisma.organisationRoomSpeciality.deleteMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            organisationId: mockOrgId.toHexString(),
-            specialityId: mockSpecId.toHexString(),
+            organisationId: mockOrgId,
+            specialityId: mockSpecId,
           }),
         }),
       );
     });
 
     it("deleteSpeciality should throw if not found", async () => {
-      (SpecialityModel.findOneAndDelete as jest.Mock).mockResolvedValue(null);
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
       await expect(
-        SpecialityService.deleteSpeciality(
-          mockSpecId.toHexString(),
-          mockOrgId.toHexString(),
-        ),
+        SpecialityService.deleteSpeciality(mockSpecId, mockOrgId),
       ).rejects.toThrow("Speciality not found for the organisation");
     });
   });
 
   describe("Email & Logger Edge Cases", () => {
     it("should log error if email sending fails", async () => {
-      (SpecialityModel.create as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, headUserId: "u1", _id: mockSpecId }),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.speciality.create as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "u1" }),
       );
-      (UserModel.findOne as jest.Mock).mockReturnValue({
-        lean: jest.fn().mockRejectedValue(new Error("Email Fail")),
-      });
+      (prisma.user.findFirst as jest.Mock).mockRejectedValueOnce(
+        new Error("Email Fail"),
+      );
 
       await SpecialityService.createOne(validPayload);
       await new Promise((resolve) => setImmediate(resolve));
@@ -529,12 +437,13 @@ describe("SpecialityService", () => {
     });
 
     it("should not send email if user has no email address", async () => {
-      (SpecialityModel.create as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, headUserId: "u1", _id: mockSpecId }),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.speciality.create as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "u1" }),
       );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ email: null }),
-      );
+      (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce({
+        email: null,
+      });
 
       await SpecialityService.createOne(validPayload);
       await new Promise((resolve) => setImmediate(resolve));
@@ -543,15 +452,14 @@ describe("SpecialityService", () => {
     });
 
     it("should handle missing organisation name gracefully in email", async () => {
-      (SpecialityModel.create as jest.Mock).mockResolvedValue(
-        mockDoc({ ...validPayload, headUserId: "u1", _id: mockSpecId }),
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.speciality.create as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({ id: mockSpecId, headUserId: "u1" }),
       );
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ email: "test@test.com" }),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce({
+        email: "test@test.com",
+      });
 
       await SpecialityService.createOne(validPayload);
       await new Promise((resolve) => setImmediate(resolve));

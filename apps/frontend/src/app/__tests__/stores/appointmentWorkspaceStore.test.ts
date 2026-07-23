@@ -1,4 +1,5 @@
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
+import type { LineItem } from '@/app/features/appointments/types/workspace';
 
 const APPT = 'appt-1';
 const getStore = () => useAppointmentWorkspaceStore.getState();
@@ -638,7 +639,7 @@ describe('appointmentWorkspaceStore', () => {
 
   it('adds and removes invoice line items', () => {
     seed();
-    getStore().addInvoiceLineItem(APPT, {
+    const returnedId = getStore().addInvoiceLineItem(APPT, {
       name: 'Bandage change',
       unitPriceCents: 6500,
       qty: 1,
@@ -648,6 +649,8 @@ describe('appointmentWorkspaceStore', () => {
     });
     const added = getStore().getEncounter(APPT)!.invoiceLineItems.at(-1)!;
     expect(added.name).toBe('Bandage change');
+    // The action returns the id it assigned so callers can link the line later.
+    expect(returnedId).toBe(added.id);
     getStore().removeInvoiceLineItem(APPT, added.id);
     expect(
       getStore()
@@ -735,6 +738,72 @@ describe('appointmentWorkspaceStore', () => {
     const after = getStore().getEncounter(APPT)!;
     expect(after.invoiceLineItems).toHaveLength(0);
     expect(after.pastInvoices).toHaveLength(pastCount);
+  });
+
+  it('marks only the billed treatment row when another row shares its name', () => {
+    seed();
+    const billed: LineItem = {
+      id: 'svc-billed',
+      refId: 'ref-1',
+      kind: 'SERVICE',
+      name: 'Wound Dressing',
+      qty: 1,
+      unitPriceCents: 5000,
+      amountCents: 5000,
+    };
+    const untouched: LineItem = { ...billed, id: 'svc-untouched' };
+    useAppointmentWorkspaceStore.setState((state) => ({
+      encountersById: {
+        ...state.encountersById,
+        [APPT]: { ...state.encountersById[APPT], services: [billed, untouched] },
+      },
+    }));
+    getStore().addInvoiceLineItem(APPT, {
+      name: 'Wound Dressing',
+      unitPriceCents: 5000,
+      qty: 1,
+      grossCents: 5000,
+      discountCents: 0,
+      amountCents: 5000,
+      sourceServiceLineId: 'svc-billed',
+    });
+
+    getStore().recordInvoicePayment(APPT, { method: 'CASH', byName: 'Front desk' });
+
+    const after = getStore().getEncounter(APPT)!;
+    expect(after.services.find((s) => s.id === 'svc-billed')?.billed).toBe(true);
+    expect(after.services.find((s) => s.id === 'svc-untouched')?.billed).toBeFalsy();
+  });
+
+  it('still settles a bill line seeded before source ids were recorded', () => {
+    seed();
+    const legacy: LineItem = {
+      id: 'svc-legacy',
+      refId: 'ref-2',
+      kind: 'SERVICE',
+      name: 'Nail Trim',
+      qty: 1,
+      unitPriceCents: 2000,
+      amountCents: 2000,
+    };
+    useAppointmentWorkspaceStore.setState((state) => ({
+      encountersById: {
+        ...state.encountersById,
+        [APPT]: { ...state.encountersById[APPT], services: [legacy] },
+      },
+    }));
+    getStore().addInvoiceLineItem(APPT, {
+      name: 'Nail Trim',
+      unitPriceCents: 2000,
+      qty: 1,
+      grossCents: 2000,
+      discountCents: 0,
+      amountCents: 2000,
+    });
+
+    getStore().recordInvoicePayment(APPT, { method: 'CASH', byName: 'Front desk' });
+
+    expect(getStore().getEncounter(APPT)!.services[0].billed).toBe(true);
   });
 
   it('reduces the deposit when payment is from the deposit', () => {
@@ -953,6 +1022,15 @@ describe('appointmentWorkspaceStore', () => {
     enc = getStore().getEncounter(APPT)!;
     expect(enc.mode).toBe('OUTPATIENT');
     expect(enc.consultationType).toBe('Outpatient');
+  });
+
+  it('merges startedAt and preserves it when a later patch omits it', () => {
+    seed();
+    getStore().mergeEncounterData(APPT, { startedAt: '2026-07-02T14:05:00.000Z' });
+    expect(getStore().getEncounter(APPT)!.startedAt).toBe('2026-07-02T14:05:00.000Z');
+    // A partial refresh without startedAt must not wipe the recorded start.
+    getStore().mergeEncounterData(APPT, { soapTemplates: [] });
+    expect(getStore().getEncounter(APPT)!.startedAt).toBe('2026-07-02T14:05:00.000Z');
   });
 
   it('applies capabilities alone without touching section locks', () => {

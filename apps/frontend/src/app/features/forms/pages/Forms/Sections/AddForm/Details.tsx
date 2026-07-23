@@ -240,11 +240,18 @@ const Details = ({
   // Category because it gates what the rest of the builder can do.
   const isYcDefault = formData.templateSource === 'YC_LIBRARY';
   const categoryOptions = useMemo(() => {
-    if (isYcDefault) {
-      return FormsCategoryOptions.filter((c) => YC_DEFAULT_CATEGORIES.has(c));
-    }
-    return getFormCategoryOptionsForOrgType(effectiveOrgType);
-  }, [effectiveOrgType, isYcDefault]);
+    const base = isYcDefault
+      ? FormsCategoryOptions.filter((c) => YC_DEFAULT_CATEGORIES.has(c))
+      : getFormCategoryOptionsForOrgType(effectiveOrgType);
+    // Keep the template's own saved category selectable so reopening an existing
+    // template always shows its value, even when that category is outside the
+    // current offering (YC-default templates list only the five curated
+    // categories; org-type gating hides the other families). The controlled
+    // LabelDropdown can only display a value that is present in its options.
+    return formData.category && !base.includes(formData.category)
+      ? [...base, formData.category]
+      : base;
+  }, [effectiveOrgType, isYcDefault, formData.category]);
 
   // Task / Inpatient-Schedule templates only apply to in-patient services & packages, so the
   // service/package picker is filtered to inpatient-preferred catalog items for those categories.
@@ -278,6 +285,13 @@ const Details = ({
           ? prev.templateSource
           : 'ORG_TEMPLATE',
       isTemplateBacked: false,
+      // Converting a shared YC-library template to Custom must produce a NEW
+      // org-owned copy; drop the library-backed identity so the save POSTs a
+      // copy instead of PATCHing the un-writable shared record (which 403s on
+      // publish with "Template does not belong to organisation"). Gated on the
+      // previous source being YC_LIBRARY so re-selecting Custom on an already
+      // org-owned template keeps its real id.
+      ...(prev.templateSource === 'YC_LIBRARY' ? { templateId: undefined, _id: undefined } : {}),
     }));
   };
 

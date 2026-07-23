@@ -1,11 +1,10 @@
 'use client';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo, useState } from 'react';
 import {
   IoCalendarOutline,
   IoCheckmarkDoneOutline,
+  IoChevronBackOutline,
   IoChevronForwardOutline,
-  IoEllipsisHorizontal,
   IoPersonOutline,
   IoReaderOutline,
   IoSwapHorizontalOutline,
@@ -24,6 +23,7 @@ import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import RowActionMenu, { RowMenuAction } from '@/app/ui/tables/RowActionMenu';
 
 import {
   getCompanionRowStatusColor,
@@ -134,144 +134,6 @@ const StatusDot = ({ status, className = '' }: { status?: string; className?: st
   </span>
 );
 
-type RowMenuAction = {
-  key: string;
-  label: string;
-  icon: React.ReactNode;
-  onSelect: () => void;
-};
-
-// Row kebab: a single overflow menu (Open overview / View profile / Book
-// appointment / Add task / Change status). Rendered through a portal so the
-// card's overflow:hidden never clips it. `onOpenChange` lets the row light up
-// while its menu is open, matching the design's active-row highlight.
-const RowMenu = ({
-  actions,
-  label,
-  onOpenChange,
-}: {
-  actions: RowMenuAction[];
-  label: string;
-  onOpenChange?: (open: boolean) => void;
-}) => {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [style, setStyle] = useState<React.CSSProperties | null>(null);
-
-  const changeOpen = useCallback(
-    (next: boolean) => {
-      setOpen(next);
-      onOpenChange?.(next);
-    },
-    [onOpenChange]
-  );
-
-  const position = useCallback(() => {
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const width = 224;
-    const left = Math.max(8, rect.right - width);
-    setStyle({ position: 'fixed', top: rect.bottom + 6, left, width, zIndex: 5000 });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setStyle(null);
-      return;
-    }
-    position();
-  }, [open, position]);
-
-  // Keep the latest close action in a ref so the dismiss listeners subscribe
-  // once per open (deps: [open]) instead of re-subscribing whenever the parent
-  // re-creates onOpenChange.
-  const closeMenuRef = useRef(() => changeOpen(false));
-  closeMenuRef.current = () => changeOpen(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const handlePointer = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
-      closeMenuRef.current();
-    };
-    const handleScroll = () => closeMenuRef.current();
-    document.addEventListener('mousedown', handlePointer);
-    globalThis.window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
-    globalThis.window.addEventListener('resize', handleScroll);
-    return () => {
-      document.removeEventListener('mousedown', handlePointer);
-      globalThis.window.removeEventListener('scroll', handleScroll, { capture: true });
-      globalThis.window.removeEventListener('resize', handleScroll);
-    };
-  }, [open]);
-
-  return (
-    <div className="flex justify-center">
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => changeOpen(!open)}
-        className={`flex size-7 items-center justify-center rounded-[9px] transition-colors ${
-          open
-            ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]'
-            : 'text-[var(--ink-faint)] hover:bg-[var(--surface-soft)] hover:text-text-primary'
-        }`}
-      >
-        <IoEllipsisHorizontal size={16} aria-hidden="true" />
-      </button>
-      {open && style && typeof document !== 'undefined'
-        ? createPortal(
-            <div
-              ref={panelRef}
-              role="menu"
-              style={style}
-              className="yc-glass-overlay flex flex-col gap-px rounded-[15px] p-[7px]"
-            >
-              {actions.map((action, index) => {
-                const dividerBefore = action.key === 'change-status' && index > 0;
-                const isPrimary = action.key === 'open-overview';
-                return (
-                  <React.Fragment key={action.key}>
-                    {dividerBefore ? (
-                      <span className="mx-2 my-1 h-px bg-[var(--hairline)]" aria-hidden="true" />
-                    ) : null}
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        action.onSelect();
-                        changeOpen(false);
-                      }}
-                      className={`flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold transition-colors ${
-                        isPrimary
-                          ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]'
-                          : 'text-text-primary hover:bg-[var(--surface-soft)]'
-                      }`}
-                    >
-                      <span
-                        className={`flex ${isPrimary ? '' : 'text-[var(--ink-faint)]'}`}
-                        aria-hidden="true"
-                      >
-                        {action.icon}
-                      </span>
-                      {action.label}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-            </div>,
-            document.body
-          )
-        : null}
-    </div>
-  );
-};
-
 const CompanionRow = ({
   item,
   lastVisitLabel,
@@ -289,7 +151,7 @@ const CompanionRow = ({
   const isInactive = String(item.companion.status ?? 'inactive').toLowerCase() !== 'active';
   return (
     <div
-      className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-[11px] text-[14px] text-text-primary transition-colors ${
+      className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-[10px] text-[13.5px] text-text-primary transition-colors ${
         menuOpen ? 'bg-[var(--surface-soft)]' : 'hover:bg-[var(--surface-soft)]'
       } ${isInactive ? 'opacity-[0.62]' : ''}`}
     >
@@ -322,8 +184,8 @@ const CompanionRow = ({
         {formatDisplayValue(item.companion.breed)}
       </span>
 
-      {/* Last visit */}
-      <span className="truncate text-[13px] text-text-primary">{lastVisitLabel}</span>
+      {/* Last visit — inherits the row's 13.5px, no per-cell override */}
+      <span className="truncate text-text-primary">{lastVisitLabel}</span>
 
       {/* Patient ID (desktop only) */}
       <span className="hidden truncate text-[12.5px] tabular-nums text-[var(--ink-faint)] xl:block">
@@ -336,7 +198,7 @@ const CompanionRow = ({
       </span>
 
       {/* Row menu */}
-      <RowMenu
+      <RowActionMenu
         label={terminologyText('Companion row actions')}
         actions={actions}
         onOpenChange={setMenuOpen}
@@ -383,7 +245,7 @@ const CompanionGridCard = ({
       </div>
       <div className="flex items-center justify-between">
         <StatusDot status={item.companion.status} />
-        <RowMenu label={terminologyText('Companion row actions')} actions={actions} />
+        <RowActionMenu label={terminologyText('Companion row actions')} actions={actions} />
       </div>
     </div>
   );
@@ -411,11 +273,11 @@ const CompanionPhoneCard = ({
       type="button"
       onClick={() => onOpen(item)}
       title={terminologyText('Open companion history')}
-      className={`flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-2.5 text-left shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)] ${
+      className={`flex w-full items-center gap-[11px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-[11px] text-left shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)] ${
         isInactive ? 'opacity-[0.62]' : ''
       }`}
     >
-      <CompanionAvatar companion={item.companion} size={44} textClassName="text-[18px]" />
+      <CompanionAvatar companion={item.companion} size={44} textClassName="text-[19px]" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-1">
           <span className="truncate font-newsreader text-[16px] tracking-[-0.01em] text-[var(--ink)]">
@@ -423,7 +285,7 @@ const CompanionPhoneCard = ({
           </span>
           {hasCoParent(item) ? <CoParentPill /> : null}
         </span>
-        <span className="truncate text-[12px] text-[var(--ink-faint)]">{subline}</span>
+        <span className="truncate text-[11.5px] text-[var(--ink-faint)]">{subline}</span>
       </span>
       <IoChevronForwardOutline
         size={16}
@@ -451,7 +313,7 @@ const TablePagination = ({
   safePage: number;
   onPageChange: (page: number) => void;
 }) => (
-  <div className="flex shrink-0 items-center justify-between border-t border-[var(--hairline)] px-5 py-3 text-[12.5px] text-[var(--ink-faint)]">
+  <div className="flex shrink-0 items-center justify-between border-t border-[var(--hairline)] px-5 py-[11px] text-[12.5px] text-[var(--ink-faint)]">
     <span>{`Showing ${rangeStart}-${rangeEnd} of ${totalItems} ${companionsLabel}`}</span>
     {totalPages > 1 ? (
       <span className="flex items-center gap-1.5">
@@ -462,7 +324,7 @@ const TablePagination = ({
           onClick={() => onPageChange(Math.max(1, safePage - 1))}
           className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
         >
-          ‹
+          <IoChevronBackOutline size={13} aria-hidden="true" />
         </button>
         {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
           <button
@@ -487,7 +349,7 @@ const TablePagination = ({
           onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
           className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
         >
-          ›
+          <IoChevronForwardOutline size={13} aria-hidden="true" />
         </button>
       </span>
     ) : null}
@@ -566,6 +428,7 @@ const CompanionsTable = ({
         label: terminologyText('Open overview'),
         icon: <IoReaderOutline size={15} aria-hidden="true" />,
         onSelect: () => handleOpenCompanionHistoryPage(companion),
+        primary: true,
       },
       {
         key: 'view-profile',
@@ -596,6 +459,7 @@ const CompanionsTable = ({
         label: 'Change status',
         icon: <IoSwapHorizontalOutline size={15} aria-hidden="true" />,
         onSelect: () => handleChangeStatus(companion),
+        dividerBefore: true,
       });
     }
     return actions;
@@ -654,7 +518,7 @@ const CompanionsTable = ({
             <>
               {/* Header row */}
               <div
-                className={`${GRID_COLS} shrink-0 bg-[var(--screen-2)] px-5 py-3 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]`}
+                className={`${GRID_COLS} shrink-0 bg-[var(--screen-2)] px-5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]`}
               >
                 <span>{terminologyText('Patient')}</span>
                 <span>Parent</span>

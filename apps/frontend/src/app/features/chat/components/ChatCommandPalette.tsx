@@ -28,7 +28,17 @@ export function ChatCommandPalette({
   client,
   filters,
   onJump,
-}: Readonly<{ client: StreamChat; filters: ChannelFilters; onJump: (id: string) => void }>) {
+  channelBelongsToOrg,
+}: Readonly<{
+  client: StreamChat;
+  filters: ChannelFilters;
+  onJump: (id: string) => void;
+  // Stream has no server-side organisation scope, so the palette drops the
+  // conversations that belong to another organisation the same way the sidebar
+  // list does. Jumping to one of those would open a channel the active
+  // organisation cannot otherwise see.
+  channelBelongsToOrg?: (channel: Channel) => boolean;
+}>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -66,7 +76,7 @@ export function ChatCommandPalette({
     client
       .queryChannels(filters, PALETTE_SORT, { limit: 30 })
       .then((res) => {
-        if (active) setChannels(res);
+        if (active) setChannels(channelBelongsToOrg ? res.filter(channelBelongsToOrg) : res);
       })
       .catch(() => {
         if (active) setChannels([]);
@@ -74,7 +84,7 @@ export function ChatCommandPalette({
     return () => {
       active = false;
     };
-  }, [open, client, filters]);
+  }, [open, client, filters, channelBelongsToOrg]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -105,7 +115,7 @@ export function ChatCommandPalette({
       />
       <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-3">
-          <IoSearchOutline className="h-4 w-4 shrink-0 text-neutral-400" />
+          <IoSearchOutline className="h-4 w-4 shrink-0 text-[var(--ink-faint)]" />
           <input
             autoFocus
             value={query}
@@ -115,16 +125,16 @@ export function ChatCommandPalette({
             }}
             placeholder="Jump to a conversation…"
             aria-label="Search conversations"
-            className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
+            className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-[var(--ink-faint)]"
           />
-          <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400">
+          <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-[var(--ink-faint)]">
             <LuCommand className="size-3" />K
           </span>
         </div>
         <ul className="max-h-80 overflow-y-auto p-2">
           {results.length === 0 ? (
             <li className="px-3 py-6 text-center">
-              <Text as="span" variant="body-4" className="text-neutral-400">
+              <Text as="span" variant="body-4" className="text-[var(--ink-faint)]">
                 No conversations found
               </Text>
             </li>
@@ -141,7 +151,7 @@ export function ChatCommandPalette({
                     <ChatAvatar name={title} size="sm" />
                     <Text
                       as="span"
-                      variant="body-4-emphasis"
+                      variant="caption-1"
                       className="flex-1 truncate text-neutral-900"
                     >
                       {title}

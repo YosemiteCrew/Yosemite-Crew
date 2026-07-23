@@ -656,10 +656,12 @@ describe('Build form (single-screen builder)', () => {
           })
         );
 
-        // The builder ref is the outermost overflow-hidden wrapper around the three panes.
+        // The builder ref is the outermost @container wrapper around the three
+        // panes (it stacks + scrolls in a narrow drawer, and only becomes the
+        // overflow-hidden 3-pane row at @4xl).
         const builderEl = screen
           .getByTestId('canvas-row-f-1')
-          .closest('div.overflow-hidden') as HTMLElement;
+          .closest('div[class~="@container"]') as HTMLElement;
         // Make the ref container itself scrollable so getScrollableContainer returns it
         // (rather than falling back to document.scrollingElement).
         Object.defineProperty(builderEl, 'scrollHeight', { configurable: true, value: 1000 });

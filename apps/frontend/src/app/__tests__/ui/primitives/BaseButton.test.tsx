@@ -2,7 +2,12 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import BaseButton from '@/app/ui/primitives/Buttons/BaseButton';
 
-const sizeClasses = { default: 'size-default', large: 'size-large' };
+const sizeClasses = {
+  compact: 'size-compact',
+  small: 'size-small',
+  default: 'size-default',
+  large: 'size-large',
+};
 const baseClasses = 'base-classes';
 
 describe('BaseButton', () => {
@@ -130,5 +135,26 @@ describe('BaseButton', () => {
     fireEvent.pointerMove(button, { clientX: 15, clientY: 25 });
     expect(button.style.getPropertyValue('--yc-button-x')).not.toBe('');
     expect(button.style.getPropertyValue('--yc-button-y')).not.toBe('');
+  });
+  it('forwards ariaPressed to the button so toggles announce their state', () => {
+    const { rerender } = render(
+      <BaseButton text="Preview" ariaPressed sizeClasses={sizeClasses} baseClasses={baseClasses} />
+    );
+    expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+
+    rerender(
+      <BaseButton
+        text="Preview"
+        ariaPressed={false}
+        sizeClasses={sizeClasses}
+        baseClasses={baseClasses}
+      />
+    );
+    expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('omits aria-pressed when ariaPressed is not given', () => {
+    render(<BaseButton text="Save" sizeClasses={sizeClasses} baseClasses={baseClasses} />);
+    expect(screen.getByRole('button')).not.toHaveAttribute('aria-pressed');
   });
 });

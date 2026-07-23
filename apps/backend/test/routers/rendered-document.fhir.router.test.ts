@@ -1,7 +1,9 @@
 import type { Router } from "express";
 
 const requireWebAuth = jest.fn((_req, _res, next) => next());
-const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
+const withRenderedDocumentOrgPermissions = jest.fn(() =>
+  jest.fn((_req, _res, next) => next()),
+);
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
 const RenderedDocumentFhirController = {
@@ -16,7 +18,7 @@ jest.mock("../../src/middlewares/auth", () => ({
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
-  withOrgPermissions,
+  withRenderedDocumentOrgPermissions,
   requirePermission,
 }));
 
@@ -77,7 +79,10 @@ describe("rendered-document.fhir.router", () => {
     );
 
     expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
-    expect(withOrgPermissions).toHaveBeenCalled();
+    // The organisation is derived from the rendered document itself, so naming
+    // an organisation the caller happens to belong to cannot reach another
+    // tenant's document.
+    expect(withRenderedDocumentOrgPermissions).toHaveBeenCalled();
     expect(requirePermission).toHaveBeenCalledWith([
       "forms:view:any",
       "prescription:view:any",

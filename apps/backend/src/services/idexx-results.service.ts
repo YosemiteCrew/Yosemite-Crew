@@ -39,11 +39,17 @@ const coerceString = (value: unknown): string | null => {
 const coerceStringOrEmpty = (value: unknown): string =>
   coerceString(value) ?? "";
 
+/**
+ * `organisationId` is the tenant key that lab-result reads authorize on, so it is taken from
+ * the LabOrder we placed rather than from the provider's response, which is outside our
+ * trust boundary and may omit or misstate it.
+ */
 const buildLabResultData = (
   result: IdexxResult,
   patient: Record<string, unknown>,
+  organisationId: string | null,
 ) => ({
-  organisationId: coerceString(result.organisationId),
+  organisationId,
   orderId: coerceString(result.orderId),
   requisitionId: coerceString(result.requisitionId),
   accessionId: coerceString(result.accessionId),
@@ -230,7 +236,7 @@ export const IdexxResultsService = {
 
         const patient: Record<string, unknown> = result.patient ?? {};
         const resultId = coerceStringOrEmpty(result.resultId);
-        const basePayload = buildLabResultData(result, patient);
+        const basePayload = buildLabResultData(result, patient, organisationId);
 
         await prisma.labResult.upsert({
           where: {

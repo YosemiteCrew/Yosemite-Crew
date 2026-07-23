@@ -256,7 +256,7 @@ export const fetchProfileStatus = async ({
     console.log('[ProfileService] Fetch parent response', {
       status: response.status,
       endpoint,
-      data: response.data,
+      hasBody: response.data != null,
     });
 
     const {summary, isComplete} = mapSummaryFromResource(response.data);
@@ -401,7 +401,7 @@ const submitParentProfile = async (
     status: response.status,
     endpoint,
     parentId: payload.parentId,
-    data: response.data,
+    hasBody: response.data != null,
   });
 
   const {summary, isComplete} = mapSummaryFromResource(response.data);

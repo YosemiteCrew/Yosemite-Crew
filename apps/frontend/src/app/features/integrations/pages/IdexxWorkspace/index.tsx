@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -33,7 +34,9 @@ import {
   LabResult,
   LabResultTest,
 } from '@/app/features/integrations/services/types';
-import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
+import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -80,6 +83,29 @@ const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
   if (!raw) return fallback;
   const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+// Census avatars are species-tinted in the design (each card carries a species
+// photo on a coloured ring). The IDEXX census payload has no image, so the
+// initials fallback keeps the species tint rather than a flat blue for everyone.
+const SPECIES_AVATAR_STYLE: Record<string, React.CSSProperties> = {
+  dog: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  cat: { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
+  horse: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+};
+const DEFAULT_AVATAR_STYLE: React.CSSProperties = {
+  background: 'var(--avatar-blue-bg)',
+  color: 'var(--blue-text)',
+};
+
+const getSpeciesAvatarStyle = (speciesCode?: string | null): React.CSSProperties => {
+  const key = String(speciesCode ?? '')
+    .trim()
+    .toLowerCase();
+  if (key.includes('canine') || key.includes('dog')) return SPECIES_AVATAR_STYLE.dog;
+  if (key.includes('feline') || key.includes('cat')) return SPECIES_AVATAR_STYLE.cat;
+  if (key.includes('equine') || key.includes('horse')) return SPECIES_AVATAR_STYLE.horse;
+  return DEFAULT_AVATAR_STYLE;
 };
 
 const getInitials = (value?: string | null): string => {
@@ -275,9 +301,10 @@ const PatientCell = ({ result }: { result: LabResult }) => {
 };
 
 const StatusCell = ({ result }: { result: LabResult }) => (
-  <span className="appointment-status" style={getResultStatusStyle(result.status)}>
-    {formatTitleCase(result.status, '-')}
-  </span>
+  <StatusPill
+    style={getResultStatusStyle(result.status)}
+    label={formatTitleCase(result.status, '-')}
+  />
 );
 
 type ResultActionCellProps = {
@@ -588,6 +615,8 @@ export const ResultDetailBody = ({
   );
 };
 
+const ORDER_DETAIL_TITLE_ID = 'idexx-order-detail-title';
+
 type OrderDetailPanelProps = {
   activeResultDetail: LabResult | null;
   resultDetailLoading: boolean;
@@ -611,21 +640,13 @@ const OrderDetailPanel = ({
   const pdfLoading = pdfPreviewLoadingId === activeResultDetail?.resultId;
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-caption-3 text-text-secondary">Order detail</span>
-          <span className="flex items-center gap-2">
-            <span
-              id="idexx-order-detail-title"
-              className="text-heading-3 text-text-primary tabular-nums"
-            >
-              {activeResultDetail?.accessionId ?? activeResultDetail?.resultId ?? 'Order'}
-            </span>
-            {activeResultDetail ? <StatusCell result={activeResultDetail} /> : null}
-          </span>
-        </div>
-        <Close onClick={onClose} />
-      </div>
+      <ModalHeader
+        eyebrow="Order detail"
+        title={activeResultDetail?.accessionId ?? activeResultDetail?.resultId ?? 'Order'}
+        titleId={ORDER_DETAIL_TITLE_ID}
+        actions={activeResultDetail ? <StatusCell result={activeResultDetail} /> : null}
+        onClose={onClose}
+      />
 
       {activeResultDetail ? (
         <div
@@ -654,7 +675,7 @@ const OrderDetailPanel = ({
               title="Open appointment labs"
               className="rounded-full p-1.5 transition-colors hover:bg-card-hover"
             >
-              <IoOpenOutline className="text-text-brand" size={16} />
+              <IoOpenOutline size={16} style={{ color: 'var(--blue-text)' }} />
             </Link>
           ) : null}
         </div>
@@ -666,26 +687,28 @@ const OrderDetailPanel = ({
         terminologyText={terminologyText}
       />
 
-      <div className="flex shrink-0 flex-col gap-2 border-t border-card-border pt-3">
-        <Primary
-          href={appointmentLabsHref || '#'}
-          text="Open in appointment labs"
-          icon={<IoCheckmarkCircleOutline aria-hidden="true" />}
-          isDisabled={!appointmentLabsHref}
-          ariaLabel="Open in appointment labs"
-        />
-        <Secondary
-          href="#"
-          text={pdfLoading ? 'Loading PDF...' : 'Open results PDF'}
-          icon={<IoDocumentAttachOutline aria-hidden="true" />}
-          isDisabled={!activeResultDetail || pdfLoading}
-          onClick={() => {
-            if (activeResultDetail) {
-              openResultPdfPreview(activeResultDetail.resultId).catch(() => undefined);
-            }
-          }}
-        />
-      </div>
+      <ModalFooter align="stretch">
+        <div className="flex flex-col gap-2">
+          <Primary
+            href={appointmentLabsHref || '#'}
+            text="Open in appointment labs"
+            icon={<IoCheckmarkCircleOutline aria-hidden="true" />}
+            isDisabled={!appointmentLabsHref}
+            ariaLabel="Open in appointment labs"
+          />
+          <Secondary
+            href="#"
+            text={pdfLoading ? 'Loading PDF...' : 'Open results PDF'}
+            icon={<IoDocumentAttachOutline aria-hidden="true" />}
+            isDisabled={!activeResultDetail || pdfLoading}
+            onClick={() => {
+              if (activeResultDetail) {
+                openResultPdfPreview(activeResultDetail.resultId).catch(() => undefined);
+              }
+            }}
+          />
+        </div>
+      </ModalFooter>
     </div>
   );
 };
@@ -700,24 +723,6 @@ const getAutoRefreshLabel = (autoRefresh: boolean): string => {
 const getRefreshButtonLabel = (loading: boolean): string => {
   if (loading) return 'Refreshing...';
   return 'Refresh';
-};
-
-const getResultModalOverlayClassName = (showResultModal: boolean): string => {
-  const visibleClass = showResultModal ? 'opacity-100' : 'opacity-0 pointer-events-none';
-  return `fixed backdrop-blur-[2px] inset-0 bg-[var(--sh55)] z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
-};
-
-const getResultModalContainerClassName = (showResultModal: boolean): string => {
-  // Phone: a bottom sheet that slides up. Tablet / desktop: a right-hand drawer.
-  const translateClass = showResultModal
-    ? 'translate-y-0 sm:translate-x-0'
-    : 'translate-y-full sm:translate-y-0 sm:translate-x-[120%]';
-  return `fixed z-[1200] p-4 bg-neutral-0 border border-card-border
-          inset-x-0 bottom-0 w-full max-h-[85vh] rounded-t-3xl
-          sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-0 sm:m-3 sm:h-[calc(100%-2rem)]
-          sm:max-h-none sm:w-[420px] sm:rounded-2xl
-          transition-transform duration-300 ease-in-out
-          ${translateClass}`;
 };
 
 const getStartRow = (page: number, pageSize: number, pageCount: number): number => {
@@ -829,7 +834,9 @@ type CensusStripProps = {
 
 const CensusStrip = ({ entries, results, totalResults }: CensusStripProps) => (
   <section aria-label="Census overview" className="flex flex-col gap-2">
-    <span className="text-caption-3 text-text-secondary">Census overview</span>
+    <span className="text-caption-3" style={{ color: 'var(--ink-faint)', letterSpacing: '0.1em' }}>
+      Census overview
+    </span>
     <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-4">
       {entries.slice(0, 3).map((entry) => {
         const status = getCensusCardStatus(entry, results);
@@ -845,14 +852,18 @@ const CensusStrip = ({ entries, results, totalResults }: CensusStripProps) => (
           >
             <span
               className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-caption-1 font-bold"
-              style={{ background: 'var(--avatar-blue-bg)', color: 'var(--blue-text)' }}
+              style={getSpeciesAvatarStyle(entry.patient.speciesCode)}
               aria-hidden="true"
             >
               {getInitials(entry.patient.name)}
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-body-4 text-text-primary">{entry.patient.name}</span>
-              <span className="truncate text-caption-1 text-text-secondary">{status.label}</span>
+              <span className="truncate text-[13px] font-bold" style={{ color: 'var(--ink)' }}>
+                {entry.patient.name}
+              </span>
+              <span className="truncate text-[11px]" style={{ color: 'var(--ink-faint)' }}>
+                {status.label}
+              </span>
             </span>
             <span
               className="size-2 shrink-0 rounded-full"
@@ -866,10 +877,15 @@ const CensusStrip = ({ entries, results, totalResults }: CensusStripProps) => (
         className="flex flex-col justify-center gap-0.5 rounded-2xl border p-3"
         style={{ background: 'var(--inset)', borderColor: 'var(--divider)' }}
       >
-        <span className="text-body-3-emphasis text-text-primary tabular-nums">
+        <span
+          className="text-[19px] leading-tight font-bold tracking-[-0.02em] tabular-nums"
+          style={{ color: 'var(--ink)' }}
+        >
           {totalResults} results
         </span>
-        <span className="text-caption-1 text-text-secondary">across {entries.length} patients</span>
+        <span className="text-[11px]" style={{ color: 'var(--ink-muted)' }}>
+          across {entries.length} patients today
+        </span>
       </div>
     </div>
   </section>
@@ -977,13 +993,25 @@ const SyncingSkeleton = ({ lastRefreshedAt }: { lastRefreshedAt: string | null }
       className="flex items-center justify-between border-b px-5 py-3"
       style={{ borderColor: 'var(--hairline)' }}
     >
-      <span className="flex items-center gap-2 text-body-4 text-text-primary">
-        <IoSyncOutline className="animate-spin text-text-brand" size={16} />
+      <span
+        className="flex items-center gap-[9px] text-[14px] font-bold"
+        style={{ color: 'var(--ink)' }}
+      >
+        <IoSyncOutline className="animate-spin" size={16} style={{ color: 'var(--blue-text)' }} />
         Syncing with IDEXX…
       </span>
       <span className="text-caption-1 text-text-secondary">
         Last sync {formatDateTimeLocal(lastRefreshedAt, '—')}
       </span>
+    </div>
+    <div
+      className="grid grid-cols-[1.4fr_1fr_1fr_90px] gap-3 px-5 py-[11px] text-[10.5px] font-bold tracking-[0.1em] uppercase"
+      style={{ background: 'var(--screen-2)', color: 'var(--ink-faint)' }}
+    >
+      <span>Patient</span>
+      <span>Accession #</span>
+      <span>Device</span>
+      <span>Status</span>
     </div>
     {SKELETON_ROWS.map((row) => (
       <div
@@ -1023,7 +1051,7 @@ const HubInfoPill = () => (
 const NotConnectedState = () => (
   <div className="flex flex-1 items-center justify-center py-8">
     <div
-      className="flex w-full max-w-[520px] flex-col items-center gap-4 rounded-3xl border p-10 text-center"
+      className="flex w-full max-w-[520px] flex-col items-center gap-4 rounded-3xl border px-11 py-[52px] text-center"
       style={{
         background: 'var(--screen)',
         borderColor: 'var(--hairline)',
@@ -1038,18 +1066,29 @@ const NotConnectedState = () => (
         <IoFlaskOutline size={32} />
       </span>
       <div className="flex flex-col gap-2">
-        <span className="text-heading-2 text-text-primary">IDEXX isn&apos;t connected yet</span>
-        <span className="text-body-4 text-text-secondary">
+        <span className="text-page-title">IDEXX isn&apos;t connected yet</span>
+        <span
+          className="text-[14px] leading-[1.6] text-pretty"
+          style={{ color: 'var(--ink-muted)' }}
+        >
           Connect your IDEXX account to order labs from the visit and pull results from in-house
           analyzers straight into the record.
         </span>
       </div>
       <div className="flex w-full max-w-[320px] flex-col gap-2">
-        <Primary href="/integrations" text="Enable IDEXX in Integrations" iconPosition="right" />
+        <Primary
+          href="/integrations"
+          text="Enable IDEXX in Integrations"
+          iconPosition="right"
+          className="text-[14px] font-semibold"
+          style={{ minHeight: 46 }}
+        />
         <Link
           href="/integrations"
-          className="text-body-4 text-text-brand underline underline-offset-2"
+          className="flex h-10 items-center justify-center gap-1.5 text-[13px] font-semibold"
+          style={{ color: 'var(--blue-text)' }}
         >
+          <IoOpenOutline size={16} aria-hidden="true" />
           Open Integrations
         </Link>
       </div>
@@ -1096,7 +1135,7 @@ const ModalityPills = ({
             type="button"
             aria-pressed={active}
             onClick={() => onSelectModality(filter.value as ModalityFilter)}
-            className="inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap transition-colors"
+            className="inline-flex shrink-0 items-center rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap transition-colors"
             style={active ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
           >
             {filter.label}
@@ -1112,13 +1151,13 @@ const ModalityPills = ({
         type="button"
         aria-pressed={awaitingReviewOnly}
         onClick={onToggleAwaitingReview}
-        className="inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap transition-colors"
+        className="inline-flex shrink-0 items-center rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap transition-colors"
         style={awaitingReviewOnly ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
       >
         Awaiting review
       </button>
       <span
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap md:ml-auto"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap md:ml-auto"
         style={MODALITY_PILL_IDLE_STYLE}
       >
         <IoCalendarClearOutline size={12} aria-hidden="true" />
@@ -1522,32 +1561,18 @@ const useIdexxWorkspacePage = () => {
   };
 };
 
-const IdexxHubHeader = ({
-  subtitleSuffix,
-  autoRefreshLabel,
-  refreshButtonLabel,
-  onToggleAutoRefresh,
-  onRefresh,
-}: {
-  subtitleSuffix: React.ReactNode;
-  autoRefreshLabel: string;
-  refreshButtonLabel: string;
-  onToggleAutoRefresh: () => void;
-  onRefresh: () => void;
-}) => (
+const IdexxHubHeader = ({ subtitleSuffix }: { subtitleSuffix: React.ReactNode }) => (
   <div className="flex flex-wrap items-start justify-between gap-3">
     <div className="flex flex-col gap-2">
-      <h1 className="flex flex-wrap items-center gap-2 text-page-title text-text-primary">
+      <h1 className="flex flex-wrap items-center gap-2 text-page-title">
         IDEXX diagnostics
         <HubInfoPill />
       </h1>
-      <p className="text-body-4 text-text-secondary">
+      <p className="text-[13.5px]" style={{ color: 'var(--ink-muted)' }}>
         Orders and results from your in-house analyzers{subtitleSuffix}
       </p>
     </div>
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <Secondary href="#" text={autoRefreshLabel} onClick={onToggleAutoRefresh} className="px-4" />
-      <Secondary href="#" text={refreshButtonLabel} onClick={onRefresh} className="px-4" />
       <Primary
         href="/appointments"
         text="New order"
@@ -1563,8 +1588,6 @@ const IdexxWorkspacePage = () => {
   const s = useIdexxWorkspacePage();
   const autoRefreshLabel = getAutoRefreshLabel(s.autoRefresh);
   const refreshButtonLabel = getRefreshButtonLabel(s.loading);
-  const resultModalOverlayClassName = getResultModalOverlayClassName(s.showResultModal);
-  const resultModalContainerClassName = getResultModalContainerClassName(s.showResultModal);
   const startRow = getStartRow(s.page, s.pageSize, s.paginatedResults.length);
   const showSkeleton = s.loading && s.filteredResults.length === 0;
   const activeAppointmentLabsHref = s.activeResultDetail
@@ -1574,7 +1597,7 @@ const IdexxWorkspacePage = () => {
     s.summary.awaitingReviewCount > 0 ? (
       <>
         {' · '}
-        <span className="font-medium text-text-primary">
+        <span className="font-semibold" style={{ color: 'var(--ink-body)' }}>
           {s.summary.awaitingReviewCount} results awaiting review
         </span>
       </>
@@ -1589,13 +1612,7 @@ const IdexxWorkspacePage = () => {
   if (!s.integrationEnabled && !s.loading) {
     return (
       <div className="flex min-h-[70vh] flex-col gap-4 p-3 md:p-5">
-        <IdexxHubHeader
-          subtitleSuffix={null}
-          autoRefreshLabel={autoRefreshLabel}
-          refreshButtonLabel={refreshButtonLabel}
-          onToggleAutoRefresh={handleToggleAutoRefresh}
-          onRefresh={handleRefresh}
-        />
+        <IdexxHubHeader subtitleSuffix={null} />
         <NotConnectedState />
         <div className="text-caption-2 text-text-extra">
           {IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}
@@ -1621,13 +1638,7 @@ const IdexxWorkspacePage = () => {
 
       <MobileSearchBar placeholder="Search accession, patient" />
 
-      <IdexxHubHeader
-        subtitleSuffix={subtitleSuffix}
-        autoRefreshLabel={autoRefreshLabel}
-        refreshButtonLabel={refreshButtonLabel}
-        onToggleAutoRefresh={handleToggleAutoRefresh}
-        onRefresh={handleRefresh}
-      />
+      <IdexxHubHeader subtitleSuffix={subtitleSuffix} />
 
       {s.error ? (
         <div role="alert" className="text-body-4 text-text-error">
@@ -1699,14 +1710,29 @@ const IdexxWorkspacePage = () => {
               {s.filteredResults.length} orders · last device sync{' '}
               {formatDateTimeLocal(s.lastRefreshedAt, '—')}
             </span>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="inline-flex items-center gap-1.5 text-caption-1 font-semibold text-text-brand transition-colors"
-            >
-              <IoRefreshOutline size={13} aria-hidden="true" />
-              Refresh from IDEXX
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Secondary
+                href="#"
+                text={autoRefreshLabel}
+                onClick={handleToggleAutoRefresh}
+                className="px-4"
+              />
+              <Secondary
+                href="#"
+                text={refreshButtonLabel}
+                onClick={handleRefresh}
+                className="px-4"
+              />
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="inline-flex items-center gap-1.5 text-caption-1 font-semibold transition-colors"
+                style={{ color: 'var(--blue-text)' }}
+              >
+                <IoRefreshOutline size={13} aria-hidden="true" />
+                Refresh from IDEXX
+              </button>
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div
@@ -1798,12 +1824,11 @@ const IdexxWorkspacePage = () => {
         </Accordion>
       </div>
 
-      <ModalBase
+      <Modal
         showModal={s.showResultModal}
         setShowModal={s.setShowResultModal}
-        overlayClassName={resultModalOverlayClassName}
-        containerClassName={resultModalContainerClassName}
-        aria-labelledby="idexx-order-detail-title"
+        size="md"
+        aria-labelledby={ORDER_DETAIL_TITLE_ID}
       >
         <OrderDetailPanel
           activeResultDetail={s.activeResultDetail}
@@ -1814,7 +1839,7 @@ const IdexxWorkspacePage = () => {
           openResultPdfPreview={s.actions.openResultPdfPreview}
           onClose={() => s.setShowResultModal(false)}
         />
-      </ModalBase>
+      </Modal>
 
       <div className="text-caption-2 text-text-extra">{IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}</div>
     </div>

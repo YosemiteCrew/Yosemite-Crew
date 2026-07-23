@@ -5,6 +5,7 @@ import {
 } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useTeamStore } from '@/app/stores/teamStore';
+import { loadOrgs } from '@/app/features/organization/services/orgService';
 import {
   Invite,
   Team,
@@ -138,6 +139,10 @@ export const acceptInvite = async (invite: Invite) => {
   const { setPrimaryOrg } = useOrgStore.getState();
   try {
     await postData<Invite[]>('/fhir/v1/organisation-invites/' + invite.token + '/accept');
+    // The org is new to this user, so it is absent from the store the invite list
+    // was built from. Reload before selecting it, otherwise anything resolving a
+    // route for the org finds no membership and bounces to /organizations.
+    await loadOrgs({ silent: true });
     setPrimaryOrg(invite.organisationId);
   } catch (error) {
     console.log(error);

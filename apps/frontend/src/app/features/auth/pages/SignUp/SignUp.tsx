@@ -1,25 +1,94 @@
 'use client';
-import React, { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import Link from 'next/link';
-import { GoCheckCircleFill } from 'react-icons/go';
 import { Icon } from '@iconify/react/dist/iconify.js';
+import {
+  IoCalendarOutline,
+  IoCheckmark,
+  IoCodeSlashOutline,
+  IoExtensionPuzzleOutline,
+  IoGitBranchOutline,
+  IoShieldCheckmarkOutline,
+} from 'react-icons/io5';
 
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { useAuthStore } from '@/app/stores/authStore';
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
-
-import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
-import FormInput from '@/app/ui/inputs/FormInput/FormInput';
-import { Primary } from '@/app/ui/primitives/Buttons';
-import { IoIosWarning } from 'react-icons/io';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
+import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
+import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
+import {
+  AuthForm,
+  AuthHeading,
+  AuthSubtitle,
+  AuthTextField,
+  AuthPasswordField,
+  AuthSubmitButton,
+  AuthAltNote,
+  FieldError,
+} from '@/app/features/auth/pages/authForm';
 
-import '../AuthPages.css';
+const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
+const DEVELOPER_ROLE = 'A developer';
+
+const CLINIC_POINTS = [
+  {
+    icon: <IoCalendarOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Appointments, records, and billing on one screen.',
+  },
+  {
+    icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'A FHIR-native API and a codebase you can actually read.',
+  },
+  {
+    icon: <IoShieldCheckmarkOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Free to self-host. Your data never leaves your walls.',
+  },
+] as const;
+
+const DEV_POINTS = [
+  {
+    icon: <IoCodeSlashOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'REST and FHIR APIs, typed SDKs, and webhooks.',
+  },
+  {
+    icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Open source. Read it, run it locally, send a PR.',
+  },
+  {
+    icon: <IoExtensionPuzzleOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Ship plugins to the marketplace. Reach every clinic.',
+  },
+] as const;
+
+const TERMS_CHECKBOX_STYLE: CSSProperties = {
+  position: 'relative',
+  flex: 'none',
+  width: 20,
+  height: 20,
+  marginTop: 1,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'background 150ms, border-color 150ms',
+};
+
+const VISUALLY_HIDDEN_CHECKBOX_STYLE: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
 
 const passwordErrors = (
   password: string,
@@ -83,6 +152,15 @@ const validateSignUpInputs = (
   return errors;
 };
 
+type SignUpErrors = {
+  confirmPError?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  pError?: string;
+  agree?: string;
+};
+
 type SignUpProps = {
   postAuthRedirect?: string;
   signinHref?: string;
@@ -90,63 +168,262 @@ type SignUpProps = {
   isDeveloper?: boolean;
 };
 
-const FEATURE_ITEMS = [
-  {
-    developerTitle: 'API-first, self-host or managed',
-    developerDescription:
-      'Open source core with APIs built for integrations. Run it yourself or use our managed stack.',
-    title: 'Enjoy smooth online solutions with us!',
-    description:
-      'Our services are built on a strong foundation for great performance and flexibility.',
-  },
-  {
-    developerTitle: 'Local dev + production ready',
-    developerDescription:
-      'Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted.',
-    title: 'Start free and upgrade as needed.',
-    description: 'Enjoy generous free usage. Upgrade only when you need.',
-  },
-  {
-    developerTitle: 'Secure by default',
-    developerDescription:
-      'Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed.',
-    title: 'Our servers are EU-based and GDPR compliant.',
-    description: 'All data is securely stored in the EU, fully GDPR compliant.',
-  },
-];
+const SignUpBrand = ({ effectiveDeveloper }: { effectiveDeveloper: boolean }) => (
+  <AuthBrandContent
+    eyebrow={
+      effectiveDeveloper
+        ? 'Open-source developer platform'
+        : 'Open-source operating system for animal health'
+    }
+    title={
+      effectiveDeveloper ? (
+        <>
+          Build it in{' '}
+          <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>an afternoon.</em>
+        </>
+      ) : (
+        <>
+          See the <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>whole</em>{' '}
+          animal.
+        </>
+      )
+    }
+    subtitle={
+      effectiveDeveloper
+        ? 'A FHIR-native API, a plugin system, and a codebase you can actually read. Publish once and reach every clinic running Yosemite Crew.'
+        : 'The operating system veterinary clinics run on, and the platform developers build on. Free to self-host, and yours to own.'
+    }
+    points={effectiveDeveloper ? DEV_POINTS : CLINIC_POINTS}
+  />
+);
 
-const SignUpFeatureItem = ({ title, description }: { title: string; description: string }) => (
-  <div className="flex gap-2">
-    <div className="w-[20px]">
-      <GoCheckCircleFill color="var(--color-primary-500)" size={20} className="mt-[3px]" />
-    </div>
-    <div className="flex flex-col gap-1">
-      <div className="text-body-3-emphasis text-text-primary auth-feature-title">{title}</div>
-      <p className="text-caption-1 text-text-primary auth-feature-desc">{description}</p>
-    </div>
+const SignUpTopRight = ({ signinHref }: { signinHref: string }) => (
+  <>
+    <span data-hide-s="true">Already have an account?</span>
+    <Link href={signinHref} className="yc-switch">
+      Sign in
+    </Link>
+  </>
+);
+
+const SignUpHeader = () => (
+  <>
+    <AuthHeading>
+      Create your{' '}
+      <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>account</em>
+    </AuthHeading>
+    <AuthSubtitle>For clinics and developers. Free to self-host, no card required.</AuthSubtitle>
+  </>
+);
+
+type SignUpRoleFieldProps = {
+  role: string;
+  onRoleChange: (value: string) => void;
+};
+
+const SignUpRoleField = ({ role, onRoleChange }: SignUpRoleFieldProps) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+    <label className="yc-lbl" htmlFor="signup-role">
+      I am
+    </label>
+    <select
+      id="signup-role"
+      className="yc-field"
+      aria-label="I am"
+      value={role}
+      onChange={(e) => onRoleChange(e.target.value)}
+    >
+      <option value={CLINIC_ROLE}>{CLINIC_ROLE}</option>
+      <option value={DEVELOPER_ROLE}>{DEVELOPER_ROLE}</option>
+    </select>
   </div>
 );
 
-const SignUpFeaturePanel = ({ isDeveloper }: { isDeveloper: boolean }) => (
-  <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
-    <div className="flex w-full items-center justify-center">
-      <p className="text-display-2 text-text-primary text-center max-w-87.5 auth-title">
-        {isDeveloper
-          ? 'Build, test, and ship apps on Yosemite Crew'
-          : 'Built for everyone, from day one'}
-      </p>
-    </div>
+type SignUpFieldsProps = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  errors: SignUpErrors;
+  showPassword: boolean;
+  onFirstNameChange: (value: string) => void;
+  onLastNameChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  onConfirmPasswordChange: (value: string) => void;
+  onToggleShowPassword: () => void;
+};
 
-    <div className="flex flex-col gap-6">
-      {FEATURE_ITEMS.map((item) => (
-        <SignUpFeatureItem
-          key={item.title}
-          title={isDeveloper ? item.developerTitle : item.title}
-          description={isDeveloper ? item.developerDescription : item.description}
+const SignUpFields = ({
+  firstName,
+  lastName,
+  email,
+  password,
+  confirmPassword,
+  errors,
+  showPassword,
+  onFirstNameChange,
+  onLastNameChange,
+  onEmailChange,
+  onPasswordChange,
+  onConfirmPasswordChange,
+  onToggleShowPassword,
+}: SignUpFieldsProps) => (
+  <>
+    <AuthTextField
+      id="signup-firstname"
+      label="First name"
+      name="first name"
+      autoComplete="given-name"
+      placeholder="Dr. Lena"
+      ariaLabel="First name"
+      value={firstName}
+      error={errors.firstName}
+      onChange={onFirstNameChange}
+    />
+    <AuthTextField
+      id="signup-lastname"
+      label="Last name"
+      name="last name"
+      autoComplete="family-name"
+      placeholder="Weber"
+      ariaLabel="Last name"
+      value={lastName}
+      error={errors.lastName}
+      onChange={onLastNameChange}
+    />
+    <AuthTextField
+      id="signup-email"
+      label="Work email"
+      name="email"
+      type="email"
+      autoComplete="email"
+      placeholder="you@clinic.com"
+      ariaLabel="Enter email"
+      value={email}
+      error={errors.email}
+      onChange={onEmailChange}
+    />
+    <AuthPasswordField
+      id="signup-password"
+      label="Password"
+      name="password"
+      autoComplete="new-password"
+      placeholder="At least 8 characters"
+      ariaLabel="Set up password"
+      value={password}
+      error={errors.pError}
+      onChange={onPasswordChange}
+      showPassword={showPassword}
+      onToggleShowPassword={onToggleShowPassword}
+    />
+    <AuthTextField
+      id="signup-confirm-password"
+      label="Confirm password"
+      name="confirm-password"
+      type={showPassword ? 'text' : 'password'}
+      autoComplete="new-password"
+      placeholder="Re-enter your password"
+      ariaLabel="Confirm password"
+      value={confirmPassword}
+      error={errors.confirmPError}
+      onChange={onConfirmPasswordChange}
+    />
+  </>
+);
+
+type SignUpTermsFieldProps = {
+  agree: boolean;
+  error?: string;
+  onAgreeChange: (checked: boolean) => void;
+};
+
+const SignUpTermsField = ({ agree, error, onAgreeChange }: SignUpTermsFieldProps) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <>
+      <label
+        style={{
+          display: 'flex',
+          gap: 11,
+          alignItems: 'flex-start',
+          cursor: 'pointer',
+          marginTop: 3,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            ...TERMS_CHECKBOX_STYLE,
+            border: `1.5px solid ${agree ? 'var(--blue)' : 'var(--divider)'}`,
+            background: agree ? 'var(--blue)' : 'var(--field-bg)',
+            // Mirror the hidden input's focus onto the visible box so keyboard
+            // users see a focus indicator on the required Terms control.
+            outline: focused ? '2px solid var(--blue)' : undefined,
+            outlineOffset: focused ? 2 : undefined,
+          }}
+        >
+          {agree ? <IoCheckmark style={{ fontSize: 14, color: '#fff' }} /> : null}
+        </span>
+        <input
+          type="checkbox"
+          checked={agree}
+          aria-label="I agree to the terms and conditions and privacy policy"
+          onChange={(e) => onAgreeChange(e.target.checked)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={VISUALLY_HIDDEN_CHECKBOX_STYLE}
         />
-      ))}
-    </div>
-  </div>
+        <span
+          style={{
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            color: 'var(--ink-muted)',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          I agree to the{' '}
+          <Link
+            href="/terms-and-conditions?ref=signup"
+            style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+          >
+            Terms
+          </Link>{' '}
+          and{' '}
+          <Link
+            href="/privacy-policy?ref=signup"
+            style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
+          >
+            Privacy policy
+          </Link>
+          .
+        </span>
+      </label>
+      <FieldError message={error} />
+    </>
+  );
+};
+
+const SignUpPetParentNote = () => (
+  <AuthAltNote>
+    Pet parent? Your account lives in the{' '}
+    <Link
+      href="/pet-parents"
+      style={{ color: 'var(--nav-active)', textDecoration: 'none', fontWeight: 600 }}
+    >
+      mobile app
+    </Link>
+    .
+  </AuthAltNote>
+);
+
+const SignUpLoader = () => (
+  <YosemiteLoader
+    variant="fullscreen-translucent"
+    label="Creating your account..."
+    testId="signup-loader"
+  />
 );
 
 const SignUp = ({
@@ -162,7 +439,11 @@ const SignUp = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [agree, setAgree] = useState(false);
+  const [role, setRole] = useState(isDeveloper ? DEVELOPER_ROLE : CLINIC_ROLE);
+
+  const effectiveDeveloper = isDeveloper || role === DEVELOPER_ROLE;
 
   const { clearSignUpDraft } = useSignUpDraft({
     firstName,
@@ -176,20 +457,20 @@ const SignUp = ({
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [inputErrors, setInputErrors] = useState<{
-    confirmPError?: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    pError?: string;
-    agree?: string;
-  }>({});
+  const [inputErrors, setInputErrors] = useState<SignUpErrors>({});
+
+  const handleFieldChange =
+    <T,>(setValue: (value: T) => void, field: keyof SignUpErrors) =>
+    (value: T) => {
+      setValue(value);
+      setInputErrors((prev) => ({ ...prev, [field]: undefined }));
+    };
 
   const handleSignupSuccess = () => {
     resetSidebarPreference();
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
-    setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
+    setStorageItem('session', 'devAuth', effectiveDeveloper ? 'true' : 'false');
     setIsSubmitting(false);
     setShowVerifyModal(true);
   };
@@ -231,7 +512,7 @@ const SignUp = ({
 
     try {
       setIsSubmitting(true);
-      const args: Parameters<typeof signUp> = isDeveloper
+      const args: Parameters<typeof signUp> = effectiveDeveloper
         ? [normalizedEmail, password, firstName, lastName, 'developer']
         : [normalizedEmail, password, firstName, lastName];
 
@@ -246,141 +527,44 @@ const SignUp = ({
   };
 
   return (
-    <section
-      className={`
-        relative flex w-full flex-1 min-h-screen items-center justify-center
-        bg-cover bg-center bg-no-repeat
-      `}
-      style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
-    >
-      {isSubmitting ? (
-        <YosemiteLoader
-          variant="fullscreen-translucent"
-          label="Creating your account..."
-          testId="signup-loader"
-        />
-      ) : null}
-      <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 md:flex-row flex-col items-center md:items-start">
-        <SignUpFeaturePanel isDeveloper={isDeveloper} />
-
-        <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
-          <form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
-            <div className="flex flex-col gap-6">
-              <h1 className="text-display-2 text-text-primary text-center auth-title">
-                {isDeveloper ? 'Sign up for developer access' : 'Sign up'}
-              </h1>
-
-              <div className="flex flex-col gap-3">
-                <FormInput
-                  intype="text"
-                  inname="first name"
-                  value={firstName}
-                  inlabel="First name"
-                  onChange={(e) => {
-                    setFirstName(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, firstName: undefined }));
-                  }}
-                  error={inputErrors.firstName}
-                />
-                <FormInput
-                  intype="text"
-                  inname="last name"
-                  value={lastName}
-                  inlabel="Last name"
-                  onChange={(e) => {
-                    setLastName(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, lastName: undefined }));
-                  }}
-                  error={inputErrors.lastName}
-                />
-                <FormInput
-                  intype="email"
-                  inname="email"
-                  value={email}
-                  inlabel="Enter email"
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, email: undefined }));
-                  }}
-                  error={inputErrors.email}
-                />
-                <FormInputPass
-                  intype="password"
-                  inname="password"
-                  value={password}
-                  inlabel="Set up password"
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, pError: undefined }));
-                  }}
-                  error={inputErrors.pError}
-                />
-                <FormInputPass
-                  intype="password"
-                  inname="confirm-password"
-                  value={confirmPassword}
-                  inlabel="Confirm password"
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, confirmPError: undefined }));
-                  }}
-                  error={inputErrors.confirmPError}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="flex! gap-2! items-start text-caption-1 text-text-primary cursor-pointer">
-                <input
-                  type="checkbox"
-                  aria-label="I agree to the terms and conditions and privacy policy"
-                  onChange={(e) => {
-                    setAgree(e.target.checked);
-                    setInputErrors((prev) => ({ ...prev, agree: undefined }));
-                  }}
-                />
-                <span>
-                  {"I agree to Yosemite Crew's "}
-                  <Link className="policylink" href="/terms-and-conditions?ref=signup">
-                    terms and conditions
-                  </Link>
-                  {' and '}
-                  <Link className="policylink" href="/privacy-policy?ref=signup">
-                    privacy policy
-                  </Link>
-                </span>
-              </label>
-              {inputErrors.agree && (
-                <div className="flex items-center gap-1 px-4 text-caption-2 text-text-error">
-                  <IoIosWarning className="text-text-error" size={14} />
-                  {inputErrors.agree}
-                </div>
-              )}
-              <label className="flex! gap-2! items-end! text-caption-1 text-text-primary cursor-pointer">
-                <input type="checkbox" aria-label="Sign up for newsletter and promotional emails" />
-                <span>Sign me up for newsletter and promotional emails</span>
-              </label>
-            </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <Primary
-                text={isSubmitting ? 'Creating account...' : 'Sign up'}
-                onClick={handleSignUp}
-                href="#"
-                isDisabled={isSubmitting}
-                style={{ width: '100%' }}
-              />
-              <div className="text-body-4 text-text-primary auth-inline-text">
-                {' '}
-                Already have an account?{' '}
-                <Link href={signinHref} className="text-text-brand">
-                  Sign In
-                </Link>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
+    <>
+      {isSubmitting ? <SignUpLoader /> : null}
+      <AuthShell
+        brand={<SignUpBrand effectiveDeveloper={effectiveDeveloper} />}
+        topRight={<SignUpTopRight signinHref={signinHref} />}
+      >
+        <SignUpHeader />
+        <AuthForm onSubmit={handleSignUp} method="post">
+          {!isDeveloper ? <SignUpRoleField role={role} onRoleChange={setRole} /> : null}
+          <SignUpFields
+            firstName={firstName}
+            lastName={lastName}
+            email={email}
+            password={password}
+            confirmPassword={confirmPassword}
+            errors={inputErrors}
+            showPassword={showPassword}
+            onFirstNameChange={handleFieldChange(setFirstName, 'firstName')}
+            onLastNameChange={handleFieldChange(setLastName, 'lastName')}
+            onEmailChange={handleFieldChange(setEmail, 'email')}
+            onPasswordChange={handleFieldChange(setPassword, 'pError')}
+            onConfirmPasswordChange={handleFieldChange(setConfirmPassword, 'confirmPError')}
+            onToggleShowPassword={() => setShowPassword((prev) => !prev)}
+          />
+          <SignUpTermsField
+            agree={agree}
+            error={inputErrors.agree}
+            onAgreeChange={handleFieldChange(setAgree, 'agree')}
+          />
+          <AuthSubmitButton
+            idle="Create account"
+            busy="Creating account..."
+            isSubmitting={isSubmitting}
+          />
+        </AuthForm>
+        {effectiveDeveloper ? <GithubSignInButton /> : null}
+        <SignUpPetParentNote />
+      </AuthShell>
       <OtpModal
         email={normalizeEmail(email)}
         password={password}
@@ -388,10 +572,10 @@ const SignUp = ({
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
         redirectPath={postAuthRedirect}
-        isDeveloper={isDeveloper}
+        isDeveloper={effectiveDeveloper}
       />
       {ErrorTostPopup}
-    </section>
+    </>
   );
 };
 

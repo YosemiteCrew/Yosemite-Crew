@@ -42,7 +42,7 @@ module.exports = {
     '.*/setup/mockTheme$': '<rootDir>/__tests__/setup/mockTheme.ts',
     // Stub asset imports if needed
     '\\.(svg)$': '<rootDir>/__mocks__/svgMock.js',
-    '\\.(png|jpg|jpeg|gif|webp|bmp)$': '<rootDir>/__mocks__/fileMock.js',
+    '\\.(png|jpg|jpeg|gif|webp|bmp|mp4)$': '<rootDir>/__mocks__/fileMock.js',
     '^react-native/Libraries/Image/Image$':
       'react-native/Libraries/Image/Image.ios.js',
     '^react-native-permissions$':

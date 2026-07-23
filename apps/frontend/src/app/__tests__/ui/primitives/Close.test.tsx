@@ -24,4 +24,12 @@ describe('Close', () => {
     render(<Close iconOnly />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+  it('disables the button and blocks the click when isDisabled is set', () => {
+    const onClick = jest.fn();
+    render(<Close onClick={onClick} isDisabled />);
+    const button = screen.getByRole('button', { name: 'Close' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });

@@ -172,8 +172,7 @@ describe('AddDocument', () => {
     const setShowModal = jest.fn();
     render(<AddDocument showModal setShowModal={setShowModal} />);
 
-    // The header centring spacer is inert markup, not a second Close button, so
-    // exactly one close control is exposed and it is the working one.
+    // The header exposes exactly one close control, rendered by ModalHeader.
     const realClose = screen.getByText('Close');
     fireEvent.click(realClose);
     expect(setShowModal).toHaveBeenCalledWith(false);

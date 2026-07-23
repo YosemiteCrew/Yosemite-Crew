@@ -62,17 +62,18 @@ describe('StatCardShell', () => {
     expect(svg.querySelectorAll('rect')).toHaveLength(3);
   });
 
-  it('wraps the body in the shared card surface', () => {
+  it('wraps the body in the shared warm-bone card surface', () => {
     const { container } = render(
       <StatCardShell title="Any" options={['Last 1 year']} isEmpty={false}>
         <div>body</div>
       </StatCardShell>
     );
 
-    expect(container.querySelector('.rounded-2xl')).toHaveClass(
-      'bg-neutral-0',
+    expect(container.querySelector('.min-h-75')).toHaveClass(
+      'bg-[var(--screen)]',
       'border',
-      'border-card-border',
+      'border-[var(--hairline)]',
+      'rounded-[18px]',
       'min-h-75'
     );
   });

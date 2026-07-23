@@ -1,4 +1,4 @@
-import Delete from '@/app/ui/primitives/Buttons/Delete';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 import DeleteConfirmationModal from '@/app/ui/overlays/Modal/DeleteConfirmationModal';
 import { useSignOut } from '@/app/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -84,14 +84,20 @@ const DeleteProfile = () => {
 
   return (
     <>
-      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--color-danger-200)] px-5 py-4">
+      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--danger-border)] px-5! py-[14px]!">
         <div className="flex-1">
-          <div className="text-[13px] font-bold text-[var(--color-danger-600)]">Delete profile</div>
+          <div className="text-[13px] font-bold text-[var(--danger-text)]">Delete profile</div>
           <div className="text-[11.5px] text-[var(--ink-faint)]">
             Leaves all organizations and erases your account
           </div>
         </div>
-        <Delete href="#" onClick={handleOpenDelete} text="Delete…" />
+        <Secondary
+          danger
+          href="#"
+          text="Delete…"
+          onClick={handleOpenDelete}
+          className="min-h-0! h-[34px]! px-[15px]! text-[12px]! font-bold!"
+        />
       </div>
       <DeleteConfirmationModal
         showModal={deletePopup}

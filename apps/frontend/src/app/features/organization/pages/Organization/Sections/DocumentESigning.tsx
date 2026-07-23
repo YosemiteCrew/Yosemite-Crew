@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
 import { IoShieldCheckmarkOutline } from 'react-icons/io5';
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import DocSigningPortal from '@/app/features/docSigning/components/DocSigningPortal';
@@ -27,16 +27,21 @@ const ToggleRow = ({ title, description, checked, onChange }: ToggleRowProps) =>
       aria-checked={checked}
       aria-label={title}
       onClick={onChange}
-      className={clsx(
-        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
-        checked ? 'bg-primary-600' : 'bg-neutral-300'
-      )}
+      className="relative inline-flex h-[26px] w-11 shrink-0 items-center rounded-full border transition-colors cursor-pointer"
+      style={{
+        backgroundColor: checked ? 'var(--blue)' : 'var(--inset)',
+        borderColor: checked ? 'var(--blue)' : 'var(--divider)',
+      }}
     >
       <span
         className={clsx(
-          'inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform',
-          checked ? 'translate-x-5' : 'translate-x-0.5'
+          'inline-block size-5 rounded-full border transition-transform',
+          checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
         )}
+        style={{
+          backgroundColor: checked ? '#ffffff' : 'var(--screen)',
+          borderColor: checked ? 'transparent' : 'var(--hairline)',
+        }}
       />
     </button>
   </div>
@@ -58,8 +63,8 @@ const DocumentESigning = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.DOCUMENT_VIEW_ANY]}>
-      <AccordionButton title="E-signing" showButton={false} keepMounted>
-        <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden">
+      <SectionCard title="E-signing" showButton={false}>
+        <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
           <div className="px-5! py-3! border-b border-[var(--hairline)] text-[11.5px] text-[var(--ink-faint)]">
             How consent documents get signed
           </div>
@@ -119,7 +124,7 @@ const DocumentESigning = () => {
             )}
           </div>
         </div>
-      </AccordionButton>
+      </SectionCard>
     </PermissionGate>
   );
 };

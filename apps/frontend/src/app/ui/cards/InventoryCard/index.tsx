@@ -1,4 +1,5 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
 import {
   displayStatusLabel,
@@ -29,7 +30,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
   };
 
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-body-3-emphasis text-text-primary">{item.basicInfo.name}</div>
       </div>
@@ -71,12 +72,10 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           {displayValue(item.stock.stockLocation)}
         </div>
       </div>
-      <div
+      <StatusPill
         style={getInventoryStatusStyle(displayStatusLabel(item))}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
-        {displayStatusLabel(item)}
-      </div>
+        label={displayStatusLabel(item)}
+      />
       <div className="flex gap-3 w-full">
         <Secondary
           href="#"

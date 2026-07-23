@@ -9,10 +9,13 @@ import {
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
+type ButtonVariant =
+  'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'dangerGhost';
+
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: ButtonVariant;
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
@@ -32,53 +35,65 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const {theme} = useTheme();
 
+  // Warm-bone rule: primary is always the dark CTA fill (never blue);
+  // secondary is a bordered transparent button; outline/ghost read as links.
+  const indicatorColorByVariant: Record<ButtonVariant, string> = {
+    primary: theme.colors.ctaText,
+    secondary: theme.colors.inkBody,
+    outline: theme.colors.blue,
+    ghost: theme.colors.blue,
+    danger: theme.colors.white,
+    dangerGhost: theme.colors.danger,
+  };
+
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
-      borderRadius: theme.borderRadius.base,
+      borderRadius: theme.borderRadius.button,
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',
     };
 
-    // Size styles
     const sizeStyles: Record<string, ViewStyle> = {
       small: {
-        paddingHorizontal: theme.spacing['3'],
+        paddingHorizontal: theme.spacing['4'],
         paddingVertical: theme.spacing['2'],
-        minHeight: 36,
+        minHeight: 40,
       },
       medium: {
-        paddingHorizontal: theme.spacing['4'],
+        paddingHorizontal: theme.spacing['5'],
         paddingVertical: theme.spacing['3'],
-        minHeight: 44,
+        minHeight: 48,
       },
       large: {
         paddingHorizontal: theme.spacing['6'],
         paddingVertical: theme.spacing['4'],
-        minHeight: 52,
+        minHeight: 54,
       },
     };
 
-    // Variant styles
-    const variantStyles: Record<string, ViewStyle> = {
+    const variantStyles: Record<ButtonVariant, ViewStyle> = {
       primary: {
-        backgroundColor: disabled
-          ? theme.colors.textSecondary
-          : theme.colors.primary,
+        backgroundColor: disabled ? theme.colors.divider : theme.colors.cta,
+        ...(disabled ? {} : theme.shadows.cta),
       },
       secondary: {
-        backgroundColor: disabled
-          ? theme.colors.textSecondary
-          : theme.colors.secondary,
+        backgroundColor: theme.colors.transparent,
+        borderWidth: 1,
+        borderColor: disabled ? theme.colors.hairline : theme.colors.divider,
       },
       outline: {
         backgroundColor: theme.colors.transparent,
         borderWidth: 1,
-        borderColor: disabled
-          ? theme.colors.textSecondary
-          : theme.colors.primary,
+        borderColor: disabled ? theme.colors.hairline : theme.colors.blue,
       },
       ghost: {
+        backgroundColor: theme.colors.transparent,
+      },
+      danger: {
+        backgroundColor: disabled ? theme.colors.divider : theme.colors.danger,
+      },
+      dangerGhost: {
         backgroundColor: theme.colors.transparent,
       },
     };
@@ -97,18 +112,16 @@ export const Button: React.FC<ButtonProps> = ({
         : theme.typography.button),
     };
 
-    const variantStyles: Record<string, TextStyle> = {
-      primary: {
-        color: theme.colors.surface,
-      },
+    const variantStyles: Record<ButtonVariant, TextStyle> = {
+      primary: {color: theme.colors.ctaText},
       secondary: {
-        color: theme.colors.surface,
+        color: disabled ? theme.colors.inkFaint : theme.colors.inkBody,
       },
-      outline: {
-        color: disabled ? theme.colors.textSecondary : theme.colors.primary,
-      },
-      ghost: {
-        color: disabled ? theme.colors.textSecondary : theme.colors.primary,
+      outline: {color: disabled ? theme.colors.inkFaint : theme.colors.blue},
+      ghost: {color: disabled ? theme.colors.inkFaint : theme.colors.blue},
+      danger: {color: theme.colors.white},
+      dangerGhost: {
+        color: disabled ? theme.colors.inkFaint : theme.colors.danger,
       },
     };
 
@@ -127,11 +140,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading && (
         <ActivityIndicator
           size="small"
-          color={
-            variant === 'primary' || variant === 'secondary'
-              ? theme.colors.surface
-              : theme.colors.primary
-          }
+          color={indicatorColorByVariant[variant]}
           style={{marginRight: theme.spacing['2']}}
         />
       )}

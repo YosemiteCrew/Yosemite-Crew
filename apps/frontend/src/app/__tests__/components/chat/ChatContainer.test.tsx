@@ -304,8 +304,11 @@ describe('ChatContainer', () => {
       { id: 'u2', userId: 'user-2', name: 'User Two', email: 'u2@test.com' },
       { id: 'u3', userId: 'user-3', name: 'User Three', email: 'u3@test.com' },
     ]);
+    // The org-scoped session list doubles as the organisation allow-list for
+    // channels created before channels carried an organisation stamp, so the
+    // default mock claims the shared fixture channel for the active org.
     (chatService.getChatSessions as jest.Mock).mockResolvedValue({
-      channels: [],
+      channels: [{ channelId: 'channel-1' }],
     });
     (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
 
@@ -375,6 +378,35 @@ describe('ChatContainer', () => {
     await waitFor(() =>
       expect(screen.getByText('Your conversations live here')).toBeInTheDocument()
     );
+  });
+
+  it('does not reset the selection when only the onChannelSelect identity changes', async () => {
+    const { rerender } = render(
+      <ChatContainer scope="clients" onChannelSelect={() => undefined} />
+    );
+
+    await act(async () => {
+      rerender(<ChatContainer scope="clients" onChannelSelect={() => undefined} />);
+    });
+
+    // Callers pass an inline arrow, so a fresh identity arrives on every parent
+    // render; only a scope change may clear the active channel.
+    expect(screen.queryByText('Your conversations live here')).not.toBeInTheDocument();
+  });
+
+  it('clears the selection through the latest callback when the scope changes', async () => {
+    const firstCallback = jest.fn();
+    const latestCallback = jest.fn();
+    const { rerender } = render(
+      <ChatContainer scope="colleagues" onChannelSelect={firstCallback} />
+    );
+
+    await act(async () => {
+      rerender(<ChatContainer scope="clients" onChannelSelect={latestCallback} />);
+    });
+
+    await waitFor(() => expect(latestCallback).toHaveBeenCalledWith(null));
+    expect(firstCallback).not.toHaveBeenCalled();
   });
 
   it('searches and starts direct chat (creates new)', async () => {
@@ -820,6 +852,22 @@ describe('ChatContainer', () => {
     }
   });
 
+  it('renders the Chat sidebar heading and a neutral segmented audience switcher', async () => {
+    await act(async () => {
+      render(<ChatContainer scope="clients" />);
+    });
+    await waitFor(() => expect(screen.getByTestId('channel-list')).toBeInTheDocument());
+
+    // Sidebar title is the "Chat" heading, not the old "Messages".
+    expect(screen.queryByText('Messages')).not.toBeInTheDocument();
+
+    // The colored sliding pill is replaced by the neutral SegmentedPill (role=group).
+    const switcher = screen.getByRole('group', { name: 'Chat audience' });
+    expect(switcher).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clients' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Team' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('routes Send form to the invoice workspace step', async () => {
     const clientChannel = {
       ...defaultMockChannel,
@@ -1179,6 +1227,74 @@ describe('ChatContainer', () => {
       expect(result).toContain(byMember);
       expect(result).not.toContain(stateless);
       expect(result).not.toContain(unrelated);
+    });
+  });
+
+  describe('channel filtering by organisation', () => {
+    type FilterFn = (channels: unknown[]) => unknown[];
+    const getFilter = () =>
+      (globalThis as unknown as { __testChannelFilter?: FilterFn }).__testChannelFilter;
+
+    const renderForFilter = async () => {
+      await act(async () => {
+        render(<ChatContainer scope="clients" />);
+      });
+      await waitFor(() => expect(getFilter()).toBeDefined());
+      return getFilter() as FilterFn;
+    };
+
+    const clientChannel = (id: string, data: Record<string, unknown>) => ({
+      ...defaultMockChannel,
+      id,
+      type: 'messaging',
+      data: { appointmentId: `appt-${id}`, ...data },
+      state: { members: {} },
+    });
+
+    it('drops a channel stamped with another organisation', async () => {
+      const mine = clientChannel('mine', { organisationId: 'org-1' });
+      const theirs = clientChannel('theirs', { organisationId: 'org-2' });
+      const filter = await renderForFilter();
+
+      const result = filter([mine, theirs]);
+      expect(result).toContain(mine);
+      expect(result).not.toContain(theirs);
+    });
+
+    it('keeps a cross-clinic channel that lists the active organisation', async () => {
+      const shared = clientChannel('shared', { organisationIds: ['org-2', 'org-1'] });
+      const foreign = clientChannel('foreign', { organisationIds: ['org-2', 'org-3'] });
+      const filter = await renderForFilter();
+
+      const result = filter([shared, foreign]);
+      expect(result).toContain(shared);
+      expect(result).not.toContain(foreign);
+    });
+
+    it('drops an unstamped channel the organisation has no session for', async () => {
+      const known = clientChannel('channel-1', {});
+      const unknown = clientChannel('other-org-channel', {});
+      const filter = await renderForFilter();
+
+      const result = filter([known, unknown]);
+      expect(result).toContain(known);
+      expect(result).not.toContain(unknown);
+    });
+
+    it('keeps unstamped channels when the session list could not be loaded', async () => {
+      (chatService.getChatSessions as jest.Mock).mockRejectedValue(new Error('offline'));
+      const unknown = clientChannel('other-org-channel', {});
+      const filter = await renderForFilter();
+
+      expect(filter([unknown])).toContain(unknown);
+    });
+
+    it('scopes to the organisation switched into rather than the one loaded before', async () => {
+      const theirs = clientChannel('theirs', { organisationId: 'org-2' });
+      const filter = await renderForFilter();
+
+      expect(filter([theirs])).not.toContain(theirs);
+      expect(chatService.getChatSessions).toHaveBeenCalledWith('org-1', { includeClosed: true });
     });
   });
 
@@ -1674,6 +1790,114 @@ describe('ChatContainer', () => {
     await waitFor(() => expect(screen.getByText('Close session')).toBeInTheDocument());
   });
 
+  const makeMutableClientChannel = (id: string) => ({
+    ...defaultMockChannel,
+    id,
+    cid: `messaging:${id}`,
+    data: { appointmentId: '123', chatCategory: 'clients' },
+    muteStatus: () => ({ muted: false }),
+    mute: jest.fn().mockResolvedValue({}),
+    unmute: jest.fn().mockResolvedValue({}),
+  });
+
+  const openInfoDrawer = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation info' }));
+    return screen.getByRole('switch', { name: 'Mute notifications' });
+  };
+
+  it('mutes and unmutes the conversation from the info drawer', async () => {
+    const clientChannel = makeMutableClientChannel('client-a');
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    const toggle = await openInfoDrawer();
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+    expect(clientChannel.mute).toHaveBeenCalled();
+    expect(screen.getByRole('switch', { name: 'Mute notifications' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('switch', { name: 'Mute notifications' }));
+    });
+    expect(clientChannel.unmute).toHaveBeenCalled();
+    expect(screen.getByRole('switch', { name: 'Mute notifications' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+  });
+
+  // Regression: the <Channel> wrapper is unkeyed, so the header instance survives a
+  // conversation switch. An untagged mute override used to carry the previous
+  // channel's state over and make the next toggle call unmute() on a channel that
+  // was never muted.
+  it('does not carry the info-drawer mute override to another conversation', async () => {
+    const channelA = makeMutableClientChannel('client-a');
+    const channelB = makeMutableClientChannel('client-b');
+    mockUseChannelStateContext.mockReturnValue({ channel: channelA });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(channelA);
+
+    const { rerender } = render(<ChatContainer appointmentId="123" />);
+
+    const toggle = await openInfoDrawer();
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+    expect(channelA.mute).toHaveBeenCalled();
+
+    // Select another client conversation — same header instance, new channel.
+    mockUseChannelStateContext.mockReturnValue({ channel: channelB });
+    await act(async () => {
+      rerender(<ChatContainer appointmentId="123" />);
+    });
+
+    const nextToggle = screen.getByRole('switch', { name: 'Mute notifications' });
+    expect(nextToggle).toHaveAttribute('aria-checked', 'false');
+
+    await act(async () => {
+      fireEvent.click(nextToggle);
+    });
+    expect(channelB.mute).toHaveBeenCalled();
+    expect(channelB.unmute).not.toHaveBeenCalled();
+
+    // Switching back reads the original channel's own status again.
+    mockUseChannelStateContext.mockReturnValue({ channel: channelA });
+    await act(async () => {
+      rerender(<ChatContainer appointmentId="123" />);
+    });
+    expect(screen.getByRole('switch', { name: 'Mute notifications' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+  });
+
+  it('archives the conversation and closes the info drawer', async () => {
+    const clientChannel = makeMutableClientChannel('client-a');
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await openInfoDrawer();
+    await act(async () => {
+      fireEvent.click(screen.getByText('Archive conversation'));
+    });
+
+    expect(clientChannel.hide).toHaveBeenCalled();
+    expect(screen.queryByRole('switch', { name: 'Mute notifications' })).not.toBeInTheDocument();
+  });
+
   it('toggles the archived filter and marks the button pressed', async () => {
     await act(async () => {
       render(<ChatContainer scope="colleagues" />);
@@ -1976,12 +2200,16 @@ describe('ChatContainer', () => {
         fireEvent.click(screen.getByText('Mobile Row'));
       });
 
-      const backBtn = await screen.findByText(/Back/);
+      // The phone thread renders one unified header bar whose round back control
+      // (aria "Back to conversations") returns to the list.
+      const backBtn = await screen.findByLabelText('Back to conversations');
       await act(async () => {
         fireEvent.click(backBtn);
       });
 
-      await waitFor(() => expect(screen.queryByText(/Back/)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Back to conversations')).not.toBeInTheDocument()
+      );
     } finally {
       Object.defineProperty(globalThis, 'innerWidth', {
         value: originalWidth,
@@ -2162,7 +2390,8 @@ describe('ChatContainer', () => {
     });
 
     await waitFor(() => expect(screen.getByTestId('chat-window')).toBeInTheDocument());
-    expect(screen.getByText('Chat')).toBeInTheDocument();
+    // Both the sidebar heading and the generic (channel-less) header title read "Chat".
+    expect(screen.getAllByText('Chat').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Offline')).toBeInTheDocument();
     // No channel means no scope, so neither the client nor the group affordances show.
     expect(screen.queryByText('Pet parent')).not.toBeInTheDocument();

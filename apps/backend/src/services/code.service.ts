@@ -1,17 +1,15 @@
-import CodeEntryModel, {
+import {
   type CodeEntryDocument,
   type CodeEntryMongo,
   type CodeSystem,
   type CodeType,
 } from "src/models/code-entry";
-import CodeMappingModel, {
+import {
   type CodeMappingDocument,
   type CodeMappingMongo,
 } from "src/models/code-mapping";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import { Prisma } from "@prisma/client";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export class CodeServiceError extends Error {
   constructor(
@@ -23,88 +21,76 @@ export class CodeServiceError extends Error {
   }
 }
 
-const syncCodeEntryToPostgres = async (doc: CodeEntryDocument) => {
-  if (!shouldDualWrite && !isReadFromPostgres()) return;
-  try {
-    const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
-      if (value === null) return Prisma.JsonNull;
-      if (value === undefined) return undefined;
-      return value as Prisma.InputJsonValue;
-    };
+const syncCodeEntryToPostgres = async (input: CodeEntryMongo) => {
+  const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
+    if (value === null) return Prisma.JsonNull;
+    if (value === undefined) return undefined;
+    return value as Prisma.InputJsonValue;
+  };
 
-    await prisma.codeEntry.upsert({
-      where: {
-        system_code: {
-          system: doc.system,
-          code: doc.code,
-        },
+  return prisma.codeEntry.upsert({
+    where: {
+      system_code: {
+        system: input.system,
+        code: input.code,
       },
-      create: {
-        system: doc.system,
-        code: doc.code,
-        display: doc.display,
-        type: doc.type,
-        active: doc.active,
-        synonyms:
-          doc.synonyms === null ? Prisma.JsonNull : (doc.synonyms ?? undefined),
-        meta: toJsonInput(doc.meta),
-      },
-      update: {
-        display: doc.display,
-        type: doc.type,
-        active: doc.active,
-        synonyms:
-          doc.synonyms === null ? Prisma.JsonNull : (doc.synonyms ?? undefined),
-        meta: toJsonInput(doc.meta),
-      },
-    });
-  } catch (err) {
-    handleDualWriteError("CodeEntry", err);
-  }
+    },
+    create: {
+      system: input.system,
+      code: input.code,
+      display: input.display,
+      type: input.type,
+      active: input.active,
+      synonyms:
+        input.synonyms === null
+          ? Prisma.JsonNull
+          : (input.synonyms ?? undefined),
+      meta: toJsonInput(input.meta),
+    },
+    update: {
+      display: input.display,
+      type: input.type,
+      active: input.active,
+      synonyms:
+        input.synonyms === null
+          ? Prisma.JsonNull
+          : (input.synonyms ?? undefined),
+      meta: toJsonInput(input.meta),
+    },
+  });
 };
 
-const syncCodeMappingToPostgres = async (doc: CodeMappingDocument) => {
-  if (!shouldDualWrite && !isReadFromPostgres()) return;
-  try {
-    await prisma.codeMapping.upsert({
-      where: {
-        sourceSystem_sourceCode_targetSystem_targetCode: {
-          sourceSystem: doc.sourceSystem,
-          sourceCode: doc.sourceCode,
-          targetSystem: doc.targetSystem,
-          targetCode: doc.targetCode,
-        },
+const syncCodeMappingToPostgres = async (input: CodeMappingMongo) => {
+  return prisma.codeMapping.upsert({
+    where: {
+      sourceSystem_sourceCode_targetSystem_targetCode: {
+        sourceSystem: input.sourceSystem,
+        sourceCode: input.sourceCode,
+        targetSystem: input.targetSystem,
+        targetCode: input.targetCode,
       },
-      create: {
-        sourceSystem: doc.sourceSystem,
-        sourceCode: doc.sourceCode,
-        targetSystem: doc.targetSystem,
-        targetCode: doc.targetCode,
-        targetDisplay: doc.targetDisplay ?? null,
-        targetVersion: doc.targetVersion ?? null,
-        active: doc.active,
-      },
-      update: {
-        targetDisplay: doc.targetDisplay ?? null,
-        targetVersion: doc.targetVersion ?? null,
-        active: doc.active,
-      },
-    });
-  } catch (err) {
-    handleDualWriteError("CodeMapping", err);
-  }
+    },
+    create: {
+      sourceSystem: input.sourceSystem,
+      sourceCode: input.sourceCode,
+      targetSystem: input.targetSystem,
+      targetCode: input.targetCode,
+      targetDisplay: input.targetDisplay ?? null,
+      targetVersion: input.targetVersion ?? null,
+      active: input.active,
+    },
+    update: {
+      targetDisplay: input.targetDisplay ?? null,
+      targetVersion: input.targetVersion ?? null,
+      active: input.active,
+    },
+  });
 };
 
 const ensureNonEmpty = (value: string | undefined, field: string) => {
   if (!value?.trim()) {
     throw new CodeServiceError(`${field} is required.`, 400);
   }
-};
-
-const toJsonInput = (value: Record<string, unknown> | null | undefined) => {
-  if (value === null) return Prisma.JsonNull;
-  if (value === undefined) return undefined;
-  return value as Prisma.InputJsonValue;
 };
 
 const normalizeTrimmedValue = <T extends string>(value?: T) =>
@@ -115,55 +101,27 @@ const normalizeLimit = (value?: number) =>
     ? Math.floor(value)
     : undefined;
 
-const escapeRegex = (value: string) =>
-  value.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\\$&`);
+const isStringArray = (
+  value: Prisma.JsonValue | null | undefined,
+): value is string[] =>
+  Array.isArray(value) && value.every((entry) => typeof entry === "string");
 
-const applyEntryQueryFilter = (
-  query: string | undefined,
-  filter: Record<string, unknown>,
+const matchesEntryQuery = (
+  entry: { code: string; display: string; synonyms?: Prisma.JsonValue | null },
+  query: string,
 ) => {
-  if (!query) {
-    return;
-  }
-
-  if (typeof query !== "string") {
-    throw new CodeServiceError("Invalid query", 400);
-  }
-
-  const trimmedQuery = query.trim();
+  const trimmedQuery = query.trim().toLowerCase();
   if (!trimmedQuery) {
-    return;
+    return true;
   }
 
-  const escaped = escapeRegex(trimmedQuery);
-  filter.$or = [
-    { code: new RegExp(escaped, "i") },
-    { display: new RegExp(escaped, "i") },
-    { synonyms: new RegExp(escaped, "i") },
+  const values = [
+    entry.code,
+    entry.display,
+    ...(isStringArray(entry.synonyms) ? entry.synonyms : []),
   ];
-};
 
-const applyEntryQueryWhere = (
-  query: string | undefined,
-  where: Prisma.CodeEntryWhereInput,
-) => {
-  if (!query) {
-    return;
-  }
-
-  if (typeof query !== "string") {
-    throw new CodeServiceError("Invalid query", 400);
-  }
-
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) {
-    return;
-  }
-
-  where.OR = [
-    { code: { contains: trimmedQuery, mode: "insensitive" } },
-    { display: { contains: trimmedQuery, mode: "insensitive" } },
-  ];
+  return values.some((value) => value.toLowerCase().includes(trimmedQuery));
 };
 
 const buildCodeMappingFilter = (params: {
@@ -173,20 +131,12 @@ const buildCodeMappingFilter = (params: {
   targetCode?: string;
   active?: boolean;
 }) => {
-  const filter: Record<string, unknown> = {};
   const safeSourceSystem = normalizeTrimmedValue(params.sourceSystem);
   const safeSourceCode = normalizeTrimmedValue(params.sourceCode);
   const safeTargetSystem = normalizeTrimmedValue(params.targetSystem);
   const safeTargetCode = normalizeTrimmedValue(params.targetCode);
 
-  if (safeSourceSystem) filter.sourceSystem = safeSourceSystem;
-  if (safeSourceCode) filter.sourceCode = safeSourceCode;
-  if (safeTargetSystem) filter.targetSystem = safeTargetSystem;
-  if (safeTargetCode) filter.targetCode = safeTargetCode;
-  if (typeof params.active === "boolean") filter.active = params.active;
-
   return {
-    filter,
     where: {
       sourceSystem: safeSourceSystem,
       sourceCode: safeSourceCode,
@@ -204,52 +154,9 @@ export const CodeService = {
     ensureNonEmpty(input.display, "display");
     ensureNonEmpty(input.type, "type");
 
-    if (isReadFromPostgres()) {
-      const saved = await prisma.codeEntry.upsert({
-        where: {
-          system_code: {
-            system: input.system,
-            code: input.code,
-          },
-        },
-        create: {
-          system: input.system,
-          code: input.code,
-          display: input.display,
-          type: input.type,
-          active: input.active,
-          synonyms:
-            input.synonyms === null
-              ? Prisma.JsonNull
-              : (input.synonyms ?? undefined),
-          meta: toJsonInput(input.meta),
-        },
-        update: {
-          display: input.display,
-          type: input.type,
-          active: input.active,
-          synonyms:
-            input.synonyms === null
-              ? Prisma.JsonNull
-              : (input.synonyms ?? undefined),
-          meta: toJsonInput(input.meta),
-        },
-      });
+    const saved = await syncCodeEntryToPostgres(input);
 
-      return saved as unknown as CodeEntryDocument;
-    }
-
-    const saved = await CodeEntryModel.findOneAndUpdate(
-      { system: input.system, code: input.code },
-      { $set: input },
-      { upsert: true, new: true, sanitizeFilter: true },
-    );
-
-    if (saved) {
-      await syncCodeEntryToPostgres(saved);
-    }
-
-    return saved;
+    return saved as unknown as CodeEntryDocument;
   },
 
   async upsertMapping(input: CodeMappingMongo) {
@@ -258,51 +165,9 @@ export const CodeService = {
     ensureNonEmpty(input.targetSystem, "targetSystem");
     ensureNonEmpty(input.targetCode, "targetCode");
 
-    if (isReadFromPostgres()) {
-      const saved = await prisma.codeMapping.upsert({
-        where: {
-          sourceSystem_sourceCode_targetSystem_targetCode: {
-            sourceSystem: input.sourceSystem,
-            sourceCode: input.sourceCode,
-            targetSystem: input.targetSystem,
-            targetCode: input.targetCode,
-          },
-        },
-        create: {
-          sourceSystem: input.sourceSystem,
-          sourceCode: input.sourceCode,
-          targetSystem: input.targetSystem,
-          targetCode: input.targetCode,
-          targetDisplay: input.targetDisplay ?? null,
-          targetVersion: input.targetVersion ?? null,
-          active: input.active,
-        },
-        update: {
-          targetDisplay: input.targetDisplay ?? null,
-          targetVersion: input.targetVersion ?? null,
-          active: input.active,
-        },
-      });
+    const saved = await syncCodeMappingToPostgres(input);
 
-      return saved as unknown as CodeMappingDocument;
-    }
-
-    const saved = await CodeMappingModel.findOneAndUpdate(
-      {
-        sourceSystem: input.sourceSystem,
-        sourceCode: input.sourceCode,
-        targetSystem: input.targetSystem,
-        targetCode: input.targetCode,
-      },
-      { $set: input },
-      { upsert: true, new: true, sanitizeFilter: true },
-    );
-
-    if (saved) {
-      await syncCodeMappingToPostgres(saved);
-    }
-
-    return saved;
+    return saved as unknown as CodeMappingDocument;
   },
 
   async listEntries(params: {
@@ -313,23 +178,20 @@ export const CodeService = {
     limit?: number;
   }) {
     const { system, type, active, query, limit } = params;
-    const filter: Record<string, unknown> = {};
     const safeSystem = normalizeTrimmedValue(system);
     const safeType = normalizeTrimmedValue(type);
     const safeLimit = normalizeLimit(limit);
 
-    if (safeSystem) filter.system = safeSystem;
-    if (safeType) filter.type = safeType;
-    if (typeof active === "boolean") filter.active = active;
-    applyEntryQueryFilter(query, filter);
+    const where: Prisma.CodeEntryWhereInput = {};
+    if (safeSystem) where.system = safeSystem;
+    if (safeType) where.type = safeType;
+    if (typeof active === "boolean") where.active = active;
 
-    if (isReadFromPostgres()) {
-      const where: Prisma.CodeEntryWhereInput = {};
-      if (safeSystem) where.system = safeSystem;
-      if (safeType) where.type = safeType;
-      if (typeof active === "boolean") where.active = active;
-      applyEntryQueryWhere(query, where);
+    if (query !== undefined && typeof query !== "string") {
+      throw new CodeServiceError("Invalid query", 400);
+    }
 
+    if (!query?.trim()) {
       return prisma.codeEntry.findMany({
         where,
         orderBy: { display: "asc" },
@@ -337,15 +199,13 @@ export const CodeService = {
       });
     }
 
-    const cursor = CodeEntryModel.find(filter)
-      .sort({ display: 1 })
-      .setOptions({ sanitizeFilter: true });
+    const entries = await prisma.codeEntry.findMany({
+      where,
+      orderBy: { display: "asc" },
+    });
+    const filtered = entries.filter((entry) => matchesEntryQuery(entry, query));
 
-    if (safeLimit && safeLimit > 0) {
-      cursor.limit(safeLimit);
-    }
-
-    return cursor.lean();
+    return safeLimit && safeLimit > 0 ? filtered.slice(0, safeLimit) : filtered;
   },
 
   async listMappings(params: {
@@ -355,18 +215,11 @@ export const CodeService = {
     targetCode?: string;
     active?: boolean;
   }) {
-    const { filter, where } = buildCodeMappingFilter(params);
+    const { where } = buildCodeMappingFilter(params);
 
-    if (isReadFromPostgres()) {
-      return prisma.codeMapping.findMany({
-        where: where as Prisma.CodeMappingWhereInput,
-        orderBy: { createdAt: "desc" },
-      });
-    }
-
-    return CodeMappingModel.find(filter)
-      .sort({ createdAt: -1 })
-      .setOptions({ sanitizeFilter: true })
-      .lean();
+    return prisma.codeMapping.findMany({
+      where: where as Prisma.CodeMappingWhereInput,
+      orderBy: { createdAt: "desc" },
+    });
   },
 };

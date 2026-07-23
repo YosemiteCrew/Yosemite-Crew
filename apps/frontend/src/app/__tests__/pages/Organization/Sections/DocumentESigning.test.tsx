@@ -14,7 +14,7 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
+jest.mock('@/app/ui/primitives/SectionCard/SectionCard', () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>

@@ -120,6 +120,24 @@ describe('EmergencyBottomSheet', () => {
     expect(getByText('Adverse event\nreporting')).toBeTruthy();
   });
 
+  it('exposes a button role and label on each emergency option', () => {
+    mockSelectLinkedHospitalsForCompanion.mockReturnValue([
+      {id: 'h1', name: 'Vet Clinic'},
+    ]);
+
+    const ref = React.createRef<EmergencyBottomSheetRef>();
+    const {getByLabelText} = render(
+      <EmergencyBottomSheet ref={ref} companionId="c1" />,
+    );
+
+    act(() => {
+      ref.current?.open();
+    });
+
+    const callVetOption = getByLabelText('Call vet/ Practice');
+    expect(callVetOption.props.accessibilityRole).toBe('button');
+  });
+
   it('handles null companionId gracefully', () => {
     mockSelectLinkedHospitalsForCompanion.mockReturnValue([]);
     const ref = React.createRef<EmergencyBottomSheetRef>();

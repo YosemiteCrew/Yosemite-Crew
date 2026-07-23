@@ -68,8 +68,8 @@ const DeveloperPlugins = () => {
       <div className="OperationsWrapper">
         <div className="TitleContainer">
           <div className="dev-plugins-heading">
-            <h1 className="text-page-title text-text-primary">Plugins</h1>
-            <p className="text-body-3 text-text-secondary">
+            <h1 className="text-page-title">Plugins</h1>
+            <p className="dev-plugins-subtitle">
               Extend every clinic on the platform. The WordPress model, for animal health
             </p>
           </div>
@@ -95,21 +95,15 @@ const DeveloperPlugins = () => {
                   <span className="dev-plugin-card-icon" aria-hidden="true">
                     <Icon icon={plugin.icon} width={18} height={18} />
                   </span>
-                  <span className={`dev-plugin-badge ${plugin.status} text-caption-2`}>
+                  <span className={`dev-plugin-badge ${plugin.status} text-caption-3`}>
                     {plugin.badge}
                   </span>
                 </div>
-                <h2 className="dev-plugin-card-title text-heading-3 text-text-primary">
-                  {plugin.title}
-                </h2>
-                <p className="text-body-4 text-text-secondary dev-plugin-card-desc">
-                  {plugin.description}
-                </p>
+                <h2 className="dev-plugin-card-title">{plugin.title}</h2>
+                <p className="dev-plugin-card-desc">{plugin.description}</p>
                 <div className="dev-plugin-card-foot">
-                  <span className="text-caption-2 text-text-tertiary">{plugin.author}</span>
-                  <span className="dev-plugin-card-action text-body-4-emphasis">
-                    {plugin.action}
-                  </span>
+                  <span className="dev-plugin-card-author">{plugin.author}</span>
+                  <span className="dev-plugin-card-action">{plugin.action}</span>
                 </div>
               </div>
             ))}
@@ -117,7 +111,7 @@ const DeveloperPlugins = () => {
 
           <div className="dev-website-card">
             <div className="dev-website-copy">
-              <span className="dev-website-badge text-caption-2">Website builder</span>
+              <span className="dev-website-badge text-caption-3">Website builder</span>
               <p className="dev-website-title font-newsreader">
                 A clinic website with booking built in,{' '}
                 <span className="dev-website-title-accent">live in an afternoon.</span>
@@ -163,7 +157,7 @@ const DeveloperPlugins = () => {
                     </span>
                   ))}
                 </div>
-                <span className="dev-site-status text-caption-2 text-text-tertiary">
+                <span className="dev-site-status">
                   <span className="dev-dot" aria-hidden="true" />
                   {'Bookings sync to the PIMS in real time'}
                 </span>

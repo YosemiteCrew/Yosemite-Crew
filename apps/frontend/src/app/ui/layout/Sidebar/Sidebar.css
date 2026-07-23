@@ -15,8 +15,8 @@
   height: 100%;
   flex-direction: column;
   overflow: visible;
-  /* Spec (PIMS Rebuild - Spec.md, desktop shell recipe): 20px 14px 16px. */
-  padding: 20px 14px 16px;
+  /* Design ("Shell expanded", 19 July inline styles): 18px 14px 14px. */
+  padding: 18px 14px 14px;
   border-right: 1px solid var(--hairline);
   background: var(--screen-2);
   transition:
@@ -32,7 +32,25 @@
   min-width: var(--sidebar-collapsed-width);
   max-width: var(--sidebar-collapsed-width);
   flex: 0 0 var(--sidebar-collapsed-width);
-  padding: 18px 10px 14px;
+  /* Design 76px icon rail: 18px top / 14px bottom, 0 side — the centered 44px
+     pills define the horizontal rhythm. */
+  padding: 18px 0 14px;
+}
+
+/* 18px gap between the brand logo and the first icon on the collapsed rail. */
+.sidebar-collapsed .sidebar-routes {
+  margin-top: 18px;
+}
+
+/* Design rail icons are 18px (desktop expanded rows keep 17px). */
+.sidebar-collapsed .route-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-collapsed .route-icon-svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* ---- logo + wordmark ---- */
@@ -57,14 +75,14 @@
 }
 
 .logo img {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
 .logo-collapsed img {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
 }
 
 .sidebar-wordmark-group {
@@ -246,8 +264,11 @@
   justify-content: space-between;
 }
 
+/* The rail itself has no side padding, so the footer keeps the divider inset. */
 .sidebar-collapsed .sidebar-footer {
   justify-content: center;
+  padding-right: 10px;
+  padding-left: 10px;
 }
 
 .sidebar-status {

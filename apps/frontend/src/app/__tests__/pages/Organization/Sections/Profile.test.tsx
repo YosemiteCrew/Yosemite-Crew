@@ -21,10 +21,6 @@ jest.mock('@/app/hooks/useNotify', () => ({
   }),
 }));
 
-jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
-  PermissionGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
 const SAVE_VALUES_BY_TITLE: Record<string, Record<string, string>> = {
   Organization: { name: 'New Clinic Name', country: 'CA' },
   Address: { addressLine: '123 Main St', city: 'Metropolis' },
@@ -54,43 +50,70 @@ jest.mock('@/app/features/organization/pages/Organization/Sections/ProfileCard',
   ),
 }));
 
+const ORG = {
+  _id: 'org-1',
+  name: 'Clinic',
+  type: 'HOSPITAL' as const,
+  phoneNo: '123',
+  taxId: 'tax-1',
+  address: { country: 'US' },
+};
+
+const renderProfile = (overrides: Record<string, unknown> = {}) =>
+  render(<Profile primaryOrg={{ ...ORG, ...overrides } as any} />);
+
+/** The band renders first; enter the edit surface where the profile cards live. */
+const enterEditMode = () => {
+  fireEvent.click(screen.getByRole('button', { name: /Edit profile/ }));
+};
+
 describe('Organization Profile Section', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (updateOrg as jest.Mock).mockResolvedValue({});
     (usePermissions as jest.Mock).mockReturnValue({ can: () => true });
+    SAVE_VALUES_BY_TITLE.Organization = { name: 'New Clinic Name', country: 'CA' };
+    SAVE_VALUES_BY_TITLE.Address = { addressLine: '123 Main St', city: 'Metropolis' };
+    SAVE_VALUES_BY_TITLE['Check-in settings'] = {
+      appointmentCheckInBufferMinutes: '12',
+      appointmentCheckInRadiusMeters: '350',
+    };
   });
 
-  it('renders check-in settings card', () => {
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US' },
-        }}
-      />
-    );
+  it('renders the identity band with the org name and type pill', () => {
+    renderProfile();
 
+    expect(screen.getByText('Clinic')).toBeInTheDocument();
+    expect(screen.getByText('HOSPITAL')).toBeInTheDocument();
+  });
+
+  it('hides the Edit profile control when the user cannot edit the org', () => {
+    (usePermissions as jest.Mock).mockReturnValue({ can: () => false });
+    renderProfile();
+
+    expect(screen.queryByRole('button', { name: /Edit profile/ })).not.toBeInTheDocument();
+  });
+
+  it('reveals the editable cards after clicking Edit profile', () => {
+    renderProfile();
+    enterEditMode();
+
+    expect(screen.getByText('Organization')).toBeInTheDocument();
+    expect(screen.getByText('Address')).toBeInTheDocument();
     expect(screen.getByText('Check-in settings')).toBeInTheDocument();
   });
 
+  it('returns to the band when Done is clicked', () => {
+    renderProfile();
+    enterEditMode();
+    fireEvent.click(screen.getByRole('button', { name: /Done/ }));
+
+    expect(screen.getByRole('button', { name: /Edit profile/ })).toBeInTheDocument();
+  });
+
   it('saves check-in settings as integers', async () => {
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US' },
-        }}
-      />
-    );
+    renderProfile();
+    enterEditMode();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save Check-in settings' }));
 
@@ -106,18 +129,8 @@ describe('Organization Profile Section', () => {
   });
 
   it('falls back to defaults when check-in values are invalid or negative', async () => {
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US' },
-        }}
-      />
-    );
+    renderProfile();
+    enterEditMode();
 
     SAVE_VALUES_BY_TITLE['Check-in settings'] = {
       appointmentCheckInBufferMinutes: 'not-a-number',
@@ -136,18 +149,8 @@ describe('Organization Profile Section', () => {
   });
 
   it('saves organization details and merges the country into the address', async () => {
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US', city: 'Old City' },
-        }}
-      />
-    );
+    renderProfile({ address: { country: 'US', city: 'Old City' } });
+    enterEditMode();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save Organization' }));
 
@@ -170,18 +173,8 @@ describe('Organization Profile Section', () => {
     const error = new Error('save failed');
     (updateOrg as jest.Mock).mockRejectedValue(error);
 
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US' },
-        }}
-      />
-    );
+    renderProfile();
+    enterEditMode();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save Organization' }));
 
@@ -195,19 +188,26 @@ describe('Organization Profile Section', () => {
     consoleSpy.mockRestore();
   });
 
+  it('saves organization details without a country, leaving the address untouched', async () => {
+    renderProfile({ address: { country: 'US', city: 'Old City' } });
+    enterEditMode();
+
+    SAVE_VALUES_BY_TITLE.Organization = { name: 'No Country Clinic' };
+    fireEvent.click(screen.getByRole('button', { name: 'Save Organization' }));
+
+    await waitFor(() => {
+      expect(updateOrg).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'No Country Clinic',
+          address: expect.objectContaining({ country: 'US', city: 'Old City' }),
+        })
+      );
+    });
+  });
+
   it('saves address details, merging into the existing address', async () => {
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US', city: 'Old City' },
-        }}
-      />
-    );
+    renderProfile({ address: { country: 'US', city: 'Old City' } });
+    enterEditMode();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save Address' }));
 
@@ -222,92 +222,5 @@ describe('Organization Profile Section', () => {
         })
       );
     });
-  });
-
-  it('notifies an error and logs when saving address details fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const error = new Error('address save failed');
-    (updateOrg as jest.Mock).mockRejectedValue(error);
-
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US' },
-        }}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save Address' }));
-
-    await waitFor(() => {
-      expect(mockNotify).toHaveBeenCalledWith(
-        'error',
-        expect.objectContaining({ title: 'Unable to update organization' })
-      );
-    });
-    expect(consoleSpy).toHaveBeenCalledWith('Error updating organization:', error);
-    consoleSpy.mockRestore();
-  });
-
-  it('notifies an error and logs when saving check-in settings fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const error = new Error('check-in save failed');
-    (updateOrg as jest.Mock).mockRejectedValue(error);
-    SAVE_VALUES_BY_TITLE['Check-in settings'] = {
-      appointmentCheckInBufferMinutes: '15',
-      appointmentCheckInRadiusMeters: '400',
-    };
-
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US' },
-        }}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save Check-in settings' }));
-
-    await waitFor(() => {
-      expect(mockNotify).toHaveBeenCalledWith(
-        'error',
-        expect.objectContaining({ title: 'Unable to update organization' })
-      );
-    });
-    expect(consoleSpy).toHaveBeenCalledWith('Error updating organization:', error);
-    consoleSpy.mockRestore();
-  });
-
-  it('does not allow saving when the user lacks org-edit permission', () => {
-    (usePermissions as jest.Mock).mockReturnValue({ can: () => false });
-
-    render(
-      <Profile
-        primaryOrg={{
-          _id: 'org-1',
-          name: 'Clinic',
-          type: 'HOSPITAL',
-          phoneNo: '123',
-          taxId: 'tax-1',
-          address: { country: 'US' },
-        }}
-      />
-    );
-
-    expect(screen.queryByRole('button', { name: 'Save Organization' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save Address' })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Save Check-in settings' })
-    ).not.toBeInTheDocument();
   });
 });

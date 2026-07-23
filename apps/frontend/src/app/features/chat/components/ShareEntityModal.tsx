@@ -117,8 +117,8 @@ export function ShareEntityModal({
   return (
     <dialog
       open
-      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-start justify-center border-0 bg-neutral-900/30 p-4 pt-24"
-      aria-label="Share from PIMS"
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-start justify-center border-0 bg-[var(--scrim,rgba(29,28,27,0.44))] p-4 pt-24"
+      aria-label="Share to chat"
     >
       <button
         type="button"
@@ -126,25 +126,30 @@ export function ShareEntityModal({
         className="absolute inset-0 cursor-default"
         onClick={onClose}
       />
-      <div className="relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-chat-divider px-4 py-3">
+      {/* Design ("Share entity modal"): 470px card, 20px radius, 15px/700 title. */}
+      <div className="relative z-10 flex w-full max-w-[470px] flex-col overflow-hidden rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_2px_6px_var(--sh05),0_22px_56px_var(--sh10)]">
+        <div className="flex items-center justify-between border-b border-[var(--hairline)] px-5 pb-3.5 pt-4">
           <span className="flex items-center gap-2">
-            <IoShareSocialOutline className="h-4 w-4 text-primary-600" />
-            <Text as="span" variant="body-3-emphasis" className="text-neutral-900">
-              Share from PIMS
+            <IoShareSocialOutline className="h-4 w-4 text-[var(--blue-text)]" />
+            <Text
+              as="span"
+              variant="body-3-emphasis"
+              className="text-[15px] font-bold text-[var(--ink)]"
+            >
+              Share to chat
             </Text>
           </span>
           <button
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
+            className="inline-flex size-[30px] items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)] hover:bg-[var(--screen-2)]"
           >
-            <IoClose className="h-4 w-4" />
+            <IoClose className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <div className="flex gap-1 border-b border-chat-divider px-3 py-2">
+        <div className="flex gap-1 border-b border-[var(--hairline)] px-3 py-2">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -153,8 +158,8 @@ export function ShareEntityModal({
               className={clsx(
                 'flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors',
                 tab === key
-                  ? 'bg-chat-panel text-primary-700'
-                  : 'text-neutral-500 hover:bg-chat-surface-soft'
+                  ? 'bg-[var(--blue-soft)] text-[var(--blue-text)]'
+                  : 'text-[var(--ink-faint)] hover:bg-[var(--screen-2)]'
               )}
             >
               <Icon className="size-4" />
@@ -163,21 +168,21 @@ export function ShareEntityModal({
           ))}
         </div>
 
-        <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-2">
-          <IoSearchOutline className="h-4 w-4 shrink-0 text-neutral-400" />
+        <div className="flex items-center gap-2 border-b border-[var(--hairline)] px-4 py-2">
+          <IoSearchOutline className="h-4 w-4 shrink-0 text-[var(--ink-faint)]" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search…"
             aria-label="Search records"
-            className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
+            className="w-full bg-transparent font-satoshi text-sm text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
           />
         </div>
 
         <ul className="max-h-80 overflow-y-auto p-2">
           {filtered.length === 0 ? (
             <li className="px-3 py-6 text-center">
-              <Text as="span" variant="body-4" className="text-neutral-400">
+              <Text as="span" variant="body-4" className="text-[var(--ink-faint)]">
                 Nothing to share here yet
               </Text>
             </li>
@@ -188,26 +193,30 @@ export function ShareEntityModal({
                   type="button"
                   disabled={sharing === item.id}
                   onClick={() => void share(item)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft disabled:opacity-60"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)] disabled:opacity-60"
                 >
                   <ChatAvatar name={item.title} size="sm" />
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <Text as="span" variant="body-4-emphasis" className="truncate text-neutral-900">
+                    <Text
+                      as="span"
+                      variant="body-4-emphasis"
+                      className="truncate text-[var(--ink)]"
+                    >
                       {item.title}
                     </Text>
                     {item.subtitle && (
-                      <Text as="span" variant="caption-1" className="truncate text-neutral-500">
+                      <Text
+                        as="span"
+                        variant="caption-1"
+                        className="truncate text-[var(--ink-faint)]"
+                      >
                         {item.subtitle}
                       </Text>
                     )}
                   </span>
-                  <Text
-                    as="span"
-                    variant="caption-2"
-                    className="shrink-0 font-semibold text-primary-600"
-                  >
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--cta)] px-3 py-1.5 text-[11.5px] font-semibold text-[var(--cta-text)]">
                     {sharing === item.id ? 'Sharing…' : 'Share'}
-                  </Text>
+                  </span>
                 </button>
               </li>
             ))

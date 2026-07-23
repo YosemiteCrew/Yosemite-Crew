@@ -163,17 +163,24 @@ describe('AddForm single-screen builder', () => {
   it('renders the builder view with palette/canvas Build and the details fold by default', () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    expect(screen.getByText('Add template')).toBeInTheDocument();
+    const title = screen.getByRole('heading', { name: 'Add template' });
+    expect(title).toBeInTheDocument();
+    // Single-line ellipsis keeps the header title/subtitle from fragmenting
+    // word-by-word in the narrow drawer (#1952).
+    expect(title).toHaveClass('truncate');
+    const subtitle = screen.getByText(/Uncategorised/);
+    expect(subtitle).toHaveClass('truncate');
+    expect(title.parentElement).toHaveClass('min-w-0');
     expect(screen.getByText('Build Step')).toBeInTheDocument();
     // Details is always mounted (hidden) so its validator is registered; it is passed hideNext.
     expect(screen.getByText('Details Step')).toBeInTheDocument();
     expect(screen.getByText('hideNext:true')).toBeInTheDocument();
-    // Footer save actions.
+    // Header publish cta + footer draft action.
     expect(screen.getByText('Save template')).toBeInTheDocument();
     expect(screen.getByText('Save as draft')).toBeInTheDocument();
   });
 
-  it('publishes from the footer once details and schema validate', async () => {
+  it('publishes from the header cta once details and schema validate', async () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
     fireEvent.click(screen.getByText('Save template'));
@@ -256,7 +263,7 @@ describe('AddForm single-screen builder', () => {
 
     fireEvent.click(screen.getByText('Preview as parent'));
     expect(screen.getByText('Review Step')).toBeInTheDocument();
-    // Footer is hidden in preview; Review supplies its own actions.
+    // Header cta + footer are hidden in preview; Review supplies its own actions.
     expect(screen.queryByText('Save template')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Back to builder'));

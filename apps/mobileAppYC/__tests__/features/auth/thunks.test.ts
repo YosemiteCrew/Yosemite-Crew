@@ -835,6 +835,36 @@ describe('auth thunks', () => {
       );
       variables.MOBILE_CONFIG_BEHAVIOR.useDevApi = previousUseDevApi;
     });
+
+    it('should restore production API config when dev API mode is disabled', async () => {
+      const variables = require('@/config/variables');
+      const previousUseDevApi = variables.MOBILE_CONFIG_BEHAVIOR.useDevApi;
+      variables.MOBILE_CONFIG_BEHAVIOR.useDevApi = false;
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
+
+      store.dispatch({
+        type: 'auth/setAuthenticated',
+        payload: {
+          user: mockUser,
+          provider: 'amplify',
+          sessionExpiry: null,
+          lastRefresh: Date.now(),
+        },
+      });
+
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
+
+      expect(variables.API_CONFIG.baseUrl).toBe(
+        variables.PRODUCTION_API_BASE_URL,
+      );
+      variables.MOBILE_CONFIG_BEHAVIOR.useDevApi = previousUseDevApi;
+    });
   });
 
   describe('clearAuthError', () => {

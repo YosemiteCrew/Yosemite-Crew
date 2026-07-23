@@ -13,6 +13,7 @@ const useIntegrationsForPrimaryOrgMock = jest.fn();
 const useIntegrationByProviderForPrimaryOrgMock = jest.fn();
 const usePrimaryOrgMock = jest.fn();
 const usePrimaryOrgIdMock = jest.fn();
+const membershipMock = jest.fn(() => ({ roleCode: 'OWNER' }) as Record<string, unknown>);
 const useResolvedMerckMock = jest.fn();
 const refreshMerckIntegrationMock = jest.fn();
 const integrationStatusMock = jest.fn();
@@ -20,6 +21,7 @@ const integrationErrorMock = jest.fn();
 const integrationLastFetchedAtMock = jest.fn();
 const getIntegrationByProviderStateMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
+const listIdexxOrdersMock = jest.fn();
 const storeIntegrationCredentialsMock = jest.fn();
 const validateIntegrationCredentialsMock = jest.fn();
 const enableIntegrationMock = jest.fn();
@@ -35,6 +37,7 @@ jest.mock('next/image', () => ({
   __esModule: true,
   // Render as <img> (alt is an attribute, not text content) so card titles that
   // match their logo alt (e.g. "MSD Veterinary Manual") stay uniquely queryable.
+
   default: ({ alt }: any) => <img alt={alt || ''} data-testid="mock-next-image" />,
 }));
 
@@ -63,7 +66,16 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ primaryOrgId: usePrimaryOrgIdMock() }),
+  useOrgStore: (selector: any) => {
+    const primaryOrgId = usePrimaryOrgIdMock();
+    // The page resolves integrations:edit:any from this membership, so the role
+    // drives whether the mutation controls render.
+    return selector({
+      primaryOrgId,
+      status: 'loaded',
+      membershipsByOrgId: primaryOrgId ? { [primaryOrgId]: membershipMock() } : {},
+    });
+  },
 }));
 
 jest.mock('@/app/hooks/useIntegrations', () => ({
@@ -120,13 +132,25 @@ jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled, href }: any) => (
-    <button type="button" data-href={href} onClick={onClick} disabled={isDisabled}>
+  Primary: ({ text, onClick, isDisabled, href, ariaLabel }: any) => (
+    <button
+      type="button"
+      data-href={href}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      disabled={isDisabled}
+    >
       {text}
     </button>
   ),
-  Secondary: ({ text, onClick, isDisabled, href }: any) => (
-    <button type="button" data-href={href} onClick={onClick} disabled={isDisabled}>
+  Secondary: ({ text, onClick, isDisabled, href, ariaLabel }: any) => (
+    <button
+      type="button"
+      data-href={href}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      disabled={isDisabled}
+    >
       {text}
     </button>
   ),
@@ -149,6 +173,7 @@ jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
 jest.mock('@/app/features/integrations/services/idexxService', () => ({
   getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
   listIdexxIvlsDevices: (...args: any[]) => listIdexxIvlsDevicesMock(...args),
+  listIdexxOrders: (...args: any[]) => listIdexxOrdersMock(...args),
   storeIntegrationCredentials: (...args: any[]) => storeIntegrationCredentialsMock(...args),
   validateIntegrationCredentials: (...args: any[]) => validateIntegrationCredentialsMock(...args),
   enableIntegration: (...args: any[]) => enableIntegrationMock(...args),
@@ -224,6 +249,13 @@ const openSettings = async () => {
   return screen.findByTestId('settings-modal');
 };
 
+// Each coming-soon card renders its own "Coming soon" <button>, so scope tab clicks to the
+// filter fieldset instead of matching every button carrying that label.
+const clickFilterTab = (name: string) => {
+  const tabs = screen.getByRole('group', { name: 'Filter integrations' });
+  fireEvent.click(within(tabs).getByRole('button', { name }));
+};
+
 // Resolve an integration card root from its (unique) title text.
 const getCard = (title: string): HTMLElement => {
   const heading = screen.getByText(title);
@@ -244,6 +276,26 @@ beforeEach(() => {
   integrationLastFetchedAtMock.mockReturnValue(null);
   getIntegrationByProviderStateMock.mockReturnValue(null);
   listIdexxIvlsDevicesMock.mockResolvedValue({ ivlsDeviceList: [] });
+  listIdexxOrdersMock.mockResolvedValue([
+    {
+      _id: 'o1',
+      idexxOrderId: 'IDX-1',
+      companionId: 'c1',
+      patientName: 'Poppy',
+      tests: ['ear cytology'],
+      modality: 'REFERENCE_LAB',
+      status: 'RUNNING',
+    },
+    {
+      _id: 'o2',
+      idexxOrderId: 'IDX-2',
+      companionId: 'c2',
+      patientName: 'Bruno',
+      tests: ['pre-surgical CBC'],
+      modality: 'INHOUSE',
+      status: 'RESULTED',
+    },
+  ]);
   storeIntegrationCredentialsMock.mockResolvedValue({ provider: 'IDEXX', status: 'disabled' });
   validateIntegrationCredentialsMock.mockResolvedValue({ ok: true });
   enableIntegrationMock.mockResolvedValue({ status: 'enabled' });
@@ -268,7 +320,7 @@ describe('IntegrationsPage — default disabled render', () => {
 
     expect(screen.getByRole('heading', { name: /Integrations/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Integrations info' })).toBeInTheDocument();
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 0');
+    expect(screen.getByText('0 active')).toBeInTheDocument();
 
     // Every card is visible under the default "All" filter.
     expect(screen.getByText('IDEXX VetConnect PLUS')).toBeInTheDocument();
@@ -293,6 +345,9 @@ describe('IntegrationsPage — default disabled render', () => {
     // Disabled status pill (no live dot branch).
     expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // The credentials surface is behind the modal, closed on first render.
+    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument();
 
     // "All" tab is active; the others are not.
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
@@ -323,6 +378,9 @@ describe('IntegrationsPage — default disabled render', () => {
     expect(
       within(modal).getByText('No linked IVLS devices found for this organization.')
     ).toBeInTheDocument();
+    // Recent orders section renders its empty message while IDEXX is disabled.
+    expect(within(modal).getByText('Recent orders')).toBeInTheDocument();
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
   });
 
   it('closes the settings modal via the Close control', async () => {
@@ -356,7 +414,7 @@ describe('IntegrationsPage — enabled render', () => {
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledWith('org-1'));
 
-    expect(screen.getByText('Active integrations:')).toHaveTextContent('Active integrations: 2');
+    expect(screen.getByText('2 active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disable IDEXX quick action' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Disable MSD Veterinary Manual' })
@@ -367,7 +425,24 @@ describe('IntegrationsPage — enabled render', () => {
     expect(
       within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Open manuals' })
     ).toBeInTheDocument();
-    expect(screen.getAllByText('Enabled').length).toBeGreaterThanOrEqual(1);
+    // IDEXX reads as CONNECTED per the design; MSD keeps ENABLED.
+    expect(within(getCard('IDEXX VetConnect PLUS')).getByText('Connected')).toBeInTheDocument();
+    expect(within(getCard('MSD Veterinary Manual')).getByText('Enabled')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('reads the IDEXX action as a neutral "Open workspace" pill and shows the plugin hint', async () => {
+    renderPage();
+    await waitForPage();
+    // Open workspace is the neutral outline (Secondary) pill, not the filled Enable CTA.
+    expect(
+      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Open workspace' })
+    ).toBeInTheDocument();
+    expect(
+      within(getCard('IDEXX VetConnect PLUS')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
+    // Developer-portal plugin hint row.
+    expect(screen.getByText(/More integrations ship as plugins/i)).toBeInTheDocument();
     await flush();
   });
 
@@ -412,6 +487,59 @@ describe('IntegrationsPage — enabled render', () => {
     expect(within(modal).getByText('SN-2')).toBeInTheDocument();
     expect(within(modal).getByText('Unknown')).toBeInTheDocument(); // '' vcpActivatedStatus fallback
     expect(within(modal).getAllByText('Not available').length).toBeGreaterThanOrEqual(1);
+    await flush();
+  });
+
+  it('renders recent orders in the modal with label and pill branches', async () => {
+    listIdexxOrdersMock.mockResolvedValue([
+      {
+        _id: 'o1',
+        idexxOrderId: 'IDX-1',
+        patientName: 'Poppy',
+        tests: ['ear cytology'],
+        status: 'RUNNING',
+      },
+      {
+        _id: 'o2',
+        idexxOrderId: 'IDX-2',
+        patientName: '',
+        tests: ['pre-surgical CBC'],
+        status: 'RESULTED',
+      },
+      { idexxOrderId: 'IDX-3', patientName: '', tests: [], status: '' },
+    ]);
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() =>
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1' })
+    );
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    // name + tests, tests-only, and id-fallback label branches.
+    expect(within(modal).getByText('Poppy · ear cytology')).toBeInTheDocument();
+    expect(within(modal).getByText('pre-surgical CBC')).toBeInTheDocument();
+    expect(within(modal).getByText('Order IDX-3')).toBeInTheDocument();
+    // running / resulted / neutral(empty→Pending) pill branches.
+    expect(within(modal).getByText('Running')).toBeInTheDocument();
+    expect(within(modal).getByText('Resulted')).toBeInTheDocument();
+    expect(within(modal).getByText('Pending')).toBeInTheDocument();
+    await flush();
+  });
+
+  it('swallows recent-orders load failures without surfacing an error', async () => {
+    listIdexxOrdersMock.mockRejectedValue(new Error('orders down'));
+
+    renderPage();
+    await waitForPage();
+    await waitFor(() => expect(listIdexxOrdersMock).toHaveBeenCalled());
+    await openSettings();
+
+    const modal = screen.getByTestId('settings-modal');
+    expect(within(modal).getByText('No recent orders.')).toBeInTheDocument();
+    // The orders failure is intentionally swallowed — no page alert.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await flush();
   });
 
@@ -912,18 +1040,22 @@ describe('IntegrationsPage — filters and empty states', () => {
     await flush();
   });
 
-  it('shows IDEXX + coming-soon cards under Available when providers are not enabled', async () => {
+  it('shows only IDEXX under Available and hides coming-soon cards', async () => {
     // IDEXX disabled, Merck enabled → IDEXX available, Merck hidden.
     useResolvedMerckMock.mockReturnValue(merckEnabled());
 
     renderPage();
     await waitForPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+    clickFilterTab('Available');
 
     await waitFor(() => expect(screen.getByText('IDEXX VetConnect PLUS')).toBeInTheDocument());
     expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
-    expect(screen.getByText('RadAnalyzer')).toBeInTheDocument();
+    // Coming-soon integrations are not connectable, so Available must not list them.
+    expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vetnio')).not.toBeInTheDocument();
+    expect(screen.queryByText('QuickBooks')).not.toBeInTheDocument();
+    expect(screen.queryByText('Laika')).not.toBeInTheDocument();
     await flush();
   });
 
@@ -935,13 +1067,36 @@ describe('IntegrationsPage — filters and empty states', () => {
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+    clickFilterTab('Available');
     await screen.findByText('No available integrations right now.');
 
-    // enabled provider cards hidden; coming-soon still visible under Available.
+    // The empty state must stand alone - no provider cards and no coming-soon cards.
     expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
     expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
-    expect(screen.getByText('RadAnalyzer')).toBeInTheDocument();
+    expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vetnio')).not.toBeInTheDocument();
+    expect(screen.queryByText('QuickBooks')).not.toBeInTheDocument();
+    expect(screen.queryByText('Laika')).not.toBeInTheDocument();
+    await flush();
+  });
+
+  it('shows every coming-soon card and no provider cards under Coming soon', async () => {
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
+    useResolvedMerckMock.mockReturnValue(merckEnabled());
+
+    renderPage();
+    await waitForPage();
+
+    clickFilterTab('Coming soon');
+
+    await waitFor(() => expect(screen.getByText('RadAnalyzer')).toBeInTheDocument());
+    expect(screen.getByText('Vetnio')).toBeInTheDocument();
+    expect(screen.getByText('QuickBooks')).toBeInTheDocument();
+    expect(screen.getByText('Laika')).toBeInTheDocument();
+    expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
+    expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
+    expect(screen.queryByText('No available integrations right now.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No connected integrations yet.')).not.toBeInTheDocument();
     await flush();
   });
 
@@ -1015,7 +1170,11 @@ describe('IntegrationsPage — misc branches', () => {
     await flush();
   });
 
-  it('short-circuits every action handler when there is no primary org', async () => {
+  it('renders no mutating controls, and calls nothing, without a primary org', async () => {
+    // integrations:edit:any resolves from the active org's membership, so with
+    // no org there is no edit grant and every mutating control stays off the
+    // page. That subsumes the old per-handler org guards, which are now only
+    // reachable if the org is cleared after the controls have rendered.
     usePrimaryOrgIdMock.mockReturnValue(null);
     usePrimaryOrgMock.mockReturnValue(null); // tooltip "?? your organization" branch
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(
@@ -1024,22 +1183,14 @@ describe('IntegrationsPage — misc branches', () => {
 
     renderPage();
     await waitForPage();
-    await openSettings();
 
-    // Fill credentials so the Store button is enabled and reaches its org guard.
-    fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'user-a' } });
-    fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'pass-a' } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Store credentials' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh integrations' }));
-    // Card enable buttons are gated on saving only, so they reach the org guard.
-    fireEvent.click(
-      within(getCard('IDEXX VetConnect PLUS')).getByRole('button', { name: 'Enable' })
-    );
-    fireEvent.click(
-      within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Enable' })
-    );
+    expect(screen.queryByRole('button', { name: 'Manage credentials' })).not.toBeInTheDocument();
+    expect(
+      within(getCard('IDEXX VetConnect PLUS')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
+    expect(
+      within(getCard('MSD Veterinary Manual')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
 
     await flush();
 
@@ -1049,5 +1200,22 @@ describe('IntegrationsPage — misc branches', () => {
     expect(enableIntegrationMock).not.toHaveBeenCalled();
     expect(listIdexxIvlsDevicesMock).not.toHaveBeenCalled();
     expect(getMerckGatewayMock).not.toHaveBeenCalled();
+  });
+
+  it('hides the mutating controls from a view-only role but keeps the read links', async () => {
+    // Supervisor/Vet/Technician/Assistant/Receptionist get integrations:view:any
+    // from the backend but not integrations:edit:any, so the catalog stays
+    // readable while every control that would 403 is withheld.
+    membershipMock.mockReturnValue({ roleCode: 'RECEPTIONIST' });
+
+    renderPage();
+    await waitForPage();
+
+    expect(screen.queryByRole('button', { name: 'Manage credentials' })).not.toBeInTheDocument();
+    expect(
+      within(getCard('MSD Veterinary Manual')).queryByRole('button', { name: 'Enable' })
+    ).not.toBeInTheDocument();
+    // The read-only affordance survives.
+    expect(getCard('IDEXX VetConnect PLUS')).toBeInTheDocument();
   });
 });

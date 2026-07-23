@@ -136,7 +136,7 @@ const ObservationToolForm = ({
               onClick={() => setActiveToolKey(tool.key)}
               className={`rounded-2xl border px-3 py-1.5 text-body-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
                 tool.key === activeToolKey
-                  ? 'border-text-brand bg-primary-100 text-text-brand'
+                  ? 'border-text-brand bg-primary-100 text-blue-text'
                   : 'border-neutral-300 text-neutral-700 hover:bg-neutral-100'
               }`}
             >

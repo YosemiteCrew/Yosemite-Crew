@@ -1,4 +1,12 @@
-import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import {
   IoArrowForwardOutline,
   IoCheckmarkOutline,
@@ -19,6 +27,7 @@ import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { useLoadTasksForPrimaryOrg } from '@/app/hooks/useTask';
 import { useTaskStore } from '@/app/stores/taskStore';
 import { getIdexxResultPdfBlob } from '@/app/features/integrations/services/idexxService';
+import { parseFloatSafe } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests.helpers';
 import { useOrgStore } from '@/app/stores/orgStore';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -44,8 +53,8 @@ import { AuditTrail } from '@/app/features/audit/types/audit';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Search from '@/app/ui/inputs/Search';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { AppointmentLabels, TaskLabels, getStatusStyle } from '@/app/config/statusConfig';
 import {
   canTransitionAppointmentStatus,
@@ -61,7 +70,10 @@ import {
 } from '@/app/lib/tasks';
 import { useNotify } from '@/app/hooks/useNotify';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { getPayloadString } from '@/app/features/companionHistory/utils/historyFormatters';
+import {
+  getPayloadString,
+  resolveHistoryDocumentId,
+} from '@/app/features/companionHistory/utils/historyFormatters';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -70,6 +82,19 @@ type CompanionHistoryTimelineProps = {
   onOpenAppointmentView?: (intent: AppointmentViewIntent) => void;
   compact?: boolean;
   fullPageHref?: string;
+  /**
+   * Presentation only. `'phone'` drops the desktop Search / Sort / Status header
+   * row and the bordered card chrome so the timeline reads as the compact
+   * bespoke phone-record History section (< 768px). The data flow, filters and
+   * every handler are identical to the default layout.
+   */
+  variant?: 'default' | 'phone';
+  /**
+   * Phone action-bar hook: incrementing this switches the active filter to
+   * Medical records (revealing the document uploader when `showDocumentUpload`
+   * is set). Ignored on the default layout.
+   */
+  openMedicalRecordsSignal?: number;
 };
 
 type SortKey = 'newest' | 'oldest';
@@ -82,6 +107,9 @@ type PdfPreviewState = {
 type DetailPair = {
   label: string;
   value: string;
+  range?: string;
+  abnormal?: boolean;
+  direction?: string;
 };
 
 const DEFAULT_FILTER: HistoryFilterKey = 'ALL';
@@ -302,13 +330,15 @@ export const StatusPillSelect = ({
 
   if (locked || disabled || menuOptions.length === 0) {
     return (
-      <span
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
-        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
-        title={formatStatusLabel(status)}
-      >
-        <span className="whitespace-nowrap">{label}</span>
-      </span>
+      <StatusPill
+        style={statusPillStyle(normalizedStatus)}
+        className="w-fit"
+        label={
+          <span className="whitespace-nowrap" title={formatStatusLabel(status)}>
+            {label}
+          </span>
+        }
+      />
     );
   }
 
@@ -321,15 +351,21 @@ export const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         onBlur={() => setOpen(false)}
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
+        className="w-fit rounded-full! transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         title={formatStatusLabel(status)}
       >
-        <span className="whitespace-nowrap">{label}</span>
-        <IoChevronDownOutline
-          size={10}
-          aria-hidden="true"
-          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        <StatusPill
+          style={statusPillStyle(normalizedStatus)}
+          label={
+            <>
+              <span className="whitespace-nowrap">{label}</span>
+              <IoChevronDownOutline
+                size={10}
+                aria-hidden="true"
+                className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              />
+            </>
+          }
         />
       </button>
       {open ? (
@@ -514,6 +550,18 @@ const getSearchableText = (entry: HistoryEntry): string => {
 const entryMatchesSearchQuery = (entry: HistoryEntry, normalizedQuery: string): boolean =>
   getSearchableText(entry).includes(normalizedQuery);
 
+const filterEntriesByActiveTab = (
+  entries: HistoryEntry[],
+  activeFilter: HistoryFilterKey,
+  requestedTypeSet: Set<HistoryEntryType> | undefined
+): HistoryEntry[] => {
+  if (activeFilter === 'ALL') return entries;
+  if (activeFilter === 'MEDICAL_RECORDS') {
+    return entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type));
+  }
+  return entries.filter((entry) => requestedTypeSet?.has(entry.type) ?? false);
+};
+
 const getEffectiveStatus = (entry: HistoryEntry, statusOverrides: StatusOverrides): string =>
   statusOverrides[entry.id] ?? entry.status ?? getPayloadString(entry.payload, ['status']) ?? '';
 
@@ -537,18 +585,65 @@ const getRecordArray = (
   return [];
 };
 
+const HIGH_FLAG_CODES = new Set(['H', 'HH', 'HIGH', 'ABOVE']);
+const LOW_FLAG_CODES = new Set(['L', 'LL', 'LOW', 'BELOW']);
+
+// Reference intervals arrive as "23-212", "10 - 125" or "5.1 to 16.8". The
+// shared LabTests parser only handles the spaced form, so analyte ranges get
+// their own anchored pattern.
+const ANALYTE_RANGE_PATTERN = /^(-?\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(-?\d+(?:\.\d+)?)$/i;
+
+const parseAnalyteRange = (range: string): { min: number; max: number } | null => {
+  const match = ANALYTE_RANGE_PATTERN.exec(range.replaceAll(',', '.').trim());
+  if (!match) return null;
+  const min = Number.parseFloat(match[1]);
+  const max = Number.parseFloat(match[2]);
+  return max > min ? { min, max } : null;
+};
+
+/**
+ * Out-of-range state for a single analyte. The lab's own flag wins where it is
+ * present; otherwise the value is compared against the reference interval. Only
+ * a determinable direction earns the design's ↑/↓ arrow.
+ */
+const getResultFlag = (
+  row: Record<string, unknown>,
+  value: string,
+  range: string
+): { abnormal: boolean; direction: string } => {
+  const code = (getPayloadString(row, ['interpretation', 'abnormalFlag', 'flag']) ?? '')
+    .trim()
+    .toUpperCase();
+  const bounds = parseAnalyteRange(range);
+  const numericValue = parseFloatSafe(value);
+  const isHigh = bounds !== null && numericValue !== null && numericValue > bounds.max;
+  const isLow = bounds !== null && numericValue !== null && numericValue < bounds.min;
+  if (HIGH_FLAG_CODES.has(code) || isHigh) {
+    return { abnormal: true, direction: '↑' };
+  }
+  if (LOW_FLAG_CODES.has(code) || isLow) {
+    return { abnormal: true, direction: '↓' };
+  }
+  const flagged = row.outOfRange === true || row.abnormal === true;
+  return { abnormal: flagged, direction: '' };
+};
+
 const getLabResults = (entry: HistoryEntry): DetailPair[] => {
   const rows = getRecordArray(entry.payload, ['results', 'tests', 'observations']);
-  return rows.slice(0, 6).map((row, index) => ({
-    label: getPayloadString(row, ['test', 'name', 'display']) || `Result ${index + 1}`,
-    value: [
-      getPayloadString(row, ['value', 'result']),
-      getPayloadString(row, ['unit']),
-      getPayloadString(row, ['reference', 'referenceRange']),
-    ]
-      .filter(Boolean)
-      .join(' / '),
-  }));
+  return rows.slice(0, 6).map((row, index) => {
+    // The flag is measured against the bare reading: a unit such as "x10^9/L"
+    // carries digits that would corrupt the numeric comparison.
+    const reading = getPayloadString(row, ['value', 'result']) ?? '';
+    const range = getPayloadString(row, ['reference', 'referenceRange']) ?? '';
+    const flag = getResultFlag(row, reading, range);
+    return {
+      label: getPayloadString(row, ['test', 'name', 'display']) || `Result ${index + 1}`,
+      value: [reading, getPayloadString(row, ['unit'])].filter(Boolean).join(' '),
+      range,
+      abnormal: flag.abnormal,
+      direction: flag.direction,
+    };
+  });
 };
 
 export const StructuredResultsPanel = ({
@@ -573,7 +668,7 @@ export const StructuredResultsPanel = ({
       >
         <span className="font-bold text-neutral-900">{result.label}</span>
         <span>{result.value || '-'}</span>
-        <span>{getPayloadString(entry.payload, ['referenceRange']) || '-'}</span>
+        <span>{result.range || getPayloadString(entry.payload, ['referenceRange']) || '-'}</span>
         <span>N/A</span>
       </div>
     ))}
@@ -598,7 +693,7 @@ const InsetChipButton = ({
     aria-label={label}
     disabled={disabled}
     onClick={onClick}
-    className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-1 text-[11px] font-semibold text-[var(--ink-body)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60"
+    className="inline-flex items-center gap-1 rounded-[9px] px-2.5 py-[5px] text-[10.5px] font-semibold text-[var(--ink-body)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60 md:py-1 md:text-[11px]"
     style={{ background: 'var(--inset)' }}
   >
     <span aria-hidden="true" className="inline-flex text-[var(--blue-text)]">
@@ -733,7 +828,7 @@ const LabResultActions = ({
     <>
       {resultId ? (
         <InsetChipButton
-          icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline size={11} aria-hidden="true" />}
+          icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline size={10} aria-hidden="true" />}
           label={loadingPdf ? 'Loading…' : 'Result PDF'}
           disabled={loadingPdf}
           onClick={() => onOpenResultPdf(entry)}
@@ -741,7 +836,7 @@ const LabResultActions = ({
       ) : null}
       {fallbackUrl ? (
         <InsetChipButton
-          icon={<IoEyeOutline size={11} aria-hidden="true" />}
+          icon={<IoEyeOutline size={10} aria-hidden="true" />}
           label="Acknowledgment PDF"
           onClick={() => onPreviewPdf(entry, fallbackUrl)}
         />
@@ -750,9 +845,9 @@ const LabResultActions = ({
         <InsetChipButton
           icon={
             expanded ? (
-              <IoEyeOffOutline size={11} aria-hidden="true" />
+              <IoEyeOffOutline size={10} aria-hidden="true" />
             ) : (
-              <IoEyeOutline size={11} aria-hidden="true" />
+              <IoEyeOutline size={10} aria-hidden="true" />
             )
           }
           label={expanded ? `Hide ${entry.title}` : `View ${entry.title}`}
@@ -808,7 +903,7 @@ const getEntryActions = ({
   if (entry.type === 'INVOICE' && isPaidInvoice(entry) && fallbackUrl) {
     return (
       <InsetChipButton
-        icon={<IoEyeOutline size={11} aria-hidden="true" />}
+        icon={<IoEyeOutline size={10} aria-hidden="true" />}
         label={`Preview ${entry.title}`}
         onClick={() => onPreviewPdf(entry, fallbackUrl)}
       />
@@ -1016,7 +1111,80 @@ const getPersistStatusAction = (
 };
 
 const FILTER_CHIP_BASE =
-  'inline-flex items-center rounded-full px-[13px] py-1.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
+  'inline-flex items-center rounded-full px-[11px] py-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand md:px-[13px] md:text-[12px]';
+
+// Slim rounded-full pill dropdown for the Status / Sort header selectors, so
+// they read as filter pills consistent with the adjacent history-tab chips
+// (1px --hairline border, --ink-muted text, IoChevronDown) instead of the
+// boxed floating-label LabelDropdown.
+export const PillDropdown = ({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: Array<{ label: string; value: string }>;
+  value: string;
+  onSelect: (value: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? label;
+
+  useEffect(() => {
+    if (!open) return;
+    const node = containerRef.current;
+    /* v8 ignore next -- node is always mounted while the menu is open, so this guard never returns early */
+    if (!node) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!node.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [open]);
+
+  return (
+    <div className="relative w-fit" ref={containerRef}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${label}: ${selectedLabel}`}
+        onClick={() => setOpen((current) => !current)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:border-[var(--divider)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      >
+        <span className="whitespace-nowrap">{selectedLabel}</span>
+        <IoChevronDownOutline
+          size={12}
+          aria-hidden="true"
+          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] py-1 shadow-[0_1px_3px_1px_rgba(0,0,0,0.15)]">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onSelect(option.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center px-3 py-2 text-left text-[12.5px] transition-colors hover:bg-[var(--inset)] ${
+                option.value === value
+                  ? 'font-bold text-[var(--ink)]'
+                  : 'font-medium text-[var(--ink-muted)]'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 type HistoryLoadState = {
   entries: HistoryEntry[];
@@ -1048,6 +1216,96 @@ const historyLoadReducer = (
   return { ...state, ...action.patch };
 };
 
+// Desktop-only header row (Status / Sort pills + Search). Owns its own phone
+// gate so the timeline's return stays a single branch. Renders nothing on the
+// phone variant, matching the previous `isPhoneVariant ? null : (...)` block.
+const TimelineHeaderControls = ({
+  isPhoneVariant,
+  statusFilterOptions,
+  statusFilter,
+  setStatusFilter,
+  sortKey,
+  setSortKey,
+  query,
+  setQuery,
+}: {
+  isPhoneVariant: boolean;
+  statusFilterOptions: StatusFilterOption[];
+  statusFilter: string;
+  setStatusFilter: React.Dispatch<React.SetStateAction<string>>;
+  sortKey: SortKey;
+  setSortKey: React.Dispatch<React.SetStateAction<SortKey>>;
+  query: string;
+  setQuery: React.Dispatch<React.SetStateAction<string>>;
+}) => {
+  if (isPhoneVariant) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        {statusFilterOptions.length > 0 ? (
+          <PillDropdown
+            label="Status"
+            options={statusFilterOptions.map((option) => ({
+              label: option.label,
+              value: option.value,
+            }))}
+            value={statusFilter}
+            onSelect={setStatusFilter}
+          />
+        ) : null}
+        <PillDropdown
+          label="Sort by"
+          options={SORT_OPTIONS.map((option) => ({
+            label: option.label,
+            value: option.value,
+          }))}
+          value={sortKey}
+          onSelect={(value) => setSortKey(value as SortKey)}
+        />
+      </div>
+      <Search
+        value={query}
+        setSearch={setQuery}
+        placeholder="Search by service, appointment, invoice, or records"
+        label="Search overview records"
+        className="ml-auto w-full! md:w-120! xl:w-128!"
+      />
+    </div>
+  );
+};
+
+// "Load more" pager. Owns the compact / cursor gate so the timeline's return
+// carries neither the `!compact && nextCursor` branch nor the nested
+// loading-label ternary.
+const TimelineLoadMore = ({
+  compact,
+  nextCursor,
+  loadingMore,
+  loadHistory,
+}: {
+  compact: boolean;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  loadHistory: (cursor: string | null, shouldReplace: boolean) => Promise<void>;
+}) => {
+  if (compact || !nextCursor) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        /* v8 ignore next 3 -- unreachable: loadHistory wraps its body in try/catch/finally and always resolves, so this defensive .catch never fires */
+        loadHistory(nextCursor, false).catch((historyError) => {
+          console.error('Failed to load more history entries:', historyError);
+        });
+      }}
+      disabled={loadingMore}
+      className="w-full rounded-2xl border border-card-border bg-neutral-0 px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {loadingMore ? 'Loading…' : 'Load more'}
+    </button>
+  );
+};
+
 const useCompanionHistoryTimelineView = ({
   companionId,
   activeAppointmentId,
@@ -1055,7 +1313,10 @@ const useCompanionHistoryTimelineView = ({
   onOpenAppointmentView,
   compact = false,
   fullPageHref,
+  variant = 'default',
+  openMedicalRecordsSignal = 0,
 }: CompanionHistoryTimelineProps) => {
+  const isPhoneVariant = variant === 'phone';
   useLoadAppointmentsForPrimaryOrg();
   useLoadTasksForPrimaryOrg();
   const organisationId = useOrgStore((state) => state.primaryOrgId);
@@ -1167,6 +1428,16 @@ const useCompanionHistoryTimelineView = ({
     setStatusOverrides({});
   }
 
+  // Phone action-bar upload trigger: when the signal advances, jump to Medical
+  // records so the uploader is on screen. Adjust state during render (tracking
+  // the previous value) rather than via an effect, matching the identity reset.
+  const [prevUploadSignal, setPrevUploadSignal] = useState(openMedicalRecordsSignal);
+  if (openMedicalRecordsSignal !== prevUploadSignal) {
+    setPrevUploadSignal(openMedicalRecordsSignal);
+    setActiveFilter('MEDICAL_RECORDS');
+    setStatusFilter(STATUS_FILTER_ALL);
+  }
+
   useLayoutEffect(() => {
     if (activeFilter === 'AUDIT_TRAIL') return;
     patchHistoryLoad({
@@ -1221,14 +1492,7 @@ const useCompanionHistoryTimelineView = ({
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    let byTab: HistoryEntry[];
-    if (activeFilter === 'ALL') {
-      byTab = entries;
-    } else if (activeFilter === 'MEDICAL_RECORDS') {
-      byTab = entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type));
-    } else {
-      byTab = entries.filter((entry) => requestedTypeSet?.has(entry.type) ?? false);
-    }
+    const byTab = filterEntriesByActiveTab(entries, activeFilter, requestedTypeSet);
     const bySearch = normalizedQuery
       ? byTab.filter((entry) => entryMatchesSearchQuery(entry, normalizedQuery))
       : byTab;
@@ -1279,6 +1543,41 @@ const useCompanionHistoryTimelineView = ({
           }
           return { title: entry.title || 'Medical record preview', url: pdfUrl };
         });
+      } finally {
+        setPdfLoadingId((current) => (current === entry.id ? null : current));
+      }
+    },
+    [notify]
+  );
+
+  // The drawer's "Download PDF" action resolves the document's real URL and hands
+  // it to the browser for download/open, rather than re-opening the in-app viewer.
+  // It is only offered for records the document store actually holds — the drawer
+  // gates on the same resolver, so a lab/invoice/task id never reaches this endpoint.
+  const handleDownloadRecord = useCallback(
+    async (entry: HistoryEntry) => {
+      const entryDocumentId = resolveHistoryDocumentId(entry);
+      /* v8 ignore next -- unreachable: HistoryRecordDrawer only renders the download action when resolveHistoryDocumentId returns an id */
+      if (!entryDocumentId) return;
+      setPdfLoadingId(entry.id);
+      try {
+        const urls = await loadDocumentDownloadURL(entryDocumentId);
+        const pdfUrl = urls.find((item) => typeof item?.url === 'string' && item.url.trim())?.url;
+        if (!pdfUrl) {
+          notify('error', {
+            title: 'Document unavailable',
+            text: 'No downloadable file is available for this document.',
+          });
+          return;
+        }
+        const anchor = document.createElement('a');
+        anchor.href = pdfUrl;
+        anchor.download = entry.title || 'medical-record.pdf';
+        anchor.rel = 'noopener';
+        anchor.target = '_blank';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
       } finally {
         setPdfLoadingId((current) => (current === entry.id ? null : current));
       }
@@ -1576,6 +1875,18 @@ const useCompanionHistoryTimelineView = ({
     [activeAppointmentId, onOpenAppointmentView]
   );
 
+  // The drawer's open action for non-document records: it reuses the row's
+  // type-aware routing (lab → diagnostics, invoice → finance, task → tasks,
+  // appointment/form → the appointment workspace) and dismisses the drawer so the
+  // destination is not left behind an overlay when it opens in place.
+  const handleViewRecord = useCallback(
+    (entry: HistoryEntry) => {
+      setSelectedEntry(null);
+      handleOpenEntry(entry);
+    },
+    [handleOpenEntry]
+  );
+
   const handleShareRecord = useCallback(
     (entry: HistoryEntry) => {
       notify('info', {
@@ -1607,48 +1918,37 @@ const useCompanionHistoryTimelineView = ({
 
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
-      <div className="flex w-full flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {statusFilterOptions.length > 0 ? (
-              <div className="w-44">
-                <LabelDropdown
-                  placeholder="Status"
-                  options={statusFilterOptions.map((option) => ({
-                    label: option.label,
-                    value: option.value,
-                  }))}
-                  defaultOption={statusFilter}
-                  searchable={false}
-                  onSelect={(option) => setStatusFilter(option.value)}
-                />
-              </div>
-            ) : null}
-            <div className="w-42">
-              <LabelDropdown
-                placeholder="Sort by"
-                options={SORT_OPTIONS}
-                defaultOption={sortKey}
-                searchable={false}
-                onSelect={(option) => setSortKey(option.value as SortKey)}
-              />
-            </div>
-          </div>
-          <Search
-            value={query}
-            setSearch={setQuery}
-            placeholder="Search by service, appointment, invoice, or records"
-            label="Search overview records"
-            className="ml-auto w-full! md:w-120! xl:w-128!"
-          />
-        </div>
+      <div className={isPhoneVariant ? 'flex w-full flex-col gap-3' : 'flex w-full flex-col gap-5'}>
+        <TimelineHeaderControls
+          isPhoneVariant={isPhoneVariant}
+          statusFilterOptions={statusFilterOptions}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          sortKey={sortKey}
+          setSortKey={setSortKey}
+          query={query}
+          setQuery={setQuery}
+        />
 
-        <div className="flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <div
+          className={
+            isPhoneVariant
+              ? 'flex flex-col gap-3'
+              : 'flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]'
+          }
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+            <span className="text-[14px] font-bold tracking-[-0.02em] text-[var(--ink)] md:text-[16px]">
               History
             </span>
-            <div role="tablist" className="flex flex-wrap items-center gap-2">
+            <div
+              role="tablist"
+              className={
+                isPhoneVariant
+                  ? 'flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+                  : 'flex flex-wrap items-center gap-1.5'
+              }
+            >
               {historyFilters.map((filter) => {
                 const active = filter.key === activeFilter;
                 return (
@@ -1661,7 +1961,11 @@ const useCompanionHistoryTimelineView = ({
                       setActiveFilter(filter.key);
                       setStatusFilter(STATUS_FILTER_ALL);
                     }}
-                    className={FILTER_CHIP_BASE}
+                    className={
+                      isPhoneVariant
+                        ? `${FILTER_CHIP_BASE} shrink-0 whitespace-nowrap`
+                        : FILTER_CHIP_BASE
+                    }
                     style={
                       active
                         ? {
@@ -1723,21 +2027,12 @@ const useCompanionHistoryTimelineView = ({
           </div>
         ) : null}
 
-        {!compact && nextCursor ? (
-          <button
-            type="button"
-            onClick={() => {
-              /* v8 ignore next 3 -- unreachable: loadHistory wraps its body in try/catch/finally and always resolves, so this defensive .catch never fires */
-              loadHistory(nextCursor, false).catch((historyError) => {
-                console.error('Failed to load more history entries:', historyError);
-              });
-            }}
-            disabled={loadingMore}
-            className="w-full rounded-2xl border border-card-border bg-neutral-0 px-4 py-2 text-caption-1 text-text-primary transition-colors hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loadingMore ? 'Loading…' : 'Load more'}
-          </button>
-        ) : null}
+        <TimelineLoadMore
+          compact={compact}
+          nextCursor={nextCursor}
+          loadingMore={loadingMore}
+          loadHistory={loadHistory}
+        />
 
         <PdfPreviewOverlay
           open={Boolean(pdfPreview)}
@@ -1751,7 +2046,8 @@ const useCompanionHistoryTimelineView = ({
           results={selectedResults}
           linkedLabel={selectedLinkedLabel}
           onClose={() => setSelectedEntry(null)}
-          onDownload={handleTimelineOpen}
+          onDownload={handleDownloadRecord}
+          onView={handleViewRecord}
           onOpenLinked={handleOpenLinkedFromDrawer}
           onShare={handleShareRecord}
           onDiscuss={handleDiscussRecord}

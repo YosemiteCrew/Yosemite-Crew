@@ -1,5 +1,5 @@
 import React from 'react';
-import {Alert} from 'react-native';
+import {Alert, Platform} from 'react-native';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import BusinessDetailsScreen from '../../../../src/features/appointments/screens/BusinessDetailsScreen';
 
@@ -137,6 +137,11 @@ jest.mock(
               ))}
             </View>
           ))}
+          <TouchableOpacity
+            testID="service-undefined-specialty"
+            onPress={() => onSelectService('svc-1', undefined)}>
+            <Text>Undefined specialty service</Text>
+          </TouchableOpacity>
         </View>
       ),
     };
@@ -457,6 +462,40 @@ describe('BusinessDetailsScreen', () => {
       serviceSpecialty: 'General',
       serviceSpecialtyId: 'spec-1',
     });
+  });
+
+  it('navigates with an undefined specialty when the service callback omits it', () => {
+    const {getByTestId} = render(<BusinessDetailsScreen />);
+    fireEvent.press(getByTestId('service-undefined-specialty'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('BookingForm', {
+      businessId: 'bus-123',
+      serviceId: 'svc-1',
+      serviceName: 'Vaccine',
+      serviceSpecialty: undefined,
+      serviceSpecialtyId: 'spec-1',
+    });
+  });
+
+  it('evaluates the Android empty-services fallback border', () => {
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+    try {
+      (useSelector as unknown as jest.Mock).mockImplementation(selectorFn => {
+        return selectorFn({
+          businesses: {
+            businesses: [mockBusiness],
+            services: [{id: 'svc-99', businessId: 'other-bus'}],
+          },
+          companion: {companions: [], selectedCompanionId: null},
+        });
+      });
+
+      const {getByText} = render(<BusinessDetailsScreen />);
+      expect(getByText('Services coming soon')).toBeTruthy();
+    } finally {
+      Platform.OS = originalOS;
+    }
   });
 
   describe('Photo Fetching', () => {

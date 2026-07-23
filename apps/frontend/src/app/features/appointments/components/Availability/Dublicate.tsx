@@ -6,7 +6,7 @@ import {
   Interval,
   SetAvailability,
 } from '@/app/features/appointments/components/Availability/utils';
-import { IoCopy } from 'react-icons/io5';
+import { IoCopyOutline } from 'react-icons/io5';
 
 type DublicateProps = {
   setAvailability: SetAvailability;
@@ -69,14 +69,18 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
   };
 
   return (
-    <div className="relative flex items-center h-[45px]">
-      <IoCopy
-        color="var(--color-black-pure)"
-        size={20}
-        className="cursor-pointer mt-0.5"
-        onClick={() => setOpen((e) => !e)}
+    <div className="relative flex items-center">
+      {/* Matches the sibling add-range control: 28px outlined circle, 13px glyph. */}
+      <button
+        type="button"
         aria-label="dublicate-button"
-      />
+        title="Copy to other days"
+        onClick={() => setOpen((e) => !e)}
+        className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors"
+        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-faint)' }}
+      >
+        <IoCopyOutline size={13} aria-hidden="true" />
+      </button>
       {open && (
         <div className="max-h-[200px] z-10 w-[120px] overflow-y-scroll scrollbar-hidden flex flex-col bg-neutral-0 rounded-2xl border border-card-border absolute left-0 top-[120%] p-1">
           {copyTargets.map((d) => (

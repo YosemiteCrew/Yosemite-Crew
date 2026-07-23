@@ -318,6 +318,55 @@ describe('SummaryStep', () => {
     expect(diffMs).toBe(3 * 24 * 60 * 60 * 1000);
   });
 
+  // Defence in depth: the service bounds followUpInDays, but an offset large enough to
+  // overflow Date must not leave the step calling toISOString() on an Invalid Date.
+  it('ignores a follow-up offset that overflows the date range', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-25T00:00:00.000Z') });
+    (extractFollowUpInDays as jest.Mock).mockReturnValue(1e308);
+    (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-discharge-overflow',
+        name: 'Sample discharge',
+        latestVersion: 1,
+        publishedVersion: 1,
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'summary',
+                  title: 'Discharge summary',
+                  fields: [
+                    {
+                      key: 'summaryText',
+                      type: 'richText',
+                      label: 'Discharge summary',
+                      defaultValue: '<p>Patient can rest at home.</p>',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.change(screen.getByLabelText(/search discharge templates/i), {
+      target: { value: 'sample' },
+    });
+    expect(() =>
+      fireEvent.click(screen.getByRole('button', { name: /sample discharge/i }))
+    ).not.toThrow();
+
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt).toBeUndefined();
+  });
+
   it('renders the default discharge template without duplicate field labels', async () => {
     (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([
       {

@@ -129,16 +129,16 @@ describe('Modal', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog.className).toContain('left-1/2');
     expect(dialog.className).toContain('-translate-x-1/2');
-    expect(dialog.className).toContain('rounded-[20px]');
+    expect(dialog.className).toContain('rounded-[22px]');
     // md is the default centered width.
-    expect(dialog.className).toContain('sm:w-[640px]');
+    expect(dialog.className).toContain('sm:w-[680px]');
     expect(dialog.className).not.toContain('right-0');
     expect(screen.getByText('Content')).toBeInTheDocument();
   });
 
   it.each([
     ['sm', 'sm:w-[480px]'],
-    ['md', 'sm:w-[640px]'],
+    ['md', 'sm:w-[680px]'],
     ['lg', 'sm:w-[840px]'],
   ] as const)('maps centered size "%s" to its recipe width', (size, widthClass) => {
     render(
@@ -230,7 +230,7 @@ describe('Modal on a phone', () => {
     expect(dialog).toHaveClass('yc-phone-sheet', 'yc-modal-sheet');
     // No desktop panel geometry survives onto the phone form.
     expect(dialog.className).not.toContain('left-1/2');
-    expect(dialog.className).not.toContain('sm:w-[640px]');
+    expect(dialog.className).not.toContain('sm:w-[680px]');
     expect(document.querySelector('.yc-phone-sheet-grabber')).toBeInTheDocument();
     expect(screen.getByText('Content')).toBeInTheDocument();
   });

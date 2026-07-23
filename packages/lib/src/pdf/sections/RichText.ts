@@ -25,6 +25,12 @@ const isTagNameChar = (char: string): boolean => {
   return isAsciiLetter(char) || (code >= 48 && code <= 57);
 };
 
+/**
+ * Parse a tag at `startIndex`, following HTML's own rules: no whitespace between
+ * `<` and the tag name, and the name must start with a letter. Clinical text
+ * routinely contains comparisons such as `WBC < 5 and RBC > 3`; treating those
+ * as markup silently deletes the span between them from the rendered document.
+ */
 const readHtmlTag = (
   value: string,
   startIndex: number
@@ -44,30 +50,25 @@ const readHtmlTag = (
     index += 1;
   }
 
-  while (index < value.length && value[index] === ' ') {
-    index += 1;
-  }
-
   const nameStart = index;
-  while (index < value.length && isTagNameChar(value[index])) {
-    index += 1;
+  if (index >= value.length || !isAsciiLetter(value[index] as string)) {
+    return null;
   }
 
-  if (index === nameStart) {
-    return null;
+  while (index < value.length && isTagNameChar(value[index] as string)) {
+    index += 1;
   }
 
   const name = value.slice(nameStart, index).toLowerCase();
 
-  while (index < value.length && value[index] !== '>') {
-    index += 1;
-  }
-
-  if (index >= value.length) {
+  // indexOf scans natively and reports absence in one step, so a document with
+  // many stray `<` characters cannot degrade into repeated linear rescans.
+  const endIndex = value.indexOf('>', index);
+  if (endIndex === -1) {
     return null;
   }
 
-  return { closing, name, endIndex: index };
+  return { closing, name, endIndex };
 };
 
 const decodeEntities = (value: string): string => {
@@ -128,7 +129,7 @@ const humanizeLabel = (value: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const htmlToPlainText = (value: string): string => {
+export const htmlToPlainText = (value: string): string => {
   let output = '';
 
   for (let index = 0; index < value.length; index += 1) {
@@ -167,17 +168,12 @@ const htmlToPlainText = (value: string): string => {
       continue;
     }
 
-    let lookahead = index + 1;
-    while (lookahead < output.length && output[lookahead] === ' ') {
-      lookahead += 1;
-    }
-
+    // Only a `<` that directly begins markup is dropped. A `<` followed by a
+    // space is a comparison operator in prose and must survive verbatim.
+    const next = output[index + 1];
     if (
-      lookahead < output.length &&
-      (output[lookahead] === '/' ||
-        output[lookahead] === '!' ||
-        output[lookahead] === '?' ||
-        isAsciiLetter(output[lookahead]))
+      next !== undefined &&
+      (next === '/' || next === '!' || next === '?' || isAsciiLetter(next))
     ) {
       continue;
     }

@@ -9,7 +9,7 @@ import {
   CompanionFormData,
 } from '@/app/features/companions/components/AddCompanion/type';
 import { StoredParent } from '@/app/features/companions/pages/Companions/types';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
@@ -75,15 +75,11 @@ const AddCompanion = ({
       aria-label={terminologyText('Add companion')}
     >
       <div className="flex flex-col flex-auto min-h-0 gap-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-body-1 text-text-primary">
-              {terminologyText('Add companion')}
-            </span>
-            <span className="text-[12.5px] text-[var(--ink-muted)]">{stepSubtitle}</span>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader
+          title={terminologyText('Add companion')}
+          meta={stepSubtitle}
+          onClose={() => setShowModal(false)}
+        />
 
         {/* Progress dots — mirror the two-step flow. Step 1 is always reached, so the
             first dot is always active; the second lights up on the companion step. */}

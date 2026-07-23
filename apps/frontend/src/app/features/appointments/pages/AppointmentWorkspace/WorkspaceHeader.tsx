@@ -1,7 +1,9 @@
 import React from 'react';
+import Image from 'next/image';
 import { IoIosArrowBack } from 'react-icons/io';
 import { IoAddOutline, IoFlash } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
+import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
@@ -34,6 +36,19 @@ type WorkspaceHeaderProps = {
   visitStartAt?: string | Date;
   /** Booked slot end; the timer turns amber past it. */
   bookedEndAt?: string | Date;
+  /** Companion photo shown in the 44px identity avatar beside the name. */
+  photoUrl?: string;
+  /** Companion species, used to pick the species-specific avatar fallback. */
+  speciesType?: string;
+  /** Single-line companion summary ("Beagle · F, spayed · 4y 2m …") under the name. */
+  metaLine?: string;
+};
+
+const SPECIES_IMAGE_TYPES = new Set<ImageType>(['dog', 'cat', 'horse', 'other']);
+
+const resolveImageType = (speciesType?: string): ImageType => {
+  const candidate = speciesType?.toLowerCase() as ImageType | undefined;
+  return candidate && SPECIES_IMAGE_TYPES.has(candidate) ? candidate : 'dog';
 };
 
 const HospitalizeIcon = () => (
@@ -57,9 +72,10 @@ const HospitalizeIcon = () => (
 );
 
 /**
- * Top header: back arrow, "<Companion>'s Appointment", alert pills, then the
- * shared status pill (single source of truth — also used in the calendar
- * popover) and Quick Actions on the right.
+ * Top header: back arrow, the 44px companion avatar, the bare companion name with
+ * the status pill inline (single source of truth — also used in the calendar
+ * popover) and a compact metadata line beneath, then the alert pills and Quick
+ * Actions on the right.
  */
 const WorkspaceHeader = ({
   appointment,
@@ -77,6 +93,9 @@ const WorkspaceHeader = ({
   onRemoveAlert,
   visitStartAt,
   bookedEndAt,
+  photoUrl,
+  speciesType,
+  metaLine,
 }: WorkspaceHeaderProps) => {
   const terminologyText = useCompanionTerminologyText();
   const hasAlerts = alerts.length > 0 || clientAlerts.length > 0 || Boolean(onAddAlert);
@@ -92,11 +111,33 @@ const WorkspaceHeader = ({
         >
           <IoIosArrowBack size={22} aria-hidden="true" />
         </button>
-        <h1 className="shrink-0 font-satoshi text-[24px] font-medium leading-[120%] tracking-[-0.48px] text-neutral-900">
-          {companionName.split(' ')[0]}&rsquo;s Appointment
-        </h1>
-        <AppointmentStatusPill appointment={appointment} />
-        {appointment.isEmergency && <EmergencyBadge />}
+        <Image
+          src={getSafeImageUrl(photoUrl, resolveImageType(speciesType))}
+          alt={companionName}
+          width={44}
+          height={44}
+          className="size-11 shrink-0 rounded-full object-cover"
+        />
+        <div className="flex min-w-0 shrink-0 flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <h1
+              className="shrink-0 font-satoshi text-[17px] font-bold leading-[120%] tracking-[-0.02em]"
+              style={{ color: 'var(--ink)' }}
+            >
+              {companionName.split(' ')[0]}
+            </h1>
+            <AppointmentStatusPill appointment={appointment} />
+            {appointment.isEmergency && <EmergencyBadge />}
+          </div>
+          {metaLine && (
+            <span
+              className="truncate text-[12.5px] leading-[130%]"
+              style={{ color: 'var(--ink-faint)' }}
+            >
+              {metaLine}
+            </span>
+          )}
+        </div>
         {hasAlerts && (
           <div
             data-testid="workspace-alert-strip"
@@ -127,7 +168,7 @@ const WorkspaceHeader = ({
                   type="button"
                   aria-label="Add alert"
                   onClick={onAddAlert}
-                  className="flex size-6 shrink-0 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors duration-150 hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors duration-150 hover:border-text-brand hover:text-blue-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
                 >
                   <IoAddOutline size={14} aria-hidden="true" />
                 </button>

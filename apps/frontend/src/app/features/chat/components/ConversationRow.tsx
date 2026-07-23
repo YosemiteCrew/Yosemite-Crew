@@ -12,7 +12,6 @@ import {
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
-import { Badge } from '@/app/ui';
 import { ChatAvatar } from './ChatAvatar';
 
 /**
@@ -44,16 +43,16 @@ export type ConversationRowProps = Readonly<{
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** Unread count pill — blue for across-the-network rows, pink brand otherwise. */
-function UnreadBadge({ count, network }: Readonly<{ count: number; network?: boolean }>) {
-  if (network) {
-    return (
-      <span className="inline-flex min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
-        {count}
-      </span>
-    );
-  }
-  return <Badge tone="brand">{count}</Badge>;
+/**
+ * Unread count pill. Design (Chat workspace conversation list): a 17px --blue
+ * (#257bed) pill with white 10px/800 text — not the deeper solid brand badge.
+ */
+function UnreadBadge({ count }: Readonly<{ count: number }>) {
+  return (
+    <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
+      {count}
+    </span>
+  );
 }
 
 function MenuItem({
@@ -67,12 +66,12 @@ function MenuItem({
       type="button"
       onClick={onClick}
       className={clsx(
-        'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft',
+        'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--screen-2)]',
         active && 'bg-chat-surface-soft'
       )}
     >
       {icon}
-      <Text as="span" variant="body-4" className="text-neutral-900">
+      <Text as="span" variant="caption-1" className="text-[13px] text-[var(--ink)]">
         {label}
       </Text>
     </button>
@@ -104,8 +103,13 @@ export function ConversationRow({
   return (
     <div
       className={clsx(
-        'group relative flex items-center pr-1',
-        active ? 'chat-conversation-row--active' : 'rounded-2xl hover:bg-chat-surface-soft',
+        // Tablet keeps the raised-white card for the active row; the wide desktop
+        // frame (xl) uses the design's surface-soft fill with an inset pink
+        // left-stripe (see design "Chat extended", conversation list).
+        'group relative flex items-center pr-1 rounded-[13px] xl:rounded-[14px]',
+        active
+          ? 'border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_3px_var(--sh05)] xl:border-transparent xl:bg-[var(--surface-soft)] xl:shadow-[inset_3px_0_0_var(--pink)]'
+          : 'hover:bg-[var(--screen)] xl:hover:bg-[var(--surface-soft)]',
         muted && !active && 'opacity-[0.62]'
       )}
     >
@@ -113,38 +117,51 @@ export function ConversationRow({
         type="button"
         onClick={onClick}
         aria-current={active}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2.5 text-left"
+        className="flex min-w-0 flex-1 items-center gap-[9px] rounded-2xl px-2.5 py-2.5 text-left xl:px-3 xl:py-[11px]"
       >
-        <ChatAvatar name={name} online={online} group={group} />
+        <ChatAvatar
+          name={name}
+          online={online}
+          group={group}
+          business={network && !group}
+          size="row"
+        />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-2">
             <Text
               as="span"
               variant="body-4-emphasis"
-              className="min-w-0 flex-1 truncate text-neutral-900"
+              className={clsx(
+                'min-w-0 flex-1 truncate text-[12.5px] xl:text-[13.5px]',
+                active ? 'font-bold text-[var(--ink)]' : 'font-semibold text-[var(--ink-body)]'
+              )}
             >
               {name}
             </Text>
             {muted && (
               <IoNotificationsOffOutline
                 aria-label="Muted"
-                className="h-3 w-3 shrink-0 text-neutral-500"
+                className="h-3 w-3 shrink-0 text-[var(--ink-faint)]"
               />
             )}
             {viaApp && (
               <IoPhonePortraitOutline
                 aria-label="Messages via pet parent app"
-                className="size-3.5 shrink-0 text-neutral-400"
+                className="size-3.5 shrink-0 text-[var(--ink-faint)]"
               />
             )}
             {network && (
               <IoGlobeOutline
                 aria-label="Across the network"
-                className="size-3.5 shrink-0 text-neutral-500"
+                className="size-3.5 shrink-0 text-[var(--ink-faint)]"
               />
             )}
             {time && (
-              <Text as="span" variant="caption-2" className="shrink-0 text-neutral-500">
+              <Text
+                as="span"
+                variant="caption-2"
+                className="shrink-0 text-[9.5px] text-[var(--ink-faint)] xl:text-[10.5px]"
+              >
                 {time}
               </Text>
             )}
@@ -154,13 +171,13 @@ export function ConversationRow({
               as="span"
               variant="caption-1"
               className={clsx(
-                'min-w-0 flex-1 truncate',
-                unread ? 'font-semibold text-neutral-700' : 'text-neutral-500'
+                'min-w-0 flex-1 truncate text-[11px] xl:text-[11.5px]',
+                unread ? 'text-[var(--ink-muted)]' : 'text-[var(--ink-faint)]'
               )}
             >
               {preview}
             </Text>
-            {unread ? <UnreadBadge count={unread} network={network} /> : null}
+            {unread ? <UnreadBadge count={unread} /> : null}
           </span>
         </span>
       </button>
@@ -172,10 +189,12 @@ export function ConversationRow({
             aria-label="Conversation actions"
             onClick={() => setMenuOpen((o) => !o)}
             className={clsx(
-              'inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
+              // On the wide desktop frame the kebab is a persistent filled inset
+              // circle; on tablet it stays a hover-revealed action.
+              'inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--screen-2)] hover:text-[var(--ink)] xl:size-7 xl:bg-[var(--inset)] xl:text-[var(--ink-body)]',
               menuOpen
                 ? 'opacity-100'
-                : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100'
+                : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 xl:opacity-100'
             )}
           >
             <IoEllipsisVertical className="h-4 w-4" />
@@ -188,10 +207,10 @@ export function ConversationRow({
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={close}
               />
-              <div className="absolute right-0 top-9 z-20 w-[190px] rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
+              <div className="absolute right-0 top-9 z-20 w-[190px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-1.5 shadow-lg">
                 {onArchive && (
                   <MenuItem
-                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
                     label="Archive"
                     onClick={() => {
                       onArchive();
@@ -201,7 +220,7 @@ export function ConversationRow({
                 )}
                 {onUnarchive && (
                   <MenuItem
-                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
                     label="Unarchive"
                     onClick={() => {
                       onUnarchive();
@@ -213,7 +232,9 @@ export function ConversationRow({
                   ? onUnmute && (
                       <MenuItem
                         active
-                        icon={<IoNotificationsOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                        icon={
+                          <IoNotificationsOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
+                        }
                         label="Unmute"
                         onClick={() => {
                           onUnmute();
@@ -225,7 +246,7 @@ export function ConversationRow({
                       <MenuItem
                         active
                         icon={
-                          <IoNotificationsOffOutline className="h-3.5 w-3.5 text-neutral-500" />
+                          <IoNotificationsOffOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
                         }
                         label="Mute"
                         onClick={() => {
@@ -236,9 +257,9 @@ export function ConversationRow({
                     )}
                 {onSnooze && (
                   <>
-                    <hr className="my-1 h-px border-0 bg-chat-divider" />
+                    <hr className="my-1 h-px border-0 bg-[var(--hairline)]" />
                     <MenuItem
-                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
                       label="Snooze · 1 hour"
                       onClick={() => {
                         onSnooze(HOUR_MS);
@@ -246,7 +267,7 @@ export function ConversationRow({
                       }}
                     />
                     <MenuItem
-                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
                       label="Snooze · 1 day"
                       onClick={() => {
                         onSnooze(24 * HOUR_MS);

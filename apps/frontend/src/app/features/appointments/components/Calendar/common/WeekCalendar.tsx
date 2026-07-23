@@ -18,8 +18,6 @@ import {
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { Appointment } from '@yosemite-crew/types';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
   getHourRowHeightPx,
@@ -38,7 +36,6 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import {
   getVisibleHourRange,
   getVisibleHours,
-  useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
@@ -161,7 +158,7 @@ const UnavailableHourOverlays = ({
             style={{
               top: `${topPct}%`,
               height: `${heightPct}%`,
-              backgroundColor: 'rgba(0,0,0,0.045)',
+              backgroundColor: 'var(--color-calendar-dim-overlay)',
               transition: 'opacity 0.25s ease',
             }}
           />,
@@ -171,59 +168,73 @@ const UnavailableHourOverlays = ({
   );
 };
 
-/** Week nav arrows either side of the seven day-of-week headers; today's date is pilled. */
+/**
+ * Day-of-week header strip. Per the week-grid frame: a --screen-2 band closed by a
+ * --hairline rule, each day a centred stack of an all-caps 9.5px/700/0.08em label
+ * over a 14px/700 date, hairline-separated. Today swaps the label to --nav-active
+ * and drops the date into a 24px --blue disc, over a --nav-active-bg cell.
+ * Week navigation lives in the header toolbar's date-nav pill, not here.
+ */
 const WeekDayHeaderRow = ({
   days,
   now,
   dayColumnsStyle,
-  onPrevWeek,
-  onNextWeek,
 }: {
   days: Date[];
   now: Date;
   dayColumnsStyle: React.CSSProperties;
-  onPrevWeek: () => void;
-  onNextWeek: () => void;
 }) => (
-  <div className="yc-week-grid__shell yc-week-grid__track border-b border-card-border py-2 bg-neutral-0">
-    <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
-      <Back onClick={onPrevWeek} />
-    </div>
-    <div className="grid bg-neutral-0" style={dayColumnsStyle}>
+  <div
+    className="yc-week-grid__shell yc-week-grid__track border-b"
+    style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--screen-2)' }}
+  >
+    <div className="sticky left-0 z-40" style={{ backgroundColor: 'var(--screen-2)' }} />
+    <div className="grid" style={dayColumnsStyle}>
       {days.map((day) => {
         const weekday = formatDateInPreferredTimeZone(day, {
           weekday: 'short',
         });
         const dateNumber = day.getDate();
         const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
-        const dateNumberClass = isToday
-          ? 'bg-text-brand text-white border-transparent'
-          : 'bg-card-bg text-text-secondary border-transparent';
         return (
-          <div key={day.toISOString()} className="flex items-center justify-center gap-2">
+          <div
+            key={day.toISOString()}
+            className="flex flex-col items-center gap-px border-l px-1 py-2"
+            style={{
+              borderColor: 'var(--hairline)',
+              backgroundColor: isToday ? 'var(--nav-active-bg)' : undefined,
+            }}
+          >
             <div
-              className={`text-body-4 ${
-                isToday ? 'text-(--color-primary-700)' : 'text-text-primary'
-              }`}
+              className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
+              style={{ color: isToday ? 'var(--nav-active)' : 'var(--ink-faint)' }}
             >
               {weekday}
             </div>
-            <div
-              className={`text-body-4-emphasis size-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
-            >
-              {dateNumber}
-            </div>
+            {isToday ? (
+              <div
+                className="flex size-6 items-center justify-center rounded-full text-[13px] font-bold text-white"
+                style={{ backgroundColor: 'var(--blue)' }}
+              >
+                {dateNumber}
+              </div>
+            ) : (
+              <div className="text-[14px] font-bold" style={{ color: 'var(--ink)' }}>
+                {dateNumber}
+              </div>
+            )}
           </div>
         );
       })}
     </div>
-    <div className="sticky right-0 z-40 bg-neutral-0 flex items-center justify-center">
-      <Next onClick={onNextWeek} />
-    </div>
   </div>
 );
 
-/** The pinned all-day strip above the hour grid — only rendered when some day has one. */
+/**
+ * The pinned all-day strip above the hour grid — only rendered when some day has
+ * one. Matches the frame's all-week band: an --inset tray, a 10px/700/0.08em
+ * all-caps --ink-faint label, and status-tinted 11px/600 rounded-full chips.
+ */
 const AllDayBand = ({
   days,
   allDayByDay,
@@ -235,23 +246,29 @@ const AllDayBand = ({
   dayColumnsStyle: React.CSSProperties;
   handleViewAppointment: (appointment: Appointment) => void;
 }) => (
-  <div className="border-b border-card-border bg-slate-50">
-    <div className="yc-week-grid__shell yc-week-grid__track py-2">
-      <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
+  <div className="border-b" style={{ borderColor: 'var(--hairline)' }}>
+    <div
+      className="yc-week-grid__shell yc-week-grid__track py-2"
+      style={{ backgroundColor: 'var(--inset)' }}
+    >
+      <div
+        className="sticky left-0 z-40 flex items-start pr-2 pl-2 text-[10px] font-bold uppercase tracking-[0.08em]"
+        style={{ backgroundColor: 'var(--inset)', color: 'var(--ink-faint)' }}
+      >
         All-day
       </div>
       <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
         {days.map((day, idx) => {
           const dayAllEvents = allDayByDay[idx];
           return (
-            <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
+            <div key={day.toISOString()} className="flex flex-col gap-1 px-1">
               {dayAllEvents.map((ev) => (
                 <button
                   key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
                   type="button"
                   onClick={() => handleViewAppointment(ev)}
                   aria-label={getAllDayAppointmentAriaLabel(ev)}
-                  className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
+                  className="w-full rounded-full! px-[10px] py-[5px] text-[11px] font-semibold font-satoshi text-left truncate"
                   style={{
                     ...({
                       ...getStatusStyle(ev.status),
@@ -259,7 +276,7 @@ const AllDayBand = ({
                     } as React.CSSProperties),
                   }}
                 >
-                  <div className="font-medium truncate">
+                  <div className="truncate">
                     {formatCompanionNameWithOwnerLastName(
                       (ev.companion ?? ev.patient).name,
                       (ev.companion ?? ev.patient).parent
@@ -272,7 +289,6 @@ const AllDayBand = ({
           );
         })}
       </div>
-      <div className="sticky right-0 z-40 bg-slate-50" />
     </div>
   </div>
 );
@@ -302,18 +318,31 @@ const NowIndicatorOverlay = ({
                 }}
               >
                 {nowTimeLabel && (
-                  <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
+                  <div
+                    className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
+                    style={{ color: 'var(--blue-text)' }}
+                  >
                     {nowTimeLabel}
                   </div>
                 )}
-                <div className="absolute -left-1.25 size-3 rounded-full bg-red-500 -translate-y-1/2" />
-                <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                <div
+                  className="absolute -left-1.25 size-[7px] rounded-full -translate-y-1/2"
+                  style={{ backgroundColor: 'var(--blue)' }}
+                />
+                <div
+                  className="translate-y-[-50%]"
+                  style={{
+                    borderTopWidth: '2px',
+                    borderTopStyle: 'solid',
+                    borderTopColor: 'var(--blue)',
+                    opacity: 0.75,
+                  }}
+                />
               </div>
             )}
           </div>
         ))}
       </div>
-      <div />
     </div>
   </div>
 );
@@ -360,8 +389,9 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   handleDetailAppointment,
   handleOpenWorkspace,
   weekStart,
-  setWeekStart,
-  setCurrentDate,
+  // setWeekStart / setCurrentDate stay on the props contract but are no longer read
+  // here: week navigation moved to the header toolbar's date-nav pill, which owns
+  // both setters. The grid itself only reads weekStart.
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
@@ -449,9 +479,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     return entries;
   }, [days, timedEvents, visibleHours]);
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
-  const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
-    setWeekStart,
-    setCurrentDate
+
+  const todayColumnIndex = useMemo(
+    () => days.findIndex((day) => isOnPreferredTimeZoneCalendarDay(now, day)),
+    [days, now]
   );
 
   const nowPosition = useMemo(() => {
@@ -517,13 +548,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       >
         <div className="yc-week-grid__track h-full flex flex-col">
           <div className="z-30 bg-neutral-0 shrink-0">
-            <WeekDayHeaderRow
-              days={days}
-              now={now}
-              dayColumnsStyle={dayColumnsStyle}
-              onPrevWeek={handlePrevWeek}
-              onNextWeek={handleNextWeek}
-            />
+            <WeekDayHeaderRow days={days} now={now} dayColumnsStyle={dayColumnsStyle} />
 
             {hasAnyAllDay && (
               <AllDayBand
@@ -564,11 +589,19 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     {days.map((day, dayIndex) => {
                       const slotEvents =
                         timedEventsByDayHour.get(`${day.toISOString()}-${hour}`) ?? [];
+                      // Today's column carries a soft wash for the whole height of
+                      // the grid, matching the tinted day column in the frame. It is
+                      // keyed off the day itself, not the now-line, so the tint holds
+                      // when the current time falls outside the visible hour range.
+                      const isTodayColumn = dayIndex === todayColumnIndex;
                       return (
                         <div
                           key={`${day.toISOString()}-${hour}`}
                           className="relative"
-                          style={{ height: `${height}px` }}
+                          style={{
+                            height: `${height}px`,
+                            backgroundColor: isTodayColumn ? 'var(--surface-soft)' : undefined,
+                          }}
                         >
                           <UnavailableHourOverlays
                             segments={unavailableByDay[dayIndex]}
@@ -613,7 +646,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-neutral-0" style={{ height }} />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />

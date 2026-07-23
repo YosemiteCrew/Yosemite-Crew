@@ -112,14 +112,17 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       <PressableOpacity
         onPress={handlePlayPause}
         style={styles.playButton}
-        disabled={isLoading}>
+        disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+        accessibilityState={{disabled: isLoading}}>
         {isLoading ? (
-          <ActivityIndicator color={theme.colors.white} size="small" />
+          <ActivityIndicator color={theme.colors.ctaText} size="small" />
         ) : (
           <Icon
             name={isPlaying ? 'pause' : 'play-arrow'}
             size={24}
-            color={theme.colors.white}
+            color={theme.colors.ctaText}
           />
         )}
       </PressableOpacity>
@@ -134,8 +137,12 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       </View>
 
       {isPlaying && (
-        <PressableOpacity onPress={handleStop} style={styles.stopButton}>
-          <Icon name="stop" size={20} color={theme.colors.error} />
+        <PressableOpacity
+          onPress={handleStop}
+          style={styles.stopButton}
+          accessibilityRole="button"
+          accessibilityLabel="Stop">
+          <Icon name="stop" size={20} color={theme.colors.danger} />
         </PressableOpacity>
       )}
     </View>
@@ -148,15 +155,17 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       padding: theme.spacing['3'],
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       gap: theme.spacing['3'],
     },
     playButton: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.cta,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -166,23 +175,23 @@ const createStyles = (theme: any) =>
     },
     progressBar: {
       height: theme.spacing['1'],
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.hairline,
       borderRadius: theme.borderRadius.xs,
       overflow: 'hidden',
     },
     progressFill: {
       height: '100%',
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.blue,
     },
     timeText: {
       ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint2,
     },
     stopButton: {
       width: theme.spacing['8'],
       height: theme.spacing['8'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.errorSurface,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.dangerSurface,
       justifyContent: 'center',
       alignItems: 'center',
     },

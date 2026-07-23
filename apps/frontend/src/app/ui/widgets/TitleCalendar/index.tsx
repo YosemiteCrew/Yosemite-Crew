@@ -1,12 +1,5 @@
 import React from 'react';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import {
-  IoCalendarOutline,
-  IoGridOutline,
-  IoInformationCircleOutline,
-  IoReorderFourOutline,
-} from 'react-icons/io5';
-import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type TitleCalendarProps = {
   title: string;
@@ -21,9 +14,9 @@ type TitleCalendarProps = {
 };
 
 const VIEW_OPTION_CONFIG = {
-  calendar: { label: 'Calendar', tooltip: 'Calendar view', Icon: IoCalendarOutline },
-  board: { label: 'Board', tooltip: 'Status board view', Icon: IoGridOutline },
-  list: { label: 'Table', tooltip: 'Table view', Icon: IoReorderFourOutline },
+  calendar: { label: 'Calendar' },
+  board: { label: 'Board' },
+  list: { label: 'List' },
 } as const;
 
 const SEGMENT_WIDTH: Record<number, string> = {
@@ -47,27 +40,16 @@ const TitleCalendar = ({
   const segW = n === 2 ? 'w-1/2' : 'w-1/3';
 
   return (
-    <div className="flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-2">
-      <div className="flex min-w-0 items-center gap-2">
-        <h1 className="flex min-w-0 items-center gap-2 text-page-title text-text-primary">
-          <span>
-            {title}
-            <span className="text-body-2 text-text-secondary">{` (${count})`}</span>
-          </span>
-          {description ? (
-            <GlassTooltip content={description} side="bottom">
-              <button
-                type="button"
-                aria-label={`${title} info`}
-                className="inline-flex size-5 shrink-0 items-center justify-center leading-none text-text-secondary transition-colors hover:text-text-primary"
-              >
-                <IoInformationCircleOutline size={20} />
-              </button>
-            </GlassTooltip>
-          ) : null}
+    <div className="flex w-full flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <div className="flex min-w-0 flex-col gap-[3px]">
+        <h1 className="text-page-title">
+          {title} <span className="text-page-title-count">{`(${count})`}</span>
         </h1>
+        {description ? (
+          <p className="text-[13.5px] text-[var(--ink-muted)]">{description}</p>
+        ) : null}
       </div>
-      <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
+      <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2.5 sm:w-auto">
         {actionBeforeAdd}
         {showAdd && (
           <Primary href="#" text="Add" onClick={() => setAddPopup(true)} className="px-7" />
@@ -78,7 +60,7 @@ const TitleCalendar = ({
         >
           <legend className="sr-only">{`${title} view`}</legend>
           {viewOptions.map((option) => {
-            const { Icon, label } = VIEW_OPTION_CONFIG[option];
+            const { label } = VIEW_OPTION_CONFIG[option];
             const isActive = activeView === option;
             return (
               <button
@@ -88,14 +70,13 @@ const TitleCalendar = ({
                   setActiveView(option);
                 }}
                 aria-pressed={isActive}
-                className={`flex h-full items-center justify-center gap-1.5 rounded-[999px]! text-[12.5px] transition-colors ${segW} ${
+                className={`flex h-full items-center justify-center rounded-[999px]! text-[12.5px] transition-colors ${segW} ${
                   isActive
                     ? 'bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
                     : 'font-semibold text-text-secondary hover:text-text-primary'
                 }`}
               >
-                <Icon size={15} aria-hidden="true" className="shrink-0" />
-                <span>{label}</span>
+                {label}
               </button>
             );
           })}

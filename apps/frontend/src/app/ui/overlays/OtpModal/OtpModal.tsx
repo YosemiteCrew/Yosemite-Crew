@@ -203,7 +203,7 @@ const OtpModal = ({
       showModal={showVerifyModal}
       setShowModal={setShowVerifyModal}
       canClose={() => false}
-      overlayClassName="fixed inset-0 z-1001 bg-black/50"
+      overlayClassName="fixed inset-0 z-1001 bg-[var(--sh55)] backdrop-blur-[6px]"
       containerClassName="fixed inset-0 z-1001 flex items-center justify-center p-4"
       aria-labelledby={dialogTitleId}
       aria-describedby={dialogDescriptionId}

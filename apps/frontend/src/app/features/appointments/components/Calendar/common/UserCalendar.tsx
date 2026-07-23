@@ -18,7 +18,6 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import CalendarDayHeader from '@/app/features/appointments/components/Calendar/common/CalendarDayHeader';
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { Appointment } from '@yosemite-crew/types';
-import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
   getCalendarColumnGridStyle,
@@ -87,7 +86,8 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
-  setCurrentDate,
+  // setCurrentDate stays on the props contract for callers, but day navigation
+  // now lives in the header toolbar's date-nav pill, which owns the setter.
   canEditAppointments,
   draggedAppointmentId,
   draggedAppointmentLabel,
@@ -110,7 +110,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
-  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const height = getHourRowHeightPx(zoomMode);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onWheelHorizontal = useWheelToHorizontalScroll();
@@ -235,8 +234,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
             dateNumber={dateNumber}
             team={team}
             teamColumnsStyle={teamColumnsStyle}
-            onPrevDay={handlePrevDay}
-            onNextDay={handleNextDay}
           />
 
           <div
@@ -291,7 +288,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                                 style={{
                                   top: `${topPct}%`,
                                   height: `${heightPct}%`,
-                                  backgroundColor: 'rgba(0,0,0,0.045)',
+                                  backgroundColor: 'var(--color-calendar-dim-overlay)',
                                   transition: 'opacity 0.25s ease',
                                 }}
                               />,

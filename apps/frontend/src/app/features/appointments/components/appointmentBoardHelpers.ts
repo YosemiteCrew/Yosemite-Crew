@@ -29,14 +29,18 @@ const MUTED_BOARD_STATUSES: ReadonlySet<BoardStatus> = new Set<BoardStatus>([
 export const isMutedBoardStatus = (status: BoardStatus | null): boolean =>
   !!status && MUTED_BOARD_STATUSES.has(status);
 
+// Emergency filter pill. Selected and unselected must be unmistakable and AA-safe
+// in both themes, so the selected state is a solid danger fill with a white label
+// (--color-danger-800 is #a6271d in light and dark, so white clears ~7:1), while
+// the unselected state stays an outline-only pill (--danger-border hairline,
+// --danger-text ink).
 export const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
-  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
+  backgroundColor: isActive ? 'var(--color-danger-800)' : 'transparent',
+  borderColor: isActive ? 'var(--color-danger-800)' : 'var(--danger-border)',
   borderWidth: '1px',
   borderStyle: 'solid',
-  borderRadius: '16px',
-  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
-  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
+  borderRadius: '9999px',
+  color: isActive ? 'var(--color-white)' : 'var(--danger-text)',
 });
 
 export const getBoardOrgType = (

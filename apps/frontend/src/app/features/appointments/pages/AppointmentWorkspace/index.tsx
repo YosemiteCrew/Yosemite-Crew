@@ -56,7 +56,10 @@ import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/
 import SummaryStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep';
 import QuickActionsModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/QuickActionsModal';
 import WorkspaceActionRail from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceActionRail';
+import PhoneWorkspaceShell from '@/app/features/appointments/pages/AppointmentWorkspace/phone/PhoneWorkspaceShell';
 import HospitalizationModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/HospitalizationModal';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
+import { formatCompanionAge } from '@/app/lib/date';
 import {
   admitAppointment,
   assignEncounterUnit,
@@ -102,6 +105,21 @@ type RequiredStaffMember = {
 };
 
 const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
+
+/**
+ * Whether the visit has actually begun. Only a checked-in, in-progress, or
+ * completed appointment has started; an Upcoming/Requested one has not. This
+ * gates two workflow decisions: a not-started appointment must land on SOAP
+ * (never Summary/discharge), and its SOAP draft must not be auto-prefilled from
+ * a service/package template before clinical documentation has begun.
+ */
+const hasVisitStarted = (status: Appointment['status']): boolean => {
+  const normalized = normalizeAppointmentStatus(status);
+  return normalized === 'CHECKED_IN' || normalized === 'IN_PROGRESS' || normalized === 'COMPLETED';
+};
+
+/** Companion detail rows condensed into the header's one-line identity summary. */
+const SUMMARY_META_LABELS = new Set(['Breed/Species', 'Sex', 'Age / DOB', 'Weight']);
 
 const isSameInstant = (left?: string | Date, right?: string | Date): boolean => {
   if (!left || !right) return false;
@@ -323,6 +341,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   const router = useRouter();
   const searchParams = useSearchParams();
   const { notify } = useNotify();
+  // Phone (< 768px) swaps the desktop band/meta-bar/action-rail chrome for a
+  // bespoke phone shell. `false` during SSR/first render, so desktop/tablet render
+  // exactly as before and there is no hydration mismatch (see useIsPhone).
+  const isPhone = useIsPhone();
   const terminologyText = useCompanionTerminologyText();
   const attributes = useAuthStore((s) => s.attributes);
   useLoadRoomsForPrimaryOrg({ force: true, silent: true });
@@ -474,13 +496,15 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           ...(clinicalResult.status === 'fulfilled' ? clinicalResult.value : {}),
           soapTemplates: templatesResult.status === 'fulfilled' ? templatesResult.value : [],
         });
-        // Prefill the active SOAP draft from the resolved template only when there
-        // is no saved/typed SOAP content yet, so we never overwrite a real record.
+        // Prefill the active SOAP draft from the resolved template only once the
+        // visit has started AND there is no saved/typed SOAP content yet — so a
+        // not-yet-started appointment opens with empty SOAP, and we never
+        // overwrite a real record.
         const resolvedSoap =
           resolvedSoapResult.status === 'fulfilled' ? resolvedSoapResult.value : null;
         const liveEncounter = getEncounter(appointmentId);
         const hasSoapContent = hasMeaningfulSoapContent(liveEncounter?.soap ?? []);
-        if (resolvedSoap && !hasSoapContent) {
+        if (resolvedSoap && !hasSoapContent && hasVisitStarted(appointment.status)) {
           applySoapTemplate(appointmentId, resolvedSoap);
         }
       })
@@ -491,6 +515,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
     appointment.encounterId,
     appointment.organisationId,
     appointment.appointmentType?.id,
+    appointment.status,
     appointmentId,
     actor.id,
     actor.name,
@@ -534,12 +559,20 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   useEffect(() => {
     if (!encounter || landedForRef.current === encounter.appointmentId) return;
     landedForRef.current = encounter.appointmentId;
+    // A not-yet-started (Upcoming/Requested) appointment always opens on SOAP —
+    // never on Summary/discharge — regardless of any derived encounter progress,
+    // a past lock window, or stale route/tab state. Progress-driven landing (and
+    // an explicit ?step=) only applies once the visit has actually begun.
+    if (!hasVisitStarted(appointment.status)) {
+      setActiveStep('SOAP');
+      return;
+    }
     const landingEncounter = {
       ...encounter,
       viewOnly: encounter.viewOnly || encounter.readyForDischarge.value || lockedByWindow,
     };
     setActiveStep(isValidStep(stepParam) ? stepParam : resolveLandingStep(landingEncounter));
-  }, [encounter, lockedByWindow, stepParam, setActiveStep]);
+  }, [encounter, lockedByWindow, stepParam, setActiveStep, appointment.status]);
 
   const companionDetails = useMemo(
     () =>
@@ -555,6 +588,17 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       ),
     [companion, companionRecord, terminologyText]
   );
+  // Compact "Beagle · F, spayed · 4y 2m · 12.4 kg" identity line under the header
+  // name — the same values the context card lists, condensed to one row.
+  const companionMetaLine = useMemo(() => {
+    const summaryValues: string[] = [];
+    for (const detail of companionDetails) {
+      if (SUMMARY_META_LABELS.has(detail.label) && detail.value && detail.value !== '-') {
+        summaryValues.push(detail.value);
+      }
+    }
+    return summaryValues.join(' · ');
+  }, [companionDetails]);
   // Clinical encounter — the time-based "Appointment lock window" freezes the
   // legal record (SOAP + Discharge/Summary). This is what the lock exists for.
   const effectiveEncounter = useMemo(
@@ -1426,143 +1470,73 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   const persistedViewOnly = encounter?.viewOnly ?? false;
   /* v8 ignore stop */
 
-  return (
-    <div className="flex flex-col gap-5 pb-12">
-      <div className="-mx-4 -mt-5 flex flex-col gap-5 bg-(--status-in-progress-bg) px-4 pt-5 pb-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <WorkspaceHeader
+  // The active step body, shared verbatim by the desktop layout and the phone
+  // shell so every step's wiring (and the recent step fixes) stays identical.
+  const stepContent = (
+    <>
+      {activeStep === 'SOAP' && (
+        <SoapStep
+          appointmentId={appointmentId}
+          organisationId={appointment.organisationId}
+          encounterId={appointment.encounterId}
+          authorId={actor.id}
+          authorName={actor.name}
+          appointmentReason={appointmentReason}
+          appointmentService={appointment.appointmentType?.name}
+          appointmentSpeciality={appointment.appointmentType?.speciality?.name}
+          encounter={effectiveEncounter}
+          visitStarted={hasVisitStarted(appointment.status)}
+          onRecordVitals={() => setActiveSideAction('RECORD')}
+          onSaveAndNext={handleSaveAndNext}
+        />
+      )}
+      {activeStep === 'DIAGNOSTICS' && (
+        <DiagnosticsStep
           appointment={appointment}
-          companionName={companion.name}
-          alerts={displayedPatientAlerts}
-          clientAlerts={displayedClientAlerts}
-          onBack={() => {
-            startRouteLoader();
-            router.push('/appointments');
-          }}
-          onQuickActions={() => setActiveSideAction('RECORD')}
-          onHospitalize={() => {
-            if (!canAdmitAppointmentStatus) {
-              notify('error', {
-                title: 'Check in required',
-                text: terminologyText('Check in the appointment before admitting the patient.'),
-              });
-              return;
-            }
-            setIsHospitalizeOpen(true);
-          }}
-          canAdmit={
-            encounterMode === 'INPATIENT' &&
-            canAdmitAppointmentStatus &&
-            !hasAdmission &&
-            !effectiveEncounter.viewOnly
-          }
-          isAdmitting={isAdmitting}
-          onAdmit={() => handleAdmit(effectiveEncounter.unitId, effectiveEncounter.roomId)}
-          canHospitalize={encounterMode !== 'INPATIENT'}
-          onAddAlert={() => setIsAddAlertOpen(true)}
-          onRemoveAlert={handleRemovePatientAlert}
-          // The data model has no room-entry timestamp, so the "In room" timer counts
-          // up from the best available start: the encounter check-in (admittedAt) when
-          // present, otherwise the booked appointment start. It turns amber past the
-          // booked end and never gates any action.
-          visitStartAt={effectiveEncounter.admittedAt ?? appointment.startTime}
-          bookedEndAt={appointment.endTime}
+          readOnly={operationalEncounter.viewOnly}
+          onOpenTreatment={() => handleStepChange('TREATMENT')}
         />
-
-        <CompanionContextCard
-          name={companion.name}
-          photoUrl={companionRecord?.photoUrl}
-          speciesType={companionRecord?.type ?? companion.species}
-          details={companionDetails}
-          mode={encounterMode}
-          onViewDetails={() =>
-            router.push(buildAppointmentCompanionHistoryHref(appointmentId, companion.id))
-          }
+      )}
+      {activeStep === 'TREATMENT' && (
+        <TreatmentStep
+          appointmentId={appointmentId}
+          organisationId={appointment.organisationId}
+          encounterId={appointment.encounterId}
+          authorId={actor.id}
+          encounter={operationalEncounter}
+          ensureEncounterId={ensureEncounterId}
+          onOpenInvoice={() => handleStepChange('INVOICE')}
         />
-
-        <WorkspaceStepper
-          activeStep={activeStep}
-          stepStatus={effectiveEncounter.stepStatus}
-          onStepChange={handleStepChange}
+      )}
+      {activeStep === 'INVOICE' && (
+        <InvoiceStep
+          appointmentId={appointmentId}
+          organisationId={appointment.organisationId}
+          encounterId={appointment.encounterId}
+          authorId={actor.id}
+          patientId={companion.id}
+          parentId={companion.parent.id}
+          encounter={operationalEncounter}
+          hideBillBuilder={isCompletedAppointment}
+          bookedItemName={appointment.appointmentType?.name}
+          onOpenSummary={() => handleStepChange('SUMMARY')}
         />
-      </div>
+      )}
+      {activeStep === 'SUMMARY' && (
+        <SummaryStep
+          appointmentId={appointmentId}
+          appointment={appointment}
+          encounter={effectiveEncounter}
+          resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
+        />
+      )}
+    </>
+  );
 
-      <WorkspaceMetaBar
-        encounter={effectiveEncounter}
-        activeStep={activeStep}
-        leadPhotoUrl={appointment.lead?.profileUrl}
-        supportPhotoUrl={(supportStaffMember as { profileUrl?: string } | undefined)?.profileUrl}
-        roomOptions={roomOptions}
-        unitOptions={unitOptions}
-        onSelectRoom={handleRoomSelect}
-        onSelectUnit={handleUnitSelect}
-        onSaveAndNext={handleSaveAndNext}
-        onToggleReadyForBilling={handleReadyForBillingToggle}
-        onToggleReadyForDischarge={handleReadyForDischargeToggle}
-        roomAssignmentLocked={roomAssignmentLocked}
-        billingTogglesLocked={persistedViewOnly || billingSettled}
-        dischargeTogglesLocked={persistedViewOnly || lockedByWindow}
-        primaryCta={workspacePrimaryCta}
-      />
-
-      <div className="flex items-stretch gap-4">
-        <section aria-label="Workspace step content" className="min-h-50 min-w-0 flex-1">
-          {activeStep === 'SOAP' && (
-            <SoapStep
-              appointmentId={appointmentId}
-              organisationId={appointment.organisationId}
-              encounterId={appointment.encounterId}
-              authorId={actor.id}
-              authorName={actor.name}
-              appointmentReason={appointmentReason}
-              appointmentService={appointment.appointmentType?.name}
-              appointmentSpeciality={appointment.appointmentType?.speciality?.name}
-              encounter={effectiveEncounter}
-              onRecordVitals={() => setActiveSideAction('RECORD')}
-              onSaveAndNext={handleSaveAndNext}
-            />
-          )}
-          {activeStep === 'DIAGNOSTICS' && (
-            <DiagnosticsStep
-              appointment={appointment}
-              readOnly={operationalEncounter.viewOnly}
-              onOpenTreatment={() => handleStepChange('TREATMENT')}
-            />
-          )}
-          {activeStep === 'TREATMENT' && (
-            <TreatmentStep
-              appointmentId={appointmentId}
-              organisationId={appointment.organisationId}
-              encounterId={appointment.encounterId}
-              authorId={actor.id}
-              encounter={operationalEncounter}
-              ensureEncounterId={ensureEncounterId}
-              onOpenInvoice={() => handleStepChange('INVOICE')}
-            />
-          )}
-          {activeStep === 'INVOICE' && (
-            <InvoiceStep
-              appointmentId={appointmentId}
-              organisationId={appointment.organisationId}
-              patientId={companion.id}
-              parentId={companion.parent.id}
-              encounter={operationalEncounter}
-              hideBillBuilder={isCompletedAppointment}
-              bookedItemName={appointment.appointmentType?.name}
-              onOpenSummary={() => handleStepChange('SUMMARY')}
-            />
-          )}
-          {activeStep === 'SUMMARY' && (
-            <SummaryStep
-              appointmentId={appointmentId}
-              appointment={appointment}
-              encounter={effectiveEncounter}
-              resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
-            />
-          )}
-        </section>
-        <WorkspaceActionRail activeAction={activeSideAction} onSelect={setActiveSideAction} />
-      </div>
-
+  // Overlays are layout-independent — rendered by both the desktop tree and the
+  // phone shell so every modal flow works regardless of viewport.
+  const sharedModals = (
+    <>
       <DischargeDateTimeModal
         showModal={isSummaryDischargeModalOpen}
         setShowModal={setIsSummaryDischargeModalOpen}
@@ -1669,6 +1643,141 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           return true;
         }}
       />
+    </>
+  );
+
+  if (isPhone) {
+    return (
+      <>
+        <PhoneWorkspaceShell
+          appointment={appointment}
+          companionName={companion.name}
+          photoUrl={companionRecord?.photoUrl}
+          speciesType={companionRecord?.type ?? companion.species}
+          breed={companionRecord?.breed ?? companion.breed}
+          ageLabel={formatCompanionAge(companionRecord?.dateOfBirth)}
+          weightKg={companionRecord?.currentWeight}
+          allergy={companionRecord?.allergy}
+          // Same visit-start binding as the desktop header (#1903): real actual-start,
+          // then inpatient admission, then booked start.
+          visitStartAt={
+            effectiveEncounter.startedAt ?? effectiveEncounter.admittedAt ?? appointment.startTime
+          }
+          bookedEndAt={appointment.endTime}
+          onBack={() => {
+            startRouteLoader();
+            router.push('/appointments');
+          }}
+          activeStep={activeStep}
+          stepStatus={effectiveEncounter.stepStatus}
+          onStepChange={handleStepChange}
+          vitals={effectiveEncounter.vitals}
+          primaryCta={workspacePrimaryCta}
+          onAdvance={handleSaveAndNext}
+          advanceDisabled={effectiveEncounter.viewOnly}
+          onRecords={() => setActiveSideAction('RECORD')}
+          onChat={() => setActiveSideAction('CHAT')}
+          onMore={() => setActiveSideAction('RECORD')}
+        >
+          {stepContent}
+        </PhoneWorkspaceShell>
+        {sharedModals}
+      </>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5 pb-12">
+      <div className="-mx-4 -mt-5 flex flex-col gap-5 bg-(--screen) px-4 pt-5 pb-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <WorkspaceHeader
+          appointment={appointment}
+          companionName={companion.name}
+          alerts={displayedPatientAlerts}
+          clientAlerts={displayedClientAlerts}
+          onBack={() => {
+            startRouteLoader();
+            router.push('/appointments');
+          }}
+          onQuickActions={() => setActiveSideAction('RECORD')}
+          onHospitalize={() => {
+            if (!canAdmitAppointmentStatus) {
+              notify('error', {
+                title: 'Check in required',
+                text: terminologyText('Check in the appointment before admitting the patient.'),
+              });
+              return;
+            }
+            setIsHospitalizeOpen(true);
+          }}
+          canAdmit={
+            encounterMode === 'INPATIENT' &&
+            canAdmitAppointmentStatus &&
+            !hasAdmission &&
+            !effectiveEncounter.viewOnly
+          }
+          isAdmitting={isAdmitting}
+          onAdmit={() => handleAdmit(effectiveEncounter.unitId, effectiveEncounter.roomId)}
+          canHospitalize={encounterMode !== 'INPATIENT'}
+          onAddAlert={() => setIsAddAlertOpen(true)}
+          onRemoveAlert={handleRemovePatientAlert}
+          // The "In room" timer counts up from the best available start: the real
+          // actual-start stamped when the encounter goes In Progress (startedAt),
+          // then the inpatient admission time (admittedAt), then the booked
+          // appointment start. It turns amber past the booked end and never gates
+          // any action.
+          visitStartAt={
+            effectiveEncounter.startedAt ?? effectiveEncounter.admittedAt ?? appointment.startTime
+          }
+          bookedEndAt={appointment.endTime}
+          photoUrl={companionRecord?.photoUrl}
+          speciesType={companionRecord?.type ?? companion.species}
+          metaLine={companionMetaLine}
+        />
+
+        <CompanionContextCard
+          name={companion.name}
+          photoUrl={companionRecord?.photoUrl}
+          speciesType={companionRecord?.type ?? companion.species}
+          details={companionDetails}
+          mode={encounterMode}
+          onViewDetails={() =>
+            router.push(buildAppointmentCompanionHistoryHref(appointmentId, companion.id))
+          }
+        />
+
+        <WorkspaceStepper
+          activeStep={activeStep}
+          stepStatus={effectiveEncounter.stepStatus}
+          onStepChange={handleStepChange}
+        />
+      </div>
+
+      <WorkspaceMetaBar
+        encounter={effectiveEncounter}
+        activeStep={activeStep}
+        leadPhotoUrl={appointment.lead?.profileUrl}
+        supportPhotoUrl={(supportStaffMember as { profileUrl?: string } | undefined)?.profileUrl}
+        roomOptions={roomOptions}
+        unitOptions={unitOptions}
+        onSelectRoom={handleRoomSelect}
+        onSelectUnit={handleUnitSelect}
+        onSaveAndNext={handleSaveAndNext}
+        onToggleReadyForBilling={handleReadyForBillingToggle}
+        onToggleReadyForDischarge={handleReadyForDischargeToggle}
+        roomAssignmentLocked={roomAssignmentLocked}
+        billingTogglesLocked={persistedViewOnly || billingSettled}
+        dischargeTogglesLocked={persistedViewOnly || lockedByWindow}
+        primaryCta={workspacePrimaryCta}
+      />
+
+      <div className="flex items-stretch gap-4">
+        <section aria-label="Workspace step content" className="min-h-50 min-w-0 flex-1">
+          {stepContent}
+        </section>
+        <WorkspaceActionRail activeAction={activeSideAction} onSelect={setActiveSideAction} />
+      </div>
+
+      {sharedModals}
     </div>
   );
 };

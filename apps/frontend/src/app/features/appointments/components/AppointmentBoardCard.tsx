@@ -11,8 +11,7 @@ import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 import { AppointmentModePill } from '@/app/features/appointments/components/AppointmentCardContent';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCheckCircle } from 'react-icons/fa';
-import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
+import { IoIosCalendar } from 'react-icons/io';
 import {
   IoCardOutline,
   IoDocumentTextOutline,
@@ -67,11 +66,30 @@ type AppointmentBoardCardProps = {
 type BoardCardCompanion = NonNullable<Appointment['companion']>;
 
 const iconButtonClass =
-  'size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center';
+  'size-7 rounded-full! border border-[var(--hairline)] bg-neutral-0 flex items-center justify-center';
 
 /** "Beagle · Lena Hartmann" — falls back to species when the breed is unknown. */
 const buildCompanionSubtitle = (companion: BoardCardCompanion) =>
   [companion.breed || companion.species, companion.parent?.name].filter(Boolean).join(' · ');
+
+/**
+ * "Waiting 12 min" — how long a checked-in patient has actually been waiting,
+ * measured from the moment they were checked in at the desk.
+ *
+ * BACKEND WORK REQUIRED: this reads `Appointment.checkedInAt`, which nothing
+ * persists yet. It is deliberately NOT derived from the booked `startTime` —
+ * that measures how late the appointment is running, not how long the patient
+ * has waited, and a patient who checks in early would show a wait of zero while
+ * a late-running clinic would show a wait for a patient who just arrived.
+ * Without a real check-in stamp the label is omitted entirely.
+ */
+const buildWaitingLabel = (checkedInAt?: string | Date | null): string => {
+  if (!checkedInAt) return '';
+  const checkedIn = new Date(checkedInAt).getTime();
+  if (Number.isNaN(checkedIn)) return '';
+  const minutes = Math.floor((Date.now() - checkedIn) / 60000);
+  return minutes >= 1 ? `Waiting ${minutes} min` : '';
+};
 
 /** "Annual check-up · Dr. Weber" — the design's service line under the companion. */
 const buildServiceLine = (appointment: Appointment) =>
@@ -132,7 +150,7 @@ const BoardCardHeader = ({
         )}
         height={28}
         width={28}
-        className="size-7 shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
+        className="size-[28px] shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
         alt=""
       />
       <div className="min-w-0">
@@ -148,17 +166,17 @@ const BoardCardHeader = ({
         >
           {companionDisplayName}
         </button>
-        <div className="truncate text-[11px] leading-4 text-text-tertiary">
+        <div className="truncate text-[11px] leading-4 text-[var(--ink-faint)]">
           {buildCompanionSubtitle(companion)}
         </div>
       </div>
     </div>
     {isEmergency && (
       <span
-        className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-2 py-[3px] text-[9px] font-bold uppercase leading-none tracking-[0.08em] text-[var(--danger-text)]"
+        className="shrink-0 inline-flex items-center gap-[3px] rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-[7px] py-[2px] text-[8.5px] font-bold uppercase leading-none text-[var(--danger-text)]"
         aria-label="Emergency appointment"
       >
-        <IoWarning size={9} aria-hidden="true" />
+        <IoWarning size={8} aria-hidden="true" />
         Emergency
       </span>
     )}
@@ -213,37 +231,35 @@ const BoardCardRequestActions = ({
   appointment: Appointment;
   onAccept: () => void;
 }) => (
-  <div className="relative z-10 flex items-center justify-end gap-1">
-    <GlassTooltip content="Accept request" side="bottom">
-      <button
-        type="button"
-        aria-label="Accept request"
-        className="size-7 rounded-full! bg-success-100 border border-success-200 flex items-center justify-center"
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onAccept();
-        }}
-      >
-        <FaCheckCircle size={14} color="var(--color-success-400)" />
-      </button>
-    </GlassTooltip>
-    <GlassTooltip content="Decline request" side="bottom">
-      <button
-        type="button"
-        aria-label="Decline request"
-        className="size-7 rounded-full! bg-danger-100 border border-danger-200 flex items-center justify-center"
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          void rejectAppointment(appointment).catch((error) => {
-            console.error('Failed to decline appointment request:', error);
-          });
-        }}
-      >
-        <IoIosCloseCircle size={16} color="var(--color-danger-600)" />
-      </button>
-    </GlassTooltip>
+  <div className="relative z-10 flex items-center justify-end gap-1.5">
+    <button
+      type="button"
+      aria-label="Accept request"
+      className="rounded-full! px-2.5 py-1 text-[10.5px] font-bold leading-none"
+      style={{ backgroundColor: 'var(--cta)', color: 'var(--cta-text)' }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onAccept();
+      }}
+    >
+      Accept
+    </button>
+    <button
+      type="button"
+      aria-label="Decline request"
+      className="rounded-full! border px-2.5 py-1 text-[10.5px] font-bold leading-none"
+      style={{ borderColor: 'var(--divider)', color: 'var(--ink-muted)' }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void rejectAppointment(appointment).catch((error) => {
+          console.error('Failed to decline appointment request:', error);
+        });
+      }}
+    >
+      Decline
+    </button>
   </div>
 );
 
@@ -283,7 +299,7 @@ const BoardCardActionBar = ({
           label="View appointment"
           onPress={() => openAppointment(appointment)}
         >
-          <IoEyeOutline size={14} color="var(--color-neutral-900)" />
+          <IoEyeOutline size={14} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       <BoardCardIconButton
@@ -292,7 +308,7 @@ const BoardCardActionBar = ({
         title="Appointment overview"
         onPress={() => openAppointmentHistory(appointment)}
       >
-        <RiHistoryLine size={13} color="var(--color-neutral-900)" />
+        <RiHistoryLine size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
       {canEditAppointments && canShowStatusChangeAction(appointment.status) && (
         <BoardCardIconButton
@@ -300,7 +316,7 @@ const BoardCardActionBar = ({
           label="Change status"
           onPress={() => openChangeStatus(appointment)}
         >
-          <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
+          <MdOutlineAutorenew size={13} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       {canEditAppointments && allowCalendarDrag(appointment.status) && (
@@ -309,7 +325,7 @@ const BoardCardActionBar = ({
           label="Reschedule"
           onPress={() => openReschedule(appointment)}
         >
-          <IoIosCalendar size={13} color="var(--color-neutral-900)" />
+          <IoIosCalendar size={13} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       {canEditAppointments && canAssignAppointmentRoom(appointment.status) && (
@@ -318,7 +334,7 @@ const BoardCardActionBar = ({
           label="Assign room"
           onPress={() => openChangeRoom(appointment)}
         >
-          <MdMeetingRoom size={13} color="var(--color-neutral-900)" />
+          <MdMeetingRoom size={13} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       <BoardCardIconButton
@@ -327,7 +343,7 @@ const BoardCardActionBar = ({
         title={clinicalNotesLabel}
         onPress={() => openAppointmentWorkspace(appointment, getClinicalNotesIntent(orgType))}
       >
-        <IoDocumentTextOutline size={13} color="var(--color-neutral-900)" />
+        <IoDocumentTextOutline size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
       <BoardCardIconButton
         tooltip="Finance summary"
@@ -336,7 +352,7 @@ const BoardCardActionBar = ({
           openAppointmentWorkspace(appointment, { label: 'finance', subLabel: 'summary' })
         }
       >
-        <IoCardOutline size={13} color="var(--color-neutral-900)" />
+        <IoCardOutline size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
       <BoardCardIconButton
         tooltip="Lab tests"
@@ -345,7 +361,7 @@ const BoardCardActionBar = ({
           openAppointmentWorkspace(appointment, { label: 'labs', subLabel: 'idexx-labs' })
         }
       >
-        <MdScience size={13} color="var(--color-neutral-900)" />
+        <MdScience size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
     </div>
   );
@@ -383,6 +399,22 @@ const AppointmentBoardCard = ({
   // removes the lift shadow so live work stays dominant in the column.
   const isMuted = isMutedBoardStatus(normalizeStatus(appointment.status));
   const isRequested = isRequestedLikeStatus(appointment.status);
+  // Checked-in patients are the ones actually waiting in the clinic, so the design
+  // lifts their card with a 1.5px status outline, a deeper shadow, the wait so far
+  // and a direct "Start visit" action. The wait needs a real check-in stamp, so it
+  // is absent until the backend supplies one — the rest of the emphasis still applies.
+  const isCheckedIn = normalizeStatus(appointment.status) === 'CHECKED_IN';
+  const waitingLabel = buildWaitingLabel(appointment.checkedInAt);
+
+  let emphasisClass = 'border-card-border';
+  if (isEmergency) {
+    emphasisClass = 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]';
+  } else if (isCheckedIn) {
+    emphasisClass = 'border-[1.5px] border-[var(--status-checked-in-border)]';
+  }
+  const emphasisShadowClass = isCheckedIn
+    ? 'shadow-[0_4px_14px_var(--sh08)]'
+    : 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]';
 
   return (
     <article
@@ -392,13 +424,9 @@ const AppointmentBoardCard = ({
           : `Appointment ${companionDisplayName}`
       }
       className={clsx(
-        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
-        isEmergency
-          ? 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]'
-          : 'border-card-border',
-        isMuted
-          ? 'opacity-[0.72] shadow-none'
-          : 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
+        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[14px] py-[12px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
+        emphasisClass,
+        isMuted ? 'opacity-[0.72] shadow-none' : emphasisShadowClass,
         isDragging
           ? 'opacity-60 shadow-none'
           : 'hover:border-input-border-active! hover:bg-card-hover!',
@@ -424,9 +452,31 @@ const AppointmentBoardCard = ({
         onOpenHistory={() => openAppointmentHistory(appointment)}
       />
 
-      <div className="relative z-10 line-clamp-2 text-[12px] leading-4 text-text-secondary">
+      <div className="relative z-10 line-clamp-2 text-[12px] leading-4 text-[var(--ink-muted)]">
         {buildServiceLine(appointment)}
       </div>
+
+      {isCheckedIn && (
+        <div className="relative z-10 flex items-center justify-between gap-2">
+          {waitingLabel && (
+            <span className="text-[10.5px] font-semibold" style={{ color: 'var(--ink-faint)' }}>
+              {waitingLabel}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              openAppointmentWorkspace(appointment);
+            }}
+            className="ml-auto rounded-full px-2.5 py-1 text-[10.5px] font-bold text-white"
+            style={{ background: 'var(--blue)' }}
+          >
+            Start visit
+          </button>
+        </div>
+      )}
 
       <BoardCardMetaRow
         appointment={appointment}

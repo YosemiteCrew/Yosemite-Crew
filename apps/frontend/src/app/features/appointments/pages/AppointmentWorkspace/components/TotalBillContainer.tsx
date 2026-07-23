@@ -49,7 +49,7 @@ const InfoTooltipIcon = ({
     <button
       type="button"
       aria-label={label}
-      className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-blue-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
     >
       <IoInformationCircleOutline aria-hidden="true" size={14} />
     </button>
@@ -129,7 +129,8 @@ const ROW_GRID =
  */
 const ColumnHeadings = () => (
   <div
-    className={`${ROW_GRID} text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:px-3`}
+    className={`${ROW_GRID} rounded-lg py-2 text-[10px] font-bold uppercase tracking-[0.1em] [&>span]:px-3`}
+    style={{ background: 'var(--screen-2)', color: 'var(--ink-faint)' }}
   >
     <span>Item Name</span>
     <span>Unit Price</span>
@@ -350,13 +351,15 @@ const FOOTER_VALUE_STYLE: React.CSSProperties = {
 };
 
 const FOOTER_TOTAL_VALUE_STYLE: React.CSSProperties = {
-  color: PRIMARY_TEXT,
+  color: 'var(--ink)',
   fontFamily: FOOTER_FONT,
-  fontSize: 40,
+  fontSize: 26,
   fontStyle: 'normal',
   fontWeight: 700,
+  letterSpacing: '-0.03em',
   lineHeight: '120%',
   textAlign: 'right',
+  fontVariantNumeric: 'tabular-nums',
 };
 
 const FOOTER_DISCOUNT_VALUE_STYLE: React.CSSProperties = {
@@ -639,11 +642,7 @@ const TotalBillContainer = ({
           </div>
         </div>
 
-        <SectionContainer
-          titleClassName="text-yc-20-b-primary"
-          title="Total Bill"
-          className="flex flex-col gap-5"
-        >
+        <SectionContainer title="Total Bill" className="flex flex-col gap-5">
           {items.length === 0 ? (
             <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
               No invoice line items added yet.

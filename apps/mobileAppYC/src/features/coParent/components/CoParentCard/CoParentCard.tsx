@@ -48,7 +48,10 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
         <PressableOpacity
           activeOpacity={onPressView ? 0.85 : 1}
           onPress={onPressView}
-          style={styles.innerContent}>
+          style={styles.innerContent}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${displayName}`}
+          accessibilityState={{disabled: !onPressView}}>
           <View style={styles.infoRow}>
             <View style={styles.avatarContainer}>
               {coParent.profilePicture ? (
@@ -107,13 +110,13 @@ const createStyles = (theme: any) =>
       width: 60,
       height: 60,
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
+      backgroundColor: theme.colors.avatarGreenBg,
       justifyContent: 'center',
       alignItems: 'center',
     },
     avatarInitialsText: {
       ...theme.typography.h3,
-      color: theme.colors.secondary,
+      color: theme.colors.avatarGreenInk,
     },
     textContent: {
       flex: 1,

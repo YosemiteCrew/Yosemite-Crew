@@ -10,6 +10,7 @@ import ProtectedInventory, {
   filterDispensaryRecords,
   getDispenseRequestType,
   getInventoryPageTitle,
+  getInventorySubtitle,
   getSupplierName,
   getVisibilityLabel,
   mapDispenseRequestToRecord,
@@ -23,6 +24,7 @@ import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 expect.extend(toHaveNoViolations);
 
@@ -99,9 +101,12 @@ jest.mock('next/dynamic', () => ({
 
       if (source.includes('components/TurnoverAnalytics')) {
         const setView = props.setActiveView as ((view: string) => void) | undefined;
+        const viewHistory = props.onViewHistory as ((item: unknown) => void) | undefined;
+        const items = (props.inventory ?? []) as unknown[];
         // Stub the dynamic analytics view: expose the Stock/Orders/Turnover
         // segmented control so tests can switch views (the real one renders the
-        // same buttons but only after the dynamic chunk loads).
+        // same buttons but only after the dynamic chunk loads), plus the product
+        // panel's History action.
         return (
           <div data-testid="mock-turnover-analytics">
             <button type="button" onClick={() => setView?.('inventory')}>
@@ -109,6 +114,13 @@ jest.mock('next/dynamic', () => ({
             </button>
             <button type="button" onClick={() => setView?.('turnover')}>
               Orders
+            </button>
+            <button
+              type="button"
+              data-testid="turnover-history-btn"
+              onClick={() => viewHistory?.(items[0])}
+            >
+              History
             </button>
           </div>
         );
@@ -147,6 +159,11 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button onClick={onClick} disabled={isDisabled} data-testid="add-btn">
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="secondary-btn">
       {text}
     </button>
   ),
@@ -408,6 +425,14 @@ jest.mock('@/app/ui/overlays/Fallback', () => ({
   default: () => <div data-testid="fallback">No permission</div>,
 }));
 
+// The phone breakpoint hook is false by default (desktop/tablet path); the phone
+// suite flips it to true to exercise the bespoke catalog branch.
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  useIsPhone: jest.fn(() => false),
+  default: jest.fn(() => false),
+}));
+
 // Mock search store - search now comes from header
 let mockSearchQuery = '';
 jest.mock('@/app/stores/searchStore', () => ({
@@ -591,6 +616,26 @@ describe('Inventory Page', () => {
       ).toHaveLength(1);
       expect(getSupplierName(inventory[0])).toBe('Acme Vet');
       expect(getSupplierName(inventory[1])).toBe('Other Supplier');
+    });
+
+    it('matches derived low-stock rows (no explicit stockHealth) against the low-stock filter', () => {
+      const derivedLow = [
+        {
+          id: 'derived-low',
+          status: 'ACTIVE',
+          stock: { current: 2, reorderLevel: 5 },
+          basicInfo: { name: 'Gauze', category: 'Consumable' },
+        },
+      ] as any[];
+
+      expect(
+        filterAndSortInventory(
+          derivedLow,
+          { ...defaultFilters, visibility: 'ALL', status: 'LOW_STOCK' },
+          '',
+          'name'
+        ).map((item) => item.id)
+      ).toEqual(['derived-low']);
     });
 
     it('covers inventory helper fallback branches for sparse records and filters', () => {
@@ -831,6 +876,17 @@ describe('Inventory Page', () => {
       expect(getInventoryPageTitle('turnover')).toBe('Dispensary');
       expect(getInventoryPageTitle('analytics')).toBe('Turnover');
 
+      expect(getInventorySubtitle('inventory', 3, 1)).toBe(
+        '3 items below reorder point · 1 expired batch'
+      );
+      expect(getInventorySubtitle('inventory', 1, 2)).toBe(
+        '1 item below reorder point · 2 expired batches'
+      );
+      expect(getInventorySubtitle('turnover', 0, 0)).toBe(
+        'Prescriptions waiting to be pulled from stock'
+      );
+      expect(getInventorySubtitle('analytics', 0, 0)).toBeNull();
+
       const added = toggleSetItem(new Set(['open']), 'closed');
       expect(Array.from(added).sort()).toEqual(['closed', 'open']);
       const removed = toggleSetItem(added, 'open');
@@ -864,7 +920,7 @@ describe('Inventory Page', () => {
     expect(screen.getByRole('button', { name: 'Inventory info' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Dispensary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sort by' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sort: Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add product' })).toBeInTheDocument();
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
     expect(screen.queryByTestId('dispensary-table')).not.toBeInTheDocument();
@@ -873,6 +929,70 @@ describe('Inventory Page', () => {
 
     expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
     expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
+  });
+
+  it('counts derived stock-health states (no explicit stockHealth) in the header subtitle', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      // No stockHealth field: the count must derive EXPIRED from the past batch
+      // expiry, exactly like the table's displayStatusLabel does for each row.
+      inventory: [
+        {
+          id: 'exp',
+          status: 'ACTIVE',
+          basicInfo: { name: 'Derived Expired', category: 'Medicine' },
+          batch: { expiryDate: '2020-01-01' },
+          stock: { current: 5 },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
+  });
+
+  it('scopes the header totals to the active visibility (hidden items are not counted)', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: 'active-exp',
+          status: 'ACTIVE',
+          basicInfo: { name: 'Active Expired', category: 'Medicine' },
+          batch: { expiryDate: '2020-01-01' },
+          stock: { current: 5 },
+        },
+        {
+          id: 'hidden-low',
+          status: 'HIDDEN',
+          basicInfo: { name: 'Hidden Low', category: 'Medicine' },
+          stock: { current: 1, reorderLevel: 5 },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    // Default catalog visibility is Active: the active expired item counts, the hidden
+    // low-stock item does not (it is not in the visible view).
+    expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
   });
 
   it('exercises inventory filter bar search, filter, and sort callbacks directly', () => {
@@ -892,7 +1012,7 @@ describe('Inventory Page', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
     expect(setFilterOpen).toHaveBeenCalledWith(true);
 
     fireEvent.change(screen.getByPlaceholderText('Search inventory'), {
@@ -900,7 +1020,7 @@ describe('Inventory Page', () => {
     });
     expect(setFilters).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
     expect(setSortMode).toHaveBeenCalledWith('stock');
   });
@@ -943,10 +1063,17 @@ describe('Inventory Page', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Status' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pending' }));
-
     expect(setDispensaryStatusFilter).toHaveBeenCalledWith('PENDING');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
+    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('DISPENSED');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not dispensed' }));
+    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('NOT_DISPENSED');
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('ALL');
   });
 
   it('keeps the sort menu open when clicking its trigger or panel', () => {
@@ -961,7 +1088,7 @@ describe('Inventory Page', () => {
       />
     );
 
-    const sortTrigger = screen.getByRole('button', { name: 'Sort by' });
+    const sortTrigger = screen.getByRole('button', { name: 'Sort: Name' });
     fireEvent.click(sortTrigger);
     expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
 
@@ -1174,14 +1301,14 @@ describe('Inventory Page', () => {
 
     expect(getItemOrder()).toEqual(['Alpha', 'Beta', 'Gamma']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     fireEvent.click(screen.getByRole('button', { name: 'Expiry date' }));
 
     await waitFor(() => {
       expect(getItemOrder()).toEqual(['Alpha', 'Beta', 'Gamma']);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Expiry date' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
 
     await waitFor(() => {
@@ -1364,12 +1491,12 @@ describe('Inventory Page', () => {
   it('closes the sort menu on outside click and scroll', () => {
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole('button', { name: 'Expiry date' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     expect(screen.getByRole('button', { name: 'Stock level' })).toBeInTheDocument();
     fireEvent.scroll(window);
     expect(screen.queryByRole('button', { name: 'Stock level' })).not.toBeInTheDocument();
@@ -1378,25 +1505,36 @@ describe('Inventory Page', () => {
   it('opens analytics view and returns to inventory', () => {
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Turnover' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    expect(screen.getByRole('heading', { level: 1, name: /Turnover/ })).toBeInTheDocument();
 
     // The analytics view's segmented control (Stock / Orders / Turnover) returns
     // to the inventory list via the "Stock" segment.
     fireEvent.click(screen.getByRole('button', { name: 'Stock' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Inventory/ })).toBeInTheDocument();
   });
 
-  it('returns to the catalog from the analytics header Catalog button', () => {
+  it('opens the record sheet on batch and expiry from the analytics History action', () => {
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Turnover' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    fireEvent.click(screen.getByTestId('turnover-history-btn'));
 
-    // The analytics header exposes its own Catalog button, distinct from the
-    // TurnoverAnalytics sub-nav "Stock" segment.
+    expect(screen.getByTestId('info-modal')).toBeInTheDocument();
+    expect(screen.getByText('Current: Item A')).toBeInTheDocument();
+  });
+
+  it('returns to the catalog from the segmented control while in analytics', () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
+    expect(screen.getByRole('heading', { level: 1, name: /Turnover/ })).toBeInTheDocument();
+
+    // The view SegmentedPill stays visible in analytics; its Catalog segment
+    // returns to the inventory list (distinct from the TurnoverAnalytics
+    // sub-nav "Stock" segment).
     fireEvent.click(screen.getByRole('button', { name: 'Catalog' }));
-    expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Inventory/ })).toBeInTheDocument();
   });
 
   it('switches between Catalog and Dispensary via the segmented control', () => {
@@ -1432,7 +1570,7 @@ describe('Inventory Page', () => {
 
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
 
     expect(screen.getByTestId('turnover-filters')).toBeInTheDocument();
   });
@@ -1455,7 +1593,7 @@ describe('Inventory Page', () => {
     });
 
     render(<ProtectedInventory />);
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
 
     const count = () => screen.getByTestId('turnover-table').getAttribute('data-count');
 
@@ -1496,7 +1634,7 @@ describe('Inventory Page', () => {
     });
 
     render(<ProtectedInventory />);
-    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
 
     const count = () => screen.getByTestId('turnover-table').getAttribute('data-count');
 
@@ -1958,6 +2096,36 @@ describe('Inventory Page', () => {
     expect(screen.queryByTestId('dispense-dr-1')).not.toBeInTheDocument();
   });
 
+  it('does not fetch dispensary records without the prescription view permission', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    mockPermissions = {
+      [PERMISSIONS.INVENTORY_EDIT_ANY]: true,
+      [PERMISSIONS.INVENTORY_VIEW_ANY]: true,
+      [PERMISSIONS.PRESCRIPTION_VIEW_ANY]: false,
+      [PERMISSIONS.PRESCRIPTION_EDIT_ANY]: false,
+    };
+
+    render(<ProtectedInventory />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    });
+    // The toggle is already hidden by permission; the point here is that the
+    // records never reach the browser in the first place.
+    expect(listDispenseRequests).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Dispensary' })).not.toBeInTheDocument();
+  });
+
+  it('fetches dispensary records when the prescription view permission is granted', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+
+    render(<ProtectedInventory />);
+
+    await waitFor(() => {
+      expect(listDispenseRequests).toHaveBeenCalledWith('org-1');
+    });
+  });
+
   it('silently handles errors from listDispenseRequests', async () => {
     (listDispenseRequests as jest.Mock).mockRejectedValue(new Error('Network error'));
     render(<ProtectedInventory />);
@@ -2010,7 +2178,6 @@ describe('Inventory Page', () => {
       target: { value: '' },
     });
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
 
     await waitFor(() => {
@@ -2031,7 +2198,6 @@ describe('Inventory Page', () => {
 
     await openDispensaryView('dr-2');
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
 
     await waitFor(() => {
@@ -2045,6 +2211,40 @@ describe('Inventory Page', () => {
     await waitFor(() => {
       expect(screen.getByTestId('dispensary-record-dr-1')).toBeInTheDocument();
       expect(screen.getByTestId('dispensary-record-dr-2')).toBeInTheDocument();
+    });
+  });
+
+  describe('phone catalog branch (< 768px)', () => {
+    beforeEach(() => {
+      (useIsPhone as jest.Mock).mockReturnValue(true);
+    });
+    afterEach(() => {
+      (useIsPhone as jest.Mock).mockReturnValue(false);
+    });
+
+    it('renders the bespoke phone catalog instead of the desktop table and hides Add product', () => {
+      render(<ProtectedInventory />);
+
+      // Bespoke phone cards replace the shared table; the pill row + FAB own
+      // filtering and creation, so the desktop table and Add button are absent.
+      expect(screen.getByRole('button', { name: 'View Item A' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'View Item B' })).toBeInTheDocument();
+      expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Add product' })).not.toBeInTheDocument();
+      // The phone filter pill row is present.
+      expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    });
+
+    it('opens the record sheet from a phone card and keeps the shared tables for dispensary', () => {
+      render(<ProtectedInventory />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'View Item A' }));
+      expect(screen.getByTestId('info-modal')).toBeInTheDocument();
+
+      // Switching to the dispensary view falls back to the shared card table.
+      fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
+      expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'View Item A' })).not.toBeInTheDocument();
     });
   });
 });

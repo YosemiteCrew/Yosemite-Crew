@@ -28,6 +28,7 @@ import {
   getFreshStoredTokens,
   isTokenExpired,
 } from '../../../../src/features/auth/sessionManager';
+import {usePreferences} from '../../../../src/features/preferences/PreferencesContext';
 
 // --- Mocks ---
 
@@ -50,6 +51,12 @@ const mockLogout = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../../../src/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
+
+// Appearance selector is covered by its own test; stub it here.
+jest.mock(
+  '@/shared/components/common/AppearanceSelector/AppearanceSelector',
+  () => ({AppearanceSelector: () => null}),
+);
 
 // Theme Hook - must return function directly, not variable
 jest.mock('../../../../src/hooks', () => ({
@@ -193,7 +200,8 @@ jest.mock(
             <TouchableOpacity
               key={item.id}
               onPress={() => onItemPress(item.id)}
-              testID={`menu-item-${item.id}`}>
+              testID={`menu-item-${item.id}`}
+              accessibilityValue={{text: String(item.tintIcon)}}>
               <Text>{item.label}</Text>
             </TouchableOpacity>
           ))}
@@ -316,6 +324,17 @@ describe('AccountScreen', () => {
     expect(normalizeImageUri).toHaveBeenCalledWith(
       'https://example.com/avatar.jpg',
     );
+  });
+
+  it('converts the stored kg weight to the preferred display unit', () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      weightUnit: 'lbs',
+      temperatureUnit: 'F',
+    });
+    renderScreen();
+
+    // currentWeight is always stored in kg; 50 kg -> ~110.2 lbs.
+    expect(screen.getByText(/110\.2 lbs/)).toBeTruthy();
   });
 
   it('renders user profile correctly with only first name', () => {
@@ -443,6 +462,14 @@ describe('AccountScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('EditParentOverview', {
       companionId: 'primary',
     });
+  });
+
+  it('exposes button roles and labels on the companion edit buttons', () => {
+    renderScreen();
+    const johnEditButton = screen.getByLabelText('Edit John Doe');
+    const buddyEditButton = screen.getByLabelText('Edit Buddy');
+    expect(johnEditButton.props.accessibilityRole).toBe('button');
+    expect(buddyEditButton.props.accessibilityRole).toBe('button');
   });
 
   it('navigates to Edit Companion Profile when allowed (Primary Parent)', () => {
@@ -596,6 +623,9 @@ describe('AccountScreen', () => {
   it('navigates to menu items correctly', () => {
     renderScreen();
 
+    fireEvent.press(screen.getByTestId('menu-item-preferences'));
+    expect(mockNavigate).toHaveBeenCalledWith('Preferences');
+
     fireEvent.press(screen.getByTestId('menu-item-faqs'));
     expect(mockNavigate).toHaveBeenCalledWith('FAQ');
 
@@ -607,6 +637,17 @@ describe('AccountScreen', () => {
 
     fireEvent.press(screen.getByTestId('menu-item-contact'));
     expect(mockNavigate).toHaveBeenCalledWith('ContactUs');
+  });
+
+  it('opts the FAQ icon out of tinting since its bitmap has an opaque background', () => {
+    renderScreen();
+
+    expect(
+      screen.getByTestId('menu-item-faqs').props.accessibilityValue,
+    ).toEqual({text: 'false'});
+    expect(
+      screen.getByTestId('menu-item-preferences').props.accessibilityValue,
+    ).toEqual({text: 'undefined'});
   });
 
   it('opens external link for About Us', () => {

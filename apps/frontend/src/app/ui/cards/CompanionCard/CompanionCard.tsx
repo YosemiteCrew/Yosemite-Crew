@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { IoCalendarOutline, IoEye, IoListOutline, IoSyncOutline } from 'react-icons/io5';
 import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
@@ -46,7 +47,7 @@ const CompanionCard = ({
 }: CompanionCardProps) => {
   const terminologyText = useCompanionTerminologyText();
   return (
-    <div className="yc-card-elevated sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <Image
           alt={''}
@@ -92,12 +93,10 @@ const CompanionCard = ({
         <div className="text-caption-1 text-text-extra">Upcoming appointment:</div>
         <div className="text-caption-1 text-text-primary">{'-'}</div>
       </div>
-      <div
+      <StatusPill
         style={getCompanionStatusStyle(companion.companion.status || 'inactive')}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
-        {toTitleCase(companion.companion.status || 'inactive')}
-      </div>
+        label={toTitleCase(companion.companion.status || 'inactive')}
+      />
       <div className="flex gap-2 justify-center">
         <GlassTooltip content={terminologyText('View companion')} side="top">
           <button

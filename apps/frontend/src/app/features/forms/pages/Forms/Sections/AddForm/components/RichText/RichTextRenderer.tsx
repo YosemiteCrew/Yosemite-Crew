@@ -39,7 +39,6 @@ const RichTextRenderer: React.FC<{
         onChange={onChange}
         placeholder={field.placeholder || ''}
         readOnly={readOnly}
-        toolbarPlacement="inline"
       />
     </div>
   );

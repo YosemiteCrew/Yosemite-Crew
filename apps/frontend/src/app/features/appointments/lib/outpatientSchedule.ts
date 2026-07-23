@@ -14,6 +14,20 @@ export type OutpatientVisit = {
   roomName?: string;
   status: OutpatientVisitStatus;
   group: OutpatientVisitGroup;
+  /**
+   * 1-based position of this visit in a booked course of sessions, and the length
+   * of that course — the design's "Laser therapy · session 2 of 6" suffix. Both
+   * come from `Appointment.seriesIndex` / `seriesTotal`, which no backend supplies
+   * yet, so the suffix is rendered only when BOTH are present.
+   */
+  seriesIndex?: number;
+  seriesTotal?: number;
+};
+
+/** Sessions delivered out of the course length — the design's "1 / 6 done" rail. */
+export type OutpatientSeriesProgress = {
+  completed: number;
+  total: number;
 };
 
 export type OutpatientScheduleModel = {
@@ -21,6 +35,15 @@ export type OutpatientScheduleModel = {
   nextWeek: OutpatientVisit[];
   total: number;
   proposedCount: number;
+  /**
+   * BACKEND WORK REQUIRED (`Appointment.seriesCompletedCount` + `seriesTotal`).
+   * Present only when the backend reports both; it is never inferred from
+   * `seriesIndex`, because a scheduled session 2 does not prove session 1 was
+   * delivered. Absent means the design's progress rail is not rendered.
+   */
+  seriesProgress?: OutpatientSeriesProgress;
+  /** BACKEND WORK REQUIRED (`Appointment.seriesNote`) — the design's "Series note" card. */
+  seriesNote?: string;
 };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -44,6 +67,12 @@ type BuildOptions = {
   /** The current appointment, which is never listed as an upcoming visit. */
   excludeAppointmentId?: string;
   nowMs?: number;
+  /**
+   * The appointment the workspace is open on. It is the only carrier of the
+   * course-level series signals (note + delivered count), since a series belongs
+   * to the visit being worked on rather than to the upcoming list.
+   */
+  currentAppointment?: Appointment;
 };
 
 type VisitContext = {
@@ -56,6 +85,15 @@ const byStart = (a: OutpatientVisit, b: OutpatientVisit): number => {
   if (a.startTime < b.startTime) return -1;
   if (a.startTime > b.startTime) return 1;
   return 0;
+};
+
+/** Accept a series count only when it is a real, non-negative whole number. */
+const wholeCount = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+
+const positiveInteger = (value: unknown): number | undefined => {
+  const count = wholeCount(value);
+  return count && count > 0 ? count : undefined;
 };
 
 /** Map a single appointment to an outpatient visit, or null when it should be skipped. */
@@ -82,20 +120,41 @@ const toOutpatientVisit = (
     roomName: appointment.room?.name?.trim() || undefined,
     status: isProposedStatus(normalized) ? 'PROPOSED' : 'SCHEDULED',
     group: startMs - nowMs < WEEK_MS ? 'THIS_WEEK' : 'NEXT_WEEK',
+    seriesIndex: positiveInteger(appointment.seriesIndex),
+    seriesTotal: positiveInteger(appointment.seriesTotal),
   };
 };
 
 /**
+ * The course-level progress for the visit in hand. Requires BOTH a delivered
+ * count and a course length from the backend, and never derives one from the
+ * other; anything else yields undefined and the design's rail stays hidden.
+ */
+const toSeriesProgress = (
+  appointment: Appointment | undefined
+): OutpatientSeriesProgress | undefined => {
+  if (!appointment) return undefined;
+  const completed = wholeCount(appointment.seriesCompletedCount);
+  const total = positiveInteger(appointment.seriesTotal);
+  if (completed === undefined || total === undefined || completed > total) return undefined;
+  return { completed, total };
+};
+
+/**
  * Derive the outpatient This-week / Next-week visit schedule for a companion from the
- * real appointment list already in the store. There is no dedicated outpatient "series"
- * data model, so this sources every FUTURE, non-cancelled appointment for the same
- * companion (excluding the current one) and buckets it by lead time. When nothing is
- * available the schedule is empty and the UI shows a "no scheduled visits" state — no
- * data is fabricated.
+ * real appointment list already in the store. There is still no dedicated outpatient
+ * treatment-series model in the backend, so this sources every FUTURE, non-cancelled
+ * appointment for the same companion (excluding the current one) and buckets it by lead
+ * time. When nothing is available the schedule is empty and the UI shows a "no scheduled
+ * visits" state — no data is fabricated.
+ *
+ * The series signals (`seriesProgress`, `seriesNote`, and each visit's session position)
+ * are pass-throughs of optional `Appointment` fields that no backend populates yet. They
+ * stay undefined today and the corresponding design elements are simply not rendered.
  */
 export const buildOutpatientSchedule = (
   appointments: Appointment[],
-  { companionId, excludeAppointmentId, nowMs = Date.now() }: BuildOptions
+  { companionId, excludeAppointmentId, nowMs = Date.now(), currentAppointment }: BuildOptions
 ): OutpatientScheduleModel => {
   const thisWeek: OutpatientVisit[] = [];
   const nextWeek: OutpatientVisit[] = [];
@@ -115,5 +174,7 @@ export const buildOutpatientSchedule = (
     nextWeek,
     total: all.length,
     proposedCount: all.filter((visit) => visit.status === 'PROPOSED').length,
+    seriesProgress: toSeriesProgress(currentAppointment),
+    seriesNote: currentAppointment?.seriesNote?.trim() || undefined,
   };
 };

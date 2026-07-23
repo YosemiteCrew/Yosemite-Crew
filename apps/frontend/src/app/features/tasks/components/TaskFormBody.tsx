@@ -65,7 +65,7 @@ const TaskFormBody = ({
         />
       </Accordion>
       <div className="flex justify-end items-center gap-3 w-full flex-col pb-3">
-        {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+        {error && <div className="text-text-error text-sm text-center">{error}</div>}
         <div className="flex gap-3 justify-center w-full flex-wrap">
           <Secondary
             href="#"

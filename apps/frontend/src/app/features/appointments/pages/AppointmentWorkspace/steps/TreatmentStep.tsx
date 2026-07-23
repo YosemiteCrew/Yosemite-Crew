@@ -68,6 +68,7 @@ import {
   serviceToLineItem,
   taskToScheduleTask,
 } from './treatmentStepUtils';
+import { getInvoiceErrorMessage } from './invoiceStepUtils';
 
 type TreatmentStepProps = {
   appointmentId: string;
@@ -666,7 +667,7 @@ const usePrescriptionActions = ({
 const getTreatmentSaveErrorMessage = (error: unknown): string =>
   (error as { response?: { status?: number } })?.response?.status === 409
     ? 'This prescription is already finalized and can no longer be edited.'
-    : 'Unable to save treatment items. Please try again.';
+    : getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.');
 
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.
@@ -705,17 +706,21 @@ const TreatmentStep = ({
   // appointments already in the store (there is no dedicated outpatient "series" data
   // model). It degrades to an empty state when no future visits are available — e.g. on
   // a direct deep-link where the appointment list has not been loaded.
-  const outpatientCompanionId = useMemo(() => {
-    const current = appointmentsById[appointmentId];
-    return current ? getAppointmentCompanion(current).id : undefined;
-  }, [appointmentsById, appointmentId]);
+  const currentAppointment = appointmentsById[appointmentId];
+  const outpatientCompanionId = useMemo(
+    () => (currentAppointment ? getAppointmentCompanion(currentAppointment).id : undefined),
+    [currentAppointment]
+  );
   const outpatientSchedule = useMemo(
     () =>
       buildOutpatientSchedule(Object.values(appointmentsById), {
         companionId: outpatientCompanionId,
         excludeAppointmentId: appointmentId,
+        // Carries the (still backend-unpopulated) series note + delivered count so
+        // the design's series rail lights up the moment they are supplied.
+        currentAppointment,
       }),
-    [appointmentsById, outpatientCompanionId, appointmentId]
+    [appointmentsById, outpatientCompanionId, appointmentId, currentAppointment]
   );
 
   const {
@@ -780,9 +785,11 @@ const TreatmentStep = ({
     // BEFORE the persist/no-persist branch so it blocks even when org/encounter haven't hydrated
     // (otherwise the step would silently advance without validating). Each row must carry the
     // required clinical instructions (frequency, duration, quantity, route, form) and pass every
-    // number-format rule.
+    // number-format rule. Finalized rows are read-only and skipped by the save loop, so exclude
+    // them: an older/external finalized record missing a now-required field must not wedge the
+    // save behind a validation error the clinician cannot fix.
     const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
-      getPrescriptionSaveErrors(rx)
+      rx.finalized ? [] : getPrescriptionSaveErrors(rx)
     );
     if (prescriptionErrors.length > 0) {
       setPrescriptionError(prescriptionErrors[0]);
@@ -825,6 +832,13 @@ const TreatmentStep = ({
       // create-or-update is keyed off the row id.
       const reconciledPrescriptions = await Promise.all(
         normalizedPrescriptions.map(async (rx) => {
+          // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
+          // only ever set from persisted server state, so it always carries a real id). Re-POSTing
+          // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
+          // already-persisted, already-dispensed row untouched instead of re-saving it.
+          if (rx.finalized) {
+            return rx;
+          }
           const savedRx = await savePrescriptionArtifact(
             { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
             rx

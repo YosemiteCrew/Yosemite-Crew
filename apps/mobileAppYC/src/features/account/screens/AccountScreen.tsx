@@ -33,6 +33,7 @@ import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from '@/features/account/components/DeleteAccountBottomSheet';
 import {AccountMenuList} from '@/features/account/components/AccountMenuList';
+import type {IconTileTone} from '@/shared/components/common/IconTile/IconTile';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
   calculateAgeFromDateOfBirth,
@@ -46,6 +47,7 @@ import {deleteParentProfile} from '@/features/account/services/profileService';
 import {deleteSupertokensAccount} from '@/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -61,8 +63,10 @@ type MenuItem = {
   id: string;
   label: string;
   icon: ImageSourcePropType;
+  tone?: IconTileTone;
   onPress: () => void;
   danger?: boolean;
+  tintIcon?: boolean;
 };
 
 // Removed COMPANION_PLACEHOLDERS
@@ -98,6 +102,294 @@ const deriveDeletionErrorMessage = (error: unknown): string => {
 
   return baseMessage || 'Failed to delete your account. Please try again.';
 };
+
+const buildAccountMenuItems = (
+  navigation: Props['navigation'],
+  onDeletePress: () => void,
+): MenuItem[] => [
+  {
+    id: 'preferences',
+    label: 'Preferences',
+    icon: Images.editIconSlide,
+    tone: 'info',
+    onPress: () => {
+      navigation.navigate('Preferences');
+    },
+  },
+  {
+    id: 'faqs',
+    label: 'FAQs',
+    icon: Images.faqIcon,
+    tone: 'info',
+    tintIcon: false,
+    onPress: () => {
+      navigation.navigate('FAQ');
+    },
+  },
+  {
+    id: 'about',
+    label: 'About us',
+    icon: Images.aboutusIcon,
+    tone: 'indigo',
+    onPress: () => {
+      Linking.openURL('https://www.yosemitecrew.com/about').catch(console.warn);
+    },
+  },
+  {
+    id: 'terms',
+    label: 'Terms and Conditions',
+    icon: Images.tncIcon,
+    tone: 'violet',
+    onPress: () => {
+      navigation.navigate('TermsAndConditions');
+    },
+  },
+  {
+    id: 'privacy',
+    label: 'Privacy Policy',
+    icon: Images.privacyIcon,
+    tone: 'violet',
+    onPress: () => {
+      navigation.navigate('PrivacyPolicy');
+    },
+  },
+  {
+    id: 'contact',
+    label: 'Contact us',
+    icon: Images.contactIcon,
+    tone: 'success',
+    onPress: () => {
+      navigation.navigate('ContactUs');
+    },
+  },
+  {
+    id: 'delete',
+    label: 'Delete Account',
+    icon: Images.deleteIconRed,
+    danger: true,
+    onPress: onDeletePress,
+  },
+];
+
+interface ProfileAvatarProps {
+  profile: CompanionProfile;
+  isUserProfile: boolean;
+  failedProfileImages: Record<string, boolean>;
+  userInitials: string;
+  styles: ReturnType<typeof createStyles>;
+  onImageError: (id: string) => void;
+}
+
+const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
+  profile,
+  isUserProfile,
+  failedProfileImages,
+  userInitials,
+  styles,
+  onImageError,
+}) => {
+  const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
+  const shouldShowImage =
+    hasRemoteImage &&
+    failedProfileImages[profile.id] !== true &&
+    profile.avatar;
+
+  if (shouldShowImage) {
+    return (
+      <Image
+        source={profile.avatar}
+        style={styles.companionAvatar}
+        onError={() => onImageError(profile.id)}
+      />
+    );
+  }
+
+  const initial = isUserProfile ? userInitials : getInitial(profile.name, 'C');
+
+  return (
+    <View style={styles.companionAvatarInitials}>
+      <Text style={styles.avatarInitialsText}>{initial}</Text>
+    </View>
+  );
+};
+
+interface CompanionProfilesCardProps {
+  profiles: CompanionProfile[];
+  styles: ReturnType<typeof createStyles>;
+  failedProfileImages: Record<string, boolean>;
+  userInitials: string;
+  onProfileImageError: (id: string) => void;
+  navigation: Props['navigation'];
+  accessByCompanionId: Record<string, ParentCompanionAccess>;
+  defaultAccess: ParentCompanionAccess | null;
+  globalRole: ParentCompanionAccess['role'] | null | undefined;
+  globalPermissions: ParentCompanionAccess['permissions'] | null | undefined;
+  dispatch: AppDispatch;
+  onPermissionDenied: (label: string) => void;
+}
+
+const CompanionProfilesCard: React.FC<CompanionProfilesCardProps> = ({
+  profiles,
+  styles,
+  failedProfileImages,
+  userInitials,
+  onProfileImageError,
+  navigation,
+  accessByCompanionId,
+  defaultAccess,
+  globalRole,
+  globalPermissions,
+  dispatch,
+  onPermissionDenied,
+}) => (
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      interactive
+      shadow="none"
+      borderRadius="card"
+      style={styles.companionsCard}
+      fallbackStyle={styles.companionsCardFallback}>
+      {profiles.map((profile, index) => (
+        <View
+          key={profile.id}
+          style={[
+            styles.companionRow,
+            index < profiles.length - 1 && styles.companionRowDivider,
+          ]}>
+          <View style={styles.companionInfo}>
+            <ProfileAvatar
+              profile={profile}
+              isUserProfile={index === 0}
+              failedProfileImages={failedProfileImages}
+              userInitials={userInitials}
+              styles={styles}
+              onImageError={onProfileImageError}
+            />
+            <View style={styles.companionText}>
+              <Text
+                style={[
+                  styles.companionName,
+                  index === 0 && styles.companionNamePrimary,
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail">
+                {truncateText(profile.name, 18)} {/* limit name to ~18 chars */}
+              </Text>
+              <Text
+                style={styles.companionMeta}
+                numberOfLines={1}
+                ellipsizeMode="tail">
+                {truncateText(profile.subtitle, 30)}{' '}
+                {/* limit subtitle to ~30 chars */}
+              </Text>
+            </View>
+          </View>
+          {/* Edit Button with conditional navigation */}
+          <PressableOpacity
+            activeOpacity={0.7}
+            style={styles.editButton}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${profile.name}`}
+            onPress={() => {
+              // Index 0 is the primary user profile
+              if (index === 0) {
+                // Navigate to User Profile Edit screen
+                navigation.navigate('EditParentOverview', {
+                  companionId: profile.id,
+                });
+                // e.g., navigation.navigate('EditUserProfile');
+              } else {
+                const access =
+                  accessByCompanionId[profile.id] ?? defaultAccess ?? null;
+                const role = (access?.role ?? globalRole ?? '').toUpperCase();
+                const isPrimary = role.includes('PRIMARY');
+                const permissions =
+                  access?.permissions ??
+                  defaultAccess?.permissions ??
+                  globalPermissions;
+                const canEdit =
+                  isPrimary ||
+                  (permissions ? Boolean(permissions.companionProfile) : false);
+                if (!canEdit) {
+                  onPermissionDenied('companion profile');
+                  return;
+                }
+                dispatch(setSelectedCompanion(profile.id));
+                navigation.navigate('ProfileOverview', {
+                  companionId: profile.id,
+                });
+              }
+            }}>
+            <Image source={Images.blackEdit} style={styles.editIcon} />
+          </PressableOpacity>
+        </View>
+      ))}
+    </LiquidGlassCard>
+  </View>
+);
+
+interface AccountMenuCardProps {
+  styles: ReturnType<typeof createStyles>;
+  menuItems: MenuItem[];
+}
+
+const AccountMenuCard: React.FC<AccountMenuCardProps> = ({
+  styles,
+  menuItems,
+}) => (
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      interactive
+      shadow="none"
+      borderRadius="card"
+      style={styles.menuContainer}
+      fallbackStyle={styles.menuContainerFallback}>
+      <AccountMenuList
+        items={menuItems}
+        rightArrowIcon={Images.rightArrow}
+        onItemPress={(id: string) => {
+          const it = menuItems.find(m => m.id === id);
+          it?.onPress();
+        }}
+      />
+    </LiquidGlassCard>
+  </View>
+);
+
+interface AccountFooterActionsProps {
+  styles: ReturnType<typeof createStyles>;
+  appVersion: string;
+  dividerColor: string;
+  onLogout: () => void;
+}
+
+const AccountFooterActions: React.FC<AccountFooterActionsProps> = ({
+  styles,
+  appVersion,
+  dividerColor,
+  onLogout,
+}) => (
+  <>
+    <LiquidGlassButton
+      title="Log out"
+      onPress={onLogout}
+      glassEffect="clear"
+      interactive
+      borderRadius="button"
+      forceBorder
+      borderColor={dividerColor}
+      shadowIntensity="none"
+      leftIcon={<Image source={Images.logoutIcon} style={styles.logoutIcon} />}
+      style={styles.logoutButton}
+      textStyle={styles.logoutText}
+    />
+    {!!appVersion && (
+      <Text style={styles.versionText}>Version {appVersion}</Text>
+    )}
+  </>
+);
 
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
@@ -181,7 +473,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
         let weightDisplay: string | null = null;
         if (companion.currentWeight) {
-          weightDisplay = `${companion.currentWeight.toFixed(1)} ${weightUnit}`;
+          const displayWeight = convertWeight(
+            companion.currentWeight,
+            'kg',
+            weightUnit,
+          );
+          weightDisplay = `${displayWeight.toFixed(1)} ${weightUnit}`;
         }
 
         // Dynamically build the subtitle
@@ -213,35 +510,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     displayName,
     weightUnit,
   ]); // Re-run when companions or weightUnit change
-
-  const buildProfileAvatar = (profile: CompanionProfile, index: number) => {
-    const isUserProfile = index === 0;
-    const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
-    const shouldShowImage =
-      hasRemoteImage &&
-      failedProfileImages[profile.id] !== true &&
-      profile.avatar;
-
-    if (shouldShowImage) {
-      return (
-        <Image
-          source={profile.avatar}
-          style={styles.companionAvatar}
-          onError={() => handleProfileImageError(profile.id)}
-        />
-      );
-    }
-
-    const initial = isUserProfile
-      ? userInitials
-      : getInitial(profile.name, 'C');
-
-    return (
-      <View style={styles.companionAvatarInitials}>
-        <Text style={styles.avatarInitialsText}>{initial}</Text>
-      </View>
-    );
-  };
 
   const handleBackPress = React.useCallback(() => {
     if (navigation.canGoBack()) {
@@ -318,57 +586,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   }, [logout]);
 
   const menuItems = React.useMemo<MenuItem[]>(
-    () => [
-      {
-        id: 'faqs',
-        label: 'FAQs',
-        icon: Images.faqIcon,
-        onPress: () => {
-          navigation.navigate('FAQ');
-        },
-      },
-      {
-        id: 'about',
-        label: 'About us',
-        icon: Images.aboutusIcon,
-        onPress: () => {
-          Linking.openURL('https://www.yosemitecrew.com/about').catch(
-            console.warn,
-          );
-        },
-      },
-      {
-        id: 'terms',
-        label: 'Terms and Conditions',
-        icon: Images.tncIcon,
-        onPress: () => {
-          navigation.navigate('TermsAndConditions');
-        },
-      },
-      {
-        id: 'privacy',
-        label: 'Privacy Policy',
-        icon: Images.privacyIcon,
-        onPress: () => {
-          navigation.navigate('PrivacyPolicy');
-        },
-      },
-      {
-        id: 'contact',
-        label: 'Contact us',
-        icon: Images.contactIcon,
-        onPress: () => {
-          navigation.navigate('ContactUs');
-        },
-      },
-      {
-        id: 'delete',
-        label: 'Delete Account',
-        icon: Images.deleteIconRed,
-        danger: true,
-        onPress: handleDeletePress,
-      },
-    ],
+    () => buildAccountMenuItems(navigation, handleDeletePress),
     [handleDeletePress, navigation],
   );
 
@@ -394,125 +612,29 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
               contentContainerStyle={[styles.content, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
               {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
-              <View style={styles.cardShadowWrapper}>
-                <LiquidGlassCard
-                  glassEffect="clear"
-                  interactive
-                  shadow="base"
-                  style={styles.companionsCard}
-                  fallbackStyle={styles.companionsCardFallback}>
-                  {profiles.map((profile, index) => (
-                    <View
-                      key={profile.id}
-                      style={[
-                        styles.companionRow,
-                        index < profiles.length - 1 &&
-                          styles.companionRowDivider,
-                      ]}>
-                      <View style={styles.companionInfo}>
-                        {buildProfileAvatar(profile, index)}
-                        <View>
-                          <Text
-                            style={styles.companionName}
-                            numberOfLines={1}
-                            ellipsizeMode="tail">
-                            {truncateText(profile.name, 18)}{' '}
-                            {/* limit name to ~18 chars */}
-                          </Text>
-                          <Text
-                            style={styles.companionMeta}
-                            numberOfLines={1}
-                            ellipsizeMode="tail">
-                            {truncateText(profile.subtitle, 30)}{' '}
-                            {/* limit subtitle to ~30 chars */}
-                          </Text>
-                        </View>
-                      </View>
-                      {/* Edit Button with conditional navigation */}
-                      <PressableOpacity
-                        activeOpacity={0.7}
-                        style={styles.editButton}
-                        onPress={() => {
-                          // Index 0 is the primary user profile
-                          if (index === 0) {
-                            // Navigate to User Profile Edit screen
-                            navigation.navigate('EditParentOverview', {
-                              companionId: profile.id,
-                            });
-                            // e.g., navigation.navigate('EditUserProfile');
-                          } else {
-                            const access =
-                              accessByCompanionId[profile.id] ??
-                              defaultAccess ??
-                              null;
-                            const role = (
-                              access?.role ??
-                              globalRole ??
-                              ''
-                            ).toUpperCase();
-                            const isPrimary = role.includes('PRIMARY');
-                            const permissions =
-                              access?.permissions ??
-                              defaultAccess?.permissions ??
-                              globalPermissions;
-                            const canEdit =
-                              isPrimary ||
-                              (permissions
-                                ? Boolean(permissions.companionProfile)
-                                : false);
-                            if (!canEdit) {
-                              showPermissionToast('companion profile');
-                              return;
-                            }
-                            dispatch(setSelectedCompanion(profile.id));
-                            navigation.navigate('ProfileOverview', {
-                              companionId: profile.id,
-                            });
-                          }
-                        }}>
-                        <Image
-                          source={Images.blackEdit}
-                          style={styles.editIcon}
-                        />
-                      </PressableOpacity>
-                    </View>
-                  ))}
-                </LiquidGlassCard>
-              </View>
-
-              <View style={styles.cardShadowWrapper}>
-                <LiquidGlassCard
-                  glassEffect="clear"
-                  interactive
-                  shadow="base"
-                  style={styles.menuContainer}
-                  fallbackStyle={styles.menuContainerFallback}>
-                  <AccountMenuList
-                    items={menuItems}
-                    rightArrowIcon={Images.rightArrow}
-                    onItemPress={(id: string) => {
-                      const it = menuItems.find(m => m.id === id);
-                      it?.onPress();
-                    }}
-                  />
-                </LiquidGlassCard>
-              </View>
-
-              <LiquidGlassButton
-                title="Logout"
-                onPress={handleLogoutPress}
-                glassEffect="clear"
-                interactive
-                borderRadius="lg"
-                forceBorder
-                borderColor={theme.colors.secondary}
-                shadowIntensity="strong"
-                style={styles.logoutButton}
-                textStyle={styles.logoutText}
+              <CompanionProfilesCard
+                profiles={profiles}
+                styles={styles}
+                failedProfileImages={failedProfileImages}
+                userInitials={userInitials}
+                onProfileImageError={handleProfileImageError}
+                navigation={navigation}
+                accessByCompanionId={accessByCompanionId}
+                defaultAccess={defaultAccess}
+                globalRole={globalRole}
+                globalPermissions={globalPermissions}
+                dispatch={dispatch}
+                onPermissionDenied={showPermissionToast}
               />
-              {!!appVersion && (
-                <Text style={styles.versionText}>Version {appVersion}</Text>
-              )}
+
+              <AccountMenuCard styles={styles} menuItems={menuItems} />
+
+              <AccountFooterActions
+                styles={styles}
+                appVersion={appVersion}
+                dividerColor={theme.colors.divider}
+                onLogout={handleLogoutPress}
+              />
             </ScrollView>
           </View>
         )}
@@ -545,35 +667,41 @@ const createStyles = (theme: any) => {
       gap: theme.spacing['4'],
     },
     companionsCard: {
-      backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing['4'],
-      gap: theme.spacing['4'],
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['1'],
+      overflow: 'hidden',
     },
     companionsCardFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     companionRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: theme.spacing['2'],
+      paddingVertical: theme.spacing['3.5'],
       gap: theme.spacing['3'],
     },
     companionRowDivider: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-      paddingBottom: theme.spacing['4'],
-      marginBottom: theme.spacing['2'],
+      borderBottomColor: theme.colors.hairline,
     },
     companionInfo: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['3'],
       flex: 1,
+    },
+    companionText: {
+      flex: 1,
+      minWidth: 0,
     },
     companionAvatar: {
       width: theme.spacing['14'],
@@ -584,67 +712,81 @@ const createStyles = (theme: any) => {
       width: theme.spacing['14'],
       height: theme.spacing['14'],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
+      backgroundColor: theme.colors.avatarVioletBg,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: theme.colors.primary,
     },
     avatarInitialsText: {
       ...theme.typography.h4,
-      color: theme.colors.secondary,
+      color: theme.colors.avatarVioletInk,
     },
     companionName: {
-      ...theme.typography.h4,
-      color: theme.colors.secondary,
+      ...theme.typography.titleSmall,
+      color: theme.colors.inkBody,
+    },
+    companionNamePrimary: {
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
     },
     companionMeta: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body13,
+      color: theme.colors.inkFaint,
     },
     editButton: {
-      width: theme.spacing['8'],
-      height: theme.spacing['8'],
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
       borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'rgba(48, 47, 46, 0.12)',
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
     },
     editIcon: {
-      width: theme.spacing['4'],
-      height: theme.spacing['4'],
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
       resizeMode: 'contain',
+      tintColor: theme.colors.inkBody,
     },
     menuContainer: {
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     menuContainerFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     logoutButton: {
       width: '100%',
       height: theme.spacing['14'],
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.button,
+    },
+    logoutIcon: {
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
+      resizeMode: 'contain',
+      tintColor: theme.colors.inkBody,
     },
     logoutText: {
       ...theme.typography.button,
-      color: theme.colors.secondary,
+      color: theme.colors.inkBody,
     },
     versionText: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint2,
       textAlign: 'center',
       marginTop: theme.spacing['2'],
     },
     cardShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      boxShadow: `0px 10px 15px ${theme.colors.neutralShadow}`,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen2,
+      ...theme.shadows.card,
       overflow: 'visible',
     },
   });

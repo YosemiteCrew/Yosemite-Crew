@@ -91,33 +91,26 @@ describe('MyAppointmentsEmptyScreen', () => {
 
     const {getByText, queryByTestId} = render(<MyAppointmentsEmptyScreen />);
 
-    expect(
-      getByText("We've dug and dug… but no appointments found."),
-    ).toBeTruthy();
+    expect(getByText('No visits booked yet')).toBeTruthy();
     expect(queryByTestId('companion-selector')).toBeNull();
     expect(queryByTestId('header-add-btn')).toBeNull();
   });
 
-  it('falls back to the tasks illustration when the empty appointments image is unavailable', () => {
-    const {Images} = require('@/assets/images');
-    const originalEmptyAppointments = Images.emptyAppointments;
-    Images.emptyAppointments = undefined;
+  it('shows the empty description and hides the CTA when there are no companions', () => {
+    jest
+      .spyOn(Redux, 'useSelector')
+      .mockImplementation((selectorFn: any) =>
+        selectorFn({companion: {companions: [], selectedCompanionId: null}}),
+      );
 
-    try {
-      jest
-        .spyOn(Redux, 'useSelector')
-        .mockImplementation((selectorFn: any) =>
-          selectorFn({companion: {companions: [], selectedCompanionId: null}}),
-        );
+    const {getByText, queryByText} = render(<MyAppointmentsEmptyScreen />);
 
-      const {UNSAFE_getByType} = render(<MyAppointmentsEmptyScreen />);
-      const {Image} = require('react-native');
-      const image = UNSAFE_getByType(Image);
-
-      expect(image.props.source).toEqual({uri: 'empty-tasks'});
-    } finally {
-      Images.emptyAppointments = originalEmptyAppointments;
-    }
+    expect(
+      getByText(
+        'Your upcoming veterinary visits will appear here once scheduled.',
+      ),
+    ).toBeTruthy();
+    expect(queryByText('Book an appointment')).toBeNull();
   });
 
   it('renders the companion selector and add button when companions exist', () => {

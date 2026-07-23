@@ -1,8 +1,10 @@
 'use client';
 import React, { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Appointments from '@/app/ui/tables/Appointments';
 import Tasks from '@/app/ui/tables/Tasks';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useTasksForPrimaryOrg } from '@/app/hooks/useTask';
@@ -54,6 +56,10 @@ const resetActiveTableState = (
   setters.setViewIntent(null);
 };
 
+/* Mirrors the `small` page size the Appointments/Tasks tables use on the dashboard,
+   so the footer caption reports the row count the table actually renders. */
+const SUMMARY_PAGE_SIZE = 5;
+
 const getNextSelectedAppointment = (
   current: Appointment | null,
   appointments: Appointment[]
@@ -81,7 +87,7 @@ const AppointmentTask = () => {
   const canEditAppointments = can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
   const tasks = useTasksForPrimaryOrg();
   const router = useRouter();
-  const [activeTable, setActiveTable] = useState('Appointments');
+  const [activeTable, setActiveTable] = useState<'Appointments' | 'Tasks'>('Appointments');
   const [viewPopup, setViewPopup] = useState(false);
   const [detailPopup, setDetailPopup] = useState(false);
   const [viewTaskPopup, setViewTaskPopup] = useState(false);
@@ -148,32 +154,28 @@ const AppointmentTask = () => {
     return tasks.filter((item) => item.status.toLowerCase() === activeSubLabel.toLowerCase());
   }, [tasks, activeTable, activeSubLabel]);
 
+  const visibleCount =
+    activeTable === 'Appointments' ? filteredList.length : filteredTaskList.length;
+
   return (
     <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.TASKS_VIEW_ANY]}>
       <div className="summary-container pt-1">
-        <h2 className="text-text-primary text-heading-1">
+        <h2 className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
           Schedule{' '}
-          <span className="text-text-tertiary">
+          <span className="font-medium text-[var(--ink-faint)]">
             ({activeTable === 'Appointments' ? appointments.length : tasks.length})
           </span>
         </h2>
         <div className="summary-labels flex-wrap gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              className={`min-w-20 text-body-4 px-3 py-1.5 text-text-tertiary rounded-2xl! border! transition-all duration-300${activeTable === 'Appointments' ? ' bg-blue-light text-blue-text! border-text-brand!' : ' border-card-border! hover:bg-card-hover!'}`}
-              onClick={() => setActiveTable('Appointments')}
-            >
-              Appointments
-            </button>
-            <button
-              type="button"
-              className={`min-w-20 text-body-4 px-3 py-1.5 text-text-tertiary rounded-2xl! border! transition-all duration-300${activeTable === 'Tasks' ? ' bg-blue-light text-blue-text! border-text-brand!' : ' border-card-border! hover:bg-card-hover!'}`}
-              onClick={() => setActiveTable('Tasks')}
-            >
-              Tasks
-            </button>
-          </div>
+          <SegmentedPill
+            ariaLabel="Schedule view"
+            value={activeTable}
+            onChange={setActiveTable}
+            options={[
+              { value: 'Appointments', label: 'Appointments' },
+              { value: 'Tasks', label: 'Tasks' },
+            ]}
+          />
           <Filters
             statusOptions={activeLabels}
             activeStatus={activeSubLabel}
@@ -202,6 +204,18 @@ const AppointmentTask = () => {
             small
           />
         )}
+
+        <div className="flex w-full flex-wrap items-center justify-between gap-2 border-t border-[var(--hairline)] pt-2.5">
+          <span className="text-[12px] text-[var(--ink-faint)]">
+            Showing {Math.min(SUMMARY_PAGE_SIZE, visibleCount)} of {visibleCount}
+          </span>
+          <Link
+            href={activeTable === 'Appointments' ? '/appointments' : '/tasks'}
+            className="text-[12.5px] font-semibold text-[var(--blue-text)]"
+          >
+            {activeTable === 'Appointments' ? 'Open appointments' : 'Open tasks'} &rarr;
+          </Link>
+        </div>
 
         {activeAppointment && (
           <ViewAppointmentOverviewModal

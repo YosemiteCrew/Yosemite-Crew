@@ -1,12 +1,13 @@
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { OrganizationDocument } from '@/app/features/documents/types/document';
 import React, { useState } from 'react';
 import { OrgDocumentCategoryOptions } from '@/app/features/organization/pages/Organization/types';
 import { deleteDocument, updateDocument } from '@/app/features/documents/services/documentService';
 import DocUploader from '@/app/ui/widgets/UploadImage/DocUploader';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { useNotify } from '@/app/hooks/useNotify';
 
 type DocumentInfoProps = {
@@ -36,6 +37,9 @@ const DocumentInfo = ({
   const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string>('');
   const { notify } = useNotify();
+  const categoryLabel = OrgDocumentCategoryOptions.find(
+    (option) => option.value === activeDocument.category
+  )?.label;
 
   const handleUpdate = async (values: any) => {
     try {
@@ -106,17 +110,16 @@ const DocumentInfo = ({
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="size-8" aria-hidden="true" />
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">View document</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader
+          eyebrow="Document"
+          title={activeDocument.title || 'View document'}
+          meta={categoryLabel}
+          onClose={() => setShowModal(false)}
+        />
 
-        <div className="flex flex-col flex-1 gap-5 w-full overflow-y-hidden justify-between scrollbar-hidden">
+        <div className="flex flex-col flex-1 gap-5 w-full overflow-y-auto scrollbar-hidden">
           <div className="flex flex-col gap-6">
             <EditableAccordion
               title="Document info"
@@ -138,7 +141,10 @@ const DocumentInfo = ({
               />
             )}
           </div>
-          <div className="flex flex-col gap-3">
+        </div>
+
+        {(activeDocument.fileUrl || (canEditDocument && fileUrl)) && (
+          <ModalFooter align="stretch">
             {activeDocument.fileUrl && (
               <Secondary
                 href={activeDocument.fileUrl}
@@ -149,8 +155,8 @@ const DocumentInfo = ({
             {canEditDocument && fileUrl && (
               <Primary href="#" text="Save" onClick={handleUpdateFile} />
             )}
-          </div>
-        </div>
+          </ModalFooter>
+        )}
       </div>
     </Modal>
   );

@@ -233,9 +233,9 @@ describe('ConfirmActionBottomSheet', () => {
     expect(mockLiquidGlassButton).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Confirm',
-        tintColor: mockTheme.colors.secondary,
+        tintColor: mockTheme.colors.cta,
         textStyle: expect.objectContaining({
-          color: mockTheme.colors.white,
+          color: mockTheme.colors.ctaText,
         }),
       }),
     );
@@ -252,9 +252,11 @@ describe('ConfirmActionBottomSheet', () => {
     expect(mockLiquidGlassButton).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Cancel',
-        tintColor: mockTheme.colors.surface,
+        tintColor: mockTheme.colors.screen,
+        forceBorder: true,
+        borderColor: mockTheme.colors.divider,
         textStyle: expect.objectContaining({
-          color: mockTheme.colors.secondary,
+          color: mockTheme.colors.inkBody,
         }),
       }),
     );
@@ -489,5 +491,122 @@ describe('ConfirmActionBottomSheet', () => {
       fireEvent.press(getByTestId('mock-liquid-button-Confirm'));
     });
     expect(mockPrimaryPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the destructive header, default icon, and danger primary button', () => {
+    const {getByText, getByTestId, queryByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Delete Item"
+        message="This action cannot be undone"
+        destructive
+        primaryButton={{label: 'Delete', onPress: mockPrimaryPress}}
+      />,
+    );
+
+    // Destructive title + message render
+    expect(getByText('Delete Item')).toBeTruthy();
+    expect(getByText('This action cannot be undone')).toBeTruthy();
+    // Default destructive medallion icon
+    expect(getByTestId('icon-trash-outline')).toBeTruthy();
+    // BottomSheetHeader (and its close button) is not used in destructive mode
+    expect(queryByTestId('mock-header-close')).toBeNull();
+    // Primary button uses danger tint + white text in destructive mode
+    expect(mockLiquidGlassButton).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Delete',
+        tintColor: mockTheme.colors.danger,
+        textStyle: expect.objectContaining({
+          color: mockTheme.colors.white,
+        }),
+      }),
+    );
+  });
+
+  it('renders a custom destructive icon when provided', () => {
+    const {getByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Warning"
+        destructive
+        destructiveIcon="alert-circle-outline"
+        primaryButton={primaryButtonConfig}
+      />,
+    );
+
+    expect(getByTestId('icon-alert-circle-outline')).toBeTruthy();
+  });
+
+  it('passes provided zIndex and bottomInset to the bottom sheet', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        zIndex={999}
+        bottomInset={24}
+      />,
+    );
+
+    expect(mockBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({zIndex: 999, bottomInset: 24}),
+    );
+  });
+
+  it('defaults zIndex to 100 when not provided', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+      />,
+    );
+
+    expect(mockBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({zIndex: 100}),
+    );
+  });
+
+  it('forwards an explicit shadowIntensity to the button', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={{...primaryButtonConfig, shadowIntensity: 'strong'}}
+      />,
+    );
+
+    expect(mockLiquidGlassButton).toHaveBeenCalledWith(
+      expect.objectContaining({title: 'Confirm', shadowIntensity: 'strong'}),
+    );
+  });
+
+  it('forwards behavior and backdrop overrides to the bottom sheet', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        enablePanDown={false}
+        enableHandlePanning={false}
+        backdropPressBehavior="none"
+      />,
+    );
+
+    expect(mockBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        behavior: expect.objectContaining({
+          panDownToClose: false,
+          handlePanningGesture: false,
+        }),
+        backdropPressBehavior: 'none',
+      }),
+    );
+  });
+
+  it('hides the header close button when showCloseButton is false', () => {
+    const {queryByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        showCloseButton={false}
+      />,
+    );
+
+    expect(queryByTestId('mock-header-close')).toBeNull();
   });
 });

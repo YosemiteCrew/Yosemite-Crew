@@ -294,7 +294,9 @@ export const ProfileImagePicker = ({
         },
       ]}
       onPress={pressable ? handleImagePicker : undefined}
-      activeOpacity={pressable ? 0.8 : 1}>
+      activeOpacity={pressable ? 0.8 : 1}
+      accessibilityRole={pressable ? 'button' : undefined}
+      accessibilityLabel={pressable ? 'Change profile photo' : undefined}>
       <View
         style={[
           styles.imageContainer,

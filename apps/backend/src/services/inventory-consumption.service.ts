@@ -6,6 +6,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import logger from "src/utils/logger";
 
 export class InventoryConsumptionServiceError extends Error {
   constructor(
@@ -198,6 +199,69 @@ const readDoseParts = (
   };
 };
 
+/**
+ * The prescriber picks a duration unit alongside the number (the UI offers
+ * days, weeks and months), so the raw value is not a day count. Multiplying a
+ * weekly duration as if it were days under-dispenses the course.
+ */
+const DURATION_UNIT_IN_DAYS: Record<string, number> = {
+  DAY: 1,
+  DAYS: 1,
+  D: 1,
+  WEEK: 7,
+  WEEKS: 7,
+  W: 7,
+  MONTH: 30,
+  MONTHS: 30,
+  M: 30,
+};
+
+/**
+ * The unit arrives either as its own field or inline in the duration text
+ * (`"2 weeks"`), because the numeric parser keeps only the leading digits.
+ */
+const readDurationUnit = (
+  explicitUnit: unknown,
+  durationText: unknown,
+): string | undefined => {
+  const explicit = asNonEmptyString(explicitUnit)?.toUpperCase();
+  if (explicit) {
+    return explicit;
+  }
+
+  if (typeof durationText !== "string") {
+    return undefined;
+  }
+
+  // Anchored, with disjoint character classes, so the scan cannot backtrack
+  // over a long run of digits that is never followed by a unit.
+  const match = /^[^A-Za-z]*([A-Za-z]+)/.exec(durationText.trim());
+  return match?.[1]?.toUpperCase();
+};
+
+const resolveDurationInDays = (item: {
+  durationDays?: unknown;
+  duration?: unknown;
+  days?: unknown;
+  durationUnit?: unknown;
+}) => {
+  const durationText = item.durationDays ?? item.duration ?? item.days;
+  const rawDuration =
+    readPositiveInteger(item.durationDays) ??
+    readPositiveInteger(item.duration ?? item.days);
+  if (rawDuration === undefined) {
+    return undefined;
+  }
+
+  const unit = readDurationUnit(item.durationUnit, durationText);
+  if (!unit) {
+    return rawDuration;
+  }
+
+  const multiplier = DURATION_UNIT_IN_DAYS[unit];
+  return multiplier === undefined ? undefined : rawDuration * multiplier;
+};
+
 const resolveFrequencyPerDay = (frequency?: string | null) => {
   const normalized = frequency?.trim().toUpperCase();
   if (!normalized) return undefined;
@@ -263,6 +327,32 @@ const toDispenseUnits = (quantity: number, packSize?: number) => {
     return quantity;
   }
   return Math.max(1, Math.ceil(quantity / packSize));
+};
+
+/**
+ * Total base units to dispense for a prescription line, matching the figure the
+ * Dispensary modal quotes to the user (DispensaryDetailModal.calcTotalUnits):
+ * the `quantity` field is the PER-DOSE amount, and the course total is
+ * `perDose x frequencyPerDay x durationInDays`. When frequency or duration are
+ * absent the per-dose amount is dispensed as-is. Stock consumption previously
+ * consumed the raw per-dose value, so a multi-week course deducted only a
+ * fraction of what the modal promised.
+ */
+const resolveDispenseTotalUnits = (
+  record: Record<string, unknown>,
+): number | undefined => {
+  const perDose = readPositiveNumber(
+    record.quantity ?? record.units ?? record.count ?? record.dispenseQuantity,
+  );
+  if (perDose === undefined) return undefined;
+  const frequencyPerDay =
+    readPositiveNumber(record.frequencyPerDay) ??
+    resolveFrequencyPerDay(asNonEmptyString(record.frequency ?? record.freq));
+  const durationDays = resolveDurationInDays(record);
+  if (frequencyPerDay !== undefined && durationDays !== undefined) {
+    return Math.max(1, Math.ceil(perDose * frequencyPerDay * durationDays));
+  }
+  return Math.max(1, Math.ceil(perDose));
 };
 
 const resolveDispenseStockSource = (
@@ -609,9 +699,7 @@ const enrichDispenseRequestMedications = async (
       asNonEmptyString(item.name);
     const frequency = asNonEmptyString(item.frequency ?? item.freq);
     const doseParts = readDoseParts(item.dosage ?? item.dose);
-    const durationDays =
-      readPositiveInteger(item.durationDays) ??
-      readPositiveInteger(item.duration ?? item.days);
+    const durationDays = resolveDurationInDays(item);
     const refillsRemaining =
       readPositiveInteger(item.refillsRemaining) ??
       readPositiveInteger(item.refill);
@@ -1202,13 +1290,20 @@ const normalizePrescriptionLines = (medications: unknown) => {
   return medications.flatMap((entry, index) => {
     if (!entry || typeof entry !== "object") return [];
     const record = entry as Record<string, unknown>;
-    const quantity = asPositiveInteger(
-      record.quantity ??
-        record.units ??
-        record.count ??
-        record.dispenseQuantity,
-    );
-    if (!quantity) return [];
+    const quantity = resolveDispenseTotalUnits(record);
+    if (!quantity) {
+      // The line is skipped for stock purposes while the request can still be
+      // marked dispensed, so record it rather than dropping it silently.
+      logger.warn("Prescription line skipped: no resolvable quantity", {
+        index,
+        medicationCode:
+          asNonEmptyString(record.medicationCode) ??
+          asNonEmptyString(record.drugCode) ??
+          asNonEmptyString(record.code) ??
+          null,
+      });
+      return [];
+    }
     const stockUnitQuantity = resolvePackQuantity(record);
 
     const sourceLineKey =

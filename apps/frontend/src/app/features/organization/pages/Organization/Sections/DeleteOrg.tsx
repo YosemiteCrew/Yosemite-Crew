@@ -1,4 +1,4 @@
-import Delete from '@/app/ui/primitives/Buttons/Delete';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 import DeleteConfirmationModal from '@/app/ui/overlays/Modal/DeleteConfirmationModal';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { deleteOrg } from '@/app/features/organization/services/orgService';
@@ -19,16 +19,20 @@ const DeleteOrg = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.ORG_DELETE]}>
-      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--color-danger-200)] px-5 py-4">
+      <div className="mt-auto flex items-center gap-3 rounded-[18px] border border-[var(--danger-border)] px-5! py-[14px]!">
         <div className="flex-1">
-          <div className="text-[13px] font-bold text-[var(--color-danger-600)]">
-            Delete organization
-          </div>
+          <div className="text-[13px] font-bold text-[var(--danger-text)]">Delete organization</div>
           <div className="text-[11.5px] text-[var(--ink-faint)]">
             Removes the clinic and revokes all team access
           </div>
         </div>
-        <Delete href="#" onClick={() => setDeletePopup(true)} text="Delete…" />
+        <Secondary
+          danger
+          href="#"
+          text="Delete…"
+          onClick={() => setDeletePopup(true)}
+          className="min-h-0! h-[34px]! px-[15px]! text-[12px]! font-bold!"
+        />
       </div>
       <DeleteConfirmationModal
         showModal={deletePopup}

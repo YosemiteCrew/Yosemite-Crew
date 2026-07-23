@@ -398,4 +398,96 @@ describe('ClinicBottomSheet', () => {
     );
     jest.useRealTimers();
   });
+
+  // ── Deferred scroll against a changing list ───────────────────────────────
+
+  it('does not scroll to a stale index when the clinic leaves the list before the deferred scroll runs', () => {
+    jest.useFakeTimers();
+    const clinics: VetBusiness[] = [
+      {...baseClinic, id: 'c1', name: 'Vet One'},
+      {...baseClinic, id: 'c2', name: 'Vet Two'},
+      {...baseClinic, id: 'c3', name: 'Vet Three'},
+    ];
+    const ref = React.createRef<ClinicBottomSheetRef>();
+    const {rerender} = render(
+      <ClinicBottomSheet {...defaultProps} clinics={clinics} ref={ref} />,
+    );
+
+    act(() => {
+      ref.current?.scrollToClinic('c3');
+    });
+
+    // The list is refiltered down to one row before the 300ms timer fires;
+    // index 2 would now be out of range.
+    rerender(
+      <ClinicBottomSheet
+        {...defaultProps}
+        clinics={[{...baseClinic, id: 'c1', name: 'Vet One'}]}
+        ref={ref}
+      />,
+    );
+    act(() => {
+      jest.runAllTimers();
+    });
+
+    expect(mockScrollToIndex).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('scrolls to the clinic new position when the list reorders before the deferred scroll runs', () => {
+    jest.useFakeTimers();
+    const ref = React.createRef<ClinicBottomSheetRef>();
+    const {rerender} = render(
+      <ClinicBottomSheet
+        {...defaultProps}
+        clinics={[
+          {...baseClinic, id: 'c1', name: 'Vet One'},
+          {...baseClinic, id: 'c2', name: 'Vet Two'},
+        ]}
+        ref={ref}
+      />,
+    );
+
+    act(() => {
+      ref.current?.scrollToClinic('c2');
+    });
+
+    rerender(
+      <ClinicBottomSheet
+        {...defaultProps}
+        clinics={[
+          {...baseClinic, id: 'c3', name: 'Vet Three'},
+          {...baseClinic, id: 'c1', name: 'Vet One'},
+          {...baseClinic, id: 'c2', name: 'Vet Two'},
+        ]}
+        ref={ref}
+      />,
+    );
+    act(() => {
+      jest.runAllTimers();
+    });
+
+    expect(mockScrollToIndex).toHaveBeenCalledWith(
+      expect.objectContaining({index: 2, animated: true}),
+    );
+    jest.useRealTimers();
+  });
+
+  it('does not retry a failed scroll for a row that no longer exists', () => {
+    jest.useFakeTimers();
+    const {getByTestId, rerender} = render(
+      <ClinicBottomSheet {...defaultProps} />,
+    );
+
+    act(() => {
+      fireEvent(getByTestId('scroll-failed-trigger'), 'touchEnd');
+    });
+    rerender(<ClinicBottomSheet {...defaultProps} clinics={[]} />);
+    act(() => {
+      jest.runAllTimers();
+    });
+
+    expect(mockScrollToIndex).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
 });

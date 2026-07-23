@@ -1,6 +1,5 @@
 import React from 'react';
-import clsx from 'clsx';
-import { IoAdd, IoWarning } from 'react-icons/io5';
+import { IoAdd } from 'react-icons/io5';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
 import Datepicker from '@/app/ui/inputs/Datepicker';
@@ -87,20 +86,21 @@ const AppointmentBoardToolbar = ({
           <button
             type="button"
             onClick={emergency.onToggle}
-            className={clsx(
-              'relative flex h-12 w-fit shrink-0 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
-              !emergency.active && 'hover:bg-card-hover!'
-            )}
+            className="relative flex w-fit shrink-0 items-center justify-center gap-2 whitespace-nowrap px-3.5 py-1.5 rounded-full! text-[12px] font-semibold transition-colors"
             style={getEmergencyPillStyle(emergency.active)}
           >
-            <IoWarning size={18} aria-hidden="true" className="shrink-0" color={emergency.color} />
+            <span
+              aria-hidden="true"
+              className="size-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: 'var(--danger)' }}
+            />
             <span>Emergencies</span>
             {emergency.present && (
               <span
                 aria-label="Emergency appointments present"
                 className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
                 style={{
-                  backgroundColor: 'var(--color-semantic-error-700)',
+                  backgroundColor: 'var(--danger)',
                   outline: '2px solid var(--screen)',
                 }}
               />
@@ -113,7 +113,7 @@ const AppointmentBoardToolbar = ({
                 text="New appointment"
                 onClick={onAddAppointment}
                 icon={<IoAdd size={18} aria-hidden="true" />}
-                className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+                className="h-10 w-fit shrink-0 justify-center gap-[7px] px-[18px] py-0 text-[13.5px] font-semibold whitespace-nowrap hover:scale-100"
               />
             </>
           )}

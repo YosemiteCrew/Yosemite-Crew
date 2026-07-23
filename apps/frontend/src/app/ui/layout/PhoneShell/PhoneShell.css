@@ -27,33 +27,34 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 0 14px;
-    border-bottom: 1px solid var(--hairline-soft);
+    padding: 0 16px;
+    border-bottom: 1px solid var(--hairline);
     background: var(--glass-93);
     box-shadow: inset 0 1px 0 var(--glass-inset-hi);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
   }
 
+  /* Design org trigger is a borderless inline chip + short name + caret — no
+     surrounding pill. Keeps a 44px hit area via height for touch. */
   .yc-phone-org {
     display: inline-flex;
     min-width: 0;
     max-width: 62vw;
     align-items: center;
     gap: 8px;
-    height: 40px;
-    padding: 0 8px 0 5px;
-    border: 1px solid var(--hairline);
-    border-radius: 12px;
-    background: var(--screen);
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: transparent;
     color: var(--ink);
     cursor: pointer;
   }
 
   .yc-phone-org-avatar {
-    width: 30px;
-    height: 30px;
-    flex: 0 0 30px;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
     border-radius: 9px;
     object-fit: cover;
   }
@@ -63,12 +64,17 @@
     overflow: hidden;
     color: var(--ink);
     font-family: var(--font-satoshi);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: -0.01em;
     line-height: 18px;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .yc-phone-org-caret {
+    flex: none;
+    color: var(--ink-faint);
   }
 
   .yc-phone-brand {
@@ -93,23 +99,24 @@
   .yc-phone-iconbtn {
     position: relative;
     display: inline-flex;
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--hairline);
     border-radius: 999px;
-    background: var(--screen);
+    background: transparent;
     color: var(--ink-soft);
     cursor: pointer;
   }
 
   .yc-phone-bell-dot {
     position: absolute;
-    top: 8px;
-    right: 9px;
-    width: 7px;
-    height: 7px;
+    top: 6px;
+    right: 7px;
+    width: 6px;
+    height: 6px;
+    border: 1.5px solid var(--screen);
     border-radius: 999px;
     background: var(--pink);
   }
@@ -121,7 +128,7 @@
     right: 0;
     bottom: 0;
     z-index: 850;
-    border-top: 1px solid var(--hairline-soft);
+    border-top: 1px solid var(--hairline);
     background: var(--glass-93);
     box-shadow: inset 0 1px 0 var(--glass-inset-hi);
     backdrop-filter: blur(18px) saturate(160%);
@@ -146,7 +153,7 @@
   .yc-phone-tab {
     display: flex;
     flex: 1;
-    min-height: 56px;
+    min-height: 60px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -170,9 +177,8 @@
   .yc-phone-tab-label {
     max-width: 100%;
     overflow: hidden;
-    font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 10px;
+    font-weight: 700;
     line-height: 1;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -191,9 +197,9 @@
   .yc-phone-tab-badge {
     position: absolute;
     top: -6px;
-    left: 12px;
-    min-width: 16px;
-    height: 16px;
+    left: 11px;
+    min-width: 15px;
+    height: 15px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -201,7 +207,7 @@
     border-radius: 999px;
     background: var(--blue);
     color: #fff;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
@@ -241,11 +247,87 @@
      specific rules stay here. */
 
   /* ---------------------------------------------------------- more sheet */
+  /* Six secondary areas as a 2-col grid of --inset tiles, each with a boxed
+     --screen icon (--blue-text) + label + context line. */
+  .yc-phone-more-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .yc-phone-more-tile {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    border: none;
+    border-radius: 14px;
+    background: var(--inset);
+    color: var(--ink);
+    font-family: var(--font-satoshi);
+    text-align: left;
+    padding: 13px 14px;
+    cursor: pointer;
+  }
+
+  .yc-phone-more-tile:active {
+    background: var(--nav-active-bg);
+  }
+
+  .yc-phone-more-tile-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .yc-phone-more-tile-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--screen);
+    color: var(--blue-text);
+  }
+
+  .yc-phone-more-tile-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .yc-phone-more-tile-label {
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .yc-phone-more-tile-context {
+    overflow: hidden;
+    color: var(--ink-faint);
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Settings / Developer portal / status as bare-icon list rows. */
   .yc-phone-more-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin: 0;
+    gap: 1px;
+    margin: 10px 0 0;
     padding: 0;
     list-style: none;
   }
@@ -253,16 +335,16 @@
   .yc-phone-more-row {
     display: flex;
     width: 100%;
-    min-height: 52px;
+    min-height: 44px;
     align-items: center;
-    gap: 12px;
+    gap: 11px;
     border: none;
-    border-radius: 14px;
+    border-radius: 12px;
     background: transparent;
-    color: var(--ink);
+    color: var(--ink-body);
     font-family: var(--font-satoshi);
     text-align: left;
-    padding: 8px 10px;
+    padding: 12px 8px;
     cursor: pointer;
   }
 
@@ -270,73 +352,88 @@
     background: var(--nav-active-bg);
   }
 
-  .yc-phone-more-row-compact {
-    min-height: 46px;
-  }
-
-  .yc-phone-more-row-disabled {
-    color: var(--ink-faint2);
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  .yc-phone-more-icon {
+  .yc-phone-more-row-icon {
     display: inline-flex;
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
+    flex: none;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--hairline);
-    border-radius: 11px;
-    background: var(--screen-2);
-    color: var(--ink-soft);
+    color: var(--ink-faint);
   }
 
-  .yc-phone-more-copy {
-    display: flex;
+  .yc-phone-more-row-icon-developer-portal {
+    color: var(--cyan-text);
+  }
+
+  /* Sign out is the one destructive row in the sheet, so it reads in danger. */
+  .yc-phone-more-row-icon-signout {
+    color: var(--danger-text);
+  }
+
+  .yc-phone-more-row-signout .yc-phone-more-row-label {
+    color: var(--danger-text);
+  }
+
+  .yc-phone-more-row-label {
+    flex: 1;
     min-width: 0;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .yc-phone-more-label {
-    font-size: 14px;
+    overflow: hidden;
+    color: var(--ink-body);
+    font-size: 13.5px;
     font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .yc-phone-more-context {
-    color: var(--ink-muted);
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 15px;
-  }
-
-  .yc-phone-more-divider {
-    height: 1px;
-    margin: 10px 4px;
-    border: 0;
-    background: var(--hairline);
-  }
-
-  .yc-phone-more-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 6px 2px;
+  .yc-phone-more-row-chevron {
+    flex: none;
     color: var(--ink-faint);
-    font-family: var(--font-satoshi);
-    font-size: 12.5px;
-    font-weight: 600;
+  }
+
+  .yc-phone-more-status-row {
+    cursor: default;
+  }
+
+  .yc-phone-more-status-row:active {
+    background: transparent;
   }
 
   .yc-phone-more-status-dot {
     width: 7px;
     height: 7px;
-    flex-shrink: 0;
+    flex: none;
+    margin: 0 5px;
     border-radius: 999px;
     background: var(--success);
+    animation: ycPhonePulseDot 3.4s ease-out infinite;
+  }
+
+  .yc-phone-more-status-url {
+    flex: none;
+    color: var(--ink-faint);
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1;
+  }
+}
+
+@keyframes ycPhonePulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.35);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(0, 143, 93, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-phone-more-status-dot {
+    animation: none;
   }
 }

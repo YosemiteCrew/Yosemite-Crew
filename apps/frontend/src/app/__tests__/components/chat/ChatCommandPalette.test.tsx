@@ -71,6 +71,23 @@ describe('ChatCommandPalette', () => {
     expect(screen.getByText('Tim')).toBeInTheDocument();
   });
 
+  it('drops conversations that do not belong to the active organisation', async () => {
+    const client = makeClient();
+    render(
+      <ChatCommandPalette
+        client={client}
+        filters={filters}
+        onJump={jest.fn()}
+        channelBelongsToOrg={(channel) => channel.id === 'c1'}
+      />
+    );
+
+    await openPalette();
+
+    await waitFor(() => expect(screen.getByText('Bella')).toBeInTheDocument());
+    expect(screen.queryByText('Tim')).not.toBeInTheDocument();
+  });
+
   it('opens on Ctrl+K as well', async () => {
     const client = makeClient();
     render(<ChatCommandPalette client={client} filters={filters} onJump={jest.fn()} />);

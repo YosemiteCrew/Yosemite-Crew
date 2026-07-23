@@ -153,6 +153,42 @@ describe('Google Places Service', () => {
       const result = await fetchPlaceSuggestions({query: 'test'});
       expect(result).toEqual([]);
     });
+
+    it('falls back to the placeId when no primary text can be resolved', async () => {
+      mockFetchSuccess({
+        suggestions: [{placePrediction: {placeId: 'place_only_id'}}],
+      });
+
+      const result = await fetchPlaceSuggestions({query: 'test'});
+      expect(result).toEqual([
+        {
+          placeId: 'place_only_id',
+          primaryText: 'place_only_id',
+          secondaryText: undefined,
+        },
+      ]);
+    });
+
+    it('falls back to a default message when reading the error body text fails', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: () => Promise.reject(new Error('body read failed')),
+      });
+
+      await expect(fetchPlaceSuggestions({query: 'test'})).rejects.toThrow(
+        'Failed to fetch address suggestions from Google Places.',
+      );
+    });
+
+    it('falls back to an empty result when the success response body fails to parse', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.reject(new Error('bad json')),
+      });
+
+      const result = await fetchPlaceSuggestions({query: 'test'});
+      expect(result).toEqual([]);
+    });
   });
 
   describe('fetchPlaceDetails', () => {
@@ -226,6 +262,40 @@ describe('Google Places Service', () => {
       const result = await fetchPlaceDetails('pid');
       expect(result.addressLine).toBe('Simple Formatted Address');
     });
+
+    it('defaults addressComponents to an empty array when the payload omits it entirely', async () => {
+      mockFetchSuccess({formattedAddress: 'No Components Address'});
+
+      const result = await fetchPlaceDetails('pid');
+      expect(result.addressLine).toBe('No Components Address');
+    });
+
+    it('throws the API error message when fetchPlacePayload gets a non-ok response', async () => {
+      mockFetchError('Place not found');
+      await expect(fetchPlaceDetails('pid')).rejects.toThrow('Place not found');
+    });
+
+    it('falls back to a default message when reading the error body text fails', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: () => Promise.reject(new Error('body read failed')),
+      });
+
+      await expect(fetchPlaceDetails('pid')).rejects.toThrow(
+        'Failed to fetch place details from Google Places.',
+      );
+    });
+
+    it('falls back to an empty payload when the success response body fails to parse', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.reject(new Error('bad json')),
+      });
+
+      const result = await fetchPlaceDetails('pid');
+      expect(result.addressLine).toBeUndefined();
+      expect(result.formattedAddress).toBeUndefined();
+    });
   });
 
   describe('fetchBusinessPlaceDetails', () => {
@@ -263,6 +333,21 @@ describe('Google Places Service', () => {
       expect(result.photoUrl).toBeUndefined();
       expect(result.photoName).toBeUndefined();
       expect(result.phoneNumber).toBe('123');
+    });
+
+    it('defaults photos to an empty array when the payload omits it entirely', async () => {
+      mockFetchSuccess({nationalPhoneNumber: '123'});
+
+      const result = await fetchBusinessPlaceDetails('biz_123');
+      expect(result.photoUrl).toBeUndefined();
+      expect(result.photoName).toBeUndefined();
+    });
+
+    it('falls back to internationalPhoneNumber when nationalPhoneNumber is absent', async () => {
+      mockFetchSuccess({internationalPhoneNumber: '+1 555 000 1111'});
+
+      const result = await fetchBusinessPlaceDetails('biz_123');
+      expect(result.phoneNumber).toBe('+1 555 000 1111');
     });
   });
 
@@ -319,6 +404,36 @@ describe('Google Places Service', () => {
 
     it('handles malformed/empty places list', async () => {
       mockFetchSuccess({}); // No 'places' array
+      const result = await fetchBusinessesBySearch({query: 'test'});
+      expect(result).toEqual([]);
+    });
+
+    it('defaults missing displayName/formattedAddress/primaryType/types fields', async () => {
+      mockFetchSuccess({places: [{id: 'biz_2'}]});
+
+      const result = await fetchBusinessesBySearch({query: 'test'});
+      expect(result).toEqual([
+        {id: 'biz_2', name: '', address: '', primaryType: '', types: []},
+      ]);
+    });
+
+    it('falls back to a default message when reading the error body text fails', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: () => Promise.reject(new Error('body read failed')),
+      });
+
+      await expect(fetchBusinessesBySearch({query: 'test'})).rejects.toThrow(
+        'Failed to fetch business results from Google Places.',
+      );
+    });
+
+    it('falls back to an empty result when the success response body fails to parse', async () => {
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.reject(new Error('bad json')),
+      });
+
       const result = await fetchBusinessesBySearch({query: 'test'});
       expect(result).toEqual([]);
     });

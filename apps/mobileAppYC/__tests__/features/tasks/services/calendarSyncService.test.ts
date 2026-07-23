@@ -322,6 +322,60 @@ describe('calendarSyncService', () => {
   // =========================================================================
   // 3. Medication Dosage Events (Loop Logic)
   // =========================================================================
+  describe('calendar id resolution', () => {
+    it('passes a real device calendar id through as calendarId', async () => {
+      await createCalendarEventForTask({
+        ...baseTask,
+        calendarProvider: 'cal-1',
+      });
+
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({calendarId: 'cal-1'}),
+      );
+    });
+
+    it.each(['google', 'icloud'])(
+      'omits calendarId for the legacy provider name %s',
+      async provider => {
+        await createCalendarEventForTask({
+          ...baseTask,
+          calendarProvider: provider,
+        });
+
+        const [, options] = (RNCalendarEvents.saveEvent as jest.Mock).mock
+          .calls[0];
+        expect(options).not.toHaveProperty('calendarId');
+      },
+    );
+
+    it('omits calendarId for a legacy provider name on dosage events', async () => {
+      await createCalendarEventForTask({
+        ...baseTask,
+        calendarProvider: 'google',
+        details: {
+          medicineName: 'Advil',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any);
+
+      const [, options] = (RNCalendarEvents.saveEvent as jest.Mock).mock
+        .calls[0];
+      expect(options).not.toHaveProperty('calendarId');
+    });
+
+    it('omits calendarId when no provider is set', async () => {
+      await createCalendarEventForTask({
+        ...baseTask,
+        calendarProvider: undefined,
+      });
+
+      const [, options] = (RNCalendarEvents.saveEvent as jest.Mock).mock
+        .calls[0];
+      expect(options).not.toHaveProperty('calendarId');
+    });
+  });
+
   describe('createDosageCalendarEvents', () => {
     it('creates multiple events for medication dosages', async () => {
       // Cast as any to bypass TaskSpecificDetails union
@@ -494,6 +548,31 @@ describe('calendarSyncService', () => {
         'Calendar',
         expect.stringContaining('Unable to add medication'),
       );
+    });
+
+    it('removes already-created sibling events when one dosage fails', async () => {
+      (RNCalendarEvents.saveEvent as jest.Mock)
+        .mockResolvedValueOnce('evt-1')
+        .mockRejectedValueOnce(new Error('Fail'))
+        .mockResolvedValueOnce('evt-3');
+
+      const result = await createCalendarEventForTask({
+        ...baseTask,
+        details: {
+          medicineName: 'Advil',
+          dosages: [
+            {id: 'd1', label: 'Morning', time: '08:00'},
+            {id: 'd2', label: 'Noon', time: '12:00'},
+            {id: 'd3', label: 'Evening', time: '20:00'},
+          ],
+        },
+      } as any);
+
+      expect(result).toBeNull();
+      // The task records no ids, so anything left behind could never be removed.
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledWith('evt-1');
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledWith('evt-3');
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledTimes(2);
     });
 
     it('sets default alarms if reminderOffset is missing', async () => {

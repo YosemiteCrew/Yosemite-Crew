@@ -88,23 +88,28 @@ jest.mock('@/app/ui/primitives/Buttons/Primary', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/primitives/TabToggle/TabToggle', () => ({
+jest.mock('@/app/ui/primitives/SegmentedPill/SegmentedPill', () => ({
   __esModule: true,
-  default: ({ tabs, activeKey, onChange }: any) => (
-    <div data-testid="tab-toggle">
-      {tabs.map((tab: any) => (
+  default: ({ options, value, onChange }: any) => (
+    <div data-testid="segmented-pill">
+      {options.map((option: any) => (
         <button
-          key={tab.key}
+          key={option.value}
           type="button"
-          data-testid={`tab-${tab.key}`}
-          onClick={() => onChange(tab.key)}
-          data-selected={activeKey === tab.key ? 'true' : 'false'}
+          data-testid={`tab-${option.value}`}
+          onClick={() => onChange(option.value)}
+          data-selected={value === option.value ? 'true' : 'false'}
         >
-          {tab.label}
+          {option.label}
         </button>
       ))}
     </div>
   ),
+}));
+
+let mockTeamMembers: any[] = [];
+jest.mock('@/app/hooks/useTeam', () => ({
+  useTeamForPrimaryOrg: () => mockTeamMembers,
 }));
 
 const mockOpenAddService = jest.fn();
@@ -153,6 +158,7 @@ const mockPackagesOpenAdd = mockOpenAddPackage;
 describe('SpecialityAccordionRevamp', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTeamMembers = [];
     (useNotify as jest.Mock).mockReturnValue({ notify: mockNotify });
     (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) => {
       if (typeof selector === 'function') {
@@ -193,10 +199,16 @@ describe('SpecialityAccordionRevamp', () => {
     expect(screen.getByText('General Practice')).toBeInTheDocument();
   });
 
-  it('shows count of services and packages', () => {
+  it('shows the services/packages catalog summary subtitle', () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} />);
-    // 1 service + 1 package = 2 total
-    expect(screen.getByText(/2/)).toBeInTheDocument();
+    // 1 service + 1 package -> singular labels in the subtitle
+    expect(screen.getByText('1 service · 1 package')).toBeInTheDocument();
+  });
+
+  it('appends the resolved lead name to the subtitle when a head vet is set', () => {
+    mockTeamMembers = [{ _id: 'vet-1', practionerId: 'vet-1', name: 'Dr. Sarah Weber' }];
+    render(<SpecialityAccordionRevamp speciality={{ ...mockSpeciality, headVetId: 'vet-1' }} />);
+    expect(screen.getByText('1 service · 1 package · lead Dr. Sarah Weber')).toBeInTheDocument();
   });
 
   it('renders collapsed by default when defaultOpen=false', () => {
@@ -207,6 +219,18 @@ describe('SpecialityAccordionRevamp', () => {
   it('renders expanded when defaultOpen=true', () => {
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
     expect(screen.getByTestId('services-tab')).toBeInTheDocument();
+  });
+
+  it('shows an ACTIVE status pill on the collapsed card and hides the tabs', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} />);
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+    expect(screen.queryByTestId('segmented-pill')).not.toBeInTheDocument();
+  });
+
+  it('moves the catalog tabs into the header and drops the pill once open', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
+    expect(screen.getByTestId('segmented-pill')).toBeInTheDocument();
+    expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
   });
 
   // --- Section 2: Toggle open/close ---
@@ -455,8 +479,8 @@ describe('SpecialityAccordionRevamp', () => {
         : null
     );
     render(<SpecialityAccordionRevamp speciality={mockSpeciality} />);
-    // specialityLoaded === true → 2 loaded services + 1 loaded package = 3
-    expect(screen.getByText(/\(3\)/)).toBeInTheDocument();
+    // specialityLoaded === true → 2 loaded services + 1 loaded package
+    expect(screen.getByText('2 services · 1 package')).toBeInTheDocument();
   });
 
   it('falls back to server-provided counts before the catalog is loaded', () => {
@@ -465,8 +489,8 @@ describe('SpecialityAccordionRevamp', () => {
         speciality={{ ...mockSpeciality, activeServiceCount: 5, activePackageCount: 3 }}
       />
     );
-    // specialityLoaded === false and activeServiceCount/activePackageCount defined → 5 + 3 = 8
-    expect(screen.getByText(/\(8\)/)).toBeInTheDocument();
+    // specialityLoaded === false and activeServiceCount/activePackageCount defined → 5 + 3
+    expect(screen.getByText('5 services · 3 packages')).toBeInTheDocument();
   });
 
   // --- Section 7: search edge cases ---

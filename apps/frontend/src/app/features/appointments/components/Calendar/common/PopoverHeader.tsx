@@ -49,7 +49,7 @@ const PopoverHeader = ({
           )}
           height={48}
           width={48}
-          className="flex aspect-square size-12 shrink-0 items-center justify-center rounded-full border border-card-border bg-white object-cover"
+          className="flex aspect-square size-12 shrink-0 items-center justify-center rounded-full border border-card-border bg-neutral-0 object-cover"
           style={{ width: 48, height: 48 }}
           alt=""
         />

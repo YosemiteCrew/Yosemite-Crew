@@ -96,6 +96,8 @@ jest.mock('@/features/tasks/components', () => {
         onPressEdit={props.onPressEdit}
         onPressComplete={props.onPressComplete}
         onPressTakeObservationalTool={props.onPressTakeObservationalTool}
+        showEditAction={props.showEditAction}
+        showCompleteButton={props.showCompleteButton}
       />
     ),
   };
@@ -150,6 +152,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
   getTaskCardMeta: jest.fn((task: any, _authUser: any) => ({
     isPending: task.status === 'pending',
     isCompleted: task.status === 'completed',
+    isCancelled: task.status === 'cancelled',
     assignedToData: undefined,
     isObservationalToolTask:
       task.details?.taskType === 'take-observational-tool',
@@ -408,6 +411,54 @@ describe('TasksMainScreen', () => {
     expect(getByTestId('companion-selector')).toBeTruthy();
     expect(getByTestId('task-month-date-selector')).toBeTruthy();
     expect(getByText('No tasks yet')).toBeTruthy();
+  });
+
+  it('shows the weekday name instead of "Today" when selectedDate is not today', () => {
+    const {
+      useTaskDateSelection,
+    } = require('@/features/tasks/hooks/useTaskDateSelection');
+    useTaskDateSelection.mockReturnValue({
+      selectedDate: new Date('2023-01-17T12:00:00Z'), // system time is Jan 15
+      currentMonth: new Date('2023-01-01T12:00:00Z'),
+      handleDateSelect: mockHandleDateSelect,
+      handleMonthChange: mockHandleMonthChange,
+      setCurrentMonth: mockSetCurrentMonth,
+    });
+
+    // TaskProgressSummary (which renders the weekday/"Today" label) only
+    // renders when there's at least one task, so populate one.
+    const {
+      selectRecentTasksByCategory,
+      selectTaskCountByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const mockTask = {
+      id: 't1',
+      title: 'Walk',
+      category: 'health',
+      status: 'pending',
+      date: '2023-01-17',
+      time: '10:00',
+      companionId: 'c1',
+    };
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+    selectTaskCountByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'health') return (_state: any) => 1;
+        return (_state: any) => 0;
+      },
+    );
+
+    const {getByText, queryByText} = render(<TasksMainScreen />);
+
+    expect(queryByText(/^Today,/)).toBeNull();
+    expect(getByText('Tuesday, 0 of 1 done')).toBeTruthy();
   });
 
   it('fetches tasks on focus if not hydrated', () => {
@@ -672,6 +723,35 @@ describe('TasksMainScreen', () => {
 
     fireEvent(card, 'pressEdit');
     expect(mockHandleEditTask).toHaveBeenCalledWith('t1');
+  });
+
+  it('does not show the edit action for a cancelled task', () => {
+    const {
+      selectRecentTasksByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const mockTask = {
+      id: 't1',
+      title: 'Cancelled Task',
+      category: 'health',
+      status: 'cancelled',
+      companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
+    };
+
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: any, _d: any, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+
+    const {getByTestId} = render(<TasksMainScreen />);
+    const card = getByTestId('task-card-Cancelled Task');
+
+    expect(card.props.showEditAction).toBe(false);
   });
 
   it('navigates to Observational Tool if task type matches', () => {

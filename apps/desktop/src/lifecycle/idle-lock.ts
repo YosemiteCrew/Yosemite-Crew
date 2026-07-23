@@ -20,6 +20,17 @@ export const idleLockMinutesFromEnv = (env: NodeJS.ProcessEnv = process.env): nu
   return Math.min(24 * 60, Math.ceil(minutes));
 };
 
+// The managed (MDM) value is a policy ceiling, not a default: a user setting may
+// only tighten the idle lock, never loosen or disable it.
+export const resolveIdleLockMinutes = (
+  userMinutes: unknown,
+  managedMinutes: number | null
+): number => {
+  const user = typeof userMinutes === 'number' && userMinutes > 0 ? userMinutes : null;
+  if (managedMinutes === null) return user ?? 0;
+  return user === null ? managedMinutes : Math.min(user, managedMinutes);
+};
+
 export const shouldLockAfterIdle = (
   lastActiveAtMs: number,
   nowMs: number,

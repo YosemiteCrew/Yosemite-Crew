@@ -6,6 +6,7 @@ import {
   selectEmployeesForBusiness,
   createSelectEmployeesForBusiness,
   createSelectServicesForBusiness,
+  createSelectPackagesForBusiness,
   selectServiceById,
   selectAvailabilityFor,
   selectInvoiceForAppointment,
@@ -47,6 +48,11 @@ describe('Appointment Selectors', () => {
 
   const mockInvoices = [{id: 'inv1', appointmentId: '1', amount: 100}];
 
+  const mockPackages = [
+    {id: 'pk1', businessId: 'b1', name: 'Puppy Package'},
+    {id: 'pk2', businessId: 'b2', name: 'Grooming Package'},
+  ];
+
   const mockState: RootState = {
     appointments: {
       items: mockAppointments,
@@ -60,6 +66,7 @@ describe('Appointment Selectors', () => {
       services: mockServices,
       employees: mockEmployees,
       availability: mockAvailability,
+      packages: mockPackages,
       loading: false,
       error: null,
     },
@@ -200,6 +207,26 @@ describe('Appointment Selectors', () => {
       });
     });
 
+    describe('createSelectPackagesForBusiness', () => {
+      const selectPackages = createSelectPackagesForBusiness();
+
+      it('filters packages by businessId', () => {
+        const result = selectPackages(mockState, 'b1');
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('pk1');
+      });
+
+      it('returns empty array if no packages match', () => {
+        const result = selectPackages(mockState, 'b99');
+        expect(result).toEqual([]);
+      });
+
+      it('returns empty array if businesses.packages is undefined', () => {
+        const result = selectPackages(emptyState, 'b1');
+        expect(result).toEqual([]);
+      });
+    });
+
     describe('selectServiceById', () => {
       it('finds service by id', () => {
         const selector = selectServiceById('s1');
@@ -244,6 +271,22 @@ describe('Appointment Selectors', () => {
       const selector = selectAvailabilityFor('b99');
       const result = selector(mockState);
       expect(result).toBeNull();
+    });
+
+    // 3. Service ID provided but not found -> falls through
+    it('falls through to the general lookup when serviceId is provided but not found', () => {
+      const selector = selectAvailabilityFor('b1', {serviceId: 's-missing'});
+      const result = selector(mockState);
+      // Falls through to the first entry matching just businessId.
+      expect(result).toEqual(mockAvailability[0]);
+    });
+
+    // 4. Employee ID provided but not found -> falls through
+    it('falls through to the general lookup when employeeId is provided but not found', () => {
+      const selector = selectAvailabilityFor('b1', {employeeId: 'e-missing'});
+      const result = selector(mockState);
+      // Falls through to the first entry matching just businessId.
+      expect(result).toEqual(mockAvailability[0]);
     });
 
     // 7. Prioritization check: Service > Employee

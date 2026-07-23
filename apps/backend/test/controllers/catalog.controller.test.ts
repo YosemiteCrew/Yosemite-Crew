@@ -99,6 +99,7 @@ describe("CatalogController", () => {
     });
 
     const req = {
+      organisationId: "org_1",
       params: { id: "pkg_1" },
       query: { organisationId: "org_1" },
     };
@@ -152,6 +153,7 @@ describe("CatalogController", () => {
     );
 
     const req = {
+      organisationId: "org_1",
       params: { id: "pkg_missing" },
       query: {},
     };
@@ -309,6 +311,7 @@ describe("CatalogController", () => {
     ]);
 
     const req = {
+      organisationId: "org_1",
       params: { organisationId: "org_1" },
       body: {
         organisationId: "org_1",
@@ -425,6 +428,7 @@ describe("CatalogController", () => {
     });
 
     const req = {
+      organisationId: "org_1",
       body: {
         resourceType: "Parameters",
         parameter: [
@@ -481,6 +485,7 @@ describe("CatalogController", () => {
     });
 
     const req = {
+      organisationId: "org_1",
       body: {
         resourceType: "Parameters",
         parameter: [
@@ -525,6 +530,7 @@ describe("CatalogController", () => {
     });
 
     const req = {
+      organisationId: "org_1",
       body: {
         resourceType: "Parameters",
         parameter: [
@@ -629,6 +635,7 @@ describe("CatalogController", () => {
     });
 
     const req = {
+      organisationId: "org_1",
       params: { id: "prod_1" },
       query: { organisationId: "org_1" },
     };
@@ -648,7 +655,8 @@ describe("CatalogController", () => {
     (CatalogService.listProducts as jest.Mock).mockResolvedValue([]);
 
     const req = {
-      params: { organisationId: "unused" },
+      organisationId: "org_1",
+      params: { organisationId: "org_1" },
       query: {
         organization: "org_1",
         specialty: "spec_1",
@@ -693,6 +701,7 @@ describe("CatalogController", () => {
     });
 
     const req = {
+      organisationId: "org_1",
       body: {
         productItemId: "prod_1",
         organisationId: "org_1",
@@ -774,6 +783,7 @@ describe("CatalogController", () => {
     });
 
     const req = {
+      organisationId: "org_1",
       params: { organisationId: "org_1", specialityId: "spec_1" },
       body: {
         name: "Updated",
@@ -1079,5 +1089,174 @@ describe("CatalogController", () => {
       "archived",
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+  describe("organisation scoping", () => {
+    it("ignores a query organisation that outranks the authorized one", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([]);
+
+      const req = {
+        organisationId: "org_1",
+        params: { organisationId: "org_1" },
+        query: { organization: "org_victim" },
+        baseUrl: "/fhir/R4/HealthcareService",
+      };
+      const res = createResponse();
+
+      await CatalogController.listProducts(req as never, res as never);
+
+      expect(CatalogService.listProducts).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("falls back to the authorized organisation when the query omits one", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([]);
+
+      const req = {
+        organisationId: "org_1",
+        params: {},
+        query: {},
+        baseUrl: "/fhir/R4/HealthcareService",
+      };
+      const res = createResponse();
+
+      await CatalogController.listProducts(req as never, res as never);
+
+      expect(CatalogService.listProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ organisationId: "org_1" }),
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("rejects an update payload that names another organisation", async () => {
+      const req = {
+        organisationId: "org_1",
+        params: { id: "prod_victim" },
+        body: {
+          resourceType: "HealthcareService",
+          id: "prod_victim",
+          providedBy: { reference: "Organization/org_victim" },
+          name: "Consultation",
+          active: true,
+          type: [{ coding: [{ code: "CONSULTATION" }] }],
+        },
+        header: jest.fn().mockReturnValue(undefined),
+      };
+      const res = createResponse();
+
+      await CatalogController.updateProduct(req as never, res as never);
+
+      expect(CatalogService.updateProduct).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("passes the authorized organisation to updateProduct", async () => {
+      (CatalogService.updateProduct as jest.Mock).mockResolvedValue({
+        id: "prod_1",
+        version: 2,
+      });
+
+      const req = {
+        organisationId: "org_1",
+        params: { id: "prod_1" },
+        body: {
+          resourceType: "HealthcareService",
+          id: "prod_1",
+          providedBy: { reference: "Organization/org_1" },
+          name: "Consultation",
+          active: true,
+          type: [{ coding: [{ code: "CONSULTATION" }] }],
+        },
+        header: jest.fn().mockReturnValue(undefined),
+      };
+      const res = createResponse();
+
+      await CatalogController.updateProduct(req as never, res as never);
+
+      expect(CatalogService.updateProduct).toHaveBeenCalledWith(
+        "prod_1",
+        expect.objectContaining({ organisationId: "org_1" }),
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("rejects a query organisation that differs on single-product reads", async () => {
+      const req = {
+        organisationId: "org_1",
+        params: { id: "prod_victim" },
+        query: { organisationId: "org_victim" },
+      };
+      const res = createResponse();
+
+      await CatalogController.getProductById(req as never, res as never);
+
+      expect(CatalogService.getProductById).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("does not resolve a selection against a body-supplied organisation", async () => {
+      const req = {
+        organisationId: "org_1",
+        body: { productItemId: "prod_victim", organisationId: "org_victim" },
+      };
+      const res = createResponse();
+
+      await CatalogController.resolveProduct(req as never, res as never);
+
+      expect(CatalogService.resolveSelection).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("does not prefill the calendar against a body-supplied organisation", async () => {
+      const req = {
+        organisationId: "org_1",
+        params: { organisationId: "org_1" },
+        body: {
+          organisationId: "org_victim",
+          date: "2026-01-01",
+          minuteOfDay: 600,
+          productItemIds: ["prod_1"],
+        },
+      };
+      const res = createResponse();
+
+      await CatalogController.getCatalogCalendarPrefill(
+        req as never,
+        res as never,
+      );
+
+      expect(CatalogService.getCalendarPrefillMatches).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("does not run a FHIR search operation against another organisation", async () => {
+      const req = {
+        organisationId: "org_1",
+        body: {
+          resourceType: "Parameters",
+          parameter: [
+            { name: "organization", valueString: "Organization/org_victim" },
+          ],
+        },
+      };
+      const res = createResponse();
+
+      await CatalogController.searchCatalogOperation(
+        req as never,
+        res as never,
+      );
+
+      expect(CatalogService.searchItems).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("requires an authorized organisation to be present", async () => {
+      const req = { params: { id: "prod_1" }, query: {} };
+      const res = createResponse();
+
+      await CatalogController.getProductById(req as never, res as never);
+
+      expect(CatalogService.getProductById).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
   });
 });

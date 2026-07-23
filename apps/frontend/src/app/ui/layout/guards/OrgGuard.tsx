@@ -31,6 +31,7 @@ import { getStorage, getStorageItem, setStorageItem } from '@/app/lib/browserSto
 import {
   canAccessPathByPermissions,
   resolveFirstAccessibleAppRoute,
+  resolveMembershipPermissions,
 } from '@/app/lib/routePermissions';
 import { appRoutes } from '@/app/constants/routes';
 
@@ -156,10 +157,13 @@ const getOrgFallbackRedirect = (pathname: string): string | null => {
   return pathname === '/organizations' ? null : '/organizations';
 };
 
+// Takes the membership rather than a permission array so the role-derived
+// resolution lives in exactly one place; both guard paths need the same answer.
 const getPermissionsFallbackRedirect = (
   pathname: string,
-  effectivePermissions: string[]
+  membership: UserOrganization
 ): string | null => {
+  const effectivePermissions = resolveMembershipPermissions(membership);
   if (canAccessPathByPermissions(pathname, effectivePermissions)) return null;
   const fallbackRoute = resolveFirstAccessibleAppRoute(effectivePermissions);
   if (fallbackRoute === pathname) return null;
@@ -210,11 +214,7 @@ const resolveReadyOrgGuardRedirect = ({
   });
   if (orgRedirect && orgRedirect !== pathname) return orgRedirect;
 
-  const effectivePermissions = membership.effectivePermissions ?? [];
-  const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
-    pathname,
-    effectivePermissions
-  );
+  const permissionsFallbackRedirect = getPermissionsFallbackRedirect(pathname, membership);
   if (permissionsFallbackRedirect) return permissionsFallbackRedirect;
 
   const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
@@ -238,7 +238,12 @@ const resolveGuardRedirect = ({
 }: GuardRedirectParams): string | null => {
   if (isAuthGuardDisabled || isStatusPending(orgStatus) || shouldWaitForData) return null;
   if (!primaryOrgId) return getOrgFallbackRedirect(pathname);
-  if (!primaryOrg || !membership) return getOrgFallbackRedirect(pathname);
+  // A deactivated mapping is treated as no membership at all: returning no
+  // permissions is not enough on its own, because routes that declare no
+  // required permission stay reachable for an empty permission set.
+  if (!primaryOrg || !membership || membership.active === false) {
+    return getOrgFallbackRedirect(pathname);
+  }
 
   return resolveReadyOrgGuardRedirect({
     pathname,
@@ -353,7 +358,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
       return;
     }
 
-    if (!primaryOrg || !membership) {
+    if (!primaryOrg || !membership || membership.active === false) {
       return;
     }
 
@@ -370,11 +375,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
 
     if (redirectTo && redirectTo !== pathname) return;
 
-    const effectivePermissions = membership.effectivePermissions ?? [];
-    const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
-      pathname,
-      effectivePermissions
-    );
+    const permissionsFallbackRedirect = getPermissionsFallbackRedirect(pathname, membership);
     if (permissionsFallbackRedirect) return;
 
     const preferredLanding = resolveDefaultOpenScreenRouteForProfile({

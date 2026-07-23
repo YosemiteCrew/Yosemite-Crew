@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
-import { Secondary } from '@/app/ui/primitives/Buttons';
+import Link from 'next/link';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useIntegrationStore } from '@/app/stores/integrationStore';
 import {
@@ -10,7 +10,13 @@ import {
 import { listIdexxIvlsDevices } from '@/app/features/integrations/services/idexxService';
 import { IvlsDevice } from '@/app/features/integrations/services/types';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { IoRefreshOutline, IoFlaskOutline, IoWaterOutline, IoBeakerOutline } from 'react-icons/io5';
+import {
+  IoArrowForward,
+  IoBeakerOutline,
+  IoFlaskOutline,
+  IoRefreshOutline,
+  IoWaterOutline,
+} from 'react-icons/io5';
 import type { IconType } from 'react-icons';
 
 const isDeviceOnline = (device: IvlsDevice): boolean =>
@@ -92,8 +98,8 @@ const LinkedMedicalDevices = () => {
     : 'not yet';
 
   return (
-    <AccordionButton title="Linked medical devices" showButton={false}>
-      <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden">
+    <SectionCard title="Linked medical devices" showButton={false}>
+      <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         <div className="flex items-center justify-between gap-3 px-5! py-3! border-b border-[var(--hairline)]">
           <div className="text-[11.5px] text-[var(--ink-faint)]">
             Last cloud poll {lastPoll} · {buildHealthText(total, onlineCount)}
@@ -167,10 +173,16 @@ const LinkedMedicalDevices = () => {
           <span className="text-[11.5px] text-[var(--ink-faint)]">
             Devices sync via the IDEXX integration
           </span>
-          <Secondary href="/integrations" text="Open integrations" />
+          <Link
+            href="/integrations"
+            className="inline-flex items-center gap-[5px] text-[12px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors"
+          >
+            Open integrations
+            <IoArrowForward size={12} aria-hidden="true" />
+          </Link>
         </div>
       </div>
-    </AccordionButton>
+    </SectionCard>
   );
 };
 

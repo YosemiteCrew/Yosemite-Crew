@@ -108,4 +108,65 @@ describe('OutpatientSchedule', () => {
     );
     expect(screen.getAllByText('--').length).toBeGreaterThan(0);
   });
+
+  // The series elements are pass-throughs of backend fields nothing populates yet,
+  // so each one must be entirely absent until its data is genuinely present.
+  describe('series signals', () => {
+    it('appends the session position to a visit title when index and total are both known', () => {
+      render(
+        <OutpatientSchedule
+          schedule={model({
+            thisWeek: [visit({ id: 'a', title: 'Laser therapy', seriesIndex: 2, seriesTotal: 6 })],
+            total: 1,
+          })}
+        />
+      );
+      expect(screen.getByText('Laser therapy · session 2 of 6')).toBeInTheDocument();
+    });
+
+    it('shows the plain title when only one half of the position is known', () => {
+      render(
+        <OutpatientSchedule
+          schedule={model({
+            thisWeek: [visit({ id: 'a', title: 'Laser therapy', seriesTotal: 6 })],
+            total: 1,
+          })}
+        />
+      );
+      expect(screen.getByText('Laser therapy')).toBeInTheDocument();
+      expect(screen.queryByText(/session/)).not.toBeInTheDocument();
+    });
+
+    it('renders the series note and progress rail when the schedule carries them', () => {
+      render(
+        <OutpatientSchedule
+          schedule={model({
+            thisWeek: [visit({ id: 'a' })],
+            total: 1,
+            seriesNote: 'Laser series booked as a package.',
+            seriesProgress: { completed: 1, total: 6 },
+          })}
+        />
+      );
+      expect(screen.getByText('Series note')).toBeInTheDocument();
+      expect(screen.getByText('Laser series booked as a package.')).toBeInTheDocument();
+      expect(screen.getByText('1 / 6 done')).toBeInTheDocument();
+
+      // The rail is a native <progress>: the engine derives the fill from value/max,
+      // so those carry both the accessible value semantics and the visual ratio.
+      const rail = screen.getByRole('progressbar', { name: 'Series progress' });
+      expect(rail.tagName).toBe('PROGRESS');
+      expect(rail).toHaveAttribute('value', '1');
+      expect(rail).toHaveAttribute('max', '6');
+      expect((rail as HTMLProgressElement).value).toBe(1);
+      expect((rail as HTMLProgressElement).max).toBe(6);
+    });
+
+    it('renders neither the note nor the progress rail when the schedule has no series', () => {
+      render(<OutpatientSchedule schedule={model({ thisWeek: [visit({})], total: 1 })} />);
+      expect(screen.queryByText('Series note')).not.toBeInTheDocument();
+      expect(screen.queryByText('Series progress')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+  });
 });

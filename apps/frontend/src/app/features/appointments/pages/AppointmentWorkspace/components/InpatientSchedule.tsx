@@ -8,6 +8,7 @@ import {
   IoSearchOutline,
 } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { getStatusStyle } from '@/app/config/statusConfig';
@@ -89,12 +90,11 @@ const StatusPillSelect = ({
 
   if (locked) {
     return (
-      <span
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
-        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
-      >
-        {formatStatusLabel(status)}
-      </span>
+      <StatusPill
+        style={statusPillStyle(status)}
+        label={formatStatusLabel(status)}
+        className="w-fit"
+      />
     );
   }
 
@@ -107,14 +107,20 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setOpen(false)}
-        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
+        className="w-fit rounded-full! transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
-        {formatStatusLabel(status)}
-        <IoChevronDownOutline
-          size={10}
-          aria-hidden="true"
-          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        <StatusPill
+          style={statusPillStyle(status)}
+          label={
+            <>
+              {formatStatusLabel(status)}
+              <IoChevronDownOutline
+                size={10}
+                aria-hidden="true"
+                className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              />
+            </>
+          }
         />
       </button>
       {open && (
@@ -280,11 +286,7 @@ const InpatientSchedule = ({
   };
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Schedule"
-      className="flex flex-col gap-5"
-    >
+    <SectionContainer title="Schedule" className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
           <CircleIconButton
@@ -292,7 +294,7 @@ const InpatientSchedule = ({
             label="Previous day"
             onClick={() => shiftSelectedDate(-1)}
           />
-          <span className="text-text-brand">{dateLabel}</span>
+          <span className="text-blue-text">{dateLabel}</span>
           <CircleIconButton
             icon={<IoChevronForwardOutline aria-hidden="true" />}
             label="Next day"
@@ -340,7 +342,7 @@ const InpatientSchedule = ({
                     <IoAddOutline
                       size={14}
                       aria-hidden="true"
-                      className="shrink-0 text-text-brand"
+                      className="shrink-0 text-blue-text"
                     />
                     {template.name}
                   </button>

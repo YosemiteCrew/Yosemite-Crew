@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { Team } from '@/app/features/organization/types/team';
 import { getSafeImageUrl } from '@/app/lib/urls';
@@ -13,7 +14,7 @@ type AvailabilityCardProps = {
 
 const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <div className="size-10">
           <Image
@@ -54,12 +55,7 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           {formatWeeklyWorkingHours(team.weeklyWorkingHours)}
         </div>
       </div>
-      <div
-        style={getAvailabilityStatusStyle(team.status)}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
-        {team.status}
-      </div>
+      <StatusPill style={getAvailabilityStatusStyle(team.status)} label={team.status} />
       <Secondary href="#" onClick={() => handleViewTeam(team)} text="View" className="w-full" />
     </div>
   );

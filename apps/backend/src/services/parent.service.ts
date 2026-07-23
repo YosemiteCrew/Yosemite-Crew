@@ -416,9 +416,15 @@ export const ParentService = {
         isProfileComplete: false,
         linkedUserId: parent.linkedUserId ?? undefined,
         createdFrom: parent.createdFrom as ParentCreatedFrom,
-        alerts: (parent as Parent & { alerts?: Parent["alerts"] }).alerts as
-          | Prisma.InputJsonValue
-          | undefined,
+        // Client alerts are staff-authored and only the PMS path may set them, matching
+        // the update path. A mobile self-registration must not be able to seed its own
+        // alerts through the public POST.
+        ...(ctx.source === "pms"
+          ? {
+              alerts: (parent as Parent & { alerts: Parent["alerts"] })
+                .alerts as Prisma.InputJsonValue | undefined,
+            }
+          : {}),
       },
     });
 
@@ -527,8 +533,7 @@ export const ParentService = {
           ? {
               alerts:
                 ((parent as Parent & { alerts?: Parent["alerts"] }).alerts as
-                  | Prisma.InputJsonValue
-                  | undefined) ?? Prisma.JsonNull,
+                  Prisma.InputJsonValue | undefined) ?? Prisma.JsonNull,
             }
           : {}),
       },

@@ -196,6 +196,40 @@ describe('useLocationPermission', () => {
     expect(remove).toHaveBeenCalled();
   });
 
+  it('drops the previous location when a later position request fails', async () => {
+    let handleAppStateChange: ((state: string) => void) | undefined;
+    (AppState.addEventListener as jest.Mock).mockImplementationOnce(
+      (_event: string, handler: (state: string) => void) => {
+        handleAppStateChange = handler;
+        return {remove: jest.fn()};
+      },
+    );
+    mockRequestAuthorization.mockImplementation(() => {});
+    mockGetCurrentPosition.mockImplementationOnce((success: any) =>
+      success({coords: {latitude: 51.5, longitude: -0.1}}),
+    );
+
+    const {result} = renderHook(() => useLocationPermission());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.userLocation).toEqual({
+      latitude: 51.5,
+      longitude: -0.1,
+    });
+
+    // Location access is lost while backgrounded — the resume refresh now fails.
+    mockGetCurrentPosition.mockImplementation((_s: any, error: any) =>
+      error(new Error('position unavailable')),
+    );
+
+    await act(async () => {
+      handleAppStateChange?.('active');
+    });
+
+    expect(result.current.userLocation).toBeNull();
+    expect(result.current.mapCenter).toBeNull();
+    expect(result.current.userCoords).toBeNull();
+  });
+
   it('accepts user location emitted by the native map', async () => {
     mockRequestAuthorization.mockImplementation(() => {});
     mockGetCurrentPosition.mockImplementation((_s: any, error: any) =>

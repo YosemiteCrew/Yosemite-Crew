@@ -132,7 +132,7 @@ const PeekRow = ({ item }: Readonly<{ item: PhoneMonthPeekItem }>) => (
     className={clsx(
       'flex items-center gap-2.5 rounded-[13px] bg-[var(--screen)] px-3 py-[9px]',
       item.isEmergency
-        ? 'border border-l-[3px] border-[var(--danger-border)]'
+        ? 'border border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]'
         : 'border border-[var(--hairline)] shadow-[0_1px_2px_var(--sh03)]'
     )}
   >
