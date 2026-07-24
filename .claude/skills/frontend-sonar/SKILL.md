@@ -34,7 +34,11 @@ pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
 
 ## Issue Tracker
 
-The SonarCloud frontend project is the source of truth for open issues and security hotspots. PR and branch pushes are analyzed in CI by the scan-only `_sonar` stage of `.github/workflows/ci.yaml` (it reuses the coverage the test stage already produced); `.github/workflows/sonar-cloud-analysis.yml` is the nightly type-aware backstop. Fix findings locally before pushing (see the pre-push Sonar gate in `CLAUDE.md`); never let them first surface on the PR.
+The SonarCloud frontend project is the source of truth for open issues and security hotspots.
+
+- PR and branch pushes are analyzed by the scan-only `_sonar` stage of `.github/workflows/ci.yaml`, reusing the coverage the test stage already produced.
+- `.github/workflows/sonar-cloud-analysis.yml` runs nightly as the type-aware backstop.
+- Fix findings locally before pushing (see the pre-push Sonar gate in `CLAUDE.md`); never let them first surface on the PR.
 
 ---
 

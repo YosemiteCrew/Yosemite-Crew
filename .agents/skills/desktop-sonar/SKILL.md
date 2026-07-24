@@ -69,29 +69,29 @@ complexity and smell check is still the SonarCloud analysis.
 
 ## TypeScript / JS Rules (with one-line fixes)
 
-| Rule | Fix |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------------- |
+| Rule               | Fix                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `typescript:S1874` | Deprecated `webContents.goBack()/goForward()` → `webContents.navigationHistory.goBack()/goForward()` (also `canGoBack/canGoForward`). |
-| `*:S7764` | Prefer `globalThis` over bare `window` in renderer page scripts. |
-| `*:S7761` | Prefer `.dataset` over `get/set/removeAttribute('data-…')`. |
-| `*:S6582` | Optional chaining: `a && a.b` → `a?.b`. |
-| `typescript:S6606` | Nullish coalescing: `                                                                                                                |     |`→`??`/`??=`when the left side can be`0`/`''`. |
-| `typescript:S7741` | `=== undefined` over `typeof x === 'undefined'`. |
-| `*:S7735` | Invert unexpected negated conditions (`if(!x){A}else{B}`) or use an early return. |
-| `*:S3358` | Extract nested ternaries into a named helper. |
-| `typescript:S3776` | Cognitive complexity > 15 → extract helper functions. |
-| `typescript:S2004` | Functions nested > 4 levels → extract. |
-| `typescript:S4325` | Remove unnecessary type assertions. |
-| `typescript:S7748` | No zero-fraction numbers (`1.0` → `1`). |
-| `typescript:S6564` | Remove redundant type alias. |
-| `typescript:S6598` | Type literal with only a call signature → function type. |
-| `typescript:S6551` | Robust error stringify: `error instanceof Error ? error.message : String(error)`. |
-| `typescript:S7754` | `.some()` over `.find()` when the result is used as a boolean. |
-| `typescript:S2486` | Handle the caught error, or use a paramless `catch {}` for a deliberate ignore. |
-| `typescript:S7780` | `String.raw` for strings containing backslashes. |
-| `typescript:S7743` | Avoid a confusing IIFE with a parenthesized arrow body. |
-| `typescript:S3735` | Remove a stray `void` operator. (`void promise` to satisfy `no-floating-promises` is fine and is **not** what this flags.) |
-| `typescript:S4043` | Copy before sorting: `[...arr].sort()` / `.toSorted()`. |
+| `*:S7764`          | Prefer `globalThis` over bare `window` in renderer page scripts.                                                                      |
+| `*:S7761`          | Prefer `.dataset` over `get/set/removeAttribute('data-…')`.                                                                           |
+| `*:S6582`          | Optional chaining: `a && a.b` → `a?.b`.                                                                                               |
+| `typescript:S6606` | Nullish coalescing: `\|\|` → `??`/`??=` when the left side can be `0`/`''`.                                                           |
+| `typescript:S7741` | `=== undefined` over `typeof x === 'undefined'`.                                                                                      |
+| `*:S7735`          | Invert unexpected negated conditions (`if(!x){A}else{B}`) or use an early return.                                                     |
+| `*:S3358`          | Extract nested ternaries into a named helper.                                                                                         |
+| `typescript:S3776` | Cognitive complexity > 15 → extract helper functions.                                                                                 |
+| `typescript:S2004` | Functions nested > 4 levels → extract.                                                                                                |
+| `typescript:S4325` | Remove unnecessary type assertions.                                                                                                   |
+| `typescript:S7748` | No zero-fraction numbers (`1.0` → `1`).                                                                                               |
+| `typescript:S6564` | Remove redundant type alias.                                                                                                          |
+| `typescript:S6598` | Type literal with only a call signature → function type.                                                                              |
+| `typescript:S6551` | Robust error stringify: `error instanceof Error ? error.message : String(error)`.                                                     |
+| `typescript:S7754` | `.some()` over `.find()` when the result is used as a boolean.                                                                        |
+| `typescript:S2486` | Handle the caught error, or use a paramless `catch {}` for a deliberate ignore.                                                       |
+| `typescript:S7780` | `String.raw` for strings containing backslashes.                                                                                      |
+| `typescript:S7743` | Avoid a confusing IIFE with a parenthesized arrow body.                                                                               |
+| `typescript:S3735` | Remove a stray `void` operator. (`void promise` to satisfy `no-floating-promises` is fine and is **not** what this flags.)            |
+| `typescript:S4043` | Copy before sorting: `[...arr].sort()` / `.toSorted()`.                                                                               |
 
 ### Modern method preferences
 
