@@ -508,6 +508,64 @@ describe('Room Service', () => {
       expect(mockSetRoomUnitsForRoom).not.toHaveBeenCalled();
     });
 
+    it('still prunes active groups when a partial update changes the room to a non-unit type', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'SURGERY' };
+      const staleGroup = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Extra large',
+        unitCount: 5,
+        isActive: true,
+      };
+      const staleUnit = {
+        id: 'unit-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: 'POD-1',
+        displayName: 'Pod 1',
+        isActive: true,
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockImplementation((url: string) => {
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [staleGroup] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          return Promise.resolve({ data: [staleUnit] });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      // Only the type changes - no `units`/`availability` in the payload at
+      // all, unlike the full snapshot the room-edit UI always sends. The
+      // omission must not be read as "leave the unit config alone", since the
+      // room can no longer support one.
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'SURGERY',
+      } as OrganisationRoom);
+
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalledWith('room-1', []);
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', []);
+    });
+
     it('reactivates an archived group and unit instead of creating duplicates with the same name/code', async () => {
       const mockDTO = { resourceType: 'Location', id: 'room-1' };
       const mockResponseData = { resourceType: 'Location', id: 'room-1' };

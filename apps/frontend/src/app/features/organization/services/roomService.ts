@@ -370,8 +370,11 @@ const syncRoomUnitGroups = async (
   // A partial update that never mentions units/availability at all (e.g. a
   // plain rename) must leave the room's unit configuration - and the client's
   // cache of it - completely untouched, not read the omission as "zero units
-  // desired" and wipe out everything that was there.
-  if (options?.pruneStaleGroups && !providesUnitConfig(source)) return;
+  // desired" and wipe out everything that was there. But that only holds if
+  // the room is still unit-capable - a type-only change to e.g. SURGERY still
+  // has to prune whatever was active, or those groups/units stay attached to
+  // a room that can no longer support them.
+  if (options?.pruneStaleGroups && !providesUnitConfig(source) && canSyncUnits(room)) return;
 
   const { setRoomUnitGroupsForRoom, setRoomUnitsForRoom } = useOrganisationRoomStore.getState();
   const desiredUnitGroups = canSyncUnits(room) ? getDesiredUnitGroups(source) : [];

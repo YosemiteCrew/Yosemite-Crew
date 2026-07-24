@@ -789,10 +789,12 @@ const sanitizeUpdatePayload = (
 ): {
   attributes: Partial<UserProfileMongo>;
   personalDetailsAddressProvided: boolean;
+  personalDetailsAddressCleared: boolean;
 } => {
   const sanitized: Partial<UserProfileMongo> = {};
   let hasProfileUpdate = false;
   let personalDetailsAddressProvided = false;
+  let personalDetailsAddressCleared = false;
 
   if ("personalDetails" in payload) {
     sanitized.personalDetails = sanitizePersonalDetails(
@@ -803,11 +805,18 @@ const sanitizeUpdatePayload = (
     // object with no `address` key at all - that must preserve the existing
     // address rather than read as "clear it" (sanitizeAddress(undefined) and an
     // explicit address:null are otherwise indistinguishable downstream).
+    const rawPersonalDetails = payload.personalDetails;
     personalDetailsAddressProvided =
-      typeof payload.personalDetails === "object" &&
-      payload.personalDetails !== null &&
-      !Array.isArray(payload.personalDetails) &&
-      "address" in payload.personalDetails;
+      typeof rawPersonalDetails === "object" &&
+      rawPersonalDetails !== null &&
+      !Array.isArray(rawPersonalDetails) &&
+      "address" in rawPersonalDetails;
+    // sanitizeAddress(null) also returns undefined (same as an omitted key),
+    // so "delete the whole address" and "didn't touch it" must be told apart
+    // here, from the raw value, before that distinction is lost.
+    personalDetailsAddressCleared =
+      personalDetailsAddressProvided &&
+      (rawPersonalDetails as Record<string, unknown>).address == null;
   }
 
   if ("professionalDetails" in payload) {
@@ -824,6 +833,7 @@ const sanitizeUpdatePayload = (
   return {
     attributes: pruneUndefined(sanitized),
     personalDetailsAddressProvided,
+    personalDetailsAddressCleared,
   };
 };
 
@@ -929,8 +939,11 @@ export const UserProfileService = {
   ): Promise<UserProfileType | null> {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
-    const { attributes, personalDetailsAddressProvided } =
-      sanitizeUpdatePayload(payload);
+    const {
+      attributes,
+      personalDetailsAddressProvided,
+      personalDetailsAddressCleared,
+    } = sanitizeUpdatePayload(payload);
 
     const existing = await prisma.userProfile.findFirst({
       where: { userId: identifier, organizationId: organizationIdentifier },
@@ -973,16 +986,23 @@ export const UserProfileService = {
     // null them out. sanitizeAddress already turned an explicitly-cleared field
     // into `null` (kept) versus an omitted one (absent), so a plain spread with
     // the new address last resolves all three cases correctly.
+    //
+    // An explicit `address: null` is different again - sanitizeAddress(null)
+    // collapses to `undefined`, same as an omitted address, so a plain merge
+    // would silently keep the old address instead of deleting it. Resolve that
+    // as `undefined` here so syncUserProfileAddress takes its delete branch.
     const existingPersonalDetails = buildPersonalDetailsFromPrisma(existing);
     const personalDetails = attributes.personalDetails
       ? {
           ...attributes.personalDetails,
-          address: personalDetailsAddressProvided
-            ? {
-                ...existingPersonalDetails?.address,
-                ...attributes.personalDetails.address,
-              }
-            : existingPersonalDetails?.address,
+          address: personalDetailsAddressCleared
+            ? undefined
+            : personalDetailsAddressProvided
+              ? {
+                  ...existingPersonalDetails?.address,
+                  ...attributes.personalDetails.address,
+                }
+              : existingPersonalDetails?.address,
         }
       : existingPersonalDetails;
     await syncUserProfileAddress(updated.id, personalDetails?.address);

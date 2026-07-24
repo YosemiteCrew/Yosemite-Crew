@@ -535,6 +535,74 @@ describe("UserProfileService", () => {
         }),
       );
     });
+
+    it("deletes the address when the caller explicitly submits address: null", async () => {
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: {
+          addressLine: "Line 1",
+          city: "City",
+          state: "State",
+          postalCode: "12345",
+          country: "US",
+        },
+      });
+      (prisma.userProfile.update as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: {
+          addressLine: "Line 1",
+          city: "City",
+          state: "State",
+          postalCode: "12345",
+          country: "US",
+        },
+      });
+      (prisma.userProfile.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: null,
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        roleCode: "OWNER",
+      });
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValueOnce([
+        {
+          slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+        },
+      ]);
+
+      // Explicit null - distinct from omitting `address` entirely (preserve)
+      // and from a sparse patch (merge field-by-field) - must delete the row.
+      await UserProfileService.update(userId, organizationId, {
+        personalDetails: {
+          ...completeProfile.personalDetails,
+          address: null,
+        },
+      });
+
+      expect(prisma.userProfileAddress.deleteMany).toHaveBeenCalled();
+      expect(prisma.userProfileAddress.upsert).not.toHaveBeenCalled();
+    });
   });
 
   describe("getByUserId", () => {
