@@ -1,7 +1,8 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
+import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
 
 expect.extend(toHaveNoViolations);
 
@@ -9,7 +10,33 @@ jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>) => {
     const source = loader.toString();
+    // The CompanionInfo dynamic maps the module's named export — actually invoke the
+    // loader so the `.then` mapper (import().then(m => ({ default: m.CompanionInfo })))
+    // is exercised, then render the resolved component. Kept as its own component so
+    // the hooks stay unconditional.
+    if (source.includes('m.CompanionInfo')) {
+      const CompanionInfoLoadable = (props: Record<string, unknown>) => {
+        const [Comp, setComp] = React.useState<React.FC<Record<string, unknown>> | null>(null);
+        React.useEffect(() => {
+          let active = true;
+          Promise.resolve(loader()).then((mod) => {
+            if (active) {
+              setComp(() => (mod as { default: React.FC<Record<string, unknown>> }).default);
+            }
+          });
+          return () => {
+            active = false;
+          };
+        }, []);
+        return Comp ? <Comp {...props} /> : null;
+      };
+      CompanionInfoLoadable.displayName = 'MockDynamicComponent';
+      return CompanionInfoLoadable;
+    }
     const LoadableComponent = (props: Record<string, unknown>) => {
+      // Central modals (revamp branch) render nothing; matched before the AddCompanion
+      // substring so they don't pick up the plain AddCompanion mock.
+      if (source.includes('AddCompanionCentralModal')) return null;
       if (source.includes('components/AddCompanion')) {
         const Mock = jest.requireMock(
           '@/app/features/companions/components/AddCompanion'
@@ -29,9 +56,21 @@ const useCompanionsMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const companionsTableSpy = jest.fn();
+const searchParamsGetMock = jest.fn();
+const searchParamsToStringMock = jest.fn(() => '');
+const routerReplaceMock = jest.fn();
+const isCompanionRevampEnabledMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useSearchParams: () => ({ get: () => null }),
+  useSearchParams: () => ({
+    get: (key: string) => searchParamsGetMock(key),
+    toString: () => searchParamsToStringMock(),
+  }),
+  useRouter: () => ({ replace: routerReplaceMock }),
+}));
+
+jest.mock('@/app/lib/featureFlags', () => ({
+  isCompanionRevampEnabled: () => isCompanionRevampEnabledMock(),
 }));
 
 jest.mock('@/app/ui/layout/PageSkeleton', () => ({
@@ -51,6 +90,15 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 
 jest.mock('@/app/hooks/useCompanion', () => ({
   useCompanionsParentsForPrimaryOrg: () => useCompanionsMock(),
+}));
+
+jest.mock('@/app/hooks/useAppointments', () => ({
+  useAppointmentsForPrimaryOrg: () => [],
+}));
+
+jest.mock('@/app/features/companions/pages/Companions/InClinicTodayBand', () => ({
+  __esModule: true,
+  default: () => <div data-testid="in-clinic-band" />,
 }));
 
 jest.mock('@/app/hooks/usePermissions', () => ({
@@ -120,8 +168,13 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 }));
 
 describe('Companions page', () => {
+  let replaceStateSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // The consumed deep link is stripped by rewriting the history entry in
+    // place, so assert on history rather than on the router.
+    replaceStateSpy = jest.spyOn(window.history, 'replaceState').mockImplementation(() => {});
     useCompanionsMock.mockReturnValue([
       {
         companion: { id: 'c1', name: 'Buddy', status: 'active', type: 'dog' },
@@ -136,6 +189,13 @@ describe('Companions page', () => {
       can: jest.fn(() => true),
     });
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: 'buddy' }));
+    searchParamsGetMock.mockReturnValue(null);
+    searchParamsToStringMock.mockReturnValue('');
+    isCompanionRevampEnabledMock.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    replaceStateSpy.mockRestore();
   });
 
   it('has no axe violations', async () => {
@@ -153,6 +213,7 @@ describe('Companions page', () => {
     render(<ProtectedCompanions />);
 
     expect(screen.getByTestId('companions-table')).toBeInTheDocument();
+    expect(screen.getByTestId('in-clinic-band')).toBeInTheDocument();
     expect(companionsTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [
@@ -160,10 +221,185 @@ describe('Companions page', () => {
             companion: expect.objectContaining({ id: 'c1' }),
           }),
         ],
+        viewMode: 'list',
       })
     );
 
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByRole('button', { name: /Add companion/i }));
     expect(screen.getByTestId('add-companion')).toBeInTheDocument();
+  });
+
+  it('opens the add modal when the phone shell FAB fires its primary action', () => {
+    render(<ProtectedCompanions />);
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'companion', href: '/companions' },
+        })
+      );
+    });
+
+    expect(screen.getByTestId('add-companion')).toBeInTheDocument();
+  });
+
+  it('ignores a phone primary action aimed at another page', () => {
+    render(<ProtectedCompanions />);
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'product', href: '/inventory' },
+        })
+      );
+    });
+
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument();
+  });
+
+  it('renders with no companions and selects none', () => {
+    useCompanionsMock.mockReturnValue([]);
+    render(<ProtectedCompanions />);
+
+    expect(screen.getByText('0 patients, 0 active')).toBeInTheDocument();
+    expect(companionsTableSpy).toHaveBeenCalledWith(expect.objectContaining({ filteredList: [] }));
+  });
+
+  it('falls back to inactive / empty species for companions missing status and type', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    useCompanionsMock.mockReturnValue([
+      { companion: { id: 'c3', name: 'Buddy' }, parent: { firstName: 'Sam' } },
+    ]);
+    render(<ProtectedCompanions />);
+
+    // Status defaults to 'inactive', so the companion counts as not active.
+    expect(screen.getByText('1 patients, 0 active')).toBeInTheDocument();
+    expect(companionsTableSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filteredList: [
+          expect.objectContaining({ companion: expect.objectContaining({ id: 'c3' }) }),
+        ],
+      })
+    );
+  });
+
+  it('shows the live patient / active counts in the title', () => {
+    render(<ProtectedCompanions />);
+    expect(screen.getByText('2 patients, 1 active')).toBeInTheDocument();
+  });
+
+  it('renders species tabs with live counts and filters by species', () => {
+    // Empty query so species filtering is observable in the passed list.
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    render(<ProtectedCompanions />);
+
+    expect(screen.getByRole('tab', { name: /All/ })).toHaveTextContent('2');
+    expect(screen.getByRole('tab', { name: /Dogs/ })).toHaveTextContent('1');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Cats/ }));
+    expect(companionsTableSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filteredList: [
+          expect.objectContaining({ companion: expect.objectContaining({ id: 'c2' }) }),
+        ],
+      })
+    );
+  });
+
+  it('switches the table into grid view via the view toggle', () => {
+    render(<ProtectedCompanions />);
+    fireEvent.click(screen.getByRole('button', { name: 'Grid view' }));
+    expect(companionsTableSpy.mock.calls.some(([props]) => props.viewMode === 'grid')).toBe(true);
+  });
+
+  it('toggles the last-visit sort control', () => {
+    render(<ProtectedCompanions />);
+    const sortPill = screen.getByRole('button', { name: /Last visit/ });
+    expect(sortPill).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(sortPill);
+    expect(sortPill).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('opens the companion view from a companionId deep link', async () => {
+    searchParamsGetMock.mockReturnValue('c1');
+    render(<ProtectedCompanions />);
+    // Revamp off → the CompanionInfo dynamic component is mounted and resolves.
+    expect(await screen.findByTestId('companion-info')).toBeInTheDocument();
+  });
+
+  it('ignores a deep link that does not match any companion', () => {
+    searchParamsGetMock.mockReturnValue('does-not-exist');
+    render(<ProtectedCompanions />);
+    expect(screen.queryByTestId('companion-info')).not.toBeInTheDocument();
+  });
+
+  it('strips companionId from the URL once the deep link has opened the modal', async () => {
+    searchParamsGetMock.mockReturnValue('c1');
+    searchParamsToStringMock.mockReturnValue('companionId=c1');
+    render(<ProtectedCompanions />);
+    await screen.findByTestId('companion-info');
+    // Bug 20b: leaving `companionId` on the history entry makes browser Back
+    // replay the deep link and re-open the patient modal. The entry is rewritten
+    // in place rather than navigated, so the router must not be involved.
+    expect(replaceStateSpy).toHaveBeenCalledWith(null, '', '/companions');
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
+
+  it('preserves unrelated query params when stripping the consumed deep link', async () => {
+    searchParamsGetMock.mockReturnValue('c1');
+    searchParamsToStringMock.mockReturnValue('companionId=c1&tab=active');
+    render(<ProtectedCompanions />);
+    await screen.findByTestId('companion-info');
+    expect(replaceStateSpy).toHaveBeenCalledWith(null, '', '/companions?tab=active');
+  });
+
+  it('does not rewrite the URL when the deep link matches no companion', () => {
+    searchParamsGetMock.mockReturnValue('does-not-exist');
+    searchParamsToStringMock.mockReturnValue('companionId=does-not-exist');
+    render(<ProtectedCompanions />);
+    // The deep link was never consumed, so it must stay in the URL for a later
+    // render (the companions list may still be loading).
+    expect(replaceStateSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not rewrite the URL when there is no deep link', () => {
+    render(<ProtectedCompanions />);
+    expect(replaceStateSpy).not.toHaveBeenCalled();
+  });
+
+  it('renders the central modals when the companion revamp flag is enabled', () => {
+    isCompanionRevampEnabledMock.mockReturnValue(true);
+    render(<ProtectedCompanions />);
+    // The revamp branch mounts the central add/appointment modals (mocked to null);
+    // the table still renders alongside them.
+    expect(screen.getByTestId('companions-table')).toBeInTheDocument();
+  });
+
+  it('reselects the first companion when the active one leaves the list', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    const { rerender } = render(<ProtectedCompanions />);
+
+    // Swap in an entirely different set — the previously active companion (c1) is gone,
+    // so the effect falls through to selecting the new first companion.
+    useCompanionsMock.mockReturnValue([
+      {
+        companion: { id: 'c3', name: 'Milo', status: 'active', type: 'dog' },
+        parent: { firstName: 'Kai' },
+      },
+      {
+        companion: { id: 'c4', name: 'Nala', status: 'active', type: 'cat' },
+        parent: { firstName: 'Ivy' },
+      },
+    ]);
+    rerender(<ProtectedCompanions />);
+
+    expect(companionsTableSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filteredList: expect.arrayContaining([
+          expect.objectContaining({ companion: expect.objectContaining({ id: 'c3' }) }),
+        ]),
+      })
+    );
   });
 });

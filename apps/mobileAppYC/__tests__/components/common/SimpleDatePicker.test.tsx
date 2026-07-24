@@ -43,6 +43,21 @@ jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
   default: jest.fn(),
 }));
 
+// 3. Mock liquid glass support as toggleable per test (default: unsupported)
+let mockIsLiquidGlassSupported = false;
+jest.mock('@callstack/liquid-glass', () => {
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    LiquidGlassView: (props: any) => (
+      <View testID="liquid-glass-view" {...props} />
+    ),
+    get isLiquidGlassSupported() {
+      return mockIsLiquidGlassSupported;
+    },
+  };
+});
+
 describe('SimpleDatePicker Component', () => {
   const mockOnDateChange = jest.fn();
   const mockOnDismiss = jest.fn();
@@ -51,6 +66,7 @@ describe('SimpleDatePicker Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useColorScheme as jest.Mock).mockReturnValue('light'); // Default
+    mockIsLiquidGlassSupported = false;
   });
 
   // ===========================================================================
@@ -156,6 +172,23 @@ describe('SimpleDatePicker Component', () => {
       expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the existing iOS draft date when the change event has no selected date', () => {
+      const {getByTestId} = render(
+        <SimpleDatePicker
+          value={defaultDate}
+          show={true}
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      const picker = getByTestId('mock-datetime-picker');
+      fireEvent(picker, 'onChange', {type: 'set'}, undefined);
+
+      fireEvent.press(getByTestId('ios-datetime-picker-done'));
+      expect(mockOnDateChange).toHaveBeenCalledWith(defaultDate);
+    });
+
     it('resets iOS draft date when value prop changes while visible', () => {
       const updatedDate = new Date('2023-01-03T10:00:00');
       const {getByTestId, rerender} = render(
@@ -254,6 +287,36 @@ describe('SimpleDatePicker Component', () => {
       const picker = getByTestId('mock-datetime-picker');
       expect(picker.props.locale).toBe('en-US');
     });
+
+    it('falls back to a new Date() when value is null on iOS', () => {
+      const {getByTestId} = render(
+        <SimpleDatePicker
+          value={null}
+          show={true}
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      const picker = getByTestId('mock-datetime-picker');
+      expect(picker.props.value).toBeInstanceOf(Date);
+    });
+
+    it('renders the native liquid-glass action buttons when supported', () => {
+      mockIsLiquidGlassSupported = true;
+      const {getAllByTestId, getByText} = render(
+        <SimpleDatePicker
+          value={defaultDate}
+          show={true}
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      expect(getAllByTestId('liquid-glass-view').length).toBeGreaterThan(0);
+      expect(getByText('Cancel')).toBeTruthy();
+      expect(getByText('Done')).toBeTruthy();
+    });
   });
 
   // ===========================================================================
@@ -314,6 +377,25 @@ describe('SimpleDatePicker Component', () => {
 
       // Trigger dismiss (no date passed)
       fireEvent(picker, 'onChange', {type: 'dismissed'}, undefined);
+
+      expect(mockOnDateChange).not.toHaveBeenCalled();
+      expect(mockOnDismiss).toHaveBeenCalled();
+    });
+
+    it('dismisses without calling onDateChange when the event type is neither "set" nor "dismissed"', () => {
+      const {getByTestId} = render(
+        <SimpleDatePicker
+          value={defaultDate}
+          show={true}
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      const picker = getByTestId('mock-datetime-picker');
+      const newDate = new Date('2023-05-05');
+
+      fireEvent(picker, 'onChange', {type: 'neutral'}, newDate);
 
       expect(mockOnDateChange).not.toHaveBeenCalled();
       expect(mockOnDismiss).toHaveBeenCalled();

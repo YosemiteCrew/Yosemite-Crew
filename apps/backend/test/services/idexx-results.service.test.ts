@@ -158,4 +158,59 @@ describe("IdexxResultsService", () => {
     expect(mockedLogger.error).not.toHaveBeenCalled();
     expect(mockedTaskService.createCustom).toHaveBeenCalled();
   });
+
+  // lab-result reads authorize on the stored organisationId, so it must come from the
+  // LabOrder we placed and never from the provider's response.
+  it("stores the organisation from the lab order, not the provider payload", async () => {
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          resultId: "result-1",
+          orderId: "order-1",
+          organisationId: "attacker-org",
+          status: "COMPLETE",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(1, 1);
+
+    expect(mockedPrisma.labResult.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ organisationId: "org-1" }),
+        update: expect.objectContaining({ organisationId: "org-1" }),
+      }),
+    );
+  });
+
+  it("does not fall back to the provider organisation when no lab order matches", async () => {
+    mockedPrisma.labOrder.findFirst.mockResolvedValue(null as any);
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          resultId: "result-1",
+          orderId: "order-1",
+          organisationId: "attacker-org",
+          status: "COMPLETE",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(1, 1);
+
+    expect(mockedPrisma.labResult.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ organisationId: null }),
+        update: expect.objectContaining({ organisationId: null }),
+      }),
+    );
+  });
 });

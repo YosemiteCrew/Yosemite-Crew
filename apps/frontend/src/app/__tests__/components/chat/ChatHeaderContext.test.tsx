@@ -98,6 +98,37 @@ describe('ChatHeaderContext', () => {
     expect(screen.queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
   });
 
+  // Bug 21: "Send form" deep-links into the clinical workspace, which refuses
+  // these statuses outright. Offering it stranded the user on the
+  // "<Status> appointments cannot be opened in the clinical workspace" screen.
+  it.each(['NO_SHOW', 'CANCELLED', 'REQUESTED'])(
+    'hides send form for %s appointments, which the workspace refuses',
+    (status) => {
+      render(
+        <ChatHeaderContext
+          appointment={{ ...appointment, status } as Appointment}
+          onAction={jest.fn()}
+        />
+      );
+      expect(screen.queryByRole('button', { name: 'Send form' })).not.toBeInTheDocument();
+      // The chip itself still renders — the appointment is still linked.
+      expect(screen.getByText('Appointment')).toBeInTheDocument();
+    }
+  );
+
+  it.each(['UPCOMING', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'])(
+    'keeps send form for %s appointments, which the workspace accepts',
+    (status) => {
+      render(
+        <ChatHeaderContext
+          appointment={{ ...appointment, status } as Appointment}
+          onAction={jest.fn()}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Send form' })).toBeInTheDocument();
+    }
+  );
+
   it.each(['Reschedule', 'Send form', 'Book follow-up'])(
     'calls onAction with "%s" when that button is clicked',
     (label) => {
@@ -141,5 +172,67 @@ describe('ChatHeaderContext', () => {
     );
     expect(screen.getByText(/Allergy: Penicillin/)).toBeInTheDocument();
     expect(screen.getByText('Appointment')).toBeInTheDocument();
+  });
+
+  it('shows the time-only label when the appointment has a start time but no name', () => {
+    const timedOnly = {
+      startTime: new Date('2026-06-25T15:00:00Z'),
+      status: 'UPCOMING',
+    } as unknown as Appointment;
+    render(<ChatHeaderContext appointment={timedOnly} onAction={jest.fn()} />);
+    // apptLabel is truthy, apptName is undefined -> join keeps only the label.
+    expect(screen.queryByText('Linked appointment')).not.toBeInTheDocument();
+    expect(screen.getByText('Appointment')).toBeInTheDocument();
+  });
+
+  it('renders the pinned banner with a single pinned message and no "+ N more" suffix', () => {
+    render(
+      <ChatHeaderContext pinned={[{ id: 'p1', text: 'Bring stool sample' }]} onAction={jest.fn()} />
+    );
+    expect(screen.getByText('Pinned')).toBeInTheDocument();
+    expect(screen.getByText(/“Bring stool sample”/)).toBeInTheDocument();
+    expect(screen.queryByText(/more/)).not.toBeInTheDocument();
+  });
+
+  it('appends "+ N more" to the pinned banner when several messages are pinned', () => {
+    render(
+      <ChatHeaderContext
+        pinned={[
+          { id: 'p1', text: 'Bring stool sample' },
+          { id: 'p2', text: 'Fasting required' },
+          { id: 'p3', text: 'Recheck in 2 weeks' },
+        ]}
+        onAction={jest.fn()}
+      />
+    );
+    expect(screen.getByText(/“Bring stool sample” \+ 2 more/)).toBeInTheDocument();
+  });
+
+  it('calls onOpenPinned when the pinned banner is clicked', () => {
+    const onOpenPinned = jest.fn();
+    render(
+      <ChatHeaderContext
+        pinned={[{ id: 'p1', text: 'Bring stool sample' }]}
+        onOpenPinned={onOpenPinned}
+        onAction={jest.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button'));
+    expect(onOpenPinned).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a titled critical alert while skipping a high alert with no title', () => {
+    render(
+      <ChatHeaderContext
+        alerts={[
+          { severity: 'high' },
+          { severity: 'critical', title: 'Anaphylaxis' },
+          { severity: 'medium', title: 'Mild' },
+        ]}
+        onAction={jest.fn()}
+      />
+    );
+    expect(screen.getByText('Anaphylaxis')).toBeInTheDocument();
+    expect(screen.queryByText(/Mild/)).not.toBeInTheDocument();
   });
 });

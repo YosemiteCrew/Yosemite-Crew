@@ -56,10 +56,11 @@ jest.mock(
     const {TouchableOpacity: MockTouchableOpacity} =
       jest.requireActual('react-native');
     return {
-      LiquidGlassIconButton: ({children, onPress}: any) => (
+      LiquidGlassIconButton: ({children, onPress, accessibilityLabel}: any) => (
         <MockTouchableOpacity
           testID="mock-liquid-glass-icon-button"
-          onPress={onPress}>
+          onPress={onPress}
+          accessibilityLabel={accessibilityLabel}>
           {children}
         </MockTouchableOpacity>
       ),
@@ -68,7 +69,6 @@ jest.mock(
 );
 
 // --- Test Setup ---
-
 
 describe('BottomSheetHeader', () => {
   const mockOnClose = jest.fn();
@@ -105,6 +105,20 @@ describe('BottomSheetHeader', () => {
     expect(closeButton).toBeTruthy();
     expect(closeIcon).toBeTruthy();
     expect(closeIcon.props.source).toBe(12345);
+  });
+
+  it('labels the close button for screen readers', () => {
+    const {getByTestId} = render(
+      <BottomSheetHeader
+        title="Test"
+        onClose={mockOnClose}
+        theme={mockTheme}
+      />,
+    );
+
+    expect(
+      getByTestId('mock-liquid-glass-icon-button').props.accessibilityLabel,
+    ).toBe('Close');
   });
 
   it('calls onClose when the close button is pressed', () => {

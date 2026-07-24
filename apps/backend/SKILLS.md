@@ -13,12 +13,11 @@ This file documents the backend-specific working patterns for agents and contrib
 ## Core Stack
 
 - Express 4 with TypeScript
-- MongoDB/Mongoose for existing (legacy) application models
-- Prisma (Postgres/Supabase) for schema and migration work, and the source of truth for new persistence; do not add new Mongoose usage
+- Prisma (Postgres/Supabase) for schema, migrations, and all persistence; the models under `src/models/` are legacy and being retired
 - Zod for request validation
 - BullMQ for background jobs
 - Winston for logging
-- AWS Cognito, `jsonwebtoken`, and `jwks-rsa` for auth
+- SuperTokens (`@yosemite-crew/auth`) for web session auth; AWS Cognito (`jsonwebtoken` + `jwks-rsa`) and Firebase Admin (social login) for mobile auth
 
 ## Required Architecture
 
@@ -49,7 +48,7 @@ Do not move business logic into routers or controllers.
 - `src/routers` for route registration
 - `src/controllers` for HTTP handling
 - `src/services` for business logic
-- `src/models` for Mongoose models
+- `src/models` for legacy data models (no new files here; use Prisma)
 - `src/integrations` for third-party integrations
 - `src/queues` and `src/workers` for background processing
 - `src/scripts` for backend maintenance and migration utilities

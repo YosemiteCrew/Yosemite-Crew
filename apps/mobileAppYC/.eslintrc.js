@@ -28,6 +28,26 @@ module.exports = {
             caughtErrorsIgnorePattern: '^_',
           },
         ],
+        // Auth boundary guard (#1672): the legacy auth SDKs are gone. Firebase
+        // app/messaging remain for FCM only - auth must not come back.
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: [
+                  'aws-amplify',
+                  'aws-amplify/*',
+                  '@aws-amplify/*',
+                  '@react-native-firebase/auth',
+                  'amazon-cognito-identity-js',
+                ],
+                message:
+                  'The legacy auth provider SDKs were decommissioned (#1672); use the SuperTokens session layer.',
+              },
+            ],
+          },
+        ],
       },
     },
     {

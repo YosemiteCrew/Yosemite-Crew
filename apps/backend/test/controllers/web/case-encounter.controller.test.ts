@@ -61,7 +61,9 @@ describe("CaseEncounterController", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    req = { params: {}, query: {}, body: {} };
+    // `organisationId` is what the RBAC middleware resolved: on a `:id` route it
+    // is the target resource's own organisation, not anything the client sent.
+    req = { params: {}, query: {}, body: {}, organisationId: "org_1" } as never;
     res = buildResponse();
   });
 
@@ -93,6 +95,7 @@ describe("CaseEncounterController", () => {
         organisationId: "org_1",
         patientId: "comp_1",
       }),
+      "org_1",
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(
@@ -175,6 +178,7 @@ describe("CaseEncounterController", () => {
         caseId: "case_1",
         appointmentId: "appt_1",
       }),
+      "org_1",
     );
     expect(res.status).toHaveBeenCalledWith(201);
   });
@@ -221,12 +225,16 @@ describe("CaseEncounterController", () => {
 
     await EncounterController.discharge(req as any, res as any);
 
-    expect(mockedService.dischargeEncounter).toHaveBeenCalledWith("enc_1", {
-      dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
-      periodEnd: undefined,
-      overrideReason: "Approved clinical override",
-      actorUserId: undefined,
-    });
+    expect(mockedService.dischargeEncounter).toHaveBeenCalledWith(
+      "enc_1",
+      "org_1",
+      {
+        dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
+        periodEnd: undefined,
+        overrideReason: "Approved clinical override",
+        actorUserId: undefined,
+      },
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -260,7 +268,7 @@ describe("CaseEncounterController", () => {
 
     await EncounterController.assignUnit(req as any, res as any);
 
-    expect(mockedService.assignUnit).toHaveBeenCalledWith("enc_1", {
+    expect(mockedService.assignUnit).toHaveBeenCalledWith("enc_1", "org_1", {
       unitId: "unit_1",
       assignedBy: "user_1",
       reason: "Transfer to ICU unit",
@@ -287,6 +295,7 @@ describe("CaseEncounterController", () => {
     await EncounterController.listUnitAssignments(req as any, res as any);
 
     expect(mockedService.listUnitAssignments).toHaveBeenCalledWith({
+      organisationId: "org_1",
       encounterId: "enc_1",
     });
     expect(res.status).toHaveBeenCalledWith(200);
@@ -324,6 +333,7 @@ describe("CaseEncounterController", () => {
 
     expect(mockedService.listAdmissionUnitAssignments).toHaveBeenCalledWith(
       "enc_1",
+      "org_1",
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
@@ -358,9 +368,13 @@ describe("CaseEncounterController", () => {
 
     await EncounterController.start(req as any, res as any);
 
-    expect(mockedService.startEncounter).toHaveBeenCalledWith("enc_1", {
-      startedAt: new Date("2026-06-11T12:00:00.000Z"),
-    });
+    expect(mockedService.startEncounter).toHaveBeenCalledWith(
+      "enc_1",
+      "org_1",
+      {
+        startedAt: new Date("2026-06-11T12:00:00.000Z"),
+      },
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -382,6 +396,7 @@ describe("CaseEncounterController", () => {
 
     expect(mockedService.markEncounterReadyForDischarge).toHaveBeenCalledWith(
       "enc_1",
+      "org_1",
       "user-1",
     );
     expect(res.status).toHaveBeenCalledWith(200);
@@ -404,7 +419,7 @@ describe("CaseEncounterController", () => {
 
     expect(
       mockedService.markEncounterNotReadyForDischarge,
-    ).toHaveBeenCalledWith("enc_1");
+    ).toHaveBeenCalledWith("enc_1", "org_1");
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -444,14 +459,87 @@ describe("CaseEncounterController", () => {
     );
   });
 
-  it("requires an organisation for active inpatient list", async () => {
+  it("falls back to the authorized organisation when the query omits one", async () => {
     req.query = {};
+    mockedService.listActiveInpatientEncounters.mockResolvedValue([] as never);
 
     await EncounterController.listActiveInpatients(req as any, res as any);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "organization is required.",
+    expect(mockedService.listActiveInpatientEncounters).toHaveBeenCalledWith({
+      organisationId: "org_1",
     });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  describe("cross-tenant query organisations", () => {
+    it("rejects an active inpatient list scoped to another organisation", async () => {
+      req.query = { organization: "Organization/org_2" };
+
+      await EncounterController.listActiveInpatients(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "organization does not match the authorized organisation.",
+      });
+      expect(
+        mockedService.listActiveInpatientEncounters,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rejects an encounter list scoped to another organisation", async () => {
+      req.query = { organization: "org_2" };
+
+      await EncounterController.list(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(mockedService.listEncounters).not.toHaveBeenCalled();
+    });
+
+    it("rejects a case list scoped to another organisation", async () => {
+      req.query = { organization: "Organization/org_2" };
+
+      await CaseController.list(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(mockedService.listCases).not.toHaveBeenCalled();
+    });
+
+    it("ignores a body organisation and forwards only the authorized one", async () => {
+      req.body = {
+        resourceType: "EpisodeOfCare",
+        status: "active",
+        patient: { reference: "Patient/comp_1" },
+        managingOrganization: { reference: "Organization/org_2" },
+        extension: [
+          {
+            url: "https://yosemitecrew.com/fhir/StructureDefinition/case-appointment-kind",
+            valueString: "OUTPATIENT",
+          },
+        ],
+      };
+      mockedService.createCase.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        status: "active",
+        appointmentKind: "OUTPATIENT",
+      } as never);
+
+      await CaseController.create(req as any, res as any);
+
+      expect(mockedService.createCase).toHaveBeenCalledWith(
+        expect.anything(),
+        "org_1",
+      );
+    });
+  });
+
+  it("refuses to query when no organisation was authorized", async () => {
+    req = { params: { id: "enc_1" }, query: {}, body: {} };
+
+    await EncounterController.getById(req as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(mockedService.getEncounterById).not.toHaveBeenCalled();
   });
 });

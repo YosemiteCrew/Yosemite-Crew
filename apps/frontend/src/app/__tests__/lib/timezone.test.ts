@@ -2,6 +2,7 @@ import {
   DEFAULT_TIMEZONE,
   TIMEZONE_STORAGE_KEY,
   buildDateInPreferredTimeZone,
+  buildPreferredTimeZoneDayInstant,
   formatDateInPreferredTimeZone,
   formatUtcClockTimeLabel,
   getDateKeyInPreferredTimeZone,
@@ -123,6 +124,29 @@ describe('timezone utils', () => {
     const parts = getDatePartsInPreferredTimeZone(date);
     expect(parts.hour).toBe(1);
     expect(parts.minute).toBe(30);
+  });
+
+  it('buildPreferredTimeZoneDayInstant anchors at local noon and round-trips the calendar day', () => {
+    // Pacific/Auckland is UTC+12 (UTC+13 in DST): a UTC-noon anchor would resolve to the NEXT
+    // calendar day, shifting month selections. Local noon keeps the day key stable.
+    setPreferredTimeZone('Pacific/Auckland');
+    const instant = buildPreferredTimeZoneDayInstant(2026, 7, 7);
+    expect(getDateKeyInPreferredTimeZone(instant)).toBe('2026-07-07');
+    expect(getDatePartsInPreferredTimeZone(instant).hour).toBe(12);
+  });
+
+  it('buildPreferredTimeZoneDayInstant round-trips year-end in an extreme +12/+13 zone', () => {
+    setPreferredTimeZone('Pacific/Auckland');
+    expect(getDateKeyInPreferredTimeZone(buildPreferredTimeZoneDayInstant(2026, 12, 31))).toBe(
+      '2026-12-31'
+    );
+  });
+
+  it('buildPreferredTimeZoneDayInstant round-trips in a negative-offset zone', () => {
+    setPreferredTimeZone('America/Los_Angeles');
+    const instant = buildPreferredTimeZoneDayInstant(2026, 7, 7);
+    expect(getDateKeyInPreferredTimeZone(instant)).toBe('2026-07-07');
+    expect(getDatePartsInPreferredTimeZone(instant).hour).toBe(12);
   });
 
   it('getSystemTimeZone returns a valid timezone string', () => {

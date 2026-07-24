@@ -1,5 +1,5 @@
 import React, {useCallback, useMemo, useImperativeHandle, useRef} from 'react';
-import {View, ViewStyle} from 'react-native';
+import {View, type ViewStyle} from 'react-native';
 import BottomSheet, {
   BottomSheetView,
   BottomSheetScrollView,
@@ -69,6 +69,13 @@ export interface CustomBottomSheetProps {
   // Content type
   contentType?: 'view' | 'scrollView' | 'flatList';
 
+  // Style forwarded to the content wrapper (BottomSheetView). BottomSheetView
+  // is absolutely positioned with only top/left/right set, so it sizes to its
+  // content by default. Pass `{bottom: 0}` here to make it stretch to the
+  // sheet's actual height when content needs a bounded flex chain (e.g. a
+  // scrollable list between a fixed header and footer).
+  contentStyle?: ViewStyle;
+
   // FlatList specific props (when contentType is 'flatList')
   flatListData?: readonly any[];
   flatListRenderItem?: ({
@@ -137,6 +144,7 @@ const CustomBottomSheet = (
     topInset = 0,
     bottomInset = 0,
     contentType = 'view',
+    contentStyle,
     flatListData = EMPTY_FLAT_LIST_DATA,
     flatListRenderItem,
     flatListKeyExtractor,
@@ -254,7 +262,9 @@ const CustomBottomSheet = (
         );
 
       default:
-        return <BottomSheetView>{children}</BottomSheetView>;
+        return (
+          <BottomSheetView style={contentStyle}>{children}</BottomSheetView>
+        );
     }
   };
 

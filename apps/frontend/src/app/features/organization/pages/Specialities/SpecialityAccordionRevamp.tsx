@@ -1,8 +1,13 @@
-import React, { useId, useRef, useState } from 'react';
-import type { ServicesTabHandle } from '@/app/features/organization/pages/Specialities/ServicesTab';
+import React, { useId, useMemo, useRef, useState } from 'react';
+import type {
+  ServicePractitioner,
+  ServicesTabHandle,
+} from '@/app/features/organization/pages/Specialities/ServicesTab';
 import type { PackagesTabHandle } from '@/app/features/organization/pages/Specialities/PackagesTab';
 import { IoIosArrowDown } from 'react-icons/io';
-import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { COMPLETED_PILL_TOKENS } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
 import ArchiveTab from '@/app/features/organization/pages/Specialities/ArchiveTab';
@@ -10,9 +15,11 @@ import { SpecialityRevamp } from '@/app/features/organization/types/revamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useNotify } from '@/app/hooks/useNotify';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { Team } from '@/app/features/organization/types/team';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
-import { TABS, panelId, type ActiveTab, type SearchResult } from './specialityAccordionHelpers';
+import { TABS, type ActiveTab, type SearchResult } from './specialityAccordionHelpers';
 import SpecialitySearchBar from './SpecialitySearchBar';
 import SpecialityDeleteModal from './SpecialityDeleteModal';
 import SpecialityNameEditor from './SpecialityNameEditor';
@@ -25,7 +32,7 @@ type SpecialityAccordionRevampProps = {
 type SpecialityAccordionHeaderProps = {
   speciality: SpecialityRevamp;
   activeTab: ActiveTab;
-  totalCount: number;
+  subtitle: string;
   open: boolean;
   editingName: boolean;
   nameInputId: string;
@@ -50,12 +57,13 @@ type SpecialityAccordionHeaderProps = {
   onSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   onSearchClear: () => void;
   onSelectSearchResult: (result: SearchResult) => void;
+  onTabChange: (tab: ActiveTab) => void;
 };
 
 const SpecialityAccordionHeader = ({
   speciality,
   activeTab,
-  totalCount,
+  subtitle,
   open,
   editingName,
   nameInputId,
@@ -80,8 +88,9 @@ const SpecialityAccordionHeader = ({
   onSearchKeyDown,
   onSearchClear,
   onSelectSearchResult,
+  onTabChange,
 }: SpecialityAccordionHeaderProps) => (
-  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 sm:py-3.5">
+  <div className="group flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-[22px] py-3 sm:py-[15px]">
     <div className="flex items-center gap-2 min-w-0 flex-1">
       <button
         type="button"
@@ -91,9 +100,9 @@ const SpecialityAccordionHeader = ({
         aria-label={`${speciality.name} speciality`}
       >
         <IoIosArrowDown
-          size={20}
+          size={14}
           aria-hidden="true"
-          className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
+          className={`text-[var(--ink-faint)] transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
         />
       </button>
 
@@ -105,7 +114,7 @@ const SpecialityAccordionHeader = ({
           nameValue={nameValue}
           nameError={nameError}
           specialityName={speciality.name}
-          totalCount={totalCount}
+          subtitle={subtitle}
           onToggleOpen={onToggleOpen}
           onNameChange={onNameChange}
           onNameKeyDown={onNameKeyDown}
@@ -122,6 +131,17 @@ const SpecialityAccordionHeader = ({
 
     {!editingName && (
       <div className="flex items-center gap-2 flex-wrap w-full sm:flex-nowrap sm:w-auto min-h-12">
+        {open && (
+          <div className="shrink-0">
+            <SegmentedPill
+              ariaLabel="Speciality catalog view"
+              options={TABS.map((tab) => ({ value: tab.key as ActiveTab, label: tab.label }))}
+              value={activeTab}
+              onChange={onTabChange}
+            />
+          </div>
+        )}
+        {!open && <StatusPill label="ACTIVE" tokens={COMPLETED_PILL_TOKENS} />}
         {open && activeTab !== 'archive' && (
           <div className="shrink-0 w-full sm:w-auto">
             <Primary
@@ -154,51 +174,42 @@ const SpecialityAccordionHeader = ({
 type SpecialityAccordionPanelProps = {
   speciality: SpecialityRevamp;
   activeTab: ActiveTab;
+  practitioners: ServicePractitioner[];
   servicesTabRef: React.RefObject<ServicesTabHandle | null>;
   packagesTabRef: React.RefObject<PackagesTabHandle | null>;
-  onTabChange: (tab: ActiveTab) => void;
 };
 
 const SpecialityAccordionPanel = ({
   speciality,
   activeTab,
+  practitioners,
   servicesTabRef,
   packagesTabRef,
-  onTabChange,
 }: SpecialityAccordionPanelProps) => (
-  <div className="border-t border-card-border">
-    <TabToggle
-      tabs={TABS}
-      activeKey={activeTab}
-      onChange={(key) => onTabChange(key as ActiveTab)}
-      panelId={panelId}
-    />
-
-    <div className="px-5 pt-3">
-      {activeTab === 'services' && (
-        <div id={panelId('services')} role="tabpanel" aria-labelledby="tab-services">
-          <ServicesTab
-            ref={servicesTabRef}
-            specialityId={speciality.id}
-            organisationId={speciality.organisationId}
-          />
-        </div>
-      )}
-      {activeTab === 'packages' && (
-        <div id={panelId('packages')} role="tabpanel" aria-labelledby="tab-packages">
-          <PackagesTab
-            ref={packagesTabRef}
-            specialityId={speciality.id}
-            organisationId={speciality.organisationId}
-          />
-        </div>
-      )}
-      {activeTab === 'archive' && (
-        <div id={panelId('archive')} role="tabpanel" aria-labelledby="tab-archive">
-          <ArchiveTab specialityId={speciality.id} organisationId={speciality.organisationId} />
-        </div>
-      )}
-    </div>
+  <div className="border-t border-[var(--hairline)]">
+    {activeTab === 'services' && (
+      <ServicesTab
+        ref={servicesTabRef}
+        specialityId={speciality.id}
+        organisationId={speciality.organisationId}
+        specialityName={speciality.name}
+        practitioners={practitioners}
+      />
+    )}
+    {activeTab === 'packages' && (
+      <div className="px-5 pt-3">
+        <PackagesTab
+          ref={packagesTabRef}
+          specialityId={speciality.id}
+          organisationId={speciality.organisationId}
+        />
+      </div>
+    )}
+    {activeTab === 'archive' && (
+      <div className="px-5 pt-3">
+        <ArchiveTab specialityId={speciality.id} organisationId={speciality.organisationId} />
+      </div>
+    )}
   </div>
 );
 
@@ -257,7 +268,30 @@ const SpecialityAccordionRevamp = ({
   );
 
   const { notify } = useNotify();
-  const totalCount = serviceCount + packageCount;
+
+  const teams = useTeamForPrimaryOrg();
+  const staffNameById = useMemo(() => {
+    return (teams ?? []).reduce((acc: Record<string, string>, member: Team) => {
+      const name = member.name ?? '';
+      if (member.practionerId) acc[member.practionerId] = name;
+      if (member._id) acc[member._id] = name;
+      return acc;
+    }, {});
+  }, [teams]);
+  const leadName = speciality.headVetId ? staffNameById[speciality.headVetId] : undefined;
+  // The design's per-row "Practitioners" cluster: the people who cover this speciality,
+  // lead first. Services have no practitioner list of their own in the catalog model.
+  const practitioners = useMemo<ServicePractitioner[]>(() => {
+    const seen = new Set<string>();
+    return [speciality.headVetId, ...(speciality.teamMemberIds ?? [])].flatMap((id) => {
+      if (!id || seen.has(id)) return [];
+      seen.add(id);
+      const name = staffNameById[id];
+      return name ? [{ id, name }] : [];
+    });
+  }, [speciality.headVetId, speciality.teamMemberIds, staffNameById]);
+  const catalogSummary = `${serviceCount} ${serviceCount === 1 ? 'service' : 'services'} · ${packageCount} ${packageCount === 1 ? 'package' : 'packages'}`;
+  const subtitle = leadName ? `${catalogSummary} · lead ${leadName}` : catalogSummary;
 
   const nameInputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -396,11 +430,17 @@ const SpecialityAccordionRevamp = ({
   };
 
   return (
-    <div className="flex flex-col w-full rounded-2xl border border-card-border">
+    <div
+      className={`flex flex-col w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] ${
+        open
+          ? 'shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]'
+          : 'shadow-[0_1px_2px_var(--sh03)]'
+      }`}
+    >
       <SpecialityAccordionHeader
         speciality={speciality}
         activeTab={activeTab}
-        totalCount={totalCount}
+        subtitle={subtitle}
         open={open}
         editingName={editingName}
         nameInputId={nameInputId}
@@ -439,14 +479,15 @@ const SpecialityAccordionRevamp = ({
           setSearchOpen(false);
         }}
         onSelectSearchResult={handleSearchSelect}
+        onTabChange={setActiveTab}
       />
       {open && (
         <SpecialityAccordionPanel
           speciality={speciality}
           activeTab={activeTab}
+          practitioners={practitioners}
           servicesTabRef={servicesTabRef}
           packagesTabRef={packagesTabRef}
-          onTabChange={setActiveTab}
         />
       )}
 

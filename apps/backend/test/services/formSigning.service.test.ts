@@ -1,18 +1,10 @@
 import { FormSigningService } from "../../src/services/formSigning.service";
-import { FormModel, FormSubmissionModel } from "../../src/models/form";
-import { ParentModel } from "../../src/models/parent";
-import UserModel from "../../src/models/user";
 import { prisma } from "../../src/config/prisma";
-import { isReadFromPostgres } from "../../src/config/read-switch";
 import { DocumensoService } from "../../src/services/documenso.service";
 import {
   createRenderedDocumentRecord,
   signPersistedRenderedDocument,
 } from "../../src/services/rendered-document.service";
-
-jest.mock("../../src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(() => false),
-}));
 
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
@@ -22,7 +14,6 @@ jest.mock("../../src/config/prisma", () => ({
     formSubmission: {
       findUnique: jest.fn(),
       update: jest.fn(),
-      updateMany: jest.fn(),
     },
     parent: {
       findUnique: jest.fn(),
@@ -33,35 +24,8 @@ jest.mock("../../src/config/prisma", () => ({
   },
 }));
 
-jest.mock("../../src/models/form", () => ({
-  FormModel: {
-    findById: jest.fn(),
-  },
-  FormSubmissionModel: {
-    findById: jest.fn(),
-  },
-  FormVersionModel: {
-    findOne: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/parent", () => ({
-  ParentModel: {
-    findById: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/user", () => ({
-  __esModule: true,
-  default: {
-    findOne: jest.fn(),
-  },
-}));
-
 jest.mock("../../src/services/documenso.service", () => ({
   DocumensoService: {
-    createDocument: jest.fn(),
-    distributeDocument: jest.fn(),
     resolveOrganisationApiKey: jest.fn(),
     downloadSignedDocument: jest.fn(),
   },
@@ -72,29 +36,15 @@ jest.mock("../../src/services/rendered-document.service", () => ({
   signPersistedRenderedDocument: jest.fn(),
 }));
 
-const mockedFormSubmissionModel = FormSubmissionModel as unknown as {
-  findById: jest.Mock;
-};
-const mockedFormModel = FormModel as unknown as {
-  findById: jest.Mock;
-};
-const mockedParentModel = ParentModel as unknown as {
-  findById: jest.Mock;
-};
-const mockedUserModel = UserModel as unknown as {
-  findOne: jest.Mock;
-};
 const mockedPrisma = prisma as unknown as {
   form: { findUnique: jest.Mock };
   formSubmission: {
     findUnique: jest.Mock;
     update: jest.Mock;
-    updateMany: jest.Mock;
   };
   parent: { findUnique: jest.Mock };
   user: { findUnique: jest.Mock };
 };
-const mockedReadSwitch = isReadFromPostgres as jest.Mock;
 const mockedDocumensoService = DocumensoService as unknown as {
   resolveOrganisationApiKey: jest.Mock;
   downloadSignedDocument: jest.Mock;
@@ -108,11 +58,10 @@ describe("FormSigningService.startSigning", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.DOCUMENSO_URL = "https://documenso.example";
-    mockedReadSwitch.mockReturnValue(false);
   });
 
   it("rejects parent signing when submission does not belong to the parent", async () => {
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       parentId: "parent-owner",
     });
 
@@ -129,33 +78,26 @@ describe("FormSigningService.startSigning", () => {
   });
 
   it("allows parent signing when submission belongs to the parent", async () => {
-    const save = jest.fn().mockResolvedValue(undefined);
-
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-1" },
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-1",
       parentId: "parent-owner",
       formId: "form-1",
       formVersion: 1,
       signing: { status: "NOT_STARTED" },
       answers: { consent: true },
       submittedAt: new Date("2026-01-01"),
-      save,
     });
 
-    mockedFormModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        name: "Intake",
-        orgId: "org-1",
-        requiredSigner: "CLIENT",
-      }),
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({
+      name: "Intake",
+      orgId: "org-1",
+      requiredSigner: "CLIENT",
     });
 
-    mockedParentModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        email: "parent@example.com",
-        firstName: "Parent",
-        lastName: "One",
-      }),
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce({
+      email: "parent@example.com",
+      firstName: "Parent",
+      lastName: "One",
     });
 
     mockedCreateRenderedDocumentRecord.mockResolvedValueOnce({
@@ -181,6 +123,9 @@ describe("FormSigningService.startSigning", () => {
       signingUrl: "https://documenso.example/sign/recipient-token",
     });
 
+    expect(mockedPrisma.parent.findUnique).toHaveBeenCalledWith({
+      where: { id: "parent-owner" },
+    });
     expect(mockedCreateRenderedDocumentRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Intake",
@@ -203,27 +148,32 @@ describe("FormSigningService.startSigning", () => {
         signerName: "Parent One",
       }),
     );
-    expect(save).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.formSubmission.update).toHaveBeenCalledWith({
+      where: { id: "submission-1" },
+      data: expect.objectContaining({
+        signing: expect.objectContaining({
+          status: "IN_PROGRESS",
+          documentId: "123",
+        }),
+      }),
+    });
   });
 
   it("rejects PMS signing when the caller is not the submission owner", async () => {
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-2" },
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-2",
       formId: "form-2",
       formVersion: 1,
       submittedBy: "submission-owner",
       signing: { status: "NOT_STARTED" },
       answers: { consent: true },
       submittedAt: new Date("2026-01-01"),
-      save: jest.fn(),
     });
 
-    mockedFormModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        name: "Clinical Form",
-        orgId: "org-2",
-        requiredSigner: "VET",
-      }),
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({
+      name: "Clinical Form",
+      orgId: "org-2",
+      requiredSigner: "VET",
     });
 
     await expect(
@@ -239,23 +189,20 @@ describe("FormSigningService.startSigning", () => {
   });
 
   it("rejects PMS signing when the form belongs to another organisation", async () => {
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-2b" },
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-2b",
       formId: "form-2b",
       formVersion: 1,
       submittedBy: "submission-owner",
       signing: { status: "NOT_STARTED" },
       answers: { consent: true },
       submittedAt: new Date("2026-01-01"),
-      save: jest.fn(),
     });
 
-    mockedFormModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        name: "Clinical Form",
-        orgId: "org-owner",
-        requiredSigner: "VET",
-      }),
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({
+      name: "Clinical Form",
+      orgId: "org-owner",
+      requiredSigner: "VET",
     });
 
     await expect(
@@ -272,124 +219,7 @@ describe("FormSigningService.startSigning", () => {
   });
 
   it("allows PMS signing when the caller owns the submission in their org", async () => {
-    const save = jest.fn().mockResolvedValue(undefined);
-
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-2" },
-      formId: "form-2",
-      formVersion: 1,
-      submittedBy: "submission-owner",
-      signing: { status: "NOT_STARTED" },
-      answers: { consent: true },
-      submittedAt: new Date("2026-01-01"),
-      save,
-    });
-
-    mockedFormModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        name: "Clinical Form",
-        orgId: "org-2",
-        requiredSigner: "VET",
-      }),
-    });
-
-    mockedUserModel.findOne.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        email: "owner@example.com",
-        firstName: "Owner",
-        lastName: "User",
-      }),
-    });
-
-    mockedCreateRenderedDocumentRecord.mockResolvedValueOnce({
-      id: "rendered-doc-2",
-      signing: null,
-    });
-    mockedSignPersistedRenderedDocument.mockResolvedValueOnce({
-      id: "rendered-doc-2",
-      signing: {
-        documentId: "456",
-        signingUrl: "https://documenso.example/sign/vet-token",
-      },
-    });
-
-    await expect(
-      FormSigningService.startSigning({
-        submissionId: "submission-2",
-        initiatedBy: "submission-owner",
-        organisationId: "org-2",
-      }),
-    ).resolves.toEqual({
-      documentId: "456",
-      signingUrl: "https://documenso.example/sign/vet-token",
-    });
-
-    expect(mockedUserModel.findOne).toHaveBeenCalledWith({
-      userId: "submission-owner",
-    });
-    expect(mockedCreateRenderedDocumentRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Clinical Form",
-        source: expect.objectContaining({
-          sourceKind: "FORM_SUBMISSION",
-          sourceId: "submission-2",
-          organisationId: "org-2",
-          templateKind: "FORM",
-          templateId: "form-2",
-          templateVersion: 1,
-        }),
-      }),
-    );
-    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledWith(
-      expect.objectContaining({
-        renderedDocumentId: "rendered-doc-2",
-        organisationId: "org-2",
-        signerType: "PMS_USER",
-        signerEmail: "owner@example.com",
-        signerName: "Owner User",
-      }),
-    );
-  });
-
-  it("rejects parent signing when the required signer does not match", async () => {
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-3" },
-      parentId: "parent-owner",
-      formId: "form-3",
-      formVersion: 1,
-      signing: { status: "NOT_STARTED" },
-      submittedBy: "submission-owner",
-      save: jest.fn(),
-    });
-
-    mockedFormModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        name: "Intake",
-        orgId: "org-3",
-        requiredSigner: "VET",
-      }),
-    });
-
-    mockedParentModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        email: "parent@example.com",
-        firstName: "Parent",
-        lastName: "One",
-      }),
-    });
-
-    await expect(
-      FormSigningService.startSigning({
-        isParent: true,
-        submissionId: "submission-3",
-        initiatedBy: "parent-owner",
-      }),
-    ).rejects.toThrow("Form requires vet signature");
-  });
-
-  it("starts signing in the postgres branch and persists the document id", async () => {
-    mockedReadSwitch.mockReturnValue(true);
-    mockedPrisma.formSubmission.findUnique.mockResolvedValue({
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
       id: "submission-4",
       formId: "form-4",
       formVersion: 2,
@@ -397,16 +227,19 @@ describe("FormSigningService.startSigning", () => {
       parentId: null,
       signing: { status: "NOT_STARTED" },
     });
-    mockedPrisma.form.findUnique.mockResolvedValue({
+
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({
       name: "Pg Intake",
       orgId: "org-pg",
       requiredSigner: "VET",
     });
-    mockedPrisma.user.findUnique.mockResolvedValue({
+
+    mockedPrisma.user.findUnique.mockResolvedValueOnce({
       email: "vet@example.com",
       firstName: "Vet",
       lastName: "User",
     });
+
     mockedCreateRenderedDocumentRecord.mockResolvedValueOnce({
       id: "rendered-doc-4",
       signing: null,
@@ -430,6 +263,31 @@ describe("FormSigningService.startSigning", () => {
       signingUrl: "https://documenso.example/sign/pg-token",
     });
 
+    expect(mockedPrisma.user.findUnique).toHaveBeenCalledWith({
+      where: { userId: "user-4" },
+    });
+    expect(mockedCreateRenderedDocumentRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Pg Intake",
+        source: expect.objectContaining({
+          sourceKind: "FORM_SUBMISSION",
+          sourceId: "submission-4",
+          organisationId: "org-pg",
+          templateKind: "FORM",
+          templateId: "form-4",
+          templateVersion: 2,
+        }),
+      }),
+    );
+    expect(mockedSignPersistedRenderedDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        renderedDocumentId: "rendered-doc-4",
+        organisationId: "org-pg",
+        signerType: "PMS_USER",
+        signerEmail: "vet@example.com",
+        signerName: "Vet User",
+      }),
+    );
     expect(mockedPrisma.formSubmission.update).toHaveBeenCalledWith({
       where: { id: "submission-4" },
       data: expect.objectContaining({
@@ -441,17 +299,40 @@ describe("FormSigningService.startSigning", () => {
     });
   });
 
-  it("returns the signed PDF in the mongo branch", async () => {
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-5" },
+  it("rejects parent signing when the required signer does not match", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-3",
+      parentId: "parent-owner",
+      formId: "form-3",
+      formVersion: 1,
+      signing: { status: "NOT_STARTED" },
+      submittedBy: "submission-owner",
+    });
+
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({
+      name: "Intake",
+      orgId: "org-3",
+      requiredSigner: "VET",
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        isParent: true,
+        submissionId: "submission-3",
+        initiatedBy: "parent-owner",
+      }),
+    ).rejects.toThrow("Form requires vet signature");
+  });
+
+  it("returns the signed PDF for a signed submission", async () => {
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-5",
       formId: "form-5",
       submittedBy: "user-5",
       signing: { status: "SIGNED", documentId: "555" },
     });
-    mockedFormModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        orgId: "org-5",
-      }),
+    mockedPrisma.form.findUnique.mockResolvedValueOnce({
+      orgId: "org-5",
     });
     mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValue(
       "api-key-5",
@@ -470,8 +351,8 @@ describe("FormSigningService.startSigning", () => {
   });
 
   it("rejects unsigned submissions when fetching signed documents", async () => {
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-6" },
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-6",
       formId: "form-6",
       signing: { status: "IN_PROGRESS", documentId: "666" },
     });
@@ -482,19 +363,11 @@ describe("FormSigningService.startSigning", () => {
   });
 
   it("rejects signed submissions without a document id", async () => {
-    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
-      _id: { toString: () => "submission-7" },
+    mockedPrisma.formSubmission.findUnique.mockResolvedValueOnce({
+      id: "submission-7",
       formId: "form-7",
       signing: { status: "SIGNED" },
     });
-    mockedFormModel.findById.mockReturnValueOnce({
-      lean: jest.fn().mockResolvedValue({
-        orgId: "org-7",
-      }),
-    });
-    mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValue(
-      "api-key-7",
-    );
 
     await expect(
       FormSigningService.getSignedDocument({ submissionId: "submission-7" }),

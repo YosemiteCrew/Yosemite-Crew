@@ -1,6 +1,8 @@
 import React from 'react';
-import {render} from '@testing-library/react-native';
+import {act, fireEvent, render, waitFor} from '@testing-library/react-native';
 import {CreateAccountScreen} from '@/features/auth/screens/CreateAccountScreen';
+import {createParentProfile} from '@/features/account/services/profileService';
+import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 import {mockTheme} from '../../setup/mockTheme';
 
 jest.mock('@/assets/images', () => ({
@@ -63,6 +65,10 @@ jest.mock('@/features/auth/context/AuthContext', () => ({
 jest.mock('@/features/account/services/profileService', () => ({
   createParentProfile: jest.fn(),
   updateParentProfile: jest.fn(),
+}));
+
+jest.mock('@/features/auth/sessionManager', () => ({
+  getFreshStoredTokens: jest.fn(),
 }));
 
 jest.mock('@/shared/services/uploadService', () => ({
@@ -166,11 +172,15 @@ jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => {
     const mockReact = jest.requireActual('react');
-    return mockReact.forwardRef(({title}: {title: string}, _ref: unknown) =>
-      (() => {
-        const RN = jest.requireActual('react-native');
-        return <RN.Text>{title}</RN.Text>;
-      })(),
+    return mockReact.forwardRef(
+      (
+        {title, onPress}: {title: string; onPress?: () => void},
+        _ref: unknown,
+      ) =>
+        (() => {
+          const RN = jest.requireActual('react-native');
+          return <RN.Text onPress={onPress}>{title}</RN.Text>;
+        })(),
     );
   },
 );
@@ -194,9 +204,14 @@ jest.mock('@/shared/components/forms/AddressFields', () => ({
 }));
 
 jest.mock('@/shared/components/common/Checkbox/Checkbox', () => ({
-  Checkbox: () => {
+  Checkbox: ({onValueChange}: {onValueChange?: (v: boolean) => void}) => {
     const RN = jest.requireActual('react-native');
-    return <RN.View />;
+    return (
+      <RN.TouchableOpacity
+        testID="accept-terms"
+        onPress={() => onValueChange?.(true)}
+      />
+    );
   },
 }));
 
@@ -240,5 +255,130 @@ describe('CreateAccountScreen', () => {
         'If you cannot confirm that you are 18 or older, you will not be able to create an account.',
       ),
     ).toBeTruthy();
+  });
+
+  describe('profile submission', () => {
+    const navigation = {
+      navigate: jest.fn(),
+      reset: jest.fn(),
+      setParams: jest.fn(),
+    };
+
+    const buildRoute = () => ({
+      params: {
+        email: 'test@example.com',
+        userId: 'user-1',
+        profileToken: null,
+        tokens: {
+          accessToken: 'provider-access-token',
+          idToken: 'id-token',
+          provider: 'supertokens',
+        },
+        initialAttributes: {
+          firstName: 'Ann',
+          lastName: 'Lee',
+          phone: '+15551234567',
+        },
+        hasRemoteProfile: false,
+        existingParentProfile: undefined,
+        showOtpSuccess: false,
+      },
+    });
+
+    const submitProfile = async () => {
+      const utils = render(
+        <CreateAccountScreen
+          navigation={navigation as any}
+          route={buildRoute() as any}
+        />,
+      );
+
+      await act(async () => {
+        fireEvent.press(utils.getByText('Next'));
+      });
+      await act(async () => {
+        fireEvent.press(utils.getByTestId('accept-terms'));
+      });
+      await act(async () => {
+        // The header carries the same label, so take the footer button.
+        const buttons = utils.getAllByText('Create account');
+        fireEvent.press(buttons[buttons.length - 1]);
+      });
+
+      return utils;
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      (createParentProfile as jest.Mock).mockResolvedValue({id: 'parent-1'});
+    });
+
+    // Social sign-up navigates here before the session is persisted, so stored
+    // tokens are legitimately absent on the very first submit.
+    it('submits with the provider tokens from route params when nothing is stored yet', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue(null);
+
+      await submitProfile();
+
+      await waitFor(() => {
+        expect(createParentProfile).toHaveBeenCalledWith(
+          expect.objectContaining({firstName: 'Ann'}),
+          'provider-access-token',
+        );
+      });
+      expect(navigation.reset).not.toHaveBeenCalled();
+    });
+
+    it('prefers a refreshed stored token over the route param token', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        accessToken: 'refreshed-token',
+      });
+
+      await submitProfile();
+
+      await waitFor(() => {
+        expect(createParentProfile).toHaveBeenCalledWith(
+          expect.anything(),
+          'refreshed-token',
+        );
+      });
+    });
+
+    it('routes back to sign in when no token exists anywhere', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue(null);
+
+      const utils = render(
+        <CreateAccountScreen
+          navigation={navigation as any}
+          route={
+            {
+              params: {
+                ...buildRoute().params,
+                tokens: {provider: 'supertokens'},
+              },
+            } as any
+          }
+        />,
+      );
+
+      await act(async () => {
+        fireEvent.press(utils.getByText('Next'));
+      });
+      await act(async () => {
+        fireEvent.press(utils.getByTestId('accept-terms'));
+      });
+      await act(async () => {
+        const buttons = utils.getAllByText('Create account');
+        fireEvent.press(buttons[buttons.length - 1]);
+      });
+
+      await waitFor(() => {
+        expect(navigation.reset).toHaveBeenCalledWith({
+          index: 0,
+          routes: [{name: 'SignIn'}],
+        });
+      });
+      expect(createParentProfile).not.toHaveBeenCalled();
+    });
   });
 });

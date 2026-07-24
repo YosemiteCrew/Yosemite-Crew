@@ -55,6 +55,49 @@ export const getFormCategoryDisplayLabel = (
   _orgType?: Organisation['type']
 ): string => category;
 
+/**
+ * Categories every org type can use, whatever its speciality. Org-specific
+ * categories (the `Boarder - *` / `Breeder - *` / `Groomer - *` families) are
+ * added on top per org type by `getFormCategoryOptionsForOrgType`.
+ */
+const ORG_AGNOSTIC_FORM_CATEGORIES = new Set<string>([
+  'Consent form',
+  'Prescription',
+  'SOAP',
+  'Discharge Form',
+  'Vitals',
+  'Prescription Template',
+  'Inpatient Schedule',
+  'Task Template',
+  'Custom',
+]);
+
+const ORG_TYPE_CATEGORY_PREFIX: Partial<Record<NonNullable<Organisation['type']>, string>> = {
+  BOARDER: 'Boarder',
+  BREEDER: 'Breeder',
+  GROOMER: 'Groomer',
+};
+
+/**
+ * Single source of truth for which form categories an org may create AND filter
+ * by. Both the builder's Category picker and the Forms list Category filter read
+ * this, so the filter can never drift into offering fewer categories than the
+ * builder can produce.
+ */
+export const getFormCategoryOptionsForOrgType = (
+  orgType?: Organisation['type']
+): FormsCategory[] => {
+  // An unknown org type cannot be narrowed, so offer the whole taxonomy.
+  if (!orgType) return [...FormsCategoryOptions];
+  // HOSPITAL has no category family of its own, so it gets the org-agnostic set.
+  const prefix = ORG_TYPE_CATEGORY_PREFIX[orgType];
+  return FormsCategoryOptions.filter(
+    (category) =>
+      ORG_AGNOSTIC_FORM_CATEGORIES.has(category) ||
+      (prefix !== undefined && category.startsWith(prefix))
+  );
+};
+
 const formsUsageOptions = ['Internal', 'External', 'Internal & External'] as const;
 
 export type FormsUsage = (typeof formsUsageOptions)[number];

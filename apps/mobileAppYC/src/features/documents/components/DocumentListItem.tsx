@@ -14,6 +14,8 @@ export const DocumentListItem: React.FC<DocumentListItemProps> = ({
   onPressEdit,
 }) => {
   const canEdit = document.isUserAdded && !document.uploadedByPmsUserId;
+  const isSynced =
+    Boolean(document.isSynced) || Boolean(document.uploadedByPmsUserId);
   const handleView = () => onPressView(document.id);
   const handleEdit =
     canEdit && onPressEdit ? () => onPressEdit(document.id) : undefined;
@@ -24,6 +26,7 @@ export const DocumentListItem: React.FC<DocumentListItemProps> = ({
       businessName={document.businessName}
       visitType={document.visitType}
       issueDate={document.issueDate}
+      synced={isSynced}
       showEditAction={Boolean(handleEdit)}
       onPressView={handleView}
       onPressEdit={handleEdit}

@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AppointmentCentralModalShell from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentCentralModalShell';
+import BottomSheet from '@/app/ui/layout/PhoneShell/BottomSheet';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
@@ -59,6 +61,7 @@ import {
 } from './addCompanionCentralModalHelpers';
 import AddCompanionViewMode from './AddCompanionViewMode';
 import AddCompanionFormMode from './AddCompanionFormMode';
+import { AddCompanionWizardFooter } from './AddCompanionPresentational';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +80,8 @@ type AddCompanionCentralModalProps = {
 
 type AddCompanionModalState = {
   mode: ModalMode;
+  /** Create-flow wizard step: 1 = patient details, 2 = parent details. */
+  formStep: 1 | 2;
   isSubmitting: boolean;
   savingStatus: boolean;
   pendingStatus: RecordStatus | null;
@@ -116,6 +121,7 @@ const createInitialModalState = (
   selectedCountryCode: CountryDialCodeOption
 ): AddCompanionModalState => ({
   mode,
+  formStep: 1,
   isSubmitting: false,
   savingStatus: false,
   pendingStatus: null,
@@ -170,6 +176,7 @@ const useAddCompanionCentralModalContent = ({
 }: AddCompanionCentralModalProps) => {
   const terminologyText = useCompanionTerminologyText();
   const isFastTrack = formMode === 'fasttrack';
+  const isPhone = useIsPhone();
   const router = useRouter();
   const notifyHook = useNotify();
 
@@ -187,6 +194,7 @@ const useAddCompanionCentralModalContent = ({
   );
   const {
     mode,
+    formStep,
     isSubmitting,
     savingStatus,
     pendingStatus,
@@ -219,6 +227,10 @@ const useAddCompanionCentralModalContent = ({
   );
   const setMode = useCallback(
     (value: React.SetStateAction<ModalMode>) => setModalField('mode', value),
+    [setModalField]
+  );
+  const setFormStep = useCallback(
+    (value: React.SetStateAction<1 | 2>) => setModalField('formStep', value),
     [setModalField]
   );
   const setIsSubmitting = useCallback(
@@ -463,6 +475,27 @@ const useAddCompanionCentralModalContent = ({
     [setCompanionDOB, setCompanionFormData]
   );
 
+  // ── Photo dropzone (design add flow) — store the chosen image as a data URL. ──
+  const handlePhotoSelected = useCallback(
+    (dataUrl: string) => {
+      setCompanionFormData((prev) => ({ ...prev, photoUrl: dataUrl }));
+    },
+    [setCompanionFormData]
+  );
+
+  // ── Sex radios + Neutered checkbox (design add flow) ──
+  const handleSexChange = useCallback(
+    (gender: string, neutered: boolean) => {
+      setCompanionFormData((prev) => ({
+        ...prev,
+        gender: gender as ExtCompanionForValidation['gender'],
+        isneutered: neutered,
+        ageWhenNeutered: neutered ? prev.ageWhenNeutered : '',
+      }));
+    },
+    [setCompanionFormData]
+  );
+
   // ── Species codes ──
   useEffect(() => {
     let mounted = true;
@@ -663,9 +696,26 @@ const useAddCompanionCentralModalContent = ({
     setMode('view');
   };
 
+  // ── Step navigation (create wizard) ──
+  const advanceToParentStep = () => setFormStep(2);
+  const backToPatientStep = () => setFormStep(1);
+
   // ── Submit (create / edit save) ──
   const handleSubmit = async () => {
-    if (!validateParent() || !validateCompanion()) return;
+    // Validate both steps so each step's error state is populated. On the create
+    // wizard, an invalid patient step sends the user back to step 1 to see those
+    // errors; an invalid parent step keeps them on step 2.
+    const companionOk = validateCompanion();
+    const parentOk = validateParent();
+    if (mode === 'create') {
+      if (!companionOk) {
+        setFormStep(1);
+        return;
+      }
+      if (!parentOk) return;
+    } else if (!companionOk || !parentOk) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       const normalizedParent: StoredParent = {
@@ -767,7 +817,171 @@ const useAddCompanionCentralModalContent = ({
     }
   }, [setShowModal, onGoToAppointment, setShowDiscardConfirm]);
 
-  // ────────────────────────────────────────────────────────────────────────────
+  const isCreate = mode === 'create';
+  // Create phone renders as a bottom sheet (design add flow); edit/view keep the
+  // centered modal at every width.
+  const formVariant: 'modal' | 'sheet' = isCreate && isPhone ? 'sheet' : 'modal';
+  const attemptClose = () => {
+    if (canCloseModal()) setShowModal(false);
+  };
+
+  const formModeEl =
+    mode === 'create' || mode === 'edit' ? (
+      <AddCompanionFormMode
+        alertInput={alertInput}
+        alertPriority={alertPriority}
+        breedOptions={breedOptions}
+        clientAlertInput={clientAlertInput}
+        clientAlertPriority={clientAlertPriority}
+        clientAlerts={clientAlerts}
+        companionDOB={companionDOB}
+        companionErrors={companionErrors}
+        companionFormData={companionFormData}
+        companionSearchOptions={companionSearchOptions}
+        formStep={formStep}
+        genderNeuterValue={genderNeuterValue}
+        localPhoneNumber={localPhoneNumber}
+        mode={mode}
+        onAddAlert={addAlert}
+        onAddClientAlert={addClientAlert}
+        onAddressSelect={handleAddressSelect}
+        onCompanionDOBChange={
+          handleCompanionDOBChange as React.Dispatch<React.SetStateAction<Date | null>>
+        }
+        onCompanionSelect={handleCompanionSelect}
+        onCountryCodeSelect={handleCountryCodeSelect}
+        onParentDOBChange={
+          handleParentDOBChange as React.Dispatch<React.SetStateAction<Date | null>>
+        }
+        onParentSelect={handleParentSelect}
+        onPhoneChange={handlePhoneChange}
+        onPhotoSelected={handlePhotoSelected}
+        onRemoveAlert={removeAlert}
+        onRemoveClientAlert={removeClientAlert}
+        onSexChange={handleSexChange}
+        onSubmit={handleSubmit}
+        onUpdateAddressField={updateAddressField}
+        parentDOB={parentDOB}
+        parentErrors={parentErrors}
+        parentFormData={parentFormData}
+        parentSearchOptions={parentSearchOptions}
+        scheduleParentSearch={scheduleParentSearch}
+        selectedCountryCode={selectedCountryCode}
+        setAlertInput={setAlertInput}
+        setAlertPriority={setAlertPriority}
+        setClientAlertInput={setClientAlertInput}
+        setClientAlertPriority={setClientAlertPriority}
+        setCompanionErrors={setCompanionErrors}
+        setCompanionFormData={setCompanionFormData}
+        setMode={setMode}
+        setParentErrors={setParentErrors}
+        setParentFormData={setParentFormData}
+        speciesOptions={speciesOptions}
+        terminologyText={terminologyText}
+        variant={formVariant}
+      />
+    ) : null;
+
+  const renderWizardFooter = (variant: 'modal' | 'sheet') => (
+    <AddCompanionWizardFooter
+      step={formStep}
+      variant={variant}
+      onAdvance={advanceToParentStep}
+      onBack={backToPatientStep}
+      onCancel={attemptClose}
+      onSubmit={handleSubmit}
+      onGoToAppointment={onGoToAppointment}
+      hasUnsavedChanges={hasUnsavedChanges}
+      pendingGoToAppointmentRef={pendingGoToAppointmentRef}
+      setShowDiscardConfirm={setShowDiscardConfirm}
+    />
+  );
+
+  const discardConfirm = (
+    <CenterModal
+      showModal={showDiscardConfirm}
+      setShowModal={setShowDiscardConfirm}
+      containerClassName="shadow-[0_0_40px_0_rgba(0,0,0,0.20)]!"
+    >
+      <div className="flex flex-col gap-4 p-2">
+        <h3
+          style={{
+            fontFamily: 'var(--font-satoshi), sans-serif',
+            fontSize: 18,
+            fontWeight: 500,
+            lineHeight: '120%',
+          }}
+        >
+          Discard changes?
+        </h3>
+        <p
+          style={{
+            fontFamily: 'var(--font-satoshi), sans-serif',
+            fontSize: 14,
+            fontWeight: 400,
+            lineHeight: '120%',
+          }}
+        >
+          You have unsaved changes. Are you sure you want to discard them?
+        </p>
+        <div className="flex gap-3 justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              pendingGoToAppointmentRef.current = false;
+              setShowDiscardConfirm(false);
+            }}
+            className="rounded-2xl border border-input-border-default px-5 py-2.5 hover:bg-card-hover active:bg-card-hover/80 transition-colors"
+            style={{
+              fontFamily: 'var(--font-satoshi), sans-serif',
+              fontSize: 14,
+              fontWeight: 500,
+              lineHeight: '120%',
+            }}
+          >
+            Keep editing
+          </button>
+          <button
+            type="button"
+            onClick={handleDiscardAndClose}
+            className="yc-primary-button rounded-2xl! px-4 py-[11px] font-satoshi text-base font-medium leading-[1.5rem]"
+            onPointerDown={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
+              e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
+            }}
+            onPointerMove={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
+              e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
+            }}
+          >
+            Discard
+          </button>
+        </div>
+      </div>
+    </CenterModal>
+  );
+
+  // ── Phone add-companion: a bottom sheet with the wizard + a sticky step footer.
+  if (isCreate && isPhone) {
+    return (
+      <>
+        <BottomSheet
+          open={showModal}
+          title={modalTitle}
+          onClose={attemptClose}
+          className="yc-add-companion-sheet"
+          footer={renderWizardFooter('sheet')}
+        >
+          <div className="flex flex-col gap-6">{formModeEl}</div>
+        </BottomSheet>
+        {discardConfirm}
+      </>
+    );
+  }
+
+  // ── Desktop / tablet, and all view/edit: the centered modal shell.
   return (
     <>
       <AppointmentCentralModalShell
@@ -779,7 +993,6 @@ const useAddCompanionCentralModalContent = ({
         loadingLabel={terminologyText(getCompanionModalLoadingLabel(savingStatus))}
       >
         <div className="flex flex-col gap-6">
-          {/* ══ VIEW MODE ═══════════════════════════════════════════════════════ */}
           {mode === 'view' && vc && vp && (
             <AddCompanionViewMode
               canEditCompanionStatus={canEditCompanionStatus}
@@ -812,129 +1025,13 @@ const useAddCompanionCentralModalContent = ({
             />
           )}
 
-          {/* ══ CREATE / EDIT FORM ══════════════════════════════════════════════ */}
-          {(mode === 'create' || mode === 'edit') && (
-            <AddCompanionFormMode
-              alertInput={alertInput}
-              alertPriority={alertPriority}
-              breedOptions={breedOptions}
-              clientAlertInput={clientAlertInput}
-              clientAlertPriority={clientAlertPriority}
-              clientAlerts={clientAlerts}
-              companionDOB={companionDOB}
-              companionErrors={companionErrors}
-              companionFormData={companionFormData}
-              companionSearchOptions={companionSearchOptions}
-              genderNeuterValue={genderNeuterValue}
-              hasUnsavedChanges={hasUnsavedChanges}
-              localPhoneNumber={localPhoneNumber}
-              mode={mode}
-              onAddAlert={addAlert}
-              onAddClientAlert={addClientAlert}
-              onAddressSelect={handleAddressSelect}
-              onCompanionDOBChange={
-                handleCompanionDOBChange as React.Dispatch<React.SetStateAction<Date | null>>
-              }
-              onCompanionSelect={handleCompanionSelect}
-              onCountryCodeSelect={handleCountryCodeSelect}
-              onGoToAppointment={onGoToAppointment}
-              onParentDOBChange={
-                handleParentDOBChange as React.Dispatch<React.SetStateAction<Date | null>>
-              }
-              onParentSelect={handleParentSelect}
-              onPhoneChange={handlePhoneChange}
-              onRemoveAlert={removeAlert}
-              onRemoveClientAlert={removeClientAlert}
-              onSubmit={handleSubmit}
-              onUpdateAddressField={updateAddressField}
-              parentDOB={parentDOB}
-              parentErrors={parentErrors}
-              parentFormData={parentFormData}
-              parentSearchOptions={parentSearchOptions}
-              pendingGoToAppointmentRef={pendingGoToAppointmentRef}
-              scheduleParentSearch={scheduleParentSearch}
-              selectedCountryCode={selectedCountryCode}
-              setAlertInput={setAlertInput}
-              setAlertPriority={setAlertPriority}
-              setClientAlertInput={setClientAlertInput}
-              setClientAlertPriority={setClientAlertPriority}
-              setCompanionErrors={setCompanionErrors}
-              setCompanionFormData={setCompanionFormData}
-              setMode={setMode}
-              setParentErrors={setParentErrors}
-              setParentFormData={setParentFormData}
-              setShowDiscardConfirm={setShowDiscardConfirm}
-              speciesOptions={speciesOptions}
-              terminologyText={terminologyText}
-            />
-          )}
+          {formModeEl}
+
+          {isCreate && renderWizardFooter('modal')}
         </div>
       </AppointmentCentralModalShell>
 
-      {/* Discard changes confirmation */}
-      <CenterModal
-        showModal={showDiscardConfirm}
-        setShowModal={setShowDiscardConfirm}
-        containerClassName="shadow-[0_0_40px_0_rgba(0,0,0,0.20)]!"
-      >
-        <div className="flex flex-col gap-4 p-2">
-          <h3
-            style={{
-              fontFamily: 'var(--font-satoshi), sans-serif',
-              fontSize: 18,
-              fontWeight: 500,
-              lineHeight: '120%',
-            }}
-          >
-            Discard changes?
-          </h3>
-          <p
-            style={{
-              fontFamily: 'var(--font-satoshi), sans-serif',
-              fontSize: 14,
-              fontWeight: 400,
-              lineHeight: '120%',
-            }}
-          >
-            You have unsaved changes. Are you sure you want to discard them?
-          </p>
-          <div className="flex gap-3 justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                pendingGoToAppointmentRef.current = false;
-                setShowDiscardConfirm(false);
-              }}
-              className="rounded-2xl border border-input-border-default px-5 py-2.5 hover:bg-card-hover active:bg-card-hover/80 transition-colors"
-              style={{
-                fontFamily: 'var(--font-satoshi), sans-serif',
-                fontSize: 14,
-                fontWeight: 500,
-                lineHeight: '120%',
-              }}
-            >
-              Keep editing
-            </button>
-            <button
-              type="button"
-              onClick={handleDiscardAndClose}
-              className="yc-primary-button rounded-2xl! px-4 py-[11px] font-satoshi text-base font-medium leading-[1.5rem] text-white!"
-              onPointerDown={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-                e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-              }}
-              onPointerMove={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-                e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-              }}
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      </CenterModal>
+      {discardConfirm}
     </>
   );
 };

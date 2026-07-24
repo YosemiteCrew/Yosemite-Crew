@@ -12,7 +12,7 @@ import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
-import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 import OtpDigitFieldset from '@/app/ui/overlays/OtpModal/OtpDigitFieldset';
 import OtpModalHeader from '@/app/ui/overlays/OtpModal/OtpModalHeader';
 import OtpModalFooter from '@/app/ui/overlays/OtpModal/OtpModalFooter';
@@ -93,7 +93,7 @@ const OtpModal = ({
   };
 
   const completeSignedInRedirect = async () => {
-    defaultSidebarToCollapsed();
+    resetSidebarPreference();
     // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
     setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
 
@@ -203,7 +203,7 @@ const OtpModal = ({
       showModal={showVerifyModal}
       setShowModal={setShowVerifyModal}
       canClose={() => false}
-      overlayClassName="fixed inset-0 z-1001 bg-black/50"
+      overlayClassName="fixed inset-0 z-1001 bg-[var(--sh55)] backdrop-blur-[6px]"
       containerClassName="fixed inset-0 z-1001 flex items-center justify-center p-4"
       aria-labelledby={dialogTitleId}
       aria-describedby={dialogDescriptionId}

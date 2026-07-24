@@ -36,7 +36,7 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
         },
         {
           kind: 'single',
-          field: { name: 'quantity', component: 'text', placeholder: 'Qty' },
+          field: { name: 'quantity', component: 'text', placeholder: 'Qty', numeric: true },
         },
         {
           kind: 'single',
@@ -56,12 +56,27 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
           field: {
             name: 'tracking',
             component: 'dropdown',
-            options: ['Track A', 'Track B'],
+            // Object options exercise the pass-through side of the option
+            // normaliser; 'expiryWarningBefore' above keeps the string form.
+            options: [
+              { label: 'Track A', value: 'Track A' },
+              { label: 'Track B', value: 'Track B' },
+            ],
           },
         },
         {
           kind: 'single',
           field: { name: 'litterId', component: 'multiSelect' },
+        },
+        // A dropdown with no options and a date with no placeholder cover the
+        // renderer's fallbacks for optional field config.
+        {
+          kind: 'single',
+          field: { name: 'serial', component: 'dropdown', placeholder: 'Serial' },
+        },
+        {
+          kind: 'single',
+          field: { name: 'nextRefillDate', component: 'date' },
         },
       ],
     },
@@ -97,14 +112,22 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 jest.mock('@/app/ui/inputs/Datepicker', () => ({
   __esModule: true,
   default: ({ currentDate, setCurrentDate, placeholder }: any) => (
-    <input
-      data-testid={`datepicker-${placeholder}`}
-      value={currentDate ? currentDate.toISOString().split('T')[0] : ''}
-      onChange={(e) => {
-        const d = e.target.value ? new Date(e.target.value) : null;
-        setCurrentDate(d);
-      }}
-    />
+    <>
+      <input
+        data-testid={`datepicker-${placeholder}`}
+        value={currentDate ? currentDate.toISOString().split('T')[0] : ''}
+        onChange={(e) => {
+          const d = e.target.value ? new Date(e.target.value) : null;
+          setCurrentDate(d);
+        }}
+      />
+      {/* Drives the updater-function form of setCurrentDate. */}
+      <button
+        type="button"
+        data-testid={`datepicker-updater-${placeholder}`}
+        onClick={() => setCurrentDate((prev: Date | null) => prev ?? new Date(2030, 2, 4))}
+      />
+    </>
   ),
 }));
 
@@ -150,10 +173,13 @@ jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
   __esModule: true,
-  default: ({ title, onClose }: any) => (
+  default: ({ title, meta, eyebrow, actions, onClose }: any) => (
     <div>
+      {eyebrow && <div>{eyebrow}</div>}
       <span>{title}</span>
-      <button data-testid="modal-header-close" onClick={onClose}>
+      {meta && <div>{meta}</div>}
+      {actions}
+      <button type="button" aria-label="close" data-testid="modal-header-close" onClick={onClose}>
         Close Header
       </button>
     </div>
@@ -182,15 +208,6 @@ jest.mock('@/app/ui/widgets/Labels/Labels', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: ({ onClick }: any) => (
-    <button onClick={onClick} data-testid="close-icon">
-      X
-    </button>
-  ),
-}));
-
 jest.mock('@/app/features/inventory/components/InfoSection', () => ({
   __esModule: true,
   default: function MockInfoSection({ ref, onEditingChange, onSaveSection, sectionKey }: any) {
@@ -209,7 +226,14 @@ jest.mock('@/app/features/inventory/components/InfoSection', () => ({
         if (sectionKey === 'stock') data = { current: '5', reorderLevel: '2' };
         if (sectionKey === 'basicInfo_fail') data = { name: '' };
 
-        await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
+        // Swallow rethrown errors here so a failing save surfaced through the
+        // imperative handle doesn't become an unhandled rejection in tests; the
+        // component still runs its own catch/log path before rethrowing.
+        try {
+          await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
+        } catch {
+          /* handled by the component under test */
+        }
       },
       cancel: () => {
         setEditing(false);
@@ -233,6 +257,9 @@ jest.mock('@/app/features/inventory/components/InfoSection', () => ({
           data-testid="simulate-edit-start"
         >
           Edit Section
+        </button>
+        <button onClick={() => onSaveSection(sectionKey, {})} data-testid="simulate-invalid-save">
+          Invalid Save
         </button>
       </div>
     );
@@ -590,7 +617,7 @@ describe('InventoryInfo Component', () => {
   it('closes the modal from the top-right close icon', () => {
     render(<InventoryInfo {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId('close-icon'));
+    fireEvent.click(screen.getByTestId('modal-header-close'));
 
     expect(mockSetShowModal).toHaveBeenCalledWith(false);
   });
@@ -617,7 +644,9 @@ describe('InventoryInfo Component', () => {
       fireEvent.click(screen.getByTestId('primary-btn'));
     });
 
-    fireEvent.click(screen.getByTestId('modal-header-close'));
+    // The drawer and the delete confirmation each render a ModalHeader; the
+    // confirmation's is the second one in the tree.
+    fireEvent.click(screen.getAllByTestId('modal-header-close')[1]);
 
     expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
   });
@@ -656,5 +685,234 @@ describe('InventoryInfo Component', () => {
     expect(consoleSpy).toHaveBeenCalledWith('Failed to unhide inventory item:', expect.any(Error));
 
     consoleSpy.mockRestore();
+  });
+
+  it('clears an existing batch date when the datepicker is emptied', () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    const mfgInputs = screen.getAllByTestId('datepicker-Mfg Date');
+    expect(mfgInputs[0]).toHaveValue('2023-01-01');
+
+    fireEvent.change(mfgInputs[0], { target: { value: '' } });
+
+    expect(screen.getAllByTestId('datepicker-Mfg Date')[0]).toHaveValue('');
+  });
+
+  it('reuses the editable batch snapshot when re-entering edit mode', () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+
+    // First edit-click seeds editableExistingBatches; the second re-enters editing
+    // while that snapshot already exists, exercising the reuse branch.
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    expect(screen.getByText('Add new batches')).toBeInTheDocument();
+  });
+
+  it('cancels an in-progress batch edit from the secondary action', () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    // The batch tab also renders an "Add another batch" secondary, so target the
+    // modal footer action (which reads "Cancel" while a batch edit is active).
+    const footerCancel = screen
+      .getAllByTestId('secondary-btn')
+      .find((btn) => btn.textContent === 'Cancel');
+    expect(footerCancel).toBeDefined();
+
+    fireEvent.click(footerCancel as HTMLElement);
+
+    const footerClose = screen
+      .getAllByTestId('secondary-btn')
+      .find((btn) => btn.textContent === 'Close');
+    expect(footerClose).toBeDefined();
+    expect(screen.queryByText('Add new batches')).not.toBeInTheDocument();
+  });
+
+  it('logs a validation failure and skips the update for an invalid standard section', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const emptyBasicInfo = {
+      ...activeInventory,
+      basicInfo: { ...activeInventory.basicInfo, name: '', category: '' },
+    } as any;
+
+    render(<InventoryInfo {...defaultProps} activeInventory={emptyBasicInfo} />);
+    fireEvent.click(screen.getByTestId('simulate-edit-start'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('simulate-invalid-save'));
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[Inventory] Validation failed for basicInfo',
+      expect.any(String)
+    );
+    expect(mockOnUpdate).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('logs and rethrows when the standard section update fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockOnUpdate.mockRejectedValueOnce(new Error('Update failed'));
+
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('simulate-edit-start'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to update inventory section:',
+      expect.any(Error)
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('resets the open key when the modal is closed', () => {
+    const { rerender } = render(<InventoryInfo {...defaultProps} />);
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
+
+    rerender(<InventoryInfo {...defaultProps} showModal={false} />);
+
+    expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
+  });
+
+  it('resolves an updater function passed to a batch datepicker', () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    // Index 1 is the new batch, whose manufacture date is still empty, so the
+    // updater is handed a null previous value and supplies its own date.
+    fireEvent.click(screen.getAllByTestId('datepicker-updater-Mfg Date')[1]);
+
+    expect(screen.getAllByTestId('datepicker-Mfg Date')[1]).toHaveValue('2030-03-04');
+  });
+
+  it('falls back to the single batch when the item has no batch list', async () => {
+    const noBatchesItem = { ...activeInventory, batches: undefined } as any;
+    const { unmount } = render(<InventoryInfo {...defaultProps} activeInventory={noBatchesItem} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    expect(screen.getByText('Existing batch 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    // The fallback batch carries no _id, so it is matched positionally against
+    // the original and reports no change.
+    expect(mockOnUpdateBatch).not.toHaveBeenCalled();
+    unmount();
+
+    const emptyBatchesItem = { ...activeInventory, batches: [] } as any;
+    render(<InventoryInfo {...defaultProps} activeInventory={emptyBatchesItem} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    expect(screen.getByText('Existing batch 1')).toBeInTheDocument();
+  });
+
+  it('renders no batch fields for a business type without a batch config', () => {
+    render(<InventoryInfo {...defaultProps} businessType="HOSPITAL" />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+
+    expect(screen.getByText('Existing batch 1')).toBeInTheDocument();
+    expect(screen.queryByTestId('input-quantity')).not.toBeInTheDocument();
+  });
+
+  it('ignores the batch edit control when editing is disabled', () => {
+    render(<InventoryInfo {...defaultProps} canEdit={false} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    expect(screen.queryByText('Add new batches')).not.toBeInTheDocument();
+  });
+
+  it('skips the batch save for an item without an id', async () => {
+    const noIdItem = { ...activeInventory, id: undefined } as any;
+    render(<InventoryInfo {...defaultProps} activeInventory={noIdItem} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    fireEvent.change(screen.getAllByTestId('input-barcode')[0], {
+      target: { value: 'NO-ID-BAR' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(mockOnUpdateBatch).not.toHaveBeenCalled();
+    expect(mockOnAddBatch).not.toHaveBeenCalled();
+  });
+
+  it('saves a section that has no validation handler', async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-vendor'));
+    fireEvent.click(screen.getByTestId('simulate-edit-start'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(mockOnUpdate).toHaveBeenCalledWith(expect.objectContaining({ vendor: {} }));
+  });
+
+  it('ignores a second section save while the first is still in flight', async () => {
+    let resolveUpdate: (() => void) | undefined;
+    mockOnUpdate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUpdate = resolve;
+        })
+    );
+
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('simulate-edit-start'));
+
+    fireEvent.click(screen.getByTestId('primary-btn'));
+    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Saving...');
+
+    // The in-flight save short-circuits any further save attempt.
+    fireEvent.click(screen.getByTestId('simulate-invalid-save'));
+    expect(mockOnUpdate).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveUpdate?.();
+    });
+  });
+
+  it('names the delete confirmation generically for an item without a name', async () => {
+    const unnamed = {
+      ...activeInventory,
+      basicInfo: { ...activeInventory.basicInfo, name: '' },
+    } as any;
+
+    render(<InventoryInfo {...defaultProps} activeInventory={unnamed} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(
+      screen.getByText(/This will remove this item from active inventory/)
+    ).toBeInTheDocument();
+  });
+
+  it('renders the SKU code beside the category in the header', () => {
+    const withSku = {
+      ...activeInventory,
+      basicInfo: { ...activeInventory.basicInfo, skuCode: 'SKU-9' },
+    } as any;
+
+    const { container } = render(<InventoryInfo {...defaultProps} activeInventory={withSku} />);
+
+    expect(container.textContent).toContain('SKU-9');
   });
 });

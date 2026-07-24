@@ -17,14 +17,19 @@ const licenseFileNames = [
   'NOTICE.md',
 ];
 
-const readJson = (filePath) => {
-  const base = path.resolve(appRoot);
+// Resolve a path and ensure it stays within node_modules (path-traversal guard).
+const resolveWithinNodeModules = (filePath) => {
+  const base = path.resolve(nodeModulesRoot);
   const target = path.resolve(filePath);
   const relative = path.relative(base, target);
   if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error('Invalid file path');
   }
-  return JSON.parse(fs.readFileSync(target, 'utf8'));
+  return target;
+};
+
+const readJson = (filePath) => {
+  return JSON.parse(fs.readFileSync(resolveWithinNodeModules(filePath), 'utf8'));
 };
 
 const packageDirs = () => {
@@ -54,13 +59,7 @@ const licenseTextFor = (dir) => {
   for (const name of licenseFileNames) {
     const candidate = path.join(dir, name);
     if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-      const base = path.resolve(nodeModulesRoot);
-      const target = path.resolve(candidate);
-      const relative = path.relative(base, target);
-      if (relative.startsWith('..') || path.isAbsolute(relative)) {
-        throw new Error('Invalid file path');
-      }
-      return fs.readFileSync(target, 'utf8').trim();
+      return fs.readFileSync(resolveWithinNodeModules(candidate), 'utf8').trim();
     }
   }
   return '';

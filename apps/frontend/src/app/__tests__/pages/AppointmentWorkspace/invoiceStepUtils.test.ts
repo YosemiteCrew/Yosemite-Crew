@@ -4,6 +4,7 @@ import {
   buildBillableItems,
   collectSeededBillNames,
   discountCentsFromPercent,
+  getInvoiceErrorMessage,
   moneyToCents,
   normalizeLineName,
   packageToInvoiceCandidate,
@@ -180,6 +181,52 @@ describe('invoiceStepUtils primitives', () => {
     expect(uniqueByName(candidates, new Set(['nail trim']))).toEqual([
       expect.objectContaining({ name: '  Exam ' }),
     ]);
+  });
+});
+
+describe('getInvoiceErrorMessage', () => {
+  const axiosLikeError = (status: number, data: unknown) =>
+    Object.assign(new Error(`Request failed with status code ${status}`), {
+      response: { status, data },
+    });
+
+  it("surfaces the backend's reason instead of the raw axios status text on a 409", () => {
+    const message = getInvoiceErrorMessage(
+      axiosLikeError(409, { message: 'Cannot modify a closed invoice' }),
+      'Unable to process payment.'
+    );
+
+    expect(message).toBe('Cannot modify a closed invoice');
+    expect(message).not.toMatch(/status code/i);
+  });
+
+  it('prefers a nested error.message body', () => {
+    expect(
+      getInvoiceErrorMessage(
+        axiosLikeError(409, { error: { message: 'Invoice has no outstanding balance' } }),
+        'Unable to collect deposit.'
+      )
+    ).toBe('Invoice has no outstanding balance');
+  });
+
+  it('falls back to the caller copy rather than dumping a raw axios message', () => {
+    expect(
+      getInvoiceErrorMessage(axiosLikeError(409, undefined), 'Unable to process payment.')
+    ).toBe('Unable to process payment.');
+    expect(getInvoiceErrorMessage(axiosLikeError(500, { message: '   ' }), 'Fallback copy.')).toBe(
+      'Fallback copy.'
+    );
+  });
+
+  it('keeps a meaningful non-axios Error message', () => {
+    expect(
+      getInvoiceErrorMessage(new Error('Unable to prepare the invoice for sending.'), 'Fallback.')
+    ).toBe('Unable to prepare the invoice for sending.');
+  });
+
+  it('falls back for non-error throwables', () => {
+    expect(getInvoiceErrorMessage('boom', 'Fallback.')).toBe('Fallback.');
+    expect(getInvoiceErrorMessage(null, 'Fallback.')).toBe('Fallback.');
   });
 });
 

@@ -188,6 +188,8 @@ describe('RoomTable Component', () => {
     expect(messages.length).toBeGreaterThanOrEqual(1);
   });
 
+  // Regression: the card wrapper rendered a bare `xl:hidden` (min-width:1280)
+  // alongside a `.table-list`, which DataTable.css hides at max-width:1280.
   it('handles empty hooks gracefully (empty mappings)', () => {
     // FIX: Return empty arrays instead of undefined to prevent crash in 'joinNames'
     mockUseTeam.mockReturnValue([]);

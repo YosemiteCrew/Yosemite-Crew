@@ -1,13 +1,17 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
-import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
+import { requireWebAuth } from "src/middlewares/auth";
+import {
+  requirePermission,
+  withCaseOrgPermissions,
+  withOrgPermissions,
+} from "src/middlewares/rbac";
 import { CaseController } from "src/controllers/web/case-encounter.controller";
 
 const router = Router();
 
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CaseController.create,
@@ -15,23 +19,23 @@ router.post(
 
 router.patch(
   "/:id",
-  authorizeCognito,
-  withOrgPermissions(),
+  requireWebAuth,
+  withCaseOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CaseController.update,
 );
 
 router.get(
   "/:id",
-  authorizeCognito,
-  withOrgPermissions(),
+  requireWebAuth,
+  withCaseOrgPermissions(),
   requirePermission("appointments:view:any"),
   CaseController.getById,
 );
 
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   CaseController.list,

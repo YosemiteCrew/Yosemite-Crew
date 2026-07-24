@@ -10,6 +10,8 @@ import {
   InventoryServiceError,
 } from "src/services/inventory.service";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import { documentWhereForOrg } from "src/services/document-scope";
+import type { OrgRequest } from "src/middlewares/rbac";
 import type {
   ScopedSearchItem,
   ScopedSearchResponse,
@@ -154,19 +156,37 @@ const runSearch = async (
 const searchTemplates = async (
   organisationId: string,
   query: string | null,
+  callerUserId: string,
 ) => {
   const templates = await prisma.template.findMany({
     where: {
       organisationId,
-      ownership: { in: ["ORG_TEMPLATE", "USER_TEMPLATE"] },
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { description: { contains: query, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      AND: [
+        // A USER_TEMPLATE is its owner's private draft; only ORG_TEMPLATEs are
+        // shared across the organisation. Kept under `AND` so the free-text
+        // predicate below cannot displace it.
+        {
+          OR: [
+            { ownership: "ORG_TEMPLATE" },
+            { ownership: "USER_TEMPLATE", ownerUserId: callerUserId },
+          ],
+        },
+        ...(query
+          ? [
+              {
+                OR: [
+                  { name: { contains: query, mode: "insensitive" as const } },
+                  {
+                    description: {
+                      contains: query,
+                      mode: "insensitive" as const,
+                    },
+                  },
+                ],
+              },
+            ]
+          : []),
+      ],
     },
     orderBy: [{ updatedAt: "desc" }],
   });
@@ -229,22 +249,9 @@ const searchDocuments = async (
   organisationId: string,
   query: string | null,
 ) => {
-  const patientLinks = await prisma.patientOrganisation.findMany({
-    where: {
-      organisationId,
-      status: { in: ["ACTIVE", "PENDING"] },
-    },
-    select: { patientId: true },
-  });
-  const patientIds = [...new Set(patientLinks.map((link) => link.patientId))];
-
-  if (!patientIds.length) {
-    return [];
-  }
-
   const documents = await prisma.document.findMany({
     where: {
-      patientId: { in: patientIds },
+      ...documentWhereForOrg(organisationId),
       ...(query
         ? {
             OR: [
@@ -270,7 +277,6 @@ const searchDocuments = async (
       metadata: {
         appointmentId: document.appointmentId,
         patientId: document.patientId,
-        pmsVisible: document.pmsVisible,
       },
     }),
   );
@@ -358,9 +364,19 @@ export const SearchController = {
   async searchTemplates(req: Request, res: Response) {
     try {
       const query = scopedSearchQuerySchema.parse(req.query);
+      // Read from the verified session only: `resolveUserIdFromRequest` falls
+      // back to the client-supplied `x-user-id` header, which would let a
+      // caller name any owner they like.
+      const callerUserId = (req as OrgRequest).userId;
+
+      if (!callerUserId) {
+        return res.status(401).json({ message: "User not authenticated." });
+      }
+
       const items = await searchTemplates(
         req.params.organisationId,
         query.q ?? null,
+        callerUserId,
       );
       return res
         .status(200)

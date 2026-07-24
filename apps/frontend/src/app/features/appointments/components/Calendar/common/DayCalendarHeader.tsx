@@ -1,28 +1,28 @@
-import Next from '@/app/ui/primitives/Icons/Next';
-import Back from '@/app/ui/primitives/Icons/Back';
-
 type DayCalendarHeaderProps = {
   weekday: string;
   dateNumber: string | number;
-  onPrevDay: () => void;
-  onNextDay: () => void;
 };
 
-const DayCalendarHeader = ({
-  weekday,
-  dateNumber,
-  onPrevDay,
-  onNextDay,
-}: DayCalendarHeaderProps) => (
-  <div className="flex items-center justify-between p-2 border-b border-grey-light shrink-0">
-    <Back onClick={onPrevDay} />
-    <div className="flex items-center gap-2 text-center">
-      <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
-      <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-text-brand">
-        {dateNumber}
-      </div>
+/**
+ * Day-column header for the single-day grid. Same recipe as the week grid's day
+ * headers: a --screen-2 band closed by a --hairline rule, carrying an all-caps
+ * 9.5px/700/0.08em --ink-faint label over the 14px/700 date. Day navigation lives
+ * in the header toolbar's date-nav pill, so this strip carries no arrows.
+ */
+const DayCalendarHeader = ({ weekday, dateNumber }: DayCalendarHeaderProps) => (
+  <div
+    className="flex shrink-0 flex-col items-center gap-px border-b px-1 py-2"
+    style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--screen-2)' }}
+  >
+    <div
+      className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
+      style={{ color: 'var(--ink-faint)' }}
+    >
+      {weekday}
     </div>
-    <Next onClick={onNextDay} />
+    <div className="text-[14px] font-bold" style={{ color: 'var(--ink)' }}>
+      {dateNumber}
+    </div>
   </div>
 );
 

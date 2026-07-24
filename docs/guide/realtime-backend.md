@@ -1,5 +1,9 @@
 # Real-Time Sync - Backend Implementation Guide
 
+> Status: not implemented as of 2026-07. No Socket.IO/EventBus code exists in the tree and the listed dependencies are not installed. The Cognito JWT handshake described below must be re-targeted at SuperTokens session verification (see `docs/plans/supertokens-migration.md`) before building.
+>
+> **Tenant isolation:** org rooms carry one organisation's appointments, tasks and invoices. Authenticating the socket establishes identity only - every `join:org` must additionally be authorised against the user's organisation membership, or any logged-in user can subscribe to any org. See the `join:org` handler in `src/realtime/socket.ts` below.
+
 This is the backend half of the real-time sync feature: when any staff member changes an appointment, task, or invoice, every other open browser in the same organisation (org) updates within a couple of hundred milliseconds, with no page reload or polling. This guide covers the server side (event bus + WebSocket push); its companion [realtime-frontend.md](realtime-frontend.md) covers the browser side. The two share one event contract, so read them together. FCM below is Firebase Cloud Messaging, the mobile push service.
 
 > **Stack:** Redis Pub/Sub as event bus · Socket.IO for browser push · Firebase Cloud Messaging (FCM) for mobile (already live)
@@ -122,6 +126,7 @@ import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import logger from 'src/utils/logger';
 import { OrgEvent } from 'src/types/realtime';
+import { UserOrganizationService } from 'src/services/user-organization.service';
 
 const { COGNITO_REGION, COGNITO_USER_POOL_ID, FRONTEND_URL } = process.env;
 
@@ -188,13 +193,31 @@ export function attachSocketIO(httpServer: HttpServer): SocketIOServer {
   io.on('connection', (socket: Socket) => {
     logger.info(`Socket connected: ${socket.id} user: ${socket.data.userId}`);
 
-    // Client sends the orgId it wants to listen to
-    socket.on('join:org', (orgId: string) => {
+    // The client asks for an org, it does not get to assert one. Authenticating
+    // the socket only proves *who* the user is - it says nothing about which
+    // orgs they belong to, so every join MUST be authorised against the user's
+    // membership. Without this check any logged-in user could join
+    // `org:<any-id>` and receive another organisation's appointments, tasks and
+    // invoices.
+    socket.on('join:org', async (orgId: string) => {
       if (typeof orgId !== 'string' || !orgId) return;
+
+      // Resolves both bare and "Organization/<id>" references internally.
+      const mapping = await UserOrganizationService.getMappingByUserAndOrganization(
+        socket.data.userId,
+        orgId.replace(/^Organization\//, '')
+      );
+      if (!mapping) {
+        logger.warn(`Socket ${socket.id} user ${socket.data.userId} denied join for org:${orgId}`);
+        socket.emit('join:denied', { orgId });
+        return;
+      }
+
       socket.join(`org:${orgId}`);
       logger.info(`Socket ${socket.id} joined room org:${orgId}`);
     });
 
+    // Leaving needs no check: a socket can only ever leave its own rooms.
     socket.on('leave:org', (orgId: string) => {
       socket.leave(`org:${orgId}`);
     });

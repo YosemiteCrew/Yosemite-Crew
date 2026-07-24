@@ -1,5 +1,5 @@
-import { renderHook } from '@testing-library/react-native';
-import { usePermissions } from '../../src/shared/hooks/usePermissions';
+import {renderHook} from '@testing-library/react-native';
+import {usePermissions} from '../../src/shared/hooks/usePermissions';
 import * as reactRedux from 'react-redux';
 
 // --- Mocks ---
@@ -14,10 +14,11 @@ describe('usePermissions Hook', () => {
 
   // Helper to verify selectors work correctly
   const mockState = (coParentState: any) => {
-    (reactRedux.useSelector as unknown as jest.Mock).mockImplementation((selector) =>
-      selector({
-        coParent: coParentState,
-      })
+    (reactRedux.useSelector as unknown as jest.Mock).mockImplementation(
+      selector =>
+        selector({
+          coParent: coParentState,
+        }),
     );
   };
 
@@ -29,7 +30,7 @@ describe('usePermissions Hook', () => {
     // Simulate empty state
     mockState(undefined);
 
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
     expect(result.current.role).toBe('');
     expect(result.current.isPrimary).toBe(false);
@@ -39,9 +40,9 @@ describe('usePermissions Hook', () => {
 
   it('uses EMPTY_ACCESS_MAP if accessByCompanionId is undefined', () => {
     // Simulate state where coParent exists but map is missing
-    mockState({ accessByCompanionId: undefined });
+    mockState({accessByCompanionId: undefined});
 
-    const { result } = renderHook(() => usePermissions('some-id'));
+    const {result} = renderHook(() => usePermissions('some-id'));
 
     // Should behave safely and not crash
     expect(result.current.accessForCompanion).toBeNull();
@@ -54,13 +55,13 @@ describe('usePermissions Hook', () => {
   it('prioritizes Companion Access role when ID is provided and found', () => {
     mockState({
       accessByCompanionId: {
-        'comp-1': { role: 'SECONDARY_COMPANION' },
+        'comp-1': {role: 'SECONDARY_COMPANION'},
       },
-      defaultAccess: { role: 'DEFAULT_ROLE' },
+      defaultAccess: {role: 'DEFAULT_ROLE'},
       lastFetchedRole: 'GLOBAL_ROLE',
     });
 
-    const { result } = renderHook(() => usePermissions('comp-1'));
+    const {result} = renderHook(() => usePermissions('comp-1'));
 
     expect(result.current.role).toBe('SECONDARY_COMPANION');
   });
@@ -68,39 +69,46 @@ describe('usePermissions Hook', () => {
   it('falls back to Default Access role if Companion ID not found in map', () => {
     mockState({
       accessByCompanionId: {},
-      defaultAccess: { role: 'DEFAULT_ROLE' },
+      defaultAccess: {role: 'DEFAULT_ROLE'},
       lastFetchedRole: 'GLOBAL_ROLE',
     });
 
     // Requesting 'comp-1' which doesn't exist
-    const { result } = renderHook(() => usePermissions('comp-1'));
+    const {result} = renderHook(() => usePermissions('comp-1'));
 
     expect(result.current.role).toBe('DEFAULT_ROLE');
   });
 
   it('falls back to Default Access role if no ID is provided', () => {
     mockState({
-      accessByCompanionId: { 'comp-1': { role: 'COMP_ROLE' } },
-      defaultAccess: { role: 'DEFAULT_ROLE' },
+      accessByCompanionId: {'comp-1': {role: 'COMP_ROLE'}},
+      defaultAccess: {role: 'DEFAULT_ROLE'},
       lastFetchedRole: 'GLOBAL_ROLE',
     });
 
     // selectedCompanionId is null
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
     expect(result.current.role).toBe('DEFAULT_ROLE');
   });
 
-  it('falls back to Global Role if neither Companion nor Default access exist', () => {
+  it('defaults to deny (empty role) if neither Companion nor Default access exist, ignoring stale lastFetchedRole', () => {
+    // Security regression guard: lastFetchedRole/lastFetchedPermissions belong
+    // to whichever companion's access was fetched last and must never leak in
+    // as a fallback for a companion/context that has no explicit grant.
     mockState({
       accessByCompanionId: {},
       defaultAccess: null,
       lastFetchedRole: 'GLOBAL_ROLE',
+      lastFetchedPermissions: {appointments: true},
     });
 
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
-    expect(result.current.role).toBe('GLOBAL_ROLE');
+    expect(result.current.role).toBe('');
+    expect(result.current.isPrimary).toBe(false);
+    expect(result.current.permissions).toBeUndefined();
+    expect(result.current.canUseAppointments).toBe(false);
   });
 
   // ===========================================================================
@@ -109,12 +117,14 @@ describe('usePermissions Hook', () => {
 
   it('grants all access if role includes "PRIMARY"', () => {
     mockState({
-      lastFetchedRole: 'PRIMARY_OWNER',
-      // Permissions explicitly false/missing to ensure Role overrides them
-      lastFetchedPermissions: { appointments: false },
+      defaultAccess: {
+        role: 'PRIMARY_OWNER',
+        // Permissions explicitly false/missing to ensure Role overrides them
+        permissions: {appointments: false},
+      },
     });
 
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
     expect(result.current.isPrimary).toBe(true);
     expect(result.current.canUseAppointments).toBe(true);
@@ -126,16 +136,18 @@ describe('usePermissions Hook', () => {
 
   it('checks specific permissions if role is NOT Primary', () => {
     mockState({
-      lastFetchedRole: 'SECONDARY',
-      lastFetchedPermissions: {
-        appointments: true,
-        chatWithVet: false,
-        tasks: true,
-        emergencyBasedPermissions: false,
+      defaultAccess: {
+        role: 'SECONDARY',
+        permissions: {
+          appointments: true,
+          chatWithVet: false,
+          tasks: true,
+          emergencyBasedPermissions: false,
+        },
       },
     });
 
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
     expect(result.current.isPrimary).toBe(false);
 
@@ -148,25 +160,26 @@ describe('usePermissions Hook', () => {
 
   it('checkPermission callback returns false if permissions are undefined (and not primary)', () => {
     mockState({
-      lastFetchedRole: 'SECONDARY',
-      lastFetchedPermissions: undefined, // No permissions loaded
+      defaultAccess: {role: 'SECONDARY'}, // No permissions loaded
     });
 
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
     expect(result.current.checkPermission('appointments')).toBe(false);
   });
 
   it('checkPermission callback returns the boolean value of the permission key', () => {
     mockState({
-      lastFetchedRole: 'SECONDARY',
-      lastFetchedPermissions: {
-        documents: true,
-        photos: false,
+      defaultAccess: {
+        role: 'SECONDARY',
+        permissions: {
+          documents: true,
+          photos: false,
+        },
       },
     });
 
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
     expect(result.current.checkPermission('documents')).toBe(true);
     expect(result.current.checkPermission('photos')).toBe(false);
@@ -176,19 +189,17 @@ describe('usePermissions Hook', () => {
   // 4. Branch Coverage (Optional Chaining & Null Coalescing)
   // ===========================================================================
 
-  it('handles null defaultAccess and accessForCompanion correctly for permissions lookup', () => {
-    // This targets the line:
-    // accessForCompanion?.permissions ?? defaultAccess?.permissions ?? globalPermissions
-
+  it('does not fall through to lastFetchedPermissions when defaultAccess and accessForCompanion are absent', () => {
+    // Regression guard for the permissive fallback: permissions must resolve
+    // to undefined (deny), never to another companion's lastFetchedPermissions.
     mockState({
-      lastFetchedPermissions: { appointments: true }, // Global fallback
+      lastFetchedPermissions: {appointments: true},
     });
 
-    const { result } = renderHook(() => usePermissions(null));
+    const {result} = renderHook(() => usePermissions(null));
 
-    // Should fall through to global
-    expect(result.current.permissions).toEqual({ appointments: true });
-    expect(result.current.canUseAppointments).toBe(true);
+    expect(result.current.permissions).toBeUndefined();
+    expect(result.current.canUseAppointments).toBe(false);
   });
 
   it('resolves defaultAccess when ID provided but map lookup fails', () => {
@@ -196,12 +207,12 @@ describe('usePermissions Hook', () => {
     // Specifically where map[id] is undefined, so it takes defaultAccess
     mockState({
       accessByCompanionId: {},
-      defaultAccess: { permissions: { tasks: true } },
+      defaultAccess: {permissions: {tasks: true}},
     });
 
-    const { result } = renderHook(() => usePermissions('missing-id'));
+    const {result} = renderHook(() => usePermissions('missing-id'));
 
-    expect(result.current.permissions).toEqual({ tasks: true });
+    expect(result.current.permissions).toEqual({tasks: true});
     expect(result.current.canUseTasks).toBe(true);
   });
 });

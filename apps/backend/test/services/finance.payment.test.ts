@@ -1,9 +1,16 @@
+import Stripe from "stripe";
 import {
   FinancePaymentError,
   FinancePaymentService,
   __setFinanceStripeClientForTests,
+  resolveStripeConnectedAccountId,
 } from "../../src/services/finance/payment";
 import { prisma } from "src/config/prisma";
+
+jest.mock("stripe", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -21,6 +28,7 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     payment: {
       create: jest.fn(),
@@ -39,6 +47,9 @@ jest.mock("src/config/prisma", () => ({
     financeEvent: {
       create: jest.fn(),
     },
+    workspaceTreatmentItem: {
+      updateMany: jest.fn(),
+    },
   },
 }));
 
@@ -47,8 +58,9 @@ describe("FinancePaymentService", () => {
     jest.resetAllMocks();
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.creditNote.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValue([]);
     __setFinanceStripeClientForTests({
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     });
@@ -215,8 +227,12 @@ describe("FinancePaymentService", () => {
       currency: "usd",
       status: "PENDING",
       paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
       metadata: {},
       payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
     });
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_booking_1",
@@ -224,6 +240,7 @@ describe("FinancePaymentService", () => {
       currency: "usd",
       status: "PENDING",
       paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
       metadata: {},
       payments: [],
     });
@@ -259,6 +276,8 @@ describe("FinancePaymentService", () => {
         chargeId: "ch_booking_1",
         receiptUrl: "https://receipt",
         currency: "usd",
+        amount: 50,
+        connectedAccountId: "acct_1",
       });
 
     expect(prisma.paymentAttempt.update).toHaveBeenCalledWith(
@@ -395,7 +414,7 @@ describe("FinancePaymentService", () => {
       { amount: 30 },
     ]);
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -493,7 +512,7 @@ describe("FinancePaymentService", () => {
       stripeAccountId: "acct_1",
     });
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -570,7 +589,7 @@ describe("FinancePaymentService", () => {
       stripeAccountId: "acct_1",
     });
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -615,7 +634,7 @@ describe("FinancePaymentService", () => {
 
   it("creates a payment intent and records a payment attempt for payable invoices", async () => {
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -657,8 +676,12 @@ describe("FinancePaymentService", () => {
       id: "inv_10",
     });
 
-    const result =
-      await FinancePaymentService.createPaymentIntentForInvoice("inv_10");
+    const result = await FinancePaymentService.createPaymentIntentForInvoice(
+      "inv_10",
+      {
+        organisationId: "org_1",
+      },
+    );
 
     expect(stripeClient.paymentIntents.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -701,7 +724,7 @@ describe("FinancePaymentService", () => {
 
   it("creates booking deposit payment intents when requested by mobile", async () => {
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -735,6 +758,7 @@ describe("FinancePaymentService", () => {
 
     await FinancePaymentService.createPaymentIntentForInvoice(
       "inv_mobile_deposit",
+      { organisationId: "org_1" },
       {
         collectionMode: "DEPOSIT_THEN_SETTLE",
         settlementChannel: "DEPOSIT",
@@ -931,6 +955,7 @@ describe("FinancePaymentService", () => {
   it("normalizes a Stripe payment intent success into invoice payment rows", async () => {
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "inv_webhook_1",
+      organisationId: "org_1",
       totalAmount: 80,
       currency: "usd",
       status: "PENDING",
@@ -938,8 +963,12 @@ describe("FinancePaymentService", () => {
       metadata: {},
       payments: [],
     });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_webhook_1",
+      organisationId: "org_1",
       totalAmount: 80,
       currency: "usd",
       status: "PENDING",
@@ -979,6 +1008,8 @@ describe("FinancePaymentService", () => {
         chargeId: "ch_webhook_1",
         receiptUrl: "https://receipt",
         currency: "usd",
+        amount: 80,
+        connectedAccountId: "acct_1",
       });
 
     expect(prisma.paymentAttempt.update).toHaveBeenCalledWith(
@@ -1007,6 +1038,7 @@ describe("FinancePaymentService", () => {
   it("normalizes a Stripe checkout session completion into invoice payment rows", async () => {
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "inv_webhook_2",
+      organisationId: "org_1",
       totalAmount: 42,
       currency: "usd",
       status: "PENDING",
@@ -1014,8 +1046,12 @@ describe("FinancePaymentService", () => {
       metadata: {},
       payments: [],
     });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_webhook_2",
+      organisationId: "org_1",
       totalAmount: 42,
       currency: "usd",
       status: "PENDING",
@@ -1064,6 +1100,7 @@ describe("FinancePaymentService", () => {
         invoiceId: "inv_webhook_2",
         sessionId: "cs_webhook_2",
         paymentIntentId: "pi_webhook_2",
+        connectedAccountId: "acct_1",
         currency: "usd",
         amountSubtotal: 38,
         amountTotal: 42,
@@ -1158,7 +1195,7 @@ describe("FinancePaymentService", () => {
 
   it("refunds a Stripe-backed invoice payment", async () => {
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -1171,11 +1208,16 @@ describe("FinancePaymentService", () => {
       metadata: {},
       payments: [],
     });
-    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
-      id: "pa_9",
-      invoiceId: "inv_9",
-      providerPaymentIntentId: "pi_9",
-    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "pa_9",
+        invoiceId: "inv_9",
+        providerPaymentIntentId: "pi_9",
+      })
+      .mockResolvedValueOnce({
+        invoiceId: "inv_9",
+        rawProviderPayload: { connectedAccountId: "acct_9" },
+      });
     (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
       latest_charge: { id: "ch_9" },
     });
@@ -1209,12 +1251,15 @@ describe("FinancePaymentService", () => {
       "requested by owner",
     );
 
-    expect(stripeClient.paymentIntents.retrieve).toHaveBeenCalledWith("pi_9", {
-      expand: ["latest_charge"],
-    });
-    expect(stripeClient.refunds.create).toHaveBeenCalledWith({
-      charge: "ch_9",
-    });
+    expect(stripeClient.paymentIntents.retrieve).toHaveBeenCalledWith(
+      "pi_9",
+      { expand: ["latest_charge"] },
+      { stripeAccount: "acct_9" },
+    );
+    expect(stripeClient.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_9" },
+      { stripeAccount: "acct_9" },
+    );
     expect(prisma.refund.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -1459,7 +1504,7 @@ describe("FinancePaymentService", () => {
       stripeAccountId: "acct_1",
     });
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -1520,7 +1565,7 @@ describe("FinancePaymentService", () => {
 
   it("charges the current invoice balance when discounts change the raw item total", async () => {
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -1633,6 +1678,7 @@ describe("FinancePaymentService", () => {
     await expect(
       FinancePaymentService.createPaymentIntentForInvoice(
         "inv_existing_intent",
+        { organisationId: "org_1" },
       ),
     ).resolves.toEqual({
       paymentIntentId: "pi_existing",
@@ -1643,14 +1689,18 @@ describe("FinancePaymentService", () => {
     });
 
     await expect(
-      FinancePaymentService.createPaymentIntentForInvoice("inv_no_balance"),
+      FinancePaymentService.createPaymentIntentForInvoice("inv_no_balance", {
+        organisationId: "org_1",
+      }),
     ).rejects.toMatchObject({
       message: "Invoice has no outstanding balance",
       statusCode: 409,
     });
 
     await expect(
-      FinancePaymentService.createPaymentIntentForInvoice("inv_no_stripe"),
+      FinancePaymentService.createPaymentIntentForInvoice("inv_no_stripe", {
+        organisationId: "org_1",
+      }),
     ).rejects.toMatchObject({
       message: "Organisation does not have a Stripe connected account",
       statusCode: 409,
@@ -1659,7 +1709,7 @@ describe("FinancePaymentService", () => {
 
   it("creates a new payment intent for a reopened invoice with prior succeeded payment", async () => {
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -1695,8 +1745,12 @@ describe("FinancePaymentService", () => {
       id: "inv_reopened",
     });
 
-    const result =
-      await FinancePaymentService.createPaymentIntentForInvoice("inv_reopened");
+    const result = await FinancePaymentService.createPaymentIntentForInvoice(
+      "inv_reopened",
+      {
+        organisationId: "org_1",
+      },
+    );
 
     expect(prisma.paymentAttempt.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1781,7 +1835,7 @@ describe("FinancePaymentService", () => {
 
   it("uses invoice line items when no payments or credits exist", async () => {
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -1881,7 +1935,7 @@ describe("FinancePaymentService", () => {
 
   it("refunds a Stripe payment by id using a string charge id", async () => {
     const stripeClient = {
-      checkout: { sessions: { create: jest.fn() } },
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
       refunds: { create: jest.fn() },
     };
@@ -1896,6 +1950,10 @@ describe("FinancePaymentService", () => {
       invoice: {
         organisationId: "org_1",
       },
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      invoiceId: "inv_stripe_refund",
+      rawProviderPayload: { connectedAccountId: "acct_refund" },
     });
     (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
       latest_charge: "ch_stripe_refund",
@@ -1919,10 +1977,10 @@ describe("FinancePaymentService", () => {
       { amount: 50 },
     );
 
-    expect(stripeClient.refunds.create).toHaveBeenCalledWith({
-      charge: "ch_stripe_refund",
-      amount: 5000,
-    });
+    expect(stripeClient.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_stripe_refund", amount: 5000 },
+      { stripeAccount: "acct_refund" },
+    );
     expect(result.refund.status).toBe("CANCELED");
   });
 
@@ -1992,54 +2050,50 @@ describe("FinancePaymentService", () => {
   });
 
   it("refunds payment-intent and checkout webhook events when invoice lookups succeed", async () => {
-    (prisma.paymentAttempt.findFirst as jest.Mock)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        invoiceId: "inv_pi_lookup",
-      })
-      .mockResolvedValueOnce({
-        invoiceId: "inv_checkout_lookup",
-      });
-    (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
-      invoiceId: "inv_pi_lookup",
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValue({
+      latest_charge: "ch_lookup",
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValue({
+      id: "re_lookup",
+      status: "succeeded",
+      amount: 1000,
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+      stripeAccountId: "acct_lookup",
     });
     (prisma.paymentAttempt.findFirst as jest.Mock)
       .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        invoiceId: "inv_checkout_lookup",
+      })
       .mockResolvedValueOnce(null);
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "inv_pi_lookup",
+      organisationId: "org_1",
       status: "PENDING",
       paymentCollectionMethod: "MANUAL",
       metadata: {},
       payments: [],
     });
-    (prisma.invoice.findUnique as jest.Mock)
-      .mockResolvedValueOnce({
-        id: "inv_pi_lookup",
-        status: "PENDING",
-        paymentCollectionMethod: "MANUAL",
-      })
-      .mockResolvedValueOnce({
-        id: "inv_checkout_lookup",
-        status: "PENDING",
-        paymentCollectionMethod: "MANUAL",
-      });
-    const refundSpy = jest
-      .spyOn(FinancePaymentService, "refundPaymentIntent")
-      .mockResolvedValue({
-        invoice: { id: "inv_pi_lookup" } as any,
-        refund: {
-          refundId: "re_lookup",
-          status: "SUCCEEDED",
-          amountRefunded: 10,
-          paymentId: "pay_lookup",
-        },
-      });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_checkout_lookup",
+      organisationId: "org_1",
+      status: "PENDING",
+      paymentCollectionMethod: "MANUAL",
+    });
 
     await expect(
       FinancePaymentService.handleInvoicePaymentIntentSucceeded({
         invoiceId: "inv_pi_lookup",
         paymentIntentId: "pi_lookup",
+        connectedAccountId: "acct_lookup",
+        amount: 10,
       }),
     ).resolves.toMatchObject({ action: "REFUNDED" });
 
@@ -2047,9 +2101,2588 @@ describe("FinancePaymentService", () => {
       FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
         sessionId: "cs_lookup",
         paymentIntentId: "pi_checkout_lookup",
+        connectedAccountId: "acct_lookup",
+        amountTotal: 10,
       }),
     ).resolves.toMatchObject({ action: "REFUNDED" });
 
-    refundSpy.mockRestore();
+    expect(stripeClient.refunds.create).toHaveBeenCalledTimes(2);
+    expect(stripeClient.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_lookup" },
+      { stripeAccount: "acct_lookup" },
+    );
+  });
+  it("rejects a payment-intent webhook whose event account is not the invoice organisation's", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_evil",
+      organisationId: "org_victim",
+      totalAmount: 500,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_victim",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_evil",
+        paymentIntentId: "pi_evil",
+        amount: 500,
+        connectedAccountId: "acct_attacker",
+      });
+
+    expect(result.action).toBe("ACCOUNT_MISMATCH");
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+    expect(prisma.paymentAttempt.update).not.toHaveBeenCalled();
+  });
+
+  it("refunds a payment-intent webhook that has no active local attempt", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: "ch_unbound",
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_unbound",
+      status: "succeeded",
+      amount: 5000,
+    });
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_unbound",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    // no active attempt binds this payment intent to the invoice
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_unbound",
+        paymentIntentId: "pi_unbound",
+        amount: 50,
+        connectedAccountId: "acct_1",
+      });
+
+    expect(result.action).toBe("REFUNDED");
+    expect(stripeClient.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_unbound" },
+      { stripeAccount: "acct_1" },
+    );
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a payment-intent webhook that reports no captured amount instead of settling the invoice total", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_no_amount",
+      organisationId: "org_1",
+      totalAmount: 900,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_no_amount",
+      settlementChannel: "STRIPE",
+      collectionMode: null,
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_no_amount",
+        paymentIntentId: "pi_no_amount",
+        connectedAccountId: "acct_1",
+      });
+
+    expect(result.action).toBe("MISSING_AMOUNT");
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a checkout session that no longer has an active attempt without rewriting invoice totals", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: "ch_stale",
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_stale",
+      status: "succeeded",
+      amount: 1000,
+    });
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_stale",
+      organisationId: "org_1",
+      totalAmount: 300,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    // the attempt for this session was CANCELED when the invoice amount changed
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_stale",
+        sessionId: "cs_stale",
+        paymentIntentId: "pi_stale",
+        connectedAccountId: "acct_1",
+        amountSubtotal: 10,
+        amountTotal: 10,
+      });
+
+    expect(result.action).toBe("REFUNDED");
+    expect(prisma.invoice.update).not.toHaveBeenCalled();
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("expires the stale checkout session at Stripe when the invoice amount changes", async () => {
+    const stripeClient = {
+      checkout: {
+        sessions: { create: jest.fn(), expire: jest.fn() },
+      },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_expire",
+      organisationId: "org_1",
+      totalAmount: 200,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      taxTotal: 0,
+      items: [{ name: "Consult", quantity: 1, unitPrice: 200, total: 200 }],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "pa_expire",
+        amountRequested: 100,
+        providerCheckoutSessionId: "cs_expire",
+        rawProviderPayload: { connectedAccountId: "acct_expire" },
+      });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_expire",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_new",
+      url: "https://checkout/new",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_new",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_expire",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_expire");
+
+    expect(stripeClient.checkout.sessions.expire).toHaveBeenCalledWith(
+      "cs_expire",
+      {},
+      { stripeAccount: "acct_expire" },
+    );
+    expect(prisma.paymentAttempt.update).toHaveBeenCalledWith({
+      where: { id: "pa_expire" },
+      data: { status: "CANCELED" },
+    });
+  });
+
+  it("expires stale sessions at Stripe when switching a payment-link invoice to a payment intent", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_switch",
+      organisationId: "org_1",
+      parentId: "parent_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      items: [],
+    });
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_link",
+        providerCheckoutSessionId: "cs_link",
+        rawProviderPayload: { connectedAccountId: "acct_link" },
+      },
+    ]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_link",
+    });
+    (stripeClient.paymentIntents.create as jest.Mock).mockResolvedValueOnce({
+      id: "pi_switch",
+      client_secret: "cs_secret",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_switch",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_switch",
+    });
+
+    await FinancePaymentService.createPaymentIntentForInvoice("inv_switch", {
+      organisationId: "org_1",
+    });
+
+    expect(stripeClient.checkout.sessions.expire).toHaveBeenCalledWith(
+      "cs_link",
+      {},
+      { stripeAccount: "acct_link" },
+    );
+    expect(prisma.paymentAttempt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "CANCELED" } }),
+    );
+  });
+
+  it("does not fail the session refresh when Stripe rejects the expiry call", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.expire as jest.Mock).mockRejectedValueOnce(
+      new Error("session already expired"),
+    );
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_expire_fail",
+      organisationId: "org_1",
+      parentId: "parent_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      items: [],
+    });
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_link",
+        providerCheckoutSessionId: "cs_link",
+        rawProviderPayload: { connectedAccountId: "acct_link" },
+      },
+    ]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_link",
+    });
+    (stripeClient.paymentIntents.create as jest.Mock).mockResolvedValueOnce({
+      id: "pi_ok",
+      client_secret: "secret_ok",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_ok",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_expire_fail",
+    });
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_expire_fail", {
+        organisationId: "org_1",
+      }),
+    ).resolves.toMatchObject({ paymentIntentId: "pi_ok" });
+  });
+
+  it("refuses to create a payment intent for an invoice owned by another parent", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_other_parent",
+      organisationId: "org_1",
+      parentId: "parent_owner",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [],
+    });
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_other_parent", {
+        parentId: "parent_attacker",
+      }),
+    ).rejects.toMatchObject({ message: "Invoice not found", statusCode: 404 });
+  });
+
+  it("refuses to create a payment intent for an invoice owned by another organisation", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_other_org",
+      organisationId: "org_owner",
+      parentId: "parent_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [],
+    });
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_other_org", {
+        organisationId: "org_attacker",
+      }),
+    ).rejects.toMatchObject({ message: "Invoice not found", statusCode: 404 });
+  });
+
+  it("refuses to create a payment intent when the caller is bound to no tenant", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_unscoped",
+      organisationId: "org_1",
+      parentId: "parent_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [],
+    });
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_unscoped", {}),
+    ).rejects.toMatchObject({
+      message: "Invoice scope is required",
+      statusCode: 403,
+    });
+  });
+
+  it("returns null when resolving a connected account with no identifiers", async () => {
+    await expect(resolveStripeConnectedAccountId({})).resolves.toBeNull();
+    expect(prisma.paymentAttempt.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects creating a payment attempt for a missing invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.createPaymentAttempt("inv_missing_attempt", {
+        provider: "STRIPE",
+        currency: "usd",
+      }),
+    ).rejects.toMatchObject({ message: "Invoice not found", statusCode: 404 });
+    expect(prisma.paymentAttempt.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a checkout session when the invoice already has a payment intent", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_has_pi",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [{ name: "Consult", unitPrice: 100, quantity: 1 }],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_existing_pi",
+    });
+
+    await expect(
+      FinancePaymentService.createCheckoutSessionForInvoice("inv_has_pi"),
+    ).rejects.toMatchObject({
+      message: "Invoice already has a PaymentIntent",
+      statusCode: 409,
+    });
+  });
+
+  it("rejects a checkout session when the invoice has no outstanding balance", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_paid_off",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      depositCollectedAmount: 0,
+      items: [{ name: "Consult", unitPrice: 100, quantity: 1 }],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 100 },
+    ]);
+
+    await expect(
+      FinancePaymentService.createCheckoutSessionForInvoice("inv_paid_off"),
+    ).rejects.toMatchObject({
+      message: "Invoice has no outstanding balance",
+      statusCode: 409,
+    });
+  });
+
+  it("settles workspace treatment items when a full payment closes the invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_settle_items",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      appointmentId: "appt_settle",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+      visitBillingStage: "DRAFT",
+      depositTargetAmount: 0,
+      depositCollectedAmount: 0,
+      items: [
+        { id: "row_1", name: "Consult" },
+        { id: "row_2", name: "Vaccine" },
+        { name: "line-without-id" },
+      ],
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 100 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_settle",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_settle",
+      amount: 100,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_settle_items",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      depositCollectedAmount: 0,
+    });
+
+    const result = await FinancePaymentService.recordInvoicePayment(
+      "inv_settle_items",
+      {
+        provider: "MANUAL",
+        amount: 100,
+        settlementChannel: "CASH",
+        currency: "usd",
+        receivedAt: new Date("2026-06-18T10:00:00.000Z"),
+      },
+    );
+
+    expect(prisma.workspaceTreatmentItem.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          appointmentId: "appt_settle",
+          invoiceRowId: { in: ["row_1", "row_2"] },
+        }),
+        data: expect.objectContaining({
+          settledInvoiceId: "inv_settle_items",
+          settledAt: new Date("2026-06-18T10:00:00.000Z"),
+        }),
+      }),
+    );
+    expect(result.invoice.status).toBe("PAID");
+    expect(result.balanceAfterPayment).toBe(0);
+  });
+
+  it("still reports REFUNDED when the unbound payment intent has no charge to refund", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: null,
+    });
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_nocharge",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_nocharge",
+        paymentIntentId: "pi_nocharge",
+        amount: 50,
+        connectedAccountId: "acct_1",
+      });
+
+    expect(result.action).toBe("REFUNDED");
+    expect(stripeClient.refunds.create).not.toHaveBeenCalled();
+  });
+
+  it("still reports REFUNDED when refunding the unbound payment intent throws", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockRejectedValueOnce(
+      new Error("stripe unavailable"),
+    );
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_boom",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_boom",
+        paymentIntentId: "pi_boom",
+        amount: 50,
+        connectedAccountId: "acct_1",
+      });
+
+    expect(result.action).toBe("REFUNDED");
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("returns ALREADY_PAID after locating the invoice via its payment intent attempt", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      invoiceId: "inv_by_pi",
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_by_pi",
+      status: "PAID",
+      organisationId: "org_1",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        paymentIntentId: "pi_by_attempt",
+        amount: 50,
+      });
+
+    expect(result.action).toBe("ALREADY_PAID");
+    expect(prisma.paymentAttempt.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { providerPaymentIntentId: "pi_by_attempt" },
+      }),
+    );
+  });
+
+  it("locates the invoice via a stored payment when no attempt matches the intent", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
+      invoiceId: "inv_by_payment",
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_by_payment",
+      status: "PAID",
+      organisationId: "org_1",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        paymentIntentId: "pi_only_payment",
+        amount: 50,
+      });
+
+    expect(result.action).toBe("ALREADY_PAID");
+    expect(prisma.payment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { providerPaymentId: "pi_only_payment" },
+      }),
+    );
+  });
+
+  it("maps failed and pending Stripe refund statuses onto the local refund", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock)
+      .mockResolvedValueOnce({ latest_charge: "ch_failed" })
+      .mockResolvedValueOnce({ latest_charge: "ch_pending" });
+    (stripeClient.refunds.create as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "re_failed",
+        status: "failed",
+        amount: 5000,
+      })
+      .mockResolvedValueOnce({
+        id: "re_pending",
+        status: "pending",
+        amount: 5000,
+      });
+    (prisma.payment.findUnique as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "pay_failed",
+        invoiceId: "inv_f",
+        provider: "STRIPE",
+        providerPaymentId: "pi_failed",
+        amount: 50,
+        currency: "usd",
+        invoice: { organisationId: "org_1" },
+      })
+      .mockResolvedValueOnce({
+        id: "pay_pending",
+        invoiceId: "inv_p",
+        provider: "STRIPE",
+        providerPaymentId: "pi_pending",
+        amount: 50,
+        currency: "usd",
+        invoice: { organisationId: "org_1" },
+      });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({
+        rawProviderPayload: { connectedAccountId: "acct_f" },
+      })
+      .mockResolvedValueOnce({
+        rawProviderPayload: { connectedAccountId: "acct_p" },
+      });
+    (prisma.refund.create as jest.Mock)
+      .mockResolvedValueOnce({ id: "refund_failed", status: "FAILED" })
+      .mockResolvedValueOnce({ id: "refund_pending", status: "PENDING" });
+    (prisma.payment.update as jest.Mock)
+      .mockResolvedValueOnce({ id: "pay_failed", status: "REFUNDED" })
+      .mockResolvedValueOnce({ id: "pay_pending", status: "REFUNDED" });
+
+    await FinancePaymentService.refundPaymentById("pay_failed", { amount: 50 });
+    await FinancePaymentService.refundPaymentById("pay_pending", {
+      amount: 50,
+    });
+
+    expect(prisma.refund.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
+    expect(prisma.refund.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PENDING" }),
+      }),
+    );
+  });
+
+  it("throws when constructing the Stripe client without a secret key", async () => {
+    __setFinanceStripeClientForTests(null);
+    const previousKey = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_nokey",
+      invoiceId: "inv_nokey",
+      provider: "STRIPE",
+      providerPaymentId: "pi_nokey",
+      amount: 50,
+      currency: "usd",
+      invoice: { organisationId: "org_1" },
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.refundPaymentById("pay_nokey", { amount: 50 }),
+    ).rejects.toThrow("STRIPE_SECRET_KEY is not configured");
+
+    if (previousKey !== undefined) {
+      process.env.STRIPE_SECRET_KEY = previousKey;
+    }
+  });
+
+  it("instantiates a Stripe client from the secret key when none is injected", async () => {
+    __setFinanceStripeClientForTests(null);
+    process.env.STRIPE_SECRET_KEY = "sk_test_ctor";
+    const constructed = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    (Stripe as unknown as jest.Mock).mockImplementation(() => constructed);
+    (constructed.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: "ch_new_client",
+    });
+    (constructed.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_new_client",
+      status: "succeeded",
+      amount: 5000,
+    });
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_new_client",
+      invoiceId: "inv_new_client",
+      provider: "STRIPE",
+      providerPaymentId: "pi_new_client",
+      amount: 50,
+      currency: "usd",
+      invoice: { organisationId: "org_1" },
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_new_client",
+      status: "SUCCEEDED",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_new_client",
+      status: "REFUNDED",
+    });
+
+    const result = await FinancePaymentService.refundPaymentById(
+      "pay_new_client",
+      { amount: 50 },
+    );
+
+    expect(Stripe).toHaveBeenCalledWith(
+      "sk_test_ctor",
+      expect.objectContaining({ apiVersion: expect.any(String) }),
+    );
+    expect(constructed.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_new_client", amount: 5000 },
+      {},
+    );
+    expect(result.refund.providerRefundId).toBe("re_new_client");
+  });
+
+  it("rejects a payment intent for a missing invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_pi_missing", {
+        organisationId: "org_1",
+      }),
+    ).rejects.toMatchObject({ message: "Invoice not found", statusCode: 404 });
+  });
+
+  it("rejects a payment intent for an invoice that is not payable", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_pi_paid",
+      organisationId: "org_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [],
+    });
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_pi_paid", {
+        organisationId: "org_1",
+      }),
+    ).rejects.toMatchObject({
+      message: "Invoice is not payable",
+      statusCode: 409,
+    });
+  });
+
+  it("rejects a payment intent for an in-clinic invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_pi_clinic",
+      organisationId: "org_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      items: [],
+    });
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_pi_clinic", {
+        organisationId: "org_1",
+      }),
+    ).rejects.toMatchObject({
+      message: "Invoice is marked for in-clinic payment",
+      statusCode: 409,
+    });
+  });
+
+  it("cancels a mismatched existing payment intent attempt before creating a new one", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_mismatch",
+      organisationId: "org_1",
+      parentId: "parent_1",
+      patientId: "patient_1",
+      appointmentId: "appt_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_old_intent",
+      providerPaymentIntentId: "pi_old_intent",
+      amountRequested: 40,
+      rawProviderPayload: {
+        clientSecret: "old_secret",
+        connectedAccountId: "acct_old",
+      },
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_new",
+    });
+    (stripeClient.paymentIntents.create as jest.Mock).mockResolvedValueOnce({
+      id: "pi_new_intent",
+      client_secret: "secret_new",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_new_intent",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_mismatch",
+    });
+
+    const result = await FinancePaymentService.createPaymentIntentForInvoice(
+      "inv_mismatch",
+      { organisationId: "org_1" },
+    );
+
+    expect(prisma.paymentAttempt.update).toHaveBeenCalledWith({
+      where: { id: "pa_old_intent" },
+      data: { status: "CANCELED" },
+    });
+    expect(result.paymentIntentId).toBe("pi_new_intent");
+  });
+
+  it("rejects a payment intent when the invoice has no organisation", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_pi_no_org",
+      organisationId: null,
+      parentId: "parent_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.createPaymentIntentForInvoice("inv_pi_no_org", {
+        parentId: "parent_1",
+      }),
+    ).rejects.toMatchObject({
+      message: "Invoice missing organisation",
+      statusCode: 500,
+    });
+  });
+
+  it("rejects refunding a missing invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.refundInvoicePayment("inv_refund_missing_2"),
+    ).rejects.toMatchObject({ message: "Invoice not found", statusCode: 404 });
+  });
+
+  it("rejects refunding a Stripe invoice payment that has no payment intent", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_stripe_no_pi",
+      totalAmount: 90,
+      currency: "usd",
+      status: "PAID",
+      metadata: {},
+      payments: [
+        {
+          id: "pay_stripe_no_pi",
+          provider: "STRIPE",
+          providerPaymentId: null,
+          amount: 90,
+          currency: "usd",
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.refundInvoicePayment("inv_stripe_no_pi"),
+    ).rejects.toMatchObject({
+      message: "Invoice has no Stripe payment intent to refund",
+      statusCode: 409,
+    });
+  });
+
+  it("rejects refunding a Stripe invoice payment when Stripe reports no charge", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: null,
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_no_charge_refund",
+      totalAmount: 90,
+      currency: "usd",
+      status: "PAID",
+      metadata: {},
+      payments: [
+        {
+          id: "pay_no_charge",
+          provider: "STRIPE",
+          providerPaymentId: "pi_no_charge",
+          amount: 90,
+          currency: "usd",
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        invoiceId: "inv_no_charge_refund",
+        rawProviderPayload: { connectedAccountId: "acct_nc" },
+      });
+
+    await expect(
+      FinancePaymentService.refundInvoicePayment("inv_no_charge_refund"),
+    ).rejects.toMatchObject({
+      message: "No charge found for refund",
+      statusCode: 409,
+    });
+  });
+
+  it("rejects refunding all payments when the invoice has none", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(
+      FinancePaymentService.refundInvoicePayments("inv_no_pays"),
+    ).rejects.toMatchObject({
+      message: "Invoice has no refundable payment",
+      statusCode: 409,
+    });
+  });
+
+  it("refunds a payment intent by locating its invoice", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ invoiceId: "inv_pi_refund" })
+      .mockResolvedValueOnce(null);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_pi_refund",
+      totalAmount: 60,
+      currency: "usd",
+      status: "PAID",
+      metadata: {},
+      payments: [
+        {
+          id: "pay_pi_refund",
+          provider: "MANUAL",
+          providerPaymentId: null,
+          amount: 60,
+          currency: "usd",
+        },
+      ],
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_pi",
+      status: "SUCCEEDED",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_pi_refund",
+      status: "REFUNDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_pi_refund",
+      status: "REFUNDED",
+      currency: "usd",
+      payments: [],
+    });
+
+    const result = await FinancePaymentService.refundPaymentIntent(
+      "pi_refund_lookup",
+      "duplicate charge",
+    );
+
+    expect(prisma.paymentAttempt.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { providerPaymentIntentId: "pi_refund_lookup" },
+      }),
+    );
+    expect(result.refund.status).toBe("SUCCEEDED");
+    expect(result.invoice.status).toBe("REFUNDED");
+  });
+
+  it("rejects refunding a payment that is missing its invoice", async () => {
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_no_inv",
+      invoiceId: "inv_x",
+      provider: "MANUAL",
+      amount: 50,
+      currency: "usd",
+      invoice: null,
+    });
+
+    await expect(
+      FinancePaymentService.refundPaymentById("pay_no_inv"),
+    ).rejects.toMatchObject({
+      message: "Payment is missing invoice",
+      statusCode: 500,
+    });
+  });
+
+  it("rejects a refund whose amount is not greater than zero", async () => {
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_zero",
+      invoiceId: "inv_zero",
+      provider: "MANUAL",
+      amount: 50,
+      currency: "usd",
+      invoice: { organisationId: "org_1" },
+    });
+
+    await expect(
+      FinancePaymentService.refundPaymentById("pay_zero", { amount: 0 }),
+    ).rejects.toMatchObject({
+      message: "Refund amount must be greater than zero",
+      statusCode: 400,
+    });
+  });
+
+  it("rejects a Stripe refund by id when the payment has no payment intent", async () => {
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_stripe_no_pi_id",
+      invoiceId: "inv_snp",
+      provider: "STRIPE",
+      providerPaymentId: null,
+      amount: 50,
+      currency: "usd",
+      invoice: { organisationId: "org_1" },
+    });
+
+    await expect(
+      FinancePaymentService.refundPaymentById("pay_stripe_no_pi_id", {
+        amount: 50,
+      }),
+    ).rejects.toMatchObject({
+      message: "Payment has no Stripe payment intent to refund",
+      statusCode: 409,
+    });
+  });
+
+  it("rejects a Stripe refund by id when Stripe reports no charge", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: null,
+    });
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_snc",
+      invoiceId: "inv_snc",
+      provider: "STRIPE",
+      providerPaymentId: "pi_snc",
+      amount: 50,
+      currency: "usd",
+      invoice: { organisationId: "org_1" },
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      rawProviderPayload: { connectedAccountId: "acct_snc" },
+    });
+
+    await expect(
+      FinancePaymentService.refundPaymentById("pay_snc", { amount: 50 }),
+    ).rejects.toMatchObject({
+      message: "No charge found for refund",
+      statusCode: 409,
+    });
+  });
+
+  it("rejects recording a manual payment for a missing invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.recordManualPayment("inv_manual_missing"),
+    ).rejects.toMatchObject({ message: "Invoice not found", statusCode: 404 });
+  });
+
+  it("rejects recording an invoice payment for a missing invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      FinancePaymentService.recordInvoicePayment("inv_rip_missing", {
+        provider: "MANUAL",
+        amount: 10,
+        currency: "usd",
+      }),
+    ).rejects.toMatchObject({ message: "Invoice not found", statusCode: 404 });
+  });
+
+  it("returns a no-op result when the invoice is already fully paid", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_fully_paid",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 100 },
+    ]);
+
+    const result = await FinancePaymentService.recordInvoicePayment(
+      "inv_fully_paid",
+      {
+        provider: "MANUAL",
+        amount: 50,
+        currency: "usd",
+      },
+    );
+
+    expect(result.payment).toBeNull();
+    expect(result.paymentAttempt).toBeNull();
+    expect(result.balanceAfterPayment).toBe(0);
+    expect(result.paidToDate).toBe(100);
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invoice payment whose amount is not greater than zero", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_amount_zero",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(
+      FinancePaymentService.recordInvoicePayment("inv_amount_zero", {
+        provider: "MANUAL",
+        amount: 0,
+        currency: "usd",
+      }),
+    ).rejects.toMatchObject({
+      message: "Payment amount must be greater than zero",
+      statusCode: 400,
+    });
+  });
+
+  it("ignores an unbound payment intent for a payment-link invoice", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_link_ignore",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_link_ignore",
+        paymentIntentId: "pi_link_ignore",
+        amount: 50,
+        connectedAccountId: "acct_1",
+      });
+
+    expect(result.action).toBe("IGNORED");
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("returns ALREADY_PAID for a checkout session on a paid invoice", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_cs_paid",
+      organisationId: "org_1",
+      status: "PAID",
+      metadata: {},
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_cs_paid",
+        sessionId: "cs_paid",
+        amountTotal: 50,
+      });
+
+    expect(result.action).toBe("ALREADY_PAID");
+  });
+
+  it("rejects a checkout session whose event account does not match the invoice organisation", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_cs_mismatch",
+      organisationId: "org_1",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_real",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_cs_mismatch",
+        sessionId: "cs_mismatch",
+        connectedAccountId: "acct_attacker",
+        amountTotal: 50,
+      });
+
+    expect(result.action).toBe("ACCOUNT_MISMATCH");
+  });
+
+  it("ignores a non-payment-link checkout session that carries no payment intent", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_cs_ignore",
+      organisationId: "org_1",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_cs_ignore",
+        sessionId: "cs_ignore",
+        connectedAccountId: "acct_1",
+        amountTotal: 50,
+      });
+
+    expect(result.action).toBe("IGNORED");
+  });
+
+  it("rejects a checkout session that reports no captured total", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_cs_no_total",
+      organisationId: "org_1",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_cs_no_total",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_cs_no_total",
+        sessionId: "cs_no_total",
+        connectedAccountId: "acct_1",
+        amountTotal: 0,
+      });
+
+    expect(result.action).toBe("MISSING_AMOUNT");
+  });
+
+  it("derives the tax amount from the session totals when Stripe omits the tax figure", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_cs_derivetax",
+      organisationId: "org_1",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      taxSnapshot: { taxBehavior: "EXCLUSIVE" },
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_cs_derivetax",
+    });
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_cs_derivetax",
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_cs_derivetax",
+      organisationId: "org_1",
+      totalAmount: 110,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    (prisma.invoice.update as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "inv_cs_derivetax",
+        totalAmount: 110,
+        currency: "usd",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        status: "PENDING",
+        depositCollectedAmount: 0,
+        payments: [],
+      })
+      .mockResolvedValueOnce({
+        id: "inv_cs_derivetax",
+        status: "PAID",
+        totalAmount: 110,
+        currency: "usd",
+        depositCollectedAmount: 0,
+        payments: [],
+      });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_cs_derivetax",
+      amount: 110,
+      status: "SUCCEEDED",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_cs_derivetax",
+        sessionId: "cs_derivetax",
+        connectedAccountId: "acct_1",
+        amountSubtotal: 100,
+        amountTotal: 110,
+      });
+
+    expect(prisma.invoice.update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotal: 100,
+          taxTotal: 10,
+          totalAmount: 110,
+        }),
+      }),
+    );
+    expect(result.action).toBe("PAID");
+  });
+
+  it("marks the invoice refunded even when no matching payment exists", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_refund_no_payment",
+      status: "PAID",
+      metadata: { existing: "value" },
+      payments: [],
+    });
+    (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_refund_no_payment",
+      status: "REFUNDED",
+    });
+
+    const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
+      invoiceId: "inv_refund_no_payment",
+      amount: 25,
+      currency: "usd",
+      reason: "duplicate",
+    });
+
+    expect(result.action).toBe("REFUNDED");
+    expect(prisma.refund.create).not.toHaveBeenCalled();
+    expect(prisma.payment.update).not.toHaveBeenCalled();
+  });
+
+  it("returns ALREADY_REFUNDED when the invoice is already refunded", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_already_refunded",
+      status: "REFUNDED",
+      metadata: {},
+    });
+
+    const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
+      invoiceId: "inv_already_refunded",
+      amount: 10,
+      currency: "usd",
+    });
+
+    expect(result.action).toBe("ALREADY_REFUNDED");
+    expect(prisma.invoice.update).not.toHaveBeenCalled();
+  });
+
+  it("records the payment for an unbound intent when the booking flow allows it", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_allow_unbound",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_allow_unbound",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      depositCollectedAmount: 0,
+      payments: [],
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 50 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_allow_unbound",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_allow_unbound",
+      amount: 50,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_allow_unbound",
+      status: "PAID",
+      totalAmount: 50,
+      currency: "usd",
+      depositCollectedAmount: 0,
+      payments: [],
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_allow_unbound",
+        paymentIntentId: "pi_allow_unbound",
+        amount: 50,
+        connectedAccountId: "acct_1",
+        allowUnboundAttempt: true,
+      });
+
+    expect(result.action).toBe("PAID");
+    expect(prisma.payment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settlementChannel: "STRIPE",
+          providerPaymentId: "pi_allow_unbound",
+          amount: 50,
+        }),
+      }),
+    );
+  });
+
+  it("applies default fields when creating a bare payment attempt", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_bare",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_bare",
+    });
+
+    await FinancePaymentService.createPaymentAttempt("inv_bare", {
+      provider: "STRIPE",
+      currency: "usd",
+    });
+
+    expect(prisma.paymentAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          invoiceId: "inv_bare",
+          provider: "STRIPE",
+          settlementChannel: null,
+          status: "REQUIRES_PAYMENT_METHOD",
+          amountRequested: 0,
+          amountCaptured: 0,
+          amountApplied: 0,
+          collectionMode: null,
+          isOffline: false,
+          isPartial: false,
+        }),
+      }),
+    );
+  });
+
+  it("defaults settlement channel and currency on the create path", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_def_rec",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 30 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_def_rec",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_def_rec",
+      amount: 30,
+      status: "SUCCEEDED",
+    });
+
+    const result = await FinancePaymentService.recordInvoicePayment(
+      "inv_def_rec",
+      { provider: "MANUAL", amount: 30 },
+    );
+
+    expect(prisma.paymentAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settlementChannel: null,
+          currency: "usd",
+          isOffline: true,
+        }),
+      }),
+    );
+    expect(prisma.payment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settlementChannel: null,
+          currency: "usd",
+        }),
+      }),
+    );
+    expect(prisma.financeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({ settlementChannel: null }),
+        }),
+      }),
+    );
+    expect(result.appliedAmount).toBe(30);
+  });
+
+  it("defaults settlement channel and currency on the attempt-update path", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_upd_rec",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 40 }]);
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_upd_rec",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_upd_rec",
+      amount: 40,
+      status: "SUCCEEDED",
+    });
+
+    await FinancePaymentService.recordInvoicePayment("inv_upd_rec", {
+      provider: "STRIPE",
+      amount: 40,
+      paymentAttemptId: "pa_upd_rec",
+    });
+
+    expect(prisma.paymentAttempt.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "pa_upd_rec" },
+        data: expect.objectContaining({
+          settlementChannel: null,
+          currency: "usd",
+          isOffline: false,
+        }),
+      }),
+    );
+  });
+
+  it("defaults manual settlements to cash when no channel is provided", async () => {
+    (prisma.invoice.findUnique as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "inv_man_def",
+        totalAmount: 100,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+      })
+      .mockResolvedValueOnce({
+        id: "inv_man_def",
+        totalAmount: 100,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+      });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 100 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_man_def",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_man_def",
+      amount: 100,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_man_def",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      depositCollectedAmount: 0,
+    });
+
+    await FinancePaymentService.recordManualPayment("inv_man_def");
+
+    expect(prisma.payment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          provider: "MANUAL",
+          settlementChannel: "CASH",
+        }),
+      }),
+    );
+  });
+
+  it("creates a checkout session for an invoice missing optional metadata fields", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_opt",
+      totalAmount: 100,
+      currency: "",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: null,
+      parentId: null,
+      items: [{ name: "Consult", unitPrice: 100, quantity: 1 }],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_opt",
+      url: null,
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_opt",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    const result =
+      await FinancePaymentService.createCheckoutSessionForInvoice("inv_opt");
+
+    expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          appointmentId: "",
+          parentId: "",
+        }),
+        payment_intent_data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            appointmentId: "",
+            parentId: "",
+          }),
+        }),
+        line_items: [
+          expect.objectContaining({
+            price_data: expect.objectContaining({ currency: "usd" }),
+          }),
+        ],
+      }),
+      { stripeAccount: "acct_1" },
+    );
+    expect(prisma.paymentAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          rawProviderPayload: expect.objectContaining({ url: null }),
+        }),
+      }),
+    );
+    expect(result.url).toBeNull();
+  });
+
+  it("rejects a checkout session when invoice items are not an array", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_noarr",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: null,
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+
+    await expect(
+      FinancePaymentService.createCheckoutSessionForInvoice("inv_noarr"),
+    ).rejects.toMatchObject({
+      message: "Invoice items are missing",
+      statusCode: 400,
+    });
+  });
+
+  it("itemises malformed line items with fallback name, price, and quantity", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_malformed",
+      totalAmount: 100,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      items: [{ name: "Consult", unitPrice: 100, quantity: 1 }, {}],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_malformed",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_malformed",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_malformed",
+    );
+
+    expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        automatic_tax: { enabled: true },
+        line_items: [
+          expect.objectContaining({
+            quantity: 1,
+            price_data: expect.objectContaining({
+              unit_amount: 10000,
+              product_data: expect.objectContaining({ name: "Consult" }),
+            }),
+          }),
+          expect.objectContaining({
+            quantity: 1,
+            price_data: expect.objectContaining({
+              unit_amount: 0,
+              product_data: expect.objectContaining({ name: "Service" }),
+            }),
+          }),
+        ],
+      }),
+      { stripeAccount: "acct_1" },
+    );
+  });
+
+  it("reuses an existing payment intent attempt with no stored secret", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_reuse",
+      totalAmount: 50,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      depositCollectedAmount: 0,
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_reuse",
+      amountRequested: null,
+      providerPaymentIntentId: "pi_reuse",
+      rawProviderPayload: null,
+    });
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 50 },
+    ]);
+
+    const result = await FinancePaymentService.createPaymentIntentForInvoice(
+      "inv_reuse",
+      { organisationId: "org_1" },
+    );
+
+    expect(result).toEqual({
+      paymentIntentId: "pi_reuse",
+      clientSecret: null,
+      connectedAccountId: null,
+      amount: 0,
+      currency: "usd",
+    });
+    expect(prisma.organization.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("creates a payment intent defaulting the currency and null client secret", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_defcur",
+      totalAmount: 100,
+      currency: "",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: null,
+      depositCollectedAmount: 0,
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (stripeClient.paymentIntents.create as jest.Mock).mockResolvedValueOnce({
+      id: "pi_defcur",
+      client_secret: null,
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_defcur",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_defcur",
+    });
+
+    const result = await FinancePaymentService.createPaymentIntentForInvoice(
+      "inv_defcur",
+      { organisationId: "org_1" },
+    );
+
+    expect(stripeClient.paymentIntents.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 10000,
+        currency: "usd",
+        metadata: expect.objectContaining({ parentId: "" }),
+      }),
+      { stripeAccount: "acct_1" },
+    );
+    expect(result).toEqual({
+      paymentIntentId: "pi_defcur",
+      clientSecret: null,
+      connectedAccountId: "acct_1",
+      amount: 100,
+      currency: "usd",
+    });
+  });
+
+  it("skips stale checkout attempts without a session id when creating a payment intent", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_stale_noid",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      depositCollectedAmount: 0,
+    });
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "s1", providerCheckoutSessionId: null, rawProviderPayload: null },
+    ]);
+    (prisma.paymentAttempt.updateMany as jest.Mock).mockResolvedValueOnce({
+      count: 1,
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (stripeClient.paymentIntents.create as jest.Mock).mockResolvedValueOnce({
+      id: "pi_stale_noid",
+      client_secret: "cs_stale_noid",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_stale_noid",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_stale_noid",
+    });
+
+    await FinancePaymentService.createPaymentIntentForInvoice(
+      "inv_stale_noid",
+      {
+        organisationId: "org_1",
+      },
+    );
+
+    expect(stripeClient.checkout.sessions.expire).not.toHaveBeenCalled();
+    expect(prisma.paymentAttempt.updateMany).toHaveBeenCalled();
+  });
+
+  it("applies checkout tax with a null subtotal against a zero-total invoice", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_k_tax",
+      organisationId: "org_1",
+      totalAmount: 0,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_k_tax",
+    });
+    (prisma.invoice.update as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "inv_k_tax",
+        currency: "usd",
+        totalAmount: 40,
+      })
+      .mockResolvedValueOnce({
+        id: "inv_k_tax",
+        status: "PAID",
+        totalAmount: 40,
+        currency: "usd",
+        depositCollectedAmount: 0,
+        payments: [],
+      });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_k_tax",
+      totalAmount: 40,
+      currency: "usd",
+      status: "PENDING",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 40 }]);
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_k_tax",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_k_tax",
+      amount: 40,
+      status: "SUCCEEDED",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_k_tax",
+        sessionId: "cs_k_tax",
+        paymentIntentId: "pi_k_tax",
+        connectedAccountId: "acct_1",
+        amountSubtotal: null,
+        amountTotal: 40,
+        amountTax: null,
+        automaticTaxStatus: null,
+      });
+
+    expect(prisma.invoice.update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subtotal: 0,
+          taxTotal: 40,
+          taxPercent: 0,
+          totalAmount: 40,
+        }),
+      }),
+    );
+    expect(result.action).toBe("PAID");
+  });
+
+  it("returns ACCOUNT_MISMATCH when a payment intent event omits the connected account", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_l_mismatch",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_l_mismatch",
+        paymentIntentId: "pi_l_mismatch",
+        amount: 50,
+      });
+
+    expect(result.action).toBe("ACCOUNT_MISMATCH");
+  });
+
+  it("refunds an unbound payment intent whose charge is returned as an object", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: { id: "ch_obj_unbound" },
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_obj_unbound",
+      status: "succeeded",
+      amount: 5000,
+    });
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_obj_unbound",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        invoiceId: "inv_obj_unbound",
+        paymentIntentId: "pi_obj_unbound",
+        amount: 50,
+        connectedAccountId: "acct_1",
+      });
+
+    expect(result.action).toBe("REFUNDED");
+    expect(stripeClient.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_obj_unbound" },
+      { stripeAccount: "acct_1" },
+    );
+  });
+
+  it("returns ACCOUNT_MISMATCH when a checkout event omits the connected account", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_n_mismatch",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_n_mismatch",
+        sessionId: "cs_n_mismatch",
+        amountTotal: 50,
+      });
+
+    expect(result.action).toBe("ACCOUNT_MISMATCH");
+  });
+
+  it("returns MISSING_AMOUNT when a checkout event reports no total", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_o_total",
+      organisationId: "org_1",
+      totalAmount: 50,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_o_total",
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_o_total",
+        sessionId: "cs_o_total",
+        connectedAccountId: "acct_1",
+      });
+
+    expect(result.action).toBe("MISSING_AMOUNT");
+  });
+
+  it("marks an invoice refunded by locating it through the payment intent", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      invoiceId: "inv_p1",
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_p1",
+      status: "PAID",
+      metadata: {},
+    });
+    (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pay_p1",
+      provider: "STRIPE",
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_p1",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_p1",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_p1",
+      status: "REFUNDED",
+    });
+
+    const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
+      paymentIntentId: "pi_p1",
+      chargeId: "ch_p1",
+      amount: 20,
+      currency: "usd",
+      reason: "duplicate",
+    });
+
+    expect(result.action).toBe("REFUNDED");
+  });
+
+  it("marks an invoice refunded with null charge, reason, and metadata", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_p2",
+      status: "PAID",
+      metadata: null,
+    });
+    (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pay_p2",
+      provider: "MANUAL",
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_p2",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_p2",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_p2",
+      status: "REFUNDED",
+    });
+
+    const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
+      invoiceId: "inv_p2",
+      amount: 15,
+      currency: "usd",
+    });
+
+    expect(result.action).toBe("REFUNDED");
+    expect(prisma.refund.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          providerRefundId: null,
+          reason: undefined,
+        }),
+      }),
+    );
+  });
+
+  it("returns NO_INVOICE when a refund webhook has no identifiers", async () => {
+    const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
+      amount: 5,
+      currency: "usd",
+    });
+
+    expect(result.action).toBe("NO_INVOICE");
+  });
+
+  it("fails an invoice located through the payment intent", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      invoiceId: "inv_q1",
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_q1",
+      organisationId: "org_1",
+      status: "PENDING",
+      currency: "usd",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_q1",
+      status: "FAILED",
+    });
+
+    const result = await FinancePaymentService.handleInvoicePaymentFailed({
+      paymentIntentId: "pi_q1",
+    });
+
+    expect(result.action).toBe("FAILED");
+  });
+
+  it("fails a payment with defaulted organisation, entity, and appointment fields", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_q2",
+      organisationId: null,
+      status: "PENDING",
+      currency: "usd",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_q2",
+      status: "FAILED",
+    });
+
+    const result = await FinancePaymentService.handleInvoicePaymentFailed({
+      invoiceId: "inv_q2",
+    });
+
+    expect(result.action).toBe("FAILED");
+    expect(prisma.financeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          entityId: "inv_q2",
+          payload: expect.objectContaining({
+            appointmentId: null,
+            paymentIntentId: null,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("returns NO_INVOICE when a payment-failed event has no identifiers", async () => {
+    const result = await FinancePaymentService.handleInvoicePaymentFailed({});
+
+    expect(result.action).toBe("NO_INVOICE");
+  });
+
+  it("returns NO_INVOICE when a payment intent event has no identifiers", async () => {
+    const result =
+      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+        paymentIntentId: "",
+      });
+
+    expect(result.action).toBe("NO_INVOICE");
+  });
+
+  it("resolves a connected account through the invoice when no id is stored", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      invoiceId: "inv_s",
+      rawProviderPayload: null,
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      organisationId: "org_s",
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: null,
+    });
+
+    await expect(
+      resolveStripeConnectedAccountId({ paymentIntentId: "pi_s" }),
+    ).resolves.toBeNull();
+    expect(prisma.invoice.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "inv_s" } }),
+    );
+  });
+
+  it("resolves to null when the attempt's invoice cannot be found", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      resolveStripeConnectedAccountId({ invoiceId: "inv_s2" }),
+    ).resolves.toBeNull();
+  });
+
+  it("resolves to null when only a payment intent id yields no attempt", async () => {
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      resolveStripeConnectedAccountId({ paymentIntentId: "pi_s3" }),
+    ).resolves.toBeNull();
+    expect(prisma.invoice.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("refunds a Stripe invoice payment using a string charge and null metadata", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_t",
+      totalAmount: 90,
+      currency: "usd",
+      status: "PAID",
+      paidAt: null,
+      metadata: null,
+      payments: [],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ providerPaymentIntentId: "pi_t" })
+      .mockResolvedValueOnce({
+        invoiceId: "inv_t",
+        rawProviderPayload: { connectedAccountId: "acct_t" },
+      });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_t",
+      provider: "STRIPE",
+      amount: 90,
+      currency: "usd",
+    });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: "ch_t_string",
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_t",
+      status: "succeeded",
+      amount: 9000,
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_t",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_t",
+      status: "REFUNDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_t",
+      status: "REFUNDED",
+      currency: "usd",
+      payments: [],
+    });
+
+    const result = await FinancePaymentService.refundInvoicePayment("inv_t");
+
+    expect(stripeClient.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_t_string" },
+      { stripeAccount: "acct_t" },
+    );
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({ amount: 90 }),
+        }),
+      }),
+    );
+    expect(result.refund.amountRefunded).toBe(90);
+    expect(result.invoice.status).toBe("REFUNDED");
+  });
+
+  it("refunds a Stripe payment by id with an object charge, defaulted amount, and null org", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_u",
+      invoiceId: "inv_u",
+      provider: "STRIPE",
+      providerPaymentId: "pi_u",
+      amount: 70,
+      currency: "usd",
+      invoice: { organisationId: null },
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      invoiceId: "inv_u",
+      rawProviderPayload: { connectedAccountId: "acct_u" },
+    });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: { id: "ch_u_obj" },
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_u",
+      status: "succeeded",
+      amount: 7000,
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_u",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_u",
+      status: "REFUNDED",
+    });
+
+    const result = await FinancePaymentService.refundPaymentById("pay_u");
+
+    expect(stripeClient.refunds.create).toHaveBeenCalledWith(
+      { charge: "ch_u_obj", amount: 7000 },
+      { stripeAccount: "acct_u" },
+    );
+    expect(prisma.payment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "REFUNDED" }),
+      }),
+    );
+    expect(prisma.financeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: "PAYMENT_REFUNDED",
+          entityId: "pay_u",
+          payload: expect.objectContaining({ amountRefunded: 70 }),
+        }),
+      }),
+    );
+    expect(result.refund.amountRefunded).toBe(70);
+  });
+
+  it("tracks a deposit when the invoice has no prior collected amount", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_v_dep",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "PAY_AT_VISIT_END",
+      visitBillingStage: "DRAFT",
+      depositTargetAmount: 50,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 25 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_v_dep",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_v_dep",
+      amount: 25,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_v_dep",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      billingCollectionMode: "DEPOSIT_THEN_SETTLE",
+      depositCollectedAmount: 25,
+    });
+
+    await FinancePaymentService.recordInvoicePayment("inv_v_dep", {
+      provider: "MANUAL",
+      amount: 25,
+      settlementChannel: "DEPOSIT",
+      collectionMode: "DEPOSIT_THEN_SETTLE",
+      currency: "usd",
+    });
+
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          depositCollectedAmount: 25,
+          billingCollectionMode: "DEPOSIT_THEN_SETTLE",
+        }),
+      }),
+    );
+  });
+
+  it("reprices a stale checkout attempt that has no recorded amount", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_w",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      items: [{ name: "Consult", unitPrice: 100, quantity: 1 }],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "pa_stale_w",
+        amountRequested: null,
+        providerCheckoutSessionId: "cs_stale_w",
+        rawProviderPayload: { connectedAccountId: "acct_1" },
+      });
+    (stripeClient.checkout.sessions.expire as jest.Mock).mockResolvedValueOnce({
+      id: "cs_stale_w",
+      status: "expired",
+    });
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_stale_w",
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_new_w",
+      url: "https://new",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_new_w",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    const result =
+      await FinancePaymentService.createCheckoutSessionForInvoice("inv_w");
+
+    expect(stripeClient.checkout.sessions.expire).toHaveBeenCalledWith(
+      "cs_stale_w",
+      {},
+      { stripeAccount: "acct_1" },
+    );
+    expect(prisma.paymentAttempt.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "pa_stale_w" },
+        data: { status: "CANCELED" },
+      }),
+    );
+    expect(result.sessionId).toBe("cs_new_w");
   });
 });

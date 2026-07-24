@@ -4,7 +4,7 @@ import { CompanionOrganisationController } from "../../../src/controllers/app/co
 import { CompanionOrganisationService } from "../../../src/services/companion-organisation.service";
 import { ParentService } from "../../../src/services/parent.service";
 import { AuthUserMobileService } from "../../../src/services/authUserMobile.service";
-import OrganizationModel from "../../../src/models/organization";
+import { prisma } from "../../../src/config/prisma";
 import logger from "../../../src/utils/logger";
 
 // ----------------------------------------------------------------------
@@ -21,6 +21,7 @@ jest.mock("../../../src/services/companion-organisation.service", () => {
     CompanionOrganisationService: {
       linkByParent: jest.fn(),
       linkByPmsUser: jest.fn(),
+      assertOrganisationMayLinkCompanion: jest.fn(),
       parentApproveLink: jest.fn(),
       parentRejectLink: jest.fn(),
       sendInvite: jest.fn(),
@@ -36,7 +37,13 @@ jest.mock("../../../src/services/companion-organisation.service", () => {
 
 jest.mock("../../../src/services/parent.service");
 jest.mock("../../../src/services/authUserMobile.service");
-jest.mock("../../../src/models/organization");
+jest.mock("../../../src/config/prisma", () => ({
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
 jest.mock("../../../src/utils/logger");
 
 // Import the REAL class for the test helper to use
@@ -50,7 +57,7 @@ const { CompanionOrganisationServiceError } = jest.requireActual(
 const mockedCompanionService = jest.mocked(CompanionOrganisationService);
 const mockedParentService = jest.mocked(ParentService);
 const mockedAuthUserMobileService = jest.mocked(AuthUserMobileService);
-const mockedOrgModel = jest.mocked(OrganizationModel);
+const mockedPrisma = jest.mocked(prisma);
 const mockedLogger = jest.mocked(logger);
 const validObjectId = "507f1f77bcf86cd799439011";
 
@@ -290,7 +297,7 @@ describe("CompanionOrganisationController", () => {
     it("should return 404 if organisation not found", async () => {
       (req as any).userId = "pms";
       req.params = { patientId: "c1", organisationId: "o1" };
-      mockedOrgModel.findById.mockResolvedValue(null);
+      mockedPrisma.organization.findFirst.mockResolvedValue(null as any);
 
       await CompanionOrganisationController.linkByPmsUser(
         req as Request,
@@ -302,7 +309,9 @@ describe("CompanionOrganisationController", () => {
     it("should return 404 if organisation type invalid", async () => {
       (req as any).userId = "pms";
       req.params = { patientId: "c1", organisationId: "o1" };
-      mockedOrgModel.findById.mockResolvedValue({ type: "INVALID" } as any);
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        type: "INVALID",
+      } as any);
 
       await CompanionOrganisationController.linkByPmsUser(
         req as Request,
@@ -314,7 +323,12 @@ describe("CompanionOrganisationController", () => {
     it("should success (201)", async () => {
       (req as any).userId = "pms";
       req.params = { patientId: "c1", organisationId: "o1" };
-      mockedOrgModel.findById.mockResolvedValue({ type: "GROOMER" } as any);
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        type: "GROOMER",
+      } as any);
+      mockedCompanionService.assertOrganisationMayLinkCompanion.mockResolvedValue(
+        undefined as any,
+      );
       mockedCompanionService.linkByPmsUser.mockResolvedValue({
         id: "l1",
       } as any);
@@ -326,10 +340,31 @@ describe("CompanionOrganisationController", () => {
       expect(statusMock).toHaveBeenCalledWith(201);
     });
 
+    it("does not create a link for a companion the organisation has no relationship with", async () => {
+      (req as any).userId = "pms";
+      req.params = { patientId: "c1", organisationId: "o1" };
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        type: "GROOMER",
+      } as any);
+      mockedCompanionService.assertOrganisationMayLinkCompanion.mockRejectedValueOnce(
+        new CompanionOrganisationServiceError("Forbidden", 403),
+      );
+
+      await CompanionOrganisationController.linkByPmsUser(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(mockedCompanionService.linkByPmsUser).not.toHaveBeenCalled();
+    });
+
     it("should handle service errors", async () => {
       (req as any).userId = "pms";
       req.params = { patientId: "c1", organisationId: "o1" };
-      mockedOrgModel.findById.mockResolvedValue({ type: "GROOMER" } as any);
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        type: "GROOMER",
+      } as any);
 
       mockServiceError("linkByPmsUser", 400);
 
@@ -343,7 +378,9 @@ describe("CompanionOrganisationController", () => {
     it("should handle generic errors", async () => {
       (req as any).userId = "pms";
       req.params = { patientId: "c1", organisationId: "o1" };
-      mockedOrgModel.findById.mockResolvedValue({ type: "GROOMER" } as any);
+      mockedPrisma.organization.findFirst.mockResolvedValue({
+        type: "GROOMER",
+      } as any);
 
       mockGenericError("linkByPmsUser");
 

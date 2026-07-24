@@ -227,6 +227,8 @@ export const TemplateController = {
       const instance = await TemplateService.createInstance({
         ...body,
         templateId: req.params.templateId,
+        organisationId: req.params.organisationId,
+        authorId: resolveUserId(req) || undefined,
       });
       return res.status(201).json(instance);
     } catch (error) {

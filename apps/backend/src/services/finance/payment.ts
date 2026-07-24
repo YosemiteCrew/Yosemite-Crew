@@ -10,6 +10,7 @@ import type {
 } from "@prisma/client";
 import Stripe from "stripe";
 import { prisma } from "src/config/prisma";
+import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
 import { roundMoney } from "./pricing";
 
@@ -27,33 +28,44 @@ type InvoiceFinancialSummary = {
 
 const EMPTY_METADATA = {} as Record<string, unknown>;
 
+export type StripeRequestOptions = { stripeAccount?: string };
+
 type StripeCheckoutSessionClient = {
   checkout: {
     sessions: {
       create: (
         input: Record<string, unknown>,
-        options?: Record<string, unknown>,
+        options?: StripeRequestOptions,
       ) => Promise<{
         id: string;
         url?: string | null;
       }>;
+      expire: (
+        sessionId: string,
+        params?: Record<string, unknown>,
+        options?: StripeRequestOptions,
+      ) => Promise<{ id: string; status?: string | null }>;
     };
   };
   paymentIntents: {
     create: (
       input: Record<string, unknown>,
-      options?: Record<string, unknown>,
+      options?: StripeRequestOptions,
     ) => Promise<{
       id: string;
       client_secret?: string | null;
     }>;
     retrieve: (
       paymentIntentId: string,
-      options?: Record<string, unknown>,
+      params?: Record<string, unknown>,
+      options?: StripeRequestOptions,
     ) => Promise<{ latest_charge?: { id: string } | string | null }>;
   };
   refunds: {
-    create: (input: { charge: string; amount?: number }) => Promise<{
+    create: (
+      input: { charge: string; amount?: number },
+      options?: StripeRequestOptions,
+    ) => Promise<{
       id: string;
       status: string;
       amount: number;
@@ -76,6 +88,31 @@ export class FinancePaymentError extends Error {
     this.name = "FinancePaymentError";
   }
 }
+
+// Callers must state the tenant they act for: PMS routes bind by organisation,
+// mobile routes by pet parent. Passing neither is a programming error, never a
+// wildcard.
+export type InvoiceAccessScope = {
+  organisationId?: string | null;
+  parentId?: string | null;
+};
+
+export const assertInvoiceInScope = (
+  invoice: { organisationId: string | null; parentId: string | null },
+  scope: InvoiceAccessScope,
+) => {
+  if (!scope.organisationId && !scope.parentId) {
+    throw new FinancePaymentError("Invoice scope is required", 403);
+  }
+
+  if (scope.organisationId && invoice.organisationId !== scope.organisationId) {
+    throw new FinancePaymentError("Invoice not found", 404);
+  }
+
+  if (scope.parentId && invoice.parentId !== scope.parentId) {
+    throw new FinancePaymentError("Invoice not found", 404);
+  }
+};
 
 export type PaymentAttemptInput = {
   provider: PrismaPaymentProvider;
@@ -439,6 +476,169 @@ const getCheckoutSessionUrl = (attempt: {
   return readString(payload.url);
 };
 
+const readConnectedAccountId = (payload?: Prisma.JsonValue | null) =>
+  readString(readJsonRecord(payload).connectedAccountId);
+
+const toStripeAccountOptions = (
+  connectedAccountId: string | null,
+): StripeRequestOptions =>
+  connectedAccountId ? { stripeAccount: connectedAccountId } : {};
+
+const resolveOrganisationStripeAccountId = async (
+  organisationId?: string | null,
+) => {
+  if (!organisationId) return null;
+
+  const organisation = await prisma.organization.findUnique({
+    where: { id: organisationId },
+    select: { stripeAccountId: true },
+  });
+
+  return organisation?.stripeAccountId ?? null;
+};
+
+// PaymentIntents and Checkout Sessions are created on the organisation's
+// connected account, so every later call about them (retrieve/refund/expire)
+// must be made against that same account or Stripe reports them as missing.
+export const resolveStripeConnectedAccountId = async (params: {
+  invoiceId?: string | null;
+  paymentIntentId?: string | null;
+  checkoutSessionId?: string | null;
+}): Promise<string | null> => {
+  const attemptFilter: Prisma.PaymentAttemptWhereInput = {
+    ...(params.invoiceId ? { invoiceId: params.invoiceId } : {}),
+    ...(params.paymentIntentId
+      ? { providerPaymentIntentId: params.paymentIntentId }
+      : {}),
+    ...(params.checkoutSessionId
+      ? { providerCheckoutSessionId: params.checkoutSessionId }
+      : {}),
+  };
+
+  if (Object.keys(attemptFilter).length === 0) {
+    return null;
+  }
+
+  const attempt = await prisma.paymentAttempt.findFirst({
+    where: attemptFilter,
+    orderBy: { createdAt: "desc" },
+    select: { invoiceId: true, rawProviderPayload: true },
+  });
+
+  const storedAccountId = readConnectedAccountId(attempt?.rawProviderPayload);
+  if (storedAccountId) {
+    return storedAccountId;
+  }
+
+  const invoiceId = params.invoiceId ?? attempt?.invoiceId ?? null;
+  if (!invoiceId) return null;
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { organisationId: true },
+  });
+
+  return resolveOrganisationStripeAccountId(invoice?.organisationId);
+};
+
+const expireCheckoutSessionAtProvider = async (params: {
+  invoiceId: string;
+  sessionId: string;
+  rawProviderPayload?: Prisma.JsonValue | null;
+}) => {
+  const connectedAccountId =
+    readConnectedAccountId(params.rawProviderPayload) ??
+    (await resolveStripeConnectedAccountId({
+      invoiceId: params.invoiceId,
+      checkoutSessionId: params.sessionId,
+    }));
+
+  try {
+    await getStripeClient().checkout.sessions.expire(
+      params.sessionId,
+      {},
+      toStripeAccountOptions(connectedAccountId),
+    );
+  } catch (error) {
+    // Stripe rejects expiry for sessions it already expired or completed; the
+    // local attempt is cancelled either way and the webhook rejects late pays.
+    logger.warn("Failed to expire stale Stripe checkout session", {
+      invoiceId: params.invoiceId,
+      sessionId: params.sessionId,
+      error,
+    });
+  }
+};
+
+const refundUnboundPaymentIntent = async (params: {
+  paymentIntentId: string;
+  connectedAccountId: string | null;
+  invoiceId: string;
+  context: Record<string, unknown>;
+}) => {
+  const requestOptions = toStripeAccountOptions(params.connectedAccountId);
+
+  try {
+    const stripe = getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      params.paymentIntentId,
+      { expand: ["latest_charge"] },
+      requestOptions,
+    );
+
+    const charge = paymentIntent?.latest_charge;
+    const chargeId = typeof charge === "string" ? charge : (charge?.id ?? null);
+    if (!chargeId) {
+      logger.error("Cannot refund unbound payment intent: no charge found", {
+        ...params.context,
+        invoiceId: params.invoiceId,
+        paymentIntentId: params.paymentIntentId,
+      });
+      return false;
+    }
+
+    await stripe.refunds.create({ charge: chargeId }, requestOptions);
+    logger.warn("Refunded a captured payment with no active local attempt", {
+      ...params.context,
+      invoiceId: params.invoiceId,
+      paymentIntentId: params.paymentIntentId,
+    });
+    return true;
+  } catch (error) {
+    logger.error("Failed to refund unbound payment intent", {
+      ...params.context,
+      invoiceId: params.invoiceId,
+      paymentIntentId: params.paymentIntentId,
+      error,
+    });
+    return false;
+  }
+};
+
+const invoiceMatchesEventAccount = async (
+  invoice: { id: string; organisationId: string | null },
+  connectedAccountId: string | null,
+) => {
+  const expectedAccountId = await resolveOrganisationStripeAccountId(
+    invoice.organisationId,
+  );
+
+  if (!expectedAccountId || expectedAccountId !== connectedAccountId) {
+    logger.error(
+      "Stripe event account does not match the invoice organisation",
+      {
+        invoiceId: invoice.id,
+        organisationId: invoice.organisationId,
+        expectedAccountId,
+        eventAccountId: connectedAccountId,
+      },
+    );
+    return false;
+  }
+
+  return true;
+};
+
 const findInvoiceByPaymentIntentId = async (paymentIntentId: string) => {
   const paymentAttempt = await prisma.paymentAttempt.findFirst({
     where: { providerPaymentIntentId: paymentIntentId },
@@ -612,6 +812,12 @@ export const FinancePaymentService = {
           paymentAttemptId: existingCheckoutAttempt.id,
         };
       }
+
+      await expireCheckoutSessionAtProvider({
+        invoiceId,
+        sessionId: existingCheckoutAttempt.providerCheckoutSessionId,
+        rawProviderPayload: existingCheckoutAttempt.rawProviderPayload,
+      });
 
       await prisma.paymentAttempt.update({
         where: { id: existingCheckoutAttempt.id },
@@ -793,6 +999,7 @@ export const FinancePaymentService = {
 
   async createPaymentIntentForInvoice(
     invoiceId: string,
+    scope: InvoiceAccessScope,
     options: CreatePaymentIntentForInvoiceOptions = {},
   ): Promise<PaymentIntentResult> {
     const invoice = await prisma.invoice.findUnique({
@@ -802,6 +1009,8 @@ export const FinancePaymentService = {
     if (!invoice) {
       throw new FinancePaymentError("Invoice not found", 404);
     }
+
+    assertInvoiceInScope(invoice, scope);
 
     if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
       throw new FinancePaymentError("Invoice is not payable", 409);
@@ -815,6 +1024,29 @@ export const FinancePaymentService = {
     }
 
     if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
+      const staleSessionAttempts = await prisma.paymentAttempt.findMany({
+        where: {
+          invoiceId,
+          provider: "STRIPE",
+          providerCheckoutSessionId: { not: null },
+          status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
+        },
+        select: {
+          id: true,
+          providerCheckoutSessionId: true,
+          rawProviderPayload: true,
+        },
+      });
+
+      for (const staleAttempt of staleSessionAttempts) {
+        if (!staleAttempt.providerCheckoutSessionId) continue;
+        await expireCheckoutSessionAtProvider({
+          invoiceId,
+          sessionId: staleAttempt.providerCheckoutSessionId,
+          rawProviderPayload: staleAttempt.rawProviderPayload,
+        });
+      }
+
       await prisma.paymentAttempt.updateMany({
         where: {
           invoiceId,
@@ -1044,12 +1276,19 @@ export const FinancePaymentService = {
         );
       }
 
+      const connectedAccountId = await resolveStripeConnectedAccountId({
+        invoiceId,
+        paymentIntentId,
+      });
+      const requestOptions = toStripeAccountOptions(connectedAccountId);
+
       const stripe = getStripeClient();
       const paymentIntent = await stripe.paymentIntents.retrieve(
         paymentIntentId,
         {
           expand: ["latest_charge"],
         },
+        requestOptions,
       );
 
       const charge = paymentIntent?.latest_charge;
@@ -1059,7 +1298,10 @@ export const FinancePaymentService = {
         throw new FinancePaymentError("No charge found for refund", 409);
       }
 
-      const refund = await stripe.refunds.create({ charge: chargeId });
+      const refund = await stripe.refunds.create(
+        { charge: chargeId },
+        requestOptions,
+      );
 
       providerRefundId = refund.id;
       refundStatus = refund.status;
@@ -1240,12 +1482,19 @@ export const FinancePaymentService = {
         );
       }
 
+      const connectedAccountId = await resolveStripeConnectedAccountId({
+        invoiceId: payment.invoiceId,
+        paymentIntentId,
+      });
+      const requestOptions = toStripeAccountOptions(connectedAccountId);
+
       const stripe = getStripeClient();
       const paymentIntent = await stripe.paymentIntents.retrieve(
         paymentIntentId,
         {
           expand: ["latest_charge"],
         },
+        requestOptions,
       );
       const charge = paymentIntent?.latest_charge;
       const chargeId =
@@ -1254,10 +1503,13 @@ export const FinancePaymentService = {
         throw new FinancePaymentError("No charge found for refund", 409);
       }
 
-      const refund = await stripe.refunds.create({
-        charge: chargeId,
-        amount: Math.round(refundAmount * 100),
-      });
+      const refund = await stripe.refunds.create(
+        {
+          charge: chargeId,
+          amount: Math.round(refundAmount * 100),
+        },
+        requestOptions,
+      );
 
       providerRefundId = refund.id;
       refundStatus = refund.status;
@@ -1499,6 +1751,11 @@ export const FinancePaymentService = {
     receiptUrl?: string | null;
     currency?: string | null;
     amount?: number | null;
+    connectedAccountId?: string | null;
+    // The appointment-booking webhook creates the invoice itself, so no local
+    // attempt can exist before the event arrives; that flow binds on the
+    // connected account and the captured amount instead.
+    allowUnboundAttempt?: boolean;
     rawProviderPayload?: Prisma.InputJsonValue | null;
   }) {
     const invoice = input.invoiceId
@@ -1517,29 +1774,52 @@ export const FinancePaymentService = {
       return { action: "ALREADY_PAID" as const, invoice };
     }
 
+    if (
+      !(await invoiceMatchesEventAccount(
+        invoice,
+        input.connectedAccountId ?? null,
+      ))
+    ) {
+      return { action: "ACCOUNT_MISMATCH" as const, invoice };
+    }
+
     const paymentAttempt = await prisma.paymentAttempt.findFirst({
       where: {
         invoiceId: invoice.id,
         providerPaymentIntentId: input.paymentIntentId,
+        status: { notIn: ["CANCELED", "FAILED"] },
       },
       select: { id: true, collectionMode: true, settlementChannel: true },
     });
 
-    if (invoice.paymentCollectionMethod === "PAYMENT_LINK" && !paymentAttempt) {
-      return { action: "IGNORED" as const, invoice };
+    if (!paymentAttempt && !input.allowUnboundAttempt) {
+      // A checkout-session invoice settles from the session event; the twin
+      // payment_intent event carries no attempt of its own.
+      if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
+        return { action: "IGNORED" as const, invoice };
+      }
+
+      await refundUnboundPaymentIntent({
+        paymentIntentId: input.paymentIntentId,
+        connectedAccountId: input.connectedAccountId ?? null,
+        invoiceId: invoice.id,
+        context: { source: "handleInvoicePaymentIntentSucceeded" },
+      });
+      return { action: "REFUNDED" as const, invoice };
     }
 
-    if (
-      invoice.paymentCollectionMethod !== "PAYMENT_INTENT" &&
-      !paymentAttempt
-    ) {
-      await this.refundPaymentIntent(input.paymentIntentId);
-      return { action: "REFUNDED" as const, invoice };
+    const capturedAmount = roundMoney(input.amount ?? 0);
+    if (capturedAmount <= 0) {
+      logger.error("Stripe payment intent reported no captured amount", {
+        invoiceId: invoice.id,
+        paymentIntentId: input.paymentIntentId,
+      });
+      return { action: "MISSING_AMOUNT" as const, invoice };
     }
 
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
-      amount: input.amount ?? invoice.totalAmount,
+      amount: capturedAmount,
       currency: input.currency ?? invoice.currency,
       settlementChannel: paymentAttempt?.settlementChannel ?? "STRIPE",
       collectionMode: paymentAttempt?.collectionMode ?? null,
@@ -1563,6 +1843,7 @@ export const FinancePaymentService = {
     amountTotal?: number | null;
     amountTax?: number | null;
     automaticTaxStatus?: string | null;
+    connectedAccountId?: string | null;
     rawProviderPayload?: Prisma.InputJsonValue | null;
   }) {
     const invoice = input.invoiceId
@@ -1579,22 +1860,60 @@ export const FinancePaymentService = {
       return { action: "ALREADY_PAID" as const, invoice };
     }
 
-    if (invoice.paymentCollectionMethod !== "PAYMENT_LINK") {
-      if (input.paymentIntentId) {
-        await this.refundPaymentIntent(input.paymentIntentId);
-        return { action: "REFUNDED" as const, invoice };
+    if (
+      !(await invoiceMatchesEventAccount(
+        invoice,
+        input.connectedAccountId ?? null,
+      ))
+    ) {
+      return { action: "ACCOUNT_MISMATCH" as const, invoice };
+    }
+
+    const refundUnbound = async (context: string) => {
+      if (!input.paymentIntentId) {
+        return { action: "IGNORED" as const, invoice };
       }
 
-      return { action: "IGNORED" as const, invoice };
+      await refundUnboundPaymentIntent({
+        paymentIntentId: input.paymentIntentId,
+        connectedAccountId: input.connectedAccountId ?? null,
+        invoiceId: invoice.id,
+        context: { source: context, sessionId: input.sessionId },
+      });
+      return { action: "REFUNDED" as const, invoice };
+    };
+
+    if (invoice.paymentCollectionMethod !== "PAYMENT_LINK") {
+      return refundUnbound(
+        "handleInvoiceCheckoutSessionCompleted.notPaymentLink",
+      );
     }
 
     const paymentAttempt = await prisma.paymentAttempt.findFirst({
       where: {
         invoiceId: invoice.id,
         providerCheckoutSessionId: input.sessionId,
+        status: { notIn: ["CANCELED", "FAILED"] },
       },
       select: { id: true },
     });
+
+    // Guards the tax overwrite below: a stale session must never rewrite the
+    // totals of an invoice that was edited after the session was issued.
+    if (!paymentAttempt) {
+      return refundUnbound(
+        "handleInvoiceCheckoutSessionCompleted.staleSession",
+      );
+    }
+
+    const capturedAmount = roundMoney(input.amountTotal ?? 0);
+    if (capturedAmount <= 0) {
+      logger.error("Stripe checkout session reported no captured total", {
+        invoiceId: invoice.id,
+        sessionId: input.sessionId,
+      });
+      return { action: "MISSING_AMOUNT" as const, invoice };
+    }
 
     const invoiceWithTax = await applyCheckoutSessionTaxToInvoice(invoice, {
       sessionId: input.sessionId,
@@ -1607,7 +1926,7 @@ export const FinancePaymentService = {
 
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
-      amount: invoiceWithTax.totalAmount,
+      amount: capturedAmount,
       currency: input.currency ?? invoiceWithTax.currency,
       settlementChannel: "STRIPE",
       providerPaymentId: input.paymentIntentId ?? null,

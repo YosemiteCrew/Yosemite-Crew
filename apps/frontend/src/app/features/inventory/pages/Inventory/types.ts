@@ -3,12 +3,7 @@ import { BusinessType } from '@/app/features/organization/types/org';
 export type InventoryStatus = 'ACTIVE' | 'HIDDEN';
 
 export type StockHealthStatus =
-  | 'HEALTHY'
-  | 'LOW_STOCK'
-  | 'EXPIRED'
-  | 'EXPIRING_SOON'
-  | 'OUT_OF_STOCK'
-  | 'OVERSTOCKED';
+  'HEALTHY' | 'LOW_STOCK' | 'EXPIRED' | 'EXPIRING_SOON' | 'OUT_OF_STOCK' | 'OVERSTOCKED';
 
 type InventoryBatchDetails = {
   batchNumber?: string;
@@ -688,7 +683,6 @@ export type InventoryErrors = {
   batch?: Partial<Record<keyof BatchValues, string>>;
 };
 
-export type DispensaryRequestType = 'ALL' | 'PATIENT' | 'IN_HOUSE';
 export type DispensaryStatus = 'PENDING' | 'DISPENSED' | 'NOT_DISPENSED';
 
 export interface DispensaryItem {

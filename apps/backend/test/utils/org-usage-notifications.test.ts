@@ -1,31 +1,27 @@
-import { Types } from "mongoose";
-import OrganizationModel from "../../src/models/organization";
-import UserOrganizationModel from "../../src/models/user-organization";
-import UserModel from "../../src/models/user";
+import { prisma } from "src/config/prisma";
 import { sendEmailTemplate } from "../../src/utils/email";
 import logger from "../../src/utils/logger";
 import * as SutModule from "../../src/utils/org-usage-notifications";
 
 // --- Mocks ---
-jest.mock("../../src/models/organization");
-jest.mock("../../src/models/user-organization");
-jest.mock("../../src/models/user");
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+    },
+    userOrganization: {
+      findFirst: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
 jest.mock("../../src/utils/email");
 jest.mock("../../src/utils/logger");
 
-// Helper to mock chainable mongoose queries: findX().select().lean()
-const mockChain = (result: any) => ({
-  select: jest.fn().mockReturnThis(),
-  lean: jest.fn().mockResolvedValue(result),
-});
-
-// Helper for simple chains: findX().lean()
-const mockChainSimple = (result: any) => ({
-  lean: jest.fn().mockResolvedValue(result),
-});
-
 describe("Org Usage Notifications Utils", () => {
-  const mockOrgId = new Types.ObjectId();
+  const mockOrgId = "org-123";
 
   // Standard Usage object that triggers no limits
   const safeUsage = {
@@ -53,45 +49,47 @@ describe("Org Usage Notifications Utils", () => {
 
   describe("Business Logic", () => {
     it("should return early if organization is not found", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue(null);
 
       await SutModule.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
         usage: breachedUsage,
       });
 
-      expect(OrganizationModel.findById).toHaveBeenCalledWith(mockOrgId);
-      expect(UserOrganizationModel.findOne).not.toHaveBeenCalled();
+      expect(prisma.organization.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { OR: [{ id: mockOrgId }, { fhirId: mockOrgId }] },
+        }),
+      );
+      expect(prisma.userOrganization.findFirst).not.toHaveBeenCalled();
       expect(sendEmailTemplate).not.toHaveBeenCalled();
     });
 
     it("should return early if owner mapping is not found", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
-      );
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain(null),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(null);
 
       await SutModule.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
         usage: breachedUsage,
       });
 
-      expect(UserOrganizationModel.findOne).toHaveBeenCalled();
-      expect(UserModel.findOne).not.toHaveBeenCalled();
+      expect(prisma.userOrganization.findFirst).toHaveBeenCalled();
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
     });
 
     it("should return early if owner user is not found", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
-      );
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(mockChainSimple(null));
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+        practitionerReference: "123",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue(null);
 
       await SutModule.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
@@ -102,15 +100,16 @@ describe("Org Usage Notifications Utils", () => {
     });
 
     it("should return early if usage limits are not reached", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
-      );
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({ email: "test@test.com" }),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+        practitionerReference: "123",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "test@test.com",
+      });
 
       await SutModule.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
@@ -121,45 +120,47 @@ describe("Org Usage Notifications Utils", () => {
     });
 
     it("should send email when limits are reached", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Test Org", fhirId: "fhir-123" }),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: "org-abc",
+        name: "Test Org",
+        fhirId: "fhir-123",
+      });
       // Test reference extraction logic (Practitioner/ID -> ID)
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "Practitioner/999" }),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({
-          email: "owner@test.com",
-          firstName: "John",
-          lastName: "Doe",
-        }),
-      );
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+        practitionerReference: "Practitioner/999",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "owner@test.com",
+        firstName: "John",
+        lastName: "Doe",
+      });
 
       await SutModule.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
         usage: breachedUsage,
       });
 
-      // Verify Reference Candidates logic
-      const orgIdStr = mockOrgId.toString();
-      expect(UserOrganizationModel.findOne).toHaveBeenCalledWith(
+      // Verify Reference Candidates logic (built from the resolved org row)
+      expect(prisma.userOrganization.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          organizationReference: {
-            $in: expect.arrayContaining([
-              orgIdStr,
-              `Organization/${orgIdStr}`,
-              "fhir-123",
-              "Organization/fhir-123",
-            ]),
-          },
+          where: expect.objectContaining({
+            roleCode: "OWNER",
+            active: true,
+            organizationReference: {
+              in: expect.arrayContaining([
+                "org-abc",
+                "Organization/org-abc",
+                "fhir-123",
+                "Organization/fhir-123",
+              ]),
+            },
+          }),
         }),
       );
 
       // Verify User ID extraction
-      expect(UserModel.findOne).toHaveBeenCalledWith(
-        { userId: "999" },
-        expect.anything(),
+      expect(prisma.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "999" } }),
       );
 
       // Verify Email Content
@@ -179,15 +180,16 @@ describe("Org Usage Notifications Utils", () => {
     });
 
     it("should handle optional usage values as 0 (triggering limits if limit is 0)", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
-      );
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({ email: "e@e.com" }),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+        practitionerReference: "123",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "e@e.com",
+      });
 
       // Pass nulls/undefineds
       await SutModule.sendFreePlanLimitReachedEmail({
@@ -202,7 +204,7 @@ describe("Org Usage Notifications Utils", () => {
         },
       });
 
-      // FIX: The logic treats null/undefined as 0.
+      // The logic treats null/undefined as 0.
       // 0 >= 0 is TRUE, so all limits are effectively "reached".
       expect(sendEmailTemplate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -218,34 +220,36 @@ describe("Org Usage Notifications Utils", () => {
     });
 
     it("should handle organization without fhirId", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
-      ); // No fhirId
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({ email: "e@e.com" }),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      }); // No fhirId
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+        practitionerReference: "123",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "e@e.com",
+      });
 
       await SutModule.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
         usage: breachedUsage,
       });
 
-      expect(UserOrganizationModel.findOne).toHaveBeenCalled();
+      expect(prisma.userOrganization.findFirst).toHaveBeenCalled();
     });
 
     it("should handle owner without name parts", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
-      );
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({ email: "e@e.com" }),
-      ); // No first/last name
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+        practitionerReference: "123",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "e@e.com",
+      }); // No first/last name
 
       await SutModule.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
@@ -262,15 +266,16 @@ describe("Org Usage Notifications Utils", () => {
     });
 
     it("should log error if email fails", async () => {
-      (OrganizationModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
-      );
-      (UserOrganizationModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (UserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({ email: "e@e.com" }),
-      );
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+        practitionerReference: "123",
+      });
+      (prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "e@e.com",
+      });
 
       const err = new Error("Mail fail");
       (sendEmailTemplate as jest.Mock).mockRejectedValue(err);
@@ -306,26 +311,24 @@ describe("Org Usage Notifications Utils", () => {
       delete process.env.HELP_EMAIL;
       delete process.env.APP_URL;
 
-      // Re-require module AND dependencies to ensure we config the correct mock instances
+      // Re-require module AND dependencies to config the correct mock instances
       const DynamicSut = require("../../src/utils/org-usage-notifications");
-      const DynamicOrgModel = require("../../src/models/organization").default;
-      const DynamicUserOrgModel =
-        require("../../src/models/user-organization").default;
-      const DynamicUserModel = require("../../src/models/user").default;
+      const { prisma: dynamicPrisma } = require("src/config/prisma");
       const {
         sendEmailTemplate: dynamicSendEmail,
       } = require("../../src/utils/email");
 
       // Setup mock on the DYNAMIC instances
-      (DynamicOrgModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
+      (dynamicPrisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (dynamicPrisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+        { practitionerReference: "123" },
       );
-      (DynamicUserOrgModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (DynamicUserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({ email: "e@e.com" }),
-      );
+      (dynamicPrisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "e@e.com",
+      });
 
       await DynamicSut.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,
@@ -347,23 +350,21 @@ describe("Org Usage Notifications Utils", () => {
       process.env.SUPPORT_EMAIL_ADDRESS = "prio2@test.com";
 
       const DynamicSut = require("../../src/utils/org-usage-notifications");
-      const DynamicOrgModel = require("../../src/models/organization").default;
-      const DynamicUserOrgModel =
-        require("../../src/models/user-organization").default;
-      const DynamicUserModel = require("../../src/models/user").default;
+      const { prisma: dynamicPrisma } = require("src/config/prisma");
       const {
         sendEmailTemplate: dynamicSendEmail,
       } = require("../../src/utils/email");
 
-      (DynamicOrgModel.findById as jest.Mock).mockReturnValue(
-        mockChain({ name: "Org" }),
+      (dynamicPrisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: mockOrgId,
+        name: "Org",
+      });
+      (dynamicPrisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+        { practitionerReference: "123" },
       );
-      (DynamicUserOrgModel.findOne as jest.Mock).mockReturnValue(
-        mockChain({ practitionerReference: "123" }),
-      );
-      (DynamicUserModel.findOne as jest.Mock).mockReturnValue(
-        mockChainSimple({ email: "e@e.com" }),
-      );
+      (dynamicPrisma.user.findFirst as jest.Mock).mockResolvedValue({
+        email: "e@e.com",
+      });
 
       await DynamicSut.sendFreePlanLimitReachedEmail({
         orgId: mockOrgId,

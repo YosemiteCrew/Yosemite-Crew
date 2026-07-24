@@ -5,6 +5,18 @@ import { getPersistStorage } from '@/app/lib/browserStorage';
 
 type OrgStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
+// The backend's org list responses (e.g. mapOrganizationFromPrisma) include raw
+// integration credentials that no frontend code ever reads. This store's
+// `orgsById` is persisted to localStorage (see `partialize` below), so any
+// field spread in here durably lands in the browser - strip known-sensitive
+// fields before storing rather than letting them ride along.
+const stripSensitiveOrgFields = (org: Organisation): Organisation => {
+  const { documensoApiKey: _documensoApiKey, ...safe } = org as Organisation & {
+    documensoApiKey?: unknown;
+  };
+  return safe as Organisation;
+};
+
 type OrgState = {
   orgsById: Record<string, Organisation>;
   orgIds: string[];
@@ -52,24 +64,7 @@ export const useOrgStore = create<OrgState>()(
           const orgIds: string[] = [];
           for (const o of orgs) {
             const id = o._id?.toString() || o.name;
-            orgsById[id] = {
-              _id: id,
-              name: o.name,
-              DUNSNumber: o.DUNSNumber,
-              imageURL: o.imageURL,
-              type: o.type,
-              phoneNo: o.phoneNo,
-              website: o.website,
-              address: o.address,
-              isVerified: o.isVerified,
-              isActive: o.isActive,
-              taxId: o.taxId,
-              healthAndSafetyCertNo: o.healthAndSafetyCertNo,
-              animalWelfareComplianceCertNo: o.animalWelfareComplianceCertNo,
-              fireAndEmergencyCertNo: o.fireAndEmergencyCertNo,
-              googlePlacesId: o.googlePlacesId,
-              crossOrgMessagingEnabled: o.crossOrgMessagingEnabled,
-            };
+            orgsById[id] = { ...stripSensitiveOrgFields(o), _id: id };
             orgIds.push(id);
           }
           let primaryOrgId: string | null = null;
@@ -96,24 +91,7 @@ export const useOrgStore = create<OrgState>()(
           const exists = !!state.orgsById[id];
           const orgsById: Record<string, Organisation> = {
             ...state.orgsById,
-            [id]: {
-              _id: id,
-              name: org.name,
-              DUNSNumber: org.DUNSNumber,
-              imageURL: org.imageURL,
-              type: org.type,
-              phoneNo: org.phoneNo,
-              website: org.website,
-              address: org.address,
-              isVerified: org.isVerified,
-              isActive: org.isActive,
-              taxId: org.taxId,
-              healthAndSafetyCertNo: org.healthAndSafetyCertNo,
-              animalWelfareComplianceCertNo: org.animalWelfareComplianceCertNo,
-              fireAndEmergencyCertNo: org.fireAndEmergencyCertNo,
-              googlePlacesId: org.googlePlacesId,
-              crossOrgMessagingEnabled: org.crossOrgMessagingEnabled,
-            },
+            [id]: { ...stripSensitiveOrgFields(org), _id: id },
           };
           const orgIds = exists ? state.orgIds : [...state.orgIds, id];
           return { orgsById, orgIds, status: 'loaded' };

@@ -11,9 +11,11 @@ const AppointmentScopeToggle = ({
   disabled = false,
   onChange,
 }: AppointmentScopeToggleProps) => {
-  const sliderClass = showMineOnly
-    ? 'translate-x-5 bg-success-700'
-    : 'translate-x-0 bg-text-tertiary';
+  // Design toggle-switch recipe: 40x24 track (2.5px inset), 19px knob with a soft drop shadow.
+  // On = --blue track + white knob; off = --divider track + --screen knob.
+  // Label follows ink-body (on) / ink-muted (off).
+  const trackClass = showMineOnly ? 'bg-[var(--blue)]' : 'bg-[var(--divider)]';
+  const knobClass = showMineOnly ? 'translate-x-4 bg-white' : 'translate-x-0 bg-[var(--screen)]';
 
   return (
     <button
@@ -22,19 +24,25 @@ const AppointmentScopeToggle = ({
       aria-label={showMineOnly ? 'Show all appointments' : 'Show my appointments'}
       disabled={disabled}
       onClick={() => onChange(!showMineOnly)}
-      className={`inline-flex h-12 w-24 shrink-0 items-center justify-center gap-2 px-1 text-body-4 text-text-primary transition-colors hover:text-text-primary ${
+      className={`inline-flex shrink-0 items-center gap-2 transition-colors ${
         disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
       }`}
     >
       <span
         aria-hidden="true"
-        className="relative h-6 w-11 shrink-0 rounded-full bg-neutral-200 p-0.5"
+        className={`relative block h-6 w-10 shrink-0 rounded-full p-[2.5px] transition-colors ${trackClass}`}
       >
         <span
-          className={`block size-5 rounded-full transition-transform duration-200 ${sliderClass}`}
+          className={`block size-[19px] rounded-full shadow-[0_1px_3px_var(--sh22)] transition-transform duration-200 ${knobClass}`}
         />
       </span>
-      <span className="min-w-7 text-left">Mine</span>
+      <span
+        className={`text-[13px] font-medium ${
+          showMineOnly ? 'text-[var(--ink-body)]' : 'text-[var(--ink-muted)]'
+        }`}
+      >
+        Mine
+      </span>
     </button>
   );
 };

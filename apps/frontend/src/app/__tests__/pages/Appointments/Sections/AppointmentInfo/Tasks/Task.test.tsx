@@ -82,7 +82,7 @@ describe('Appointment Task editor', () => {
     render(<Task />);
 
     fireEvent.click(screen.getByText('Assigned to'));
-    fireEvent.change(screen.getByLabelText('Task title'), {
+    fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Follow up' },
     });
 

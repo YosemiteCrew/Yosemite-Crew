@@ -17,4 +17,12 @@ describe('StaffField', () => {
     // No avatar image/initials are rendered when there is no name.
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
+
+  it('fills the field surface with the theme field background so it does not wash out', () => {
+    render(<StaffField label="Assigned Lead" name="Dr. Tim Apple" />);
+    // The shell is the label span's parent box; it carries the filled surface.
+    const shell = screen.getByText('Assigned Lead').parentElement as HTMLElement;
+    expect(shell).toHaveStyle({ background: 'var(--field-bg)' });
+    expect(shell).toHaveStyle({ borderColor: 'var(--hairline)' });
+  });
 });

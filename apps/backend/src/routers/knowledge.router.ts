@@ -1,30 +1,28 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { MerckController } from "src/controllers/web/merck.controller";
 import { MerckMobileController } from "src/controllers/app/merck.controller";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const router = Router();
 
+// Keyed only on the session-verified caller. Both routes sit behind auth, and the
+// mobile route has no :organisationId, so folding in a client-supplied x-org-id would
+// let one token mint a fresh bucket per header value. This limiter fronts shared Merck
+// credentials, so the key must be unforgeable rather than merely granular.
 const merckSearchLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const orgId =
-      (req.params.organisationId as string | undefined) ??
-      (req.headers["x-org-id"] as string | undefined) ??
-      "unknown-org";
-    const userId = (req as { userId?: string }).userId ?? "unknown-user";
-    return `${orgId}:${userId}`;
-  },
+  keyGenerator: (req) => resolveVerifiedUserId(req) ?? "unknown-user",
 });
 
 router.get(
   "/pms/organisation/:organisationId/merck/manuals/search",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:view:any"),
   merckSearchLimiter,
@@ -33,7 +31,7 @@ router.get(
 
 router.get(
   "/mobile/merck/manuals/search",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   merckSearchLimiter,
   (req, res) => MerckMobileController.searchManuals(req, res),
 );

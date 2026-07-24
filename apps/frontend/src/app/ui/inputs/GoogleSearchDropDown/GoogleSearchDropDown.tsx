@@ -124,11 +124,11 @@ const requestGooglePredictions = async (q: string): Promise<Prediction[]> => {
   });
 };
 
-const derivePlaceAutofill = (details: PlaceDetails, fullPredictionText?: string) => {
-  const comps = details.addressComponents ?? [];
-  const name = details.displayName?.text || '';
-  const website = details.websiteUri || '';
-  const phone = details.nationalPhoneNumber || '';
+const derivePlaceAutofill = (details: PlaceDetails | undefined, fullPredictionText?: string) => {
+  const comps = details?.addressComponents ?? [];
+  const name = details?.displayName?.text || '';
+  const website = details?.websiteUri || '';
+  const phone = details?.nationalPhoneNumber || '';
 
   const countryCode = getAddrComponent(comps, 'country', 'shortText');
   const country = countries.find((c) => c.code === countryCode);
@@ -152,7 +152,7 @@ const derivePlaceAutofill = (details: PlaceDetails, fullPredictionText?: string)
   //   city="Thane" first match at segment "Thane West" (startsWith "Thane") → cut before it
   const locationMarkers = [city, state, postalCode, country?.name].filter(Boolean) as string[];
 
-  let addressLine = fullPredictionText ?? details.formattedAddress ?? '';
+  let addressLine = fullPredictionText ?? details?.formattedAddress ?? '';
   if (locationMarkers.length > 0) {
     const segments = addressLine.split(',');
     let cutSegment = -1;
@@ -172,8 +172,8 @@ const derivePlaceAutofill = (details: PlaceDetails, fullPredictionText?: string)
     }
   }
   addressLine = addressLine.replace(/,\s*$/, '').trim();
-  const latitude = details.location?.latitude ?? null;
-  const longitude = details.location?.longitude ?? null;
+  const latitude = details?.location?.latitude ?? null;
+  const longitude = details?.location?.longitude ?? null;
   const normalizedAddress = {
     addressLine,
     city,
@@ -320,7 +320,7 @@ const GoogleSearchDropDown = ({
     }, 0);
   };
 
-  const autofillFromPlace = (details: PlaceDetails, fullPredictionText?: string) => {
+  const autofillFromPlace = (details: PlaceDetails | undefined, fullPredictionText?: string) => {
     const { name, website, phone, normalizedAddress } = derivePlaceAutofill(
       details,
       fullPredictionText
@@ -346,7 +346,7 @@ const GoogleSearchDropDown = ({
         name,
         phoneNo: normalizeGooglePhoneNumber(phone),
         website,
-        googlePlacesId: details.id,
+        googlePlacesId: details?.id,
         address: {
           ...normalizedAddress,
         },
@@ -362,6 +362,12 @@ const GoogleSearchDropDown = ({
 
   return (
     <div className="w-full relative" ref={dropdownRef}>
+      <label
+        htmlFor={uid}
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
+      >
+        {inlabel}
+      </label>
       <div className={`relative`}>
         <input
           type={intype}
@@ -373,7 +379,6 @@ const GoogleSearchDropDown = ({
           autoComplete="off"
           readOnly={readonly}
           required
-          placeholder=" "
           onFocus={() => {
             if (suppressNextOpenRef.current) return;
             onFocus();
@@ -385,42 +390,27 @@ const GoogleSearchDropDown = ({
             setOpen(false);
           }}
           className={`
-            peer w-full min-h-12 bg-transparent px-6 py-2.5
-            text-body-4 text-text-primary
-            outline-none border
-            ${error && 'border-input-border-error'}
-            focus:border-input-border-active!
-            ${isDropdownOpen ? 'border-input-border-active! rounded-t-2xl!' : 'border-input-border-default! rounded-2xl!'}
+            h-[44px] w-full border-[1.5px] bg-[var(--field-bg)] px-[14px]
+            text-[14px] text-[var(--ink-body)] outline-none transition-colors
+            placeholder:text-[var(--ink-faint)]
+            disabled:cursor-not-allowed disabled:opacity-60
+            focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
+            ${(() => {
+              if (isDropdownOpen) return 'border-[var(--blue)]! rounded-t-[12px]!';
+              if (error) return 'border-[var(--danger)]! rounded-[12px]!';
+              return 'border-[var(--hairline)]! rounded-[12px]!';
+            })()}
           `}
         />
-        <label
-          htmlFor={uid}
-          className={`
-            pointer-events-none absolute left-6
-            top-1/2 -translate-y-1/2
-            text-body-4 text-input-text-placeholder
-            transition-all duration-200
-            peer-focus:-top-[11px] peer-focus:translate-y-0
-            peer-focus:text-sm!
-            peer-focus:text-input-text-placeholder-active
-            peer-focus:bg-(--whitebg)
-            peer-focus:px-1 peer-not-placeholder-shown:px-1
-            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-sm!
-            peer-not-placeholder-shown:bg-(--whitebg)
-          `}
-        >
-          {inlabel}
-        </label>
       </div>
       {isDropdownOpen && (
         <div
-          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]"
+          className="border-[var(--blue)] max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-[12px] border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
           onPointerDown={(e) => e.preventDefault()}
         >
           {predictions?.map((pred, index: number) => (
             <button
-              className="flex w-full flex-col items-start gap-1 rounded-2xl! px-[1.25rem] py-[0.75rem] text-left hover:bg-card-hover"
+              className="flex w-full flex-col items-start gap-1 rounded-2xl! px-[1.25rem] py-2 text-left hover:bg-card-hover"
               key={pred.placeId ?? `${pred.kind}-${pred.description}-${index}`}
               type="button"
               onMouseDown={(e) => {
@@ -436,11 +426,11 @@ const GoogleSearchDropDown = ({
                 inputRef.current?.focus();
               }}
             >
-              <span className="w-full text-left text-body-4-emphasis text-text-primary">
+              <span className="w-full text-left text-[13px] font-medium text-text-primary">
                 {getPredictionPrimaryText(pred)}
               </span>
               {getPredictionSecondaryText(pred) ? (
-                <span className="w-full text-left text-caption-1 text-text-secondary">
+                <span className="w-full text-left text-[12px] font-medium text-text-secondary">
                   {getPredictionSecondaryText(pred)}
                 </span>
               ) : null}
@@ -449,12 +439,7 @@ const GoogleSearchDropDown = ({
         </div>
       )}
       {error && (
-        <div
-          className={`
-            mt-1.5 flex items-center gap-1 px-4
-            text-caption-2 text-text-error
-          `}
-        >
+        <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
           <IoIosWarning className="text-text-error" size={14} />
           <span>{error}</span>
         </div>

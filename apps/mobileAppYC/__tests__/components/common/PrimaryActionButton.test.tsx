@@ -1,35 +1,17 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render} from '@testing-library/react-native';
+import {render, fireEvent} from '@testing-library/react-native';
 import {
   PrimaryActionButton,
   PrimaryActionButtonProps,
 } from '../../../src/shared/components/common/PrimaryActionButton/PrimaryActionButton';
-import {StyleSheet} from 'react-native';
+import {StyleSheet, ActivityIndicator} from 'react-native';
 
 // --- Mocks ---
 
-// Mock useTheme
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
-
-// Mock LiquidGlassButton
-// Use a View and spread props to ensure 'disabled' and other props are inspectable
-jest.mock(
-  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
-  () => {
-    const {View, Text} = require('react-native');
-    return {
-      __esModule: true,
-      default: (props: any) => (
-        <View testID="mock-liquid-button" {...props}>
-          <Text style={props.textStyle}>{props.title}</Text>
-        </View>
-      ),
-    };
-  },
-);
 
 describe('PrimaryActionButton Component', () => {
   const defaultProps: PrimaryActionButtonProps = {
@@ -41,70 +23,48 @@ describe('PrimaryActionButton Component', () => {
     jest.clearAllMocks();
   });
 
-  // ===========================================================================
-  // 1. Rendering Logic
-  // ===========================================================================
-
-  it('renders correctly with default props', () => {
-    const {getByText, getByTestId} = render(
+  it('renders the title as a flat CTA button', () => {
+    const {getByText, getByRole} = render(
       <PrimaryActionButton {...defaultProps} />,
     );
     expect(getByText('Click Me')).toBeTruthy();
-    expect(getByTestId('mock-liquid-button')).toBeTruthy();
+    expect(getByRole('button')).toBeTruthy();
   });
-
-  // ===========================================================================
-  // 2. Interaction
-  // ===========================================================================
 
   it('calls onPress when pressed', () => {
-    const {getByTestId} = render(<PrimaryActionButton {...defaultProps} />);
-    // Note: Since we mocked with View, we simulate the press on the View.
-    // In a real integration test, the child would handle this, but here we test prop passing.
-    const button = getByTestId('mock-liquid-button');
-
-    // Simulate the function call passed to the child's onPress prop
-    button.props.onPress();
-
-    expect(defaultProps.onPress).toHaveBeenCalledTimes(1);
-  });
-
-  it('passes disabled prop correctly', () => {
-    const {getByTestId} = render(
-      <PrimaryActionButton {...defaultProps} disabled={true} />,
+    const onPress = jest.fn();
+    const {getByRole} = render(
+      <PrimaryActionButton {...defaultProps} onPress={onPress} />,
     );
-    const button = getByTestId('mock-liquid-button');
-    expect(button.props.disabled).toBe(true);
+    fireEvent.press(getByRole('button'));
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  // ===========================================================================
-  // 3. Props Passing (Loading)
-  // ===========================================================================
-
-  it('passes loading prop to LiquidGlassButton', () => {
-    const {getByTestId} = render(
-      <PrimaryActionButton {...defaultProps} loading={true} />,
+  it('does not call onPress when disabled', () => {
+    const onPress = jest.fn();
+    const {getByRole} = render(
+      <PrimaryActionButton {...defaultProps} onPress={onPress} disabled />,
     );
-    const button = getByTestId('mock-liquid-button');
-    expect(button.props.loading).toBe(true);
+    fireEvent.press(getByRole('button'));
+    expect(onPress).not.toHaveBeenCalled();
   });
 
-  // ===========================================================================
-  // 4. Styling
-  // ===========================================================================
+  it('shows a spinner and hides the title while loading', () => {
+    const {queryByText, UNSAFE_getAllByType} = render(
+      <PrimaryActionButton {...defaultProps} loading />,
+    );
+    expect(queryByText('Click Me')).toBeNull();
+    expect(UNSAFE_getAllByType(ActivityIndicator).length).toBe(1);
+  });
 
   it('merges container style correctly', () => {
-    const customStyle = {backgroundColor: 'red', marginTop: 10};
-    const {getByTestId} = render(
+    const customStyle = {marginTop: 10};
+    const {getByRole} = render(
       <PrimaryActionButton {...defaultProps} style={customStyle} />,
     );
-
-    const button = getByTestId('mock-liquid-button');
-    // StyleSheet.flatten is safe here because we passed the style prop through to the View
-    const flatStyle = StyleSheet.flatten(button.props.style);
-
+    const flatStyle = StyleSheet.flatten(getByRole('button').props.style);
     expect(flatStyle).toMatchObject(expect.objectContaining(customStyle));
-    // Verify default style (from createStyles) is also present
+    // Full-width flat CTA default
     expect(flatStyle).toHaveProperty('width', '100%');
   });
 
@@ -113,12 +73,8 @@ describe('PrimaryActionButton Component', () => {
     const {getByText} = render(
       <PrimaryActionButton {...defaultProps} textStyle={customTextStyle} />,
     );
-
-    const text = getByText('Click Me');
-    const flatStyle = StyleSheet.flatten(text.props.style);
-
+    const flatStyle = StyleSheet.flatten(getByText('Click Me').props.style);
     expect(flatStyle).toMatchObject(expect.objectContaining(customTextStyle));
-    // Verify default text style
     expect(flatStyle).toHaveProperty('textAlign', 'center');
   });
 });

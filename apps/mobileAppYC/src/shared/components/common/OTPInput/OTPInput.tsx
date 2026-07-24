@@ -123,14 +123,14 @@ export const OTPInput: React.FC<OTPInputProps> = ({
                       return theme.colors.error;
                     }
                     if (activeIndex === index) {
-                      return theme.colors.primary;
+                      return theme.colors.blue;
                     }
-                    return theme.colors.border;
+                    return theme.colors.hairline;
                   })(),
-                  backgroundColor:
-                    theme.colors.backgroundSecondary || theme.colors.background,
-                  color: theme.colors.text,
+                  backgroundColor: theme.colors.fieldBg,
+                  color: theme.colors.ink,
                 },
+                activeIndex === index && !error ? styles.inputActive : null,
               ]}
               value={digit}
               onChangeText={value => handleChange(value, index)}
@@ -160,28 +160,34 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
+      width: '100%',
       alignItems: 'center',
       marginVertical: theme.spacing['5'],
     },
     inputContainer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      width: 240,
+      justifyContent: 'center',
+      width: '100%',
+      gap: theme.spacing['2'],
       paddingHorizontal: theme.spacing['2.5'],
     },
     input: {
-      width: 45,
-      height: 55,
-      borderWidth: 2,
-      borderRadius: theme.borderRadius.md,
+      flex: 1,
+      maxWidth: 50,
+      height: 60,
+      borderWidth: 1.5,
+      borderRadius: 14,
       textAlign: 'center',
       ...theme.typography.h4,
-      fontWeight: 'bold',
-      lineHeight: theme.typography.h4.fontSize + 3,
-      marginHorizontal: theme.spacing['2'],
+      fontSize: 24,
+      fontWeight: '700',
+      lineHeight: 28,
       ...(Platform.OS === 'android'
         ? {textAlignVertical: 'center', includeFontPadding: false}
         : {includeFontPadding: false}),
+    },
+    inputActive: {
+      boxShadow: `0px 0px 0px 4px ${theme.colors.blueSoft}`,
     },
     errorText: {
       marginTop: theme.spacing['3'],

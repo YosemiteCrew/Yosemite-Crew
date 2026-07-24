@@ -1,38 +1,30 @@
 import { Router } from "express";
 import { ExpenseController } from "../controllers/app/expense.controller";
-import { authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireMobileAuth } from "src/middlewares/auth";
 
 const router = Router();
 
-router.post("/", authorizeCognitoMobile, ExpenseController.createExpense);
+router.post("/", requireMobileAuth, ExpenseController.createExpense);
 
-router.patch(
-  "/:expenseId",
-  authorizeCognitoMobile,
-  ExpenseController.updateExpense,
-);
+router.patch("/:expenseId", requireMobileAuth, ExpenseController.updateExpense);
 
 router.delete(
   "/:expenseId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ExpenseController.deleteExpense,
 );
 
-router.get(
-  "/:expenseId",
-  authorizeCognitoMobile,
-  ExpenseController.getExpenseById,
-);
+router.get("/:expenseId", requireMobileAuth, ExpenseController.getExpenseById);
 
 router.get(
   "/companion/:patientId/list",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ExpenseController.getExpensesByCompanion,
 );
 
 router.get(
   "/companion/:patientId/summary",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ExpenseController.getExpenseSummary,
 );
 

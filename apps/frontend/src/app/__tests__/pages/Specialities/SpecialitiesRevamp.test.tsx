@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SpecialitiesRevamp from '@/app/features/organization/pages/Specialities/SpecialitiesRevamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -31,6 +31,20 @@ jest.mock('next/link', () => ({
 const mockSearchParamsGet = jest.fn(() => null);
 jest.mock('next/navigation', () => ({
   useSearchParams: () => ({ get: mockSearchParamsGet }),
+}));
+
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="protected-route">{children}</div>
+  ),
+}));
+
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="org-guard">{children}</div>
+  ),
 }));
 
 jest.mock('@/app/features/organization/pages/Specialities/SpecialityAccordionRevamp', () => ({
@@ -134,10 +148,10 @@ describe('SpecialitiesRevamp', () => {
     expect(screen.queryByTestId('add-speciality-modal')).not.toBeInTheDocument();
   });
 
-  it('opens AddSpecialityModal when "Add Speciality" button in header is clicked', () => {
+  it('opens AddSpecialityModal when "Add speciality" button in header is clicked', () => {
     render(<SpecialitiesRevamp />);
     // The header button (first one rendered)
-    const addButtons = screen.getAllByRole('button', { name: 'Add Speciality' });
+    const addButtons = screen.getAllByRole('button', { name: 'Add speciality' });
     fireEvent.click(addButtons[0]);
     expect(screen.getByTestId('add-speciality-modal')).toBeInTheDocument();
   });
@@ -183,7 +197,7 @@ describe('SpecialitiesRevamp', () => {
       })
     );
     render(<SpecialitiesRevamp />);
-    const addButtons = screen.getAllByRole('button', { name: 'Add Speciality' });
+    const addButtons = screen.getAllByRole('button', { name: 'Add speciality' });
     // Header button + empty-state button = 2
     expect(addButtons.length).toBeGreaterThanOrEqual(2);
     // Clicking the empty-state button also opens the modal
@@ -205,8 +219,8 @@ describe('SpecialitiesRevamp', () => {
     render(<SpecialitiesRevamp />);
     // The no-result message is shown but no secondary add button
     expect(screen.getByText(/No specialities match "something"/)).toBeInTheDocument();
-    // There should still be the header "Add Speciality" button (only 1)
-    expect(screen.getAllByRole('button', { name: 'Add Speciality' })).toHaveLength(1);
+    // There should still be the header "Add speciality" button (only 1)
+    expect(screen.getAllByRole('button', { name: 'Add speciality' })).toHaveLength(1);
   });
 
   // --- Section 4: missing org ---
@@ -232,5 +246,50 @@ describe('SpecialitiesRevamp', () => {
     render(<SpecialitiesRevamp />);
     expect(screen.getByTestId('accordion-spec-2')).toHaveAttribute('data-default-open', 'true');
     expect(screen.getByTestId('accordion-spec-1')).toHaveAttribute('data-default-open', 'false');
+  });
+
+  // --- Section 6: route guards ---
+
+  it('mounts the page behind both the auth and org guards', () => {
+    render(<SpecialitiesRevamp />);
+
+    const protectedRoute = screen.getByTestId('protected-route');
+    const orgGuard = screen.getByTestId('org-guard');
+
+    expect(protectedRoute).toContainElement(orgGuard);
+    expect(orgGuard).toContainElement(screen.getByTestId('accordion-spec-1'));
+  });
+
+  // --- Section 7: catalog loading ---
+
+  it('loads the organisation catalog for the primary org on mount', () => {
+    render(<SpecialitiesRevamp />);
+    // useEffect happy path: primaryOrgId present → loadOrganisationCatalog invoked
+    expect(mockLoadOrganisationCatalog).toHaveBeenCalledWith('org-1');
+  });
+
+  it('swallows a rejected catalog load without surfacing an error', async () => {
+    mockLoadOrganisationCatalog.mockReturnValueOnce(Promise.reject(new Error('load failed')));
+    render(<SpecialitiesRevamp />);
+    // `.catch(() => undefined)` handles the rejection — page still renders.
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: /Specialities/ })).toBeInTheDocument()
+    );
+    expect(mockLoadOrganisationCatalog).toHaveBeenCalledWith('org-1');
+  });
+
+  it('shows the loading message and hides the empty-state add button while loading', () => {
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        specialities: [],
+        status: 'loading',
+        loadOrganisationCatalog: mockLoadOrganisationCatalog,
+      })
+    );
+    render(<SpecialitiesRevamp />);
+    // getSpecialitiesEmptyMessage: status === 'loading' branch
+    expect(screen.getByText('Loading specialities...')).toBeInTheDocument();
+    // `status !== 'loading'` false → only the header add button remains
+    expect(screen.getAllByRole('button', { name: 'Add speciality' })).toHaveLength(1);
   });
 });

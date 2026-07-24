@@ -398,10 +398,15 @@ const appendTaskHistoryEntries = async (params: {
 }) => {
   const tasks = await TaskService.listForCompanion({
     patientId: params.patientId,
+    organisationId: params.organisationId,
   });
-  for (const task of tasks.filter(
-    (item) => item.organisationId === params.organisationId,
-  )) {
+  for (const task of tasks) {
+    // The query is organisation-scoped; re-checking each row keeps a history
+    // timeline from leaking another tenant's task if that scope ever regresses.
+    if (task.organisationId && task.organisationId !== params.organisationId) {
+      continue;
+    }
+
     const taskId = task.id;
     const occurredAt =
       task.completedAt?.toISOString() ??
@@ -610,10 +615,11 @@ const appendInvoiceHistoryEntries = async (params: {
   patientId: string;
   organisationId: string;
 }) => {
-  const invoices = await InvoiceService.listForCompanion(params.patientId);
-  for (const invoice of invoices.filter(
-    (item) => item.organisationId === params.organisationId,
-  )) {
+  const invoices = await InvoiceService.listForCompanion(
+    params.patientId,
+    params.organisationId,
+  );
+  for (const invoice of invoices) {
     const occurredAt =
       invoice.paidAt?.toISOString() ??
       invoice.createdAt?.toISOString() ??

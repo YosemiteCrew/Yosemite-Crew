@@ -1,10 +1,5 @@
-import { Schema, model, HydratedDocument } from "mongoose";
-
 export type ContactType =
-  | "GENERAL_ENQUIRY"
-  | "FEATURE_REQUEST"
-  | "DSAR"
-  | "COMPLAINT";
+  "GENERAL_ENQUIRY" | "FEATURE_REQUEST" | "DSAR" | "COMPLAINT";
 
 export type ContactSource = "MOBILE_APP" | "PMS_WEB" | "MARKETING_SITE";
 
@@ -43,17 +38,6 @@ export interface ContactAttachment {
   sizeBytes?: number;
 }
 
-const AttachmentSchema = new Schema(
-  {
-    id: String,
-    url: { type: String, required: true },
-    name: { type: String, required: true },
-    contentType: String,
-    sizeBytes: Number,
-  },
-  { _id: false },
-);
-
 export interface DsraDetails {
   requesterType: DsraRequesterType;
   lawBasis?: DsraLawBasis;
@@ -68,52 +52,6 @@ export interface DsraDetails {
   declarationAccepted: boolean;
   declarationAcceptedAt?: Date;
 }
-
-const DsraSchema = new Schema(
-  {
-    requesterType: {
-      type: String,
-      enum: ["SELF", "PARENT_GUARDIAN", "AUTHORIZED_AGENT"],
-      required: true,
-    },
-    lawBasis: {
-      type: String,
-      enum: [
-        "GDPR",
-        "CCPA",
-        "UK_GDPR",
-        "LGPD",
-        "PIPEDA",
-        "POPIA",
-        "PDPA",
-        "PIPL",
-        "PA_1988_AU",
-        "OTHER",
-      ],
-    },
-    otherLawText: String,
-    rightsRequested: {
-      type: [String],
-      enum: [
-        "KNOW_INFORMATION_COLLECTED",
-        "ACCESS_PERSONAL_INFORMATION",
-        "DELETE_DATA",
-        "RECTIFY_INACCURATE_INFORMATION",
-        "RESTRICT_PROCESSING",
-        "PORTABILITY_COPY",
-        "OPT_OUT_SELLING_SHARING",
-        "LIMIT_SENSITIVE_PROCESSING",
-        "OTHER",
-      ],
-      default: [],
-    },
-    otherRightText: String,
-    dataSubjectDescription: String,
-    declarationAccepted: { type: Boolean, default: false },
-    declarationAcceptedAt: Date,
-  },
-  { _id: false },
-);
 
 export interface ContactRequestMongo {
   type: ContactType;
@@ -151,57 +89,6 @@ export interface ContactRequestMongo {
   updatedAt?: Date;
 }
 
-const ContactRequestSchema = new Schema(
-  {
-    type: {
-      type: String,
-      enum: ["GENERAL_ENQUIRY", "FEATURE_REQUEST", "DSAR", "COMPLAINT"],
-      required: true,
-      index: true,
-    },
-    source: {
-      type: String,
-      enum: ["MOBILE_APP", "PMS_WEB", "MARKETING_SITE"],
-      required: true,
-    },
-
-    subject: { type: String, required: true },
-    message: { type: String, required: true },
-    fullName: { type: String },
-    phone: { type: String },
-
-    userId: { type: String, index: true },
-    email: { type: String },
-
-    organisationId: { type: String, index: true },
-    patientId: { type: String, index: true },
-    parentId: { type: String, index: true },
-
-    dsarDetails: { type: DsraSchema, required: false },
-
-    complaintContext: {
-      aboutOrganisationId: String,
-      aboutAppointmentId: String,
-    },
-
-    attachments: { type: [AttachmentSchema], default: [] },
-
-    status: {
-      type: String,
-      enum: ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"],
-      default: "OPEN",
-      index: true,
-    },
-    internalNotes: String,
-  },
-  { timestamps: true },
-);
-
-export type ContactRequestDocument = HydratedDocument<ContactRequestMongo>;
-
-const ContactRequestModel = model<ContactRequestMongo>(
-  "ContactRequest",
-  ContactRequestSchema,
-);
-
-export default ContactRequestModel;
+export interface ContactRequestDocument extends ContactRequestMongo {
+  _id: string;
+}

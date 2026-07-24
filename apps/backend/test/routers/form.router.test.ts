@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const withAppointmentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
   next(),
@@ -34,8 +34,8 @@ const FormSigningController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -79,7 +79,7 @@ describe("form.router", () => {
     const route = findRoute("/admin/:orgId", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       FormController.createForm,
@@ -90,7 +90,7 @@ describe("form.router", () => {
     const route = findRoute("/form-submissions/:submissionId/sign", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       FormSigningController.startSigning,
@@ -101,7 +101,7 @@ describe("form.router", () => {
     const route = findRoute("/appointments/:appointmentId/forms", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withAppointmentOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       FormController.getFormsForAppointment,
@@ -123,7 +123,7 @@ describe("form.router", () => {
     );
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognitoMobile,
+      requireMobileAuth,
       FormSigningController.startSigningMobile,
     ]);
   });
@@ -132,7 +132,7 @@ describe("form.router", () => {
     const route = findRoute("/admin/:orgId", "post");
     const handlers = route?.stack.map((layer) => layer.handle) ?? [];
 
-    expect(handlers[0]).toBe(authorizeCognito);
+    expect(handlers[0]).toBe(requireWebAuth);
     expect(handlers[0]).not.toBe(FormController.createForm);
   });
 });

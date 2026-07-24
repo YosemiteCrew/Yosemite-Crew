@@ -69,6 +69,12 @@ describe('InlineEditRow Component', () => {
     expect(getByText('test@example.com')).toBeTruthy();
   });
 
+  it('exposes button role and a combined label/value accessibility label', () => {
+    const {getByLabelText} = render(<InlineEditRow {...defaultProps} />);
+    const row = getByLabelText('Email, test@example.com');
+    expect(row.props.accessibilityRole).toBe('button');
+  });
+
   it('renders fallback dash "—" when value is empty', () => {
     const {getByText} = render(<InlineEditRow {...defaultProps} value="" />);
     expect(getByText('—')).toBeTruthy();

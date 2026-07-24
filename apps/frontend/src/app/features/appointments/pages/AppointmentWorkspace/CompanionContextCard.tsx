@@ -1,7 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
-import { LuChevronRight, LuFootprints } from 'react-icons/lu';
-import { TbBed } from 'react-icons/tb';
+import { IoBedOutline, IoChevronForwardOutline, IoFootstepsOutline } from 'react-icons/io5';
 import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
 import type { EncounterMode } from '@/app/features/appointments/types/workspace';
 
@@ -57,12 +56,12 @@ const DetailRow = ({ label, value }: CompanionDetail) => (
 const ModePill = ({ mode }: { mode: EncounterMode }) =>
   mode === 'INPATIENT' ? (
     <span className="flex h-7 items-center gap-1.5 rounded-2xl bg-primary-500 px-3 text-yc-12-b-neutral text-neutral-0">
-      <TbBed size={14} aria-hidden="true" />
+      <IoBedOutline size={14} aria-hidden="true" />
       Inpatient
     </span>
   ) : (
     <span className="flex h-7 items-center gap-1.5 rounded-2xl bg-neutral-100 px-3 text-yc-12-b-neutral text-neutral-700">
-      <LuFootprints size={14} aria-hidden="true" />
+      <IoFootstepsOutline size={14} aria-hidden="true" />
       Outpatient
     </span>
   );
@@ -95,7 +94,7 @@ const CompanionContextCard = ({
           className="flex h-8 w-34 items-center justify-end gap-1 rounded-2xl border border-neutral-700 bg-neutral-0 px-4 text-[14px] font-medium leading-[120%] text-neutral-700 shadow-[0_1px_10px_0_rgba(169,163,158,0.10)] transition-colors duration-150 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
           View Details
-          <LuChevronRight size={16} aria-hidden="true" />
+          <IoChevronForwardOutline size={16} aria-hidden="true" />
         </button>
       ) : (
         <span aria-hidden="true" className="h-8" />

@@ -104,31 +104,58 @@ describe("scanAttachmentUrl", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("does not fetch a non-allowlisted host (SSRF guard)", async () => {
+  it("does not fetch a non-allowlisted host (SSRF guard), and reports it unscannable", async () => {
     const res = await scanAttachmentUrl("https://evil.example.com/x.pdf");
-    expect(res.clean).toBe(true);
+    expect(res.clean).toBe(false);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("does not fetch an internal metadata URL", async () => {
+  it("does not fetch an internal metadata URL, and reports it unscannable", async () => {
     const res = await scanAttachmentUrl(
       "http://169.254.169.254/latest/meta-data/",
     );
-    expect(res.clean).toBe(true);
+    expect(res.clean).toBe(false);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("does not fetch a non-https Stream URL", async () => {
+  it("does not fetch a non-https Stream URL, and reports it unscannable", async () => {
     const res = await scanAttachmentUrl(
       "http://us-east.stream-io-cdn.com/x.pdf",
     );
-    expect(res.clean).toBe(true);
+    expect(res.clean).toBe(false);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("does not fetch a malformed URL", async () => {
+  it("does not fetch a malformed URL, and reports it unscannable", async () => {
     const res = await scanAttachmentUrl("not a url");
-    expect(res.clean).toBe(true);
+    expect(res.clean).toBe(false);
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for a custom CDN host so the attachment cannot skip scanning", async () => {
+    // A custom-CDN attachment is never fetchable (the SSRF barrier refuses to leave the
+    // Stream CDN), so it is unscannable input rather than a scanner outage.
+    const res = await scanAttachmentUrl("https://cdn.customer.example/x.pdf");
+
+    expect(res.clean).toBe(false);
+    expect(res.threat).toBe("attachment is not hosted on the Stream CDN");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("still fails open when VirusTotal is unreachable", async () => {
+    // Outage paths stay fail-open: a VirusTotal incident must not start deleting
+    // every attachment that flows through chat.
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        arrayBuffer: async () => new TextEncoder().encode("file").buffer,
+      })
+      .mockRejectedValueOnce(new Error("network down"));
+
+    const res = await scanAttachmentUrl(
+      "https://us-east.stream-io-cdn.com/x.pdf",
+    );
+
+    expect(res.clean).toBe(true);
   });
 });

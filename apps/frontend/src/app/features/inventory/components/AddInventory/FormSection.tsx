@@ -95,7 +95,7 @@ const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
       </span>
     </div>
     <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
-      <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+      <span className="absolute left-4 -top-[11px] bg-neutral-0 px-1.5 text-xs text-input-text-placeholder">
         Total stock value
       </span>
       <div className="flex items-center justify-between gap-2">
@@ -240,7 +240,6 @@ const renderTextInventoryField = ({
         handleChange(field, val, index);
       }}
       error={error}
-      className="min-h-12!"
     />
   );
 };
@@ -291,7 +290,6 @@ const renderInventoryField = ({
           }}
           placeholder={placeholder || ''}
           type="input"
-          className="min-h-12!"
           error={error}
         />
       </div>
@@ -398,7 +396,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   const sectionConfig = configForBusiness[sectionKey];
 
   if (!sectionConfig || sectionConfig.length === 0) {
-    return <div className="text-sm text-gray-500">No fields configured.</div>;
+    return <div className="text-sm text-text-tertiary">No fields configured.</div>;
   }
 
   const sectionData = formData[sectionKey] as any;
@@ -444,8 +442,6 @@ const FormSection: React.FC<FormSectionProps> = ({
   return (
     <div className="flex w-full flex-1 flex-col justify-between gap-6">
       <div className="flex flex-col gap-6">
-        <div className="font-satoshi text-black-text text-[23px] font-medium">{sectionTitle}</div>
-
         <Accordion title={sectionTitle} defaultOpen showEditIcon={false} isEditing={true}>
           {sectionKey === 'batch' ? (
             <div className="flex flex-col gap-6">
@@ -455,7 +451,7 @@ const FormSection: React.FC<FormSectionProps> = ({
               ).map((batch, batchIdx) => (
                 <div
                   key={batch._id ?? `batch-${batchIdx}`}
-                  className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
+                  className="flex flex-col gap-3 border border-card-border rounded-xl p-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-satoshi font-semibold text-black-text">
@@ -464,7 +460,7 @@ const FormSection: React.FC<FormSectionProps> = ({
                     {formData.batches && formData.batches.length > 1 && (
                       <button
                         type="button"
-                        className="text-red-500 text-sm font-semibold"
+                        className="text-text-error text-sm font-semibold"
                         onClick={() => onRemoveBatch?.(batchIdx)}
                       >
                         Remove

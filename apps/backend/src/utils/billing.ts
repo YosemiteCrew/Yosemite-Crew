@@ -1,7 +1,4 @@
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import OrganizationModel from "src/models/organization";
-import { OrgBilling } from "src/models/organization.billing";
 
 type OrgId = string | { toString(): string } | null | undefined;
 
@@ -49,16 +46,11 @@ export const currencyForCountry = (
 };
 
 const resolveOrgCountryCurrency = async (id: string): Promise<string> => {
-  if (isReadFromPostgres()) {
-    const address = await prisma.organizationAddress.findUnique({
-      where: { organizationId: id },
-      select: { country: true },
-    });
-    return currencyForCountry(address?.country) ?? DEFAULT_CURRENCY;
-  }
-
-  const org = await OrganizationModel.findById(id).select("address.country");
-  return currencyForCountry(org?.address?.country) ?? DEFAULT_CURRENCY;
+  const address = await prisma.organizationAddress.findUnique({
+    where: { organizationId: id },
+    select: { country: true },
+  });
+  return currencyForCountry(address?.country) ?? DEFAULT_CURRENCY;
 };
 
 export const getOrgBillingCurrency = async (orgId: OrgId) => {
@@ -66,18 +58,11 @@ export const getOrgBillingCurrency = async (orgId: OrgId) => {
 
   const id = typeof orgId === "string" ? orgId : orgId.toString();
 
-  if (isReadFromPostgres()) {
-    const billing = await prisma.organizationBilling.findUnique({
-      where: { orgId: id },
-      select: { currency: true },
-    });
-    // OrganizationBilling.currency (set from Stripe Connect) is the first
-    // preference; fall back to the org's country, then "usd" as a last resort.
-    return billing?.currency ?? (await resolveOrgCountryCurrency(id));
-  }
-
-  const billing = await OrgBilling.findOne({
-    orgId,
+  const billing = await prisma.organizationBilling.findUnique({
+    where: { orgId: id },
+    select: { currency: true },
   });
+  // OrganizationBilling.currency (set from Stripe Connect) is the first
+  // preference; fall back to the org's country, then "usd" as a last resort.
   return billing?.currency ?? (await resolveOrgCountryCurrency(id));
 };

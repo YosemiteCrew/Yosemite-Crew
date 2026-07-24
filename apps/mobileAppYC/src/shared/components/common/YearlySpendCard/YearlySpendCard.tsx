@@ -5,11 +5,6 @@ import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-import {
-  createGlassCardStyles,
-  createCardContentStyles,
-  createTextContainerStyles,
-} from '@/shared/utils/cardStyles';
 import {formatCurrency, resolveCurrencySymbol} from '@/shared/utils/currency';
 
 export interface YearlySpendCardProps {
@@ -20,6 +15,8 @@ export interface YearlySpendCardProps {
   companionAvatar?: ImageSourcePropType;
   onPressView?: () => void;
   disableSwipe?: boolean;
+  /** Smaller serif amount for summary contexts (e.g. the Home dashboard). */
+  compact?: boolean;
 }
 
 export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
@@ -30,6 +27,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   companionAvatar,
   onPressView,
   disableSwipe = false,
+  compact = false,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -58,16 +56,17 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
     <PressableOpacity
       activeOpacity={0.85}
       onPress={handleViewPress}
-      style={styles.content}>
-      <View style={styles.iconCircle}>
-        <Image source={Images.walletIcon} style={styles.icon} />
-      </View>
-
+      style={styles.content}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${formattedAmount.replaceAll(' ', ' ')}`}>
       <View style={styles.textContainer}>
         <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
           {label}
         </Text>
-        <Text style={styles.amount} numberOfLines={1} ellipsizeMode="tail">
+        <Text
+          style={compact ? styles.amountCompact : styles.amount}
+          numberOfLines={1}
+          ellipsizeMode="tail">
           {formattedAmount.replaceAll('\u00A0', ' ')}
         </Text>
       </View>
@@ -85,6 +84,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
       <LiquidGlassCard
         interactive
         glassEffect="clear"
+        shadow="card"
         style={styles.card}
         fallbackStyle={styles.fallback}>
         {cardContent}
@@ -101,7 +101,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
       cardProps={{
         interactive: true,
         glassEffect: 'clear',
-        shadow: 'base',
+        shadow: 'card',
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}
@@ -116,46 +116,60 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   );
 };
 
-const createStyles = (theme: any) => {
-  const glassCardStyles = createGlassCardStyles(theme, {borderWidth: 0});
-  const contentStyles = createCardContentStyles(theme, '4');
-  const textStyles = createTextContainerStyles(theme, '1');
-
-  return StyleSheet.create({
+const createStyles = (theme: any) =>
+  StyleSheet.create({
     container: {
       width: '100%',
       alignSelf: 'center',
     },
-    ...glassCardStyles,
-    ...contentStyles,
-    iconCircle: {
-      width: theme.spacing['10'],
-      height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.lg,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: theme.colors.border,
+    card: {
+      backgroundColor: theme.colors.screen,
+      borderColor: theme.colors.hairline,
+      borderWidth: 1,
+      borderRadius: theme.borderRadius.card,
+      padding: theme.spacing['4.5'],
+      overflow: 'hidden',
     },
-    icon: {
-      width: theme.spacing['6'],
-      height: theme.spacing['6'],
-      resizeMode: 'contain',
+    fallback: {
+      backgroundColor: theme.colors.screen,
+      borderColor: theme.colors.hairline,
+      borderWidth: 1,
+      borderRadius: theme.borderRadius.card,
+      overflow: 'hidden',
     },
-    ...textStyles,
+    content: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: theme.spacing['3'],
+    },
+    textContainer: {
+      flex: 1,
+      gap: theme.spacing['1'],
+    },
     label: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.textSecondary,
+      ...theme.typography.caption,
+      color: theme.colors.inkFaint,
     },
     amount: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
+      ...theme.typography.amountHero,
+      color: theme.colors.ink,
+      fontVariant: ['tabular-nums'],
+    },
+    amountCompact: {
+      ...theme.typography.amountHero,
+      fontSize: 24,
+      lineHeight: 30,
+      color: theme.colors.ink,
+      fontVariant: ['tabular-nums'],
     },
     companionAvatarWrapper: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 2,
-      borderColor: theme.colors.white,
+      borderRadius: theme.borderRadius.full,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      overflow: 'hidden',
     },
     companionAvatar: {
       width: '100%',
@@ -163,6 +177,5 @@ const createStyles = (theme: any) => {
       resizeMode: 'cover',
     },
   });
-};
 
 export default YearlySpendCard;

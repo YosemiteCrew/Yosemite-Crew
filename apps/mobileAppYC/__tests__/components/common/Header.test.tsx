@@ -42,8 +42,24 @@ describe('Header', () => {
     expect(flat).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          color: mockTheme.colors.text,
-          fontSize: mockTheme.typography.h3.fontSize,
+          color: mockTheme.colors.ink,
+          fontSize: mockTheme.typography.mobileBodyEmphasis.fontSize,
+          fontWeight: '600',
+        }),
+      ]),
+    );
+  });
+
+  it('renders a serif left-aligned title for the root variant', () => {
+    const {getByText} = render(<Header title="Tasks" variant="root" />);
+    const flat = flattenStyle(getByText('Tasks').props.style);
+    expect(flat).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fontFamily: mockTheme.typography.serifTitle.fontFamily,
+          fontSize: mockTheme.typography.serifTitle.fontSize,
+          textAlign: 'left',
+          color: mockTheme.colors.ink,
         }),
       ]),
     );
@@ -81,6 +97,36 @@ describe('Header', () => {
 
     fireEvent.press(buttons[0]);
     expect(onRightPressMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes accessible labels for the back and right-icon buttons', () => {
+    const rightIcon = 456;
+    const {UNSAFE_getAllByType} = render(
+      <Header
+        title="My Title"
+        showBackButton={true}
+        rightIcon={rightIcon}
+        rightAccessibilityLabel="Add companion"
+      />,
+    );
+
+    const {Pressable} = require('react-native');
+    const [backButton, rightButton] = UNSAFE_getAllByType(
+      (Pressable as any).type,
+    );
+    expect(backButton.props.accessibilityRole).toBe('button');
+    expect(backButton.props.accessibilityLabel).toBe('Back');
+    expect(rightButton.props.accessibilityLabel).toBe('Add companion');
+  });
+
+  it('falls back to a generic right-icon label when none is provided', () => {
+    const {UNSAFE_getAllByType} = render(
+      <Header title="My Title" rightIcon={456} />,
+    );
+
+    const {Pressable} = require('react-native');
+    const [rightButton] = UNSAFE_getAllByType((Pressable as any).type);
+    expect(rightButton.props.accessibilityLabel).toBe('More options');
   });
 
   it('renders without glass and keeps default press handlers safe', () => {
@@ -134,6 +180,7 @@ describe('Header', () => {
         '2': undefined,
         '5': undefined,
         '9': undefined,
+        '10': undefined,
       },
       colors: {
         ...mockTheme.colors,
@@ -179,6 +226,13 @@ describe('Header', () => {
       expect.objectContaining({
         paddingTop: 20,
       }),
+    );
+
+    const spacerStyle = androidViews
+      .map(view => StyleSheet.flatten(view.props.style))
+      .find(style => style?.width === style?.height && style?.width === 40);
+    expect(spacerStyle).toEqual(
+      expect.objectContaining({width: 40, height: 40}),
     );
   });
 });

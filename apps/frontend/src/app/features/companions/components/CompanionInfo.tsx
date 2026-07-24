@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Modal from '@/app/ui/overlays/Modal';
 import { Companion, Parent, Core, History } from '@/app/features/companions/components/Sections';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
-import Close from '@/app/ui/primitives/Icons/Close';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
@@ -96,21 +96,28 @@ const CompanionInfo = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <div className="flex justify-center items-center gap-2">
-              <Image
+          <ModalHeader
+            title={formatCompanionNameWithOwnerLastName(
+              activeCompanion?.companion.name,
+              activeCompanion?.parent
+            )}
+            meta={activeCompanion?.companion.breed}
+            icon={
+              <CompanionAvatar
                 alt={terminologyText('pet image')}
-                src={getSafeImageUrl(
-                  activeCompanion?.companion.photoUrl,
-                  activeCompanion?.companion.type.toLowerCase() as ImageType
-                )}
-                className="rounded-full size-10 object-cover"
-                height={40}
-                width={40}
+                photoUrl={activeCompanion?.companion.photoUrl}
+                name={activeCompanion?.companion.name}
+                speciesType={activeCompanion?.companion.type}
+                seed={activeCompanion?.companion.id}
+                size={40}
+                textClassName="text-body-2"
               />
-              <button
-                type="button"
-                className="text-body-1 text-text-primary cursor-pointer text-left hover:underline underline-offset-2"
+            }
+            actions={
+              <Secondary
+                href="#"
+                size="compact"
+                text="Open overview"
                 onClick={() => {
                   router.push(
                     buildCompanionOverviewHref(
@@ -124,18 +131,10 @@ const CompanionInfo = ({
                   );
                   setShowModal(false);
                 }}
-              >
-                {formatCompanionNameWithOwnerLastName(
-                  activeCompanion?.companion.name,
-                  activeCompanion?.parent
-                )}
-              </button>
-              <div className="text-body-4 text-text-primary mt-1">
-                {activeCompanion?.companion.breed}
-              </div>
-            </div>
-            <Close onClick={() => setShowModal(false)} />
-          </div>
+              />
+            }
+            onClose={() => setShowModal(false)}
+          />
 
           <Labels
             labels={labels}

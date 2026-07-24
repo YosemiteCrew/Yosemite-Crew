@@ -1,54 +1,51 @@
-/* eslint-disable @next/next/no-img-element */
-import React from "react";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import "@testing-library/jest-dom";
-import LaunchGrowTab from "@/app/ui/widgets/LaunchGrowTab/LaunchGrowTab";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
+import LaunchGrowTab from '@/app/ui/widgets/LaunchGrowTab/LaunchGrowTab';
 
-jest.mock("next/image", () => ({
+jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => {
     return <img {...props} alt={props.alt} />;
   },
 }));
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
+jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: (props: any) => <i data-testid="mock-icon" data-icon={props.icon} />,
 }));
 
-describe("LaunchGrowTab Component", () => {
-  it("should switch to the correct tab when a tab button is clicked", async () => {
+describe('LaunchGrowTab Component', () => {
+  it('should switch to the correct tab when a tab button is clicked', async () => {
     const user = userEvent.setup();
     render(<LaunchGrowTab />);
 
-    const sdkTabButton = screen.getByRole("button", { name: /SDKs/i });
+    const sdkTabButton = screen.getByRole('button', { name: /SDKs/i });
     await user.click(sdkTabButton);
 
-    const headings = screen.getAllByText("Software development kit");
+    const headings = screen.getAllByText('Software development kit');
     expect(headings.length).toBeGreaterThan(0);
     const texts = screen.getAllByText(
-      "Provides APIs for authentication, user roles, patient records, appointment scheduling, and billing."
+      'Provides APIs for authentication, user roles, patient records, appointment scheduling, and billing.'
     );
     expect(texts.length).toBeGreaterThan(0);
 
-    expect(
-      screen.queryByText("Application programming interface")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Application programming interface')).not.toBeInTheDocument();
   });
 
   it("should display the correct content for the 'Documentation' tab when active", async () => {
     const user = userEvent.setup();
     render(<LaunchGrowTab />);
 
-    const documentationTabButton = screen.getByRole("button", {
+    const documentationTabButton = screen.getByRole('button', {
       name: /Documentation/i,
     });
     await user.click(documentationTabButton);
 
-    const headings = screen.getAllByText("Documentation");
+    const headings = screen.getAllByText('Documentation');
     expect(headings.length).toBeGreaterThan(0);
     const texts = screen.getAllByText(
-      "Endpoints, authentication methods, request/response examples, and SDK usage guides."
+      'Endpoints, authentication methods, request/response examples, and SDK usage guides.'
     );
     expect(texts.length).toBeGreaterThan(0);
   });

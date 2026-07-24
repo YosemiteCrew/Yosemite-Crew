@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import { Primary } from '@/app/ui/primitives/Buttons';
 import {
   DEFAULT_TIMEZONE,
   getSystemTimeZone,
@@ -15,19 +13,17 @@ import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { parseTimezoneFromProfile } from '@/app/features/settings/utils/pmsPreferences';
 import { patchUserProfile } from '@/app/features/organization/services/profileService';
+import { PreferenceRow } from './PreferenceGroup';
+import PillSelect from './PillSelect';
+
+/** Sentinel option value standing for "follow the device timezone". */
+const DEVICE_VALUE = 'device';
 
 const TimezonePreference = () => {
   const { notify } = useNotify();
   const profile = usePrimaryOrgProfile();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const options = useMemo(() => getTimezoneOptions(), []);
-  const modeOptions = useMemo(
-    () => [
-      { value: 'device', label: 'Use device timezone' },
-      { value: 'custom', label: 'Use custom timezone' },
-    ],
-    []
-  );
+  const timezoneOptions = useMemo(() => getTimezoneOptions(), []);
   const profileTimezone = parseTimezoneFromProfile(profile?.personalDetails?.timezone);
   const [syncMode, setSyncMode] = useState<TimezoneSyncMode>(() =>
     getTimezoneSyncModeForOrg(primaryOrgId)
@@ -44,7 +40,18 @@ const TimezonePreference = () => {
     setSelectedTimezone(profileTimezone);
   }, [primaryOrgId, profileTimezone]);
 
-  const handleSave = async () => {
+  // The design collapses the mode + zone pair into a single compact pill whose
+  // first entry is the device zone ("Device · Europe/Berlin") and whose remaining
+  // entries pin an explicit zone.
+  const options = useMemo(
+    () => [{ value: DEVICE_VALUE, label: `Device · ${getSystemTimeZone()}` }, ...timezoneOptions],
+    [timezoneOptions]
+  );
+
+  // Auto-save model from the design: the pill commits on change and the page header
+  // carries the single "Changes save automatically" indicator, so there is no
+  // per-preference Save button. Only failures surface a notification.
+  const persist = async (mode: TimezoneSyncMode, timezone: string) => {
     if (!primaryOrgId) {
       notify('error', {
         title: 'Organization not selected',
@@ -53,9 +60,9 @@ const TimezonePreference = () => {
       return;
     }
 
-    const next = syncMode === 'device' ? getSystemTimeZone() : selectedTimezone || DEFAULT_TIMEZONE;
-    const localSaved = setPreferredTimeZone(next);
-    const modeSaved = setTimezoneSyncModeForOrg(primaryOrgId, syncMode);
+    const next = mode === 'device' ? getSystemTimeZone() : timezone || DEFAULT_TIMEZONE;
+    setPreferredTimeZone(next);
+    setTimezoneSyncModeForOrg(primaryOrgId, mode);
 
     try {
       await patchUserProfile(primaryOrgId, {
@@ -64,21 +71,6 @@ const TimezonePreference = () => {
           timezone: next,
         },
       });
-      if (localSaved && modeSaved) {
-        notify('success', {
-          title: 'Timezone updated',
-          text:
-            syncMode === 'device'
-              ? 'Device timezone mode is enabled and synced with backend.'
-              : 'Custom timezone preference has been saved.',
-        });
-        return;
-      }
-      notify('success', {
-        title: 'Timezone updated',
-        text: 'Timezone synced with backend. Local cache refresh may require reloading.',
-      });
-      return;
     } catch {
       notify('error', {
         title: 'Unable to update timezone',
@@ -87,35 +79,23 @@ const TimezonePreference = () => {
     }
   };
 
+  const handleChange = (value: string) => {
+    const mode: TimezoneSyncMode = value === DEVICE_VALUE ? 'device' : 'custom';
+    const timezone = mode === 'device' ? getSystemTimeZone() : value;
+    setSyncMode(mode);
+    setSelectedTimezone(timezone);
+    void persist(mode, timezone);
+  };
+
   return (
-    <div className="border border-card-border rounded-2xl">
-      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">Timezone</div>
-      </div>
-      <div className="flex flex-col gap-3 px-6! py-6!">
-        <LabelDropdown
-          placeholder="Timezone mode"
-          options={modeOptions}
-          defaultOption={syncMode}
-          onSelect={(option) => setSyncMode(option.value as TimezoneSyncMode)}
-        />
-        {syncMode === 'custom' ? (
-          <LabelDropdown
-            placeholder="Preferred timezone"
-            options={options}
-            defaultOption={selectedTimezone}
-            onSelect={(option) => setSelectedTimezone(option.value)}
-          />
-        ) : (
-          <div className="px-6 py-2.75 border border-input-border-default rounded-2xl text-body-4 text-text-secondary">
-            Device timezone: {getSystemTimeZone()}
-          </div>
-        )}
-        <div className="w-full flex justify-end!">
-          <Primary href="#" text="Save timezone" onClick={handleSave} />
-        </div>
-      </div>
-    </div>
+    <PreferenceRow label="Timezone" description="Used for slots and reminders">
+      <PillSelect
+        ariaLabel="Timezone"
+        value={syncMode === 'device' ? DEVICE_VALUE : selectedTimezone}
+        options={options}
+        onChange={handleChange}
+      />
+    </PreferenceRow>
   );
 };
 

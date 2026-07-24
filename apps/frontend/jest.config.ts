@@ -59,6 +59,8 @@ const config: Config = {
     '!<rootDir>/src/app/services/http/types.ts',
     '!<rootDir>/src/app/features/integrations/services/types.ts',
     '!<rootDir>/src/app/features/onboarding/components/Steps/types.ts',
+    '!<rootDir>/src/app/ui/layout/Notifications/notificationTypes.ts',
+    '!<rootDir>/src/app/features/guides/types/guides.ts',
     '!<rootDir>/src/app/loading.tsx',
     '!<rootDir>/src/app/not-found.tsx',
     '!<rootDir>/src/app/(routes)/**/layout.tsx',
@@ -74,6 +76,20 @@ const config: Config = {
     '<rootDir>/src/app/features/companions/components/AddCompanionCentralModal/index.tsx',
     '<rootDir>/src/app/features/inventory/pages/Inventory/index.tsx',
     '<rootDir>/src/app/features/appointments/pages/AppointmentWorkspace/index.tsx',
+    '<rootDir>/src/app/features/appointments/pages/Appointments/index.tsx',
+    '<rootDir>/src/app/features/integrations/pages/IdexxWorkspace/index.tsx',
+    '<rootDir>/src/app/features/integrations/pages/Integrations/index.tsx',
+    '<rootDir>/src/app/features/integrations/pages/MerckManuals/index.tsx',
+    '<rootDir>/src/app/features/inventory/components/AddInventory/index.tsx',
+    '<rootDir>/src/app/features/inventory/components/TurnoverAnalytics/index.tsx',
+    '<rootDir>/src/app/features/tasks/pages/Tasks/index.tsx',
+    '<rootDir>/src/app/features/forms/pages/Forms/index.tsx',
+    '<rootDir>/src/app/features/onboarding/pages/StripeOnboarding/index.tsx',
+    '<rootDir>/src/app/features/finance/pages/Finance/index.tsx',
+    '<rootDir>/src/app/features/finance/pages/Discounts/index.tsx',
+    '<rootDir>/src/app/features/organization/pages/Organization/index.tsx',
+    '<rootDir>/src/app/features/settings/pages/Settings/index.tsx',
+    '<rootDir>/src/app/features/companions/components/AddCompanion/index.tsx',
   ],
 
   // The directory where Jest should output its coverage files
@@ -220,7 +236,11 @@ const config: Config = {
   // ],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/e2e/',
+    '<rootDir>/src/app/__tests__/support/',
+  ],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
   // testRegex: [],

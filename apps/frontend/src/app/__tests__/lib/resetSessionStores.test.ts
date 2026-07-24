@@ -13,6 +13,8 @@ const clearProfiles = jest.fn();
 const clearRooms = jest.fn();
 const clearServices = jest.fn();
 const clearSpecialities = jest.fn();
+const clearCatalog = jest.fn();
+const clearInFlightGetRequests = jest.fn();
 
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: { getState: () => ({ clearOrgs }) },
@@ -53,8 +55,38 @@ jest.mock('@/app/stores/serviceStore', () => ({
 jest.mock('@/app/stores/specialityStore', () => ({
   useSpecialityStore: { getState: () => ({ clearSpecialities }) },
 }));
+jest.mock('@/app/stores/revampCatalogStore', () => ({
+  useRevampCatalogStore: { getState: () => ({ clearCatalog }) },
+}));
+jest.mock('@/app/services/axios', () => ({
+  clearInFlightGetRequests: () => clearInFlightGetRequests(),
+}));
+
+const mockSessionStorage = (entries: Record<string, string>) => {
+  const store = new Map(Object.entries(entries));
+  const sessionStorage = {
+    get length() {
+      return store.size;
+    },
+    key: (index: number) => [...store.keys()][index] ?? null,
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: jest.fn((key: string) => store.delete(key)),
+    clear: () => store.clear(),
+  };
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    configurable: true,
+    value: sessionStorage,
+  });
+  return { store, sessionStorage };
+};
 
 describe('clearSessionScopedStores', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSessionStorage({});
+  });
+
   it('clears all session-scoped stores and persisted org storage', () => {
     const removeItem = jest.fn();
     Object.defineProperty(globalThis, 'localStorage', {
@@ -77,6 +109,24 @@ describe('clearSessionScopedStores', () => {
     expect(clearRooms).toHaveBeenCalled();
     expect(clearServices).toHaveBeenCalled();
     expect(clearSpecialities).toHaveBeenCalled();
+    expect(clearCatalog).toHaveBeenCalled();
+    expect(clearInFlightGetRequests).toHaveBeenCalled();
     expect(removeItem).toHaveBeenCalledWith('org-store');
+  });
+
+  it('removes every org-scoped OrgGuard pass marker from session storage', () => {
+    const { store } = mockSessionStorage({
+      'yc_org_guard_passed:org-1': '1',
+      'yc_org_guard_passed:org-2': '1',
+      'yc_default_landing_applied:org-1': '1',
+      'unrelated-key': 'keep-me',
+    });
+
+    clearSessionScopedStores();
+
+    expect(store.has('yc_org_guard_passed:org-1')).toBe(false);
+    expect(store.has('yc_org_guard_passed:org-2')).toBe(false);
+    expect(store.has('yc_default_landing_applied:org-1')).toBe(false);
+    expect(store.get('unrelated-key')).toBe('keep-me');
   });
 });

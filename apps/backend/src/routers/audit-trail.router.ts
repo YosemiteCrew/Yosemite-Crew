@@ -1,20 +1,20 @@
 import { Router } from "express";
 import { AuditTrailController } from "src/controllers/web/audit-trail.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
 router.get(
   "/companion/:patientId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("audit:view:any"),
   AuditTrailController.listForCompanion,
 );
 router.post(
   "/companion",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("audit:view:any"),
   AuditTrailController.listForCompanion,
@@ -22,14 +22,14 @@ router.post(
 
 router.get(
   "/appointment/:appointmentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("audit:view:any"),
   AuditTrailController.listForAppointment,
 );
 router.post(
   "/appointment",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("audit:view:any"),
   AuditTrailController.listForAppointment,

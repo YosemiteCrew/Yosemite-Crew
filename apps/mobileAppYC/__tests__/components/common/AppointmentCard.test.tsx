@@ -182,6 +182,23 @@ describe('AppointmentCard Component', () => {
   // 3. Interaction (Buttons & Card)
   // ===========================================================================
 
+  it('exposes button role and a descriptive accessibility label on the card body', () => {
+    const {getByTestId} = render(<AppointmentCard {...defaultProps} />);
+    const touchable = getByTestId('card-container');
+    expect(touchable.props.accessibilityRole).toBe('button');
+    expect(touchable.props.accessibilityLabel).toBe(
+      'Dr. Smith, Cardiology, Today, 10:00 AM',
+    );
+  });
+
+  it('omits the button role on the card body when onPress is undefined', () => {
+    const {getByTestId} = render(
+      <AppointmentCard {...defaultProps} onPress={undefined} />,
+    );
+    const touchable = getByTestId('card-container');
+    expect(touchable.props.accessibilityRole).toBeUndefined();
+  });
+
   it('calls onPress when the card body is pressed', () => {
     const {getByTestId} = render(<AppointmentCard {...defaultProps} />);
     const touchable = getByTestId('card-container');

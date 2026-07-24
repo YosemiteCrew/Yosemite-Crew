@@ -1,6 +1,7 @@
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import TaskFormFields from '@/app/features/tasks/components/TaskFormFields';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -10,11 +11,6 @@ import React, { useMemo } from 'react';
 import { getPreferredTimeValue } from '@/app/lib/date';
 import { getPreferredTimeZone } from '@/app/lib/timezone';
 import { Task } from '@/app/features/tasks/types/task';
-
-const TaskTypeOptions = [
-  { value: 'EMPLOYEE_TASK', label: 'Employee Task' },
-  { value: 'PARENT_TASK', label: 'Parent Task' },
-];
 
 type AddTaskProps = {
   showModal: boolean;
@@ -103,11 +99,11 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
   );
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
-        <ModalHeader title="Add task" onClose={() => setShowModal(false)} />
+    <Modal showModal={showModal} setShowModal={setShowModal} variant="centered" size="md">
+      <div className="flex flex-col flex-auto min-h-0">
+        <ModalHeader title="New task" onClose={() => setShowModal(false)} />
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-start overflow-y-auto scrollbar-hidden pt-1.5">
+        <div className="flex flex-col gap-6 w-full flex-auto min-h-0 justify-start overflow-y-auto scrollbar-hidden pt-5">
           <TaskFormFields
             formData={formData}
             setFormData={setFormData}
@@ -118,55 +114,47 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
             dueTimeValue={dueTimeValue}
             setDueTimeValue={setDueTimeValue}
             onSelectTemplate={selectTemplate}
-            showAudienceSelect
-            audienceOptions={TaskTypeOptions}
-            onAudienceSelect={(option) =>
+            twoColumn
+            assigneeChips
+            teamOptions={TeamOptions}
+            parentOptions={CompanionOptions}
+            onSelectTeam={(option) =>
               setFormData({
                 ...formData,
-                audience: option.value as any,
-                assignedTo: '',
+                audience: 'EMPLOYEE_TASK',
+                assignedTo: option.value,
                 companionId: undefined,
               })
             }
-            showAssigneeSelect
-            assigneeOptions={formData.audience === 'EMPLOYEE_TASK' ? TeamOptions : CompanionOptions}
-            onAssigneeSelect={(option) => {
-              if (formData.audience === 'EMPLOYEE_TASK') {
-                setFormData({
-                  ...formData,
-                  assignedTo: option.value,
-                });
-                return;
-              }
+            onSelectParent={(option) => {
               const companion = companions?.find((c) => c.parentId === option.value);
-              if (companion) {
-                setFormData({
-                  ...formData,
-                  companionId: companion.id,
-                  assignedTo: option.value,
-                });
-              }
+              setFormData({
+                ...formData,
+                audience: 'PARENT_TASK',
+                assignedTo: option.value,
+                companionId: companion?.id,
+              });
             }}
           />
-          <div className="flex justify-end items-center gap-3 w-full flex-col pb-3">
-            {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-            <div className="flex gap-3 justify-center w-full flex-wrap">
-              <Secondary
-                href="#"
-                text="Save as template"
-                className="hidden"
-                onClick={handleCreateTemplate}
-              />
-              <Primary
-                href="#"
-                text={isLoading ? 'Saving...' : 'Save'}
-                className="w-auto min-w-[140px]"
-                onClick={handleCreate}
-                isDisabled={isLoading}
-              />
-            </div>
-          </div>
         </div>
+
+        <ModalFooter>
+          {error && <div className="mr-auto text-body-4 text-text-error">{error}</div>}
+          <Secondary
+            href="#"
+            text="Save as template"
+            className="hidden"
+            onClick={handleCreateTemplate}
+          />
+          <Secondary href="#" text="Cancel" onClick={() => setShowModal(false)} />
+          <Primary
+            href="#"
+            text={isLoading ? 'Saving...' : 'Create task'}
+            className="w-auto min-w-[140px]"
+            onClick={handleCreate}
+            isDisabled={isLoading}
+          />
+        </ModalFooter>
       </div>
     </Modal>
   );

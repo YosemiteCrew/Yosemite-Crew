@@ -236,6 +236,7 @@ describe('workspaceAggregateService', () => {
         encounterClass: 'IMP',
         status: 'onleave',
         updatedAt: '2026-06-18T10:00:00.000Z',
+        periodStart: '2026-06-18T08:30:00.000Z',
         readyForDischargeByName: 'Dr Discharge',
         readyForDischargeAt: '2026-06-18T10:05:00.000Z',
         admission: {
@@ -286,6 +287,7 @@ describe('workspaceAggregateService', () => {
     expect(patch.roomId).toBe('room-1');
     expect(patch.unitId).toBe('unit-1');
     expect(patch.admittedAt).toBe('2026-06-18T08:30:00.000Z');
+    expect(patch.startedAt).toBe('2026-06-18T08:30:00.000Z');
     expect(patch.readyForDischarge?.value).toBe(true);
     expect(patch.readyForDischarge?.byName).toBe('Dr Discharge');
     expect(patch.readyForDischarge?.at).toBe('2026-06-18T10:05:00.000Z');
@@ -333,6 +335,22 @@ describe('workspaceAggregateService', () => {
     expect(patch.readyForBilling?.at).toBe('2026-06-18T11:05:00.000Z');
     // Discharge is not implied by billing.
     expect(patch.readyForDischarge).toBeUndefined();
+  });
+
+  it('reads startedAt from encounter.periodStart for an outpatient encounter with no admission', () => {
+    // Bug #1903: the visit timer must start for outpatient encounters, which have
+    // no admission block. `startedAt` comes from `encounter.periodStart` (stamped
+    // to the status-change time when the encounter goes In Progress).
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      encounter: {
+        id: 'enc-1',
+        appointmentKind: 'OUTPATIENT',
+        status: 'in-progress',
+        periodStart: '2026-07-02T14:05:00.000Z',
+      },
+    });
+    expect(patch.startedAt).toBe('2026-07-02T14:05:00.000Z');
+    expect(patch.admittedAt).toBeUndefined();
   });
 
   it('keeps ready-for-billing ticked once the invoice is SETTLED after payment', () => {
@@ -572,6 +590,41 @@ describe('workspaceAggregateService', () => {
     expect(patch.stepStatus?.TREATMENT).toBe('COMPLETED');
   });
 
+  it('preserves the dispensed quantity on a package-expanded medication', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      treatmentItems: [
+        {
+          id: 'ti-med',
+          productId: 'prod-med',
+          servicePackageKind: 'MEDICATION',
+          name: 'Amoxicillin',
+          quantity: 3,
+          priceSnapshot: { unitPrice: 12 },
+          billingStatus: 'UNBILLED',
+        },
+      ],
+    });
+
+    // qty drives the editable Qty box, stock decrement and billing — a numeric `quantity`
+    // must survive as PrescriptionItem's string `qty`, not reload blank.
+    expect(patch.prescription?.[0]).toEqual(expect.objectContaining({ id: 'ti-med', qty: '3' }));
+  });
+
+  it('leaves qty unset on a medication treatment item with no quantity', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      treatmentItems: [
+        {
+          id: 'ti-med-noqty',
+          servicePackageKind: 'MEDICATION',
+          name: 'Amoxicillin',
+          billingStatus: 'UNBILLED',
+        },
+      ],
+    });
+
+    expect(patch.prescription?.[0].qty).toBeUndefined();
+  });
+
   it('keeps a billed prescription-linked item in the prescription section even when its kind is not a medication', () => {
     // After billing/dispense the backend can persist the drug as a treatment-item
     // row whose kind is no longer MEDICATION/PRESCRIPTION but which still links to a
@@ -601,6 +654,8 @@ describe('workspaceAggregateService', () => {
         medicineName: 'Metronidazole',
         priceCents: 1800,
         billed: true,
+        // #1909: a billed medication is a finalized record — never re-POSTed on save.
+        finalized: true,
       }),
     ]);
   });
@@ -698,6 +753,8 @@ describe('workspaceAggregateService', () => {
         route: 'PO',
         frequency: 'BID',
         qty: '2',
+        // #1909: artifact status COMPLETED means the line is finalized (skip re-save).
+        finalized: true,
       }),
     ]);
     expect(patch.services).toBeUndefined();
@@ -731,7 +788,10 @@ describe('workspaceAggregateService', () => {
       ],
     });
 
-    expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: true })]);
+    expect(patch.prescription).toEqual([
+      // #1909: a billed line is finalized too, even when the artifact carries no final status.
+      expect.objectContaining({ id: 'line-1', billed: true, finalized: true }),
+    ]);
   });
 
   it('does not mark a same-drug artifact prescription as billed without a prescription link', () => {
@@ -777,7 +837,10 @@ describe('workspaceAggregateService', () => {
       treatmentItems: [],
     });
 
-    expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: false })]);
+    expect(patch.prescription).toEqual([
+      // An unbilled line with no final artifact status is not finalized and stays re-savable.
+      expect.objectContaining({ id: 'line-1', billed: false, finalized: false }),
+    ]);
   });
 
   it('reconciles a document packet and builds a packet PDF blob URL', async () => {

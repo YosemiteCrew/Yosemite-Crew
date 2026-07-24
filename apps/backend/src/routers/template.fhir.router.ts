@@ -1,17 +1,21 @@
 import { Router } from "express";
 import { TemplateFhirController } from "src/controllers/web/template.fhir.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
-router.get("/questionnaire/library", authorizeCognito, (req, res) =>
-  TemplateFhirController.listQuestionnaires(req, res),
+router.get(
+  "/questionnaire/library",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) => TemplateFhirController.listQuestionnaires(req, res),
 );
 
 router.get(
   "/questionnaire/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateFhirController.listOrganisationQuestionnaires(req, res),
@@ -19,7 +23,7 @@ router.get(
 
 router.get(
   "/questionnaire/organisation/:organisationId/users/me",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateFhirController.listUserQuestionnaires(req, res),
@@ -27,7 +31,7 @@ router.get(
 
 router.post(
   "/questionnaire",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateFhirController.createQuestionnaire(req, res),
@@ -35,7 +39,7 @@ router.post(
 
 router.get(
   "/questionnaire/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateFhirController.getQuestionnaire(req, res),
@@ -43,7 +47,7 @@ router.get(
 
 router.patch(
   "/questionnaire/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateFhirController.updateQuestionnaire(req, res),
@@ -51,7 +55,7 @@ router.patch(
 
 router.post(
   "/questionnaire/organisation/:organisationId/:templateId/publish",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateFhirController.publishQuestionnaire(req, res),
@@ -59,7 +63,7 @@ router.post(
 
 router.delete(
   "/questionnaire/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateFhirController.archiveQuestionnaire(req, res),
@@ -67,7 +71,7 @@ router.delete(
 
 router.post(
   "/questionnaire/organisation/:organisationId/:templateId/instances",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateFhirController.createQuestionnaireInstance(req, res),
@@ -75,7 +79,7 @@ router.post(
 
 router.patch(
   "/questionnaire/template-instances/organisation/:organisationId/:instanceId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateFhirController.updateQuestionnaireInstance(req, res),
@@ -83,19 +87,23 @@ router.patch(
 
 router.post(
   "/questionnaire/template-instances/organisation/:organisationId/:instanceId/submit",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateFhirController.submitQuestionnaireInstance(req, res),
 );
 
-router.get("/plan-definition/library", authorizeCognito, (req, res) =>
-  TemplateFhirController.listPlanDefinitions(req, res),
+router.get(
+  "/plan-definition/library",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["tasks:view:any"]),
+  (req, res) => TemplateFhirController.listPlanDefinitions(req, res),
 );
 
 router.get(
   "/plan-definition/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:view:any"]),
   (req, res) =>
@@ -104,7 +112,7 @@ router.get(
 
 router.get(
   "/plan-definition/organisation/:organisationId/users/me",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:view:any"]),
   (req, res) => TemplateFhirController.listUserPlanDefinitions(req, res),
@@ -112,7 +120,7 @@ router.get(
 
 router.post(
   "/plan-definition",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any"]),
   (req, res) => TemplateFhirController.createPlanDefinition(req, res),
@@ -120,7 +128,7 @@ router.post(
 
 router.get(
   "/plan-definition/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:view:any"]),
   (req, res) => TemplateFhirController.getPlanDefinition(req, res),
@@ -128,7 +136,7 @@ router.get(
 
 router.patch(
   "/plan-definition/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any"]),
   (req, res) => TemplateFhirController.updatePlanDefinition(req, res),
@@ -136,7 +144,7 @@ router.patch(
 
 router.post(
   "/plan-definition/organisation/:organisationId/:templateId/publish",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any"]),
   (req, res) => TemplateFhirController.publishPlanDefinition(req, res),
@@ -144,7 +152,7 @@ router.post(
 
 router.delete(
   "/plan-definition/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any"]),
   (req, res) => TemplateFhirController.archivePlanDefinition(req, res),
@@ -152,7 +160,7 @@ router.delete(
 
 router.post(
   "/plan-definition/organisation/:organisationId/:templateId/instances",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any"]),
   (req, res) => TemplateFhirController.createPlanDefinitionInstance(req, res),
@@ -160,7 +168,7 @@ router.post(
 
 router.patch(
   "/plan-definition/template-instances/organisation/:organisationId/:instanceId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any"]),
   (req, res) => TemplateFhirController.updatePlanDefinitionInstance(req, res),
@@ -168,7 +176,7 @@ router.patch(
 
 router.post(
   "/plan-definition/template-instances/organisation/:organisationId/:instanceId/submit",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["tasks:edit:any"]),
   (req, res) => TemplateFhirController.submitPlanDefinitionInstance(req, res),

@@ -138,6 +138,7 @@ describe("SpecialityController", () => {
     const req = {
       params: { id: "spec_1" },
       query: { organization: "Organization/org_1" },
+      organisationId: "org_1",
     };
     const res = createResponse();
 
@@ -155,6 +156,20 @@ describe("SpecialityController", () => {
         active: true,
       }),
     );
+  });
+
+  it("rejects a speciality read whose organization query names a different organisation than the caller was authorized for", async () => {
+    const req = {
+      params: { id: "spec_1" },
+      query: { organization: "Organization/org_victim" },
+      organisationId: "org_1",
+    };
+    const res = createResponse();
+
+    await SpecialityController.getSpecialityById(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(CatalogService.getSpecialityById).not.toHaveBeenCalled();
   });
 
   it("maps dependency conflicts on speciality delete", async () => {

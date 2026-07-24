@@ -1,6 +1,5 @@
-import fs from 'node:fs';
-import axios from 'axios';
 import PDFDocument from 'pdfkit';
+import { resolveLogoSource } from './resolveLogoSource.js';
 import { registerPdfFonts } from './fonts.js';
 import { PDF_COLORS, PDF_FONT_SIZES, PDF_LAYOUT, PDF_PAGE_SIZE, PDF_SPACING } from './layout.js';
 import { BasePdfTemplate } from './BasePdfTemplate.js';
@@ -79,21 +78,6 @@ const collectPdfBuffer = (
       rejectFn?.(error);
     },
   };
-};
-
-const resolveLogoSource = async (logoUrl?: string | null): Promise<string | Buffer | null> => {
-  if (!logoUrl) {
-    return null;
-  }
-
-  if (/^https?:\/\//i.test(logoUrl)) {
-    const response = await axios.get<ArrayBuffer>(logoUrl, {
-      responseType: 'arraybuffer',
-    });
-    return Buffer.from(response.data);
-  }
-
-  return fs.existsSync(logoUrl) ? logoUrl : null;
 };
 
 const renderInvoiceSummary = (

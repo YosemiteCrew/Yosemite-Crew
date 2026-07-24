@@ -98,6 +98,15 @@ describe('TaskMonthDateSelector', () => {
     expect(onMonthChange).toHaveBeenCalledWith(getPreviousMonth(CURRENT_MONTH));
   });
 
+  it('exposes button roles and labels on the month navigation arrows', () => {
+    renderSelector();
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+    expect(pressables[0].props.accessibilityRole).toBe('button');
+    expect(pressables[0].props.accessibilityLabel).toBe('Previous month');
+    expect(pressables[1].props.accessibilityRole).toBe('button');
+    expect(pressables[1].props.accessibilityLabel).toBe('Next month');
+  });
+
   it('navigates to the next month when the right arrow is pressed', () => {
     renderSelector();
     const pressables = screen.UNSAFE_getAllByType(PressableType);
@@ -140,6 +149,49 @@ describe('TaskMonthDateSelector', () => {
 
     const pressables = screen.UNSAFE_getAllByType(PressableType);
     expect(pressables[2 + currentIndex].props.disabled).toBe(false);
+  });
+
+  it('exposes the selected and disabled state to screen readers via accessibilityState', () => {
+    renderSelector();
+    const weekDates = getMonthDates(CURRENT_MONTH, SELECTED_DATE);
+    const selectedIndex = weekDates.findIndex(
+      d => d.date.getDate() === 15 && d.date.getMonth() === 5,
+    );
+    const paddingIndex = weekDates.findIndex(
+      d => d.date.getMonth() !== CURRENT_MONTH.getMonth(),
+    );
+
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+
+    expect(pressables[2 + selectedIndex].props.accessibilityRole).toBe('radio');
+    expect(pressables[2 + selectedIndex].props.accessibilityState).toEqual({
+      selected: true,
+      disabled: false,
+    });
+
+    expect(pressables[2 + paddingIndex].props.accessibilityState).toEqual({
+      selected: false,
+      disabled: true,
+    });
+  });
+
+  it('mentions tasks in the accessibility label for dates that have one', () => {
+    const weekDates = getMonthDates(CURRENT_MONTH, SELECTED_DATE);
+    const taskDateInfo = weekDates.find(
+      d =>
+        d.date.getMonth() === CURRENT_MONTH.getMonth() &&
+        d.date.getDate() !== 15,
+    )!;
+
+    renderSelector({
+      datesWithTasks: new Set([formatDateToISODate(taskDateInfo.date)]),
+    });
+
+    const taskIndex = weekDates.indexOf(taskDateInfo);
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+    expect(pressables[2 + taskIndex].props.accessibilityLabel).toMatch(
+      /has tasks$/,
+    );
   });
 
   it('applies today styling when the system date falls within the visible month', () => {

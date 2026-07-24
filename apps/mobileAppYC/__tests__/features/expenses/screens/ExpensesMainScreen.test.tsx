@@ -477,18 +477,62 @@ describe('ExpensesMainScreen', () => {
 
   it('should render empty state if hydrated and no expenses exist', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => true);
-    const {getByText} = render(<ExpensesMainScreen />);
-    expect(getByText('Zero bucks spent!')).toBeTruthy();
+    const {getByText, getByTestId} = render(<ExpensesMainScreen />);
+    expect(getByTestId('expenses-empty')).toBeTruthy();
+    expect(getByText('No expenses yet')).toBeTruthy();
     expect(
-      getByText('It seems like you and your buddy are in saving mode!'),
+      getByText(
+        "Vet bills, food and insurance will add up here, so the year's spend is a number, not a shoebox.",
+      ),
     ).toBeTruthy();
   });
 
   it('should navigate to AddExpense from empty state button', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => true);
-    const {getByText} = render(<ExpensesMainScreen />);
-    fireEvent.press(getByText('Add expense')); // Use press
+    const {getByTestId} = render(<ExpensesMainScreen />);
+    fireEvent.press(getByTestId('expenses-empty-action'));
     expect(mockNavigate).toHaveBeenCalledWith('AddExpense');
+  });
+
+  it('should render the in-app empty section when only external expenses exist', () => {
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectRecentInAppExpensesMock.mockReturnValue(() => []);
+    selectRecentExternalExpensesMock.mockReturnValue(() => [
+      mockExternalExpense,
+    ]);
+
+    const {getByText, queryByText, getAllByTestId} = render(
+      <ExpensesMainScreen />,
+    );
+
+    // Not the full empty state, because there is at least one expense.
+    expect(queryByText('No expenses yet')).toBeNull();
+    // In-app section falls back to its inline empty message.
+    expect(getByText('No in-app expenses yet')).toBeTruthy();
+    // External section still renders its card (one view button).
+    expect(getAllByTestId('view-button').length).toBe(1);
+  });
+
+  it('should render the external empty section when only in-app expenses exist', () => {
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+    selectRecentExternalExpensesMock.mockReturnValue(() => []);
+
+    const {getByText, queryByText, getAllByTestId} = render(
+      <ExpensesMainScreen />,
+    );
+
+    expect(queryByText('No expenses yet')).toBeNull();
+    expect(getByText('No external expenses yet')).toBeTruthy();
+    expect(getAllByTestId('view-button').length).toBe(1);
+  });
+
+  it('should render the loading overlay while expenses are loading', () => {
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+    selectExpensesLoadingMock.mockReturnValue(true);
+
+    expect(() => render(<ExpensesMainScreen />)).not.toThrow();
   });
 
   it('should render expense cards when data is available', () => {
@@ -505,7 +549,7 @@ describe('ExpensesMainScreen', () => {
 
     const {getByText, queryByText} = render(<ExpensesMainScreen />);
 
-    expect(queryByText('Zero bucks spent!')).toBeNull();
+    expect(queryByText('No expenses yet')).toBeNull();
 
     expect(getByText('Recent in-app expenses')).toBeTruthy();
     expect(getByText('Recent external expenses')).toBeTruthy();
@@ -597,6 +641,12 @@ describe('ExpensesMainScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('ExpensesList', {
         mode: 'inApp',
       });
+    });
+
+    it('exposes a button role and label on the yearly spend card', () => {
+      const {getByLabelText} = render(<ExpensesMainScreen />);
+      const card = getByLabelText('View yearly spend summary');
+      expect(card.props.accessibilityRole).toBe('button');
     });
   });
 

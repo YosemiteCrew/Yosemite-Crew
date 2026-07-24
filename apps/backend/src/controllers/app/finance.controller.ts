@@ -9,6 +9,10 @@ import {
   FinanceEventService,
   resolveActorDisplayName,
 } from "src/services/finance/events";
+import {
+  FinanceDiscountSettingsError,
+  FinanceDiscountSettingsService,
+} from "src/services/finance/discount-settings";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
 import {
@@ -16,6 +20,10 @@ import {
   InvoiceServiceError,
 } from "src/services/invoice.service";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "src/services/appointment.prisma.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
@@ -48,6 +56,10 @@ const CreateInvoiceBodySchema = z.object({
     })
     .optional(),
   notes: z.string().trim().min(1).optional(),
+});
+
+const UpdateDiscountSettingsBodySchema = z.object({
+  maxOverallDiscountPercent: z.number().min(0).max(100).nullable(),
 });
 
 const FinalizeInvoiceBodySchema = z.object({
@@ -230,7 +242,84 @@ const toFinanceSuccess = <T>(data: T) => ({
   error: null,
 });
 
+const resolveMobileParentId = async (req: Request) => {
+  const authReq = req as AuthenticatedRequest;
+  if (!authReq.userId) return null;
+
+  const authUser = await AuthUserMobileService.getByProviderUserId(
+    authReq.userId,
+  );
+  return authUser?.parentId ?? null;
+};
+
+// Web routes are bound to the organisation the RBAC middleware authorized;
+// mobile routes fall back to the pet parent linked to the session.
+const resolveInvoiceScope = async (req: Request) => {
+  const organisationId = (req as OrgRequest).organisationId;
+  if (organisationId) {
+    return { organisationId, parentId: null };
+  }
+
+  const parentId = await resolveMobileParentId(req);
+  return { organisationId: null, parentId };
+};
+
 export const FinanceController = {
+  async getDiscountSettings(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = req.params.organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const settings =
+        await FinanceDiscountSettingsService.getForOrganisation(organisationId);
+      return res.status(200).json(toFinanceSuccess(settings));
+    } catch (error) {
+      const statusCode =
+        error instanceof FinanceDiscountSettingsError ? error.statusCode : 500;
+      const message =
+        error instanceof FinanceDiscountSettingsError
+          ? error.message
+          : "Internal server error";
+
+      logger.error("Error fetching organisation discount settings", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
+  async updateDiscountSettings(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = req.params.organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const body = UpdateDiscountSettingsBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const settings =
+        await FinanceDiscountSettingsService.updateForOrganisation(
+          organisationId,
+          { maxOverallDiscountPercent: body.data.maxOverallDiscountPercent },
+        );
+
+      return res.status(200).json(toFinanceSuccess(settings));
+    } catch (error) {
+      const statusCode =
+        error instanceof FinanceDiscountSettingsError ? error.statusCode : 500;
+      const message =
+        error instanceof FinanceDiscountSettingsError
+          ? error.message
+          : "Internal server error";
+
+      logger.error("Error updating organisation discount settings", error);
+      return res.status(statusCode).json({ message });
+    }
+  },
+
   async createInvoice(this: void, req: Request, res: Response) {
     try {
       const body = CreateInvoiceBodySchema.safeParse(req.body);
@@ -249,9 +338,7 @@ export const FinanceController = {
         patientId: body.data.patientId,
         organisationId: body.data.organisationId,
         paymentCollectionMethod: body.data.paymentCollectionMethod as
-          | "PAYMENT_INTENT"
-          | "PAYMENT_LINK"
-          | "PAYMENT_AT_CLINIC",
+          "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC",
         items,
         invoiceDiscount: body.data.invoiceDiscount,
         notes: body.data.notes,
@@ -302,28 +389,36 @@ export const FinanceController = {
         });
       }
 
+      if (!authorizedOrganisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
       if (resolved.appointmentId) {
         const invoices = await InvoiceService.getByAppointmentId(
           resolved.appointmentId,
-          authorizedOrganisationId,
+          { organisationId: authorizedOrganisationId },
         );
         return res.status(200).json(toFinanceSuccess(invoices));
       }
 
       if (resolved.organisationId) {
         const invoices = await InvoiceService.listForOrganisation(
-          resolved.organisationId,
+          authorizedOrganisationId,
         );
         return res.status(200).json(toFinanceSuccess(invoices));
       }
 
       if (resolved.parentId) {
-        const invoices = await InvoiceService.listForParent(resolved.parentId);
+        const invoices = await InvoiceService.listForParent(
+          resolved.parentId,
+          authorizedOrganisationId,
+        );
         return res.status(200).json(toFinanceSuccess(invoices));
       }
 
       const invoices = await InvoiceService.listForCompanion(
         resolved.patientId as string,
+        authorizedOrganisationId,
       );
       return res.status(200).json(toFinanceSuccess(invoices));
     } catch (error) {
@@ -337,6 +432,14 @@ export const FinanceController = {
       const organisationId = req.params.organisationId;
       if (!organisationId) {
         return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const authorizedOrganisationId = (req as OrgRequest).organisationId;
+      if (
+        !authorizedOrganisationId ||
+        authorizedOrganisationId !== organisationId
+      ) {
+        return res.status(404).json({ message: "Organisation not found" });
       }
 
       const invoices = await InvoiceService.listForOrganisation(organisationId);
@@ -385,16 +488,29 @@ export const FinanceController = {
         return res.status(400).json({ message: "Appointment Id is required" });
       }
 
-      const organisationId = (req as OrgRequest).organisationId;
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return res.status(403).json({
+          message: "Parent account is not linked to this mobile user",
+        });
+      }
+
       const invoices = await InvoiceService.getByAppointmentId(
         appointmentId,
-        organisationId,
+        scope,
       );
 
       return res.status(200).json(toFinanceSuccess(invoices));
     } catch (error) {
+      const statusCode =
+        error instanceof InvoiceServiceError ? error.statusCode : 500;
+      const message =
+        error instanceof InvoiceServiceError
+          ? error.message
+          : "Internal server error";
+
       logger.error("Error fetching appointment invoices", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(statusCode).json({ message });
     }
   },
 
@@ -423,7 +539,10 @@ export const FinanceController = {
         }
       }
 
-      const invoices = await InvoiceService.listForParent(parentId);
+      const invoices = await InvoiceService.listForParent(
+        parentId,
+        (req as OrgRequest).organisationId ?? null,
+      );
       return res.status(200).json(toFinanceSuccess(invoices));
     } catch (error) {
       logger.error("Error fetching parent invoices", error);
@@ -438,7 +557,14 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invoice Id is required" });
       }
 
-      const invoice = await InvoiceService.getById(invoiceId);
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return res.status(403).json({
+          message: "Parent account is not linked to this mobile user",
+        });
+      }
+
+      const invoice = await InvoiceService.getById(invoiceId, scope);
       return res.status(200).json(toFinanceSuccess(invoice));
     } catch (error) {
       const statusCode =
@@ -462,11 +588,24 @@ export const FinanceController = {
           .json({ message: "Payment Intent Id is required" });
       }
 
-      const paymentIntent =
-        await StripeService.retrievePaymentIntent(paymentIntentId);
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return res.status(403).json({
+          message: "Parent account is not linked to this mobile user",
+        });
+      }
+
+      const paymentIntent = await StripeService.retrievePaymentIntent(
+        paymentIntentId,
+        scope,
+      );
 
       return res.status(200).json(toFinanceSuccess(paymentIntent));
     } catch (error) {
+      if (error instanceof FinancePaymentError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
       logger.error("Error retrieving payment intent", error);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -483,16 +622,24 @@ export const FinanceController = {
         return res.status(400).json({ message: "Appointment Id is required" });
       }
 
+      const parentId = await resolveMobileParentId(req);
+      if (!parentId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Resolving through the parent scope rejects an appointment the caller
+      // is not linked to before any invoice is created for it.
+      await AppointmentPrismaService.getById(appointmentId, { parentId });
+
       const invoice =
         await InvoiceService.bootstrapForAppointment(appointmentId);
       return res.status(200).json(toFinanceSuccess(invoice));
     } catch (error) {
-      const statusCode =
-        error instanceof InvoiceServiceError ? error.statusCode : 500;
-      const message =
-        error instanceof InvoiceServiceError
-          ? error.message
-          : "Internal server error";
+      const isKnownError =
+        error instanceof InvoiceServiceError ||
+        error instanceof AppointmentPrismaServiceError;
+      const statusCode = isKnownError ? error.statusCode : 500;
+      const message = isKnownError ? error.message : "Internal server error";
 
       logger.error("Error bootstrapping appointment invoice", error);
       return res.status(statusCode).json({ message });
@@ -780,10 +927,24 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
+      // The route has no organisation path param, so withOrgPermissions can
+      // only authorize the body org; the appointment must be inside it.
+      const authorizedOrganisationId = (req as OrgRequest).organisationId;
+      if (
+        !authorizedOrganisationId ||
+        authorizedOrganisationId !== body.data.organisationId
+      ) {
+        return res
+          .status(403)
+          .json({ message: "Organisation is not authorized" });
+      }
+
       const appointmentId = body.data.appointmentId ?? visitId;
       const shouldReadyForBilling = body.data.milestone === "READY_FOR_BILLING";
       const invoice = shouldReadyForBilling
-        ? await InvoiceService.markAppointmentReadyForBilling(appointmentId)
+        ? await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
+            organisationId: authorizedOrganisationId,
+          })
         : null;
 
       if (shouldReadyForBilling && !invoice) {
@@ -835,13 +996,20 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
-      const invoice =
-        await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const actorUserId = resolveUserIdFromRequest(req);
+      const invoice = await InvoiceService.markAppointmentReadyForBilling(
+        appointmentId,
+        { organisationId, actorUserId },
+      );
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
 
-      const actorUserId = resolveUserIdFromRequest(req);
       const actorName = await resolveActorDisplayName(actorUserId);
 
       await FinanceEventService.recordEvent({
@@ -885,8 +1053,15 @@ export const FinanceController = {
         return res.status(400).json({ message: "Appointment Id is required" });
       }
 
-      const invoice =
-        await InvoiceService.reverseAppointmentReadyForBilling(appointmentId);
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const invoice = await InvoiceService.reverseAppointmentReadyForBilling(
+        appointmentId,
+        { organisationId, actorUserId: resolveUserIdFromRequest(req) },
+      );
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
@@ -1247,11 +1422,7 @@ export const FinanceController = {
         {
           provider: "MANUAL",
           settlementChannel: settlementChannel as
-            | "CASH"
-            | "BANK_TRANSFER"
-            | "CARD_PRESENT"
-            | "DEPOSIT"
-            | "OTHER",
+            "CASH" | "BANK_TRANSFER" | "CARD_PRESENT" | "DEPOSIT" | "OTHER",
           amount: body.data.amount,
           currency: body.data.currency,
           reference: body.data.reference,
@@ -1329,11 +1500,18 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
       const action = await InvoiceService.handleInvoiceCancellation(
         invoiceId,
         body.data.reason ?? "Invoice voided",
       );
-      const invoice = await InvoiceService.getById(invoiceId);
+      const invoice = await InvoiceService.getById(invoiceId, {
+        organisationId,
+      });
 
       return res.status(200).json(
         toFinanceSuccess({
@@ -1366,7 +1544,14 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
-      const invoice = await InvoiceService.getById(invoiceId);
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(400).json({ message: "Organisation Id is required" });
+      }
+
+      const invoice = await InvoiceService.getById(invoiceId, {
+        organisationId,
+      });
       const appointmentId = invoice.invoice.appointmentId;
       if (!appointmentId) {
         return res.status(400).json({
@@ -1374,7 +1559,6 @@ export const FinanceController = {
         });
       }
 
-      const organisationId = (req as OrgRequest).organisationId;
       const updatedInvoice = await InvoiceService.addChargesToAppointment(
         appointmentId,
         body.data.items,
@@ -1451,8 +1635,16 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invoice Id is required" });
       }
 
+      const parentId = await resolveMobileParentId(req);
+      if (!parentId) {
+        return res.status(403).json({
+          message: "Parent account is not linked to this mobile user",
+        });
+      }
+
       const result = await FinancePaymentService.createPaymentIntentForInvoice(
         invoiceId,
+        { parentId },
         {
           collectionMode: "DEPOSIT_THEN_SETTLE",
           settlementChannel: "DEPOSIT",

@@ -1,5 +1,7 @@
 # PMS Web + Mobile Support Chat Update Guide
 
+> Status: not started as of 2026-07. No support chat scope or session type exists in the client apps; see `backend-support-chat-engineering-guide.md` for the (also unbuilt) server side.
+
 ## Objective
 
 This guide is for engineers adding a Support Chat experience to the Yosemite Crew client apps: the PMS (veterinary Practice Management System) web app and the React Native mobile app. It builds on the project's existing Stream Chat (the getstream.io realtime chat service) integration. The operator-side counterpart that receives these support conversations is covered in [`superadmin-support-chat-from-scratch-guide.md`](superadmin-support-chat-from-scratch-guide.md).

@@ -1,11 +1,11 @@
 import React, {useMemo, useCallback, useEffect} from 'react';
-import {View, Text, StyleSheet, Image, Linking, ScrollView} from 'react-native';
+import {View, Text, StyleSheet, Linking, ScrollView} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {NavigationProp} from '@react-navigation/native';
@@ -122,86 +122,96 @@ export const PaymentSuccessScreen: React.FC = () => {
   return (
     <LiquidGlassHeaderScreen
       showBottomFade={false}
-      header={
-        <Header
-          title="Successful Payment"
-          showBackButton={false}
-          glass={false}
-        />
-      }
+      header={<Header showBackButton={false} glass={false} />}
       edges={[]}
       contentPadding={20}>
       {contentPaddingStyle => (
         <ScrollView
           contentContainerStyle={[styles.container, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
-          <Image source={Images.successPayment} style={styles.illustration} />
-          <Text style={styles.title}>Thank you</Text>
-          <Text style={styles.subtitle}>
-            You have Successfully made Payment
-          </Text>
-          <View style={styles.detailsBlock}>
-            <Text style={styles.detailsTitle}>Invoice Details</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Invoice number</Text>
-              <Text
-                style={styles.detailValue}
-                numberOfLines={1}
-                ellipsizeMode="middle">
-                {invoiceNumber}
-              </Text>
+          <View style={styles.centerBlock}>
+            <View style={styles.medallionWrap}>
+              <View style={styles.halo} pointerEvents="none" />
+              <View style={styles.medallion}>
+                <Ionicons
+                  name="checkmark"
+                  size={52}
+                  color={theme.colors.success}
+                />
+              </View>
             </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Invoice date & time</Text>
-              <Text style={styles.detailValue}>{invoiceDateTime}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Invoice ID</Text>
-              <Text
-                style={styles.detailValue}
-                numberOfLines={1}
-                ellipsizeMode="middle">
-                {invoice?.id ?? '—'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Invoice</Text>
-              <PressableOpacity
-                style={styles.downloadInvoiceTouchable}
-                disabled={!receiptUrl}
-                onPress={handleViewInvoice}>
+            <Text style={styles.title}>Paid. All settled.</Text>
+            <Text style={styles.subtitle}>
+              Here's a summary of your invoice.
+            </Text>
+            <View style={styles.summaryCard}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Invoice number</Text>
                 <Text
-                  style={[styles.detailValue, styles.link]}
-                  numberOfLines={1}>
-                  {receiptUrl ? 'View invoice' : 'Not available'}
+                  style={styles.detailValue}
+                  numberOfLines={1}
+                  ellipsizeMode="middle">
+                  {invoiceNumber}
                 </Text>
-                {receiptUrl ? (
-                  <Image
-                    source={Images.downloadInvoice}
-                    style={styles.downloadInvoiceIcon}
-                  />
-                ) : null}
-              </PressableOpacity>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Appointment date</Text>
-              <Text style={styles.detailValue}>{formattedAppointmentDate}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Appointment time</Text>
-              <Text style={styles.detailValue}>{formattedAppointmentTime}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Invoice date & time</Text>
+                <Text style={styles.detailValue}>{invoiceDateTime}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Invoice ID</Text>
+                <Text
+                  style={styles.detailValue}
+                  numberOfLines={1}
+                  ellipsizeMode="middle">
+                  {invoice?.id ?? '—'}
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Appointment date</Text>
+                <Text style={styles.detailValue}>
+                  {formattedAppointmentDate}
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Appointment time</Text>
+                <Text style={styles.detailValue}>
+                  {formattedAppointmentTime}
+                </Text>
+              </View>
             </View>
           </View>
-          <View style={styles.buttonContainer}>
+          <View style={styles.footer}>
             <LiquidGlassButton
-              title={expenseId ? 'Back to Expenses' : 'Dashboard'}
+              title="Done"
               onPress={resetToMyAppointments}
               height={theme.spacing['14']}
-              borderRadius={theme.borderRadius.lg}
-              tintColor={theme.colors.secondary}
+              borderRadius={theme.borderRadius.button}
+              tintColor={theme.colors.cta}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
             />
+            <PressableOpacity
+              style={styles.receiptButton}
+              disabled={!receiptUrl}
+              onPress={handleViewInvoice}
+              accessibilityRole="button"
+              accessibilityLabel={
+                receiptUrl ? 'View receipt' : 'Receipt unavailable'
+              }
+              accessibilityState={{disabled: !receiptUrl}}>
+              <Text
+                style={[
+                  styles.receiptButtonText,
+                  !receiptUrl && styles.receiptButtonTextDisabled,
+                ]}>
+                {receiptUrl ? 'View receipt' : 'Receipt unavailable'}
+              </Text>
+            </PressableOpacity>
           </View>
         </ScrollView>
       )}
@@ -213,86 +223,111 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flexGrow: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: theme.spacing['4'],
-      paddingHorizontal: theme.spacing['4'],
-      paddingBottom: theme.spacing['24'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['8'],
     },
-    illustration: {
-      width: 200,
-      height: 200,
-      resizeMode: 'contain',
+    centerBlock: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: theme.spacing['8'],
+      gap: theme.spacing['4'],
+    },
+    medallionWrap: {
+      width: 108,
+      height: 108,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: theme.spacing['2'],
+    },
+    halo: {
+      position: 'absolute',
+      width: 220,
+      height: 220,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blueSoft,
+      opacity: 0.6,
+    },
+    medallion: {
+      width: 108,
+      height: 108,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.avatarGreenBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...theme.shadows.card,
     },
     title: {
-      ...theme.typography.h2,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
+      textAlign: 'center',
     },
     subtitle: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
+      maxWidth: theme.spacing['80'],
     },
-    detailsBlock: {
-      gap: theme.spacing['2'],
+    summaryCard: {
       width: '100%',
       maxWidth: theme.spacing['100'],
+      borderRadius: theme.borderRadius.cardSmall,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing['4'],
-      backgroundColor: theme.colors.cardBackground,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['1'],
       marginTop: theme.spacing['3'],
-    },
-    detailsTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['2'],
+      ...theme.shadows.card,
     },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing['1'],
-      gap: theme.spacing['2'],
+      justifyContent: 'space-between',
+      paddingVertical: theme.spacing['3'],
+      gap: theme.spacing['4'],
     },
     detailLabel: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
       flexShrink: 0,
     },
     detailValue: {
-      ...theme.typography.body14,
-      color: theme.colors.secondary,
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.ink,
       flex: 1,
       flexShrink: 1,
       minWidth: 0,
       textAlign: 'right',
+      fontVariant: ['tabular-nums'],
     },
-    link: {
-      color: theme.colors.primary,
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.hairline,
     },
-    downloadInvoiceTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      flexShrink: 1,
-      minWidth: 0,
-      justifyContent: 'flex-end',
-    },
-    downloadInvoiceIcon: {
-      width: theme.spacing['4'],
-      height: theme.spacing['4'],
-      marginLeft: theme.spacing['1'],
-    },
-    buttonContainer: {
+    footer: {
       width: '100%',
       maxWidth: theme.spacing['100'],
+      alignSelf: 'center',
+      gap: theme.spacing['1'],
       marginTop: theme.spacing['4'],
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
+    },
+    receiptButton: {
+      height: theme.spacing['12'],
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    receiptButtonText: {
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.blueText,
+    },
+    receiptButtonTextDisabled: {
+      color: theme.colors.inkFaint,
     },
   });
 

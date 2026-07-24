@@ -6,6 +6,7 @@ import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 const OrganizationSectionSkeleton = () => (
   <div className="min-h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -44,13 +45,21 @@ const LinkedMedicalDevices = dynamic(
   () => import('@/app/features/organization/pages/Organization/Sections/LinkedMedicalDevices'),
   { loading: () => <OrganizationSectionSkeleton /> }
 );
+const OnlineBooking = dynamic(
+  () => import('@/app/features/organization/pages/Organization/Sections/OnlineBooking'),
+  { loading: () => <OrganizationSectionSkeleton /> }
+);
 const DeleteOrg = dynamic(
   () => import('@/app/features/organization/pages/Organization/Sections/DeleteOrg'),
   { loading: () => <OrganizationSectionSkeleton /> }
 );
+const PhoneOrganization = dynamic(
+  () => import('@/app/features/organization/pages/Organization/Sections/PhoneOrganization'),
+  { loading: () => <OrganizationSectionSkeleton /> }
+);
 
 const OrgPageSkeleton = () => (
-  <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5!">
+  <div className="yc-page-content">
     {[1, 2, 3].map((i) => (
       <div key={i} className="border border-card-border rounded-2xl animate-pulse">
         <div className="px-6 py-4 border-b border-card-border">
@@ -68,25 +77,39 @@ const OrgPageSkeleton = () => (
 export const Organization = () => {
   const primaryorg = usePrimaryOrg();
   const orgStatus = useOrgStore((s) => s.status);
+  const isPhone = useIsPhone();
 
   if (orgStatus === 'loading' || orgStatus === 'idle') return <OrgPageSkeleton />;
   if (!primaryorg) return <OrgPageSkeleton />;
 
+  if (isPhone) {
+    return <PhoneOrganization primaryOrg={primaryorg} />;
+  }
+
   return (
-    <div className="flex flex-col gap-6 sm:gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="yc-page-content flex flex-col gap-[14px]">
       <Profile primaryOrg={primaryorg} />
+      {primaryorg.isVerified ? (
+        <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-stretch">
+          <Team isVerified={primaryorg.isVerified} />
+          <div className="flex min-h-0 flex-col gap-[14px]">
+            <Rooms />
+            <Payment />
+            <DeleteOrg />
+          </div>
+        </div>
+      ) : (
+        <DeleteOrg />
+      )}
       <Specialities />
       {primaryorg.isVerified && (
         <>
-          <Team isVerified={primaryorg.isVerified} />
-          <Rooms />
-          <Payment />
           <LinkedMedicalDevices />
           <Documents />
           <DocumentESigning />
+          <OnlineBooking />
         </>
       )}
-      <DeleteOrg />
     </div>
   );
 };
