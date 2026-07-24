@@ -70,6 +70,8 @@ export interface YcDesktop {
   windowMinimize: () => void;
   windowToggleMaximize: () => void;
   windowClose: () => void;
+  idleUnlock: (mode: 'biometric' | 'password') => void;
+  onIdleUnlockFailed: (callback: () => void) => () => void;
 }
 
 const api: YcDesktop = {
@@ -156,6 +158,14 @@ const api: YcDesktop = {
   windowMinimize: (): void => ipcRenderer.send('yc:window-minimize'),
   windowToggleMaximize: (): void => ipcRenderer.send('yc:window-toggle-maximize'),
   windowClose: (): void => ipcRenderer.send('yc:window-close'),
+  idleUnlock: (mode: 'biometric' | 'password'): void => ipcRenderer.send('yc:idle-unlock', mode),
+  // Success needs no event: the main process removes the whole overlay. Only a
+  // refused or cancelled prompt leaves the page up with something to say.
+  onIdleUnlockFailed: (callback: () => void): (() => void) => {
+    const handler = (): void => callback();
+    ipcRenderer.on('yc:idle-unlock-failed', handler);
+    return () => ipcRenderer.removeListener('yc:idle-unlock-failed', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('ycDesktop', api);

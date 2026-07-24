@@ -70,6 +70,7 @@ export const IPC_CHANNELS = [
   'yc:window-minimize',
   'yc:window-toggle-maximize',
   'yc:window-close',
+  'yc:idle-unlock',
 ] as const;
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
 const TRUSTED_DESKTOP_PROTOCOL = 'yosemitecrew-desktop:';
@@ -162,6 +163,7 @@ const ARG_CHANNELS = new Set([
   'yc:tab-set-split',
   'yc:set-last-seen-version',
   'yc:window-drag-by',
+  'yc:idle-unlock',
 ]);
 
 export const validateIpcRequest = (

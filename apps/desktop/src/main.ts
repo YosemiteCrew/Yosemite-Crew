@@ -286,6 +286,9 @@ let tabChromeView: WebContentsView | null = null;
 // overlay full-window and topmost. Deliberately a callback, not the view: the
 // per-lock WebContentsView stays owned by the overlay's own closure.
 let relayoutLockOverlay: (() => void) | null = null;
+// Registered by setupIdleLock so the lock page's buttons reach the unlock
+// lifecycle that actually owns the lock. Null until an idle lock is armed.
+let requestIdleUnlock: ((mode: 'biometric' | 'password') => void) | null = null;
 let tabMode = false;
 let tabSearchOpen = false;
 
@@ -1254,6 +1257,9 @@ const setupIdleLock = (ses: Session): void => {
       idleLockMinutesFromEnv(process.env)
     );
   let locked = false;
+  // Guards against a second OS prompt when the page's button is pressed while
+  // the timer's attempt is still pending.
+  let unlockInFlight = false;
 
   // In-app lock screen shown over the workspace while biometric unlock is
   // pending, so patient data isn't visible behind the OS prompt. A full-window
@@ -1297,6 +1303,63 @@ const setupIdleLock = (ses: Session): void => {
     },
   });
 
+  // Drop the session and return to the sign-in page. This is what "Use password
+  // instead" means here: the PIMS owns the password, so the fallback is to sign
+  // in again. Also where an unlock lands when biometrics are unavailable.
+  const signOutToStartUrl = (): void => {
+    void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
+      persistAuthHint(false);
+      loadStartUrl();
+    });
+  };
+
+  // Tell the lock page the prompt was refused so it can stop saying "Verifying".
+  // Success needs no message: the overlay is removed outright.
+  const notifyUnlockFailed = (): void => {
+    logger.warn('biometric_unlock_failed');
+    const view = lockOverlayView;
+    if (view && !view.webContents.isDestroyed()) view.webContents.send('yc:idle-unlock-failed');
+  };
+
+  // Sole owner of a biometric unlock attempt. The idle timer and the lock
+  // page's Touch ID button both route here, so only one OS prompt is ever in
+  // flight and only one place uncovers the workspace. A failed or cancelled
+  // prompt leaves the lock screen up rather than signing the user out, so the
+  // page's two buttons stay reachable.
+  const attemptBiometricUnlock = (): void => {
+    const bio = biometricLock;
+    if (!bio?.isAvailable() || unlockInFlight) return;
+    unlockInFlight = true;
+    void bio
+      .authenticate('Unlock Yosemite Crew PIMS')
+      .then((ok) => {
+        if (!ok) {
+          notifyUnlockFailed();
+          return;
+        }
+        locked = false;
+        lockOverlay.hide();
+        logger.info('biometric_unlock_success');
+      })
+      .catch(notifyUnlockFailed)
+      .finally(() => {
+        unlockInFlight = false;
+      });
+  };
+
+  requestIdleUnlock = (mode) => {
+    // Only meaningful while the lock screen is actually up.
+    if (!lockOverlay.isVisible()) return;
+    if (mode === 'password') {
+      locked = false;
+      lockOverlay.hide();
+      logger.info('idle_lock_password_fallback');
+      signOutToStartUrl();
+      return;
+    }
+    attemptBiometricUnlock();
+  };
+
   setInterval(() => {
     const idleMinutes = resolveIdleMinutes();
     if (!idleMinutes) return;
@@ -1311,30 +1374,13 @@ const setupIdleLock = (ses: Session): void => {
         bio.lock();
         lockOverlay.show();
         logger.info('biometric_lock_engaged');
-        void bio
-          .authenticate('Unlock Yosemite Crew PIMS')
-          .then((ok) => {
-            if (ok) {
-              locked = false;
-              logger.info('biometric_unlock_success');
-              return;
-            }
-            logger.warn('biometric_unlock_failed');
-            void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
-              persistAuthHint(false);
-              loadStartUrl();
-            });
-          })
-          // Uncover the workspace exactly once, however the prompt resolved. A
-          // rejection would otherwise strand the overlay over a locked app.
-          .finally(() => lockOverlay.hide());
+        attemptBiometricUnlock();
       } else {
-        void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
-          persistAuthHint(false);
-          loadStartUrl();
-        });
+        signOutToStartUrl();
       }
-    } else if (locked && idleMs < 1000) {
+      // Activity alone must not clear the lock while the lock screen is still
+      // up - only a real unlock does that.
+    } else if (locked && idleMs < 1000 && !lockOverlay.isVisible()) {
       locked = false;
     }
   }, 30_000);
@@ -1789,6 +1835,9 @@ if (gotSingleInstanceLock) {
         minimizeWindow: minimizeMainWindow,
         toggleMaximizeWindow: toggleMaximizeMainWindow,
         closeWindow: closeMainWindow,
+        // Late-bound: setupIdleLock runs after this registration and owns the
+        // lifecycle, so before a lock is armed there is nothing to unlock.
+        idleUnlock: (mode) => requestIdleUnlock?.(mode),
       });
       applyRollbackDecision();
       let pendingTabModeUrl: string | undefined;

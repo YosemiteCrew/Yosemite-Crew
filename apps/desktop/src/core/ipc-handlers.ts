@@ -142,6 +142,9 @@ export interface IpcServices {
   minimizeWindow: () => void;
   toggleMaximizeWindow: () => void;
   closeWindow: () => void;
+  // Action taken on the idle-lock screen. The main process owns the unlock
+  // lifecycle; the lock page only asks for one of these two outcomes.
+  idleUnlock: (mode: 'biometric' | 'password') => void;
 }
 
 export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): void => {
@@ -983,4 +986,12 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
   registry.on('yc:window-minimize', () => services.minimizeWindow());
   registry.on('yc:window-toggle-maximize', () => services.toggleMaximizeWindow());
   registry.on('yc:window-close', () => services.closeWindow());
+
+  // Fire-and-forget: the lock page asks to retry Touch ID or to fall back to
+  // signing in with a password. Anything but those two modes is dropped.
+  registry.on('yc:idle-unlock', (_event, args) => {
+    const [mode] = args;
+    if (mode !== 'biometric' && mode !== 'password') return;
+    services.idleUnlock(mode);
+  });
 };
