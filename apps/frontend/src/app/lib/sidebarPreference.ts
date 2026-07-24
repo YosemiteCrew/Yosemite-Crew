@@ -1,16 +1,29 @@
-import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
+import { getStorageItem, removeStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 
 export const SIDEBAR_COLLAPSED_KEY = 'yc_sidebar_collapsed';
 
+// The design breakpoint contract: the expanded 224px sidebar is the desktop
+// default (>=1280px); tablet widths start on the collapsed 76px icon rail.
+export const SIDEBAR_DESKTOP_MIN_WIDTH = 1280;
+
 export const isSidebarCollapsedByDefault = (): boolean => {
   const stored = getStorageItem('local', SIDEBAR_COLLAPSED_KEY);
-  return stored == null ? true : stored === '1';
+  if (stored != null) return stored === '1';
+  // No stored preference: follow the viewport — expanded on desktop, collapsed
+  // to the icon rail on tablet.
+  if (typeof window !== 'undefined' && typeof window.innerWidth === 'number') {
+    return window.innerWidth < SIDEBAR_DESKTOP_MIN_WIDTH;
+  }
+  return false;
 };
 
 export const setSidebarCollapsedPreference = (collapsed: boolean): void => {
   setStorageItem('local', SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
 };
 
-export const defaultSidebarToCollapsed = (): void => {
-  setSidebarCollapsedPreference(true);
+// Clear any stored preference so the viewport-aware default applies again.
+// Called on auth transitions so a returning user lands on the expanded desktop
+// shell instead of a pinned collapsed rail.
+export const resetSidebarPreference = (): void => {
+  removeStorageItem('local', SIDEBAR_COLLAPSED_KEY);
 };

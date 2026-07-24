@@ -1,17 +1,11 @@
 // Task Categories
 export type TaskCategory = 'health' | 'hygiene' | 'dietary' | 'custom';
 export type TaskBackendCategory =
-  | 'MEDICATION'
-  | 'OBSERVATION_TOOL'
-  | 'HYGIENE'
-  | 'DIET'
-  | 'CUSTOM';
+  'MEDICATION' | 'OBSERVATION_TOOL' | 'HYGIENE' | 'DIET' | 'CUSTOM';
 
 // Health Subcategories
 export type HealthSubcategory =
-  | 'vaccination'
-  | 'parasite-prevention'
-  | 'chronic-conditions';
+  'vaccination' | 'parasite-prevention' | 'chronic-conditions';
 
 // Health - Parasite Prevention Types
 export type ParasitePreventionType = 'deworming' | 'flea-tick-prevention';
@@ -21,9 +15,7 @@ export type ChronicConditionType = 'pain' | 'diabetes' | 'epilepsy';
 
 // Health Task Types
 export type HealthTaskType =
-  | 'give-medication'
-  | 'take-observational-tool'
-  | 'vaccination';
+  'give-medication' | 'take-observational-tool' | 'vaccination';
 
 // Hygiene Task Types
 export type HygieneTaskType =
@@ -67,10 +59,7 @@ export type ReminderOption =
 
 // Task Status
 export type TaskStatusApi =
-  | 'PENDING'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED';
+  'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type TaskStatus =
   | TaskStatusApi
   | 'pending'
@@ -81,12 +70,7 @@ export type TaskStatus =
 
 export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
 export type OTFieldType =
-  | 'TEXT'
-  | 'NUMBER'
-  | 'CHOICE'
-  | 'BOOLEAN'
-  | 'PHOTO'
-  | 'VIDEO';
+  'TEXT' | 'NUMBER' | 'CHOICE' | 'BOOLEAN' | 'PHOTO' | 'VIDEO';
 
 // Dosage Schedule
 export interface DosageSchedule {
@@ -276,6 +260,7 @@ export interface TaskFormErrors {
   attachments?: string;
   description?: string;
   additionalNote?: string;
+  calendarProvider?: string;
 }
 
 // Task Type Selection for bottom sheet

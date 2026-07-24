@@ -1,85 +1,110 @@
-.steps-container {
+.yc-steps {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 14px;
   width: 100%;
 }
-.step {
+.yc-step {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 14px;
 }
-.step-info {
+.yc-step-trigger {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.step-trigger {
+  gap: 10px;
   border: 0;
   background: transparent;
   padding: 0;
   cursor: default;
 }
-.step-trigger:disabled {
-  opacity: 1;
-}
-.stepclickable {
+.yc-step-trigger.is-clickable {
   cursor: pointer;
 }
-.step-heading {
-  color: var(--color-neutral-500);
-  font-family: var(--font-satoshi);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 112.5%;
-  letter-spacing: -0.32px;
+.yc-step-trigger.is-upcoming {
+  opacity: 0.6;
 }
-.step-logo {
-  height: 40px;
+.yc-step-trigger:disabled {
+  opacity: 0.6;
+}
+.yc-step-badge {
   width: 40px;
-  border-radius: 20px;
+  height: 40px;
+  border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-neutral-500);
+  flex: none;
+  font-size: 17px;
 }
-.step-dash {
-  width: 48px;
+.yc-step-badge.is-active,
+.yc-step-badge.is-complete {
+  background: var(--cta);
+  color: var(--cta-text);
+}
+/* Upcoming steps read as a solid grey-filled circle in the design, not a light
+   outlined chip. --screen stands in for the design's #f4efe6 icon colour so the
+   glyph stays legible against --ink-6b in both themes. */
+.yc-step-badge.is-upcoming {
+  background: var(--ink-6b);
+  color: var(--screen);
+}
+.yc-step-label {
+  font-family: var(--font-satoshi);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink-body);
+}
+.yc-step-label.is-active {
+  font-weight: 700;
+  color: var(--ink);
+}
+/* The design draws a wider track on the 2-step create-org flow (120px) than on the
+   longer team-onboarding flow, so the connector width is driven by the stepper. */
+.yc-steps.is-two-step {
+  --yc-connector-width: 120px;
+}
+.yc-step-connector {
+  width: var(--yc-connector-width, 96px);
   height: 2px;
-  border-radius: 2px;
-  background: var(--color-neutral-500);
+  border-radius: 9999px;
+  background: var(--divider);
+  position: relative;
+  overflow: hidden;
 }
-.activestep {
-  color: var(--black-text);
-}
-.activestepbackground {
-  background: var(--black-bg);
+.yc-step-connector-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--blue);
+  border-radius: 9999px;
 }
 
 @media screen and (max-width: 768px) {
-  .steps-container {
-    justify-content: center;
-    gap: 12px;
+  .yc-steps {
+    gap: 10px;
   }
-  .step {
-    gap: 12px;
+  .yc-step {
+    gap: 10px;
   }
-  .step-logo {
-    height: 24px;
-    width: 24px;
-  }
-  .step-logo svg {
-    height: 12px;
-    width: 12px;
-  }
-  .step-heading {
+  .yc-step-badge {
+    width: 32px;
+    height: 32px;
     font-size: 14px;
   }
-  .step-dash {
-    width: 24px;
+  .yc-step-badge svg {
+    width: 15px;
+    height: 15px;
+  }
+  .yc-step-label {
+    font-size: 12.5px;
+  }
+  .yc-steps,
+  .yc-steps.is-two-step {
+    --yc-connector-width: 40px;
   }
 }

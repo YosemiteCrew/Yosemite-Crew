@@ -1,4 +1,6 @@
-import { Server } from "node:http";
+import { IncomingMessage, ServerResponse } from "node:http";
+import type { Socket } from "node:net";
+import { PassThrough } from "node:stream";
 import type { RequestHandler } from "express";
 
 const mockRegisterRoutes = jest.fn();
@@ -46,6 +48,28 @@ jest.mock("../src/controllers/app/chatWebhook.controller", () => ({
   },
 }));
 
+const mockSetAuthService = jest.fn();
+const mockValidateAuthConfig = jest.fn();
+
+class MockAuthService {
+  constructor(public readonly provider: unknown) {}
+}
+
+jest.mock("@yosemite-crew/auth", () => ({
+  AuthService: MockAuthService,
+  createAuthProvider: jest.fn(() => ({ name: "supertokens" })),
+  readAuthConfig: jest.fn(() => ({ provider: "supertokens" })),
+  initSuperTokens: mockInitSuperTokens,
+  registerSuperTokensBeforeRoutes: mockRegisterSuperTokensBeforeRoutes,
+  registerSuperTokensErrorHandler: mockRegisterSuperTokensErrorHandler,
+  setAuthService: mockSetAuthService,
+  validateAuthConfig: mockValidateAuthConfig,
+}));
+
+jest.mock("../src/config/auth-hooks", () => ({
+  authHooks: { onUserCreated: jest.fn() },
+}));
+
 import { createApp } from "../src/app";
 
 type Layer = {
@@ -60,33 +84,78 @@ type Layer = {
 
 const originalEnv = { ...process.env };
 
-async function listen(app: ReturnType<typeof createApp>): Promise<Server> {
-  return new Promise((resolve) => {
-    const server = app.listen(0, () => resolve(server));
-  });
-}
+type MockResponse = {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: string;
+  getHeader: (name: string) => string | undefined;
+};
 
-async function close(server: Server): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
+async function request(
+  app: ReturnType<typeof createApp>,
+  {
+    method = "GET",
+    path,
+    headers = {},
+  }: {
+    method?: string;
+    path: string;
+    headers?: Record<string, string>;
+  },
+): Promise<MockResponse> {
+  const socket = new PassThrough();
+  (socket as PassThrough & { remoteAddress?: string }).remoteAddress =
+    "127.0.0.1";
+  const requestSocket = socket as unknown as Socket;
+
+  const req = new IncomingMessage(requestSocket);
+  req.method = method;
+  req.url = path;
+  req.headers = Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value]),
+  );
+  req.socket = requestSocket;
+  req.connection = requestSocket;
+
+  const res = new ServerResponse(req);
+  res.assignSocket(requestSocket);
+
+  const rawChunks: Buffer[] = [];
+  socket.on("data", (chunk) => {
+    rawChunks.push(Buffer.from(chunk));
+  });
+
+  await new Promise<void>((resolve) => {
+    res.on("finish", resolve);
+    (
+      app as unknown as {
+        handle: (request: IncomingMessage, response: ServerResponse) => void;
       }
-
-      resolve();
-    });
+    ).handle(req, res);
   });
-}
 
-function serverUrl(server: Server): string {
-  const address = server.address();
+  const raw = Buffer.concat(rawChunks).toString("utf8");
+  const separator = "\r\n\r\n";
+  const splitIndex = raw.indexOf(separator);
+  const headerText = splitIndex >= 0 ? raw.slice(0, splitIndex) : raw;
+  const body = splitIndex >= 0 ? raw.slice(splitIndex + separator.length) : "";
+  const headerLines = headerText.split("\r\n");
+  const headersMap: Record<string, string> = {};
 
-  if (!address || typeof address === "string") {
-    throw new Error("Expected server to listen on a TCP port");
+  for (const line of headerLines.slice(1)) {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex === -1) continue;
+    const name = line.slice(0, separatorIndex).trim().toLowerCase();
+    const value = line.slice(separatorIndex + 1).trim();
+    headersMap[name] = value;
   }
 
-  return `http://127.0.0.1:${address.port}`;
+  return {
+    statusCode: res.statusCode,
+    headers: headersMap,
+    body,
+    getHeader: (name: string) => headersMap[name.toLowerCase()],
+  };
 }
 
 describe("createApp", () => {
@@ -125,25 +194,20 @@ describe("createApp", () => {
 
   it("registers core middleware and emits security headers on health responses", async () => {
     const app = createApp();
-    const server = await listen(app);
 
-    try {
-      const response = await fetch(`${serverUrl(server)}/health`);
-      const body = await response.json();
+    const response = await request(app, { path: "/health" });
+    const body = JSON.parse(response.body) as { status: string };
 
-      expect(body).toEqual({ status: "ok" });
-      expect(response.status).toBe(200);
-      expect(response.headers.get("x-powered-by")).toBeNull();
-      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-      expect(response.headers.get("x-frame-options")).toBe("SAMEORIGIN");
-      expect(response.headers.get("ratelimit-limit")).toBe("500");
-      expect(mockRegisterRoutes).toHaveBeenCalledWith(app);
-      expect(mockInitSuperTokens).not.toHaveBeenCalled();
-      expect(mockRegisterSuperTokensBeforeRoutes).not.toHaveBeenCalled();
-      expect(mockRegisterSuperTokensErrorHandler).not.toHaveBeenCalled();
-    } finally {
-      await close(server);
-    }
+    expect(body).toEqual({ status: "ok" });
+    expect(response.statusCode).toBe(200);
+    expect(response.getHeader("x-powered-by")).toBeUndefined();
+    expect(response.getHeader("x-content-type-options")).toBe("nosniff");
+    expect(response.getHeader("x-frame-options")).toBe("SAMEORIGIN");
+    expect(response.getHeader("ratelimit-limit")).toBe("500");
+    expect(mockRegisterRoutes).toHaveBeenCalledWith(app);
+    expect(mockInitSuperTokens).not.toHaveBeenCalled();
+    expect(mockRegisterSuperTokensBeforeRoutes).not.toHaveBeenCalled();
+    expect(mockRegisterSuperTokensErrorHandler).not.toHaveBeenCalled();
   });
 
   it("registers SuperTokens middleware only when all auth domains are configured", () => {
@@ -175,24 +239,78 @@ describe("createApp", () => {
     process.env.LOCAL_DEVELOPMENT = "true";
 
     const app = createApp();
-    const server = await listen(app);
 
-    try {
-      const response = await fetch(`${serverUrl(server)}/health`, {
-        headers: {
-          Origin: "http://localhost:3000",
-        },
-      });
+    const response = await request(app, {
+      path: "/health",
+      headers: {
+        Origin: "http://localhost:3000",
+      },
+    });
 
-      expect(response.status).toBe(200);
-      expect(response.headers.get("access-control-allow-origin")).toBe(
-        "http://localhost:3000",
-      );
-      expect(response.headers.get("access-control-allow-credentials")).toBe(
-        "true",
-      );
-    } finally {
-      await close(server);
+    expect(response.statusCode).toBe(200);
+    expect(response.getHeader("access-control-allow-origin")).toBe(
+      "http://localhost:3000",
+    );
+    expect(response.getHeader("access-control-allow-credentials")).toBe("true");
+  });
+});
+
+describe("createApp auth wiring", () => {
+  const authEnv = {
+    SUPERTOKENS_CONNECTION_URI: "https://core.example.test",
+    AUTH_API_DOMAIN: "https://api.example.test",
+    AUTH_WEBSITE_DOMAIN: "https://web.example.test",
+  };
+  const saved: Record<string, string | undefined> = {};
+  const envKeys = [
+    "SUPERTOKENS_DISABLED",
+    "SUPERTOKENS_CONNECTION_URI",
+    "AUTH_API_DOMAIN",
+    "AUTH_WEBSITE_DOMAIN",
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    for (const k of envKeys) {
+      saved[k] = process.env[k];
+      delete process.env[k];
     }
+  });
+
+  afterEach(() => {
+    for (const k of envKeys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+
+  it("validates config and registers the provider when the env is present", () => {
+    Object.assign(process.env, authEnv);
+
+    createApp();
+
+    expect(mockValidateAuthConfig).toHaveBeenCalledTimes(1);
+    expect(mockInitSuperTokens).toHaveBeenCalledTimes(1);
+    expect(mockSetAuthService.mock.calls[0][0]).toBeInstanceOf(MockAuthService);
+    expect(mockRegisterSuperTokensBeforeRoutes).toHaveBeenCalledTimes(1);
+    expect(mockRegisterSuperTokensErrorHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the auth service and skips wiring when the env is absent", () => {
+    createApp();
+
+    expect(mockInitSuperTokens).not.toHaveBeenCalled();
+    expect(mockSetAuthService).toHaveBeenCalledWith(null);
+    expect(mockRegisterSuperTokensBeforeRoutes).not.toHaveBeenCalled();
+  });
+
+  it("honors SUPERTOKENS_DISABLED as a kill switch even with full env", () => {
+    Object.assign(process.env, authEnv);
+    process.env.SUPERTOKENS_DISABLED = "1";
+
+    createApp();
+
+    expect(mockInitSuperTokens).not.toHaveBeenCalled();
+    expect(mockSetAuthService).toHaveBeenCalledWith(null);
   });
 });

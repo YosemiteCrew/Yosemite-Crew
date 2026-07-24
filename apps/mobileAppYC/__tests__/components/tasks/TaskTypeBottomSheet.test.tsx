@@ -1,5 +1,6 @@
 import React, {createRef} from 'react';
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
+import {StyleSheet} from 'react-native';
 // FIX 1: Update component import path
 import {TaskTypeBottomSheet} from '@/features/tasks/components/TaskTypeBottomSheet/TaskTypeBottomSheet';
 // FIX 2: Update type import path
@@ -9,8 +10,28 @@ import type {
   CategorySection,
 } from '@/features/tasks/components/TaskTypeBottomSheet/types';
 // FIX 3: Update helper import path
-import {buildSelectionFromOption} from '@/features/tasks/components/TaskTypeBottomSheet/helpers';
+import {
+  buildSelectionFromOption,
+  buildCategorySections,
+} from '@/features/tasks/components/TaskTypeBottomSheet/helpers';
 import {mockTheme} from '../../setup/mockTheme';
+
+jest.mock('@gorhom/bottom-sheet', () => {
+  const ReactActual = require('react');
+  const {View} = require('react-native');
+  const BottomSheetFlatList = ReactActual.forwardRef(
+    ({data = [], renderItem, keyExtractor, ...props}: any, ref: any) => (
+      <View {...props} ref={ref} keyExtractor={keyExtractor}>
+        {data.map((item: any, index: number) => (
+          <View key={keyExtractor ? keyExtractor(item, index) : String(index)}>
+            {renderItem ? renderItem({item, index}) : null}
+          </View>
+        ))}
+      </View>
+    ),
+  );
+  return {BottomSheetFlatList};
+});
 
 const mockCategorySections: CategorySection[] = [
   {
@@ -109,6 +130,37 @@ const mockCategorySections: CategorySection[] = [
   },
 ];
 
+// Sections used to exercise getOptionIcon's custom + mapped-task-type branches.
+const iconSections: CategorySection[] = [
+  {
+    type: 'single',
+    category: {
+      id: 'icon-custom',
+      label: 'Icon Custom Task',
+      category: 'custom',
+    },
+  },
+  {
+    type: 'category',
+    category: {id: 'icon-cat', label: 'Icon Cat'},
+    subcategories: [
+      {
+        subcategory: {id: 'icon-cat', label: 'Icon Cat'},
+        children: [
+          {
+            option: {
+              id: 'icon-med',
+              label: 'Icon Med',
+              taskType: 'give-medication',
+            },
+            ancestors: [{id: 'icon-cat', label: 'Icon Cat'}],
+          },
+        ],
+      },
+    ],
+  },
+];
+
 // FIX 4: Update mocked helper path
 jest.mock('@/features/tasks/components/TaskTypeBottomSheet/helpers', () => ({
   flattenTaskOptions: jest.fn(options => options),
@@ -119,17 +171,44 @@ jest.mock('@/features/tasks/components/TaskTypeBottomSheet/helpers', () => ({
   ).buildSelectionFromOption,
 }));
 
-// FIX 6: Update mocked options path
+// FIX 6: Update mocked options path.
+// flattenTaskOptions is mocked as identity, so these entries pass straight
+// through to `flattenedOptions`. They give findPendingForSelection a node with
+// children (skipped), a childless non-match, and a leaf that can match.
 jest.mock(
   '@/features/tasks/components/TaskTypeBottomSheet/taskOptions',
   () => ({
     __esModule: true,
-    taskTypeOptions: [],
+    taskTypeOptions: [
+      {
+        option: {
+          id: 'flat-parent',
+          label: 'Flat Parent',
+          children: [{id: 'flat-child', label: 'Flat Child'}],
+        },
+        ancestors: [],
+      },
+      {
+        option: {id: 'flat-empty', label: 'Flat Empty', children: []},
+        ancestors: [],
+      },
+      {
+        option: {
+          id: 'flat-leaf',
+          label: 'Flat Leaf',
+          category: 'health',
+          taskType: 'give-medication',
+        },
+        ancestors: [],
+      },
+    ],
   }),
 );
 
 const mockExpand = jest.fn();
 const mockClose = jest.fn();
+// Captures the onChange prop the sheet is rendered with so tests can drive it.
+let mockOnChangeCapture: ((index: number) => void) | undefined;
 
 // FIX 7: Update mocked component path
 jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
@@ -141,7 +220,17 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   return {
     __esModule: true,
     default: mockForwardRef(
-      ({children}: {children: React.ReactNode}, ref: any) => {
+      (
+        {
+          children,
+          onChange,
+        }: {
+          children: React.ReactNode;
+          onChange?: (index: number) => void;
+        },
+        ref: any,
+      ) => {
+        mockOnChangeCapture = onChange;
         mockUseImperativeHandle(ref, () => ({
           expand: mockExpand,
           close: mockClose,
@@ -208,12 +297,29 @@ describe('TaskTypeBottomSheet', () => {
   describe('Rendering', () => {
     it('renders the header with the correct title', () => {
       renderComponent();
-      expect(screen.getByText('Select Task Type')).toBeTruthy();
+      expect(screen.getByText('Select task type')).toBeTruthy();
     });
 
     it('renders a "single" type pill correctly', () => {
       renderComponent();
       expect(screen.getByText('Custom Task')).toBeTruthy();
+    });
+
+    it('keeps the task list scrollable past the last pill', () => {
+      renderComponent();
+
+      const list = screen.getByTestId('task-type-list');
+      expect(list.props.keyExtractor(mockCategorySections[0])).toBe('custom');
+      expect(StyleSheet.flatten(list.props.style)).toEqual(
+        expect.objectContaining({flex: 1}),
+      );
+      expect(StyleSheet.flatten(list.props.contentContainerStyle)).toEqual(
+        expect.objectContaining({paddingBottom: mockTheme.spacing['20']}),
+      );
+      expect(list.props.scrollIndicatorInsets).toEqual({
+        bottom: mockTheme.spacing['20'],
+      });
+      expect(list.props.keyboardShouldPersistTaps).toBe('handled');
     });
 
     it('renders a category with direct children', () => {
@@ -246,19 +352,20 @@ describe('TaskTypeBottomSheet', () => {
   });
 
   describe('Interactions and Callbacks', () => {
-    it('calls onSelect with correct structure for a "single" pill', () => {
+    it('calls onSelect and closes the sheet for a "single" pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'custom', label: 'Custom Task'};
       const expectedSelection = buildSelectionFromOption(option, []);
 
+      // Selecting a pill commits and closes immediately; no separate Confirm step.
       fireEvent.press(screen.getByText('Custom Task'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
       expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSelect with correct structure for a category pill', () => {
+    it('calls onSelect and closes the sheet for a category pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'vitals', label: 'Vitals'};
@@ -268,9 +375,10 @@ describe('TaskTypeBottomSheet', () => {
       fireEvent.press(screen.getByText('Vitals'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
+      expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSelect with correct structure for a subcategory pill', () => {
+    it('calls onSelect and closes the sheet for a subcategory pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'med-admin-pill', label: 'Pill'};
@@ -283,9 +391,10 @@ describe('TaskTypeBottomSheet', () => {
       fireEvent.press(screen.getByText('Pill'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
+      expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSelect with correct structure for a sub-subcategory pill', () => {
+    it('calls onSelect and closes the sheet for a sub-subcategory pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'walk', label: 'Walk'};
@@ -299,6 +408,24 @@ describe('TaskTypeBottomSheet', () => {
       fireEvent.press(screen.getByText('Walk'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
+      expect(mockClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposes the selected state to screen readers for both single and nested pills', () => {
+      renderComponent();
+
+      const customTask = screen.getByLabelText('Custom Task');
+      expect(customTask.props.accessibilityRole).toBe('radio');
+      expect(customTask.props.accessibilityState).toEqual({selected: false});
+
+      const vitals = screen.getByLabelText('Vitals');
+      expect(vitals.props.accessibilityRole).toBe('radio');
+      expect(vitals.props.accessibilityState).toEqual({selected: false});
+
+      fireEvent.press(vitals);
+      expect(screen.getByLabelText('Vitals').props.accessibilityState).toEqual({
+        selected: true,
+      });
     });
 
     it('calls close on the header close button', () => {
@@ -323,6 +450,113 @@ describe('TaskTypeBottomSheet', () => {
         ref.current?.close();
       });
       expect(mockClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Warm-bone coverage', () => {
+    it('initialises pending from a matching selectedTaskType and still selects a fresh pill', () => {
+      const mockOnSelect = jest.fn();
+      const selectedOption: TaskTypeOption = {
+        id: 'flat-leaf',
+        label: 'Flat Leaf',
+        category: 'health',
+        taskType: 'give-medication',
+      };
+      const selection = buildSelectionFromOption(selectedOption, []);
+
+      render(
+        <TaskTypeBottomSheet
+          ref={createRef<TaskTypeBottomSheetRef>()}
+          onSelect={mockOnSelect}
+          selectedTaskType={selection}
+        />,
+      );
+
+      // findPendingForSelection matches the leaf on mount; pressing a rendered
+      // pill still reports that pill's own selection, not the stale initial one.
+      const option: TaskTypeOption = {id: 'vitals', label: 'Vitals'};
+      const ancestors: TaskTypeOption[] = [{id: 'health', label: 'Health'}];
+      fireEvent.press(screen.getByText('Vitals'));
+      expect(mockOnSelect).toHaveBeenCalledWith(
+        buildSelectionFromOption(option, ancestors),
+      );
+    });
+
+    it('leaves pending null when selectedTaskType matches no leaf option', () => {
+      const mockOnSelect = jest.fn();
+      const selection = buildSelectionFromOption(
+        {id: 'nope', label: 'No Match', category: 'hygiene'},
+        [],
+      );
+
+      render(
+        <TaskTypeBottomSheet
+          ref={createRef<TaskTypeBottomSheetRef>()}
+          onSelect={mockOnSelect}
+          selectedTaskType={selection}
+        />,
+      );
+
+      // findPendingForSelection finds no match; pressing a pill still selects normally.
+      const option: TaskTypeOption = {id: 'vitals', label: 'Vitals'};
+      const ancestors: TaskTypeOption[] = [{id: 'health', label: 'Health'}];
+      fireEvent.press(screen.getByText('Vitals'));
+      expect(mockOnSelect).toHaveBeenCalledWith(
+        buildSelectionFromOption(option, ancestors),
+      );
+    });
+
+    it('renders the custom "create-outline" icon and the mapped task-type icon', () => {
+      (buildCategorySections as jest.Mock).mockReturnValueOnce(iconSections);
+
+      render(
+        <TaskTypeBottomSheet
+          ref={createRef<TaskTypeBottomSheetRef>()}
+          onSelect={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Icon Custom Task')).toBeTruthy();
+      expect(screen.getByTestId('icon-create-outline')).toBeTruthy();
+      expect(screen.getByText('Icon Med')).toBeTruthy();
+      expect(screen.getByTestId('icon-medkit-outline')).toBeTruthy();
+    });
+
+    it('forwards sheet index changes to onSheetChange and toggles visibility', () => {
+      const onSheetChange = jest.fn();
+
+      render(
+        <TaskTypeBottomSheet
+          ref={createRef<TaskTypeBottomSheetRef>()}
+          onSelect={jest.fn()}
+          onSheetChange={onSheetChange}
+        />,
+      );
+
+      act(() => {
+        mockOnChangeCapture?.(1);
+      });
+      expect(onSheetChange).toHaveBeenCalledWith(1);
+
+      act(() => {
+        mockOnChangeCapture?.(-1);
+      });
+      expect(onSheetChange).toHaveBeenCalledWith(-1);
+    });
+
+    it('handles sheet index changes safely when onSheetChange is omitted', () => {
+      render(
+        <TaskTypeBottomSheet
+          ref={createRef<TaskTypeBottomSheetRef>()}
+          onSelect={jest.fn()}
+        />,
+      );
+
+      expect(() => {
+        act(() => {
+          mockOnChangeCapture?.(0);
+        });
+      }).not.toThrow();
     });
   });
 });

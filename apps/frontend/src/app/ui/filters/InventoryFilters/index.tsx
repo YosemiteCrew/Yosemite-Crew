@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
 import { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -162,7 +162,7 @@ const InventoryFilters = ({
       <div className="flex flex-1 min-w-70 items-center gap-3 flex-wrap">
         {/* Visibility toggle: All / Active / Hidden */}
         <div
-          className="relative inline-flex items-center h-12 rounded-[999px]! border border-card-border bg-white overflow-hidden"
+          className="relative inline-flex items-center h-12 rounded-[999px]! border border-card-border bg-neutral-0 overflow-hidden"
           style={{ width: 240 }}
         >
           <div
@@ -171,7 +171,7 @@ const InventoryFilters = ({
               'absolute top-0 bottom-0 left-0 rounded-[999px]! transition-all duration-300 ease-in-out',
               sliderTranslate
             )}
-            style={{ width: 'calc(100% / 3)', backgroundColor: '#454341' }}
+            style={{ width: 'calc(100% / 3)', backgroundColor: 'var(--color-neutral-900)' }}
           />
           {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((key) => {
             const label = getVisibilityLabel(key);
@@ -185,7 +185,7 @@ const InventoryFilters = ({
                 className="relative z-10 h-full transition-colors duration-200 cursor-pointer"
                 style={{
                   width: 'calc(100% / 3)',
-                  color: isCurrent ? '#FFF' : '#8F8984',
+                  color: isCurrent ? 'var(--color-neutral-0)' : 'var(--color-neutral-600)',
                   fontWeight: 500,
                   lineHeight: '120%',
                   letterSpacing: '-0.28px',
@@ -204,13 +204,13 @@ const InventoryFilters = ({
           type="button"
           disabled={loading}
           onClick={() => setDropdownOpen((v) => !v)}
-          className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between min-w-30"
+          className="flex h-10 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-[13px] justify-between min-w-30"
           style={getStockHealthButtonStyle(selectedStockHealth)}
         >
           <span>
             {selectedStockHealth.key === 'ALL' ? 'Stock health' : selectedStockHealth.name}
           </span>
-          <FaCaretDown
+          <IoCaretDown
             size={14}
             className={clsx('shrink-0 transition-transform', dropdownOpen && 'rotate-180')}
           />
@@ -221,7 +221,7 @@ const InventoryFilters = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="yc-glass-overlay rounded-2xl overflow-hidden"
               style={dropdownStyle}
             >
               {StockHealthOptions.map((option) => {
@@ -237,12 +237,12 @@ const InventoryFilters = ({
                       setDropdownOpen(false);
                     }}
                     className={clsx(
-                      'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                      'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
                       isSelected && option.key !== 'ALL' ? 'font-medium' : 'hover:bg-card-hover'
                     )}
                   >
                     <span
-                      className="inline-block size-3 rounded-full shrink-0"
+                      className="inline-block size-2 rounded-full shrink-0"
                       style={{
                         backgroundColor: option.border,
                         borderWidth: '1px',
@@ -253,7 +253,7 @@ const InventoryFilters = ({
                     <span style={{ color: dropdownTextColor }}>{option.name}</span>
                     {isSelected && (
                       <span
-                        className="ml-auto text-sm font-semibold"
+                        className="ml-auto text-[12px] font-semibold"
                         style={{ color: dropdownTextColor }}
                       >
                         ✓

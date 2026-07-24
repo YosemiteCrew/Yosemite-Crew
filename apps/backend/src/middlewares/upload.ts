@@ -10,13 +10,52 @@ interface UploadedFile {
   data: Buffer;
 }
 
-const ALLOWED_MIME_TYPES = new Set([
+/**
+ * Types a picture upload accepts. Kept narrow so an endpoint that only ever
+ * shows an image cannot be used to host something else.
+ */
+const IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
+  "image/jpg",
   "image/png",
+  "image/heic",
+  "image/heif",
+  "image/webp",
+]);
+
+/**
+ * Types a document upload accepts. Mirrors the client's own picker
+ * (`ALLOWED_DOCUMENT_MIME_TYPES` in the mobile app); narrowing this rejects
+ * files the product is expected to store.
+ */
+const DOCUMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+]);
+
+const ALLOWED_MIME_TYPES = new Set([
+  ...IMAGE_MIME_TYPES,
+  ...DOCUMENT_MIME_TYPES,
+]);
+
+/** Images plus PDF, for endpoints that take an attachment but not a document. */
+export const ATTACHMENT_MIME_TYPES = new Set([
+  ...IMAGE_MIME_TYPES,
   "application/pdf",
 ]);
-const isAllowedMimeType = (mimeType: string) =>
-  ALLOWED_MIME_TYPES.has(mimeType);
+
+export const IMAGE_ONLY_MIME_TYPES = IMAGE_MIME_TYPES;
+
+const isAllowedMimeType = (
+  mimeType: string,
+  allowed: ReadonlySet<string> = ALLOWED_MIME_TYPES,
+) => allowed.has(mimeType);
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -185,7 +224,15 @@ async function generatePresignedUrl(
     | "companion"
     | "user-org",
   idOrFolder?: string,
+  // Callers that only ever store a picture or an attachment pass a narrower
+  // set; the signed URL fixes the content type, so whatever is allowed here is
+  // what the bucket will accept.
+  allowedMimeTypes?: ReadonlySet<string>,
 ) {
+  if (!isAllowedMimeType(mimeType, allowedMimeTypes)) {
+    throw new Error("Unsupported file type.");
+  }
+
   const bucket = getBucketName();
   const key = buildS3Key(type, idOrFolder, mimeType);
   const params = {
@@ -375,6 +422,7 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
 // Exports
 
 export {
+  isAllowedMimeType,
   handleFileUpload,
   handleMultipleFileUpload,
   uploadToS3,

@@ -31,7 +31,7 @@ const SpecialitySearchBar = ({
   onSelectResult,
 }: SpecialitySearchBarProps) => (
   <div ref={searchRef} className="relative w-full sm:w-64 sm:ml-auto shrink-0">
-    <div className="flex items-center gap-2 border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white w-full">
+    <div className="flex items-center gap-2 border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-[var(--field-bg)] w-full">
       <input
         type="text"
         placeholder="Search services & packages..."
@@ -62,21 +62,21 @@ const SpecialitySearchBar = ({
     </div>
 
     {searchOpen && searchQuery.trim() && (
-      <div className="absolute top-full left-0 sm:left-auto sm:right-0 z-50 mt-1 w-full sm:w-96 bg-white border border-card-border rounded-2xl shadow-lg overflow-hidden">
+      <div className="absolute top-full left-0 sm:left-auto sm:right-0 z-50 mt-1 w-full sm:w-96 bg-[var(--screen)] border border-card-border rounded-2xl shadow-lg overflow-hidden">
         {searchResults.length > 0 ? (
           searchResults.map((result) => (
             <button
               key={result.id}
               type="button"
               onMouseDown={() => onSelectResult(result)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-card-hover transition-colors"
+              className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-card-hover transition-colors"
             >
-              <span className="text-body-4 text-text-primary truncate">{result.name}</span>
-              <span className="text-caption-1 text-text-secondary shrink-0">{result.meta}</span>
+              <span className="text-[13px] text-text-primary truncate">{result.name}</span>
+              <span className="text-[12px] text-text-secondary shrink-0">{result.meta}</span>
             </button>
           ))
         ) : (
-          <div className="px-4 py-3 text-body-4 text-text-secondary">No results found.</div>
+          <div className="px-4 py-2 text-[13px] text-text-secondary">No results found.</div>
         )}
       </div>
     )}

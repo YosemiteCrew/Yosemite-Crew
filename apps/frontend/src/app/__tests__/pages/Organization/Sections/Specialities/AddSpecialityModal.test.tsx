@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
@@ -72,14 +72,17 @@ const defaultProps = {
 describe('AddSpecialityModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearMocks only resets calls, not implementations — reset the resolved
+    // value so a rejection queued by one test cannot leak into the next.
+    mockAddSpeciality.mockResolvedValue(undefined);
     mockSpecialities = [];
   });
 
   it('renders the modal when showModal is true', () => {
     render(<AddSpecialityModal {...defaultProps} />);
     expect(screen.getByTestId('center-modal')).toBeInTheDocument();
-    expect(screen.getAllByText('Add Speciality').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Add Speciality' })).toBeInTheDocument();
+    expect(screen.getAllByText('Add speciality').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Add speciality' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 
@@ -90,7 +93,7 @@ describe('AddSpecialityModal', () => {
 
   it('shows validation error when submitting empty name', () => {
     render(<AddSpecialityModal {...defaultProps} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add Speciality' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Speciality name is required.');
     expect(mockAddSpeciality).not.toHaveBeenCalled();
   });
@@ -98,13 +101,13 @@ describe('AddSpecialityModal', () => {
   it('shows validation error when submitting whitespace-only name', () => {
     render(<AddSpecialityModal {...defaultProps} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '   ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Speciality' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Speciality name is required.');
   });
 
   it('clears error when user starts typing', () => {
     render(<AddSpecialityModal {...defaultProps} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add Speciality' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
     expect(screen.getByRole('alert')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Dermatology' } });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -114,7 +117,7 @@ describe('AddSpecialityModal', () => {
     const setShowModal = jest.fn();
     render(<AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Dermatology' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Speciality' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
 
     await waitFor(() => {
       expect(mockAddSpeciality).toHaveBeenCalledWith('Dermatology', 'org-1');
@@ -130,7 +133,7 @@ describe('AddSpecialityModal', () => {
     mockSpecialities = [{ name: 'Dermatology', organisationId: 'org-1' }];
     render(<AddSpecialityModal {...defaultProps} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: ' dermatology ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Speciality' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
     expect(screen.getByRole('alert')).toHaveTextContent(
       'A speciality with this name already exists.'
     );
@@ -141,7 +144,7 @@ describe('AddSpecialityModal', () => {
     const setShowModal = jest.fn();
     render(<AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '  Cardiology  ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Speciality' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
 
     await waitFor(() => {
       expect(mockAddSpeciality).toHaveBeenCalledWith('Cardiology', 'org-1');
@@ -162,5 +165,55 @@ describe('AddSpecialityModal', () => {
     render(<AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />);
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('notifies with an error and keeps the modal open when addSpeciality rejects', async () => {
+    const setShowModal = jest.fn();
+    mockAddSpeciality.mockRejectedValue(new Error('network down'));
+    render(<AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Neurology' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to add speciality',
+        text: 'Please try again.',
+      });
+    });
+    expect(mockNotify).not.toHaveBeenCalledWith('success', expect.anything());
+    expect(setShowModal).not.toHaveBeenCalled();
+  });
+
+  it('submitting the form prevents default navigation and adds the speciality', async () => {
+    const setShowModal = jest.fn();
+    const { container } = render(
+      <AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />
+    );
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Radiology' } });
+
+    const form = container.querySelector('form') as HTMLFormElement;
+    const submitEvent = createEvent.submit(form);
+    fireEvent(form, submitEvent);
+
+    expect(submitEvent.defaultPrevented).toBe(true);
+    await waitFor(() => {
+      expect(mockAddSpeciality).toHaveBeenCalledWith('Radiology', 'org-1');
+    });
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('form submit swallows rejections from the submit handler', async () => {
+    mockAddSpeciality.mockRejectedValue(new Error('boom'));
+    const { container } = render(<AddSpecialityModal {...defaultProps} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Oncology' } });
+
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to add speciality' })
+      );
+    });
   });
 });

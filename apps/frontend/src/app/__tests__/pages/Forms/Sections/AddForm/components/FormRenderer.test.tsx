@@ -317,3 +317,151 @@ describe('FormRenderer Component', () => {
     expect(screen.getByTestId('value-signature')).toHaveTextContent('""');
   });
 });
+
+describe('FormRenderer — depth classes, medication groups, labels, and read-only guards', () => {
+  const onChange = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('applies depth-based and medication container/title classes for nested groups', () => {
+    const fields: any[] = [
+      {
+        id: 'top',
+        type: 'group',
+        label: 'Top',
+        fields: [
+          {
+            id: 'lvl1',
+            type: 'group',
+            label: 'Level One',
+            fields: [
+              {
+                id: 'lvl2',
+                type: 'group',
+                label: 'Level Two',
+                fields: [{ id: 'leaf', type: 'input', label: 'Leaf' }],
+              },
+            ],
+          },
+          {
+            id: 'meds',
+            type: 'group',
+            label: 'Medications',
+            meta: { medicationGroup: true },
+            fields: [],
+          },
+        ],
+      },
+    ];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={onChange} />);
+
+    // depth 0 container uses the large rounded card
+    expect(screen.getByText('Top').parentElement).toHaveClass('rounded-2xl');
+    // depth 1 non-medication container
+    expect(screen.getByText('Level One').parentElement).toHaveClass('rounded-xl');
+    // depth 2 container uses the left-rule variant
+    expect(screen.getByText('Level Two').parentElement).toHaveClass('border-l-2');
+    // depth 1 medication container
+    expect(screen.getByText('Medications').parentElement).toHaveClass('rounded-xl');
+    // title sizes: depth <= 1 is 18px, depth >= 2 is 16px
+    expect(screen.getByText('Top')).toHaveClass('text-[18px]');
+    expect(screen.getByText('Level Two')).toHaveClass('text-[16px]');
+  });
+
+  it('detects medication-like groups via id pattern and medicineId meta', () => {
+    const fields: any[] = [
+      {
+        id: 'medication-plan',
+        type: 'group',
+        label: 'Plan A',
+        fields: [
+          {
+            id: 'inner-a',
+            type: 'group',
+            label: 'Inner A',
+            meta: { medicineId: 'rx-1' },
+            fields: [],
+          },
+        ],
+      },
+    ];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={onChange} />);
+
+    // inner-a is a depth-1 medication group (via medicineId) → rounded-xl container
+    expect(screen.getByText('Inner A').parentElement).toHaveClass('rounded-xl');
+  });
+
+  it('labels group headings: services alias, humanized id, and Group fallback', () => {
+    const fields: any[] = [
+      { id: 'grooming_services', type: 'group', label: 'grooming_services', fields: [] },
+      { id: 'petWeight', type: 'group', fields: [] },
+      { id: '___', type: 'group', fields: [] },
+    ];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={onChange} />);
+
+    // label === id and id ends with _services → friendly alias
+    expect(screen.getByText('Services / Packages')).toBeInTheDocument();
+    // no label → humanized id
+    expect(screen.getByText('Pet Weight')).toBeInTheDocument();
+    // humanizeKey('___') collapses to '' → the 'Group' fallback renders
+    expect(screen.getByText('Group')).toBeInTheDocument();
+  });
+
+  it('handles a group with no fields array', () => {
+    const fields: any[] = [{ id: 'emptyGroup', type: 'group', label: 'Empty Group' }];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={onChange} />);
+
+    expect(screen.getByText('Empty Group')).toBeInTheDocument();
+  });
+
+  it('blurs interactive elements and prevents focus when readOnly', () => {
+    const fields: any[] = [{ id: 'f1', type: 'input', label: 'F1' }];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={onChange} readOnly />);
+
+    const input = screen.getByTestId('input-input');
+    const blurSpy = jest.spyOn(input, 'blur');
+
+    // pointer-down capture path: interactive target found → preventDefault + blur
+    fireEvent.pointerDown(input);
+    // focus capture path: interactive target found → blur
+    fireEvent.focus(input);
+
+    expect(blurSpy).toHaveBeenCalled();
+    blurSpy.mockRestore();
+  });
+
+  it('ignores non-interactive targets when readOnly', () => {
+    const fields: any[] = [{ id: 'grp', type: 'group', label: 'Grp', fields: [] }];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={onChange} readOnly />);
+
+    const title = screen.getByText('Grp'); // a non-interactive heading div
+
+    expect(() => {
+      fireEvent.pointerDown(title);
+      fireEvent.focus(title);
+    }).not.toThrow();
+  });
+
+  it('does not blur interactive elements when not readOnly', () => {
+    const fields: any[] = [{ id: 'f1', type: 'input', label: 'F1' }];
+
+    render(<FormRenderer fields={fields} values={{}} onChange={onChange} />);
+
+    const input = screen.getByTestId('input-input');
+    const blurSpy = jest.spyOn(input, 'blur');
+
+    fireEvent.pointerDown(input);
+    fireEvent.focus(input);
+
+    expect(blurSpy).not.toHaveBeenCalled();
+    blurSpy.mockRestore();
+  });
+});

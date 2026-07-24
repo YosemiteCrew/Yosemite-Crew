@@ -1,8 +1,8 @@
 # Yosemite Crew - Veterinary PIMS: Complete Architecture & Implementation Guide
 
-> **Status:** Living document - source of truth for all new module design  
-> **Last Updated:** 2026-05-18  
-> **Team:** 1 frontend engineer · 1 backend engineer · 1 designer  
+> **Status:** Living document - source of truth for all new module design
+> **Last Updated:** 2026-05-18
+> **Team:** 1 frontend engineer · 1 backend engineer · 1 designer
 > **Stack:** Next.js · React Native · Node.js · PostgreSQL (Prisma) · pnpm workspaces · Turbo
 
 PIMS stands for Practice Information Management System: the software a veterinary clinic runs its day on (appointments, clinical records, billing, inventory). This document is the design blueprint for building out that system module by module; it describes the target design, so parts of it are forward-looking rather than a description of code that exists today. It is written for engineers picking up a module for the first time. For the real-time sync and notification pieces referenced throughout, see the related documents linked at the end. SOAP, used in Section 8 and after, is the standard clinical note format (Subjective, Objective, Assessment, Plan).
@@ -87,20 +87,14 @@ Yosemite Crew is the **world's first fully open-source, AI-native, multi-species
 ### Current Reality
 
 - **Primary database:** PostgreSQL via Prisma ORM (`@prisma/client@^5.22.0`)
-- **Schema file:** `apps/backend/prisma/schema.prisma` - 72 models, 50+ enums
-- **MongoDB:** Still present in codebase but bypassed with `READ_FROM_POSTGRES=true`. **Target: remove entirely after migration.**
+- **Schema file:** `apps/backend/prisma/schema.prisma` — 72 models, 50+ enums
+- **MongoDB:** Removed. PostgreSQL via Prisma is the sole datastore; the legacy Mongoose models, dual-write mirror, and read-switch have been retired.
 - **No Supabase:** PostgreSQL accessed directly. If hosting on Supabase, use the Supabase connection string in `DATABASE_URL`. No Supabase-specific SDK needed.
 - **BullMQ:** `bullmq@^5.65.1` - job queue for async processing (lab syncs, reminders, notifications)
 
-### Migration Plan (MongoDB → PostgreSQL)
+### Migration status (MongoDB to PostgreSQL)
 
-```
-1. Set READ_FROM_POSTGRES=true in all environments
-2. Remove mongoose dependency after all services ported
-3. Remove apps/backend/src/models/ Mongoose files
-4. Remove mongodb-memory-server from test dependencies
-5. Replace apps/backend/src/config/db.ts with Prisma client singleton
-```
+Complete. The Mongo to Postgres migration has been finished and the compatibility scaffold removed: the Mongoose models, the `connectDB` connection helper, the dual-write mirror, the read-switch, and the `mongoose` / `mongodb-memory-server` dependencies are all gone. PostgreSQL via Prisma is the only datastore in the backend.
 
 ### Prisma Client Singleton Pattern
 
@@ -214,13 +208,7 @@ model User {
 interface OrgSessionClaim {
   orgId: string;
   role:
-    | 'OWNER'
-    | 'ADMIN'
-    | 'SUPERVISOR'
-    | 'VETERINARIAN'
-    | 'TECHNICIAN'
-    | 'ASSISTANT'
-    | 'RECEPTIONIST';
+    'OWNER' | 'ADMIN' | 'SUPERVISOR' | 'VETERINARIAN' | 'TECHNICIAN' | 'ASSISTANT' | 'RECEPTIONIST';
   permissions: string[]; // e.g. ['appointments:view:any', 'prescription:write']
 }
 ```
@@ -305,20 +293,19 @@ Three projects configured:
 - No `console.log` in production code - use logger
 - Extract magic numbers into named constants
 
-### CI/CD (13 Workflows - All Must Stay Green)
+### CI/CD (key workflows - all must stay green)
 
-| Workflow                   | Purpose                           | Must pass on              |
-| -------------------------- | --------------------------------- | ------------------------- |
-| `ci-affected.yaml`         | Test affected workspaces          | All PRs                   |
-| `sonar-cloud-analysis.yml` | SonarQube gate                    | All PRs                   |
-| `frontend-a11y.yml`        | jest-axe WCAG 2.1 AA              | All PRs touching frontend |
-| `frontend-quality.yml`     | Build, bundle budgets, Lighthouse | All PRs                   |
-| `frontend-e2e.yml`         | Playwright E2E                    | PRs to main/dev           |
-| `chromatic.yml`            | Visual regression (Storybook)     | Component changes         |
-| `codeql.yml`               | CodeQL security analysis          | Weekly + PRs              |
-| `dependency-review.yml`    | Vulnerability scanning            | All PRs                   |
-| `secret-scan.yml`          | Secret detection                  | All PRs                   |
-| `pr-governance.yml`        | PR rules                          | All PRs                   |
+| Workflow                   | Purpose                                                                                                                                                                                     | Must pass on              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `ci.yaml`                  | Single-run pipeline: detect, build once, lint/type-check, sharded tests, coverage, scan-only Sonar; folds in the former affected-test, jest-axe accessibility, and dev-docs build workflows | All PRs                   |
+| `sonar-cloud-analysis.yml` | Nightly full SonarQube baseline                                                                                                                                                             | Schedule                  |
+| `frontend-quality.yml`     | Bundle budgets, Lighthouse (via `ci.yaml`)                                                                                                                                                  | All PRs touching frontend |
+| `frontend-e2e.yml`         | Playwright E2E                                                                                                                                                                              | PRs to main/dev           |
+| `chromatic.yml`            | Visual regression (Storybook)                                                                                                                                                               | Component changes         |
+| `codeql.yml`               | CodeQL security analysis                                                                                                                                                                    | Weekly + PRs              |
+| `dependency-review.yml`    | Vulnerability scanning                                                                                                                                                                      | All PRs                   |
+| `secret-scan.yml`          | Secret detection                                                                                                                                                                            | All PRs                   |
+| `pr-governance.yml`        | PR rules                                                                                                                                                                                    | All PRs                   |
 
 ### Accessibility Standards (WCAG 2.1 AA - Non-Negotiable)
 

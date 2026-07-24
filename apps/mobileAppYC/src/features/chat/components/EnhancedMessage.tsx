@@ -143,7 +143,10 @@ export const EnhancedMessage: React.FC = () => {
   };
 
   return (
-    <PressableOpacity activeOpacity={1} onLongPress={handleLongPress}>
+    <PressableOpacity
+      activeOpacity={1}
+      onLongPress={handleLongPress}
+      accessibilityRole="button">
       <View>
         <MessageSimple />
       </View>

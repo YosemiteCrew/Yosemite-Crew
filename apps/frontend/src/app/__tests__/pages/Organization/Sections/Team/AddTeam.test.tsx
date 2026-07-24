@@ -232,7 +232,7 @@ describe('AddTeam', () => {
   it('closes the modal via the Close icon', () => {
     const setShowModal = jest.fn();
     render(<AddTeam showModal setShowModal={setShowModal} />);
-    fireEvent.click(screen.getAllByText('close')[1]);
+    fireEvent.click(screen.getByText('close'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
@@ -242,9 +242,9 @@ describe('AddTeam', () => {
     expect(screen.getByText('Employee type')).toBeInTheDocument();
   });
 
-  it('invokes the no-op onClick on the hidden spacer Close icon', () => {
+  it('renders the panel title alongside a single close control', () => {
     render(<AddTeam showModal setShowModal={jest.fn()} />);
-    fireEvent.click(screen.getAllByText('close')[0]);
+    expect(screen.getAllByText('close')).toHaveLength(1);
     expect(screen.getAllByText('Add team')[0]).toBeInTheDocument();
   });
 });

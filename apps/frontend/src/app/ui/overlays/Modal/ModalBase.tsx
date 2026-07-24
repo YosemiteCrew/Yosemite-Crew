@@ -62,26 +62,29 @@ const ModalBase = ({
   // Sync inert state and body scroll lock with showModal.
   // Focus is moved in a separate effect that fires after isInert settles (below).
   useEffect(() => {
-    if (showModal) {
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      const scrollbarWidth =
-        globalThis.window === undefined
-          ? 0
-          : globalThis.window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.overflow = 'hidden';
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-      // Safari requires overflow:hidden on <html> to prevent body scroll
-      document.documentElement.style.overflow = 'hidden';
-    } else {
+    if (!showModal) {
       // Restore focus to the element that was active before the modal opened.
       // This runs before inert is applied to the DOM (React batches the state update),
       // so the focused element is already outside the modal when inert renders.
       previousFocusRef.current?.focus();
       previousFocusRef.current = null;
+      return;
+    }
+    previousFocusRef.current = document.activeElement as HTMLElement;
+    const scrollbarWidth =
+      globalThis.window === undefined
+        ? 0
+        : globalThis.window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+    // Safari requires overflow:hidden on <html> to prevent body scroll
+    document.documentElement.style.overflow = 'hidden';
+    // Released via cleanup so unmounting while open cannot strand the lock.
+    return () => {
       document.body.style.overflow = '';
       document.body.style.paddingRight = '';
       document.documentElement.style.overflow = '';
-    }
+    };
   }, [showModal]);
 
   // Move focus into the modal after inert is removed (i.e. after the open render).
@@ -102,6 +105,13 @@ const ModalBase = ({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (ignoreOutsideClickRef.current?.(target)) return;
+      // Every modal portals to document.body, so a modal opened from inside
+      // another one is its sibling in the DOM rather than its descendant. A
+      // click in the child would otherwise read as "outside" to the parent and
+      // dismiss it - taking the child down with it. Interacting with any dialog
+      // is never a dismissal of a different one; the backdrop sits outside
+      // .yc-modal-dialog, so click-to-dismiss still works.
+      if (target?.closest('.yc-modal-dialog')) return;
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         closeModalRef.current();
       }

@@ -16,7 +16,7 @@ export const getServiceCheckbox = (
 export const ensureServiceCheckbox = (
   field: FormField & { type: 'group' },
   serviceOptions: ServiceOption[]
-): { group: FormField & { type: 'group' }; selected: string[] } => {
+): { group: FormField & { type: 'group'; fields: FormField[] }; selected: string[] } => {
   const existingCheckbox = getServiceCheckbox(field);
   const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
 

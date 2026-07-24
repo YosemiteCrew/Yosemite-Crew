@@ -462,9 +462,24 @@ export const CompanionService = {
     return { response: toFHIRFromPrisma(updated as CompanionRecord) };
   },
 
-  async listByParent(parentId: string) {
+  async listByParent(parentId: string, context: CompanionCreateContext) {
     if (!parentId || typeof parentId !== "string") {
       throw new CompanionServiceError("Invalid Parent Document Id", 400);
+    }
+
+    if (!context?.authUserId) {
+      throw new CompanionServiceError(
+        "Authenticated user is required to list companions.",
+        401,
+      );
+    }
+
+    const parent = await ParentService.findByLinkedUserId(context.authUserId);
+
+    // A parent the caller does not own is reported as missing rather than forbidden, so the
+    // endpoint cannot confirm that a parent id exists.
+    if (!parent?.id || parent.id !== parentId) {
+      throw new CompanionServiceError("Parent not found.", 404);
     }
 
     const companionIds =

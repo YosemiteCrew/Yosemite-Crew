@@ -69,20 +69,18 @@ export const usePackageFormDraftController = ({
   }
 
   const localCatalog = useMemo<CatalogEntry[]>(() => {
-    const serviceCatalog = activeServices.map(
-      (service): CatalogEntry => ({
-        id: service.id,
-        code: service.code,
-        name: service.name,
-        type: service.type,
-        unitPrice: service.grossAmount,
-        currency: service.currency ?? orgCurrency,
-        defaultDiscount: service.defaultDiscount,
-        maxDiscount: service.maxDiscount,
-        isBookable: service.isBookable,
-        isInpatientPreferred: service.isInpatientPreferred,
-      })
-    );
+    const serviceCatalog = activeServices.map((service): CatalogEntry => ({
+      id: service.id,
+      code: service.code,
+      name: service.name,
+      type: service.type,
+      unitPrice: service.grossAmount,
+      currency: service.currency ?? orgCurrency,
+      defaultDiscount: service.defaultDiscount,
+      maxDiscount: service.maxDiscount,
+      isBookable: service.isBookable,
+      isInpatientPreferred: service.isInpatientPreferred,
+    }));
 
     const packageCatalog = allActivePackages.map((pkg): CatalogEntry => {
       const { totalCost } = computePackageTotals(pkg);

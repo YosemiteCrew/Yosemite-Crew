@@ -5,6 +5,7 @@ import Header from '@/app/ui/layout/Header/Header';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
+import PhoneShell from '@/app/ui/layout/PhoneShell/PhoneShell';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useLoadOrg } from '@/app/hooks/useLoadOrg';
@@ -180,11 +181,15 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     };
   }, [primaryOrgId]);
 
-  const isChecking = status === 'idle' || status === 'checking';
+  // On localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD, render the app shell without a
+  // real session so UI/styling work needs no login (matches the guards, which also
+  // short-circuit on this flag). Has no effect on deployed environments.
+  const authGuardDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === 'true';
+  const isChecking = !authGuardDisabled && (status === 'idle' || status === 'checking');
   useFullscreenLoader('session-initializer', isChecking);
 
   return (
-    <div className="flex h-screen flex-1 lg:overflow-hidden">
+    <div data-yc-app className="flex h-screen flex-1 lg:overflow-hidden">
       <Sidebar />
 
       <div className="flex flex-col flex-1 min-w-0">
@@ -199,6 +204,8 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
           {isChecking ? null : children}
         </main>
       </div>
+
+      <PhoneShell />
     </div>
   );
 };

@@ -1,10 +1,5 @@
 export type HistoryEntryType =
-  | 'APPOINTMENT'
-  | 'TASK'
-  | 'FORM_SUBMISSION'
-  | 'DOCUMENT'
-  | 'LAB_RESULT'
-  | 'INVOICE';
+  'APPOINTMENT' | 'TASK' | 'FORM_SUBMISSION' | 'DOCUMENT' | 'LAB_RESULT' | 'INVOICE';
 
 export type HistoryEntry = {
   id: string;
@@ -41,12 +36,7 @@ export type CompanionHistoryResponse = {
 };
 
 export type HistoryFilterKey =
-  | 'APPOINTMENT'
-  | 'TASK'
-  | 'MEDICAL_RECORDS'
-  | 'LAB_RESULT'
-  | 'INVOICE'
-  | 'AUDIT_TRAIL';
+  'ALL' | 'APPOINTMENT' | 'TASK' | 'MEDICAL_RECORDS' | 'LAB_RESULT' | 'INVOICE' | 'AUDIT_TRAIL';
 
 export type HistoryFilterDefinition = { key: HistoryFilterKey; label: string };
 
@@ -60,6 +50,7 @@ export const getFormHistoryLabel = (orgType?: string | null): string => {
 };
 
 export const getHistoryFilters = (_orgType?: string | null): HistoryFilterDefinition[] => [
+  { key: 'ALL', label: 'All' },
   { key: 'APPOINTMENT', label: 'Appointments' },
   { key: 'LAB_RESULT', label: 'Diagnostics' },
   { key: 'MEDICAL_RECORDS', label: 'Medical records' },
@@ -69,7 +60,7 @@ export const getHistoryFilters = (_orgType?: string | null): HistoryFilterDefini
 ];
 
 export const HISTORY_FILTER_TYPE_MAP: Record<
-  Exclude<HistoryFilterKey, 'MEDICAL_RECORDS' | 'AUDIT_TRAIL'>,
+  Exclude<HistoryFilterKey, 'ALL' | 'MEDICAL_RECORDS' | 'AUDIT_TRAIL'>,
   HistoryEntryType[]
 > = {
   APPOINTMENT: ['APPOINTMENT'],

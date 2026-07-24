@@ -87,6 +87,18 @@ describe('InvoiceCard Component', () => {
     expect(dashes.length).toBeGreaterThan(0);
   });
 
+  it('falls back to zero when the invoice carries no tax total', () => {
+    // taxTotal is optional on Invoice — an untaxed invoice omits it entirely.
+    const untaxedInvoice = { ...mockInvoice, taxTotal: undefined } as any;
+
+    render(<InvoiceCard invoice={untaxedInvoice} handleViewInvoice={mockHandleView} />);
+
+    // Both the (absent) discount and the (absent) tax render as $0.
+    expect(screen.getAllByText('$0')).toHaveLength(2);
+    expect(screen.getByText('$100')).toBeInTheDocument(); // Subtotal unaffected
+    expect(screen.getByText('$110')).toBeInTheDocument(); // Total unaffected
+  });
+
   // --- 3. Status Rendering ---
 
   it('capitalizes status and applies styles', () => {

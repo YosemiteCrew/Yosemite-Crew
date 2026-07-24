@@ -91,6 +91,20 @@ describe('formService', () => {
       );
       expect(result).toEqual(mockResponse);
     });
+
+    it('rethrows non-404 errors from the mobile endpoint without falling back', async () => {
+      const serverError = {response: {status: 500}};
+      mockApiClient.post.mockRejectedValueOnce(serverError);
+
+      await expect(
+        formApi.fetchFormsForAppointment({
+          appointmentId: 'appt-1',
+          accessToken: mockToken,
+        }),
+      ).rejects.toBe(serverError);
+
+      expect(mockApiClient.post).toHaveBeenCalledTimes(1);
+    });
   });
 
   // =========================================================================

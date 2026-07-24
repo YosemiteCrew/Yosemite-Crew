@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const financeAppointmentLimiter = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const withAppointmentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
@@ -35,6 +35,8 @@ const requirePermission = jest.fn(() => requirePermissionMiddleware);
 
 const FinanceController = {
   webhook: jest.fn(),
+  getDiscountSettings: jest.fn(),
+  updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
   addInvoiceItems: jest.fn(),
@@ -74,8 +76,8 @@ const FinanceController = {
 const rateLimit = jest.fn(() => financeAppointmentLimiter);
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("express-rate-limit", () => rateLimit);
@@ -142,7 +144,7 @@ describe("finance.router", () => {
       FinanceController.createInvoicePaymentSession,
     );
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
       financeAppointmentLimiter,
@@ -180,24 +182,24 @@ describe("finance.router", () => {
       FinanceController.createInvoice,
     );
     expect(mobileParentRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognitoMobile,
+      requireMobileAuth,
     );
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognitoMobile);
+    ).toContain(requireMobileAuth);
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
     ).toContain(financeAppointmentLimiter);
     expect(
       mobilePaymentSessionRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognitoMobile);
+    ).toContain(requireMobileAuth);
     expect(
       mobilePaymentSessionRoute?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.createMobileInvoicePaymentSession);
     expect(
       findRoute("/:invoiceId", "get")?.stack.map((layer) => layer.handle),
     ).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       financeAppointmentLimiter,
       withInvoiceOrgPermissionsMiddleware,
       requirePermissionMiddleware,
@@ -211,6 +213,31 @@ describe("finance.router", () => {
     expect(rateLimit).toHaveBeenCalledTimes(1);
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
+  });
+
+  it("guards the discount settings routes with billing permissions", () => {
+    expect(
+      findRoute(
+        "/organisation/:organisationId/discount-settings",
+        "get",
+      )?.stack.map((layer) => layer.handle),
+    ).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      FinanceController.getDiscountSettings,
+    ]);
+    expect(
+      findRoute(
+        "/organisation/:organisationId/discount-settings",
+        "put",
+      )?.stack.map((layer) => layer.handle),
+    ).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      FinanceController.updateDiscountSettings,
+    ]);
   });
 
   it("exposes the remaining finance contract routes", () => {

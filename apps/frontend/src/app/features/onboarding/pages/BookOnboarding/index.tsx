@@ -10,14 +10,15 @@ const BookOnboarding = () => {
   const router = useRouter();
 
   return (
-    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="yc-page-content">
       <button
         type="button"
         onClick={() => router.back()}
-        className="flex items-center gap-2 w-fit text-body-4 text-text-secondary hover:text-text-primary transition-colors"
+        className="flex h-[38px] w-fit items-center gap-[7px] rounded-full border px-4 text-[12.5px] font-semibold"
+        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-body)' }}
         aria-label="Go back"
       >
-        <IoArrowBack size={18} />
+        <IoArrowBack size={14} />
         <span>Back</span>
       </button>
       <CalEmbedFrame

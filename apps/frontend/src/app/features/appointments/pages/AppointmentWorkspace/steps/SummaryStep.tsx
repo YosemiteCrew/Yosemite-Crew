@@ -8,21 +8,23 @@ import type {
   WorkspaceDocumentRow,
 } from '@yosemite-crew/types';
 import {
-  LuDownload,
-  LuEye,
-  LuFileSignature,
-  LuPencil,
-  LuPrinter,
-  LuSave,
-  LuSearch,
-} from 'react-icons/lu';
+  IoDocumentTextOutline,
+  IoDownloadOutline,
+  IoEyeOutline,
+  IoPencilOutline,
+  IoPrintOutline,
+  IoSaveOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Search from '@/app/ui/inputs/Search';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import AutosaveIndicator from '@/app/features/appointments/pages/AppointmentWorkspace/components/AutosaveIndicator';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
@@ -31,6 +33,7 @@ import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import { usePermissions } from '@/app/hooks/usePermissions';
+import { getStatusStyle } from '@/app/config/statusConfig';
 import {
   getRenderedDocument,
   saveDischargeSummaryArtifact,
@@ -44,6 +47,7 @@ import {
   createEncounterDocumentPacket,
   getAppointmentWorkspaceBootstrap,
   getEncounterDocumentPacketPdfUrl,
+  listAppointmentWorkspaceDocuments,
   listEncounterWorkspaceDocuments,
   normalizeWorkspaceBootstrapForEncounter,
   reconcileWorkspaceDocumentPacket,
@@ -198,16 +202,28 @@ const toIsoString = (value: string | Date): string =>
   typeof value === 'string' ? value : new Date(value).toISOString();
 
 export const DocumentSourcePill = ({ source }: { source: string }) => (
-  <span className="inline-flex rounded-2xl border border-[#D6D1CD] bg-[#FAF8F6] px-3 py-1 text-caption-1 text-text-primary">
+  <span className="inline-flex rounded-2xl border border-neutral-300 bg-neutral-100 px-3 py-1 text-caption-1 text-text-primary">
     {humanizeToken(source)}
   </span>
 );
 
-/** Shared column template (mirrors the Invoice table) so the heading and row
- *  grids resolve to identical track widths. The Actions track is fixed. */
-const DOCUMENT_COLS =
-  'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_92px]';
-const DOCUMENT_ROW_GRID = `grid gap-3 ${DOCUMENT_COLS} sm:items-center`;
+/** Map a signing/attachment state to a shared status-pill token key (design: SIGNED /
+ *  ATTACHED / PAID coloured pills), reusing the same colour source as the appointment
+ *  status pill. */
+const signingStatusStyleKey = (signingStatus?: string | null): string => {
+  const key = String(signingStatus ?? '')
+    .trim()
+    .toUpperCase();
+  if (key === 'SIGNED' || key === 'PAID') return 'completed';
+  if (key === 'ATTACHED') return 'upcoming';
+  if (key === 'IN_PROGRESS' || key === 'PENDING') return 'checked_in';
+  return 'requested';
+};
+
+const SigningStatusPill = ({ signingStatus }: { signingStatus?: string | null }) => {
+  const style = getStatusStyle(signingStatusStyleKey(signingStatus));
+  return <StatusPill style={style} label={humanizeToken(signingStatus)} className="w-fit" />;
+};
 
 const downloadDocumentUrl = (url: string) => {
   const link = globalThis.document.createElement('a');
@@ -256,11 +272,7 @@ export const AllDocumentsTable = ({
   };
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="All Documents"
-      className="flex flex-col gap-4"
-    >
+    <SectionContainer title="All Documents" className="flex flex-col gap-4">
       {error && (
         <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-danger-700">
           {error}
@@ -273,52 +285,46 @@ export const AllDocumentsTable = ({
       )}
       {!error && documents.length > 0 && (
         <div className="flex flex-col gap-3">
-          <div
-            className={`${DOCUMENT_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
-          >
-            <span>Created</span>
-            <span>Source</span>
-            <span>Title</span>
-            <span>Status</span>
-            <span>Signing</span>
-            <span className="text-right">Actions</span>
-          </div>
+          {/* Stacked cards, not a fixed multi-column grid: the section lives in a ~400px aside, so a
+              6-track row forces the status/signing pills to overflow their columns and overlap the
+              neighbouring cell. A card keeps the title on its own line (truncates with a tooltip),
+              lets the pills wrap, and pins the actions to the right at every width. */}
           <ul className="flex flex-col gap-3">
             {documents.map((document) => (
               <li
                 key={document.documentId}
-                className={`${DOCUMENT_ROW_GRID} rounded-2xl border border-card-border p-4`}
+                className="flex items-start gap-3 rounded-2xl border border-card-border p-4"
               >
-                <span className="truncate text-body-4 text-text-secondary">
-                  {formatDateTime(toIsoString(document.createdAt))}
-                </span>
-                <span>
-                  <DocumentSourcePill source={document.sourceKind} />
-                </span>
-                <span className="truncate font-medium text-text-primary">{document.title}</span>
-                <span className="truncate text-body-4 text-text-primary">
-                  {humanizeToken(document.status)}
-                </span>
-                <span className="truncate text-body-4 text-text-secondary">
-                  {humanizeToken(document.signingStatus)}
-                </span>
-                <div className="flex justify-end gap-2">
-                  {canView && (
-                    <>
-                      <CircleIconButton
-                        icon={<LuEye aria-hidden="true" />}
-                        label={`View ${document.title}`}
-                        variant="dark"
-                        onClick={() => void handleDocumentAction(document)}
-                      />
-                      <CircleIconButton
-                        icon={<LuDownload aria-hidden="true" />}
-                        label={`Download ${document.title}`}
-                        onClick={() => void handleDocumentAction(document)}
-                      />
-                    </>
-                  )}
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="truncate font-medium text-text-primary" title={document.title}>
+                    {document.title}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <DocumentSourcePill source={document.sourceKind} />
+                    <span className="text-body-4 text-text-primary">
+                      {humanizeToken(document.status)}
+                    </span>
+                    <SigningStatusPill signingStatus={document.signingStatus} />
+                  </div>
+                  <span className="text-body-4 text-text-secondary">
+                    {formatDateTime(toIsoString(document.createdAt))}
+                  </span>
                 </div>
+                {canView && (
+                  <div className="flex shrink-0 justify-end gap-2">
+                    <CircleIconButton
+                      icon={<IoEyeOutline aria-hidden="true" />}
+                      label={`View ${document.title}`}
+                      variant="dark"
+                      onClick={() => void handleDocumentAction(document)}
+                    />
+                    <CircleIconButton
+                      icon={<IoDownloadOutline aria-hidden="true" />}
+                      label={`Download ${document.title}`}
+                      onClick={() => void handleDocumentAction(document)}
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -341,183 +347,6 @@ export const AllDocumentsTable = ({
   );
 };
 
-type TemplateSearchSectionProps = {
-  templateSearchRef: React.RefObject<HTMLDivElement | null>;
-  templateQuery: string;
-  setTemplateQuery: (value: string) => void;
-  templateMatches: TemplateLike[];
-  templateError: string | null;
-  onSelectTemplate: (template: TemplateLike) => void;
-};
-
-export const TemplateSearchSection = ({
-  templateSearchRef,
-  templateQuery,
-  setTemplateQuery,
-  templateMatches,
-  templateError,
-  onSelectTemplate,
-}: TemplateSearchSectionProps) => (
-  <div className="relative flex justify-end">
-    <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
-      <Search
-        value={templateQuery}
-        setSearch={setTemplateQuery}
-        placeholder="Search discharge templates"
-        label="Search discharge templates"
-        className="w-full!"
-      />
-      <SearchResultsDropdown
-        anchorRef={templateSearchRef}
-        open={Boolean(templateQuery.trim()) && !templateError}
-        onClose={() => setTemplateQuery('')}
-      >
-        {templateMatches.length > 0 ? (
-          <ul>
-            {templateMatches.map((template) => (
-              <WorkspaceSearchResultRow
-                key={template.id}
-                name={template.name}
-                leadingIcon={<LuSearch aria-hidden="true" className="shrink-0" />}
-                onSelect={() => onSelectTemplate(template)}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-3 text-body-4 text-text-secondary">
-            No discharge templates match this search.
-          </p>
-        )}
-      </SearchResultsDropdown>
-      {templateError && <p className="mt-2 text-caption-1 text-danger-600">{templateError}</p>}
-    </div>
-  </div>
-);
-
-type SavedDischargeViewProps = {
-  encounter: AppointmentEncounter;
-  followUpDate: Date | null;
-  onEdit: () => void;
-};
-
-export const SavedDischargeView = ({
-  encounter,
-  followUpDate,
-  onEdit,
-}: SavedDischargeViewProps) => (
-  <div className="relative">
-    {/* Editable until the encounter is locked (window closed / completed /
-        discharged). Absolutely positioned so it overlays the top-right
-        without pushing the summary down a row. */}
-    {!encounter.viewOnly && (
-      <div className="absolute top-0 right-0 z-10">
-        <CircleIconButton
-          icon={<LuPencil aria-hidden="true" />}
-          label="Edit discharge summary"
-          variant="dark"
-          onClick={onEdit}
-        />
-      </div>
-    )}
-    <div
-      className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
-      dangerouslySetInnerHTML={{
-        __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
-      }}
-    />
-    <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-      {/* Same Datepicker container as edit mode, rendered non-interactive. */}
-      <div className="pointer-events-none w-full select-none sm:max-w-72" aria-disabled="true">
-        <Datepicker
-          type="input"
-          currentDate={followUpDate}
-          setCurrentDate={() => undefined}
-          placeholder="Follow up date"
-        />
-      </div>
-      <div className="flex flex-col items-end leading-[120%]">
-        <span className="text-[12px] font-bold text-neutral-900">
-          Saved by {encounter.dischargeSavedByName}
-        </span>
-        <span className="text-[12px] font-medium text-text-brand">
-          {formatDateTime(encounter.dischargeSavedAt ?? '')}
-        </span>
-      </div>
-    </div>
-  </div>
-);
-
-type ActionButtonsRowProps = {
-  documentState: {
-    visible: boolean;
-    dischargeSaved: boolean;
-    printing: boolean;
-    saving: boolean;
-    signing: boolean;
-    packetSigned: boolean;
-    signBlocked: boolean;
-    signBlockedReason: string | undefined;
-    encounterViewOnly: boolean | undefined;
-  };
-  onPrint: () => void;
-  onSave: () => void;
-  onDownloadSigned: () => void;
-  onSign: () => void;
-};
-
-export const ActionButtonsRow = ({
-  documentState,
-  onPrint,
-  onSave,
-  onDownloadSigned,
-  onSign,
-}: ActionButtonsRowProps) => (
-  <div className="flex flex-wrap items-center justify-end gap-3">
-    {documentState.visible && (
-      <Secondary
-        text={documentState.printing ? 'Preparing…' : 'Print All'}
-        icon={<LuPrinter aria-hidden="true" />}
-        onClick={onPrint}
-        isDisabled={documentState.printing}
-      />
-    )}
-    {!documentState.dischargeSaved && (
-      <Secondary
-        text="Save"
-        icon={<LuSave aria-hidden="true" />}
-        onClick={onSave}
-        isDisabled={documentState.encounterViewOnly || documentState.saving}
-      />
-    )}
-    {documentState.visible && documentState.packetSigned && (
-      <Secondary
-        text="Download Signed"
-        icon={<LuDownload aria-hidden="true" />}
-        onClick={onDownloadSigned}
-        isDisabled={documentState.printing}
-      />
-    )}
-    {documentState.visible && !documentState.packetSigned && documentState.signBlockedReason && (
-      <GlassTooltip content={documentState.signBlockedReason} side="top">
-        <Secondary
-          text={documentState.signing ? 'Signing…' : 'Sign'}
-          icon={<LuFileSignature aria-hidden="true" />}
-          onClick={onSign}
-          isDisabled={documentState.signBlocked}
-        />
-      </GlassTooltip>
-    )}
-    {documentState.visible && !documentState.packetSigned && !documentState.signBlockedReason && (
-      <Secondary
-        text={documentState.signing ? 'Signing…' : 'Sign'}
-        icon={<LuFileSignature aria-hidden="true" />}
-        onClick={onSign}
-        isDisabled={documentState.signBlocked}
-      />
-    )}
-  </div>
-);
-
 const useSummaryStepContent = ({
   appointmentId,
   appointment,
@@ -526,6 +355,10 @@ const useSummaryStepContent = ({
 }: SummaryStepProps) => {
   const setDischargeSummary = useAppointmentWorkspaceStore((s) => s.setDischargeSummary);
   const saveDischargeSummary = useAppointmentWorkspaceStore((s) => s.saveDischargeSummary);
+  const setSaveStatus = useAppointmentWorkspaceStore((s) => s.setSaveStatus);
+  const saveState = useAppointmentWorkspaceStore(
+    (s) => s.saveStatusByAppointmentId?.[appointmentId]
+  );
   const reopenDischargeSummary = useAppointmentWorkspaceStore((s) => s.reopenDischargeSummary);
   const setFollowUp = useAppointmentWorkspaceStore((s) => s.setFollowUp);
   const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
@@ -624,16 +457,22 @@ const useSummaryStepContent = ({
   // encounter. The refetch is reused after signing so the list, statuses, and
   // signing state stay in sync without a full page reload.
   const refreshDocuments = useCallback(async () => {
-    if (!organisationId || !encounterId) return;
+    if (!organisationId) return;
     try {
-      const rows = await listEncounterWorkspaceDocuments(organisationId, encounterId);
+      // The encounter id is the preferred scope, but an appointment whose visit
+      // has not been checked in yet has no encounter at all. Its documents are
+      // still readable by appointment, so fall back to the appointment-scoped
+      // read-model instead of silently rendering an empty "no documents" state.
+      const rows = await (encounterId
+        ? listEncounterWorkspaceDocuments(organisationId, encounterId)
+        : listAppointmentWorkspaceDocuments(organisationId, appointmentId));
       setDocuments(rows);
       setDocumentsError(null);
     } catch (error) {
       console.error('Unable to load documents:', error);
       setDocumentsError('Unable to load documents.');
     }
-  }, [organisationId, encounterId]);
+  }, [organisationId, encounterId, appointmentId]);
 
   useEffect(() => {
     void refreshDocuments();
@@ -690,6 +529,7 @@ const useSummaryStepContent = ({
       if (!followUpInDays || encounter.followUpAt) return;
       const next = new Date();
       next.setDate(next.getDate() + followUpInDays);
+      if (Number.isNaN(next.getTime())) return;
       setFollowUp(appointmentId, next.toISOString());
     },
     [appointmentId, encounter.followUpAt, setFollowUp]
@@ -837,7 +677,11 @@ const useSummaryStepContent = ({
   const handleSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
+    // Drive the autosave indicator off this explicit save (no separate autosave
+    // engine): "Saving…" now, "Autosaved" on success, "Offline" on failure.
+    setSaveStatus(appointmentId, 'saving');
     let persistedId: string | undefined;
+    let saveFailed = false;
     try {
       if (appointment?.organisationId) {
         const saved = await saveDischargeSummaryArtifact(
@@ -857,8 +701,10 @@ const useSummaryStepContent = ({
       }
     } catch (error) {
       console.error('Unable to persist discharge summary:', error);
+      saveFailed = true;
     } finally {
       saveDischargeSummary(appointmentId, encounter.leadName ?? 'Clinician', persistedId);
+      setSaveStatus(appointmentId, saveFailed ? 'offline' : 'saved');
       setIsSaving(false);
     }
   };
@@ -921,87 +767,191 @@ const useSummaryStepContent = ({
         onClose={closePacketPreview}
       />
 
-      {/* Discharge-template search sits above the container (like the SOAP step's
-          template search) — selecting a template fills the editor. */}
-      <TemplateSearchSection
-        templateSearchRef={templateSearchRef}
-        templateQuery={templateQuery}
-        setTemplateQuery={setTemplateQuery}
-        templateMatches={templateMatches}
-        templateError={templateState.error}
-        onSelectTemplate={handleTemplateSelect}
-      />
+      {/* Two-pane discharge layout (design): the summary editor + follow-up + actions
+          on the left, the clinical-packet documents on the right. */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {/* Discharge-template search sits above the container (like the SOAP step's
+          template search) — selecting a template fills the editor. The autosave
+          indicator (design micro-state) sits to its left, driven off the save. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
+            <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
+              <Search
+                value={templateQuery}
+                setSearch={setTemplateQuery}
+                placeholder="Search discharge templates"
+                label="Search discharge templates"
+                className="w-full!"
+              />
+              <SearchResultsDropdown
+                anchorRef={templateSearchRef}
+                open={Boolean(templateQuery.trim()) && !templateState.error}
+                onClose={() => setTemplateQuery('')}
+              >
+                {templateMatches.length > 0 ? (
+                  <ul>
+                    {templateMatches.map((template) => (
+                      <WorkspaceSearchResultRow
+                        key={template.id}
+                        name={template.name}
+                        leadingIcon={<IoSearchOutline aria-hidden="true" className="shrink-0" />}
+                        onSelect={() => handleTemplateSelect(template)}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-4 py-3 text-body-4 text-text-secondary">
+                    No discharge templates match this search.
+                  </p>
+                )}
+              </SearchResultsDropdown>
+              {templateState.error && (
+                <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
+              )}
+            </div>
+          </div>
 
-      {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
+          {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
           Once saved, the editor is replaced by a read-only render of the summary
           with a fixed follow-up date and a "Saved on … by …" stamp. */}
-      <SectionContainer titleClassName="text-yc-20-b-primary" title="Discharge Summary" compactTop>
-        {dischargeSaved ? (
-          <SavedDischargeView
-            encounter={encounter}
-            followUpDate={followUpDate}
-            onEdit={() => reopenDischargeSummary(appointmentId)}
-          />
-        ) : (
-          <>
-            <RichTextEditor
-              ariaLabel="Discharge summary"
-              value={encounter.dischargeSummary}
-              readOnly={readOnly}
-              toolbarPlacement="inset"
-              onChange={(html) => setDischargeSummary(appointmentId, html)}
-              placeholder="Discharge instructions and follow-up care"
-            />
-            <div className="mt-3 flex justify-end">
-              <div
-                className={`w-full sm:max-w-72 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}
-                aria-disabled={readOnly}
-              >
-                <Datepicker
-                  type="input"
-                  currentDate={followUpDate}
-                  setCurrentDate={
-                    handleFollowUpChange as React.Dispatch<React.SetStateAction<Date | null>>
-                  }
-                  placeholder="Follow up date"
+          <SectionContainer title="Discharge Summary" compactTop disableFocusBorder>
+            {dischargeSaved ? (
+              <div className="relative">
+                {/* Editable until the encounter is locked (window closed / completed /
+                discharged). Absolutely positioned so it overlays the top-right
+                without pushing the summary down a row. */}
+                {!encounter.viewOnly && (
+                  <div className="absolute top-0 right-0 z-10">
+                    <CircleIconButton
+                      icon={<IoPencilOutline aria-hidden="true" />}
+                      label="Edit discharge summary"
+                      variant="dark"
+                      onClick={() => reopenDischargeSummary(appointmentId)}
+                    />
+                  </div>
+                )}
+                <div
+                  className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
+                  }}
                 />
+                <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+                  {/* Same Datepicker container as edit mode, rendered non-interactive.
+                  Dimmed to match the other read-only state below: without it the
+                  field still reads as an editable input, so the date looks broken
+                  rather than locked (the Edit pencil above reopens it). */}
+                  <div
+                    className="pointer-events-none w-full select-none opacity-60 sm:max-w-72"
+                    aria-disabled="true"
+                  >
+                    <Datepicker
+                      type="input"
+                      currentDate={followUpDate}
+                      setCurrentDate={() => undefined}
+                      placeholder="Follow up date"
+                    />
+                  </div>
+                  <div className="flex flex-col items-end leading-[120%]">
+                    <span className="text-[12px] font-bold text-neutral-900">
+                      Saved by {encounter.dischargeSavedByName}
+                    </span>
+                    <span className="text-[12px] font-medium text-blue-text">
+                      {formatDateTime(encounter.dischargeSavedAt ?? '')}
+                    </span>
+                  </div>
+                </div>
               </div>
+            ) : (
+              <>
+                <RichTextEditor
+                  ariaLabel="Discharge summary"
+                  value={encounter.dischargeSummary}
+                  readOnly={readOnly}
+                  onChange={(html) => setDischargeSummary(appointmentId, html)}
+                  placeholder="Discharge instructions and follow-up care"
+                />
+                <div className="mt-3 flex justify-end">
+                  <div
+                    className={`w-full sm:max-w-72 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}
+                    aria-disabled={readOnly}
+                  >
+                    <Datepicker
+                      type="input"
+                      currentDate={followUpDate}
+                      setCurrentDate={
+                        handleFollowUpChange as React.Dispatch<React.SetStateAction<Date | null>>
+                      }
+                      placeholder="Follow up date"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </SectionContainer>
+
+          <div className="flex flex-col items-end gap-2">
+            {signError && (
+              <p role="alert" className="text-body-4 text-danger-700">
+                {signError}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {showDocumentActions && (
+                <Secondary
+                  text={isPrinting ? 'Preparing…' : 'Print All'}
+                  icon={<IoPrintOutline aria-hidden="true" />}
+                  onClick={handlePrint}
+                  isDisabled={isPrinting}
+                />
+              )}
+              {!dischargeSaved && (
+                <Secondary
+                  text="Save"
+                  icon={<IoSaveOutline aria-hidden="true" />}
+                  onClick={handleSave}
+                  isDisabled={encounter.viewOnly || isSaving}
+                />
+              )}
+              {showDocumentActions && isPacketSigned && (
+                <Secondary
+                  text="Download Signed"
+                  icon={<IoDownloadOutline aria-hidden="true" />}
+                  onClick={handleDownloadSigned}
+                  isDisabled={isPrinting}
+                />
+              )}
+              {showDocumentActions && !isPacketSigned && signDisabledReason && (
+                <GlassTooltip content={signDisabledReason} side="top">
+                  <Secondary
+                    text={isSigning ? 'Signing…' : 'Sign'}
+                    icon={<IoDocumentTextOutline aria-hidden="true" />}
+                    onClick={handleSign}
+                    isDisabled={signDisabled}
+                  />
+                </GlassTooltip>
+              )}
+              {showDocumentActions && !isPacketSigned && !signDisabledReason && (
+                <Secondary
+                  text={isSigning ? 'Signing…' : 'Sign'}
+                  icon={<IoDocumentTextOutline aria-hidden="true" />}
+                  onClick={handleSign}
+                  isDisabled={signDisabled}
+                />
+              )}
             </div>
-          </>
-        )}
-      </SectionContainer>
-
-      <div className="flex flex-col items-end gap-2">
-        {signError && (
-          <p role="alert" className="text-body-4 text-danger-700">
-            {signError}
-          </p>
-        )}
-        <ActionButtonsRow
-          documentState={{
-            visible: showDocumentActions,
-            dischargeSaved,
-            printing: isPrinting,
-            saving: isSaving,
-            signing: isSigning,
-            packetSigned: isPacketSigned,
-            signBlocked: signDisabled,
-            signBlockedReason: signDisabledReason,
-            encounterViewOnly: encounter.viewOnly,
-          }}
-          onPrint={() => void handlePrint()}
-          onSave={() => void handleSave()}
-          onDownloadSigned={() => void handleDownloadSigned()}
-          onSign={() => void handleSign()}
-        />
+          </div>
+        </div>
+        <aside className="w-full lg:w-[400px] lg:shrink-0">
+          <AllDocumentsTable
+            documents={documents}
+            organisationId={organisationId}
+            canView={canViewDocuments}
+            error={documentsError}
+          />
+        </aside>
       </div>
-
-      <AllDocumentsTable
-        documents={documents}
-        organisationId={organisationId}
-        canView={canViewDocuments}
-        error={documentsError}
-      />
     </div>
   );
 };

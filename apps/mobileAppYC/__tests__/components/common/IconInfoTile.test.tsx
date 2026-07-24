@@ -122,6 +122,21 @@ describe('IconInfoTile Component', () => {
   // 4. Styling Logic
   // ===========================================================================
 
+  it('applies iconTint as the icon container background color', () => {
+    const {UNSAFE_getAllByType} = render(
+      <IconInfoTile {...defaultProps} iconTint="#FFEEDD" />,
+    );
+
+    const {View} = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const tinted = views.find(view =>
+      [view.props.style]
+        .flat(Infinity)
+        .some((style: any) => style && style.backgroundColor === '#FFEEDD'),
+    );
+    expect(tinted).toBeTruthy();
+  });
+
   it('applies custom container styles', () => {
     const customStyle = {backgroundColor: 'red'};
     const {UNSAFE_getByType} = render(

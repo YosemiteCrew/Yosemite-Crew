@@ -2,25 +2,10 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = { title: 'Website Builder — Yosemite Crew' };
 import React from 'react';
 
-import '@/app/features/organizations/styles/Organizations.css';
-import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
+import DeveloperWebsiteBuilder from '@/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder';
 
 function Page() {
-  return (
-    <DevRouteGuard>
-      <div className="OperationsWrapper">
-        <div className="TitleContainer">
-          <h2 className="text-heading-1 text-text-primary">Website Builder</h2>
-        </div>
-        <p className="text-heading-2 text-text-primary" style={{ marginBottom: 8 }}>
-          Coming soon
-        </p>
-        <p className="text-body-3 text-text-secondary">
-          Configure hosted pages and embeddable widgets for your apps.
-        </p>
-      </div>
-    </DevRouteGuard>
-  );
+  return <DeveloperWebsiteBuilder />;
 }
 
 export default Page;

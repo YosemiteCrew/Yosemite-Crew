@@ -49,7 +49,7 @@ const PopoverHeader = ({
           )}
           height={48}
           width={48}
-          className="flex aspect-square size-12 shrink-0 items-center justify-center rounded-full border border-card-border bg-white object-cover"
+          className="flex aspect-square size-12 shrink-0 items-center justify-center rounded-full border border-card-border bg-neutral-0 object-cover"
           style={{ width: 48, height: 48 }}
           alt=""
         />
@@ -57,7 +57,7 @@ const PopoverHeader = ({
           <button
             type="button"
             id={titleId}
-            className="text-yc-20-b-neutral block max-w-full truncate cursor-pointer underline-offset-2 hover:underline"
+            className="block max-w-full truncate text-[17px] font-bold text-[var(--ink)] cursor-pointer underline-offset-2 hover:underline"
             onClick={() => {
               router.push(
                 buildAppointmentCompanionHistoryHref(appointment.id, companion.id, '/appointments')
@@ -68,7 +68,7 @@ const PopoverHeader = ({
           >
             {companionDisplayName}
           </button>
-          <div className="text-yc-12-m-neutral mt-1 line-clamp-2 text-left wrap-break-word">
+          <div className="mt-1 line-clamp-2 text-left text-[12px] text-[var(--ink-faint)] wrap-break-word">
             {(() => {
               const c = companionDetails as typeof companionDetails & {
                 gender?: string;

@@ -752,6 +752,7 @@ model Organization {
   appointmentLockWindowOutpatientMinutes Int?
   appointmentLockWindowInpatientMinutes   Int?
   crossOrgMessagingEnabled    Boolean          @default(false)
+  maxOverallDiscountPercent   Float?
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 
@@ -840,6 +841,7 @@ model UserOrganization {
 enum AuthProvider {
   cognito
   firebase
+  supertokens
 }
 
 enum BillingPlan {
@@ -936,6 +938,26 @@ model AuthUserMobile {
   @@index([providerUserId])
   @@index([email])
   @@map("AuthUser")
+}
+
+// Provider-neutral identity mapping: one row per (provider, provider user id),
+// pointing at the stable internal app user id. Migrated users keep their
+// pre-existing id as appUserId (preserved via provider user-id mapping), so
+// business tables and request scoping never rekey when providers change.
+model AuthIdentity {
+  id             String       @id @default(uuid())
+  provider       AuthProvider
+  authProfile    String?
+  providerUserId String
+  appUserId      String
+  email          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([provider, providerUserId])
+  @@index([appUserId])
+  @@index([email])
+  @@map("auth_identities")
 }
 
 model OrganizationBilling {
@@ -1517,6 +1539,13 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 enum RecurrenceType {
@@ -2323,6 +2352,7 @@ model Task {
   calendarEventId   String?
   attachments       Json?
   status            TaskStatus   @default(PENDING)
+  priority          TaskPriority?
   completedAt       DateTime?
   completedBy       String?
   createdAt         DateTime     @default(now())

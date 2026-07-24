@@ -68,7 +68,16 @@ Make workers idempotent - jobs may be retried.
 
 ## Auth
 
-SuperTokens session auth (initialized in `src/app.ts` via `@yosemite-crew/auth`) handles web/PIMS auth. Mobile authenticates with **AWS Cognito or Firebase**: `authorizeCognitoMobile` (`src/middlewares/auth.ts`) inspects the token issuer and verifies Cognito tokens with `jsonwebtoken` + `jwks-rsa`, or Firebase tokens (issuer `securetoken.google.com`, used by social login) via Firebase Admin. Never drop the Firebase path — it would reject existing social-login users. Add web auth changes on the SuperTokens side. Never roll custom auth flows.
+SuperTokens sits behind the provider-neutral boundary in `packages/auth`
+(#1672); product code uses `requireWebAuth`/`requireMobileAuth` and never
+imports a provider SDK. For web/PIMS, SuperTokens session auth is initialized
+in `src/app.ts` via `@yosemite-crew/auth` and handles the staff session.
+Mobile authenticates with **AWS Cognito or Firebase**: `authorizeCognitoMobile`
+(`src/middlewares/auth.ts`) inspects the token issuer and verifies Cognito
+tokens with `jsonwebtoken` + `jwks-rsa`, or Firebase tokens (issuer
+`securetoken.google.com`, used by social login) via Firebase Admin. Never drop
+the Firebase path - it would reject existing social-login users. Add web auth
+changes on the SuperTokens side. Never roll custom auth flows.
 
 ---
 

@@ -113,7 +113,7 @@ Loop-critical traps on top of them:
   then run jest yourself from the top-level session.
 - Coverage: every file you touch ends at or above the coverage you found it at; the bars
   for new files live in `CLAUDE.md` / `AGENTS.md`.
-- Build: CI (`ci-affected.yaml`) builds every affected workspace. If your change could
+- Build: CI (`ci.yaml`) builds every affected workspace. If your change could
   affect the build (config, imports, env usage, SSR/prerender), run
   `pnpm --filter <ws> run build` locally first - it is part of the repo's Definition Of
   Done (`docs/engineering-standards.md`).

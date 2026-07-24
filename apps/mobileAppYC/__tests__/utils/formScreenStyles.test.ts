@@ -1,8 +1,8 @@
-import { createFormScreenStyles } from '@/shared/utils/formScreenStyles';
+import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
 // --- FIX: Remove imports for the mocked functions ---
 // import { createScreenContainerStyles } from '@/shared/utils/screenStyles';
 // import { createCenteredStyle } from '@/shared/utils/commonHelpers';
-import { StyleSheet } from 'react-native';
+import {StyleSheet} from 'react-native';
 import {mockTheme} from '../setup/mockTheme';
 
 // Mock react-native's StyleSheet.create to be an identity function
@@ -14,10 +14,10 @@ jest.mock('react-native', () => ({
 
 // Mock the imported style helpers
 const mockScreenContainerStyles = {
-  screenContainer: { flex: 1, backgroundColor: 'mockBackground' },
+  screenContainer: {flex: 1, backgroundColor: 'mockBackground'},
 };
 const mockCenteredStyle = {
-  centered: { alignItems: 'center', justifyContent: 'center' },
+  centered: {alignItems: 'center', justifyContent: 'center'},
 };
 
 jest.mock('@/shared/utils/screenStyles', () => ({
@@ -29,7 +29,6 @@ jest.mock('@/shared/utils/commonHelpers', () => ({
 }));
 
 // Define a comprehensive mock theme
-
 
 describe('createFormScreenStyles', () => {
   // Clear mocks before each test
@@ -145,13 +144,13 @@ describe('createFormScreenStyles', () => {
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.7)',
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 10 },
+        shadowOffset: {width: 0, height: 10},
         shadowOpacity: 0.15,
         shadowRadius: 15,
         elevation: 8,
       },
       buttonText: expect.objectContaining({
-        color: '#FFFFFF',
+        color: mockTheme.colors.ctaText,
         fontSize: 16,
         fontWeight: '700',
         lineHeight: 19.2,
@@ -159,5 +158,21 @@ describe('createFormScreenStyles', () => {
         letterSpacing: -0.32,
       }),
     });
+  });
+
+  it('follows the theme ctaText token for the shared button text color in dark mode', () => {
+    const darkCtaText = '#201C18';
+    const darkTheme = {
+      ...mockTheme,
+      colors: {...mockTheme.colors, ctaText: darkCtaText},
+    };
+
+    createFormScreenStyles(darkTheme);
+
+    expect(StyleSheet.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buttonText: expect.objectContaining({color: darkCtaText}),
+      }),
+    );
   });
 });

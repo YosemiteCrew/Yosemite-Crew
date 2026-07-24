@@ -1,0 +1,149 @@
+'use client';
+
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
+import { IoNotificationsOutline } from 'react-icons/io5';
+import { startRouteLoader } from '@/app/lib/routeLoader';
+import { useNotifications } from './useNotifications';
+import NotificationsPanel from './NotificationsPanel';
+import type { NotificationItem } from './notificationTypes';
+import './Notifications.css';
+
+export type NotificationsBellProps = {
+  /** `desktop` = header pill + dropdown; `phone` = phone header icon + bottom-sheet. */
+  variant?: 'desktop' | 'phone';
+};
+
+const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
+  const router = useRouter();
+  const { items, unreadCount, markAllRead } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  const isPhone = variant === 'phone';
+
+  const close = useCallback(() => setOpen(false), []);
+  // Keep the latest `close` in a ref so the listener effects can subscribe with
+  // stable deps and never re-attach on re-render.
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  }, [close]);
+
+  // Escape closes either surface.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        closeRef.current();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [open]);
+
+  // Desktop dropdown closes on outside click (the phone sheet uses its backdrop).
+  useEffect(() => {
+    if (!open || isPhone) return undefined;
+    const onMouseDown = (event: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
+        closeRef.current();
+      }
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [open, isPhone]);
+
+  const goToSettings = () => {
+    close();
+    startRouteLoader();
+    router.push('/settings');
+  };
+
+  // Rows are unreachable today (`useNotifications` reports an empty feed), so
+  // closing the panel is the whole behaviour. When a durable feed lands, route
+  // to the item's subject here instead of discarding it.
+  const handleItemClick = (_item: NotificationItem) => {
+    close();
+  };
+
+  const triggerClass = isPhone ? 'yc-phone-iconbtn yc-phone-bell' : 'yc-icon-button';
+  const dotClass = isPhone ? 'yc-phone-bell-dot' : 'yc-notification-dot';
+
+  const trigger = (
+    <button
+      type="button"
+      className={triggerClass}
+      aria-label="Notifications"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-controls={open ? panelId : undefined}
+      onClick={() => setOpen((prev) => !prev)}
+    >
+      <IoNotificationsOutline size={isPhone ? 15 : 17} />
+      {unreadCount > 0 ? <span className={dotClass} aria-hidden /> : null}
+    </button>
+  );
+
+  const panel = (
+    <NotificationsPanel
+      layout={isPhone ? 'sheet' : 'dropdown'}
+      items={items}
+      unreadCount={unreadCount}
+      onMarkAllRead={markAllRead}
+      onItemClick={handleItemClick}
+      // No `/notifications` route exists, so "View all" has nowhere to go and is
+      // omitted rather than shipped as a control that only closes the panel.
+      // Pass a real navigation handler here once that route lands.
+      onViewAll={undefined}
+      onSettings={goToSettings}
+    />
+  );
+
+  if (isPhone) {
+    return (
+      <div className="yc-noti-wrap" ref={wrapRef}>
+        {trigger}
+        {open
+          ? createPortal(
+              <div className="yc-noti-sheet-root">
+                <button
+                  type="button"
+                  className="yc-noti-sheet-backdrop"
+                  aria-label="Close notifications"
+                  onClick={close}
+                />
+                <dialog
+                  open
+                  id={panelId}
+                  className="yc-noti-sheet"
+                  aria-modal="true"
+                  aria-label="Notifications"
+                >
+                  <span className="yc-noti-sheet-grabber" aria-hidden />
+                  {panel}
+                  <span className="yc-noti-home-indicator" aria-hidden />
+                </dialog>
+              </div>,
+              document.body
+            )
+          : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="yc-noti-wrap" ref={wrapRef}>
+      {trigger}
+      {open ? (
+        <dialog open id={panelId} className="yc-noti-panel" aria-label="Notifications">
+          {panel}
+        </dialog>
+      ) : null}
+    </div>
+  );
+};
+
+export default NotificationsBell;

@@ -7,6 +7,8 @@ import {
   resolveActorDisplayName,
 } from "./finance/events";
 import { InvoiceService, InvoiceServiceError } from "./invoice.service";
+import { documentWhereForOrg } from "./document-scope";
+import logger from "src/utils/logger";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { roundMoney } from "./finance/pricing";
 import type {
@@ -276,6 +278,58 @@ const buildPermissionSnapshot = (
     canCancelSchedules,
   };
 };
+
+/**
+ * Opt out of permission gating for callers that are not acting on behalf of a
+ * request (see `SYSTEM_WORKSPACE_ACCESS`).
+ */
+export type WorkspaceAccessOptions = { systemAccess?: boolean };
+
+/**
+ * Which slices of the workspace aggregate the caller may receive. The bootstrap
+ * routes only gate on `appointments:view:*`, so every other slice has to be
+ * resolved here rather than at the router.
+ */
+type WorkspaceAccess = {
+  forms: boolean;
+  clinical: boolean;
+  prescriptions: boolean;
+  tasks: boolean;
+  labs: boolean;
+  documents: boolean;
+  billing: boolean;
+  treatmentItems: boolean;
+};
+
+/**
+ * Internal callers (clinical packet assembly, packet PDF rendering, companion
+ * document lookups) run outside any request's permission context. They must see
+ * the whole aggregate: gating them on an empty permission set would silently
+ * hand back an empty clinical packet.
+ */
+const SYSTEM_WORKSPACE_ACCESS: WorkspaceAccess = {
+  forms: true,
+  clinical: true,
+  prescriptions: true,
+  tasks: true,
+  labs: true,
+  documents: true,
+  billing: true,
+  treatmentItems: true,
+};
+
+const buildWorkspaceAccess = (
+  snapshot: WorkspacePermissionSnapshot,
+): WorkspaceAccess => ({
+  forms: snapshot.canViewForms,
+  clinical: snapshot.canViewForms || snapshot.canViewPrescriptions,
+  prescriptions: snapshot.canViewPrescriptions,
+  tasks: snapshot.canViewTasks,
+  labs: snapshot.canViewLabs,
+  documents: snapshot.canViewDocuments,
+  billing: snapshot.permissions.includes("billing:view:any"),
+  treatmentItems: snapshot.permissions.includes("billing:view:any"),
+});
 
 const resolvePrimaryActionDisabledReason = (input: {
   kind: WorkspacePrimaryAction["kind"];
@@ -933,8 +987,7 @@ const readNumber = (value: unknown): number | null =>
 
 const readText = (...values: unknown[]) =>
   values.find((value) => typeof value === "string" && value.trim()) as
-    | string
-    | undefined;
+    string | undefined;
 
 const buildInvoiceLineFromTreatmentItem = (row: TreatmentItemRow) => {
   const priceSnapshot = isRecord(row.priceSnapshot) ? row.priceSnapshot : {};
@@ -1081,8 +1134,7 @@ const buildTreatmentItemsFromPrescriptions = (
       ? record.prescription.medications
       : [];
     const firstMedication = medications.find((entry) => isRecord(entry)) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const productId =
       (firstMedication &&
         typeof firstMedication.inventoryItemId === "string" &&
@@ -1603,30 +1655,42 @@ const ensureRenderedTaskSchedules = async (
   }>,
 ) => {
   for (const schedule of schedules) {
-    const existing = await prisma.renderedDocument.findFirst({
-      where: {
-        organisationId,
-        sourceKind: "TASK_SCHEDULE" as never,
-        sourceId: schedule.id,
-      },
-      select: { id: true },
-    });
+    // Rendering the schedule PDF is a convenience, but this runs inside the
+    // workspace aggregate that every chart read goes through - viewing, signing
+    // and discharging all depend on it. A render that throws must therefore not
+    // take the chart down with it, so each schedule is isolated and only logged.
+    // Nothing is persisted on failure, so the next load simply retries.
+    try {
+      const existing = await prisma.renderedDocument.findFirst({
+        where: {
+          organisationId,
+          sourceKind: "TASK_SCHEDULE" as never,
+          sourceId: schedule.id,
+        },
+        select: { id: true },
+      });
 
-    if (existing) {
-      continue;
+      if (existing) {
+        continue;
+      }
+
+      await createRenderedDocumentRecord({
+        title: "Inpatient Schedule",
+        source: {
+          sourceKind: "TASK_SCHEDULE",
+          sourceId: schedule.id,
+          organisationId,
+          templateKind: "INPATIENT_SCHEDULE",
+          templateId: schedule.templateId,
+          templateVersion: schedule.templateVersion,
+        },
+      });
+    } catch (error) {
+      logger.error(
+        `[Workspace] Could not render the inpatient schedule document for schedule ${schedule.id} (organisation ${organisationId}). The workspace still loads without it.`,
+        error,
+      );
     }
-
-    await createRenderedDocumentRecord({
-      title: "Inpatient Schedule",
-      source: {
-        sourceKind: "TASK_SCHEDULE",
-        sourceId: schedule.id,
-        organisationId,
-        templateKind: "INPATIENT_SCHEDULE",
-        templateId: schedule.templateId,
-        templateVersion: schedule.templateVersion,
-      },
-    });
   }
 };
 
@@ -1712,7 +1776,25 @@ const loadDocuments = async (params: {
     string,
     { appointmentId: string | null; encounterId: string | null }
   >;
+  canViewBilling?: boolean;
 }) => {
+  // An INVOICE rendered document links to the appointment through its source row
+  // (Invoice.appointmentId), not through a templateInstance or clinicalArtifact - so without this
+  // the appointment's invoice PDF is silently omitted from the All Documents section. Resolve the
+  // invoice ids up front and match the rendered documents by sourceId. (Legacy form-submission
+  // reads stay retired; forms surface via the rendered-document/templateInstance pipeline.)
+  //
+  // Invoices are financial documents: the rendered-document controller only serves an INVOICE PDF to
+  // callers holding `billing:view:any`. Gate the lookup on the same permission so a document-view-only
+  // caller never receives invoice ids they could not open - matching the controller's access rule.
+  const appointmentInvoices =
+    params.appointmentId && params.canViewBilling
+      ? await prisma.invoice.findMany({
+          where: { appointmentId: params.appointmentId },
+          select: { id: true },
+        })
+      : [];
+
   const renderedDocumentConditions = [
     ...(params.appointmentId
       ? [
@@ -1725,6 +1807,14 @@ const loadDocuments = async (params: {
             clinicalArtifact: {
               is: { appointmentId: params.appointmentId },
             },
+          },
+        ]
+      : []),
+    ...(appointmentInvoices.length
+      ? [
+          {
+            sourceKind: "INVOICE" as never,
+            sourceId: { in: appointmentInvoices.map((invoice) => invoice.id) },
           },
         ]
       : []),
@@ -1755,6 +1845,7 @@ const loadDocuments = async (params: {
   const [documents, renderedDocuments] = await Promise.all([
     prisma.document.findMany({
       where: {
+        ...documentWhereForOrg(params.organisationId),
         ...(params.appointmentId
           ? { appointmentId: params.appointmentId }
           : {}),
@@ -1815,11 +1906,89 @@ const loadDocuments = async (params: {
   return rows;
 };
 
+/**
+ * Run a loader only when the caller's permissions allow the resource, yielding
+ * an empty result otherwise. The bootstrap response is assembled from many such
+ * loaders, so gating them at the call site is what keeps a caller from
+ * receiving records their role cannot read.
+ */
+const loadWhenPermitted = async <T>(
+  permitted: boolean,
+  load: () => Promise<T[]>,
+): Promise<T[]> => (permitted ? load() : []);
+
+// The workspace subject entities (appointment / encounter / companion / client)
+// as they appear in the bootstrap response. Split out of `buildBootstrapAggregate`
+// so that function stays within its cognitive-complexity budget; this is pure
+// shaping of the already-loaded context, no I/O.
+const buildBootstrapEntities = (
+  context: Awaited<ReturnType<typeof buildContext>>,
+  admission: Awaited<ReturnType<typeof loadAdmission>>,
+) => ({
+  appointment: context.appointment
+    ? buildWorkspaceSummaryItem({
+        id: context.appointment.id,
+        name: context.appointment.concern,
+        status: context.appointment.status,
+        kind: context.appointment.appointmentKind,
+        productItemId: context.appointment.productItemId,
+        productKind: context.appointmentProductKind,
+        createdAt: context.appointment.createdAt,
+        updatedAt: context.appointment.updatedAt,
+      })
+    : null,
+  encounter: context.encounter
+    ? {
+        ...context.encounter,
+        // Surface the in-patient admission (with unit) so it round-trips to the
+        // workspace + appointment views; OPD encounters have no admission.
+        admission: admission
+          ? {
+              encounterId: admission.encounterId,
+              organisationId: admission.organisationId,
+              patientId: admission.patientId,
+              unitId: admission.unitId ?? undefined,
+              admittedAt: admission.admittedAt,
+              dischargedAt: admission.dischargedAt ?? undefined,
+            }
+          : undefined,
+      }
+    : null,
+  episodeOfCare: context.episodeOfCare,
+  companion: context.companion
+    ? buildWorkspaceSummaryItem({
+        id: context.companion.id,
+        name: context.companion.name,
+        status: context.companion.status,
+        kind: context.companion.type,
+        createdAt: context.companion.createdAt,
+        updatedAt: context.companion.updatedAt,
+      })
+    : null,
+  client: context.client
+    ? buildWorkspaceSummaryItem({
+        id: context.client.id,
+        name: [context.client.firstName, context.client.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim(),
+        status: null,
+        kind: "CLIENT",
+        createdAt: context.client.createdAt,
+        updatedAt: context.client.updatedAt,
+      })
+    : null,
+});
+
 const buildBootstrapAggregate = async (
   input: WorkspaceBootstrapInput,
   permissions?: string[],
-  options?: { requireAppointment?: boolean },
+  options?: { requireAppointment?: boolean; systemAccess?: boolean },
 ): Promise<WorkspaceBootstrapResponse> => {
+  const permissionsSnapshot = buildPermissionSnapshot(permissions);
+  const access = options?.systemAccess
+    ? SYSTEM_WORKSPACE_ACCESS
+    : buildWorkspaceAccess(permissionsSnapshot);
   const context = await buildContext(input);
   const organisation = (await prisma.organization.findUnique({
     where: { id: input.organisationId },
@@ -1855,11 +2024,13 @@ const buildBootstrapAggregate = async (
       appointmentId,
       encounterId,
     }),
-    loadTreatmentItems({
-      organisationId: input.organisationId,
-      appointmentId,
-      encounterId,
-    }),
+    loadWhenPermitted(access.treatmentItems, () =>
+      loadTreatmentItems({
+        organisationId: input.organisationId,
+        appointmentId,
+        encounterId,
+      }),
+    ),
     loadTasks({
       organisationId: input.organisationId,
       appointmentId,
@@ -1871,12 +2042,14 @@ const buildBootstrapAggregate = async (
       encounterId,
       companionId,
     }),
-    loadTemplateInstances({
-      organisationId: input.organisationId,
-      appointmentId,
-      encounterId,
-      caseId,
-    }),
+    loadWhenPermitted(access.forms, () =>
+      loadTemplateInstances({
+        organisationId: input.organisationId,
+        appointmentId,
+        encounterId,
+        caseId,
+      }),
+    ),
     loadOrdersAndResults({
       organisationId: input.organisationId,
       appointmentId,
@@ -1902,19 +2075,24 @@ const buildBootstrapAggregate = async (
     ]),
   );
 
-  const documents = await loadDocuments({
-    organisationId: input.organisationId,
-    appointmentId,
-    encounterId,
-    companionId,
-    scheduleIds: schedules.map((schedule) => schedule.id),
-    scheduleContext,
-  });
+  const documents = await loadWhenPermitted(access.documents, () =>
+    loadDocuments({
+      organisationId: input.organisationId,
+      appointmentId,
+      encounterId,
+      companionId,
+      canViewBilling: access.billing,
+      scheduleIds: schedules.map((schedule) => schedule.id),
+      scheduleContext,
+    }),
+  );
 
-  const diagnosticPreloads = await loadDiagnosticPreloads({
-    organisationId: input.organisationId,
-    treatmentItems,
-  });
+  const diagnosticPreloads = await loadWhenPermitted(access.labs, () =>
+    loadDiagnosticPreloads({
+      organisationId: input.organisationId,
+      treatmentItems,
+    }),
+  );
 
   const labSummary = buildLabSummary(
     ordersAndResults.orders,
@@ -1949,7 +2127,9 @@ const buildBootstrapAggregate = async (
     appointmentId,
     encounter: context.encounter,
   });
-  const permissionsSnapshot = buildPermissionSnapshot(permissions);
+  // The gate and the primary action are computed from the full aggregate on
+  // purpose: they are permission-aware summaries, and a caller who cannot see
+  // labs must still be told that labs block finalization.
   const finalizationGate = buildFinalizationGate({
     appointment: context.appointment,
     encounter: context.encounter,
@@ -1967,84 +2147,36 @@ const buildBootstrapAggregate = async (
 
   return {
     organisationId: input.organisationId,
-    appointment: context.appointment
-      ? buildWorkspaceSummaryItem({
-          id: context.appointment.id,
-          name: context.appointment.concern,
-          status: context.appointment.status,
-          kind: context.appointment.appointmentKind,
-          productItemId: context.appointment.productItemId,
-          productKind: context.appointmentProductKind,
-          createdAt: context.appointment.createdAt,
-          updatedAt: context.appointment.updatedAt,
-        })
-      : null,
-    encounter: context.encounter
-      ? {
-          ...context.encounter,
-          // Surface the in-patient admission (with unit) so it round-trips to the
-          // workspace + appointment views; OPD encounters have no admission.
-          admission: admission
-            ? {
-                encounterId: admission.encounterId,
-                organisationId: admission.organisationId,
-                patientId: admission.patientId,
-                unitId: admission.unitId ?? undefined,
-                admittedAt: admission.admittedAt,
-                dischargedAt: admission.dischargedAt ?? undefined,
-              }
-            : undefined,
-        }
-      : null,
-    episodeOfCare: context.episodeOfCare,
-    companion: context.companion
-      ? buildWorkspaceSummaryItem({
-          id: context.companion.id,
-          name: context.companion.name,
-          status: context.companion.status,
-          kind: context.companion.type,
-          createdAt: context.companion.createdAt,
-          updatedAt: context.companion.updatedAt,
-        })
-      : null,
-    client: context.client
-      ? buildWorkspaceSummaryItem({
-          id: context.client.id,
-          name: [context.client.firstName, context.client.lastName]
-            .filter(Boolean)
-            .join(" ")
-            .trim(),
-          status: null,
-          kind: "CLIENT",
-          createdAt: context.client.createdAt,
-          updatedAt: context.client.updatedAt,
-        })
-      : null,
+    ...buildBootstrapEntities(context, admission),
     templateInstances,
-    clinicalArtifacts: clinical.clinicalArtifacts,
-    vitals: clinical.vitalRecords,
-    prescriptions: clinical.prescriptions,
-    treatmentItems: dedupeTreatmentItemsByPrescription(
-      buildTreatmentItemsFromPrescriptions(
-        clinical.prescriptions as never,
-        locked,
-      ).map((item) => ({
-        ...item,
-        organisationId: input.organisationId,
-        appointmentId: appointmentId ?? null,
-        encounterId: encounterId ?? appointmentId ?? "",
-      })),
-      treatmentItems.map(mapTreatmentItemRow),
-    ),
-    diagnosticQueue: buildDiagnosticQueue(
-      ordersAndResults.orders as never,
-      ordersAndResults.results as never,
-      diagnosticPreloads,
-    ),
-    labSummary,
-    tasks,
-    schedules,
-    forms: forms.items,
+    clinicalArtifacts: access.clinical ? clinical.clinicalArtifacts : [],
+    vitals: access.clinical ? clinical.vitalRecords : [],
+    prescriptions: access.prescriptions ? clinical.prescriptions : [],
+    treatmentItems: access.treatmentItems
+      ? dedupeTreatmentItemsByPrescription(
+          buildTreatmentItemsFromPrescriptions(
+            clinical.prescriptions as never,
+            locked,
+          ).map((item) => ({
+            ...item,
+            organisationId: input.organisationId,
+            appointmentId: appointmentId ?? null,
+            encounterId: encounterId ?? appointmentId ?? "",
+          })),
+          treatmentItems.map(mapTreatmentItemRow),
+        )
+      : [],
+    diagnosticQueue: access.labs
+      ? buildDiagnosticQueue(
+          ordersAndResults.orders as never,
+          ordersAndResults.results as never,
+          diagnosticPreloads,
+        )
+      : [],
+    labSummary: access.labs ? labSummary : buildLabSummary([], []),
+    tasks: access.tasks ? tasks : [],
+    schedules: access.tasks ? schedules : [],
+    forms: access.forms ? forms.items : [],
     documents,
     locks: buildLocks(locked),
     permissions: permissionsSnapshot,
@@ -2074,15 +2206,18 @@ export const WorkspaceService = {
   async getAppointmentBootstrap(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceBootstrapResponse> {
     return buildBootstrapAggregate(input, permissions, {
       requireAppointment: true,
+      systemAccess: options?.systemAccess,
     });
   },
 
   async getEncounterBootstrap(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceBootstrapResponse> {
     const context = await buildContext({
       organisationId: input.organisationId,
@@ -2100,6 +2235,7 @@ export const WorkspaceService = {
         encounterId: context.encounter.id,
       },
       permissions,
+      { systemAccess: options?.systemAccess },
     );
   },
 
@@ -2118,17 +2254,25 @@ export const WorkspaceService = {
   async getAppointmentDocuments(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceDocumentRow[]> {
-    return (await WorkspaceService.getAppointmentBootstrap(input, permissions))
-      .documents;
+    return (
+      await WorkspaceService.getAppointmentBootstrap(
+        input,
+        permissions,
+        options,
+      )
+    ).documents;
   },
 
   async getEncounterDocuments(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceDocumentRow[]> {
-    return (await WorkspaceService.getEncounterBootstrap(input, permissions))
-      .documents;
+    return (
+      await WorkspaceService.getEncounterBootstrap(input, permissions, options)
+    ).documents;
   },
 
   async getEncounterTreatmentItems(
@@ -2247,11 +2391,16 @@ export const WorkspaceService = {
     organisationId: string;
     companionId: string;
   }): Promise<WorkspaceDocumentRow[]> {
-    const companion = await prisma.patient.findFirst({
-      where: { id: input.companionId },
+    const membership = await prisma.patientOrganisation.findFirst({
+      where: {
+        patientId: input.companionId,
+        organisationId: input.organisationId,
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
     });
 
-    if (!companion) {
+    if (!membership) {
       throw new WorkspaceServiceError("Companion not found", 404);
     }
 
@@ -2263,12 +2412,18 @@ export const WorkspaceService = {
       select: { id: true },
     });
 
+    // The route already gates on `document:view:any`; the per-encounter reads
+    // below are this method's own implementation detail, not a caller.
     const encounterDocuments = await Promise.all(
       encounters.map(async (encounter) =>
-        WorkspaceService.getEncounterDocuments({
-          organisationId: input.organisationId,
-          encounterId: encounter.id,
-        }),
+        WorkspaceService.getEncounterDocuments(
+          {
+            organisationId: input.organisationId,
+            encounterId: encounter.id,
+          },
+          undefined,
+          { systemAccess: true },
+        ),
       ),
     );
 

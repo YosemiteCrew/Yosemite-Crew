@@ -44,6 +44,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
           {props.handleComponent?.({})}
           {props.backdropComponent?.({})}
           {props.footerComponent?.({})}
+          {props.backgroundComponent?.({style: {}})}
           {props.children}
         </RNView>
       );
@@ -110,6 +111,19 @@ describe('CustomBottomSheet', () => {
         enableHandlePanningGesture: true,
         backdropComponent: undefined,
       }),
+    );
+  });
+
+  it('forwards contentStyle to the default BottomSheetView', () => {
+    const contentStyle = {bottom: 0};
+    const {getByTestId} = render(
+      <CustomBottomSheet contentStyle={contentStyle}>
+        <Text>Styled Content</Text>
+      </CustomBottomSheet>,
+    );
+
+    expect(getByTestId('mock-bottom-sheet-view').props.style).toBe(
+      contentStyle,
     );
   });
 

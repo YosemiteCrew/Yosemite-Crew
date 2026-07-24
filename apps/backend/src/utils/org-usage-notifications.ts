@@ -1,10 +1,4 @@
-import { Types } from "mongoose";
-
-import OrganizationModel from "src/models/organization";
-import UserOrganizationModel from "src/models/user-organization";
-import UserModel from "src/models/user";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 
@@ -49,9 +43,9 @@ const buildOrgReferenceCandidates = (
     fhirId ? `Organization/${fhirId}` : undefined,
   ].filter(Boolean) as string[];
 
-const resolveOwnerUserFromPostgres = async (orgIdString: string) => {
+const resolveOwnerUser = async (orgId: string) => {
   const organisation = await prisma.organization.findFirst({
-    where: { OR: [{ id: orgIdString }, { fhirId: orgIdString }] },
+    where: { OR: [{ id: orgId }, { fhirId: orgId }] },
     select: { id: true, name: true, fhirId: true },
   });
 
@@ -95,61 +89,8 @@ const resolveOwnerUserFromPostgres = async (orgIdString: string) => {
   );
 };
 
-const resolveOwnerUserFromMongo = async (orgId: Types.ObjectId | string) => {
-  const orgIdString = typeof orgId === "string" ? orgId : orgId.toString();
-  const organisation = await OrganizationModel.findById(orgId)
-    .select("name fhirId")
-    .lean();
-
-  if (!organisation) {
-    return null;
-  }
-
-  const ownerMapping = await UserOrganizationModel.findOne({
-    roleCode: "OWNER",
-    active: true,
-    organizationReference: {
-      $in: buildOrgReferenceCandidates(orgIdString, organisation.fhirId),
-    },
-  })
-    .select("practitionerReference")
-    .lean();
-
-  if (!ownerMapping?.practitionerReference) {
-    return null;
-  }
-
-  const ownerUserId =
-    extractReferenceId(ownerMapping.practitionerReference) ??
-    ownerMapping.practitionerReference;
-
-  const ownerUser = await UserModel.findOne(
-    { userId: ownerUserId },
-    { email: 1, firstName: 1, lastName: 1 },
-  ).lean();
-
-  if (!ownerUser?.email) {
-    return null;
-  }
-
-  return buildOwnerContact(
-    ownerUser.email,
-    organisation.name,
-    ownerUser.firstName,
-    ownerUser.lastName,
-  );
-};
-
-const resolveOwnerUser = async (orgId: Types.ObjectId | string) => {
-  const orgIdString = typeof orgId === "string" ? orgId : orgId.toString();
-
-  return isReadFromPostgres()
-    ? resolveOwnerUserFromPostgres(orgIdString)
-    : resolveOwnerUserFromMongo(orgId);
-};
-
 export const sendFreePlanLimitReachedEmail = async (params: {
-  orgId: Types.ObjectId | string;
+  orgId: string;
   usage: {
     appointmentsUsed?: number | null;
     toolsUsed?: number | null;

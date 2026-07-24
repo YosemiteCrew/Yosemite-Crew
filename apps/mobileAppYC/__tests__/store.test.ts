@@ -82,6 +82,7 @@ describe('Redux Store', () => {
         linkedBusinesses: expect.anything(),
         notifications: expect.anything(),
         forms: expect.anything(),
+        preferences: expect.anything(),
       }),
     );
   });
@@ -91,7 +92,7 @@ describe('Redux Store', () => {
 
     expect(config).toBeDefined();
     expect(config.key).toBe('root');
-    expect(config.version).toBe(6);
+    expect(config.version).toBe(7);
     expect(config.storage).toBeDefined();
     expect(config.migrate).toEqual(expect.any(Function));
   });
@@ -110,6 +111,7 @@ describe('Redux Store', () => {
       'linkedBusinesses',
       'notifications',
       'forms',
+      'preferences',
     ]);
   });
 
@@ -363,6 +365,37 @@ describe('Redux Store', () => {
       const newState = await runMigrate(5, {});
 
       expect(newState.companion).toBeUndefined();
+    });
+
+    it('handles v6 -> v7 migration and initializes preferences', async () => {
+      const newState = await runMigrate(6, {});
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrating from v6 to v7'),
+      );
+      expect(newState.preferences).toEqual({
+        weightOverride: null,
+        distanceOverride: null,
+        currencyOverride: null,
+      });
+    });
+
+    it('handles v6 -> v7 migration and keeps existing preferences', async () => {
+      const oldState = {
+        preferences: {
+          weightOverride: 'lbs',
+          distanceOverride: 'mi',
+          currencyOverride: 'USD',
+        },
+      };
+
+      const newState = await runMigrate(6, oldState);
+
+      expect(newState.preferences).toEqual({
+        weightOverride: 'lbs',
+        distanceOverride: 'mi',
+        currencyOverride: 'USD',
+      });
     });
 
     it('handles non-matching versions gracefully', async () => {

@@ -17,6 +17,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
+import {BlurView} from '@react-native-community/blur';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -60,10 +61,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const companionId = selectedCompanionIdFromState ?? companions[0]?.id ?? null;
   const isIOS = Platform.OS === 'ios';
   const useGlass = isIOS && isLiquidGlassSupported;
-  const styles = React.useMemo(
-    () => createStyles(theme, isIOS),
-    [theme, isIOS],
-  );
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const refreshTabData = React.useCallback(
     (routeName: string) => {
@@ -186,7 +184,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           <LiquidGlassView
             style={styles.pillGlass}
             effect="clear"
-            tintColor={theme.colors.secondary}
+            tintColor={theme.colors.blue}
             colorScheme="light"
             interactive
           />
@@ -276,6 +274,23 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
                   interactive: false,
                 }
               : {})}>
+            {!useGlass && (
+              <>
+                <BlurView
+                  style={StyleSheet.absoluteFill}
+                  blurType="light"
+                  blurAmount={22}
+                  reducedTransparencyFallbackColor={theme.colors.glassPill}
+                />
+                <View
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {backgroundColor: theme.colors.glassSurfaceStrong},
+                  ]}
+                />
+              </>
+            )}
             {buildSlidingPill()}
             {buildTabs()}
           </BarComponent>
@@ -285,7 +300,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   );
 };
 
-const createStyles = (theme: any, isIOS: boolean) =>
+const createStyles = (theme: any) =>
   StyleSheet.create({
     wrapper: {
       position: 'absolute',
@@ -313,7 +328,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      borderRadius: isIOS ? theme.borderRadius.md : theme.borderRadius.xl,
+      borderRadius: theme.borderRadius.sheet,
       backgroundColor: 'transparent',
       paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['4'],
@@ -323,9 +338,9 @@ const createStyles = (theme: any, isIOS: boolean) =>
       backgroundColor: 'transparent',
     },
     barSolid: {
-      backgroundColor: theme.colors.cardOverlay,
+      backgroundColor: 'transparent',
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.glassPillBorder,
     },
     pillContainer: {
       position: 'absolute',
@@ -336,16 +351,16 @@ const createStyles = (theme: any, isIOS: boolean) =>
     },
     pill: {
       flex: 1,
-      borderRadius: theme.borderRadius.xl,
-      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.navActiveBg,
     },
     pillGlass: {
       flex: 1,
-      borderRadius: isIOS ? theme.borderRadius.lg : theme.borderRadius['2xl'],
+      borderRadius: theme.borderRadius.card,
       backgroundColor: 'transparent',
     },
     pillSolid: {
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.navActiveBg,
     },
     invisiblePill: {
       flex: 1,
@@ -371,23 +386,23 @@ const createStyles = (theme: any, isIOS: boolean) =>
     label: {
       ...theme.typography.tabLabel,
       textAlign: 'center',
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
       maxWidth: '100%',
     },
     labelActive: {
       ...theme.typography.tabLabelFocused,
-      color: theme.colors.white,
+      color: theme.colors.navActive,
     },
     labelInactive: {
       ...theme.typography.tabLabel,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
     },
     iconImage: {
       width: theme.spacing['5'],
       height: theme.spacing['5'],
-      tintColor: theme.colors.textSecondary,
+      tintColor: theme.colors.inkFaint,
     },
     iconImageActive: {
-      tintColor: theme.colors.white,
+      tintColor: theme.colors.navActive,
     },
   });

@@ -18,7 +18,6 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import CalendarDayHeader from '@/app/features/appointments/components/Calendar/common/CalendarDayHeader';
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { Appointment } from '@yosemite-crew/types';
-import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
   getCalendarColumnGridStyle,
@@ -87,7 +86,8 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
-  setCurrentDate,
+  // setCurrentDate stays on the props contract for callers, but day navigation
+  // now lives in the header toolbar's date-nav pill, which owns the setter.
   canEditAppointments,
   draggedAppointmentId,
   draggedAppointmentLabel,
@@ -110,7 +110,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
-  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const height = getHourRowHeightPx(zoomMode);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onWheelHorizontal = useWheelToHorizontalScroll();
@@ -144,6 +143,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   }, [date, events, forceFullDayInZoomIn, getVisibleAvailabilityIntervals, team, zoomMode]);
 
   const visibleHours = useMemo(() => getVisibleHours(visibleHourRange), [visibleHourRange]);
+  /* v8 ignore next -- getVisibleHours always returns a non-empty array (min length 1), so at(-1) is never nullish */
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
 
   const nowPosition = useMemo(() => {
@@ -234,8 +234,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
             dateNumber={dateNumber}
             team={team}
             teamColumnsStyle={teamColumnsStyle}
-            onPrevDay={handlePrevDay}
-            onNextDay={handleNextDay}
           />
 
           <div
@@ -259,7 +257,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     height={height}
                     slotOffsetMinutes={slotOffsetMinutes}
                     showSlotTimeLabels={showSlotTimeLabels}
-                    className="sticky left-0 z-20 bg-white"
+                    className="sticky left-0 z-20 bg-neutral-0"
                   />
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {team?.map((user, index) => {
@@ -290,7 +288,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                                 style={{
                                   top: `${topPct}%`,
                                   height: `${heightPct}%`,
-                                  backgroundColor: 'rgba(0,0,0,0.045)',
+                                  backgroundColor: 'var(--color-calendar-dim-overlay)',
                                   transition: 'opacity 0.25s ease',
                                 }}
                               />,
@@ -338,7 +336,10 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-white" style={{ height: height + 'px' }} />
+                  <div
+                    className="sticky right-0 z-20 bg-neutral-0"
+                    style={{ height: height + 'px' }}
+                  />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />

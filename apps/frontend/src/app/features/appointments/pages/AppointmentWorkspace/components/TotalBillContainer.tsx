@@ -1,6 +1,5 @@
 import React, { use, useMemo, useRef, useState } from 'react';
-import { LuPlus, LuTrash2 } from 'react-icons/lu';
-import { AiOutlineInfoCircle } from 'react-icons/ai';
+import { IoAddOutline, IoInformationCircleOutline, IoTrashOutline } from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
@@ -50,9 +49,9 @@ const InfoTooltipIcon = ({
     <button
       type="button"
       aria-label={label}
-      className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-blue-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
     >
-      <AiOutlineInfoCircle aria-hidden="true" size={14} />
+      <IoInformationCircleOutline aria-hidden="true" size={14} />
     </button>
   </GlassTooltip>
 );
@@ -70,6 +69,8 @@ type TotalBillContainerProps = {
   overallDiscountPercent: number;
   /** Backend tax rate for this bill; drives the exclusive-of-tax footer copy. */
   taxPercent?: number;
+  /** The organisation's overall-discount cap. Null/undefined = no cap configured. */
+  maxOverallDiscountPercent?: number | null;
   onToggleWithdrawDeposit: (value: boolean) => void;
   onChangeOverallDiscount: (percent: number) => void;
   onAddItem: (item: Omit<InvoiceLineItem, 'id'>) => void;
@@ -128,7 +129,8 @@ const ROW_GRID =
  */
 const ColumnHeadings = () => (
   <div
-    className={`${ROW_GRID} text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:px-3`}
+    className={`${ROW_GRID} rounded-lg py-2 text-[10px] font-bold uppercase tracking-[0.1em] [&>span]:px-3`}
+    style={{ background: 'var(--screen-2)', color: 'var(--ink-faint)' }}
   >
     <span>Item Name</span>
     <span>Unit Price</span>
@@ -303,7 +305,7 @@ const BillRow = ({
         <span aria-hidden="true" className="inline-block size-9" />
       ) : (
         <CircleIconButton
-          icon={<LuTrash2 aria-hidden="true" />}
+          icon={<IoTrashOutline aria-hidden="true" />}
           label={`Remove ${item.name}`}
           variant="danger"
           onClick={() => onRemoveItem(item.id)}
@@ -317,9 +319,9 @@ const FOOTER_AMOUNT_ROW = 'grid min-h-8 grid-cols-[minmax(0,1fr)_max-content] it
 const FOOTER_BREAKDOWN_ROW =
   'grid min-h-8 grid-cols-[5.5rem_minmax(0,1fr)_7rem] items-center gap-3';
 const FOOTER_FONT = '"Satoshi Variable", var(--font-satoshi), sans-serif';
-const NEUTRAL_TEXT = 'var(--color-neutral-900, #302F2E)';
-const PRIMARY_TEXT = 'var(--color-primary-600, #006AE0)';
-const DISCOUNT_TEXT = 'var(--color-semantics-success-700, #15803D)';
+const NEUTRAL_TEXT = 'var(--color-neutral-900)';
+const PRIMARY_TEXT = 'var(--color-text-brand)';
+const DISCOUNT_TEXT = 'var(--color-success-700)';
 
 const FOOTER_HELPER_TEXT_STYLE: React.CSSProperties = {
   color: NEUTRAL_TEXT,
@@ -349,13 +351,15 @@ const FOOTER_VALUE_STYLE: React.CSSProperties = {
 };
 
 const FOOTER_TOTAL_VALUE_STYLE: React.CSSProperties = {
-  color: PRIMARY_TEXT,
+  color: 'var(--ink)',
   fontFamily: FOOTER_FONT,
-  fontSize: 40,
+  fontSize: 26,
   fontStyle: 'normal',
   fontWeight: 700,
+  letterSpacing: '-0.03em',
   lineHeight: '120%',
   textAlign: 'right',
+  fontVariantNumeric: 'tabular-nums',
 };
 
 const FOOTER_DISCOUNT_VALUE_STYLE: React.CSSProperties = {
@@ -404,10 +408,61 @@ const FooterBreakdownRow = ({
   </div>
 );
 
+const OVERALL_DISCOUNT_ERROR_ID = 'overall-discount-cap-error';
+
+export const overallDiscountCapMessage = (maxPercent: number): string =>
+  `Overall discount can't go above your organisation's ${maxPercent}% cap. Ask an admin to change the cap in Finance > Discounts.`;
+
+/**
+ * Controlled state for the overall-discount field.
+ *
+ * An entry above the organisation's cap is REJECTED, not clamped: a silently
+ * reduced discount is indistinguishable from the number the clinician meant to
+ * type, and the invoice would then be collected as if the smaller figure was
+ * intended. The typed value stays on screen next to the reason it was refused,
+ * and the bill keeps the last accepted discount. The finance API enforces the
+ * same cap server-side; this is the message, not the control.
+ */
+const useOverallDiscountInput = ({
+  overallDiscountPercent,
+  maxOverallDiscountPercent,
+  onChangeOverallDiscount,
+}: {
+  overallDiscountPercent: number;
+  maxOverallDiscountPercent?: number | null;
+  onChangeOverallDiscount: (percent: number) => void;
+}) => {
+  const [draft, setDraft] = useState(String(overallDiscountPercent));
+  const [capError, setCapError] = useState<string | null>(null);
+
+  // Re-sync the field when the accepted discount changes elsewhere (hydration,
+  // another edit path) so the input never drifts from the bill it describes.
+  const [prevPercent, setPrevPercent] = useState(overallDiscountPercent);
+  if (prevPercent !== overallDiscountPercent) {
+    setPrevPercent(overallDiscountPercent);
+    setDraft(String(overallDiscountPercent));
+    setCapError(null);
+  }
+
+  const handleChange = (raw: string) => {
+    setDraft(raw);
+    const percent = Math.max(0, Number.parseFloat(raw) || 0);
+    if (maxOverallDiscountPercent != null && percent > maxOverallDiscountPercent) {
+      setCapError(overallDiscountCapMessage(maxOverallDiscountPercent));
+      return;
+    }
+    setCapError(null);
+    onChangeOverallDiscount(percent);
+  };
+
+  return { draft, capError, handleChange };
+};
+
 const TotalsFooter = ({
   totals,
   depositCents,
   overallDiscountPercent,
+  maxOverallDiscountPercent,
   withdrawDeposit,
   taxPercent,
   onToggleWithdrawDeposit,
@@ -416,6 +471,7 @@ const TotalsFooter = ({
   totals: ReturnType<typeof buildTotals>;
   depositCents: number;
   overallDiscountPercent: number;
+  maxOverallDiscountPercent?: number | null;
   withdrawDeposit: boolean;
   taxPercent: number;
   onToggleWithdrawDeposit: (value: boolean) => void;
@@ -423,6 +479,11 @@ const TotalsFooter = ({
 }) => {
   const currency = useCurrency();
   const money = (cents: number) => formatCents(cents, currency);
+  const { draft, capError, handleChange } = useOverallDiscountInput({
+    overallDiscountPercent,
+    maxOverallDiscountPercent,
+    onChangeOverallDiscount,
+  });
   return (
     <div className="-mx-5 -mb-5 grid gap-5 rounded-b-2xl border-t border-neutral-300 bg-pill-success-bg px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(13rem,0.8fr)_minmax(0,1fr)] lg:items-stretch">
       <div className="flex h-full flex-col justify-center gap-2">
@@ -464,14 +525,17 @@ const TotalsFooter = ({
               <input
                 type="number"
                 min={0}
-                max={100}
-                value={overallDiscountPercent}
+                max={maxOverallDiscountPercent ?? 100}
+                value={draft}
                 aria-label="Overall discount percent"
-                onChange={(e) =>
-                  onChangeOverallDiscount(Math.max(0, Number.parseFloat(e.target.value) || 0))
-                }
+                aria-invalid={capError ? true : undefined}
+                aria-describedby={capError ? OVERALL_DISCOUNT_ERROR_ID : undefined}
+                onChange={(e) => handleChange(e.target.value)}
                 className="h-full w-full rounded-xl border bg-transparent pr-6 pl-2 text-right focus-visible:outline-none"
-                style={{ ...FOOTER_DISCOUNT_VALUE_STYLE, borderColor: DISCOUNT_TEXT }}
+                style={{
+                  ...FOOTER_DISCOUNT_VALUE_STYLE,
+                  borderColor: capError ? 'var(--color-danger-600)' : DISCOUNT_TEXT,
+                }}
               />
               <span
                 className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2"
@@ -482,6 +546,15 @@ const TotalsFooter = ({
             </span>
           }
         />
+        {capError && (
+          <p
+            id={OVERALL_DISCOUNT_ERROR_ID}
+            role="alert"
+            className="text-right text-caption-2 text-danger-700"
+          >
+            {capError}
+          </p>
+        )}
         <FooterBreakdownRow label="Estimated Total:" value={money(totals.estimatedTotalCents)} />
         <p className="text-right" style={FOOTER_HELPER_TEXT_STYLE}>
           {taxPercent > 0 ? `Exclusive of ${taxPercent}% tax` : 'No tax applied'}
@@ -500,6 +573,7 @@ const TotalBillContainer = ({
   withdrawDeposit,
   overallDiscountPercent,
   taxPercent = 0,
+  maxOverallDiscountPercent,
   onToggleWithdrawDeposit,
   onChangeOverallDiscount,
   onAddItem,
@@ -530,7 +604,7 @@ const TotalBillContainer = ({
           match the other steps' search bars (SOAP / Services / Prescription). */}
         <div className="relative flex items-center justify-end gap-3">
           <CircleIconButton
-            icon={<LuPlus aria-hidden="true" />}
+            icon={<IoAddOutline aria-hidden="true" />}
             label="Add invoice item"
             variant="dark"
             onClick={() => {
@@ -568,11 +642,7 @@ const TotalBillContainer = ({
           </div>
         </div>
 
-        <SectionContainer
-          titleClassName="text-yc-20-b-primary"
-          title="Total Bill"
-          className="flex flex-col gap-5"
-        >
+        <SectionContainer title="Total Bill" className="flex flex-col gap-5">
           {items.length === 0 ? (
             <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
               No invoice line items added yet.
@@ -600,6 +670,7 @@ const TotalBillContainer = ({
             totals={totals}
             depositCents={depositCents}
             overallDiscountPercent={overallDiscountPercent}
+            maxOverallDiscountPercent={maxOverallDiscountPercent}
             withdrawDeposit={withdrawDeposit}
             taxPercent={taxPercent}
             onToggleWithdrawDeposit={onToggleWithdrawDeposit}

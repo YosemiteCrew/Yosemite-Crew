@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 
@@ -158,11 +158,11 @@ const InventoryTurnoverFilters = ({
           ref={triggerRef}
           type="button"
           onClick={() => setDropdownOpen((v) => !v)}
-          className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between min-w-30"
+          className="flex h-10 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-[13px] justify-between min-w-30"
           style={getTurnoverStatusButtonStyle(selectedStatus)}
         >
           <span>{selectedStatus.key === 'ALL' ? 'Status' : selectedStatus.name}</span>
-          <FaCaretDown
+          <IoCaretDown
             size={14}
             className={clsx('shrink-0 transition-transform', dropdownOpen && 'rotate-180')}
           />
@@ -173,7 +173,7 @@ const InventoryTurnoverFilters = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="yc-glass-overlay rounded-2xl overflow-hidden"
               style={dropdownStyle}
             >
               {STATUS_OPTIONS.map((option) => {
@@ -189,12 +189,12 @@ const InventoryTurnoverFilters = ({
                       setDropdownOpen(false);
                     }}
                     className={clsx(
-                      'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                      'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
                       isSelected && option.key !== 'ALL' ? 'font-medium' : 'hover:bg-card-hover'
                     )}
                   >
                     <span
-                      className="inline-block size-3 rounded-full shrink-0"
+                      className="inline-block size-2 rounded-full shrink-0"
                       style={{
                         backgroundColor: option.border,
                         borderWidth: '1px',
@@ -205,7 +205,7 @@ const InventoryTurnoverFilters = ({
                     <span style={{ color: dropdownTextColor }}>{option.name}</span>
                     {isSelected && (
                       <span
-                        className="ml-auto text-sm font-semibold"
+                        className="ml-auto text-[12px] font-semibold"
                         style={{ color: dropdownTextColor }}
                       >
                         ✓

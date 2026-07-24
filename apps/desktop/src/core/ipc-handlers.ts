@@ -581,6 +581,12 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
 
   // ── Tab IPC handlers ──
 
+  // Thumbnails for the tab-hover preview (see yc:tab-get-preview). Each entry
+  // records the URL it was captured from: a tab that has since navigated (or
+  // whose id was reused for another page) must not be shown the previous page's
+  // thumbnail. Entries are dropped when the tab goes away.
+  const tabPreviewCache = new Map<string, { url: string; dataUrl: string }>();
+
   const attachTabView = (id: string): void => {
     if (!services.tabViewHost || !services.mainWindow || services.mainWindow.isDestroyed()) return;
     const tabViewHost = services.tabViewHost;
@@ -671,6 +677,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     // Clear split state if the closed tab was the split pane, otherwise the
     // chrome keeps a stale split pointer to a destroyed tab.
     if (id === services.splitId) services.setSplitTab(null);
+    tabPreviewCache.delete(id);
     services.tabViewHost.destroy(id);
     services.tabManager.close(id);
     const state = services.tabManager.getState();
@@ -824,7 +831,6 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
   // the UI. Only the visible (active) tab is captured live; its thumbnail is
   // cached so that when it later becomes a background tab, hovering still shows
   // the last-known preview without a flicker-inducing live capture.
-  const tabPreviewCache = new Map<string, string>();
   registry.handle('yc:tab-get-preview', async (_event, args) => {
     const [id] = args as [string];
     if (!services.tabViewHost || typeof id !== 'string')
@@ -833,12 +839,17 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (!wc || wc.isDestroyed()) return { ok: false, error: 'no-contents' };
     if (wc !== services.activeContents()) {
       const cached = tabPreviewCache.get(id);
-      return cached ? { ok: true, dataUrl: cached } : { ok: false, error: 'no-preview' };
+      if (!cached) return { ok: false, error: 'no-preview' };
+      if (cached.url !== wc.getURL()) {
+        tabPreviewCache.delete(id);
+        return { ok: false, error: 'no-preview' };
+      }
+      return { ok: true, dataUrl: cached.dataUrl };
     }
     try {
       const image = await wc.capturePage();
       const dataUrl = image.toDataURL();
-      tabPreviewCache.set(id, dataUrl);
+      tabPreviewCache.set(id, { url: wc.getURL(), dataUrl });
       return { ok: true, dataUrl };
     } catch {
       return { ok: false, error: 'capture-failed' };
@@ -861,6 +872,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     const tab = state.tabs.find((t) => t.id === id);
     if (!tab) return { ok: false, error: 'tab-not-found' };
     if (id === services.splitId) services.setSplitTab(null);
+    tabPreviewCache.delete(id);
     services.tabManager.close(id);
     services.tabViewHost.destroy(id);
     services.saveSession();
@@ -956,7 +968,8 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
   // user drags the empty area, moving the frameless window manually (a child
   // WebContentsView can't use native -webkit-app-region drag without breaking the
   // tab controls). Invalid/non-finite deltas are ignored.
-  ipc.on('yc:window-drag-by', (_event, dx: unknown, dy: unknown) => {
+  registry.on('yc:window-drag-by', (_event, args) => {
+    const [dx, dy] = args;
     if (typeof dx !== 'number' || typeof dy !== 'number') return;
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
     if (dx === 0 && dy === 0) return;
@@ -964,8 +977,10 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
   });
 
   // Fire-and-forget caption-button controls for the frameless window. No args,
-  // no return value; the main process acts on the current main window.
-  ipc.on('yc:window-minimize', () => services.minimizeWindow());
-  ipc.on('yc:window-toggle-maximize', () => services.toggleMaximizeWindow());
-  ipc.on('yc:window-close', () => services.closeWindow());
+  // no return value; the main process acts on the current main window. They stay
+  // out of ARG_CHANNELS, so the registry drops any message that carries args as
+  // well as any from an untrusted sender.
+  registry.on('yc:window-minimize', () => services.minimizeWindow());
+  registry.on('yc:window-toggle-maximize', () => services.toggleMaximizeWindow());
+  registry.on('yc:window-close', () => services.closeWindow());
 };

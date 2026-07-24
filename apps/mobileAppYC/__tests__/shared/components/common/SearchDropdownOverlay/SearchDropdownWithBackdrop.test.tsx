@@ -55,6 +55,14 @@ describe('SearchDropdownWithBackdrop', () => {
     expect(baseProps.onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it('hides the invisible backdrop from screen readers', () => {
+    const {UNSAFE_getByProps} = render(
+      <SearchDropdownWithBackdrop {...baseProps} />,
+    );
+    const backdrop = UNSAFE_getByProps({onPress: baseProps.onDismiss});
+    expect(backdrop.props.accessible).toBe(false);
+  });
+
   it('merges the dropdown style with a provided containerStyle', () => {
     render(
       <SearchDropdownWithBackdrop

@@ -196,7 +196,7 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
               />
             </div>
             {showCashRefundDisclaimer ? (
-              <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] px-4 py-3 text-caption-1 text-text-secondary">
+              <div className="rounded-2xl border border-warning-200 bg-warning-100 px-4 py-3 text-caption-1 text-text-secondary">
                 This appointment was paid in cash and is now cancelled. Any refund, if applicable,
                 should be handled directly by the service provider.
               </div>

@@ -4,10 +4,8 @@ import FloatingToolbar from '@/app/ui/primitives/RichTextEditor/FloatingToolbar'
 
 type ChainMock = {
   focus: jest.Mock;
-  toggleBold: jest.Mock;
-  toggleItalic: jest.Mock;
-  toggleUnderline: jest.Mock;
-  toggleBulletList: jest.Mock;
+  toggleMark: jest.Mock;
+  toggleList: jest.Mock;
   sinkListItem: jest.Mock;
   insertContentAt: jest.Mock;
   setTextSelection: jest.Mock;
@@ -17,10 +15,8 @@ type ChainMock = {
 const createChainMock = (sinkListItemResult = true): ChainMock => {
   const chain: Partial<ChainMock> = {};
   chain.focus = jest.fn(() => chain);
-  chain.toggleBold = jest.fn(() => chain);
-  chain.toggleItalic = jest.fn(() => chain);
-  chain.toggleUnderline = jest.fn(() => chain);
-  chain.toggleBulletList = jest.fn(() => chain);
+  chain.toggleMark = jest.fn(() => chain);
+  chain.toggleList = jest.fn(() => chain);
   chain.insertContentAt = jest.fn(() => chain);
   chain.setTextSelection = jest.fn(() => chain);
   chain.run = jest.fn(() => sinkListItemResult);
@@ -72,7 +68,7 @@ describe('FloatingToolbar', () => {
     const editor = createEditorMock();
     render(<FloatingToolbar editor={editor} />);
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
-    expect(editor.__chain.toggleBold).toHaveBeenCalled();
+    expect(editor.__chain.toggleMark).toHaveBeenCalledWith('bold');
     expect(editor.__chain.run).toHaveBeenCalled();
   });
 
@@ -80,11 +76,11 @@ describe('FloatingToolbar', () => {
     const editor = createEditorMock();
     render(<FloatingToolbar editor={editor} />);
     fireEvent.click(screen.getByRole('button', { name: 'Italic' }));
-    expect(editor.__chain.toggleItalic).toHaveBeenCalled();
+    expect(editor.__chain.toggleMark).toHaveBeenCalledWith('italic');
     fireEvent.click(screen.getByRole('button', { name: 'Underline' }));
-    expect(editor.__chain.toggleUnderline).toHaveBeenCalled();
+    expect(editor.__chain.toggleMark).toHaveBeenCalledWith('underline');
     fireEvent.click(screen.getByRole('button', { name: 'Bulleted list' }));
-    expect(editor.__chain.toggleBulletList).toHaveBeenCalled();
+    expect(editor.__chain.toggleList).toHaveBeenCalledWith('bulletList', 'listItem');
   });
 
   it('prevents default on mousedown so the editor selection is preserved', () => {

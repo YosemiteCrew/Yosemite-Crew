@@ -52,7 +52,7 @@ describe("AuthUserMobileController", () => {
     it("creates auth user and links parent by email", async () => {
       const req = {
         userId: "provider-1",
-        provider: "congito",
+        provider: "cognito",
         email: "user@example.com",
         emailVerified: true,
       } as any;
@@ -81,6 +81,47 @@ describe("AuthUserMobileController", () => {
         parentLinked: true,
         parent,
       });
+    });
+
+    it("stores supertokens as the auth provider for migrated sign-ups", async () => {
+      const req = {
+        userId: "st-user-1",
+        provider: "supertokens",
+        email: "user@example.com",
+        emailVerified: true,
+      } as any;
+      const res = createResponse();
+      const authUser = { id: "auth-2" };
+      mockedAuthUserMobileService.createOrGetAuthUser.mockResolvedValueOnce(
+        authUser,
+      );
+      mockedAuthUserMobileService.autoLinkParentByEmail.mockResolvedValueOnce(
+        null,
+      );
+
+      await AuthUserMobileController.signup(req, res as any);
+
+      expect(
+        mockedAuthUserMobileService.createOrGetAuthUser,
+      ).toHaveBeenCalledWith("supertokens", "st-user-1", "user@example.com");
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("rejects unknown auth providers", async () => {
+      const req = {
+        userId: "provider-1",
+        provider: "congito",
+        email: "user@example.com",
+        emailVerified: true,
+      } as any;
+      const res = createResponse();
+
+      await AuthUserMobileController.signup(req, res as any);
+
+      expect(
+        mockedAuthUserMobileService.createOrGetAuthUser,
+      ).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
     it("does not auto-link parent when email is not verified", async () => {

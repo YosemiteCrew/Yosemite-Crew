@@ -1,15 +1,17 @@
-import React from 'react';
 import type { Metadata } from 'next';
-import PricingPage from '@/app/features/marketing/pages/PricingPage/PricingPage';
+import { MarketingShell } from '@/app/features/marketing/site';
+import { Pricing } from '@/app/features/marketing/pages/Pricing/Pricing';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Yosemite Crew',
+  title: 'Pricing · Yosemite Crew',
   description:
-    'Transparent pricing with no hidden fees. Choose a plan that fits your pet-care practice.',
+    'Run it yourself for nothing, or let us host it and pay only for what you use. No long contracts, no cut of your payments, and under AGPL-3.0 you own the software.',
 };
 
-function page() {
-  return <PricingPage />;
+export default function Page() {
+  return (
+    <MarketingShell active="pricing">
+      <Pricing />
+    </MarketingShell>
+  );
 }
-
-export default page;

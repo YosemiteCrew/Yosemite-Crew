@@ -127,6 +127,12 @@ describe('VetBusinessCard', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes a button role and the CTA text as the accessibility label', () => {
+    render(<VetBusinessCard {...baseProps} cta="Schedule a visit" />);
+    const button = screen.getByLabelText('Schedule a visit');
+    expect(button.props.accessibilityRole).toBe('button');
+  });
+
   it('handles image load error — calls onImageLoadError callback', () => {
     const onImageLoadError = jest.fn();
     const {UNSAFE_root} = render(

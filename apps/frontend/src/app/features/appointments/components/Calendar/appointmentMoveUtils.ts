@@ -38,8 +38,7 @@ export type AppointmentMovePlan = {
 };
 
 type AppointmentMovePlanResult =
-  | { ok: true; plan: AppointmentMovePlan }
-  | { ok: false; message?: string };
+  { ok: true; plan: AppointmentMovePlan } | { ok: false; message?: string };
 
 const getAppointmentDurationMs = (appointment: Appointment) =>
   Math.max(

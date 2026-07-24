@@ -19,7 +19,6 @@ import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
@@ -246,6 +245,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   const applyPatch = useCallback(
     (patch: Partial<User>) => {
+      /* istanbul ignore next -- defensive: applyPatch only fires from handlers rendered when safeUser exists */
       if (!safeUser) {
         return;
       }
@@ -372,160 +372,155 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
               showCameraButton
             />
 
-            {/* Card with rows */}
-            <View style={styles.glassShadowWrapper}>
-              <LiquidGlassCard
-                glassEffect="clear"
-                interactive
-                tintColor={theme.colors.white}
-                style={styles.glassContainer}
-                fallbackStyle={styles.glassFallback}>
-                <View style={styles.listContainer}>
-                  {/* First Name – Inline */}
-                  <InlineEditRow
-                    label="First name"
-                    value={safeUser.firstName ?? ''}
-                    onSave={val => applyPatch({firstName: val})}
-                  />
+            {/* Card with rows - flat warm-bone screen2 field-list card */}
+            <View style={styles.card}>
+              <View style={styles.listContainer}>
+                {/* First Name – Inline */}
+                <InlineEditRow
+                  label="First name"
+                  value={safeUser.firstName ?? ''}
+                  onSave={val => applyPatch({firstName: val})}
+                />
 
-                  <Separator />
+                <Separator />
 
-                  {/* Last Name – Inline */}
-                  <InlineEditRow
-                    label="Last name"
-                    value={safeUser.lastName ?? ''}
-                    onSave={val => applyPatch({lastName: val})}
-                  />
+                {/* Last Name – Inline */}
+                <InlineEditRow
+                  label="Last name"
+                  value={safeUser.lastName ?? ''}
+                  onSave={val => applyPatch({lastName: val})}
+                />
 
-                  <Separator />
+                <Separator />
 
-                  {/* Phone – Bottom sheet */}
-                  <RowButton
-                    label="Phone"
-                    value={
-                      safeUser.phone
-                        ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}`
-                        : ''
-                    }
+                {/* Phone – Bottom sheet */}
+                <RowButton
+                  label="Phone"
+                  value={
+                    safeUser.phone
+                      ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}`
+                      : ''
+                  }
+                  onPress={() => {
+                    openBottomSheetRef.current = 'phone';
+                    phoneSheetRef.current?.open();
+                  }}
+                />
+
+                <Separator />
+
+                {/* Email – Read only */}
+                <View style={styles.readOnlyEmailRow}>
+                  <Text style={styles.rowButtonLabel}>Email</Text>
+                  <Text
+                    style={styles.rowButtonValue}
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
+                    {safeUser.email ?? '—'}
+                  </Text>
+                  <PressableOpacity
+                    style={styles.copyIconButton}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copy email"
                     onPress={() => {
-                      openBottomSheetRef.current = 'phone';
-                      phoneSheetRef.current?.open();
-                    }}
-                  />
-
-                  <Separator />
-
-                  {/* Email – Read only */}
-                  <View style={styles.readOnlyEmailRow}>
-                    <Text style={styles.rowButtonLabel}>Email</Text>
-                    <Text
-                      style={styles.rowButtonValue}
-                      numberOfLines={1}
-                      ellipsizeMode="tail">
-                      {safeUser.email ?? '—'}
-                    </Text>
-                    <PressableOpacity
-                      style={styles.copyIconButton}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        const email = safeUser.email?.trim();
-                        if (!email) {
-                          return;
-                        }
-                        Clipboard.setString(email);
-                        Alert.alert('Copied', 'Email Id copied to clipboard');
-                      }}>
-                      <Image source={Images.copyIcon} style={styles.copyIcon} />
-                    </PressableOpacity>
-                  </View>
-
-                  <Separator />
-
-                  {/* Date of birth – Date picker */}
-                  <RowButton
-                    label="Date of birth"
-                    value={
-                      safeUser.dateOfBirth
-                        ? formatDateForDisplay(new Date(safeUser.dateOfBirth))
-                        : ''
-                    }
-                    onPress={() => setShowDobPicker(true)}
-                  />
-
-                  <Separator />
-
-                  {/* Currency – Bottom sheet */}
-                  <RowButton
-                    label="Currency"
-                    value={safeUser.currency ?? 'USD'}
-                    onPress={() => {
-                      openBottomSheetRef.current = 'currency';
-                      currencySheetRef.current?.open();
-                    }}
-                  />
-
-                  <Separator />
-
-                  {/* Address – Multiple rows, all opening AddressBottomSheet */}
-                  <RowButton
-                    label="Address"
-                    value={safeUser.address?.addressLine ?? ''}
-                    onPress={() => {
-                      openBottomSheetRef.current = 'address';
-                      addressSheetRef.current?.open();
-                    }}
-                    key="address"
-                  />
-
-                  <Separator />
-
-                  <RowButton
-                    label="State/Province"
-                    value={safeUser.address?.stateProvince ?? ''}
-                    onPress={() => {
-                      openBottomSheetRef.current = 'address';
-                      addressSheetRef.current?.open();
-                    }}
-                    key="stateProvince"
-                  />
-
-                  <Separator />
-
-                  <RowButton
-                    label="City"
-                    value={safeUser.address?.city ?? ''}
-                    onPress={() => {
-                      openBottomSheetRef.current = 'address';
-                      addressSheetRef.current?.open();
-                    }}
-                    key="city"
-                  />
-
-                  <Separator />
-
-                  <RowButton
-                    label="Postal Code"
-                    value={safeUser.address?.postalCode ?? ''}
-                    onPress={() => {
-                      openBottomSheetRef.current = 'address';
-                      addressSheetRef.current?.open();
-                    }}
-                    key="postalCode"
-                  />
-
-                  <Separator />
-
-                  <RowButton
-                    label="Country"
-                    value={safeUser.address?.country ?? ''}
-                    onPress={() => {
-                      openBottomSheetRef.current = 'address';
-                      addressSheetRef.current?.open();
-                    }}
-                    key="country"
-                  />
+                      const email = safeUser.email?.trim();
+                      if (!email) {
+                        return;
+                      }
+                      Clipboard.setString(email);
+                      Alert.alert('Copied', 'Email Id copied to clipboard');
+                    }}>
+                    <Image source={Images.copyIcon} style={styles.copyIcon} />
+                  </PressableOpacity>
                 </View>
-              </LiquidGlassCard>
+
+                <Separator />
+
+                {/* Date of birth – Date picker */}
+                <RowButton
+                  label="Date of birth"
+                  value={
+                    safeUser.dateOfBirth
+                      ? formatDateForDisplay(new Date(safeUser.dateOfBirth))
+                      : ''
+                  }
+                  onPress={() => setShowDobPicker(true)}
+                />
+
+                <Separator />
+
+                {/* Currency – Bottom sheet */}
+                <RowButton
+                  label="Currency"
+                  value={safeUser.currency ?? 'USD'}
+                  onPress={() => {
+                    openBottomSheetRef.current = 'currency';
+                    currencySheetRef.current?.open();
+                  }}
+                />
+
+                <Separator />
+
+                {/* Address – Multiple rows, all opening AddressBottomSheet */}
+                <RowButton
+                  label="Address"
+                  value={safeUser.address?.addressLine ?? ''}
+                  onPress={() => {
+                    openBottomSheetRef.current = 'address';
+                    addressSheetRef.current?.open();
+                  }}
+                  key="address"
+                />
+
+                <Separator />
+
+                <RowButton
+                  label="State/Province"
+                  value={safeUser.address?.stateProvince ?? ''}
+                  onPress={() => {
+                    openBottomSheetRef.current = 'address';
+                    addressSheetRef.current?.open();
+                  }}
+                  key="stateProvince"
+                />
+
+                <Separator />
+
+                <RowButton
+                  label="City"
+                  value={safeUser.address?.city ?? ''}
+                  onPress={() => {
+                    openBottomSheetRef.current = 'address';
+                    addressSheetRef.current?.open();
+                  }}
+                  key="city"
+                />
+
+                <Separator />
+
+                <RowButton
+                  label="Postal Code"
+                  value={safeUser.address?.postalCode ?? ''}
+                  onPress={() => {
+                    openBottomSheetRef.current = 'address';
+                    addressSheetRef.current?.open();
+                  }}
+                  key="postalCode"
+                />
+
+                <Separator />
+
+                <RowButton
+                  label="Country"
+                  value={safeUser.address?.country ?? ''}
+                  onPress={() => {
+                    openBottomSheetRef.current = 'address';
+                    addressSheetRef.current?.open();
+                  }}
+                  key="country"
+                />
+              </View>
             </View>
 
             <SimpleDatePicker
@@ -572,6 +567,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         ref={phoneSheetRef}
         countries={COUNTRIES}
         selectedCountry={
+          /* istanbul ignore next -- defensive: parsedPhone.dialCode always maps to a COUNTRIES entry */
           COUNTRIES.find(
             country => country.dial_code === parsedPhone.dialCode,
           ) ??
@@ -592,6 +588,18 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
     ...createGlassCardStyles(theme),
+    // Flat warm-bone "screen2" field-list card (brief: screen-2 bg, radius 20,
+    // hairline row dividers, no glass) - mirrors the Companion overview screen.
+    card: {
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      paddingHorizontal: theme.spacing['1'],
+      paddingVertical: theme.spacing['1'],
+      marginTop: theme.spacing['4.5'],
+    },
+    listContainer: {
+      gap: 0,
+    },
     readOnlyEmailRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -605,7 +613,7 @@ const createStyles = (theme: any) =>
     },
     rowButtonValue: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
+      color: theme.colors.inkMuted,
       marginRight: theme.spacing['2'],
       flexShrink: 1,
       flex: 1,

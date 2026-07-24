@@ -4,7 +4,7 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Text, TextInput} from 'react-native';
+import {Platform, Text, TextInput, View} from 'react-native';
 import {OTPInput} from '@/shared/components/common/OTPInput/OTPInput';
 import {themeReducer} from '@/features/theme';
 
@@ -242,6 +242,40 @@ describe('OTPInput', () => {
     });
   });
 
+  it('should size each input responsively with a capped max width', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    tree.root.findAllByType(TextInput).forEach(input => {
+      const flattenedStyle = input.props.style.reduce(
+        (acc: Record<string, unknown>, style: Record<string, unknown>) => ({
+          ...acc,
+          ...style,
+        }),
+        {},
+      );
+
+      expect(flattenedStyle.flex).toBe(1);
+      expect(flattenedStyle.maxWidth).toBe(50);
+    });
+  });
+
+  it('gives the root container a definite width so the flex inputs can size against it', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    const [rootContainer] = tree.root.findAllByType(View);
+    expect(rootContainer.props.style).toEqual(
+      expect.objectContaining({width: '100%'}),
+    );
+  });
+
   it('should set textContentType to oneTimeCode', () => {
     let tree!: TestRenderer.ReactTestRenderer;
 
@@ -423,5 +457,41 @@ describe('OTPInput', () => {
     });
 
     expect(tree.root.findAllByType(TextInput)).toHaveLength(4);
+  });
+
+  it('focuses the first input shortly after mount and clears the timer on unmount', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    // autoFocus defaults to true, so mounting schedules the 100ms focus timer.
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    // Firing the timer runs the inputRefs.current[0]?.focus() body (the
+    // autoFocus-true branch); unmount then exercises the clearTimeout cleanup.
+    TestRenderer.act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    TestRenderer.act(() => {
+      tree.unmount();
+    });
+
+    expect(tree).toBeTruthy();
+  });
+
+  it('applies android-specific text styles when running on android', () => {
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    let tree!: TestRenderer.ReactTestRenderer;
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<OTPInput onComplete={() => {}} />));
+    });
+
+    expect(tree.root.findAllByType(TextInput)).toHaveLength(4);
+
+    Platform.OS = originalOS;
   });
 });

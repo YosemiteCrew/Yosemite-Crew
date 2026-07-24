@@ -1,18 +1,17 @@
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { FormField } from "@/app/features/forms/types/forms";
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { FormField } from '@/app/features/forms/types/forms';
 
 const BooleanBuilder: React.FC<{
-  field: FormField & { type: "boolean" };
+  field: FormField & { type: 'boolean' };
   onChange: (f: FormField) => void;
 }> = ({ field, onChange }) => (
   <div className="flex flex-col gap-3">
     <FormInput
       intype="text"
       inname="Label"
-      value={field.label || ""}
+      value={field.label || ''}
       inlabel="Label"
       onChange={(e) => onChange({ ...field, label: e.target.value })}
-      className="min-h-12!"
     />
   </div>
 );

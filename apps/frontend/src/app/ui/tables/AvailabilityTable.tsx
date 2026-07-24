@@ -1,8 +1,9 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 
 import Image from 'next/image';
-import { IoEye } from 'react-icons/io5';
+import { IoEyeOutline } from 'react-icons/io5';
 import { Team } from '@/app/features/organization/types/team';
 
 import AvailabilityCard from '@/app/ui/cards/AvailabilityCard';
@@ -112,9 +113,7 @@ const AvailabilityTable = ({
       key: 'status',
       width: '12%',
       render: (item: Team) => (
-        <div className="appointment-status" style={getAvailabilityStatusStyle(item.status)}>
-          {item.status}
-        </div>
+        <StatusPill style={getAvailabilityStatusStyle(item.status)} label={item.status} />
       ),
     },
   ];
@@ -128,9 +127,9 @@ const AvailabilityTable = ({
           type="button"
           onClick={() => handleViewTeam(item)}
           aria-label={`View availability for ${item.name}`}
-          className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          className="size-[38px] rounded-full! border border-[var(--hairline)] bg-transparent text-[var(--ink-soft)] flex items-center justify-center cursor-pointer transition-colors hover:border-[var(--divider)] hover:text-[var(--ink)]"
         >
-          <IoEye size={18} color="var(--color-neutral-900)" />
+          <IoEyeOutline size={18} aria-hidden="true" />
         </button>
       </div>
     ),

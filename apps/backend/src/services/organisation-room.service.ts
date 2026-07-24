@@ -1029,20 +1029,11 @@ export const OrganisationRoomService = {
       return summaries;
     }
 
+    // Rooms are included when they have any vacant unit, so they may still be
+    // partly occupied: only the unit list is narrowed, never the counts.
     return summaries.filter(isSummaryVacant).map((room) => ({
       ...room,
       units: room.units.filter((unit) => !unit.isOccupied),
-      unitGroups: room.unitGroups.map((group) => ({
-        ...group,
-        occupiedCount: 0,
-        vacantCount: group.unitCount,
-      })),
-      occupiedUnits: 0,
-      vacantUnits: room.totalUnits,
-      occupancyDisplay:
-        room.totalUnits > 0
-          ? `Vacant (${room.totalUnits})`
-          : room.occupancyDisplay,
     }));
   },
 

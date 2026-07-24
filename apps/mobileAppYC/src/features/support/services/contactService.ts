@@ -7,10 +7,7 @@ import {
 } from '@/shared/utils/serviceHelpers';
 
 export type ContactType =
-  | 'GENERAL_ENQUIRY'
-  | 'FEATURE_REQUEST'
-  | 'COMPLAINT'
-  | 'DSAR';
+  'GENERAL_ENQUIRY' | 'FEATURE_REQUEST' | 'COMPLAINT' | 'DSAR';
 
 export interface ContactAttachmentPayload {
   url: string;

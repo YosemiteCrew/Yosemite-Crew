@@ -28,7 +28,7 @@ const DropPreviewOverlay = ({
       )}px`,
     }}
   >
-    <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
+    <div className="size-full flex items-center justify-center px-2 text-caption-1 text-blue-text truncate">
       {draggedAppointmentLabel || 'Appointment'}
     </div>
   </div>

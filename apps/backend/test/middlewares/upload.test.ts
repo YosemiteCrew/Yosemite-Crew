@@ -10,6 +10,9 @@ import {
   mimeTypeToExtension,
   setupLifecyclePolicy,
   generatePresignedDownloadUrl,
+  isAllowedMimeType,
+  ATTACHMENT_MIME_TYPES,
+  IMAGE_ONLY_MIME_TYPES,
 } from "../../src/middlewares/upload";
 
 // --- 1. Mocks ---
@@ -219,6 +222,28 @@ describe("Upload Middleware", () => {
         generatePresignedUrl("image/jpeg", "user", "user-1"),
       ).rejects.toThrow("Failed to generate presigned URL: Sign Error");
     });
+
+    it.each([
+      "text/html",
+      "application/javascript",
+      "image/svg+xml",
+      "application/octet-stream",
+    ])("refuses to mint an upload URL for %s", async (mimeType) => {
+      await expect(
+        generatePresignedUrl(mimeType, "custom", "contact-us"),
+      ).rejects.toThrow("Unsupported file type.");
+      expect(mockGetSignedUrlPromise).not.toHaveBeenCalled();
+    });
+
+    it.each(["image/jpeg", "image/png", "application/pdf"])(
+      "mints an upload URL for the allowed type %s",
+      async (mimeType) => {
+        mockGetSignedUrlPromise.mockResolvedValueOnce("https://presigned");
+        await expect(
+          generatePresignedUrl(mimeType, "temp"),
+        ).resolves.toMatchObject({ url: "https://presigned" });
+      },
+    );
   });
 
   describe("moveFile", () => {
@@ -370,5 +395,42 @@ describe("Upload Middleware", () => {
       mockGetBucketLifecycleConfiguration.mockRejectedValueOnce("string error");
       await expect(setupLifecyclePolicy()).rejects.toThrow();
     });
+  });
+});
+
+describe("presigned upload mime allowlists", () => {
+  it.each([
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "image/heic",
+    "image/webp",
+  ])("accepts %s for a document upload", (mimeType) => {
+    expect(isAllowedMimeType(mimeType)).toBe(true);
+  });
+
+  it.each(["text/html", "application/javascript", "image/svg+xml"])(
+    "rejects %s everywhere",
+    (mimeType) => {
+      expect(isAllowedMimeType(mimeType)).toBe(false);
+      expect(isAllowedMimeType(mimeType, ATTACHMENT_MIME_TYPES)).toBe(false);
+      expect(isAllowedMimeType(mimeType, IMAGE_ONLY_MIME_TYPES)).toBe(false);
+    },
+  );
+
+  it("keeps documents out of the narrower attachment and image sets", () => {
+    const doc = "application/msword";
+    expect(isAllowedMimeType(doc)).toBe(true);
+    expect(isAllowedMimeType(doc, ATTACHMENT_MIME_TYPES)).toBe(false);
+    expect(isAllowedMimeType(doc, IMAGE_ONLY_MIME_TYPES)).toBe(false);
+    expect(isAllowedMimeType("application/pdf", ATTACHMENT_MIME_TYPES)).toBe(
+      true,
+    );
+    expect(isAllowedMimeType("application/pdf", IMAGE_ONLY_MIME_TYPES)).toBe(
+      false,
+    );
   });
 });

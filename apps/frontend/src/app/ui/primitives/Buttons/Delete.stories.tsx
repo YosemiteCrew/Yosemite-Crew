@@ -18,7 +18,7 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    size: { control: 'radio', options: ['default', 'large'] },
+    size: { control: 'radio', options: ['compact', 'small', 'default', 'large'] },
     isDisabled: { control: 'boolean' },
   },
   args: {
@@ -40,6 +40,8 @@ export const AllSizes: Story = {
   name: 'All sizes',
   render: () => (
     <div className="flex flex-col gap-3 items-start">
+      <Delete text="Delete (compact)" size="compact" onClick={fn()} />
+      <Delete text="Delete (small)" size="small" onClick={fn()} />
       <Delete text="Delete (default)" size="default" onClick={fn()} />
       <Delete text="Delete (large)" size="large" onClick={fn()} />
     </div>

@@ -4,6 +4,7 @@ import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getStatusStyle } from '@/app/config/statusConfig';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
 import {
@@ -15,8 +16,7 @@ import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 import { resolveEncounterMode } from '@/app/lib/appointmentWorkspace';
 import type { EncounterMode } from '@/app/features/appointments/types/workspace';
-import { LuFootprints } from 'react-icons/lu';
-import { TbBed } from 'react-icons/tb';
+import { IoBedOutline, IoFootstepsOutline } from 'react-icons/io5';
 
 type AppointmentCardContentProps = {
   appointment: Appointment;
@@ -88,7 +88,7 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
     <>
       <AppointmentDetailField
         label="Breed / Species"
-        value={`${getAppointmentCompanion(appointment).breed || '-'} / ${getAppointmentCompanion(appointment).species}`}
+        value={`${getAppointmentCompanion(appointment).breed || '-'} / ${getAppointmentCompanion(appointment).species || '-'}`}
       />
       <AppointmentDetailField
         label="Date / Time"
@@ -113,12 +113,11 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
 export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentProps) => {
   const displayStatus = normalizeAppointmentStatus(appointment.status) ?? 'REQUESTED';
   return (
-    <div
+    <StatusPill
       style={getStatusStyle(displayStatus)}
-      className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-    >
-      {toTitle(displayStatus)}
-    </div>
+      label={toTitle(displayStatus)}
+      className="w-fit"
+    />
   );
 };
 
@@ -137,7 +136,7 @@ export const AppointmentModePill = ({
     borderStyle: 'solid',
     borderWidth: '1px',
     boxShadow: isStrong && isInpatient ? '0 1px 6px rgba(0, 87, 194, 0.18)' : undefined,
-    color: isInpatient ? 'var(--color-neutral-0)' : 'var(--color-neutral-700)',
+    color: isInpatient ? 'var(--color-white)' : 'var(--color-neutral-700)',
   };
 
   return (
@@ -146,9 +145,9 @@ export const AppointmentModePill = ({
       style={modeStyle}
     >
       {isInpatient ? (
-        <TbBed size={iconSize} aria-hidden="true" />
+        <IoBedOutline size={iconSize} aria-hidden="true" />
       ) : (
-        <LuFootprints size={iconSize} aria-hidden="true" />
+        <IoFootstepsOutline size={iconSize} aria-hidden="true" />
       )}
       <span className="whitespace-nowrap" style={{ color: 'inherit', opacity: 1 }}>
         {isInpatient ? 'Inpatient' : 'Outpatient'}

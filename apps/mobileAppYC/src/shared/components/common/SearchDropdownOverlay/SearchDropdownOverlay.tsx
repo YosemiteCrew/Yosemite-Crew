@@ -59,7 +59,15 @@ export function SearchDropdownOverlay<T = unknown>({
     (renderItemInfo: {item: T}) => (
       <PressableOpacity
         style={styles.item}
-        onPress={() => onPress(renderItemInfo.item)}>
+        onPress={() => onPress(renderItemInfo.item)}
+        accessibilityRole="button"
+        accessibilityLabel={
+          subtitle
+            ? [title(renderItemInfo.item), subtitle(renderItemInfo.item)]
+                .filter(Boolean)
+                .join(', ')
+            : (title(renderItemInfo.item) ?? undefined)
+        }>
         <View style={styles.itemAvatar}>
           <Text style={styles.itemAvatarText}>
             {(

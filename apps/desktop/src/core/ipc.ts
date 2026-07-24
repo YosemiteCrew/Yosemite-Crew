@@ -2,7 +2,7 @@
 
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import type { IpcMain, IpcMainInvokeEvent } from 'electron';
+import type { IpcMain, IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import { classifyNavigation, type DesktopConfig } from './navigation-policy';
 import type { DesktopLogger } from '../utils/logger';
 
@@ -66,6 +66,10 @@ export const IPC_CHANNELS = [
   'yc:get-app-version',
   'yc:dismiss-whats-new',
   'yc:clear-notification-badge',
+  'yc:window-drag-by',
+  'yc:window-minimize',
+  'yc:window-toggle-maximize',
+  'yc:window-close',
 ] as const;
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
 const TRUSTED_DESKTOP_PROTOCOL = 'yosemitecrew-desktop:';
@@ -75,8 +79,12 @@ const TRUSTED_DESKTOP_HOSTS = new Set(['loading', 'offline', 'welcome']);
 // (a bare `Promise<unknown> | unknown` collapses to `unknown`).
 type IpcHandler = (event: IpcMainInvokeEvent, args: readonly unknown[]) => unknown;
 
+// Fire-and-forget listener: no reply channel, so a rejected message is simply
+// dropped.
+type IpcListener = (event: IpcMainEvent, args: readonly unknown[]) => void;
+
 interface IpcRegistryDeps {
-  ipcMain: Pick<IpcMain, 'handle'>;
+  ipcMain: Pick<IpcMain, 'handle' | 'on'>;
   config: DesktopConfig;
   localFileRoot: string;
   logger: DesktopLogger;
@@ -153,6 +161,7 @@ const ARG_CHANNELS = new Set([
   'yc:tab-set-orientation',
   'yc:tab-set-split',
   'yc:set-last-seen-version',
+  'yc:window-drag-by',
 ]);
 
 export const validateIpcRequest = (
@@ -170,25 +179,43 @@ export const validateIpcRequest = (
   return { ok: true };
 };
 
-export const createIpcRegistry = ({ ipcMain, config, localFileRoot, logger }: IpcRegistryDeps) => ({
-  handle(channel: IpcChannel, handler: IpcHandler): void {
-    ipcMain.handle(channel, async (event, ...args) => {
-      const validation = validateIpcRequest(event, channel, args, config, localFileRoot);
-      if (!validation.ok) {
-        logger.warn('ipc_request_rejected', {
-          channel,
-          reason: validation.reason,
-          senderUrl: event.senderFrame?.url,
-        });
-        return { ok: false, error: validation.reason };
-      }
-
-      try {
-        return await handler(event, args);
-      } catch (error) {
-        logger.error('ipc_handler_failed', { channel, error });
-        return { ok: false, error: 'handler-failed' };
-      }
+export const createIpcRegistry = ({ ipcMain, config, localFileRoot, logger }: IpcRegistryDeps) => {
+  // Returns the rejection reason, or null when the request may proceed.
+  const rejectionReason = (
+    event: Pick<IpcMainInvokeEvent, 'senderFrame'>,
+    channel: IpcChannel,
+    args: readonly unknown[]
+  ): string | null => {
+    const validation = validateIpcRequest(event, channel, args, config, localFileRoot);
+    if (validation.ok) return null;
+    logger.warn('ipc_request_rejected', {
+      channel,
+      reason: validation.reason,
+      senderUrl: event.senderFrame?.url,
     });
-  },
-});
+    return validation.reason;
+  };
+
+  return {
+    handle(channel: IpcChannel, handler: IpcHandler): void {
+      ipcMain.handle(channel, async (event, ...args) => {
+        const reason = rejectionReason(event, channel, args);
+        if (reason) return { ok: false, error: reason };
+
+        try {
+          return await handler(event, args);
+        } catch (error) {
+          logger.error('ipc_handler_failed', { channel, error });
+          return { ok: false, error: 'handler-failed' };
+        }
+      });
+    },
+
+    on(channel: IpcChannel, listener: IpcListener): void {
+      ipcMain.on(channel, (event, ...args) => {
+        if (rejectionReason(event, channel, args)) return;
+        listener(event, args);
+      });
+    },
+  };
+};

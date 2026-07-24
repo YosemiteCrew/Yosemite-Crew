@@ -557,11 +557,11 @@ describe("ObservationTool Controllers", () => {
     describe("createForAppointment", () => {
       it("should create and return the submission (201)", async () => {
         (req as any).organisationId = "org1";
+        (req as any).userId = "vet1";
         req.params = { appointmentId: "apt1" };
         req.body = {
           toolId: "t1",
           companionId: "c1",
-          filledBy: "vet1",
           answers: { q1: "a1" },
           taskId: "tsk1",
           summary: "sum",
@@ -593,8 +593,9 @@ describe("ObservationTool Controllers", () => {
 
       it("should 400 when body fails validation", async () => {
         (req as any).organisationId = "org1";
+        (req as any).userId = "vet1";
         req.params = { appointmentId: "apt1" };
-        req.body = { toolId: "t1" }; // missing companionId/filledBy/answers
+        req.body = { toolId: "t1" }; // missing companionId/answers
 
         await ObservationToolSubmissionController.createForAppointment(
           req as any,
@@ -605,13 +606,77 @@ describe("ObservationTool Controllers", () => {
         expect(mockedSubService.createForAppointment).not.toHaveBeenCalled();
       });
 
-      it("should handle service error", async () => {
+      it("records the authenticated actor as filledBy and ignores a spoofed body value", async () => {
+        (req as any).organisationId = "org1";
+        (req as any).userId = "vet1";
+        req.params = { appointmentId: "apt1" };
+        req.body = {
+          toolId: "t1",
+          companionId: "c1",
+          filledBy: "attacker-impersonating-a-colleague",
+          answers: { q1: "a1" },
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedSubService.createForAppointment as any).mockResolvedValue({
+          id: "s1",
+        });
+
+        await ObservationToolSubmissionController.createForAppointment(
+          req as any,
+          res as Response,
+        );
+
+        expect(mockedSubService.createForAppointment).toHaveBeenCalledWith(
+          expect.objectContaining({ filledBy: "vet1" }),
+        );
+        expect(statusMock).toHaveBeenCalledWith(201);
+      });
+
+      it("should 401 when the request carries no authenticated actor", async () => {
         (req as any).organisationId = "org1";
         req.params = { appointmentId: "apt1" };
         req.body = {
           toolId: "t1",
           companionId: "c1",
           filledBy: "vet1",
+          answers: { q1: "a1" },
+        };
+
+        await ObservationToolSubmissionController.createForAppointment(
+          req as any,
+          res as Response,
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(401);
+        expect(mockedSubService.createForAppointment).not.toHaveBeenCalled();
+      });
+
+      it("does not fall back to a client-supplied x-user-id header for filledBy", async () => {
+        (req as any).organisationId = "org1";
+        req.headers = { "x-user-id": "vet-someone-else" };
+        req.params = { appointmentId: "apt1" };
+        req.body = {
+          toolId: "t1",
+          companionId: "c1",
+          answers: { q1: "a1" },
+        };
+
+        await ObservationToolSubmissionController.createForAppointment(
+          req as any,
+          res as Response,
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(401);
+        expect(mockedSubService.createForAppointment).not.toHaveBeenCalled();
+      });
+
+      it("should handle service error", async () => {
+        (req as any).organisationId = "org1";
+        (req as any).userId = "vet1";
+        req.params = { appointmentId: "apt1" };
+        req.body = {
+          toolId: "t1",
+          companionId: "c1",
           answers: { q1: "a1" },
         };
         mockSubError("createForAppointment", 404);

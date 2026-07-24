@@ -69,6 +69,7 @@ export const serviceLineItemToInvoiceLine = (
       maxDiscountPercent: defaultDiscountPercent,
       maxDiscountCents: discountCents,
       breakdown: item.breakdown,
+      sourceServiceLineId: item.id,
     };
   }
   if (catalogService) {
@@ -87,6 +88,7 @@ export const serviceLineItemToInvoiceLine = (
       maxDiscountPercent,
       maxDiscountCents: discountCentsFromPercent(grossCents, maxDiscountPercent),
       breakdown: item.breakdown,
+      sourceServiceLineId: item.id,
     };
   }
   const grossCents = Math.max(0, item.unitPriceCents * item.qty);
@@ -106,6 +108,7 @@ export const serviceLineItemToInvoiceLine = (
     maxDiscountPercent,
     maxDiscountCents: discountCentsFromPercent(grossCents, maxDiscountPercent),
     breakdown: item.breakdown,
+    sourceServiceLineId: item.id,
   };
 };
 

@@ -20,7 +20,7 @@ type CircleIconButtonProps = {
 
 const VARIANT_CLASSES: Record<CircleIconVariant, string> = {
   dark: 'bg-neutral-900 text-neutral-0 hover:opacity-90',
-  outline: 'border border-neutral-300 text-neutral-900 hover:bg-neutral-100',
+  outline: 'border border-neutral-200 text-neutral-800 hover:bg-neutral-100',
   danger: 'border border-danger-600 text-danger-600 hover:bg-neutral-100',
 };
 
@@ -45,7 +45,7 @@ const CircleIconButton = ({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`flex size-9 shrink-0 items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]}`}
+      className={`flex size-[38px] shrink-0 items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]}`}
     >
       {icon}
     </button>

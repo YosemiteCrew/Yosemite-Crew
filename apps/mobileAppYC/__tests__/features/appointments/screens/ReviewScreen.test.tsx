@@ -3,7 +3,7 @@ import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {ReviewScreen} from '../../../../src/features/appointments/screens/ReviewScreen';
 import {useDispatch, useSelector} from 'react-redux';
 import {useNavigation} from '@react-navigation/native';
-import {Alert} from 'react-native';
+import {Alert, Keyboard} from 'react-native';
 import {appointmentApi} from '../../../../src/features/appointments/services/appointmentsService';
 import {
   getFreshStoredTokens,
@@ -235,7 +235,9 @@ describe('ReviewScreen', () => {
       );
 
       const {getByText} = renderScreen();
-      expect(getByText('Clinic Fallback')).toBeTruthy();
+      // Business name is no longer shown as standalone text (design uses the
+      // avatar + visit prompt); the fallback business is resolved without crashing.
+      expect(getByText('How was your visit?')).toBeTruthy();
     });
 
     it('triggers fetchBusinesses if business is missing but appointment exists', async () => {
@@ -256,12 +258,65 @@ describe('ReviewScreen', () => {
         );
       });
     });
+
+    it('renders companion visit prompt and formatted meta line', () => {
+      const stateWithCompanion = {
+        appointments: {
+          items: [
+            {
+              id: 'appt-1',
+              businessId: 'biz-1',
+              companionId: 'comp-1',
+              organisationName: 'Clinic Fallback',
+              organisationAddress: 'Address Fallback',
+              businessGooglePlacesId: 'gp-1',
+              type: 'Checkup',
+              employeeName: 'Dr. Smith',
+              date: '2026-07-09',
+            },
+          ],
+        },
+        businesses: mockState.businesses,
+        companion: {companions: [{id: 'comp-1', name: 'Buddy'}]},
+      };
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector(stateWithCompanion),
+      );
+
+      const {getByText} = renderScreen();
+      // Companion name drives the personalised prompt (ternary + `subjectName`
+      // nullish path) and the meta line renders the formatted visit date.
+      expect(getByText("How was Buddy's visit?")).toBeTruthy();
+      expect(getByText(/Checkup.*Dr\. Smith/)).toBeTruthy();
+    });
+
+    it('renders the meta line when the appointment date is invalid', () => {
+      const stateInvalidDate = {
+        ...mockState,
+        appointments: {
+          items: [
+            {
+              ...mockState.appointments.items[0],
+              type: 'Follow-up',
+              date: 'not-a-date',
+            },
+          ],
+        },
+      };
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector(stateInvalidDate),
+      );
+
+      const {getByText} = renderScreen();
+      // Invalid date -> formatVisitDate returns '' (NaN guard); the type still
+      // renders as the meta line.
+      expect(getByText('Follow-up')).toBeTruthy();
+    });
   });
 
   describe('Photo Logic (Google Places Fallback)', () => {
     it('uses existing business photo if valid', () => {
-      const {getByText} = renderScreen();
-      expect(getByText('Has Photo')).toBeTruthy();
+      renderScreen();
       expect(fetchBusinessDetails).not.toHaveBeenCalled();
     });
 
@@ -311,6 +366,59 @@ describe('ReviewScreen', () => {
         expect(fetchGooglePlacesImage).toHaveBeenCalledWith('gp-1');
       });
     });
+
+    it('does not set a fallback photo when the google image lacks a url', async () => {
+      const stateDummyPhoto = {
+        ...mockState,
+        businesses: {
+          businesses: [{...mockState.businesses.businesses[0], photo: null}],
+        },
+      };
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector(stateDummyPhoto),
+      );
+
+      (fetchBusinessDetails as unknown as jest.Mock).mockReturnValue({
+        unwrap: () => Promise.reject('Fail'),
+      });
+      (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
+        unwrap: () => Promise.resolve({}),
+      });
+
+      renderScreen();
+
+      // Image resolves without a photoUrl -> the `if (img.photoUrl)` guard
+      // takes its false path.
+      await waitFor(() => {
+        expect(fetchGooglePlacesImage).toHaveBeenCalledWith('gp-1');
+      });
+    });
+
+    it('swallows the error when the google image fetch also fails', async () => {
+      const stateDummyPhoto = {
+        ...mockState,
+        businesses: {
+          businesses: [{...mockState.businesses.businesses[0], photo: null}],
+        },
+      };
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector(stateDummyPhoto),
+      );
+
+      (fetchBusinessDetails as unknown as jest.Mock).mockReturnValue({
+        unwrap: () => Promise.reject('Fail'),
+      });
+      (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
+        unwrap: () => Promise.reject('Fail again'),
+      });
+
+      renderScreen();
+
+      // Both fetches reject -> the inner `.catch(() => {})` runs without throwing.
+      await waitFor(() => {
+        expect(fetchGooglePlacesImage).toHaveBeenCalledWith('gp-1');
+      });
+    });
   });
 
   describe('Interactions', () => {
@@ -332,6 +440,18 @@ describe('ReviewScreen', () => {
       const {getByTestId} = renderScreen();
       fireEvent(getByTestId('header-back'), 'onTouchEnd');
       expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    it('dismisses the keyboard when submit editing is triggered', () => {
+      const dismissSpy = jest
+        .spyOn(Keyboard, 'dismiss')
+        .mockImplementation(() => {});
+      const {getByPlaceholderText} = renderScreen();
+
+      fireEvent(getByPlaceholderText('Your review'), 'submitEditing');
+
+      expect(dismissSpy).toHaveBeenCalled();
+      dismissSpy.mockRestore();
     });
   });
 
@@ -365,6 +485,11 @@ describe('ReviewScreen', () => {
         expect(console.warn).toHaveBeenCalledWith(
           expect.stringContaining('Failed to submit'),
           expect.any(Error),
+        );
+        // The user must see this, not just the developer console.
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Review not submitted',
+          'Session expired. Please sign in again.',
         );
       });
     });
@@ -401,6 +526,58 @@ describe('ReviewScreen', () => {
           expect.any(Error),
         );
         expect(mockGoBack).not.toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Review not submitted',
+          'API Fail',
+        );
+      });
+    });
+
+    it('falls back to a generic message when the rejection has no message', async () => {
+      (appointmentApi.rateOrganisation as jest.Mock).mockRejectedValue({});
+
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('submit-btn'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Review not submitted',
+          'Unable to submit your review. Please try again.',
+        );
+      });
+    });
+
+    it('submits when the token has no expiry (undefined fallback)', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        accessToken: 'valid-token',
+        expiresAt: null,
+      });
+      (isTokenExpired as jest.Mock).mockReturnValue(false);
+
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('submit-btn'), 'onTouchEnd');
+
+      // Null expiry exercises the `tokens?.expiresAt ?? undefined` fallback.
+      await waitFor(() => {
+        expect(isTokenExpired).toHaveBeenCalledWith(undefined);
+        expect(appointmentApi.rateOrganisation).toHaveBeenCalled();
+      });
+    });
+
+    it('treats a missing access token as a session failure', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue(null);
+
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('submit-btn'), 'onTouchEnd');
+
+      // `!tokens?.accessToken` short-circuits the guard before isTokenExpired.
+      await waitFor(() => {
+        expect(isTokenExpired).not.toHaveBeenCalled();
+        expect(appointmentApi.rateOrganisation).not.toHaveBeenCalled();
+        expect(console.warn).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to submit'),
+          expect.any(Error),
+        );
       });
     });
   });

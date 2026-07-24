@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const orgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const appointmentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
   next(),
@@ -42,8 +42,8 @@ const AppointmentController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -88,10 +88,10 @@ describe("appointment.router", () => {
 
     expect(admitRoute).toBeDefined();
     expect(admitRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(admitRoute?.stack.map((layer) => layer.handle)).toContain(
-      orgPermissionsMiddleware,
+      appointmentOrgPermissionsMiddleware,
     );
     expect(admitRoute?.stack.map((layer) => layer.handle)).toContain(
       permissionMiddleware,
@@ -99,6 +99,26 @@ describe("appointment.router", () => {
     expect(AppointmentController.admitFromPMS).toHaveBeenCalledTimes(0);
     expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");
   });
+
+  // Every route addressed by :appointmentId must derive the organisation from
+  // the appointment itself; withOrgPermissions() would trust the URL instead.
+  it.each([
+    ["/pms/:organisationId/:appointmentId/admit", "post"],
+    ["/pms/:organisationId/:appointmentId/forms", "post"],
+    ["/pms/:organisationId/:appointmentId/checkin", "patch"],
+    ["/pms/:organisationId/:appointmentId", "patch"],
+    ["/pms/:organisationId/:appointmentId", "get"],
+  ])(
+    "derives the organisation from the appointment for %s (%s)",
+    (path, method) => {
+      const route = findRoute(path, method);
+      const handles = route?.stack.map((layer) => layer.handle);
+
+      expect(route).toBeDefined();
+      expect(handles).toContain(appointmentOrgPermissionsMiddleware);
+      expect(handles).not.toContain(orgPermissionsMiddleware);
+    },
+  );
 
   it("registers the reverse PMS ready-for-billing route", () => {
     const reverseRoute = findRoute(
@@ -108,7 +128,7 @@ describe("appointment.router", () => {
 
     expect(reverseRoute).toBeDefined();
     expect(reverseRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(reverseRoute?.stack.map((layer) => layer.handle)).toContain(
       orgPermissionsMiddleware,
@@ -135,7 +155,7 @@ describe("appointment.router", () => {
 
     expect(mobileRoute).toBeDefined();
     expect(mobileRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognitoMobile,
+      requireMobileAuth,
     );
     expect(mobileRoute?.stack.map((layer) => layer.handle)).toContain(
       AppointmentController.getByIdMobile,

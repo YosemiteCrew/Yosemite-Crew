@@ -159,6 +159,13 @@ export const getCompanionDocumentCategoryLabel = (category: string): string =>
 export const getCompanionDocumentSubcategoryLabel = (subcategory: string): string =>
   AllSubcategoryOptions.find((option) => option.value === subcategory)?.label ?? subcategory;
 
+/**
+ * Where a record sits in the design's medical-record lifecycle, matching the
+ * "Requested / Uploaded / Generated / Signed" filter tabs on the Records &
+ * Reference frame.
+ */
+export type RecordLifecycle = 'requested' | 'uploaded' | 'generated' | 'signed';
+
 export type CompanionRecord = {
   id?: string;
   title: string;
@@ -175,6 +182,39 @@ export type CompanionRecord = {
   syncedFromPms?: boolean;
   uploadedByParentId?: string | null;
   uploadedByPmsUserId?: string | null;
+  /**
+   * Explicit lifecycle state, when the API knows it. Optional because
+   * GET /v1/document/pms/:companionId does not return it today, so
+   * `deriveRecordLifecycle` falls back to the signals below.
+   *
+   * BACKEND: add `lifecycle` to `DocumentDto` in
+   * apps/backend/src/services/document.service.ts. It is the only honest source
+   * for the "Requested" arm — a record that has been asked for but has no file
+   * yet — which no field currently expresses.
+   */
+  lifecycle?: RecordLifecycle;
+  /**
+   * When the record was signed. Optional because no signing signal exists for
+   * documents today: form submissions carry `signing.status`, plain documents
+   * do not.
+   *
+   * BACKEND: add `signedAt` to `DocumentDto`. The DTO's existing `signingStatus`
+   * cannot be used — `mapDocumentToDto` derives it as
+   * `pmsVisible ? 'SIGNED' : 'NOT_STARTED'` and `listForPms` only returns
+   * `pmsVisible: true` rows, so it is the constant 'SIGNED'.
+   */
+  signedAt?: string | null;
+  /**
+   * What produced the record: 'DOCUMENT' for an uploaded file, or a rendered
+   * document's kind (e.g. 'TEMPLATE_INSTANCE', 'CLINICAL_ARTIFACT') for one the
+   * system generated. Already part of the backend's `DocumentDto`; optional
+   * here because `listForPms` returns only plain documents, so it is always
+   * 'DOCUMENT' today.
+   *
+   * BACKEND: merge rendered documents into `DocumentService.listForPms`, the
+   * way `listForAppointmentParent` already does.
+   */
+  sourceKind?: string;
   createdAt?: string;
   updatedAt?: string;
 };

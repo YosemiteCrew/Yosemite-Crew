@@ -193,10 +193,15 @@ describe('GroupModal', () => {
 
     it('renders owner badge, save-title and delete controls', () => {
       setup(editProps());
-      expect(screen.getByText('Group info')).toBeInTheDocument();
+      expect(screen.getByText('Group chat · Team A')).toBeInTheDocument();
       expect(screen.getByText('Save Title')).toBeInTheDocument();
       expect(screen.getByText('Owner')).toBeInTheDocument();
       expect(screen.getByText('Delete Group')).toBeInTheDocument();
+    });
+
+    it('falls back to a generic header when the group has no title yet', () => {
+      setup(editProps({ placeholder: '   ' }));
+      expect(screen.getByText('Group chat · group')).toBeInTheDocument();
     });
 
     it('saves the title', () => {

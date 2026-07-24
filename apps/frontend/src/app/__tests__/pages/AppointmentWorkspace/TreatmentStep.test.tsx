@@ -8,6 +8,7 @@ import { useTaskStore } from '@/app/stores/taskStore';
 import type { Task } from '@/app/features/tasks/types/task';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { useRouteLoaderStore } from '@/app/stores/routeLoaderStore';
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import {
   deletePrescriptionArtifact,
@@ -15,7 +16,9 @@ import {
 } from '@/app/features/appointments/services/workspaceClinicalService';
 import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
+import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import {
+  getInpatientScheduleForEncounter,
   listScheduleTaskTemplates,
   listPrescriptionTemplatesForWorkspace,
   resolveScheduleTasksFromTemplate,
@@ -28,6 +31,7 @@ import {
   updateTask,
 } from '@/app/features/tasks/services/taskService';
 import {
+  deletePrescriptionTreatmentItem,
   getAppointmentWorkspaceBootstrap,
   persistTreatmentItems,
 } from '@/app/features/appointments/services/workspaceAggregateService';
@@ -332,12 +336,27 @@ const seedScheduleTasks = () => {
 
 const resetTasks = () => useTaskStore.setState({ tasksById: {}, taskIdsByOrgId: {} });
 
+// The catalog store's data-loading actions are real store methods; capture the
+// pristine implementations so tests that override them with rejecting mocks never
+// leak the failure into a later test.
+const PRISTINE_CATALOG_ACTIONS = {
+  loadOrganisationCatalog: useRevampCatalogStore.getState().loadOrganisationCatalog,
+  loadSpecialityCatalog: useRevampCatalogStore.getState().loadSpecialityCatalog,
+  hydratePackageDetail: useRevampCatalogStore.getState().hydratePackageDetail,
+};
+
 describe('TreatmentStep', () => {
   beforeEach(() => {
     reset();
     resetTasks();
     resetInventory();
     resetCatalog();
+    useRevampCatalogStore.setState(PRISTINE_CATALOG_ACTIONS);
+    (getInpatientScheduleForEncounter as jest.Mock)
+      .mockClear()
+      .mockResolvedValue({ resourceType: 'Bundle', entry: [] });
+    (fetchInventoryItems as jest.Mock).mockClear().mockResolvedValue([]);
+    (deletePrescriptionTreatmentItem as jest.Mock).mockClear().mockResolvedValue(true);
     seedPrescriptionInventory();
     (savePrescriptionArtifact as jest.Mock).mockClear();
     // Echo back the saved artifact id (mirrors the create/update response) so finalize targets
@@ -388,6 +407,34 @@ describe('TreatmentStep', () => {
     expect(screen.getByRole('button', { name: /carprofen/i })).toBeInTheDocument();
   });
 
+  it('excludes HIDDEN inventory items from the medication add list', () => {
+    const enc = seedAndGet();
+    useInventoryStore
+      .getState()
+      .setInventoryForOrg(ORG, [
+        { ...inventoryItem('inv-active', 'Visible Medicine'), status: 'ACTIVE' },
+        { ...inventoryItem('inv-hidden', 'Hidden Medicine'), status: 'HIDDEN' },
+        inventoryItem('inv-nostatus', 'Unstatused Medicine'),
+      ]);
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/search medicines/i), {
+      target: { value: 'medicine' },
+    });
+
+    expect(screen.getByRole('button', { name: /visible medicine/i })).toBeInTheDocument();
+    // An item with no status normalizes to ACTIVE, so it stays prescribable.
+    expect(screen.getByRole('button', { name: /unstatused medicine/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hidden medicine/i })).not.toBeInTheDocument();
+  });
+
   it('renders services, packages and prescription sections', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
@@ -416,6 +463,70 @@ describe('TreatmentStep', () => {
     expect(screen.getAllByText('In-house fulfilled').length).toBeGreaterThan(0);
     // The old "Medication" tag no longer appears on the cards.
     expect(screen.queryByText('Medication')).not.toBeInTheDocument();
+  });
+
+  it('locks a finalized (unbilled) prescription so its edits cannot be silently dropped', () => {
+    // The save loop skips re-saving finalized rows, so their fields must be read-only - otherwise a
+    // clinician's edits would never persist yet still show/invoice (Codex P1 on #1909).
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          frequency: 'BID (twice daily)',
+          durationDays: '5',
+          durationUnit: 'days',
+          qty: '10',
+          refill: '2',
+          fulfillment: 'IN_HOUSE' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    // The locked state is surfaced, and the row's controls are read-only.
+    expect(screen.getByText('Finalized')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /fulfillment/i })).toBeDisabled();
+  });
+
+  it('does not block Save Treatment on a finalized row missing a now-required field', async () => {
+    // A finalized record hydrated from older/external data may lack a currently-required field. It
+    // is read-only and skipped by the save loop, so it must not wedge the save behind a validation
+    // error the clinician cannot fix (Codex P2 on #1909).
+    const onOpenInvoice = jest.fn();
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-final',
+          medicineName: 'Amoxicillin - 625',
+          // Deliberately missing frequency/duration/quantity (required on a fresh row).
+          fulfillment: 'PRESCRIPTION_ONLY' as const,
+          finalized: true,
+          billed: false,
+        },
+      ],
+    };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    // Validation skips the finalized row, so the save advances to billing...
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    // ...and the finalized row is never re-saved.
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    expect(savedIds).not.toContain('rx-final');
   });
 
   it('adds and removes services from the workspace store', () => {
@@ -907,6 +1018,35 @@ describe('TreatmentStep', () => {
     ).toBeInTheDocument();
   });
 
+  it('clears the stale prescription error once the clinician edits the row', () => {
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-incomplete',
+          medicineName: 'Amoxicillin',
+          route: 'Oral',
+          dosageForm: 'Tablet',
+          fulfillment: 'IN_HOUSE' as const,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+    expect(
+      screen.getByText(/Amoxicillin: add frequency, duration, quantity to dispense/i)
+    ).toBeInTheDocument();
+
+    // The message is only recomputed on the next save, so editing the row must drop it —
+    // otherwise a problem the clinician has already fixed keeps showing.
+    fireEvent.change(screen.getByLabelText('Qty'), { target: { value: '14' } });
+
+    expect(
+      screen.queryByText(/Amoxicillin: add frequency, duration, quantity to dispense/i)
+    ).not.toBeInTheDocument();
+  });
+
   it('does not fetch a label when no organisation is available', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
@@ -963,6 +1103,42 @@ describe('TreatmentStep', () => {
     );
   });
 
+  // #1909: an already-finalized prescription (a locked clinical record) must NOT be re-saved on the
+  // next Save Treatment - re-POSTing/PATCHing it returns 409 and would fail the whole save. It is
+  // skipped while fresh rows still persist and the step advances to billing.
+  it('skips re-saving a finalized prescription while still saving fresh rows', async () => {
+    const onOpenInvoice = jest.fn();
+    seedAndGet();
+    // Mark rx-1 as an already-finalized record; rx-2 stays a fresh (savable) row.
+    const store = useAppointmentWorkspaceStore.getState();
+    const seeded = store.getEncounter(APPT)!.prescription;
+    store.setPrescriptions(
+      APPT,
+      seeded.map((rx) => (rx.id === 'rx-1' ? { ...rx, finalized: true } : rx))
+    );
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    // The finalized row is never re-saved; the fresh row still is.
+    expect(savedIds).not.toContain('rx-1');
+    expect(savedIds).toContain('rx-2');
+    // The finalized row is not re-dispensed either.
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1');
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+  });
+
   it('blocks the invoice and shows an error when treatment persistence fails', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     (persistTreatmentItems as jest.Mock).mockRejectedValueOnce(new Error('save failed'));
@@ -980,11 +1156,118 @@ describe('TreatmentStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    // #1909: a non-409 failure now surfaces the backend/error reason instead of the
+    // generic "Unable to save treatment items" copy.
+    expect(await screen.findByText(/save failed/)).toBeInTheDocument();
     expect(onOpenInvoice).not.toHaveBeenCalled();
     expect(
       useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
     ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
+  });
+
+  // The backend refuses a plain save against an already-final prescription (409) instead of
+  // silently reopening it to DRAFT and wiping its items. Retrying can never succeed, so the
+  // generic retry copy must give way to the real reason.
+  it('surfaces the real reason when the prescription is already finalized (409)', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: { message: 'Artifact is final. Reopen or amend it before editing.' },
+      },
+    });
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(
+      await screen.findByText(/already finalized and can no longer be edited/i)
+    ).toBeInTheDocument();
+    // The misleading "just try again" copy must NOT be what the clinician is left with.
+    expect(screen.queryByText(/Unable to save treatment items/)).not.toBeInTheDocument();
+    // A rejected save still must not advance to billing.
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
+  });
+
+  // Guards the fallback: a raw axios transport failure carries no backend reason (its
+  // message is the meaningless "Request failed with status code N"), so the generic
+  // retry copy is shown rather than dumping the raw status text.
+  it('keeps the generic retry copy when the prescription save fails with no backend reason', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce(
+      new Error('Request failed with status code 500')
+    );
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/already finalized and can no longer be edited/i)
+    ).not.toBeInTheDocument();
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  // #1909: a non-409 backend rejection (e.g. a 400 validation failure) must surface the
+  // backend's specific `{ message }` instead of the generic "please try again" copy, so
+  // the clinician learns which field/rule failed.
+  it('surfaces the backend reason when a non-409 save fails with a message', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: { message: 'Dosage exceeds the maximum allowed for this species.' },
+      },
+    });
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(
+      await screen.findByText(/Dosage exceeds the maximum allowed for this species\./i)
+    ).toBeInTheDocument();
+    // Neither the generic copy nor the 409 finalized copy should be shown.
+    expect(screen.queryByText(/Unable to save treatment items/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/already finalized and can no longer be edited/i)
+    ).not.toBeInTheDocument();
+    expect(onOpenInvoice).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 
@@ -1304,6 +1587,496 @@ describe('TreatmentStep', () => {
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );
+  });
+
+  it('hydrates packages missing their breakdown and logs when hydration fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const hydratePackageDetail = jest.fn().mockRejectedValue(new Error('hydrate boom'));
+    useRevampCatalogStore.setState({
+      packages: [
+        {
+          id: 'pkg-empty',
+          code: 'PK-9',
+          name: 'Needs detail package',
+          description: 'Awaiting breakdown',
+          specialityId: 'spec-treatment',
+          organisationId: ORG,
+          durationText: 'Approx. 15 mins',
+          isBookable: true,
+          isInpatientPreferred: false,
+          currency: 'USD',
+          leadCount: 1,
+          supportCount: 0,
+          additionalDiscount: 0,
+          status: 'ACTIVE',
+          createdAt: '2026-04-20T10:00:00.000Z',
+          breakdown: [],
+        },
+      ],
+      hydratePackageDetail,
+    });
+    const enc = { ...seedAndGet(), services: [], prescription: [] };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(hydratePackageDetail).toHaveBeenCalledWith('pkg-empty'));
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to hydrate treatment package details:',
+        expect.anything()
+      )
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs when the inpatient encounter schedule and task load both fail', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (getInpatientScheduleForEncounter as jest.Mock).mockRejectedValue(new Error('schedule boom'));
+    (loadTasksForPrimaryOrg as jest.Mock).mockRejectedValue(new Error('tasks boom'));
+    const enc = seedAndGet('INPATIENT');
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load encounter schedule:', expect.anything())
+    );
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith('Failed to load schedule tasks:', expect.anything())
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs when the organisation catalog fails to load', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    useRevampCatalogStore.setState({
+      loadOrganisationCatalog: jest.fn().mockRejectedValue(new Error('org boom')),
+    });
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to load treatment catalog specialities:',
+        expect.anything()
+      )
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs when the speciality service/package catalog fails to load', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    useRevampCatalogStore.setState({
+      loadSpecialityCatalog: jest.fn().mockRejectedValue(new Error('spec boom')),
+    });
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to load treatment service/package catalog:',
+        expect.anything()
+      )
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('fetches prescription inventory when none is cached for the org', async () => {
+    resetInventory();
+    (fetchInventoryItems as jest.Mock).mockResolvedValue([]);
+    const setSpy = jest.spyOn(useInventoryStore.getState(), 'setInventoryForOrg');
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchInventoryItems).toHaveBeenCalledWith(ORG));
+    await waitFor(() => expect(setSpy).toHaveBeenCalledWith(ORG, []));
+    setSpy.mockRestore();
+  });
+
+  it('logs when the prescription inventory fetch fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    resetInventory();
+    (fetchInventoryItems as jest.Mock).mockRejectedValue(new Error('inventory boom'));
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to load prescription inventory:',
+        expect.anything()
+      )
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs when the schedule task templates fail to load', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (listScheduleTaskTemplates as jest.Mock).mockRejectedValue(new Error('templates boom'));
+    const enc = seedAndGet('INPATIENT');
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to load schedule task templates:',
+        expect.anything()
+      )
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs when the prescription templates fail to load', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (listPrescriptionTemplatesForWorkspace as jest.Mock).mockRejectedValue(new Error('rx boom'));
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to load prescription templates:',
+        expect.anything()
+      )
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('surfaces an empty-template message when a schedule template resolves no tasks', async () => {
+    (listScheduleTaskTemplates as jest.Mock).mockResolvedValue([
+      { id: 'tpl-empty', name: 'Empty pathway', kind: 'TASK_ASSIGNMENT', status: 'PUBLISHED' },
+    ]);
+    (resolveScheduleTasksFromTemplate as jest.Mock).mockResolvedValue([]);
+    const enc = seedAndGet('INPATIENT');
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.change(await screen.findByLabelText(/search tasks, assignees or templates/i), {
+      target: { value: 'Empty' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /empty pathway/i }));
+
+    expect(await screen.findByText('This template has no tasks to load.')).toBeInTheDocument();
+  });
+
+  it('surfaces an error when a schedule template fails to resolve', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (listScheduleTaskTemplates as jest.Mock).mockResolvedValue([
+      { id: 'tpl-broken', name: 'Broken pathway', kind: 'TASK_ASSIGNMENT', status: 'PUBLISHED' },
+    ]);
+    (resolveScheduleTasksFromTemplate as jest.Mock).mockRejectedValue(new Error('resolve boom'));
+    const enc = seedAndGet('INPATIENT');
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.change(await screen.findByLabelText(/search tasks, assignees or templates/i), {
+      target: { value: 'Broken' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /broken pathway/i }));
+
+    expect(
+      await screen.findByText('Unable to load schedule template. Please try again.')
+    ).toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('surfaces an error when persisting a schedule-task change fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (changeTaskStatus as jest.Mock).mockRejectedValue(new Error('status boom'));
+    const enc = seedAndGet('INPATIENT');
+    seedScheduleTasks();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Pending' }));
+
+    expect(
+      await screen.findByText('Unable to save the task change. Please try again.')
+    ).toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
+  it('applies a prescription template row with a blank medicine name', async () => {
+    (listPrescriptionTemplatesForWorkspace as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-blank',
+        name: 'Blank name template',
+        items: [
+          {
+            inventoryItemId: 'inv-blank',
+            medicineName: '   ',
+            dosageForm: 'Tablet',
+            route: 'Oral',
+            frequency: 'SID (once daily)',
+            durationDays: '3',
+            durationUnit: 'days',
+            qty: '1',
+            refill: '0',
+            instructions: 'Blank name row',
+            fulfillment: 'IN_HOUSE',
+          },
+        ],
+      },
+    ]);
+    const enc = { ...seedAndGet(), prescription: [] };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(listPrescriptionTemplatesForWorkspace).toHaveBeenCalledWith(ORG));
+    fireEvent.change(screen.getByLabelText(/search medicines or prescription templates/i), {
+      target: { value: 'blank' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /blank name template/i }));
+
+    await waitFor(() =>
+      expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription).toHaveLength(
+        1
+      )
+    );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0]
+    ).toMatchObject({ inventoryItemId: 'inv-blank' });
+  });
+
+  it('falls back to deleting the treatment-item row when the artifact route is unavailable', async () => {
+    (deletePrescriptionArtifact as jest.Mock).mockClear();
+    (deletePrescriptionArtifact as jest.Mock).mockResolvedValue(false);
+    const seeded = seedAndGet();
+    const enc = { ...seeded, prescription: seeded.prescription.filter((p) => !p.billed) };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
+
+    await waitFor(() =>
+      expect(deletePrescriptionTreatmentItem).toHaveBeenCalledWith(
+        ORG,
+        'enc-1',
+        expect.objectContaining({ id: 'rx-1' })
+      )
+    );
+  });
+
+  it('restores the row and warns generically when a non-conflict delete error occurs', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (deletePrescriptionArtifact as jest.Mock).mockClear();
+    (deletePrescriptionArtifact as jest.Mock).mockRejectedValue(new Error('server boom'));
+    const seeded = seedAndGet();
+    const enc = { ...seeded, prescription: seeded.prescription.filter((p) => !p.billed) };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
+
+    expect(
+      await screen.findByText('Unable to remove the prescription. Please try again.')
+    ).toBeInTheDocument();
+    expect(
+      useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter(APPT)
+        ?.prescription.some((p) => p.id === 'rx-1')
+    ).toBe(true);
+    errorSpy.mockRestore();
+  });
+
+  it('backfills a prescription line from its linked inventory item', () => {
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-linked',
+          medicineName: 'Gabapentin',
+          inventoryItemId: 'inv-gaba',
+          fulfillment: 'IN_HOUSE' as const,
+        },
+      ],
+    };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Gabapentin/)).toBeInTheDocument();
+  });
+
+  it('resolves an encounter via ensureEncounterId before persisting', async () => {
+    const ensureEncounterId = jest.fn().mockResolvedValue('enc-created');
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        ensureEncounterId={ensureEncounterId}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() => expect(ensureEncounterId).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(persistTreatmentItems).toHaveBeenCalledWith(ORG, 'enc-created', enc.services)
+    );
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+  });
+
+  it('keeps the legacy local flow when ensureEncounterId fails to resolve', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const ensureEncounterId = jest.fn().mockRejectedValue(new Error('checkin boom'));
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        ensureEncounterId={ensureEncounterId}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to resolve an encounter for treatment:',
+        expect.anything()
+      )
+    );
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+    expect(persistTreatmentItems).not.toHaveBeenCalled();
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
+      'COMPLETED'
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('opens Quick Actions Tasks instead of navigating when adding an outpatient visit', () => {
+    useRouteLoaderStore.setState({ isLoading: false });
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /add task/i }));
+
+    // Same as inpatient's "+": stays in the workspace rather than routing to /appointments.
+    expect(useAppointmentWorkspaceStore.getState().activeSideAction).toBe('TASKS');
+    expect(useRouteLoaderStore.getState().isLoading).toBe(false);
   });
 
   it('has no axe accessibility violations', async () => {

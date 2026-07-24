@@ -124,7 +124,7 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.surface,
+      mockTheme.colors.ctaText,
     );
   });
 
@@ -138,7 +138,7 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.surface,
+      mockTheme.colors.inkBody,
     );
   });
 
@@ -152,7 +152,7 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.primary,
+      mockTheme.colors.blue,
     );
   });
 
@@ -166,8 +166,52 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.primary,
+      mockTheme.colors.blue,
     );
+  });
+
+  it('passes correct indicator color for "danger" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="danger"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.white,
+    );
+  });
+
+  it('passes correct indicator color for "dangerGhost" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="dangerGhost"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.danger,
+    );
+  });
+
+  it('renders danger variants in a disabled state', () => {
+    const {getByText, rerender} = render(
+      <Button title="Del" onPress={mockOnPress} variant="danger" disabled />,
+    );
+    expect(getByText('Del')).toBeTruthy();
+    rerender(
+      <Button
+        title="Del"
+        onPress={mockOnPress}
+        variant="dangerGhost"
+        disabled
+      />,
+    );
+    expect(getByText('Del')).toBeTruthy();
   });
 
   it('applies custom style to TouchableOpacity', () => {
@@ -178,6 +222,20 @@ describe('Button', () => {
     const button = getByTestId('mock-touchable-opacity');
     const styles = [button.props.style({pressed: false})].flat(Infinity);
     expect(styles).toEqual(expect.arrayContaining([customStyle]));
+  });
+
+  it('applies the small typography variant to the title text', () => {
+    const {getByText} = render(
+      <Button title="Small" onPress={mockOnPress} size="small" />,
+    );
+    const text = getByText('Small');
+    expect(text.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fontSize: mockTheme.typography.buttonSmall.fontSize,
+        }),
+      ]),
+    );
   });
 
   it('applies custom textStyle to Text', () => {

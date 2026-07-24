@@ -207,6 +207,26 @@ describe('appointmentCardData', () => {
         expect(result.hasAssignedVet).toBe(true);
       });
 
+      it('should show "Assigned vet" fallback when employee has no name and appointment has no employeeName', () => {
+        const appointment = createMockAppointment({
+          employeeId: 'emp-1',
+        });
+        const empMap = createEmployeeMap([{id: 'emp-1'}]);
+
+        const result = transformAppointmentCardData(
+          appointment,
+          createBusinessMap(),
+          empMap,
+          createServiceMap(),
+          [],
+          {},
+          mockImages,
+        );
+
+        expect(result.cardTitle).toBe('Assigned vet');
+        expect(result.hasAssignedVet).toBe(true);
+      });
+
       it('should show service name as title when no employee', () => {
         const appointment = createMockAppointment({
           employeeId: null,
@@ -320,6 +340,28 @@ describe('appointmentCardData', () => {
         );
 
         expect(result.servicePriceText).toBe('€50');
+      });
+
+      it('should default to USD when service currency is missing', () => {
+        const appointment = createMockAppointment({
+          employeeId: null,
+          serviceId: 'svc-1',
+        });
+        const svcMap = createServiceMap([
+          {id: 'svc-1', name: 'Checkup', basePrice: 50},
+        ]);
+
+        const result = transformAppointmentCardData(
+          appointment,
+          createBusinessMap(),
+          createEmployeeMap(),
+          svcMap,
+          [],
+          {},
+          mockImages,
+        );
+
+        expect(result.servicePriceText).toBe('$50');
       });
 
       it('should not include price when service has no basePrice', () => {
@@ -674,6 +716,30 @@ describe('appointmentCardData', () => {
 
         expect(result.assignmentNote).toBe(
           'Check-in unlocks when you are within ~350m of the clinic and 12 minutes before start time.',
+        );
+      });
+
+      it('should use singular "minute" when the check-in buffer is 1', () => {
+        const appointment = createMockAppointment({
+          status: 'UPCOMING',
+          employeeId: 'emp-1',
+          appointmentCheckInBufferMinutes: 1,
+          appointmentCheckInRadiusMeters: 200,
+        });
+        const empMap = createEmployeeMap([{id: 'emp-1', name: 'Dr. Smith'}]);
+
+        const result = transformAppointmentCardData(
+          appointment,
+          createBusinessMap(),
+          empMap,
+          createServiceMap(),
+          [],
+          {},
+          mockImages,
+        );
+
+        expect(result.assignmentNote).toBe(
+          'Check-in unlocks when you are within ~200m of the clinic and 1 minute before start time.',
         );
       });
 

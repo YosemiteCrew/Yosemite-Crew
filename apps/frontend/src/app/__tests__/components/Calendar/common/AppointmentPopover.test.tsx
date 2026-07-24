@@ -4,6 +4,8 @@ import '@testing-library/jest-dom';
 
 const mockRejectAppointment = jest.fn();
 const mockPush = jest.fn();
+let mockOrgsById: Record<string, { type: string }> = {};
+let mockStoreCompanion: Record<string, unknown> | undefined;
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -17,13 +19,13 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ orgsById: {} }),
+  useOrgStore: (selector: any) => selector({ orgsById: mockOrgsById }),
 }));
 
 jest.mock('@/app/stores/companionStore', () => ({
   useCompanionStore: (selector: any) =>
     selector({
-      getCompanionById: () => undefined,
+      getCompanionById: () => mockStoreCompanion,
     }),
 }));
 
@@ -109,7 +111,7 @@ jest.mock('@/app/features/appointments/components/Calendar/common/PopoverDetail'
   default: ({ label, value }: any) => (
     <div>
       <span>{label}</span>
-      <span>{value}</span>
+      <span data-testid={`detail-value-${label}`}>{value}</span>
     </div>
   ),
 }));
@@ -119,7 +121,7 @@ jest.mock('@/app/features/appointments/components/Calendar/common/StaffInput', (
   default: ({ label, value }: any) => (
     <div>
       <span>{label}</span>
-      <span>{value}</span>
+      <span data-testid={`staff-value-${label}`}>{value}</span>
     </div>
   ),
 }));
@@ -157,6 +159,8 @@ describe('AppointmentPopover', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockOrgsById = {};
+    mockStoreCompanion = undefined;
     const appointmentsLib = jest.requireMock('@/app/lib/appointments') as {
       allowReschedule: jest.Mock;
       canAssignAppointmentRoom: jest.Mock;
@@ -226,6 +230,39 @@ describe('AppointmentPopover', () => {
     await waitFor(() => {
       expect(onClose).toHaveBeenCalled();
     });
+  });
+
+  it('logs and keeps the popover open when declining fails', async () => {
+    const onClose = jest.fn();
+    const error = new Error('Cannot reject appointment: appointment ID missing.');
+    mockRejectAppointment.mockRejectedValueOnce(error);
+    // jest.setup turns an unhandled console.error into a failure, so take it over.
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <AppointmentPopover
+        appointment={appointment}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        handleAcceptAppointment={jest.fn()}
+        onClose={onClose}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline request' }));
+
+    // The rejection is handled (no unhandled rejection) and a failed decline
+    // must not close the popover as though it had worked.
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to decline appointment request:', error);
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 
   it('shows the workspace action and reschedule path for non-requested appointments', () => {
@@ -579,5 +616,319 @@ describe('AppointmentPopover', () => {
     );
 
     expect(screen.getByText('Feline · Female · 8 lb')).toBeInTheDocument();
+  });
+
+  it('tracks the pointer position on the primary action button', () => {
+    render(
+      <AppointmentPopover
+        appointment={{ ...appointment, status: 'UPCOMING' }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    const primaryAction = screen.getByRole('button', { name: 'Start Appointment' });
+    fireEvent.pointerDown(primaryAction, { clientX: 10, clientY: 20 });
+    expect(primaryAction.style.getPropertyValue('--yc-button-x')).toMatch(/px$/);
+    expect(primaryAction.style.getPropertyValue('--yc-button-y')).toMatch(/px$/);
+
+    fireEvent.pointerMove(primaryAction, { clientX: 15, clientY: 25 });
+    expect(primaryAction.style.getPropertyValue('--yc-button-x')).toMatch(/px$/);
+    expect(primaryAction.style.getPropertyValue('--yc-button-y')).toMatch(/px$/);
+  });
+
+  it('resolves the clinical notes copy from the organisation type in the store', () => {
+    mockOrgsById = { 'org-1': { type: 'CLINIC' } };
+    const { getClinicalNotesLabel, getClinicalNotesIntent } = jest.requireMock(
+      '@/app/lib/appointments'
+    ) as { getClinicalNotesLabel: jest.Mock; getClinicalNotesIntent: jest.Mock };
+
+    render(
+      <AppointmentPopover
+        appointment={{ ...appointment, status: 'IN_PROGRESS' }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(getClinicalNotesLabel).toHaveBeenCalledWith('CLINIC');
+    expect(getClinicalNotesIntent).toHaveBeenCalledWith('CLINIC');
+  });
+
+  it('renders placeholders when the appointment details are blank', () => {
+    const { getOwnerFirstName } = jest.requireMock('@/app/lib/companionName') as {
+      getOwnerFirstName: jest.Mock;
+    };
+    getOwnerFirstName.mockReturnValueOnce('');
+    const { getAppointmentPaymentDisplay } = jest.requireMock('@/app/lib/paymentStatus') as {
+      getAppointmentPaymentDisplay: jest.Mock;
+    };
+    getAppointmentPaymentDisplay.mockReturnValueOnce(undefined);
+
+    render(
+      <AppointmentPopover
+        appointment={{
+          ...appointment,
+          status: 'UPCOMING',
+          organisationId: undefined,
+          concern: '',
+          appointmentType: {},
+          lead: {},
+          supportStaff: undefined,
+        }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(screen.getByTestId('detail-value-Speciality')).toHaveTextContent('-');
+    expect(screen.getByTestId('detail-value-Service')).toHaveTextContent('-');
+    expect(screen.getByTestId('detail-value-Client Name')).toHaveTextContent('-');
+    expect(screen.getByTestId('detail-value-Reason')).toHaveTextContent('-');
+    expect(screen.getByTestId('detail-value-Estimate')).toHaveTextContent('-');
+    expect(screen.getByTestId('staff-value-Lead')).toHaveTextContent('-');
+    expect(screen.getByTestId('staff-value-Support')).toHaveTextContent('-');
+    // organisationId is absent, so the org type falls back to HOSPITAL.
+    const { getClinicalNotesLabel } = jest.requireMock('@/app/lib/appointments') as {
+      getClinicalNotesLabel: jest.Mock;
+    };
+    expect(getClinicalNotesLabel).toHaveBeenCalledWith('HOSPITAL');
+  });
+
+  it('renders placeholders when the appointment type and lead are missing entirely', () => {
+    render(
+      <AppointmentPopover
+        appointment={{
+          ...appointment,
+          status: 'UPCOMING',
+          appointmentType: undefined,
+          lead: undefined,
+        }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(screen.getByTestId('detail-value-Speciality')).toHaveTextContent('-');
+    expect(screen.getByTestId('detail-value-Service')).toHaveTextContent('-');
+    expect(screen.getByTestId('staff-value-Lead')).toHaveTextContent('-');
+  });
+
+  it('falls back to the stored companion weight when the appointment omits it', () => {
+    mockStoreCompanion = { currentWeight: 9 };
+
+    render(
+      <AppointmentPopover
+        appointment={{
+          ...appointment,
+          status: 'UPCOMING',
+          companion: {
+            id: 'comp-4',
+            name: 'Rex',
+            species: 'dog',
+            breed: 'Boxer',
+            gender: 'male',
+            parent: { name: 'Sam' },
+          },
+        }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(screen.getByText('Boxer · Canine · Male · 9 kg')).toBeInTheDocument();
+  });
+
+  it('falls back to the stored physical attribute when the appointment weight is unusable', () => {
+    mockStoreCompanion = { physicalAttribute: { weight: '4 lb' } };
+
+    render(
+      <AppointmentPopover
+        appointment={{
+          ...appointment,
+          status: 'UPCOMING',
+          companion: {
+            id: 'comp-5',
+            name: 'Pip',
+            species: 'cat',
+            gender: 'female',
+            isneutered: true,
+            currentWeight: 'n/a',
+            parent: { name: 'Sam' },
+          },
+        }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(screen.getByText('Feline · FS · 4 lb')).toBeInTheDocument();
+  });
+
+  it('opens the companion history from the quick action bar', () => {
+    const onClose = jest.fn();
+
+    render(
+      <AppointmentPopover
+        appointment={{ ...appointment, status: 'IN_PROGRESS' }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={onClose}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Appointment overview' }));
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/companions/history?companionId=comp-1&source=appointments&appointmentId=appt-1&backTo=%2Fappointments'
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the patient when the appointment has no companion', () => {
+    const onClose = jest.fn();
+
+    render(
+      <AppointmentPopover
+        appointment={{
+          ...appointment,
+          status: 'IN_PROGRESS',
+          companion: undefined,
+          patient: {
+            id: 'patient-1',
+            name: 'Milo',
+            species: 'horse',
+            parent: { name: 'Jo' },
+          },
+        }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={onClose}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(screen.getByText('Equine · Unknown')).toBeInTheDocument();
+
+    // No companion id, so the history href drops the deep-link params.
+    fireEvent.click(screen.getByRole('button', { name: 'Appointment overview' }));
+    expect(mockPush).toHaveBeenCalledWith('/companions/history');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('labels cash payments as paid', () => {
+    const { getAppointmentPaymentDisplay } = jest.requireMock('@/app/lib/paymentStatus') as {
+      getAppointmentPaymentDisplay: jest.Mock;
+    };
+    getAppointmentPaymentDisplay.mockReturnValueOnce({ state: 'PAID_CASH', label: 'Cash' });
+
+    render(
+      <AppointmentPopover
+        appointment={{ ...appointment, status: 'UPCOMING' }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(screen.getByTestId('detail-value-Paid')).toHaveTextContent('Cash');
+  });
+
+  it('labels pay-at-clinic appointments as amount due', () => {
+    const { getAppointmentPaymentDisplay } = jest.requireMock('@/app/lib/paymentStatus') as {
+      getAppointmentPaymentDisplay: jest.Mock;
+    };
+    getAppointmentPaymentDisplay.mockReturnValueOnce({
+      state: 'PAYMENT_AT_CLINIC',
+      label: 'Due at clinic',
+    });
+
+    render(
+      <AppointmentPopover
+        appointment={{ ...appointment, status: 'UPCOMING' }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    expect(screen.getByTestId('detail-value-Amount Due')).toHaveTextContent('Due at clinic');
+  });
+
+  it('closes the popover when assigning a room without a room handler', () => {
+    const onClose = jest.fn();
+
+    render(
+      <AppointmentPopover
+        appointment={{ ...appointment, status: 'IN_PROGRESS' }}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={onClose}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Assign room' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

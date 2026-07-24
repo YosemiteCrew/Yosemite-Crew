@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import type { Appointment } from '@yosemite-crew/types';
@@ -7,6 +7,7 @@ import type { IdexxTest, LabOrder, LabResult } from '@/app/features/integrations
 import type { UseLabTestsReturn } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
 import DiagnosticsStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/DiagnosticsStep';
 import { getAppointmentWorkspaceBootstrap } from '@/app/features/appointments/services/workspaceAggregateService';
+import { getIdexxCombinedResultsPdfBlob } from '@/app/features/integrations/services/idexxService';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 
@@ -14,6 +15,13 @@ expect.extend(toHaveNoViolations);
 
 // ---- module-under-mock: the real IDEXX backend hook + exported helpers ----
 const mockUseLabTests = jest.fn();
+
+const mockRouterPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush, replace: jest.fn(), prefetch: jest.fn() }),
+  useSearchParams: () => ({ get: jest.fn(() => null), entries: jest.fn(() => [].entries()) }),
+  usePathname: () => '/',
+}));
 
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests',
@@ -46,8 +54,29 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
 
 jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
   __esModule: true,
-  default: ({ open, title }: { open: boolean; title?: string }) =>
-    open ? <div data-testid="pdf-overlay">{title}</div> : null,
+  default: ({
+    open,
+    title,
+    closeLabel,
+    onClose,
+  }: {
+    open: boolean;
+    title?: string;
+    closeLabel?: string;
+    onClose?: () => void;
+  }) =>
+    open ? (
+      <div data-testid="pdf-overlay">
+        <span>{title}</span>
+        <button type="button" onClick={onClose}>
+          {closeLabel}
+        </button>
+      </div>
+    ) : null,
+}));
+
+jest.mock('@/app/features/integrations/services/idexxService', () => ({
+  getIdexxCombinedResultsPdfBlob: jest.fn(),
 }));
 
 jest.mock('@/app/lib/urls', () => ({
@@ -111,6 +140,7 @@ const baseHook = (overrides: Partial<UseLabTestsReturn> = {}): UseLabTestsReturn
     selectedTestLabel: '',
     setSelectedTestLabel: jest.fn(),
     selectedTests: [makeTest()],
+    pendingTest: null,
     modality: 'REFERENCE_LAB',
     setModality: jest.fn(),
     selectedIvls: '',
@@ -166,6 +196,9 @@ const baseHook = (overrides: Partial<UseLabTestsReturn> = {}): UseLabTestsReturn
     openOrderAcknowledgement: jest.fn(),
     setActiveOrderForActions: jest.fn(),
     addTest: jest.fn(),
+    selectSearchResult: jest.fn(),
+    confirmPendingTest: jest.fn(),
+    cancelPendingTest: jest.fn(),
     removeTest: jest.fn(),
     handleCreateOrder: jest.fn(),
     handleAddToCensus: jest.fn(),
@@ -193,13 +226,17 @@ const renderStep = (
 describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   beforeEach(() => {
     mockUseLabTests.mockReset();
+    (getIdexxCombinedResultsPdfBlob as jest.Mock).mockReset();
     useAppointmentWorkspaceStore.setState({ encountersById: {} });
   });
 
   it('renders provider pills with IDEXX selected and the order builder/queue/results sections', () => {
     renderStep();
 
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     expect(screen.getByRole('img', { name: 'IDEXX' })).toBeInTheDocument();
     expect(screen.getByText('Order Builder')).toBeInTheDocument();
     expect(screen.getByText('Test Queue')).toBeInTheDocument();
@@ -238,7 +275,10 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     // Clicking the disabled provider does not switch away from the IDEXX builder.
     fireEvent.click(radButton);
     expect(screen.getByText('Order Builder')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
   it('keeps diagnostic history visible but hides new-order controls when read-only', () => {
@@ -355,7 +395,7 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   it('updates order builder fields through the backend hook callbacks', () => {
     const { hook } = renderStep({ modality: 'REFERENCE_LAB' });
 
-    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Fasted sample' } });
+    fireEvent.change(screen.getByLabelText('Order notes'), { target: { value: 'Fasted sample' } });
     fireEvent.change(screen.getByLabelText('Collection Date'), { target: { value: '2026-06-03' } });
     fireEvent.click(screen.getByRole('button', { name: /veterinarian: dr\. tim apple/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Sarah Mitchell' }));
@@ -369,6 +409,38 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(hook.setVeterinarian).toHaveBeenCalledWith('tech-1');
     expect(hook.setTechnician).toHaveBeenCalledWith('vet-1');
     expect(hook.setModality).toHaveBeenCalledWith('INHOUSE');
+  });
+
+  it('stages a search result instead of queueing it directly (bug #1973)', () => {
+    const { hook } = renderStep({
+      tests: [makeTest({ code: 'NEW001', display: 'Unique New Test' })],
+    });
+
+    const input = screen.getByLabelText('Search for lab tests');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Unique' } });
+    fireEvent.click(screen.getByRole('button', { name: /Unique New Test/ }));
+
+    expect(hook.selectSearchResult).toHaveBeenCalledWith('NEW001');
+    expect(hook.addTest).not.toHaveBeenCalled();
+  });
+
+  it('shows a pending test confirmation card and wires its Add/Cancel actions', () => {
+    const { hook } = renderStep({ pendingTest: makeTest({ code: 'SA250' }) });
+
+    const confirmation = screen.getByTestId('pending-test-confirmation');
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Add to Queue' }));
+    expect(hook.confirmPendingTest).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    expect(hook.cancelPendingTest).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows saved order notes in Order Status so they remain visible after refresh (bug #1973)', () => {
+    renderStep({ appointmentOrders: [makeOrder({ notes: 'Fasted patient' })] });
+
+    expect(screen.getByText(/Order notes:/)).toBeInTheDocument();
+    expect(screen.getByText(/Fasted patient/)).toBeInTheDocument();
   });
 
   it('disables create when no tests are queued and renders the empty queue message', () => {
@@ -491,6 +563,223 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     fireEvent.click(screen.getByRole('button', { name: /treatment plan/i }));
     expect(onOpenTreatment).toHaveBeenCalled();
 
+    printSpy.mockRestore();
+  });
+
+  it('opens the IDEXX workspace when the logo pill is clicked', () => {
+    renderStep();
+
+    // IDEXX is always the selected provider, so selection alone left the logo
+    // looking clickable while doing nothing visible. It now opens the hub.
+    fireEvent.click(screen.getByRole('button', { name: 'Open the IDEXX workspace' }));
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/appointments/idexx-workspace');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('labels a non-submitted, non-created order "Open IDEXX" and opens it as an order source', () => {
+    const { hook } = renderStep({
+      appointmentOrders: [makeOrder({ status: 'IN_PROGRESS' })],
+      getOrderDisplayStatus: jest.fn(
+        () => 'Processing'
+      ) as UseLabTestsReturn['getOrderDisplayStatus'],
+    });
+
+    // Info-toned status pill.
+    expect(screen.getByText('Processing')).toBeInTheDocument();
+
+    const openButton = screen.getByRole('button', { name: /open idexx for order 100358709/i });
+    fireEvent.click(openButton);
+    expect(hook.setActiveOrderForActions).toHaveBeenCalled();
+    expect(hook.openOrderIframe).toHaveBeenCalledWith('order', 'IN_PROGRESS', expect.anything());
+  });
+
+  it('renders a warning-toned status pill for cancelled orders', () => {
+    renderStep({
+      getOrderDisplayStatus: jest.fn(
+        () => 'Cancelled'
+      ) as UseLabTestsReturn['getOrderDisplayStatus'],
+    });
+
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+  });
+
+  it('renders a neutral status pill for unrecognised order statuses', () => {
+    renderStep({
+      getOrderDisplayStatus: jest.fn(() => 'Unknown') as UseLabTestsReturn['getOrderDisplayStatus'],
+    });
+
+    expect(screen.getByText('Unknown')).toBeInTheDocument();
+  });
+
+  it('propagates the lab-test search query to both hook setters', () => {
+    const { hook } = renderStep({ modality: 'REFERENCE_LAB' });
+
+    const input = screen.getByPlaceholderText('Search for lab tests');
+    // Focus opens the dropdown so options (and renderOption) are exercised.
+    fireEvent.focus(input);
+    // The option row renders the per-test code alongside the queue card's copy.
+    expect(screen.getAllByText('Code: SA250').length).toBeGreaterThan(1);
+
+    fireEvent.change(input, { target: { value: 'Can' } });
+    expect(hook.setSelectedTestLabel).toHaveBeenCalledWith('Can');
+    expect(hook.setQuery).toHaveBeenCalledWith('Can');
+  });
+
+  it('shows the in-house present-in-census state and prompts for an IVLS device', () => {
+    renderStep({ modality: 'INHOUSE', selectedIvls: '', companionInCensus: true });
+
+    expect(screen.getByText(/Patient is present in IDEXX census/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Select an IVLS device to check confirmation state/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows the read-only empty test-queue message when locked', () => {
+    renderStep({ selectedTests: [] }, jest.fn(), true);
+
+    expect(
+      screen.getByText(/No draft lab tests were selected before this appointment was locked/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows the loading message when appointment orders are still loading', () => {
+    renderStep({ appointmentOrders: [], ordersLoading: true });
+
+    expect(screen.getByText(/Loading appointment lab orders/i)).toBeInTheDocument();
+  });
+
+  it('shows the empty message when there are no appointment orders', () => {
+    renderStep({ appointmentOrders: [], ordersLoading: false });
+
+    expect(screen.getByText(/No lab orders for this appointment yet/i)).toBeInTheDocument();
+  });
+
+  it('resets the iframe loaded state when the overlay dependencies change', () => {
+    mockUseLabTests.mockReturnValue(baseHook({ showOrderIframe: false }));
+    const { rerender } = render(
+      <DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />
+    );
+    expect(screen.queryByTitle('IDEXX order UI')).not.toBeInTheDocument();
+
+    mockUseLabTests.mockReturnValue(
+      baseHook({ showOrderIframe: true, iframeOrderUiUrl: 'https://idexx.test/frame' })
+    );
+    rerender(<DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />);
+
+    expect(screen.getByTitle('IDEXX order UI')).toBeInTheDocument();
+  });
+
+  it('re-syncs iframe overlay deps without resetting loaded when the frame stays closed', () => {
+    mockUseLabTests.mockReturnValue(
+      baseHook({ showOrderIframe: false, iframeOrderUiUrl: 'https://idexx.test/a' })
+    );
+    const { rerender } = render(
+      <DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />
+    );
+
+    mockUseLabTests.mockReturnValue(
+      baseHook({ showOrderIframe: false, iframeOrderUiUrl: 'https://idexx.test/b' })
+    );
+    rerender(<DiagnosticsStep appointment={APPOINTMENT} onOpenTreatment={jest.fn()} />);
+
+    expect(screen.queryByTitle('IDEXX order UI')).not.toBeInTheDocument();
+  });
+
+  it('logs an error when the post-order workspace refresh fails', async () => {
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockRejectedValueOnce(
+      new Error('refresh boom')
+    );
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockUseLabTests.mockReturnValue(baseHook());
+    const appointmentWithOrg = {
+      id: 'appt-diagnostics',
+      organisationId: 'org-1',
+      companion: { id: 'comp-1', name: 'Gigi' },
+    } as unknown as Appointment;
+    render(<DiagnosticsStep appointment={appointmentWithOrg} onOpenTreatment={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /create lab order/i }));
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Unable to refresh workspace after lab order:',
+        expect.any(Error)
+      )
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('builds a combined results PDF and revokes it on close', async () => {
+    const createObjectURL = jest.fn(() => 'blob:combined');
+    const revokeObjectURL = jest.fn();
+    globalThis.URL.createObjectURL = createObjectURL as unknown as typeof URL.createObjectURL;
+    globalThis.URL.revokeObjectURL = revokeObjectURL as unknown as typeof URL.revokeObjectURL;
+    (getIdexxCombinedResultsPdfBlob as jest.Mock).mockResolvedValue(new Blob(['pdf']));
+
+    mockUseLabTests.mockReturnValue(baseHook());
+    const appointmentWithOrg = {
+      id: 'appt-diagnostics',
+      organisationId: 'org-1',
+      companion: { id: 'comp-1', name: 'Gigi' },
+    } as unknown as Appointment;
+    render(<DiagnosticsStep appointment={appointmentWithOrg} onOpenTreatment={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /print all results/i }));
+
+    await waitFor(() =>
+      expect(getIdexxCombinedResultsPdfBlob).toHaveBeenCalledWith({
+        organisationId: 'org-1',
+        resultIds: ['r1'],
+      })
+    );
+    expect(await screen.findByText('All lab results')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close combined results PDF' }));
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:combined');
+    expect(screen.queryByText('All lab results')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the browser print dialog when the combined PDF fails to build', async () => {
+    (getIdexxCombinedResultsPdfBlob as jest.Mock).mockRejectedValue(new Error('pdf boom'));
+    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    mockUseLabTests.mockReturnValue(baseHook());
+    const appointmentWithOrg = {
+      id: 'appt-diagnostics',
+      organisationId: 'org-1',
+      companion: { id: 'comp-1', name: 'Gigi' },
+    } as unknown as Appointment;
+    render(<DiagnosticsStep appointment={appointmentWithOrg} onOpenTreatment={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /print all results/i }));
+
+    await waitFor(() => expect(printSpy).toHaveBeenCalled());
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Unable to build combined results PDF:',
+      expect.any(Error)
+    );
+    printSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it('prints directly when there are no result ids to combine', () => {
+    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+    mockUseLabTests.mockReturnValue(baseHook({ results: [] }));
+    const appointmentWithOrg = {
+      id: 'appt-diagnostics',
+      organisationId: 'org-1',
+      companion: { id: 'comp-1', name: 'Gigi' },
+    } as unknown as Appointment;
+    render(<DiagnosticsStep appointment={appointmentWithOrg} onOpenTreatment={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /print all results/i }));
+    expect(printSpy).toHaveBeenCalled();
+    expect(getIdexxCombinedResultsPdfBlob).not.toHaveBeenCalled();
     printSpy.mockRestore();
   });
 

@@ -217,4 +217,42 @@ describe('revampCatalogStore', () => {
     getStore().removeBreakdownItem('pkg-1', itemId);
     expect(getStore().packages[0].breakdown).toHaveLength(0);
   });
+
+  describe('clearCatalog', () => {
+    it('drops every cached catalog entry', () => {
+      useRevampCatalogStore.setState({
+        specialities: [speciality],
+        services: [service],
+        packages: [pkg],
+        status: 'ready',
+        error: 'boom',
+        loadedSpecialityIds: ['spec-1:active'],
+      });
+
+      getStore().clearCatalog();
+
+      expect(getStore().specialities).toEqual([]);
+      expect(getStore().services).toEqual([]);
+      expect(getStore().packages).toEqual([]);
+      expect(getStore().status).toBe('idle');
+      expect(getStore().error).toBeUndefined();
+      expect(getStore().loadedSpecialityIds).toEqual([]);
+    });
+
+    it('lets the next organisation reload the catalog from scratch', async () => {
+      mockCatalogApi.listSpecialities.mockResolvedValue([speciality]);
+      await getStore().loadOrganisationCatalog('org-1');
+      expect(mockCatalogApi.listSpecialities).toHaveBeenCalledTimes(1);
+
+      getStore().clearCatalog();
+
+      // Without dropping the module-level in-flight/loaded caches this second
+      // load would short-circuit and leave the new org with an empty catalog.
+      mockCatalogApi.listSpecialities.mockResolvedValue([{ ...speciality, id: 'spec-2' }]);
+      await getStore().loadOrganisationCatalog('org-1');
+
+      expect(mockCatalogApi.listSpecialities).toHaveBeenCalledTimes(2);
+      expect(getStore().specialities).toEqual([{ ...speciality, id: 'spec-2' }]);
+    });
+  });
 });

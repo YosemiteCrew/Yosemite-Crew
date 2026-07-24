@@ -28,7 +28,11 @@ import { registerIpc as registerIpcHandlers } from './core/ipc-handlers';
 import type { createTabManager } from './core/tab-manager';
 import type { createTabViewHost } from './ui/tab-view-host';
 import { createLogger, type DesktopLogger } from './utils/logger';
-import { createWindowStateStore, type WindowStateStore } from './core/window-state';
+import {
+  clampPositionToWorkArea,
+  createWindowStateStore,
+  type WindowStateStore,
+} from './core/window-state';
 import { checkForUpdatesManually } from './lifecycle/updater';
 import { createReloadGuard } from './core/reload-guard';
 import { aboutPanelOptions } from './ui/branding';
@@ -37,7 +41,11 @@ import {
   createKeyboardShortcutManager,
   type KeyboardShortcutManager,
 } from './ui/keyboard-shortcuts';
-import { idleLockMinutesFromEnv, shouldLockAfterIdle } from './lifecycle/idle-lock';
+import {
+  idleLockMinutesFromEnv,
+  resolveIdleLockMinutes,
+  shouldLockAfterIdle,
+} from './lifecycle/idle-lock';
 import {
   setupTray,
   setupTelemetry,
@@ -1230,14 +1238,13 @@ const openCommandPalette = (): void => {
 // When biometric lock is available and enabled, locks biometric instead of
 // clearing the session — requiring Touch ID / Windows Hello to resume.
 const setupIdleLock = (ses: Session): void => {
-  // Prefer the persisted Preferences value (read live each tick so toggling
-  // "Idle auto-lock" applies without a restart); fall back to the env override.
-  const resolveIdleMinutes = (): number => {
-    const minutes = settingsStore?.load().idleLockMinutes;
-    return typeof minutes === 'number' && minutes > 0
-      ? minutes
-      : (idleLockMinutesFromEnv(process.env) ?? 0);
-  };
+  // Read the persisted Preferences value live each tick so toggling "Idle
+  // auto-lock" applies without a restart. The MDM-populated env value caps it.
+  const resolveIdleMinutes = (): number =>
+    resolveIdleLockMinutes(
+      settingsStore?.load().idleLockMinutes,
+      idleLockMinutesFromEnv(process.env)
+    );
   let locked = false;
 
   // In-app lock screen shown over the workspace while biometric unlock is
@@ -1405,7 +1412,13 @@ const moveMainWindowBy = (dx: number, dy: number): void => {
   const win = mainWindow;
   if (!win || win.isDestroyed() || win.isMaximized() || win.isFullScreen()) return;
   const [x = 0, y = 0] = win.getPosition();
-  win.setPosition(Math.round(x + dx), Math.round(y + dy));
+  const [width = 0, height = 0] = win.getSize();
+  const next = clampPositionToWorkArea(
+    { x: Math.round(x + dx), y: Math.round(y + dy) },
+    { width, height },
+    screen.getAllDisplays()
+  );
+  win.setPosition(next.x, next.y);
 };
 
 // Caption-button controls for the frameless window (Windows/Linux). macOS keeps

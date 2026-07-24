@@ -4,6 +4,7 @@ import type {Task} from '@/features/tasks/types';
 export type TaskCardMeta = {
   isPending: boolean;
   isCompleted: boolean;
+  isCancelled: boolean;
   assignedToData?: {
     avatar?: string;
     name: string;
@@ -11,10 +12,14 @@ export type TaskCardMeta = {
   isObservationalToolTask: boolean;
 };
 
-export const getTaskCardMeta = (task: Task, authUser: User | null | undefined): TaskCardMeta => {
+export const getTaskCardMeta = (
+  task: Task,
+  authUser: User | null | undefined,
+): TaskCardMeta => {
   const statusUpper = String(task.status).toUpperCase();
   const isPending = statusUpper === 'PENDING';
   const isCompleted = statusUpper === 'COMPLETED';
+  const isCancelled = statusUpper === 'CANCELLED';
 
   const selfId = authUser?.parentId ?? authUser?.id;
   const assignedToData =
@@ -34,6 +39,7 @@ export const getTaskCardMeta = (task: Task, authUser: User | null | undefined): 
   return {
     isPending,
     isCompleted,
+    isCancelled,
     assignedToData,
     isObservationalToolTask,
   };

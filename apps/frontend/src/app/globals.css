@@ -46,13 +46,57 @@
   font-style: italic;
 }
 
+/* Newsreader (OFL) — marketing display serif, variable weight + optical size */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: normal;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: normal;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: italic;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: italic;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
 html {
   scroll-behavior: auto;
 }
 
 body {
   min-height: 100vh;
-  background-color: var(--whitebg) !important;
+  background-color: var(--page) !important;
   color: var(--color-text-primary);
   font-family: var(--font-satoshi) !important;
   font-size: 1rem;
@@ -218,16 +262,24 @@ textarea:focus-visible {
   }
 }
 @theme {
-  --color-neutral-950: #1d1c1b;
-  --color-neutral-900: #302f2e;
-  --color-neutral-800: #454341;
-  --color-neutral-700: #5c5956;
-  --color-neutral-600: #8f8984;
-  --color-neutral-500: #a9a39e;
-  --color-neutral-300: #d6d1cd;
-  --color-neutral-200: #e9e6e3;
-  --color-neutral-100: #f5f3f1;
-  --color-neutral-0: #ffffff;
+  /* Neutral ramp is re-pointed to the warm-bone token layer (defined at the end of
+     this file with light + dark values). Light values are near-identical to the
+     originals, so light mode barely shifts; dark mode comes free because every
+     `neutral-*` utility and the semantic tokens that reference the ramp resolve
+     through `--ink*`/`--screen*`/`--hairline`, which flip under html[data-theme=dark].
+     `--color-white` is intentionally NOT re-pointed: it stays pure white for text and
+     icons on solid/coloured fills. Surfaces on `bg-white` are migrated to `bg-neutral-0`
+     per area. */
+  --color-neutral-950: var(--ink);
+  --color-neutral-900: var(--ink-body);
+  --color-neutral-800: var(--ink-soft);
+  --color-neutral-700: var(--ink-muted);
+  --color-neutral-600: var(--ink-faint);
+  --color-neutral-500: var(--ink-faint2);
+  --color-neutral-300: var(--divider);
+  --color-neutral-200: var(--hairline);
+  --color-neutral-100: var(--screen-2);
+  --color-neutral-0: var(--screen);
 
   /* Brand (blue) */
   --color-primary-100: #e6f2ff;
@@ -316,7 +368,9 @@ textarea:focus-visible {
   --color-grey-border: var(--color-neutral-500);
   --color-grey-light: var(--color-neutral-200);
   --color-grey-noti: var(--color-neutral-700);
-  --color-blue-text: var(--color-primary-500);
+  /* The design's blue (#257bed), not the brighter brand-ramp primary-500
+     (#007cf5) — links, active states and badges read as --blue in every frame. */
+  --color-blue-text: var(--blue);
   --color-blue-light: var(--color-primary-100);
   --color-blue-sky: #428bec;
   --color-white-text: var(--color-neutral-100);
@@ -336,12 +390,14 @@ textarea:focus-visible {
   --color-calendar-preview-overlay: rgba(36, 122, 237, 0.18);
   --color-calendar-dim-overlay: rgba(0, 0, 0, 0.045);
   --color-overlay-backdrop: rgba(48, 47, 46, 0.5);
-  --color-chat-surface: #f8fbff;
-  --color-chat-panel: #eff6ff;
-  --color-chat-panel-border: #dbeafe;
-  --color-chat-divider: #e5e7eb;
-  --color-chat-divider-soft: #f3f4f6;
-  --color-chat-surface-soft: #f9fafb;
+  /* Warm-bone chat surfaces (aligned with --screen/--screen-2/--hairline so the
+     chat workspace matches the PIMS design instead of the old cool-blue theme). */
+  --color-chat-surface: #f7f3ec;
+  --color-chat-panel: #f1ebe1;
+  --color-chat-panel-border: #e5dccf;
+  --color-chat-divider: #e5dccf;
+  --color-chat-divider-soft: #efe8dc;
+  --color-chat-surface-soft: #f1ebe1;
   --color-success-bright: #22c55e;
   --color-success-bright-ring: rgba(34, 197, 94, 0.18);
   --color-shadow-soft: rgba(15, 23, 42, 0.08);
@@ -356,12 +412,12 @@ textarea:focus-visible {
   --color-toast-success-bg: #b0dccd;
   --color-select-ink: #312943;
   --color-select-ink-muted: #31294399;
-  --color-surface-disabled: #f5f5f5;
+  --color-surface-disabled: #ece5d9;
   --color-text-subtle: #555555;
   --color-text-strong: #333333;
   --color-text-body-dark: #222222;
   --color-linkedin-blue: #0a66c2;
-  --color-chat-empty-bg: #fdfefe;
+  --color-chat-empty-bg: #faf7f0;
   --color-onboarding-accent-border: #b7c8ff;
   --color-onboarding-accent-bg: #f8fbff;
   --color-surface-muted: #f4f4f4;
@@ -432,6 +488,28 @@ textarea:focus-visible {
   --color-category-info: #0b6f92;
   --color-category-attention: #7a6d00;
   --color-category-admin: #2e4d85;
+
+  /* Warm-bone editorial palette (shared design-system layer).
+     Base rule: nothing renders pure white; product surfaces sit on bone (#efe8dc)
+     and "screens"/cards use --color-screen. Accents are the logo's exact colours:
+     blue structural everywhere, pink = Pet Parents, cyan = Developers
+     (cyan drops to --color-cyan-text on cream for legibility). */
+  --color-bone: #efe8dc;
+  --color-band: #e8e0d2;
+  --color-inset: #eae2d5;
+  --color-screen: #f7f3ec;
+  --color-screen-2: #f1ebe1;
+  --color-hairline: #e5dccf;
+  --color-ink: #1d1c1b;
+  --color-ink-body: #302f2e;
+  --color-accent: #257bed;
+  --color-accent-deep: #1657c9;
+  --color-accent-dark: #8fb6f5;
+  --color-pink: #ff90d4;
+  --color-cyan: #5ce1e6;
+  --color-cyan-text: #38ccd8;
+
+  --font-newsreader: var(--font-newsreader-src, 'Newsreader'), Georgia, 'Times New Roman', serif;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -477,6 +555,351 @@ textarea:focus-visible {
   --img-bg-lines: url('https://d2il6osz49gpup.cloudfront.net/Images/LINES.png');
   --img-bg-trust-after: url('https://d2il6osz49gpup.cloudfront.net/Images/TrustAfter.png');
   --img-bg-about: url('https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png');
+
+  /* ==========================================================================
+     Marketing site theming — light (warm-bone) + dark (espresso) tokens.
+     Light values are byte-identical to the marketing pages' original inline hexes,
+     so light mode is unchanged. Dark mode is driven by html[data-theme="dark"],
+     set pre-paint from localStorage 'yc-theme' or prefers-color-scheme. Rules that
+     would otherwise touch the PIMS app (color-scheme, flip transitions, focus
+     rings, selection) are scoped to the [data-yc-theme] marketing surface.
+     Reference: design_handoff_dark_mode/site-theme.css.
+     ========================================================================== */
+  /* surfaces */
+  --page: #efe8dc;
+  --band: #e8e0d2;
+  --inset: #eae2d5;
+  --screen: #f7f3ec;
+  --screen-2: #f1ebe1;
+  --hairline: #e5dccf;
+  --divider: #d6d1cd;
+  --hairline-hover: #d6d1cd;
+  /* active nav item (current page) */
+  --nav-active: #1657c9;
+  --nav-active-bg: rgba(37, 123, 237, 0.11);
+  /* ink */
+  --ink: #1d1c1b;
+  --ink-body: #302f2e;
+  --ink-muted: #5c5956;
+  --ink-soft: #423f3c;
+  --ink-faint: #8f8984;
+  --ink-faint2: #a9a39e;
+  --ink-6b: #6b6763;
+  /* primary CTA (dark fill on light) */
+  --cta: #302f2e;
+  --cta-hover: #1d1c1b;
+  --cta-text: #ffffff;
+  /* app-store / desktop download buttons */
+  --dl-btn: #1d1c1b;
+  --dl-btn-text: #ffffff;
+  --dl-btn-sub: #a9a39e;
+  --dl-btn-hover: #302f2e;
+  /* accents */
+  --blue: #257bed;
+  --blue-text: #257bed;
+  --blue-soft: #e6f2ff;
+  --pink: #ff90d4;
+  --cyan: #5ce1e6;
+  --cyan-text: #38ccd8;
+  --success: #008f5d;
+  --warn: #f59e0b;
+  /* always-dark spotlight blocks (manifesto / code / phone bezel) */
+  --spot: #1d1c1b;
+  /* ink that sits on --spot; light in both themes because --spot never flips */
+  --spot-ink: #eae2d5;
+  /* light-surface code card syntax + mockup avatar chips */
+  --code-str: #006642;
+  --avatar-violet-bg: #f5f3ff;
+  --avatar-violet-ink: #5b21b6;
+  --avatar-green-bg: #e6f4ef;
+  --avatar-green-ink: #006642;
+  --avatar-amber-bg: #fef3e9;
+  --avatar-amber-ink: #af5e19;
+  /* glassy nav bits */
+  --nav-hover: rgba(255, 255, 255, 0.5);
+  --glass-btn: linear-gradient(180deg, rgba(255, 253, 250, 0.9), rgba(250, 246, 239, 0.8));
+  --glass-btn-border: rgba(255, 255, 255, 0.65);
+  --glass-pill-shadow:
+    0 2px 4px rgba(29, 28, 27, 0.05), 0 12px 28px rgba(29, 28, 27, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -12px 22px rgba(233, 224, 209, 0.12);
+  --glass-95: rgba(239, 232, 220, 0.94);
+  --glass-93: rgba(239, 232, 220, 0.93);
+  --glass-92: rgba(239, 232, 220, 0.92);
+  --hairline-soft: rgba(29, 28, 27, 0.09);
+  --hero-halo1: rgba(239, 232, 220, 0.95);
+  --hero-halo2: rgba(239, 232, 220, 0.85);
+  /* scrolled-nav glass (shared by every page's nav) */
+  --nav-glass: rgba(239, 232, 220, 0.82);
+  --nav-border: rgba(29, 28, 27, 0.08);
+  --nav-shadow: 0 1px 0 rgba(29, 28, 27, 0.03), 0 10px 34px rgba(29, 28, 27, 0.06);
+  --glass-inset-hi: rgba(255, 255, 255, 0.9);
+  /* elevation scale — warm-dark in light, deeper black in dark */
+  --sh03: rgba(29, 28, 27, 0.03);
+  --sh05: rgba(29, 28, 27, 0.05);
+  --sh06: rgba(29, 28, 27, 0.06);
+  --sh08: rgba(29, 28, 27, 0.08);
+  --sh09: rgba(29, 28, 27, 0.09);
+  --sh10: rgba(29, 28, 27, 0.1);
+  --sh12: rgba(29, 28, 27, 0.12);
+  --sh14: rgba(29, 28, 27, 0.14);
+  --sh16: rgba(29, 28, 27, 0.16);
+  --sh18: rgba(29, 28, 27, 0.18);
+  --sh20: rgba(29, 28, 27, 0.2);
+  --sh22: rgba(29, 28, 27, 0.22);
+  --sh28: rgba(29, 28, 27, 0.28);
+  --sh55: rgba(29, 28, 27, 0.55);
+  /* ambient radial glows — original alphas in light; boosted in dark */
+  --glow-b07: rgba(37, 123, 237, 0.07);
+  --glow-b08: rgba(37, 123, 237, 0.08);
+  --glow-b09: rgba(37, 123, 237, 0.09);
+  --glow-b10: rgba(37, 123, 237, 0.1);
+  --glow-b12: rgba(37, 123, 237, 0.12);
+  --glow-b13: rgba(37, 123, 237, 0.13);
+  --glow-b14: rgba(37, 123, 237, 0.14);
+  --glow-b20: rgba(37, 123, 237, 0.2);
+  --glow-b26: rgba(37, 123, 237, 0.26);
+  --glow-c09: rgba(92, 225, 230, 0.09);
+  --glow-c10: rgba(92, 225, 230, 0.1);
+  --glow-c14: rgba(92, 225, 230, 0.14);
+  --glow-p07: rgba(244, 121, 190, 0.07);
+  --glow-p08: rgba(244, 121, 190, 0.08);
+  --glow-p10: rgba(244, 121, 190, 0.1);
+  --glow-p12: rgba(244, 121, 190, 0.12);
+  --glow-k10: rgba(255, 144, 212, 0.1);
+  /* soft card on the page (contact detail cards) */
+  --surface-soft: rgba(239, 232, 220, 0.7);
+  /* raised pill on a footer/inset surface */
+  --pill-raised: #f7f3ec;
+  /* form inputs: the design's crisp near-white field on the warm-bone surface
+     (site-theme.css :root). The dark field is recessed off its own surface. */
+  --field-bg: #fafafa;
+  /* Semantic tinted surfaces for chrome + global-state components (notifications
+     rows, permission-denied, filtered-empty). Values mirror the danger/warning
+     ramps and the pink accent so tinted discs read consistently in light mode. */
+  --danger-bg: rgba(234, 55, 41, 0.09);
+  /* Faintest danger tint (emergency / overdue row wash). */
+  --danger-bg-faint: rgba(234, 55, 41, 0.04);
+  --danger-text: #c2261a;
+  --danger: #ea3729;
+  --danger-border: rgba(234, 55, 41, 0.32);
+  --warn-bg: rgba(245, 158, 11, 0.12);
+  --warn-text: #b45309;
+  --warn-border: rgba(245, 158, 11, 0.3);
+  --pink-soft: #ffe8f6;
+  --pink-text: #c43d94;
+}
+
+html[data-theme='dark'] {
+  --page: #201c18;
+  --band: #2a2216;
+  --inset: #302820;
+  --screen: #2f271e;
+  --screen-2: #221d17;
+  --hairline: #40362b;
+  /* The warm-bone `--color-*` tokens are declared as light literals in @theme
+     (Tailwind needs a parseable value there at build time) and so never flip on
+     their own. Mirror them onto the semantic tokens here — otherwise anything
+     reading `var(--color-screen)` / `var(--color-ink)` directly, e.g. the
+     developer pages' CSS, renders as a light island on the dark shell. */
+  --color-band: var(--band);
+  --color-inset: var(--inset);
+  --color-screen: var(--screen);
+  --color-screen-2: var(--screen-2);
+  --color-hairline: var(--hairline);
+  --color-ink: var(--ink);
+  --color-ink-body: var(--ink-body);
+  --color-cyan-text: var(--cyan-text);
+  --divider: #3a3128;
+  --hairline-hover: #4a4033;
+  --nav-active: #8fb6f5;
+  --nav-active-bg: rgba(143, 182, 245, 0.13);
+  --ink: #f4efe6;
+  --ink-body: #e6ddd0;
+  --ink-muted: #a89e90;
+  --ink-soft: #cabfb0;
+  --ink-faint: #9d9285;
+  --ink-faint2: #8b8173;
+  --ink-6b: #a1968a;
+  --cta: #f2ece1;
+  --cta-hover: #fbf8f1;
+  --cta-text: #201c18;
+  --dl-btn: #f7f3ec;
+  --dl-btn-text: #201c18;
+  --dl-btn-sub: #6b6155;
+  --dl-btn-hover: #ffffff;
+  --blue: #257bed;
+  --blue-text: #8fb6f5;
+  --blue-soft: rgba(143, 182, 245, 0.16);
+  --pink: #ff90d4;
+  --cyan: #5ce1e6;
+  --cyan-text: #5ce1e6;
+  --success: #2bbd86;
+  --warn: #f5a83c;
+  --spot: #17140f;
+  --spot-ink: #f4efe6;
+  --code-str: #8acbb4;
+  --avatar-violet-bg: rgba(167, 139, 250, 0.2);
+  --avatar-violet-ink: #cbb2f4;
+  --avatar-green-bg: rgba(74, 205, 155, 0.17);
+  --avatar-green-ink: #74d0a2;
+  --avatar-amber-bg: rgba(233, 170, 120, 0.17);
+  --avatar-amber-ink: #ecb488;
+  --nav-hover: rgba(255, 255, 255, 0.06);
+  --glass-btn: linear-gradient(180deg, rgba(54, 46, 37, 0.82), rgba(34, 29, 23, 0.72));
+  --glass-btn-border: rgba(255, 255, 255, 0.1);
+  --glass-pill-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.28), 0 12px 28px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -12px 22px rgba(0, 0, 0, 0.14);
+  --glass-95: rgba(30, 26, 21, 0.9);
+  --glass-93: rgba(34, 29, 23, 0.92);
+  --glass-92: rgba(34, 29, 23, 0.86);
+  --hairline-soft: rgba(255, 255, 255, 0.09);
+  --hero-halo1: rgba(18, 15, 11, 0.92);
+  --hero-halo2: rgba(18, 15, 11, 0.82);
+  --nav-glass: rgba(28, 24, 20, 0.82);
+  --nav-border: rgba(255, 255, 255, 0.08);
+  --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 34px rgba(0, 0, 0, 0.4);
+  --glass-inset-hi: rgba(255, 255, 255, 0.06);
+  --sh03: rgba(0, 0, 0, 0.14);
+  --sh05: rgba(0, 0, 0, 0.2);
+  --sh06: rgba(0, 0, 0, 0.24);
+  --sh08: rgba(0, 0, 0, 0.3);
+  --sh09: rgba(0, 0, 0, 0.32);
+  --sh10: rgba(0, 0, 0, 0.34);
+  --sh12: rgba(0, 0, 0, 0.36);
+  --sh14: rgba(0, 0, 0, 0.4);
+  --sh16: rgba(0, 0, 0, 0.44);
+  --sh18: rgba(0, 0, 0, 0.48);
+  --sh20: rgba(0, 0, 0, 0.52);
+  --sh22: rgba(0, 0, 0, 0.55);
+  --sh28: rgba(0, 0, 0, 0.62);
+  --sh55: rgba(0, 0, 0, 0.8);
+  --glow-b07: rgba(37, 123, 237, 0.13);
+  --glow-b08: rgba(37, 123, 237, 0.14);
+  --glow-b09: rgba(37, 123, 237, 0.16);
+  --glow-b10: rgba(37, 123, 237, 0.18);
+  --glow-b12: rgba(37, 123, 237, 0.22);
+  --glow-b13: rgba(37, 123, 237, 0.23);
+  --glow-b14: rgba(37, 123, 237, 0.25);
+  --glow-b20: rgba(37, 123, 237, 0.34);
+  --glow-b26: rgba(37, 123, 237, 0.42);
+  --glow-c09: rgba(92, 225, 230, 0.16);
+  --glow-c10: rgba(92, 225, 230, 0.18);
+  --glow-c14: rgba(92, 225, 230, 0.25);
+  --glow-p07: rgba(244, 121, 190, 0.13);
+  --glow-p08: rgba(244, 121, 190, 0.14);
+  --glow-p10: rgba(244, 121, 190, 0.18);
+  --glow-p12: rgba(244, 121, 190, 0.22);
+  --glow-k10: rgba(255, 144, 212, 0.18);
+  --surface-soft: #2a2216;
+  --pill-raised: #383026;
+  --field-bg: #241f18;
+  /* PIMS design-system Badge — DS ships light-only; tint-on-dark equivalents */
+  --status-requested-bg: rgba(255, 255, 255, 0.07);
+  --status-requested-text: #b9b0a4;
+  --status-requested-border: rgba(255, 255, 255, 0.28);
+  --status-upcoming-bg: rgba(37, 123, 237, 0.18);
+  --status-upcoming-text: #9cc4f8;
+  --status-upcoming-border: rgba(103, 160, 239, 0.6);
+  --status-checked-in-bg: rgba(99, 102, 241, 0.18);
+  --status-checked-in-text: #bcbef9;
+  --status-checked-in-border: rgba(129, 132, 245, 0.6);
+  --status-in-progress-bg: rgba(139, 92, 246, 0.18);
+  --status-in-progress-text: #cdb8fa;
+  --status-in-progress-border: rgba(154, 113, 247, 0.6);
+  --color-status-success-text: #74d0a2;
+  --color-status-success-bg: rgba(74, 205, 155, 0.16);
+}
+
+/* Native control theming + flip transition, scoped to the marketing surface. */
+[data-yc-theme] {
+  color-scheme: light;
+}
+html[data-theme='dark'] [data-yc-theme] {
+  color-scheme: dark;
+}
+html[data-theme-ready] [data-yc-theme] * {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-ready] [data-yc-theme] * {
+    transition: none !important;
+  }
+}
+
+/* Dark-only element overrides for literals that can't be a plain token swap.
+   Scoped by data-attrs that only exist in the marketing tree. */
+html[data-theme='dark'] [data-hero-scrim] {
+  background:
+    radial-gradient(
+      64% 62% at 50% 50%,
+      rgba(32, 28, 24, 0.9) 0%,
+      rgba(32, 28, 24, 0.6) 42%,
+      rgba(32, 28, 24, 0.12) 72%,
+      rgba(32, 28, 24, 0) 86%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(32, 28, 24, 0.62) 0%,
+      rgba(32, 28, 24, 0.34) 44%,
+      rgba(32, 28, 24, 0.1) 72%,
+      rgba(32, 28, 24, 0) 90%
+    ) !important;
+}
+html[data-theme='dark'] [data-hero-video] {
+  opacity: 0.16 !important;
+  filter: blur(1px) saturate(150%) brightness(0.5) !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-appbadge] {
+  background: #f7f3ec !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #201c18 !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-appbadge]:hover {
+  background: #ffffff !important;
+  border-color: rgba(37, 123, 237, 0.55) !important;
+  color: #201c18 !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-star] {
+  background: #f7f3ec !important;
+  color: #201c18 !important;
+  box-shadow: none !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-star]:hover {
+  background: #ffffff !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-star] > span:last-child {
+  color: #6b6155 !important;
+  border-left-color: rgba(0, 0, 0, 0.14) !important;
+}
+html[data-theme='dark'] a[data-btn-invert] {
+  background: #f7f3ec !important;
+  color: #201c18 !important;
+  border-color: transparent !important;
+}
+html[data-theme='dark'] a[data-btn-invert]:hover {
+  background: #ffffff !important;
+}
+html[data-theme='dark'] [data-live-tag] {
+  color: var(--ink-muted) !important;
+}
+
+/* a11y — brand selection + keyboard focus ring, scoped to the marketing surface. */
+[data-yc-theme] ::selection {
+  background: rgba(37, 123, 237, 0.22);
+}
+html[data-theme='dark'] [data-yc-theme] ::selection {
+  background: rgba(143, 182, 245, 0.3);
+}
+[data-yc-theme] a:focus-visible,
+[data-yc-theme] button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 html,
@@ -553,6 +976,26 @@ input[type='number'] {
   /* Display text - 40px/2.5rem - Medium display (Desktop) | 24px Mobile */
   .text-display-2 {
     @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.8px];
+  }
+
+  /* Page title - Serif screen titles (Newsreader 400).
+     Design: 26px / -0.015em / var(--ink) on desktop, 24px on tablet + phone.
+     The earlier 30->40px scale came from the design DOCUMENT's own 46px frame
+     heading, not from the app screens it documents - every PIMS screen title
+     in the frames is the 26px h2, which is what pairs with the count and the
+     13.5px description beside it. */
+  .text-page-title {
+    @apply font-newsreader text-[clamp(1.5rem,1.4rem+0.35vw,1.625rem)] font-normal leading-[1.2] tracking-[-0.015em];
+    color: var(--ink);
+  }
+
+  /* Count that trails a page title - "Appointments (14)".
+     Design: 17px / var(--ink-faint) desktop, 16px tablet + phone. Inherits the
+     serif family and 400 weight from .text-page-title so it reads as a quieter
+     companion to the title rather than a second heading. */
+  .text-page-title-count {
+    @apply text-[clamp(1rem,0.95rem+0.15vw,1.0625rem)] font-normal;
+    color: var(--ink-faint);
   }
 
   /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
@@ -737,13 +1180,14 @@ input[type='number'] {
   letter-spacing: -0.24px;
 }
 
-/* Caption - 10px/0.625rem - Status pills, compact labels. */
+/* Caption - 10px/0.625rem - DS micro-badge type: status pills, compact labels.
+   ALL-CAPS 10px / 700 / 0.08em per the design system Badge convention. */
 .text-caption-3 {
   font-family: var(--font-satoshi);
-  font-size: 0.6875rem !important;
+  font-size: 0.625rem !important;
   font-weight: 700 !important;
-  line-height: 1rem;
-  letter-spacing: -0.22px;
+  line-height: 1;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -975,5 +1419,308 @@ input[type='number'] {
   50% {
     transform: translateY(-6px);
     opacity: 0.6;
+  }
+}
+
+/* Full-page loading skeleton shimmer — opacity oscillates 1 ↔ 0.45 over 1.6s.
+   Reused by PageSkeleton's fills via the .yc-shimmer class. Respects the global
+   prefers-reduced-motion rule, which flattens the animation duration. */
+@keyframes ycShimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.yc-shimmer {
+  animation: ycShimmer 1.6s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Warm-bone + dark theme tokens — shared design-system layer.
+   Token VALUES are kept identical to the marketing surface (PR #1773) so the two
+   surfaces resolve to one theme layer when both land; whichever merges second
+   dedupes this block. Light values introduce NEW tokens only and leave every
+   existing PIMS surface untouched — consuming components opt in per surface.
+   Dark mode is driven by html[data-theme="dark"], stamped pre-paint from
+   localStorage 'yc-theme' or prefers-color-scheme (see ui/theme/ThemeScript).
+   ========================================================================== */
+
+html[data-theme='dark'] {
+  --page: #201c18;
+  --band: #2a2216;
+  --inset: #302820;
+  --screen: #2f271e;
+  --screen-2: #221d17;
+  --hairline: #40362b;
+  --divider: #3a3128;
+  --hairline-hover: #4a4033;
+  --nav-active: #8fb6f5;
+  --nav-active-bg: rgba(143, 182, 245, 0.13);
+  --ink: #f4efe6;
+  --ink-body: #e6ddd0;
+  --ink-muted: #a89e90;
+  --ink-soft: #cabfb0;
+  --ink-faint: #9d9285;
+  --ink-faint2: #8b8173;
+  --ink-6b: #a1968a;
+  --cta: #f2ece1;
+  --cta-hover: #fbf8f1;
+  --cta-text: #201c18;
+  --blue: #257bed;
+  --blue-text: #8fb6f5;
+  --blue-soft: rgba(143, 182, 245, 0.16);
+  --pink: #ff90d4;
+  --cyan: #5ce1e6;
+  --cyan-text: #5ce1e6;
+  --success: #2bbd86;
+  --avatar-violet-bg: rgba(167, 139, 250, 0.2);
+  --avatar-violet-ink: #cbb2f4;
+  --avatar-green-bg: rgba(74, 205, 155, 0.17);
+  --avatar-green-ink: #74d0a2;
+  --avatar-amber-bg: rgba(233, 170, 120, 0.17);
+  --avatar-amber-ink: #ecb488;
+  --hairline-soft: rgba(255, 255, 255, 0.09);
+  --glass-inset-hi: rgba(255, 255, 255, 0.06);
+  --sh03: rgba(0, 0, 0, 0.14);
+  --sh05: rgba(0, 0, 0, 0.2);
+  --sh06: rgba(0, 0, 0, 0.24);
+  --sh08: rgba(0, 0, 0, 0.3);
+  --sh09: rgba(0, 0, 0, 0.32);
+  --sh10: rgba(0, 0, 0, 0.34);
+  --sh12: rgba(0, 0, 0, 0.36);
+  --sh14: rgba(0, 0, 0, 0.4);
+  --sh16: rgba(0, 0, 0, 0.44);
+  --sh18: rgba(0, 0, 0, 0.48);
+  --sh20: rgba(0, 0, 0, 0.52);
+  --sh22: rgba(0, 0, 0, 0.55);
+  --sh28: rgba(0, 0, 0, 0.62);
+  --sh55: rgba(0, 0, 0, 0.8);
+  --glow-b07: rgba(37, 123, 237, 0.13);
+  --glow-b10: rgba(37, 123, 237, 0.18);
+  --glow-b12: rgba(37, 123, 237, 0.22);
+  --glow-b14: rgba(37, 123, 237, 0.25);
+  --glow-b26: rgba(37, 123, 237, 0.42);
+  --glow-c10: rgba(92, 225, 230, 0.18);
+  --glow-c14: rgba(92, 225, 230, 0.25);
+  --glow-p10: rgba(244, 121, 190, 0.18);
+  --glow-p12: rgba(244, 121, 190, 0.22);
+  --surface-soft: #2a2216;
+  --pill-raised: #383026;
+  --glass-93: rgba(34, 29, 23, 0.92);
+  --field-bg: #241f18;
+  /* Dark tint-on-dark equivalents for the chrome/state semantic surfaces. */
+  --danger-bg: rgba(234, 55, 41, 0.18);
+  --danger-bg-faint: rgba(234, 55, 41, 0.08);
+  --danger-text: #f2938a;
+  --danger: #ea3729;
+  --danger-border: rgba(242, 147, 138, 0.42);
+  --warn-bg: rgba(245, 158, 11, 0.16);
+  --warn-text: #f2b56b;
+  --warn-border: rgba(245, 168, 60, 0.42);
+  --pink-soft: rgba(255, 144, 212, 0.16);
+  --pink-text: #ff9dd8;
+
+  /* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
+   badges, alerts, pills, chat, and calendar surfaces flip with the theme. Status values
+   match the DS dark set. Light mode is unaffected (these only apply under data-theme=dark). */
+  /* tinted chip backgrounds + text (success / warning / danger / brand) */
+  --color-success-100: rgba(74, 205, 155, 0.16);
+  --color-success-700: #74d0a2;
+  --color-success-600: #2bbd86;
+  --color-warning-100: rgba(245, 168, 60, 0.16);
+  --color-warning-700: #f2b56b;
+  --color-danger-100: rgba(234, 55, 41, 0.18);
+  --color-danger-700: #f2938a;
+  --color-primary-100: rgba(143, 182, 245, 0.16);
+  --color-blue-light: rgba(143, 182, 245, 0.16);
+  --color-blue-text: #8fb6f5;
+  --color-text-brand: #8fb6f5;
+  --color-text-error: #f2938a;
+  /* warning / pending / danger-soft surfaces */
+  --color-card-warning: rgba(245, 168, 60, 0.14);
+  --color-white-pending: rgba(245, 168, 60, 0.14);
+  --color-danger-soft: rgba(234, 55, 41, 0.18);
+  /* overlays + shadows */
+  --color-overlay-backdrop: rgba(0, 0, 0, 0.62);
+  --color-shadow-soft: rgba(0, 0, 0, 0.4);
+  --color-shadow-xs: rgba(0, 0, 0, 0.28);
+  --color-shadow-sm: rgba(0, 0, 0, 0.5);
+  --color-shadow-md: rgba(0, 0, 0, 0.55);
+  /* chat surfaces */
+  --color-chat-surface: #221d17;
+  --color-chat-panel: #2a2216;
+  --color-chat-panel-border: #40362b;
+  --color-chat-divider: #3a3128;
+  --color-chat-divider-soft: #302820;
+  --color-chat-surface-soft: #262019;
+  --color-chat-empty-bg: #201c18;
+  /* calendar gridlines */
+  --color-calendar-line-strong: #4a4136;
+  --color-calendar-line-soft: #302820;
+  /* Calendar overlays: the light theme dims unavailable slots with a black wash
+     (rgba(0,0,0,0.045)) that is invisible on the dark surface. Re-declare the
+     three overlays as light/colour washes so unavailable, available, and preview
+     slots stay distinguishable in dark mode. */
+  --color-calendar-dim-overlay: rgba(255, 255, 255, 0.06);
+  --color-calendar-availability-overlay: rgba(74, 205, 155, 0.2);
+  --color-calendar-preview-overlay: rgba(103, 160, 239, 0.26);
+  /* active input border */
+  --color-input-border-active: #8fb6f5;
+  /* DS Badge status set — dark tint-on-dark equivalents */
+  --status-requested-bg: rgba(255, 255, 255, 0.07);
+  --status-requested-text: #b9b0a4;
+  --status-requested-border: rgba(255, 255, 255, 0.28);
+  --status-upcoming-bg: rgba(37, 123, 237, 0.18);
+  --status-upcoming-text: #9cc4f8;
+  --status-upcoming-border: rgba(103, 160, 239, 0.6);
+  --status-checked-in-bg: rgba(99, 102, 241, 0.18);
+  --status-checked-in-text: #bcbef9;
+  --status-checked-in-border: rgba(129, 132, 245, 0.6);
+  --status-in-progress-bg: rgba(139, 92, 246, 0.18);
+  --status-in-progress-text: #cdb8fa;
+  --status-in-progress-border: rgba(154, 113, 247, 0.6);
+  --status-completed-bg: rgba(74, 205, 155, 0.16);
+  --status-completed-text: #74d0a2;
+  --status-completed-border: rgba(74, 205, 155, 0.55);
+  --status-cancelled-bg: rgba(249, 115, 22, 0.15);
+  --status-cancelled-text: #f0a36c;
+  --status-cancelled-border: rgba(249, 115, 22, 0.5);
+  --status-no-show-bg: rgba(249, 115, 22, 0.15);
+  --status-no-show-text: #f0a36c;
+  --status-no-show-border: rgba(249, 115, 22, 0.5);
+}
+
+/* PIMS app surface — native control theming + post-paint flip transition.
+   Scoped to [data-yc-app] (the app shell root) so the transition never touches
+   the marketing tree, and the initial paint never animates (gated on
+   html[data-theme-ready], set by ui/theme/useTheme after first paint). */
+[data-yc-app] {
+  color-scheme: light;
+}
+html[data-theme='dark'] [data-yc-app] {
+  color-scheme: dark;
+}
+html[data-theme-ready] [data-yc-app] * {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-ready] [data-yc-app] * {
+    transition: none !important;
+  }
+}
+[data-yc-app] ::selection {
+  background: rgba(37, 123, 237, 0.22);
+}
+html[data-theme='dark'] [data-yc-app] ::selection {
+  background: rgba(143, 182, 245, 0.3);
+}
+
+/* Warm-bone display serif for page titles + greeting moments. Defined explicitly
+   (unlayered) so it beats the @layer-components text-* helpers' font-satoshi and the
+   body font-family. Consumes --font-newsreader (Newsreader via next/font, else Georgia). */
+.font-newsreader {
+  font-family: var(--font-newsreader);
+}
+.italic-newsreader {
+  font-family: var(--font-newsreader);
+  font-style: italic;
+}
+
+/* ------------------------------------------------------------------ *
+ * Warm liquid-glass floating surfaces
+ *
+ * The shared warm-glass recipe for FLOATING/OVERLAY chrome only — command
+ * palette, dropdown/popover menus, toasts, floating action surfaces. Apply
+ * once per floating surface (never per child) so backdrop-filter stays cheap.
+ * All tokens are theme-aware: warm cream frost in light, warm espresso in
+ * dark. A solid --screen fallback keeps text off bare page content wherever
+ * backdrop-filter is unsupported. Unlayered so it beats Tailwind's layered
+ * bg/border/shadow utilities on the same element.
+ * ------------------------------------------------------------------ */
+.yc-glass-overlay {
+  background: var(--glass-93);
+  border: 1px solid var(--hairline-soft);
+  box-shadow:
+    0 12px 34px var(--sh12),
+    inset 0 1px 0 var(--glass-inset-hi);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .yc-glass-overlay {
+    background: var(--screen);
+  }
+}
+
+/* Material-luxury edge for ELEVATED in-flow cards & stat tiles. NOT a frost:
+   a bright top specular hairline + a soft warm two-stop depth shadow over the
+   near-opaque surface, so body text and figures stay crisp. Pair with the
+   card's own --screen/--neutral-0 background + hairline border. */
+.yc-card-elevated {
+  box-shadow:
+    inset 0 1px 0 var(--glass-inset-hi),
+    0 1px 2px var(--sh03),
+    0 10px 30px var(--sh08);
+}
+
+/* App runtime toasts (react-toastify) — warm liquid-glass surface. The compound
+   selector beats the library's single-class defaults regardless of import order;
+   react-toastify keeps its own layout, positioning, and progress bar. */
+.Toastify .Toastify__toast {
+  background: var(--glass-93);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 34px var(--sh12),
+    inset 0 1px 0 var(--glass-inset-hi);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  color: var(--ink);
+}
+
+.Toastify .Toastify__close-button {
+  color: var(--ink);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .Toastify .Toastify__toast {
+    background: var(--screen);
+  }
+}
+
+/* Shared page-content container.
+   The desktop shell recipe in PIMS Rebuild - Spec.md specifies content
+   padding 26px 30px and gap 22px. That was previously copy-pasted into each
+   page root as Tailwind utilities and had drifted into five conflicting
+   variants, none matching the spec. This is the single source of truth.
+   Phones keep the tighter 12px gutter the build already shipped; the tablet band
+   follows the 20px 22px of the Foundations tablet template (it is a real tablet
+   shell with the icon rail, not a widened phone); the spec fixes the 1440 desktop
+   frame at 26px 30px. */
+.yc-page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 12px;
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .yc-page-content {
+    padding: 20px 22px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .yc-page-content {
+    padding: 26px 30px;
   }
 }

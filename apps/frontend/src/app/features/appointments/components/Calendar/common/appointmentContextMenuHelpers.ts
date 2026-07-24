@@ -29,7 +29,7 @@ export const SUBMENU_ROW_OFFSET = 4;
 
 export const getMenuItemClassName = (destructive = false, active = false) =>
   [
-    'flex w-full items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 text-left font-satoshi text-[16px] font-normal leading-5 tracking-[-0.32px] transition-colors',
+    'flex w-full items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 text-left font-satoshi text-[13px] font-normal leading-5 tracking-[-0.32px] transition-colors',
     destructive ? 'text-text-error hover:bg-danger-100/72' : 'text-text-primary hover:bg-white/50',
     active ? 'bg-white/58' : 'bg-transparent',
   ].join(' ');
