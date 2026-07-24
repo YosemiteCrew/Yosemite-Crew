@@ -1,0 +1,238 @@
+/* Idle lock — warm-bone. Blurred workspace behind a scrim, centered glass card.
+   Uses the authenticateBiometric bridge; main-process wiring is a follow-up. */
+
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+  position: relative;
+  background: var(--screen);
+}
+
+/* Blurred skeleton of the workspace behind the lock. */
+.lock-bg {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  filter: blur(9px);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.lock-bg-rail {
+  flex: none;
+  width: 224px;
+  background: var(--screen-2);
+  border-right: 1px solid var(--hairline);
+}
+
+.lock-bg-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 90px 40px 40px;
+}
+
+.sk {
+  border-radius: 18px;
+  background: var(--inset);
+  display: block;
+}
+
+.sk-title {
+  width: 40%;
+  height: 30px;
+  border-radius: 10px;
+}
+
+.sk-row {
+  display: flex;
+  gap: 16px;
+}
+
+.sk-card {
+  flex: 1;
+  height: 90px;
+  border-radius: 18px;
+  background: var(--inset);
+}
+
+.sk-panel {
+  flex: 1;
+}
+
+.lock-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--sh28);
+  pointer-events: none;
+}
+
+/* Centered lock card. */
+.lock-card {
+  position: relative;
+  z-index: 2;
+  margin: 0 auto;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  background: var(--glass-93);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 22px;
+  box-shadow: 0 40px 90px var(--sh28);
+  padding: 32px 30px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: rise 0.7s var(--ease-spring) both;
+}
+
+.lock-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-pill);
+  background: var(--blue-soft);
+  color: var(--blue-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lock-icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.lock-card h1 {
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 27px;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.lock-card p {
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.unlock {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--cta);
+  color: var(--cta-text);
+  font-family: var(--font-satoshi);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.12s ease;
+}
+
+.unlock svg {
+  width: 15px;
+  height: 15px;
+}
+
+.unlock:hover {
+  background: var(--cta-hover);
+}
+
+.unlock:active {
+  transform: translateY(1px);
+}
+
+.unlock:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.use-password {
+  margin-top: 9px;
+  border: none;
+  background: none;
+  font-family: var(--font-satoshi);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.use-password:hover {
+  color: var(--ink);
+}
+
+.lock-user {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--pill-raised);
+  border: 1px solid var(--hairline);
+}
+
+.lock-user-ic {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--avatar-violet-bg);
+  color: var(--avatar-violet-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lock-user-ic svg {
+  width: 13px;
+  height: 13px;
+}
+
+.lock-user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-body);
+}
+
+.lock-status {
+  display: block;
+  margin-top: 12px;
+  min-height: 1.1em;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue-text);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-50% + 18px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lock-card {
+    animation: none;
+  }
+}
