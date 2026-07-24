@@ -282,9 +282,10 @@ const localPage = (page: DesktopPage): string => path.join(__dirname, 'pages', `
 // In tab mode, navigation/content targets the active tab's WebContents; before
 // tab mode (welcome/loading) it targets the base window contents.
 let tabChromeView: WebContentsView | null = null;
-// Owned by setupIdleLock, but declared here so the layout pass can keep it
-// full-window and topmost for as long as the workspace is locked.
-let lockOverlayView: WebContentsView | null = null;
+// Layout hook registered by setupIdleLock so the layout pass can keep the lock
+// overlay full-window and topmost. Deliberately a callback, not the view: the
+// per-lock WebContentsView stays owned by the overlay's own closure.
+let relayoutLockOverlay: (() => void) | null = null;
 let tabMode = false;
 let tabSearchOpen = false;
 
@@ -383,20 +384,6 @@ const raiseTabChrome = (): void => {
   }
 };
 
-// Keep the lock overlay full-window and above everything else. raiseTabChrome
-// re-adds the chrome on every layout, so without this a resize while the
-// biometric prompt is pending would leave a stale-sized overlay with the tab
-// strip - and the newly exposed workspace - live on top of it.
-const raiseLockOverlay = (): void => {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  const view = lockOverlayView;
-  if (!view || view.webContents.isDestroyed()) return;
-  const b = mainWindow.getContentBounds();
-  view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
-  mainWindow.contentView.removeChildView(view);
-  mainWindow.contentView.addChildView(view);
-};
-
 const layoutTabChrome = (): void => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const b = mainWindow.getContentBounds();
@@ -404,7 +391,10 @@ const layoutTabChrome = (): void => {
   layoutChromeStrip(b, isVertical);
   layoutContentPanes(b, isVertical);
   raiseTabChrome();
-  raiseLockOverlay();
+  // Last: raiseTabChrome re-adds the chrome on every layout, so a resize while
+  // the biometric prompt is pending would otherwise leave a stale-sized overlay
+  // with the tab strip - and the newly exposed workspace - live on top of it.
+  relayoutLockOverlay?.();
 };
 
 // Switch the window into multi-tab mode: mount the tab-bar chrome view and the
@@ -1268,6 +1258,21 @@ const setupIdleLock = (ses: Session): void => {
   // In-app lock screen shown over the workspace while biometric unlock is
   // pending, so patient data isn't visible behind the OS prompt. A full-window
   // WebContentsView added last (top-most) covers the tab chrome and content.
+  let lockOverlayView: WebContentsView | null = null;
+
+  // Size the overlay to the window and re-add it so it sits above the chrome.
+  // Registered as the module-level layout hook while this lock is set up.
+  const layoutLockOverlay = (): void => {
+    const win = mainWindow;
+    const view = lockOverlayView;
+    if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
+    const b = win.getContentBounds();
+    view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+    win.contentView.removeChildView(view);
+    win.contentView.addChildView(view);
+  };
+  relayoutLockOverlay = layoutLockOverlay;
+
   const lockOverlay = createIdleLockOverlay({
     mount: () => {
       const win = mainWindow;
@@ -1278,7 +1283,7 @@ const setupIdleLock = (ses: Session): void => {
       lockOverlayView = view;
       win.contentView.addChildView(view);
       // Sizes and raises it; every later layout pass does the same.
-      raiseLockOverlay();
+      layoutLockOverlay();
       applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
       void view.webContents.loadFile(localPage('idle-lock'));
     },
