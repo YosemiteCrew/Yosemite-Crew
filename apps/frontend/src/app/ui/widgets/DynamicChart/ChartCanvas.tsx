@@ -1,5 +1,4 @@
 'use client';
-import { type ReactNode } from 'react';
 /* recharts is already code-split: DynamicChartCard lazy-loads this whole module via
    next/dynamic. These element imports must stay static or recharts sees anonymous
    loadable components, silently drops them, and renders an empty chart. */
@@ -15,10 +14,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { LayoutType } from 'recharts/types/util/types';
+import type { CartesianLayout, YAxisTickContentProps } from 'recharts';
 
 import {
   type ChartKey,
+  type ChartTooltipLabelFormatter,
   getDayTickLabel,
   getXAxisLabel,
   getYAxisLabel,
@@ -31,7 +31,7 @@ import {
    Code splitting happens one level up: DynamicChartCard lazy-loads this whole
    module, so recharts still stays out of the initial bundle. */
 
-type TiltedTickProps = { x: number; y: number; payload: { value: string } };
+type TiltedTickProps = Pick<YAxisTickContentProps, 'x' | 'y' | 'payload'>;
 
 const TiltedYTick = ({ x, y, payload }: TiltedTickProps) => (
   <g transform={`translate(${x},${y})`}>
@@ -66,7 +66,7 @@ type LineChartContentProps = {
   xAxisTicks?: Array<string | number>;
   xAxisDomain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
   xTickFormatter?: (value: string | number) => string;
-  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => ReactNode;
+  tooltipLabelFormatter?: ChartTooltipLabelFormatter;
 };
 
 const LineChartContent = ({
@@ -129,7 +129,7 @@ type BarChartContentProps = {
   data: any[];
   width?: number;
   height?: number;
-  layout?: LayoutType;
+  layout?: CartesianLayout;
   isVerticalLayout: boolean;
   chartMargin: ChartMargin;
   keys: ChartKey[];
@@ -199,7 +199,7 @@ export type ChartCanvasProps = {
   chartHeight: number;
   chartMargin: ChartMargin;
   isVerticalLayout: boolean;
-  layout?: LayoutType;
+  layout?: CartesianLayout;
   yTickFormatter?: (value: number) => string;
   yAxisWidth?: number;
   hideYAxis?: boolean;
@@ -212,7 +212,7 @@ export type ChartCanvasProps = {
   xAxisTicks?: Array<string | number>;
   xAxisDomain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
   xTickFormatter?: (value: string | number) => string;
-  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => ReactNode;
+  tooltipLabelFormatter?: ChartTooltipLabelFormatter;
 };
 
 const ChartCanvas = ({
