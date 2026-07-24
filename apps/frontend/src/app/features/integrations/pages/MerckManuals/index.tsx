@@ -583,6 +583,7 @@ const MerckReaderPortal = ({
   readerLoading,
   readerBlocked,
   audience,
+  copied,
   onCopyUrl,
   setReaderOpen,
   setReaderLoading,
@@ -594,6 +595,7 @@ const MerckReaderPortal = ({
   readerLoading: boolean;
   readerBlocked: boolean;
   audience: MerckAudience;
+  copied: string | null;
   onCopyUrl: (url: string) => void;
   setReaderOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
@@ -644,7 +646,7 @@ const MerckReaderPortal = ({
               className="flex items-center gap-1.5 rounded-full! border border-hairline px-3 py-[7px] text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
             >
               <IoLinkOutline size={13} aria-hidden="true" />
-              Copy manual URL
+              {copied === readerUrl ? 'Copied!' : 'Copy manual URL'}
             </button>
             <Link
               href={readerUrl}
@@ -912,6 +914,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         readerLoading={readerLoading}
         readerBlocked={readerBlocked}
         audience={audience}
+        copied={copied}
         onCopyUrl={onCopyUrl}
         setReaderOpen={setReaderOpen}
         setReaderLoading={setReaderLoading}
