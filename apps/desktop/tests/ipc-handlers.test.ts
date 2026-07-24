@@ -202,6 +202,9 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
     updateUnreadBadge: jest.fn(),
     startTelehealth: jest.fn(() => 'https://yosemitecrew.com/telehealth'),
     moveWindowBy: jest.fn(),
+    minimizeWindow: jest.fn(),
+    toggleMaximizeWindow: jest.fn(),
+    closeWindow: jest.fn(),
     ...overrides,
   };
 };
@@ -503,6 +506,58 @@ describe('ipc-handlers — happy paths', () => {
       -5
     );
     expect(moveWindowBy).not.toHaveBeenCalled();
+  });
+
+  test('window caption channels forward to the matching service', () => {
+    const minimizeWindow = jest.fn();
+    const toggleMaximizeWindow = jest.fn();
+    const closeWindow = jest.fn();
+    const services = makeServices({ minimizeWindow, toggleMaximizeWindow, closeWindow });
+    const call = register(services);
+    call.emit('yc:window-minimize');
+    call.emit('yc:window-toggle-maximize');
+    call.emit('yc:window-close');
+    expect(minimizeWindow).toHaveBeenCalledTimes(1);
+    expect(toggleMaximizeWindow).toHaveBeenCalledTimes(1);
+    expect(closeWindow).toHaveBeenCalledTimes(1);
+  });
+
+  test('yc:idle-unlock forwards only the two known modes', () => {
+    const idleUnlock = jest.fn();
+    const services = makeServices({ idleUnlock });
+    const call = register(services);
+    call.emit('yc:idle-unlock', 'biometric');
+    call.emit('yc:idle-unlock', 'password');
+    expect(idleUnlock).toHaveBeenCalledTimes(2);
+    expect(idleUnlock).toHaveBeenNthCalledWith(1, 'biometric');
+    expect(idleUnlock).toHaveBeenNthCalledWith(2, 'password');
+  });
+
+  test('yc:idle-unlock drops unknown modes and untrusted senders', () => {
+    const idleUnlock = jest.fn();
+    const services = makeServices({ idleUnlock });
+    const call = register(services);
+    call.emit('yc:idle-unlock', 'sudo');
+    call.emit('yc:idle-unlock');
+    call.emit('yc:idle-unlock', { mode: 'password' });
+    call.emitAs(
+      { senderFrame: { url: 'https://evil.example.com/embed' } },
+      'yc:idle-unlock',
+      'password'
+    );
+    expect(idleUnlock).not.toHaveBeenCalled();
+  });
+
+  test('window caption channels ignore an untrusted sender and stray args', () => {
+    const minimizeWindow = jest.fn();
+    const closeWindow = jest.fn();
+    const services = makeServices({ minimizeWindow, closeWindow });
+    const call = register(services);
+    call.emitAs({ senderFrame: { url: 'https://evil.example.com/embed' } }, 'yc:window-close');
+    // Caption channels take no args, so a message carrying any is rejected too.
+    call.emit('yc:window-minimize', 1);
+    expect(closeWindow).not.toHaveBeenCalled();
+    expect(minimizeWindow).not.toHaveBeenCalled();
   });
 });
 
