@@ -587,5 +587,66 @@ describe('Room Service', () => {
         expect.objectContaining({ code: 'POD-2' })
       );
     });
+
+    it('reuses a group deactivated during the same save instead of creating a duplicate', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
+      // The pre-deactivation snapshot: still active when fetched, since
+      // pruning hasn't run yet at that point in the reconciliation.
+      const activeGroupSnapshot = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Large',
+        unitCount: 1,
+        isActive: true,
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedPutData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedPostData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedGetData.mockImplementation((url: string) => {
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [activeGroupSnapshot] });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      // The draft list no longer references group-1's real id (it was
+      // "removed") and instead has a brand-new draft also named "Pod" - all
+      // within the same save.
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 1 },
+        units: [{ id: 'unit-new', name: 'Pod', size: 'Large', count: 1 }],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      // Deactivated by pruning, then reactivated in the same pass by reusing
+      // its own id - never recreated fresh, which would collide on
+      // roomId+name.
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: true })
+      );
+      expect(mockedPostData).not.toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group',
+        expect.anything()
+      );
+    });
   });
 });

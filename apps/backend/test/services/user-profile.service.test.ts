@@ -461,6 +461,80 @@ describe("UserProfileService", () => {
         }),
       );
     });
+
+    it("preserves untouched address fields on a one-field address patch", async () => {
+      const existingAddress = {
+        addressLine: "Line 1",
+        city: "City",
+        state: "State",
+        postalCode: "12345",
+        country: "US",
+      };
+
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: existingAddress,
+      });
+      (prisma.userProfile.update as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: existingAddress,
+      });
+      (prisma.userProfile.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: { ...existingAddress, country: "CA" },
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        roleCode: "OWNER",
+      });
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValueOnce([
+        {
+          slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+        },
+      ]);
+
+      // A genuinely sparse address patch - only `country`, unlike the full
+      // snapshot the web frontend always sends. addressLine/city/state/
+      // postalCode must survive untouched, not be nulled out.
+      await UserProfileService.update(userId, organizationId, {
+        personalDetails: {
+          ...completeProfile.personalDetails,
+          address: { country: "CA" },
+        },
+      });
+
+      expect(prisma.userProfileAddress.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            addressLine: "Line 1",
+            city: "City",
+            state: "State",
+            postalCode: "12345",
+            country: "CA",
+          }),
+        }),
+      );
+    });
   });
 
   describe("getByUserId", () => {

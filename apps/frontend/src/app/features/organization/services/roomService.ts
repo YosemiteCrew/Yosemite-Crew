@@ -389,6 +389,7 @@ const syncRoomUnitGroups = async (
   // must deactivate the previously-synced groups, not just stop touching them -
   // otherwise the stale group (and its units) stay active and resurface the
   // old config next time the room is opened.
+  let staleGroups: RoomUnitGroup[] = [];
   if (options?.pruneStaleGroups) {
     const desiredIds = new Set(
       desiredUnitGroups
@@ -397,9 +398,7 @@ const syncRoomUnitGroups = async (
           (id): id is string => typeof id === 'string' && id.length > 0 && !id.startsWith('unit-')
         )
     );
-    const staleGroups = existingGroups.filter(
-      (group) => group.isActive && !desiredIds.has(group.id)
-    );
+    staleGroups = existingGroups.filter((group) => group.isActive && !desiredIds.has(group.id));
     for (const group of staleGroups) {
       await deactivateUnitGroupAndItsUnits(group);
     }
@@ -411,8 +410,16 @@ const syncRoomUnitGroups = async (
     return;
   }
 
+  // Include groups deactivated moments ago by the pruning step above, not
+  // just ones that were already inactive before this save - `existingGroups`
+  // was fetched before pruning ran, so a group removed and re-added under the
+  // same name within this single save would otherwise still show as active
+  // in this snapshot and get created fresh, colliding with the row it was
+  // just deactivated into.
   const archivedGroupsByName = new Map(
-    existingGroups.filter((group) => !group.isActive).map((group) => [group.name, group] as const)
+    [...existingGroups.filter((group) => !group.isActive), ...staleGroups].map(
+      (group) => [group.name, group] as const
+    )
   );
 
   const speciesConstraints = toSpeciesConstraints(source.availability?.species);

@@ -281,12 +281,15 @@ export const RoomUnitService = {
         ? (current.unitGroupId ?? undefined)
         : (normalizeOptionalString(input.unitGroupId) ?? undefined);
     const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
-    // Only require the target room to currently support units when the unit is
-    // actually being moved there. A same-room update (e.g. deactivating a unit
-    // after its room's type changed away from a unit-capable one) must still be
-    // possible - otherwise that type change can never be cleaned up, leaving the
-    // stale unit active forever while every request to fix it 409s.
-    if (roomId !== current.roomId) {
+    // Only exempt a same-room *deactivation* from the room-type check -
+    // otherwise a type change away from a unit-capable room could never be
+    // cleaned up (every cleanup request would 409). Any other same-room
+    // update (reactivating, renaming, resizing) must still be rejected while
+    // the room doesn't support units, or it recreates the exact invalid
+    // state - an active unit on a non-unit-capable room - that create and
+    // move operations are meant to prevent.
+    const isDeactivating = input.isActive === false;
+    if (roomId !== current.roomId || !isDeactivating) {
       assertRoomSupportsUnits(room);
     }
     if (unitGroupId) {
