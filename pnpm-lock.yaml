@@ -113,8 +113,8 @@ importers:
         specifier: ^11.3.0
         version: 11.3.1
       '@secretlint/secretlint-rule-preset-recommend':
-        specifier: ^11.3.0
-        version: 11.3.1
+        specifier: ^13.0.2
+        version: 13.0.2
       aws-cdk-lib:
         specifier: 2.246.0
         version: 2.246.0(constructs@10.6.0)
@@ -11897,9 +11897,9 @@ packages:
       '@secretlint/types': 11.3.1
     dev: true
 
-  /@secretlint/secretlint-rule-preset-recommend@11.3.1:
-    resolution: {integrity: sha512-zRkESw8Mhuh4J65+biFKkpTW8Gjpse+D4BZhznASCtge38ervYcuG3IgHvFLf1AbTM+YQdH5wRVNdU0+btaEBw==}
-    engines: {node: '>=20.0.0'}
+  /@secretlint/secretlint-rule-preset-recommend@13.0.2:
+    resolution: {integrity: sha512-D03Kw51qOgffj9zNlJFZUarVmP8zGcCZNi7A14+vZtHskbbBPEsS/f09idb48rrlMSaRMBN29IkqfbmPyL9xtw==}
+    engines: {node: '>=22.0.0'}
     dev: true
 
   /@secretlint/source-creator@11.3.1:
@@ -22730,7 +22730,7 @@ packages:
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@20.19.31)(typescript@5.9.3)
+      ts-node: 10.9.2(@types/node@22.19.8)(typescript@5.0.4)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
