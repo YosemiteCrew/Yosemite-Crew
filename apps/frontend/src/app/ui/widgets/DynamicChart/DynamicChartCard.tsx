@@ -1,9 +1,14 @@
 'use client';
 import { type FC, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
-import type { LayoutType } from 'recharts/types/util/types';
+/* Type-only, so it is erased at compile time and never pulls recharts into this chunk. */
+import type { CartesianLayout } from 'recharts';
 
-import { type ChartKey, getMonthLabelFromData } from '@/app/ui/widgets/DynamicChart/chartAxis';
+import {
+  type ChartKey,
+  type ChartTooltipLabelFormatter,
+  getMonthLabelFromData,
+} from '@/app/ui/widgets/DynamicChart/chartAxis';
 
 const ChartSkeleton = ({ height }: { height: number }) => (
   <div
@@ -29,7 +34,7 @@ type ChartProps = {
   yTickFormatter?: (value: number) => string;
   yAxisWidth?: number;
   chartHeight?: number;
-  layout?: LayoutType;
+  layout?: CartesianLayout;
   barSize?: number;
   hideKeys?: boolean;
   /** Renders the compact, axis-less bar sparkline the dashboard design uses. */
@@ -43,7 +48,7 @@ type ChartProps = {
   xAxisTicks?: Array<string | number>;
   xAxisDomain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
   xTickFormatter?: (value: string | number) => string;
-  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => ReactNode;
+  tooltipLabelFormatter?: ChartTooltipLabelFormatter;
   headerContent?: ReactNode;
   footerContent?: ReactNode;
 };
