@@ -27,13 +27,13 @@ Adopt PostgreSQL via Prisma Migrate (`packages/database/prisma/schema.prisma`) a
 
 **Bad / accepted trade-offs:**
 
-- Two datastores are live simultaneously for an extended period. Until every entity's Mongo write path is removed, the codebase carries the cognitive and operational cost of both.
-- Dual-write is not transactional across the two stores — a partial failure (write succeeds in one store, fails in the other) is possible during the dual-write window for a given entity.
-- `READ_FROM_POSTGRES` is a single global flag today, not per-entity; per-entity migration state currently lives in each service's own conditional logic rather than one central registry.
+- Two datastores were live simultaneously for an extended period. Until every entity's Mongo write path was removed (completed in #1819), the codebase carried the cognitive and operational cost of both.
+- Dual-write was not transactional across the two stores — a partial failure (write succeeds in one store, fails in the other) was possible during the dual-write window for a given entity.
+- `READ_FROM_POSTGRES` was a single global flag, not per-entity; per-entity migration state lived in each service's own conditional logic rather than one central registry.
 
 ## Definition of done
 
-MongoDB decommissioned: `READ_FROM_POSTGRES` flag removed (Postgres is unconditional), all Mongoose models and the Mongo connection code deleted from `apps/backend`, and `mongoose` removed from `apps/backend/package.json`.
+MongoDB decommissioned: `READ_FROM_POSTGRES` flag removed (Postgres is unconditional), all Mongoose models and the Mongo connection code deleted from `apps/backend`, and `mongoose` removed from `apps/backend/package.json`. All criteria were met by PR #1819 (merged 2026-07-18).
 
 ## Alternatives considered
 

@@ -13,9 +13,6 @@
   </head>
   <body>
     <redoc spec-url="/dev-docs/openapi.yaml"></redoc>
-    <!-- Pinned to an immutable version (not `latest`) so the served bundle
-         cannot change under us. Loading is further constrained by the
-         Content-Security-Policy applied to /dev-docs/* in next.config.ts. -->
-    <script src="https://cdn.redoc.ly/redoc/v2.1.5/bundles/redoc.standalone.js"></script>
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
   </body>
 </html>
