@@ -4,7 +4,11 @@
  */
 
 import type { Config } from 'jest';
-import nextJest from 'next/jest';
+// Explicit `.js` extension: Jest 30 loads a TypeScript config through Node's
+// native type stripping on Node >= 22, where ESM resolution rejects the
+// extensionless specifier ("next" ships no exports map). CommonJS loaders
+// (ts-node on Node 20) resolve this form identically.
+import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
