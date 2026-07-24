@@ -4,6 +4,8 @@ import {
   normalizeSubmissionFromApi,
   resolveFormVersion,
   normalizeFormForState,
+  stripHtmlToPlainText,
+  wrapPlainTextAsHtml,
 } from '../../../src/features/forms/utils';
 import {fromFormSubmissionRequestDTO} from '@yosemite-crew/types';
 
@@ -355,6 +357,76 @@ describe('Form Utils', () => {
       const result = normalizeFormForState(form);
       expect(result.createdAt).toBeUndefined();
       expect(result.updatedAt).toBeUndefined();
+    });
+  });
+
+  // =========================================================================
+  // stripHtmlToPlainText / wrapPlainTextAsHtml
+  // =========================================================================
+  describe('stripHtmlToPlainText', () => {
+    it('returns an empty string for null/undefined/empty input', () => {
+      expect(stripHtmlToPlainText(undefined)).toBe('');
+      expect(stripHtmlToPlainText(null)).toBe('');
+      expect(stripHtmlToPlainText('')).toBe('');
+    });
+
+    it('strips paragraph and line-break tags into newlines', () => {
+      expect(stripHtmlToPlainText('<p>Line one</p><p>Line two</p>')).toBe(
+        'Line one\nLine two',
+      );
+      expect(stripHtmlToPlainText('Line one<br>Line two')).toBe(
+        'Line one\nLine two',
+      );
+    });
+
+    it('strips any other tags without adding newlines', () => {
+      expect(stripHtmlToPlainText('<strong>Bold</strong> text')).toBe(
+        'Bold text',
+      );
+    });
+
+    it('decodes common HTML entities', () => {
+      expect(
+        stripHtmlToPlainText('Tom &amp; Jerry &lt;3&gt; &quot;ok&quot;'),
+      ).toBe('Tom & Jerry <3> "ok"');
+      expect(stripHtmlToPlainText('a&nbsp;b&#39;s')).toBe("a b's");
+    });
+
+    it('collapses excess blank lines and trims surrounding whitespace', () => {
+      expect(stripHtmlToPlainText('<p></p><p></p><p>Text</p>')).toBe('Text');
+    });
+
+    it('fully strips nested/malformed tags that would reconstitute after a single pass', () => {
+      // A naive single-pass replace removes the inner "<script>", which
+      // reconstitutes "<scr" + "ipt>" into a fresh <script> tag left behind.
+      expect(
+        stripHtmlToPlainText('<scr<script>ipt>alert(1)</scr<script>ipt>'),
+      ).toBe('alert(1)');
+    });
+  });
+
+  describe('wrapPlainTextAsHtml', () => {
+    it('wraps a single line in a paragraph tag', () => {
+      expect(wrapPlainTextAsHtml('Hello world')).toBe('<p>Hello world</p>');
+    });
+
+    it('wraps each newline-separated line in its own paragraph tag', () => {
+      expect(wrapPlainTextAsHtml('Line one\nLine two')).toBe(
+        '<p>Line one</p><p>Line two</p>',
+      );
+    });
+
+    it('escapes HTML special characters so user text cannot inject markup', () => {
+      expect(wrapPlainTextAsHtml('<script>&"</script>')).toBe(
+        '<p>&lt;script&gt;&amp;"&lt;/script&gt;</p>',
+      );
+    });
+
+    it('returns an empty string instead of "<p></p>" when the text has no real content', () => {
+      expect(wrapPlainTextAsHtml('')).toBe('');
+      expect(wrapPlainTextAsHtml('   ')).toBe('');
+      expect(wrapPlainTextAsHtml('\n\n\n')).toBe('');
+      expect(wrapPlainTextAsHtml('  \n  \n  ')).toBe('');
     });
   });
 });

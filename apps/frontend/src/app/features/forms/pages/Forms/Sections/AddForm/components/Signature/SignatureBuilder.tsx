@@ -1,5 +1,5 @@
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { FormField } from "@/app/features/forms/types/forms";
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { FormField } from '@/app/features/forms/types/forms';
 
 const SignatureBuilder: React.FC<{
   field: FormField;
@@ -9,10 +9,9 @@ const SignatureBuilder: React.FC<{
     <FormInput
       intype="text"
       inname="Label"
-      value={field.label || ""}
+      value={field.label || ''}
       inlabel="Label"
       onChange={(e) => onChange({ ...field, label: e.target.value })}
-      className="min-h-12!"
     />
   </div>
 );

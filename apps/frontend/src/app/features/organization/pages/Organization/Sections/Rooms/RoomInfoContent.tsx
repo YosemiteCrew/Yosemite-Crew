@@ -1,10 +1,10 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { FiCheck, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { OrganisationRoom } from '@yosemite-crew/types';
 import type { ManagedRoom, RoomUnitDetails } from './RoomInfo.types';
@@ -31,8 +31,8 @@ const IconCircleButton = ({
     onClick={onClick}
     className={`flex size-8 items-center justify-center rounded-full border ${
       danger
-        ? 'border-text-error bg-white text-text-error'
-        : 'border-text-primary bg-text-primary text-white'
+        ? 'border-text-error bg-[var(--screen)] text-text-error'
+        : 'border-[var(--ink)] bg-[var(--ink)] text-[var(--screen)]'
     }`}
   >
     {children}
@@ -139,24 +139,30 @@ const RoomInfoContent = ({
       }}
     >
       <div className="flex h-full flex-col gap-5">
-        <div className="flex items-center justify-between border-b border-card-border pb-4">
-          <h2 className="text-body-1 text-text-primary">
-            {mode === 'edit' ? 'Edit room' : formData.name}
-          </h2>
-          <div className="flex items-center gap-3">
-            {permissions.canEditRoom && mode === 'view' && (
-              <IconCircleButton label="Edit room" onClick={() => setMode('edit')}>
-                <FiEdit2 size={15} aria-hidden="true" />
-              </IconCircleButton>
-            )}
-            {permissions.canEditRoom && (
-              <IconCircleButton label="Delete room" onClick={() => setShowDeleteModal(true)} danger>
-                <FiTrash2 size={15} aria-hidden="true" />
-              </IconCircleButton>
-            )}
-            <Close onClick={onCloseDrawer} />
-          </div>
-        </div>
+        <ModalHeader
+          eyebrow="Room"
+          title={mode === 'edit' ? 'Edit room' : formData.name}
+          meta={roomTypeLabel}
+          onClose={onCloseDrawer}
+          actions={
+            <>
+              {permissions.canEditRoom && mode === 'view' && (
+                <IconCircleButton label="Edit room" onClick={() => setMode('edit')}>
+                  <FiEdit2 size={15} aria-hidden="true" />
+                </IconCircleButton>
+              )}
+              {permissions.canEditRoom && (
+                <IconCircleButton
+                  label="Delete room"
+                  onClick={() => setShowDeleteModal(true)}
+                  danger
+                >
+                  <FiTrash2 size={15} aria-hidden="true" />
+                </IconCircleButton>
+              )}
+            </>
+          }
+        />
 
         <RoomInfoSections
           canEditRoom={permissions.canEditRoom}
@@ -184,7 +190,7 @@ const RoomInfoContent = ({
         />
 
         {mode === 'edit' && (
-          <div className="flex justify-between gap-3 border-t border-card-border pt-4">
+          <ModalFooter>
             <Secondary href="#" text="Discard" onClick={onDiscardChanges} />
             <Primary
               href="#"
@@ -192,7 +198,7 @@ const RoomInfoContent = ({
               onClick={onSave}
               icon={<FiCheck size={16} aria-hidden="true" />}
             />
-          </div>
+          </ModalFooter>
         )}
       </div>
     </Modal>

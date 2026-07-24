@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { Appointment } from '@yosemite-crew/types';
 import { AuditTrail } from '@/app/features/audit/types/audit';
-import { getAppointmentAuditTrail } from '@/app/features/audit/services/auditService';
+import { useAppointmentAuditTrail } from '@/app/features/audit/hooks/useAppointmentAuditTrail';
 import { toTitle } from '@/app/lib/validators';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { Badge, Card } from '@/app/ui';
@@ -61,27 +61,7 @@ const Audit = ({ activeAppointment }: AuditProps) => {
     return activeAppointment.id;
   }, [activeAppointment]);
 
-  const [entries, setEntries] = useState<AuditTrail[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!appointmentId) {
-        setEntries([]);
-        return;
-      }
-      try {
-        const data = await getAppointmentAuditTrail(appointmentId);
-        if (!cancelled) setEntries(data ?? []);
-      } catch {
-        if (!cancelled) setEntries([]);
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [appointmentId]);
+  const entries = useAppointmentAuditTrail(appointmentId);
 
   return (
     <PermissionGate allOf={[PERMISSIONS.AUDIT_VIEW_ANY]} fallback={<Fallback />}>

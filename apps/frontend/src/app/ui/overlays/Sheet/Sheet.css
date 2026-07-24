@@ -1,0 +1,208 @@
+/* Phone sheet chrome (< 768px only).
+
+   Every rule is gated inside the phone media query, so tablet (768-1279px) and
+   desktop (>= 1280px) render exactly as before. These rules used to live in
+   PhoneShell.css; they moved here so the chrome ships with the component that
+   renders it (SheetChrome) instead of depending on the phone shell being
+   imported somewhere in the tree.
+
+   Deliberately unlayered: globals.css resets `dialog.yc-modal-dialog` inside
+   `@layer base`, and unlayered rules win over every layer, so the sheet skin
+   applies to the shared ModalBase <dialog> as well as to BottomSheet's own. */
+
+@media screen and (max-width: 767px) {
+  .yc-phone-sheet-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .yc-phone-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    padding: 0;
+    background: var(--sh55);
+    /* Frost the dimmed page behind the sheet. */
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+  }
+
+  .yc-phone-sheet {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    max-height: 86vh;
+    flex-direction: column;
+    /* Reset native <dialog> UA styles (margin/border/color/width fit-content). */
+    margin: 0;
+    border: 0;
+    width: auto;
+    color: inherit;
+    border-radius: 24px 24px 0 0;
+    /* Warm frosted-glass sheet with a top sheen. */
+    background: var(--glass-93);
+    box-shadow:
+      0 -18px 60px var(--sh55),
+      inset 0 1px 0 var(--glass-inset-hi);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
+    padding: 0 20px calc(16px + env(safe-area-inset-bottom, 0px));
+    animation: ycPhoneSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .yc-phone-sheet {
+      background: var(--screen);
+    }
+  }
+
+  /* Floating field labels straddle the field's top border, so inside a sheet the
+     protruding half must match the sheet surface (not the desktop --neutral-0
+     panel) or it shows as a lighter cream patch. */
+  .yc-phone-sheet .yc-float-label {
+    background: var(--glass-93);
+  }
+
+  /* The grabber, title row and footer are fixed furniture: `flex: none` keeps
+     the flex column from shrinking them (a 44x5 grabber squashes to 2px
+     otherwise) so the body is the only region that gives, and scrolls. */
+  .yc-phone-sheet-grabber {
+    width: 44px;
+    height: 5px;
+    flex: none;
+    margin: 10px auto 4px;
+    border-radius: 999px;
+    background: var(--divider);
+  }
+
+  .yc-phone-sheet-head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0 12px;
+  }
+
+  .yc-phone-sheet-title {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-satoshi);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .yc-phone-sheet-close {
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink-faint);
+    cursor: pointer;
+  }
+
+  .yc-phone-sheet-body {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .yc-phone-sheet-footer {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 14px;
+  }
+
+  .yc-phone-sheet-footer > * {
+    width: 100%;
+  }
+
+  /* ------------------------------------------------- Modal's phone forms */
+
+  /* `variant="centered"` on a phone: the shared ModalBase <dialog> wearing the
+     sheet skin above, anchored to the bottom of the viewport. ModalBase keeps
+     the dialog mounted while closed, so the entrance is a transform transition
+     rather than the one-shot `ycPhoneSheetUp` animation BottomSheet uses. */
+  dialog.yc-modal-sheet {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1200;
+    animation: none;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  dialog.yc-modal-sheet-closed {
+    transform: translateY(100%);
+    /* Parked off-screen: drop the upward float shadow so it stops bleeding a
+       dark band up into the page above (seen behind e.g. the Settings screen). */
+    box-shadow: none;
+  }
+
+  /* `variant="drawer"` on a phone: full-screen, per "drawers go full-screen".
+     No grabber and no top radius — there is no sheet edge to grab. */
+  dialog.yc-modal-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    max-width: none;
+    max-height: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--screen);
+    color: inherit;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  dialog.yc-modal-fullscreen-closed {
+    transform: translateY(100%);
+  }
+
+  /* The single child every caller wraps its content in sets `h-full`; let it
+     shrink so its own `overflow-y-auto` region scrolls instead of the page. */
+  dialog.yc-modal-fullscreen > * {
+    min-height: 0;
+  }
+}
+
+@keyframes ycPhoneSheetUp {
+  from {
+    transform: translateY(14px);
+    opacity: 0.6;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-phone-sheet {
+    animation: none;
+  }
+
+  dialog.yc-modal-sheet,
+  dialog.yc-modal-fullscreen {
+    transition: none;
+  }
+}

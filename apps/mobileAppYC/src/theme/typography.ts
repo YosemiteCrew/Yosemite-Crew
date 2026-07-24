@@ -16,6 +16,9 @@ export const fonts = {
   SATOSHI_REGULAR: 'Satoshi-Regular',
   SF_PRO_TEXT_SEMIBOLD: 'SFProText-semibold',
   SF_PRO_TEXT_REGULAR: 'SFProText-regular',
+  // Newsreader (serif) - greetings, screen titles, hero amounts, empty states.
+  NEWSREADER_REGULAR: 'Newsreader-Regular',
+  NEWSREADER_ITALIC: 'Newsreader-Italic',
 } as const;
 
 export const fontSizes = {
@@ -187,6 +190,59 @@ const captionBold: TextStyle = {
   fontWeight: fontWeights.semibold,
 };
 
+// --- Newsreader serif display styles (warm-bone redesign) ---
+// Serif is reserved for greetings, screen titles, empty-state titles, hero
+// amounts and onboarding headlines. Body / UI text stays Satoshi.
+const serifTitle: TextStyle = createTextStyle(
+  30,
+  34,
+  fonts.NEWSREADER_REGULAR,
+  fontWeights.normal,
+  -0.45,
+);
+const serifTitleSmall: TextStyle = createTextStyle(
+  28,
+  33,
+  fonts.NEWSREADER_REGULAR,
+  fontWeights.normal,
+  -0.42,
+);
+const greeting: TextStyle = {
+  ...createTextStyle(
+    17,
+    22,
+    fonts.NEWSREADER_ITALIC,
+    fontWeights.normal,
+    -0.17,
+  ),
+  fontStyle: 'italic',
+};
+const emptyStateTitle: TextStyle = createTextStyle(
+  24,
+  29,
+  fonts.NEWSREADER_REGULAR,
+  fontWeights.normal,
+  -0.36,
+);
+const amountHero: TextStyle = createTextStyle(
+  34,
+  38,
+  fonts.NEWSREADER_REGULAR,
+  fontWeights.normal,
+  -0.5,
+);
+const onboardingHeadline: TextStyle = createTextStyle(
+  34,
+  40,
+  fonts.NEWSREADER_REGULAR,
+  fontWeights.normal,
+  -0.5,
+);
+const eyebrow: TextStyle = {
+  ...createTextStyle(12, 15, fonts.SATOSHI_BOLD, fontWeights.bold, 1.44),
+  textTransform: 'uppercase',
+};
+
 export const typography = {
   // Core headings
   heading: h3,
@@ -212,7 +268,14 @@ export const typography = {
   // Paragraph / body
   paragraph: body,
   paragraphBold: bodyBold,
-  paragraph18Bold: bodyMedium,
+  // YC "Paragraph 18 Bold" - 18/700 Satoshi (was mistakenly aliased to
+  // bodyMedium, which renders 16/500).
+  paragraph18Bold: {
+    ...bodyBold,
+    fontSize: 18,
+    lineHeight: 21.6,
+    letterSpacing: -0.36,
+  },
   clashBody13: {
     fontFamily: fonts.SATOSHI_MEDIUM,
     fontSize: fontSizes['13'],
@@ -334,7 +397,18 @@ export const typography = {
     letterSpacing: 0,
   },
 
+  // Serif display (Newsreader) - warm-bone redesign
+  serifTitle,
+  serifTitleSmall,
+  greeting,
+  emptyStateTitle,
+  amountHero,
+  onboardingHeadline,
+  eyebrow,
+
   // Font family helpers for legacy usage
   SATOSHI_BOLD: fonts.SATOSHI_BOLD,
   SATOSHI_REGULAR: fonts.SATOSHI_REGULAR,
+  NEWSREADER_REGULAR: fonts.NEWSREADER_REGULAR,
+  NEWSREADER_ITALIC: fonts.NEWSREADER_ITALIC,
 } as const;

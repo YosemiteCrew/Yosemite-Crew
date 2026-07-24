@@ -50,6 +50,14 @@ describe('DropdownRenderer Component', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('returns null when the options key is missing entirely', () => {
+    const { options: _options, ...fieldMissingOptions } = baseField;
+    const { container } = render(
+      <DropdownRenderer field={fieldMissingOptions as any} value="" onChange={mockOnChange} />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
   // --- Section 2: Checkbox Logic ---
 
   describe('Type: Checkbox', () => {
@@ -164,6 +172,13 @@ describe('DropdownRenderer Component', () => {
       fireEvent.click(radio);
       expect(mockOnChange).not.toHaveBeenCalled();
     });
+
+    it('treats a non-string value as no selection', () => {
+      render(<DropdownRenderer field={radioField} value={undefined} onChange={mockOnChange} />);
+      const radios = screen.getAllByRole('radio');
+      expect(radios[0]).not.toBeChecked();
+      expect(radios[1]).not.toBeChecked();
+    });
   });
 
   // --- Section 4: Dropdown (Default) Logic ---
@@ -191,6 +206,11 @@ describe('DropdownRenderer Component', () => {
       // The renderer guards onSelect when read-only.
       fireEvent.click(screen.getByTestId('option-opt-a'));
       expect(mockOnChange).not.toHaveBeenCalled();
+    });
+
+    it('falls back to an empty selection when value and default are absent', () => {
+      render(<DropdownRenderer field={dropdownField} value={undefined} onChange={mockOnChange} />);
+      expect(screen.getByTestId('dropdown-value')).toHaveTextContent('""');
     });
   });
 

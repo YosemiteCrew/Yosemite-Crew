@@ -191,5 +191,5 @@ Contributions are welcome. Please read `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md
 - `docs/FRONTEND_QUALITY_GUIDE.md`
 - `docs/FRONTEND_ARCHITECTURE.md`
 - `docs/FRONTEND_RELEASE_CHECKLIST.md`
-- `docs/guide/POSTHOG_ANALYTICS_MIGRATION.md`
-- `apps/mobileAppYC/README.md`
+- [`../../docs/guide/POSTHOG_ANALYTICS_MIGRATION.md`](../../docs/guide/POSTHOG_ANALYTICS_MIGRATION.md)
+- [`../mobileAppYC/README.md`](../mobileAppYC/README.md)

@@ -480,4 +480,45 @@ describe('GenericSelectBottomSheet', () => {
       expect(onItemSelect).toHaveBeenCalledWith(mockItems[1]);
     });
   });
+
+  describe('Accessibility', () => {
+    it('exposes the selected state on default-rendered items for screen readers', () => {
+      render(
+        <GenericSelectBottomSheet
+          {...defaultProps}
+          selectedItem={mockItems[1]}
+          ref={ref}
+        />,
+      );
+      openSheet();
+
+      const selected = screen.getByLabelText('Item Two');
+      expect(selected.props.accessibilityRole).toBe('radio');
+      expect(selected.props.accessibilityState).toEqual({selected: true});
+
+      const unselected = screen.getByLabelText('Item One');
+      expect(unselected.props.accessibilityRole).toBe('radio');
+      expect(unselected.props.accessibilityState).toEqual({selected: false});
+    });
+
+    it('exposes the selected state on custom-rendered items for screen readers', () => {
+      const renderItem = (item: SelectItem) => (
+        <Text>Custom: {item.label}</Text>
+      );
+
+      render(
+        <GenericSelectBottomSheet
+          {...defaultProps}
+          renderItem={renderItem}
+          selectedItem={mockItems[0]}
+          ref={ref}
+        />,
+      );
+      openSheet();
+
+      const selected = screen.getByLabelText('Item One');
+      expect(selected.props.accessibilityRole).toBe('radio');
+      expect(selected.props.accessibilityState).toEqual({selected: true});
+    });
+  });
 });

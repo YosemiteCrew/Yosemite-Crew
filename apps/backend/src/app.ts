@@ -10,10 +10,16 @@ import { ChatWebhookController } from "./controllers/app/chatWebhook.controller"
 import mongoSanitize from "express-mongo-sanitize";
 import helmet from "helmet";
 import {
+  AuthService,
+  createAuthProvider,
   initSuperTokens,
+  readAuthConfig,
   registerSuperTokensBeforeRoutes,
   registerSuperTokensErrorHandler,
+  setAuthService,
+  validateAuthConfig,
 } from "@yosemite-crew/auth";
+import { authHooks } from "./config/auth-hooks";
 
 function isSuperTokensEnabled(): boolean {
   const disabled =
@@ -34,8 +40,27 @@ export function createApp() {
 
   const superTokensEnabled = isSuperTokensEnabled();
   if (superTokensEnabled) {
-    initSuperTokens();
+    // Fail fast at startup on invalid auth config (epic #1672 acceptance).
+    const authConfig = readAuthConfig();
+    validateAuthConfig(authConfig);
+
+    initSuperTokens(authHooks);
+    setAuthService(new AuthService(createAuthProvider(authConfig)));
+
+    // The provider's own auth routes (sign-in/up, OTP, refresh) are mounted
+    // before the global limiter, so give them a dedicated - stricter - one:
+    // they are the brute-force / enumeration surface.
+    const authLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+    app.use("/auth", authLimiter);
+
     registerSuperTokensBeforeRoutes(app);
+  } else {
+    setAuthService(null);
   }
   app.use(helmet());
   app.disable("x-powered-by");

@@ -1,5 +1,7 @@
 # Superadmin Support Chat From-Scratch Guide
 
+> Status: not started as of 2026-07. No support chat scope or session type exists in the client apps; see `backend-support-chat-engineering-guide.md` for the (also unbuilt) server side. The separate YosemiteCrew/SuperAdmin repository now exists and is the natural home for this build.
+
 ## Objective
 
 This guide is for engineers building the operator side of Support Chat. "Superadmin" here means a Yosemite Crew company operator (the platform staff who answer support requests), as distinct from PMS clinic staff and mobile pet-parent users. The client side that opens these conversations is covered in [`pms-mobile-support-chat-guide.md`](pms-mobile-support-chat-guide.md).

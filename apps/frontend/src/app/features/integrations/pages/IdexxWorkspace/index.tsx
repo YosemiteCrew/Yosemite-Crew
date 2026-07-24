@@ -3,11 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import Link from 'next/link';
-import Image from 'next/image';
 import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -34,15 +34,27 @@ import {
   LabResult,
   LabResultTest,
 } from '@/app/features/integrations/services/types';
-import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
+import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
-import { IoInformationCircleOutline, IoOpenOutline } from 'react-icons/io5';
+import {
+  IoAdd,
+  IoCalendarClearOutline,
+  IoCheckmarkCircleOutline,
+  IoChevronDownOutline,
+  IoDocumentAttachOutline,
+  IoFlaskOutline,
+  IoInformationCircleOutline,
+  IoOpenOutline,
+  IoRefreshOutline,
+  IoSyncOutline,
+} from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 
@@ -56,6 +68,15 @@ const MODALITY_FILTERS = [
 type ModalityFilter = 'ALL' | 'REFLAB' | 'INHOUSE';
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
+const IDEXX_HUB_INFO =
+  'Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care diagnostics for a seamless workflow.';
+
+type CensusTone = 'green' | 'blue' | 'amber';
+const CENSUS_TONE_COLOR: Record<CensusTone, string> = {
+  green: 'var(--success)',
+  blue: 'var(--blue)',
+  amber: 'var(--color-warning-600)',
+};
 
 const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
   const raw = String(value ?? '').trim();
@@ -63,6 +84,62 @@ const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
   const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
+
+// Census avatars are species-tinted in the design (each card carries a species
+// photo on a coloured ring). The IDEXX census payload has no image, so the
+// initials fallback keeps the species tint rather than a flat blue for everyone.
+const SPECIES_AVATAR_STYLE: Record<string, React.CSSProperties> = {
+  dog: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
+  cat: { background: 'var(--avatar-violet-bg)', color: 'var(--avatar-violet-ink)' },
+  horse: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
+};
+const DEFAULT_AVATAR_STYLE: React.CSSProperties = {
+  background: 'var(--avatar-blue-bg)',
+  color: 'var(--blue-text)',
+};
+
+const getSpeciesAvatarStyle = (speciesCode?: string | null): React.CSSProperties => {
+  const key = String(speciesCode ?? '')
+    .trim()
+    .toLowerCase();
+  if (key.includes('canine') || key.includes('dog')) return SPECIES_AVATAR_STYLE.dog;
+  if (key.includes('feline') || key.includes('cat')) return SPECIES_AVATAR_STYLE.cat;
+  if (key.includes('equine') || key.includes('horse')) return SPECIES_AVATAR_STYLE.horse;
+  return DEFAULT_AVATAR_STYLE;
+};
+
+const getInitials = (value?: string | null): string => {
+  const parts = String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+};
+
+const isResultComplete = (status?: string | null): boolean => {
+  const key = String(status ?? '').toLowerCase();
+  return key.includes('complete') || key.includes('final') || key.includes('confirm');
+};
+
+// There is no acknowledgement state yet — LabResult carries none, the lab-result
+// API is read-only, and `labs:view:any` is the only labs permission. So "awaiting
+// review" is derived purely from completion: every completed result stays in the
+// queue. That over-reports rather than hiding a result, which is the safe side to
+// fail on until a real, attributable acknowledgement is added (#1867). Do NOT
+// fake it client-side: a localStorage or useState ack is per-browser and
+// unaudited, so a result one vet "acknowledged" silently leaves their queue
+// while a colleague still sees it.
+const resultAwaitingReview = (result: LabResult): boolean => isResultComplete(result.status);
+
+const getResultOwnerName = (result: LabResult): string =>
+  [result.clientFirstName, result.clientLastName]
+    .map((part) => String(part ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
 
 const formatCensusIvlsDevices = (entry: CensusEntry) => {
   const devices = entry.ivls ?? [];
@@ -75,6 +152,39 @@ const formatCensusIvlsDevices = (entry: CensusEntry) => {
       return displayName || serial || '-';
     })
     .join(', ');
+};
+
+const getCensusDeviceSerial = (entry: CensusEntry): string => {
+  const first = (entry.ivls ?? [])[0];
+  return String(first?.serialNumber ?? '').trim();
+};
+
+const buildCensusDeviceByPatientId = (entries: CensusEntry[]): Record<string, string> =>
+  entries.reduce<Record<string, string>>((acc, entry) => {
+    const patientId = String(entry.patient?.patientId ?? '').trim();
+    const serial = getCensusDeviceSerial(entry);
+    if (patientId && serial) acc[patientId] = serial;
+    return acc;
+  }, {});
+
+const getCensusCardStatus = (
+  entry: CensusEntry,
+  results: LabResult[]
+): { label: string; tone: CensusTone; pulse: boolean } => {
+  const patientId = String(entry.patient?.patientId ?? '').trim();
+  const patientResults = results.filter(
+    (result) => String(result.patientId ?? '').trim() === patientId
+  );
+  const complete = patientResults.filter((result) => isResultComplete(result.status)).length;
+  const running = patientResults.length - complete;
+  // In-progress runs keep the patient "blue" even when some panels are already
+  // back; the card flips green only once every run has landed.
+  if (running > 0) {
+    const suffix = complete > 0 ? ` · ${complete} complete` : '';
+    return { label: `${running} running${suffix}`, tone: 'blue', pulse: false };
+  }
+  if (complete > 0) return { label: 'Results ready · awaiting review', tone: 'green', pulse: true };
+  return { label: 'Awaiting collection', tone: 'amber', pulse: false };
 };
 
 const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
@@ -169,112 +279,151 @@ const buildAppointmentIdByOrderId = (orders: LabOrder[]): Record<string, string>
     return acc;
   }, {});
 
+const PatientCell = ({ result }: { result: LabResult }) => {
+  const owner = getResultOwnerName(result);
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-caption-2 font-bold"
+        style={{ background: 'var(--avatar-blue-bg)', color: 'var(--blue-text)' }}
+        aria-hidden="true"
+      >
+        {getInitials(result.patientName)}
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-body-4 text-text-primary">{result.patientName ?? '-'}</span>
+        <span className="truncate text-caption-1 text-text-secondary">
+          {owner || `ID ${result.patientId ?? '-'}`}
+        </span>
+      </span>
+    </div>
+  );
+};
+
+const StatusCell = ({ result }: { result: LabResult }) => (
+  <StatusPill
+    style={getResultStatusStyle(result.status)}
+    label={formatTitleCase(result.status, '-')}
+  />
+);
+
+type ResultActionCellProps = {
+  result: LabResult;
+  appointmentLabsHref: string;
+  openResultDetails: (result: LabResult) => Promise<void>;
+};
+
+const ResultActionCell = ({
+  result,
+  appointmentLabsHref,
+  openResultDetails,
+}: ResultActionCellProps) => {
+  const awaitingReview = resultAwaitingReview(result);
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {appointmentLabsHref ? (
+        <Link
+          href={appointmentLabsHref}
+          aria-label={`Open appointment labs for result ${result.resultId}`}
+          title="Open appointment labs"
+          className="rounded-full p-2 transition-colors hover:bg-card-hover"
+        >
+          <IoOpenOutline className="text-text-primary" size={16} />
+        </Link>
+      ) : null}
+      {awaitingReview ? (
+        <Primary
+          href="#"
+          text="Review"
+          onClick={() => openResultDetails(result).catch(() => undefined)}
+          className="px-4"
+        />
+      ) : (
+        <Secondary
+          href="#"
+          text="Details"
+          onClick={() => openResultDetails(result).catch(() => undefined)}
+          className="px-4"
+        />
+      )}
+    </div>
+  );
+};
+
 type ResultsColumnsOptions = {
-  pdfPreviewLoadingId: string | null;
+  censusDeviceByPatientId: Record<string, string>;
   getAppointmentLabsHref: (result: LabResult) => string;
   openResultDetails: (result: LabResult) => Promise<void>;
-  openResultPdfPreview: (resultId: string) => Promise<void>;
   terminologyText: (text: string) => string;
 };
 
-const buildResultsColumns = ({
-  pdfPreviewLoadingId,
+export const buildResultsColumns = ({
+  censusDeviceByPatientId,
   getAppointmentLabsHref,
   openResultDetails,
-  openResultPdfPreview,
   terminologyText,
 }: ResultsColumnsOptions): Column<LabResult>[] => [
   {
     label: terminologyText('Patient'),
     key: 'patientName',
-    width: '25%',
+    width: '22%',
+    render: (result) => <PatientCell result={result} />,
+  },
+  {
+    label: 'Accession #',
+    key: 'accessionId',
+    width: '14%',
     render: (result) => (
-      <div className="flex flex-col">
-        <div className="text-body-4 text-text-primary">{result.patientName ?? '-'}</div>
-        <div className="text-caption-1 text-text-secondary">Result: {result.resultId}</div>
-        <div className="text-caption-1 text-text-secondary">
-          {terminologyText('Patient ID')}: {result.patientId ?? '-'}
-        </div>
-      </div>
+      <span className="text-body-4 text-text-primary tabular-nums">
+        {result.accessionId ?? '-'}
+      </span>
     ),
   },
   {
-    label: 'Updated',
+    label: 'Order ID',
+    key: 'orderId',
+    width: '12%',
+    render: (result) => (
+      <span className="text-body-4 text-text-secondary tabular-nums">{result.orderId ?? '-'}</span>
+    ),
+  },
+  {
+    label: 'IVLS Device ID',
+    key: 'ivls',
+    width: '13%',
+    render: (result) => (
+      <span className="text-body-4 text-text-secondary tabular-nums">
+        {censusDeviceByPatientId[String(result.patientId ?? '').trim()] ?? '-'}
+      </span>
+    ),
+  },
+  {
+    label: 'Collection date',
     key: 'updatedAt',
     width: '13%',
     render: (result) => (
-      <div className="text-body-4 text-text-primary">
+      <span className="text-body-4 text-text-secondary">
         {formatDateTimeLocal(result.updatedAt, '-')}
-      </div>
+      </span>
     ),
   },
   {
     label: 'Status',
     key: 'status',
-    width: '16%',
-    render: (result) => (
-      <div className="w-full flex justify-start">
-        <div className="inline-flex flex-col items-center gap-1">
-          <div className="appointment-status w-fit" style={getResultStatusStyle(result.status)}>
-            {formatTitleCase(result.status, '-')}
-          </div>
-          {result.statusDetail ? (
-            <span className="text-caption-1 text-text-secondary text-center">
-              {result.statusDetail}
-            </span>
-          ) : null}
-        </div>
-      </div>
-    ),
+    width: '12%',
+    render: (result) => <StatusCell result={result} />,
   },
   {
-    label: 'Order / Req',
-    key: 'orderId',
-    width: '16%',
-    render: (result) => (
-      <div className="flex flex-col">
-        <div className="text-body-4 text-text-primary">{result.orderId ?? '-'}</div>
-        <div className="text-caption-1 text-text-secondary">Req: {result.requisitionId ?? '-'}</div>
-        <div className="text-caption-1 text-text-secondary">
-          Accession: {result.accessionId ?? '-'}
-        </div>
-      </div>
-    ),
-  },
-  {
-    label: 'Actions',
+    label: '',
     key: 'actions',
-    width: '30%',
-    render: (result) => {
-      const appointmentLabsHref = getAppointmentLabsHref(result);
-      return (
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {appointmentLabsHref ? (
-            <Link
-              href={appointmentLabsHref}
-              aria-label={`Open appointment labs for result ${result.resultId}`}
-              title="Open appointment labs"
-              className="p-2 rounded-full hover:bg-card-hover transition-colors"
-            >
-              <IoOpenOutline className="text-text-primary" size={16} />
-            </Link>
-          ) : null}
-          <Secondary
-            href="#"
-            text="Details"
-            onClick={() => openResultDetails(result).catch(() => undefined)}
-            className="px-4"
-          />
-          <Primary
-            href="#"
-            text={pdfPreviewLoadingId === result.resultId ? 'Loading PDF...' : 'PDF'}
-            onClick={() => openResultPdfPreview(result.resultId).catch(() => undefined)}
-            className="px-4"
-            isDisabled={pdfPreviewLoadingId === result.resultId}
-          />
-        </div>
-      );
-    },
+    width: '14%',
+    render: (result) => (
+      <ResultActionCell
+        result={result}
+        appointmentLabsHref={getAppointmentLabsHref(result)}
+        openResultDetails={openResultDetails}
+      />
+    ),
   },
 ];
 
@@ -295,6 +444,9 @@ const matchesResultQuery = (result: LabResult, q: string): boolean =>
   String(result.orderId ?? '')
     .toLowerCase()
     .includes(q) ||
+  String(result.accessionId ?? '')
+    .toLowerCase()
+    .includes(q) ||
   String(result.patientName ?? '')
     .toLowerCase()
     .includes(q) ||
@@ -311,92 +463,57 @@ const matchesResultQuery = (result: LabResult, q: string): boolean =>
 type MobileResultCardProps = {
   result: LabResult;
   appointmentLabsHref: string;
-  pdfPreviewLoadingId: string | null;
+  censusDeviceByPatientId: Record<string, string>;
   openResultDetails: (result: LabResult) => Promise<void>;
-  openResultPdfPreview: (resultId: string) => Promise<void>;
 };
 
 const MobileResultCard = ({
   result,
   appointmentLabsHref,
-  pdfPreviewLoadingId,
+  censusDeviceByPatientId,
   openResultDetails,
-  openResultPdfPreview,
 }: MobileResultCardProps) => (
-  <div className="rounded-2xl border border-card-border p-3 bg-white flex flex-col gap-2">
+  <div
+    className="flex flex-col gap-2 rounded-2xl border p-3"
+    style={{ background: 'var(--screen)', borderColor: 'var(--hairline)' }}
+  >
     <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0 flex-1">
-        <div className="text-body-4 text-text-primary">{result.patientName ?? '-'}</div>
-        <div
-          className="text-caption-1 text-text-secondary break-all"
-          style={{
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {result.resultId}
-        </div>
-      </div>
-      <div
-        className="appointment-status w-fit shrink-0"
-        style={getResultStatusStyle(result.status)}
-      >
-        {formatTitleCase(result.status, '-')}
-      </div>
+      <PatientCell result={result} />
+      <StatusCell result={result} />
     </div>
     <div className="grid grid-cols-2 gap-2 text-caption-1">
-      <div className="text-text-secondary">Updated</div>
-      <div className="text-text-primary text-right">
+      <div className="text-text-secondary">Accession #</div>
+      <div className="text-right text-text-primary tabular-nums">{result.accessionId ?? '-'}</div>
+      <div className="text-text-secondary">Order ID</div>
+      <div className="text-right text-text-primary tabular-nums">{result.orderId ?? '-'}</div>
+      <div className="text-text-secondary">IVLS Device ID</div>
+      <div className="text-right text-text-primary tabular-nums">
+        {censusDeviceByPatientId[String(result.patientId ?? '').trim()] ?? '-'}
+      </div>
+      <div className="text-text-secondary">Collection date</div>
+      <div className="text-right text-text-primary">
         {formatDateTimeLocal(result.updatedAt, '-')}
       </div>
-      <div className="text-text-secondary">Order</div>
-      <div className="text-text-primary text-right">{result.orderId ?? '-'}</div>
-      <div className="text-text-secondary">Req</div>
-      <div className="text-text-primary text-right">{result.requisitionId ?? '-'}</div>
-      <div className="text-text-secondary">Accession</div>
-      <div className="text-text-primary text-right">{result.accessionId ?? '-'}</div>
     </div>
-    <div className="flex items-center justify-end gap-2 flex-wrap pt-1">
-      {appointmentLabsHref ? (
-        <Link
-          href={appointmentLabsHref}
-          aria-label={`Open appointment labs for result ${result.resultId}`}
-          title="Open appointment labs"
-          className="p-2 rounded-full hover:bg-card-hover transition-colors"
-        >
-          <IoOpenOutline className="text-text-primary" size={16} />
-        </Link>
-      ) : null}
-      <Secondary
-        href="#"
-        text="Details"
-        onClick={() => openResultDetails(result).catch(() => undefined)}
-        className="px-4"
-      />
-      <Primary
-        href="#"
-        text={pdfPreviewLoadingId === result.resultId ? 'Loading PDF...' : 'PDF'}
-        onClick={() => openResultPdfPreview(result.resultId).catch(() => undefined)}
-        className="px-4"
-        isDisabled={pdfPreviewLoadingId === result.resultId}
-      />
-    </div>
+    <ResultActionCell
+      result={result}
+      appointmentLabsHref={appointmentLabsHref}
+      openResultDetails={openResultDetails}
+    />
   </div>
 );
 
-type ResultDetailModalContentProps = {
+type ResultDetailBodyProps = {
   resultDetailLoading: boolean;
   activeResultDetail: LabResult | null;
   terminologyText: (text: string) => string;
 };
 
-const ResultDetailModalContent = ({
+export const ResultDetailBody = ({
   resultDetailLoading,
   activeResultDetail,
   terminologyText,
-}: ResultDetailModalContentProps) => {
+}: ResultDetailBodyProps) => {
   const onWheelHorizontal = useWheelToHorizontalScroll();
   if (resultDetailLoading) {
     return <div className="text-body-4 text-text-secondary">Loading result details…</div>;
@@ -405,7 +522,7 @@ const ResultDetailModalContent = ({
     return <div className="text-body-4 text-text-secondary">No result selected.</div>;
   }
   return (
-    <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-1">
+    <div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
       <div className="rounded-2xl border border-card-border p-3">
         <div className="text-body-4 text-text-primary">
           Result ID: {activeResultDetail.resultId}
@@ -431,17 +548,17 @@ const ResultDetailModalContent = ({
           key={`${activeResultDetail.resultId}-${category.name}`}
           className="rounded-2xl border border-card-border p-3"
         >
-          <div className="text-body-4 text-text-primary mb-2">{category.name}</div>
-          <div className="overflow-x-auto scrollbar-x-float" onWheel={onWheelHorizontal}>
+          <div className="mb-2 text-body-4 text-text-primary">{category.name}</div>
+          <div className="scrollbar-x-float overflow-x-auto" onWheel={onWheelHorizontal}>
             <table className="w-full min-w-[620px]">
               <thead>
                 <tr className="border-b border-card-border">
-                  <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Test</th>
-                  <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">Value</th>
-                  <th className="text-left text-caption-1 text-text-tertiary py-1 pr-2">
+                  <th className="py-1 pr-2 text-left text-caption-1 text-text-tertiary">Test</th>
+                  <th className="py-1 pr-2 text-left text-caption-1 text-text-tertiary">Value</th>
+                  <th className="py-1 pr-2 text-left text-caption-1 text-text-tertiary">
                     Reference
                   </th>
-                  <th className="text-left text-caption-1 text-text-tertiary py-1">Meter</th>
+                  <th className="py-1 text-left text-caption-1 text-text-tertiary">Meter</th>
                 </tr>
               </thead>
               <tbody>
@@ -452,20 +569,20 @@ const ResultDetailModalContent = ({
                       key={`${category.name}-${test.name}-${idx}`}
                       className="border-b border-card-border last:border-0"
                     >
-                      <td className="text-caption-1 text-text-primary py-2 pr-2">{test.name}</td>
+                      <td className="py-2 pr-2 text-caption-1 text-text-primary">{test.name}</td>
                       <td
-                        className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
+                        className={`py-2 pr-2 text-caption-1 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
                       >
                         <LabResultValue test={test} />
                       </td>
-                      <td className="text-caption-1 text-text-secondary py-2 pr-2">
+                      <td className="py-2 pr-2 text-caption-1 text-text-secondary">
                         {test.referenceRange ?? '-'}
                       </td>
                       <td className="py-2">
                         {meter.canRender ? (
-                          <div className="relative h-2 w-48 bg-card-hover rounded-full">
+                          <div className="relative h-2 w-48 rounded-full bg-card-hover">
                             <div
-                              className={`absolute top-1/2 -translate-y-1/2 w-1.5 h-4 rounded ${meter.markerClass}`}
+                              className={`absolute top-1/2 h-4 w-1.5 -translate-y-1/2 rounded ${meter.markerClass}`}
                               style={{ left: `calc(${meter.percent}% - 3px)` }}
                             />
                           </div>
@@ -484,8 +601,8 @@ const ResultDetailModalContent = ({
 
       {(activeResultDetail.rawPayload?.runSummaries ?? []).length > 0 ? (
         <div className="rounded-2xl border border-card-border p-3">
-          <div className="text-body-4 text-text-primary mb-2">Run summaries</div>
-          <ol className="list-decimal pl-5 space-y-1">
+          <div className="mb-2 text-body-4 text-text-primary">Run summaries</div>
+          <ol className="list-decimal space-y-1 pl-5">
             {(activeResultDetail.rawPayload?.runSummaries ?? []).map((run) => (
               <li key={run.id} className="text-caption-1 text-text-secondary">
                 {run.name} ({run.code})
@@ -498,6 +615,106 @@ const ResultDetailModalContent = ({
   );
 };
 
+const ORDER_DETAIL_TITLE_ID = 'idexx-order-detail-title';
+
+type OrderDetailPanelProps = {
+  activeResultDetail: LabResult | null;
+  resultDetailLoading: boolean;
+  terminologyText: (text: string) => string;
+  appointmentLabsHref: string;
+  pdfPreviewLoadingId: string | null;
+  openResultPdfPreview: (resultId: string) => Promise<void>;
+  onClose: () => void;
+};
+
+const OrderDetailPanel = ({
+  activeResultDetail,
+  resultDetailLoading,
+  terminologyText,
+  appointmentLabsHref,
+  pdfPreviewLoadingId,
+  openResultPdfPreview,
+  onClose,
+}: OrderDetailPanelProps) => {
+  const owner = activeResultDetail ? getResultOwnerName(activeResultDetail) : '';
+  const pdfLoading = pdfPreviewLoadingId === activeResultDetail?.resultId;
+  return (
+    <div className="flex h-full flex-col gap-4">
+      <ModalHeader
+        eyebrow="Order detail"
+        title={activeResultDetail?.accessionId ?? activeResultDetail?.resultId ?? 'Order'}
+        titleId={ORDER_DETAIL_TITLE_ID}
+        actions={activeResultDetail ? <StatusCell result={activeResultDetail} /> : null}
+        onClose={onClose}
+      />
+
+      {activeResultDetail ? (
+        <div
+          className="flex items-center gap-3 rounded-2xl border p-3"
+          style={{ background: 'var(--screen)', borderColor: 'var(--hairline)' }}
+        >
+          <span
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-caption-1 font-bold"
+            style={{ background: 'var(--avatar-blue-bg)', color: 'var(--blue-text)' }}
+            aria-hidden="true"
+          >
+            {getInitials(activeResultDetail.patientName)}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-body-4 text-text-primary">
+              {activeResultDetail.patientName ?? '-'}
+            </span>
+            <span className="truncate text-caption-1 text-text-secondary">
+              {owner || `${terminologyText('Patient')} ${activeResultDetail.patientId ?? '-'}`}
+            </span>
+          </span>
+          {appointmentLabsHref ? (
+            <Link
+              href={appointmentLabsHref}
+              aria-label={`Open appointment labs for result ${activeResultDetail.resultId}`}
+              title="Open appointment labs"
+              className="rounded-full p-1.5 transition-colors hover:bg-card-hover"
+            >
+              <IoOpenOutline size={16} style={{ color: 'var(--blue-text)' }} />
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+
+      <ResultDetailBody
+        resultDetailLoading={resultDetailLoading}
+        activeResultDetail={activeResultDetail}
+        terminologyText={terminologyText}
+      />
+
+      <ModalFooter align="stretch">
+        <div className="flex flex-col gap-2">
+          <Primary
+            href={appointmentLabsHref || '#'}
+            text="Open in appointment labs"
+            icon={<IoCheckmarkCircleOutline aria-hidden="true" />}
+            isDisabled={!appointmentLabsHref}
+            ariaLabel="Open in appointment labs"
+          />
+          <Secondary
+            href="#"
+            text={pdfLoading ? 'Loading PDF...' : 'Open results PDF'}
+            icon={<IoDocumentAttachOutline aria-hidden="true" />}
+            isDisabled={!activeResultDetail || pdfLoading}
+            onClick={() => {
+              if (activeResultDetail) {
+                openResultPdfPreview(activeResultDetail.resultId).catch(() => undefined);
+              }
+            }}
+          />
+        </div>
+      </ModalFooter>
+    </div>
+  );
+};
+
+const IDEXX_FOLLOWUP_LOADER_TESTID = 'idexx-followup-loader';
+
 const getAutoRefreshLabel = (autoRefresh: boolean): string => {
   if (autoRefresh) return 'Auto-refresh: On';
   return 'Auto-refresh: Off';
@@ -508,32 +725,9 @@ const getRefreshButtonLabel = (loading: boolean): string => {
   return 'Refresh';
 };
 
-const getResultModalOverlayClassName = (showResultModal: boolean): string => {
-  const visibleClass = showResultModal ? 'opacity-100' : 'opacity-0 pointer-events-none';
-  return `fixed backdrop-blur-[2px] inset-0 bg-black/50 z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
-};
-
-const getResultModalContainerClassName = (showResultModal: boolean): string => {
-  const translateClass = showResultModal ? 'translate-x-0' : 'translate-x-[120%]';
-  return `fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] sm:w-[680px] lg:w-[760px]
-          bg-white border border-card-border rounded-2xl z-[1200]
-          transition-transform duration-300 ease-in-out
-          ${translateClass}`;
-};
-
 const getStartRow = (page: number, pageSize: number, pageCount: number): number => {
   if (pageCount === 0) return 0;
   return (page - 1) * pageSize + 1;
-};
-
-const getOrderExternalStatusSuffix = (order: LabOrder): string => {
-  if (!order.externalStatus) return '';
-  const externalStatus = String(order.externalStatus).trim().toLowerCase();
-  const currentStatus = String(order.status ?? '')
-    .trim()
-    .toLowerCase();
-  if (!externalStatus || externalStatus === currentStatus) return '';
-  return ` (${formatTitleCase(order.externalStatus, '-')})`;
 };
 
 type IdexxFollowUpPortalProps = {
@@ -550,17 +744,17 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
+      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-card-border px-4 py-2">
           <div className="text-body-2 text-text-primary">IDEXX follow-up hub</div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            className="cursor-pointer rounded-full p-2 transition-colors hover:bg-neutral-100"
             aria-label="Close IDEXX follow-up frame"
             style={{ pointerEvents: 'auto' }}
           >
@@ -569,8 +763,12 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
         </div>
         <div className="relative flex-1">
           {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
-              <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-followup-loader" />
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
+              <YosemiteLoader
+                label="Loading IDEXX"
+                size={120}
+                testId={IDEXX_FOLLOWUP_LOADER_TESTID}
+              />
             </div>
           )}
           <iframe
@@ -595,17 +793,15 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
 type MobileResultsListProps = {
   paginatedResults: LabResult[];
   getAppointmentLabsHref: (result: LabResult) => string;
-  pdfPreviewLoadingId: string | null;
+  censusDeviceByPatientId: Record<string, string>;
   openResultDetails: (result: LabResult) => Promise<void>;
-  openResultPdfPreview: (resultId: string) => Promise<void>;
 };
 
 const MobileResultsList = ({
   paginatedResults,
   getAppointmentLabsHref,
-  pdfPreviewLoadingId,
+  censusDeviceByPatientId,
   openResultDetails,
-  openResultPdfPreview,
 }: MobileResultsListProps) => {
   if (paginatedResults.length === 0) {
     return (
@@ -622,14 +818,78 @@ const MobileResultsList = ({
           key={result.resultId}
           result={result}
           appointmentLabsHref={getAppointmentLabsHref(result)}
-          pdfPreviewLoadingId={pdfPreviewLoadingId}
+          censusDeviceByPatientId={censusDeviceByPatientId}
           openResultDetails={openResultDetails}
-          openResultPdfPreview={openResultPdfPreview}
         />
       ))}
     </>
   );
 };
+
+type CensusStripProps = {
+  entries: CensusEntry[];
+  results: LabResult[];
+  totalResults: number;
+};
+
+const CensusStrip = ({ entries, results, totalResults }: CensusStripProps) => (
+  <section aria-label="Census overview" className="flex flex-col gap-2">
+    <span className="text-caption-3" style={{ color: 'var(--ink-faint)', letterSpacing: '0.1em' }}>
+      Census overview
+    </span>
+    <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-4">
+      {entries.slice(0, 3).map((entry) => {
+        const status = getCensusCardStatus(entry, results);
+        return (
+          <div
+            key={`${entry.id}-${entry.patient.patientId}`}
+            className="flex items-center gap-2.5 rounded-2xl border p-3"
+            style={{
+              background: 'var(--screen)',
+              borderColor: 'var(--hairline)',
+              boxShadow: '0 1px 2px var(--sh03)',
+            }}
+          >
+            <span
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-caption-1 font-bold"
+              style={getSpeciesAvatarStyle(entry.patient.speciesCode)}
+              aria-hidden="true"
+            >
+              {getInitials(entry.patient.name)}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-[13px] font-bold" style={{ color: 'var(--ink)' }}>
+                {entry.patient.name}
+              </span>
+              <span className="truncate text-[11px]" style={{ color: 'var(--ink-faint)' }}>
+                {status.label}
+              </span>
+            </span>
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ background: CENSUS_TONE_COLOR[status.tone] }}
+              aria-hidden="true"
+            />
+          </div>
+        );
+      })}
+      <div
+        className="flex flex-col justify-center gap-0.5 rounded-2xl border p-3"
+        style={{ background: 'var(--inset)', borderColor: 'var(--divider)' }}
+      >
+        <span
+          className="text-[19px] leading-tight font-bold tracking-[-0.02em] tabular-nums"
+          style={{ color: 'var(--ink)' }}
+        >
+          {totalResults} results
+        </span>
+        <span className="text-[11px]" style={{ color: 'var(--ink-muted)' }}>
+          across {entries.length} patients today
+        </span>
+      </div>
+    </div>
+  </section>
+);
 
 type CensusEntriesListProps = {
   entries: CensusEntry[];
@@ -650,10 +910,10 @@ const CensusEntriesList = ({ entries, terminologyText }: CensusEntriesListProps)
       {entries.map((entry) => (
         <div
           key={`${entry.id}-${entry.patient.patientId}`}
-          className="rounded-2xl border border-card-border p-3 bg-white"
+          className="rounded-2xl border border-card-border bg-neutral-0 p-3"
         >
           <div className="text-body-4 text-text-primary">{entry.patient.name}</div>
-          <div className="text-caption-1 text-text-secondary mt-0.5">
+          <div className="mt-0.5 text-caption-1 text-text-secondary">
             {terminologyText('Patient ID')}: {entry.patient.patientId}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
@@ -670,6 +930,16 @@ const CensusEntriesList = ({ entries, terminologyText }: CensusEntriesListProps)
   );
 };
 
+const getOrderExternalStatusSuffix = (order: LabOrder): string => {
+  if (!order.externalStatus) return '';
+  const externalStatus = String(order.externalStatus).trim().toLowerCase();
+  const currentStatus = String(order.status ?? '')
+    .trim()
+    .toLowerCase();
+  if (!externalStatus || externalStatus === currentStatus) return '';
+  return ` (${formatTitleCase(order.externalStatus, '-')})`;
+};
+
 type OrderLookupCardProps = {
   order: LabOrder;
   openOrderAcknowledgement: (order: LabOrder | null) => void;
@@ -681,7 +951,7 @@ const OrderLookupCard = ({
   openOrderAcknowledgement,
   openFollowUpWorkspace,
 }: OrderLookupCardProps) => (
-  <div className="rounded-2xl border border-card-border p-3 flex flex-col gap-1">
+  <div className="flex flex-col gap-1 rounded-2xl border border-card-border p-3">
     <div className="text-body-4 text-text-primary">Order {order.idexxOrderId}</div>
     <div className="text-caption-1 text-text-secondary">
       Status: {formatTitleCase(order.status, '-')}
@@ -693,24 +963,210 @@ const OrderLookupCard = ({
     <div className="text-caption-1 text-text-secondary">
       Updated: {formatDateTimeLocal(order.updatedAt, '-')}
     </div>
-    <div className="flex items-center justify-end gap-2 flex-wrap pt-2">
+    <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
       <Secondary
         href="#"
         text="View acknowledgment"
         onClick={() => openOrderAcknowledgement(order)}
-        isDisabled={!getOrderPdfUrl(order)}
         className="px-4"
       />
       <Primary
         href="#"
         text="Open follow-up"
         onClick={() => openFollowUpWorkspace(order)}
-        isDisabled={!getOrderUiUrl(order)}
         className="px-4"
       />
     </div>
   </div>
 );
+
+const SKELETON_ROWS = [
+  { opacity: 1, width: '96px' },
+  { opacity: 0.75, width: '120px' },
+  { opacity: 0.5, width: '84px' },
+  { opacity: 0.28, width: '108px' },
+];
+
+const SyncingSkeleton = ({ lastRefreshedAt }: { lastRefreshedAt: string | null }) => (
+  <div className="flex flex-col" aria-hidden="true">
+    <div
+      className="flex items-center justify-between border-b px-5 py-3"
+      style={{ borderColor: 'var(--hairline)' }}
+    >
+      <span
+        className="flex items-center gap-[9px] text-[14px] font-bold"
+        style={{ color: 'var(--ink)' }}
+      >
+        <IoSyncOutline className="animate-spin" size={16} style={{ color: 'var(--blue-text)' }} />
+        Syncing with IDEXX…
+      </span>
+      <span className="text-caption-1 text-text-secondary">
+        Last sync {formatDateTimeLocal(lastRefreshedAt, '—')}
+      </span>
+    </div>
+    <div
+      className="grid grid-cols-[1.4fr_1fr_1fr_90px] gap-3 px-5 py-[11px] text-[10.5px] font-bold tracking-[0.1em] uppercase"
+      style={{ background: 'var(--screen-2)', color: 'var(--ink-faint)' }}
+    >
+      <span>Patient</span>
+      <span>Accession #</span>
+      <span>Device</span>
+      <span>Status</span>
+    </div>
+    {SKELETON_ROWS.map((row) => (
+      <div
+        key={row.width}
+        className="grid grid-cols-[1.4fr_1fr_1fr_90px] items-center gap-3 border-t px-5 py-3"
+        style={{ borderColor: 'var(--hairline)', opacity: row.opacity }}
+      >
+        <span className="flex items-center gap-2.5">
+          <span className="size-8 rounded-full" style={{ background: 'var(--inset)' }} />
+          <span
+            className="h-3 rounded-md"
+            style={{ background: 'var(--inset)', width: row.width }}
+          />
+        </span>
+        <span className="h-3 w-24 rounded-md" style={{ background: 'var(--inset)' }} />
+        <span className="h-3 w-20 rounded-md" style={{ background: 'var(--inset)' }} />
+        <span className="h-5 w-16 rounded-full" style={{ background: 'var(--inset)' }} />
+      </div>
+    ))}
+  </div>
+);
+
+const HubInfoPill = () => (
+  <GlassTooltip content={IDEXX_HUB_INFO} side="bottom">
+    <button
+      type="button"
+      aria-label="IDEXX Hub info"
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption-1 font-bold transition-colors"
+      style={{ background: 'var(--blue-soft)', color: 'var(--blue-text)' }}
+    >
+      <IoInformationCircleOutline size={13} aria-hidden="true" />
+      IDEXX Hub info
+    </button>
+  </GlassTooltip>
+);
+
+const NotConnectedState = () => (
+  <div className="flex flex-1 items-center justify-center py-8">
+    <div
+      className="flex w-full max-w-[520px] flex-col items-center gap-4 rounded-3xl border px-11 py-[52px] text-center"
+      style={{
+        background: 'var(--screen)',
+        borderColor: 'var(--hairline)',
+        boxShadow: '0 1px 2px var(--sh03), 0 14px 40px var(--sh05)',
+      }}
+    >
+      <span
+        className="inline-flex size-[74px] items-center justify-center rounded-full"
+        style={{ background: 'var(--blue-soft)', color: 'var(--blue-text)' }}
+        aria-hidden="true"
+      >
+        <IoFlaskOutline size={32} />
+      </span>
+      <div className="flex flex-col gap-2">
+        <span className="text-page-title">IDEXX isn&apos;t connected yet</span>
+        <span
+          className="text-[14px] leading-[1.6] text-pretty"
+          style={{ color: 'var(--ink-muted)' }}
+        >
+          Connect your IDEXX account to order labs from the visit and pull results from in-house
+          analyzers straight into the record.
+        </span>
+      </div>
+      <div className="flex w-full max-w-[320px] flex-col gap-2">
+        <Primary
+          href="/integrations"
+          text="Enable IDEXX in Integrations"
+          iconPosition="right"
+          className="text-[14px] font-semibold"
+          style={{ minHeight: 46 }}
+        />
+        <Link
+          href="/integrations"
+          className="flex h-10 items-center justify-center gap-1.5 text-[13px] font-semibold"
+          style={{ color: 'var(--blue-text)' }}
+        >
+          <IoOpenOutline size={16} aria-hidden="true" />
+          Open Integrations
+        </Link>
+      </div>
+      <span className="text-caption-1 text-text-secondary">
+        Works with Catalyst One, ProCyte Dx and VetLab UA stations
+      </span>
+    </div>
+  </div>
+);
+
+type ModalityPillsProps = {
+  modalityFilter: ModalityFilter;
+  awaitingReviewOnly: boolean;
+  onSelectModality: (value: ModalityFilter) => void;
+  onToggleAwaitingReview: () => void;
+};
+
+const MODALITY_PILL_ACTIVE_STYLE: React.CSSProperties = {
+  background: 'var(--inset)',
+  borderColor: 'var(--divider)',
+  color: 'var(--ink)',
+  fontWeight: 700,
+};
+const MODALITY_PILL_IDLE_STYLE: React.CSSProperties = {
+  borderColor: 'var(--hairline)',
+  color: 'var(--ink-muted)',
+  fontWeight: 600,
+};
+
+const ModalityPills = ({
+  modalityFilter,
+  awaitingReviewOnly,
+  onSelectModality,
+  onToggleAwaitingReview,
+}: ModalityPillsProps) => {
+  return (
+    // Phone: a single horizontally scrollable row. Tablet / desktop: wraps.
+    <div className="scrollbar-x-float flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
+      {MODALITY_FILTERS.map((filter) => {
+        const active = modalityFilter === filter.value;
+        return (
+          <button
+            key={filter.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onSelectModality(filter.value as ModalityFilter)}
+            className="inline-flex shrink-0 items-center rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap transition-colors"
+            style={active ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
+          >
+            {filter.label}
+          </button>
+        );
+      })}
+      <span
+        className="mx-1 hidden h-4 w-px md:block"
+        style={{ background: 'var(--hairline)' }}
+        aria-hidden="true"
+      />
+      <button
+        type="button"
+        aria-pressed={awaitingReviewOnly}
+        onClick={onToggleAwaitingReview}
+        className="inline-flex shrink-0 items-center rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap transition-colors"
+        style={awaitingReviewOnly ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
+      >
+        Awaiting review
+      </button>
+      <span
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap md:ml-auto"
+        style={MODALITY_PILL_IDLE_STYLE}
+      >
+        <IoCalendarClearOutline size={12} aria-hidden="true" />
+        Last 7 days
+        <IoChevronDownOutline size={12} aria-hidden="true" />
+      </span>
+    </div>
+  );
+};
 
 type IdexxWorkspaceActionsState = {
   primaryOrgId: string | null | undefined;
@@ -931,6 +1387,7 @@ const useIdexxWorkspacePage = () => {
   const [appointmentIdByOrderId, setAppointmentIdByOrderId] = useState<Record<string, string>>({});
   const headerSearchQuery = useSearchStore((s) => s.query);
   const [modalityFilter, setModalityFilter] = useState<ModalityFilter>('ALL');
+  const [awaitingReviewOnly, setAwaitingReviewOnly] = useState(false);
   const [pageSize, setPageSize] = useState(5);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -996,38 +1453,68 @@ const useIdexxWorkspacePage = () => {
         const resultModality = normalizeModality(result.modality);
         if (resultModality !== modalityFilter) return false;
       }
+      if (awaitingReviewOnly && !resultAwaitingReview(result)) return false;
       return !q || matchesResultQuery(result, q);
     });
-  }, [results, headerSearchQuery, modalityFilter]);
+  }, [results, headerSearchQuery, modalityFilter, awaitingReviewOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
   const currentPage = Math.min(page, totalPages);
+
+  // When the result set shrinks below the current page (filters, page size, or a
+  // background refresh), clamp during render rather than paying an extra render
+  // through an effect. The condition converges, so it never loops.
+  if (page > totalPages) {
+    setPage(totalPages);
+  }
 
   const paginatedResults = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredResults.slice(start, start + pageSize);
   }, [filteredResults, currentPage, pageSize]);
 
+  // Reset to the first page when the header search changes — derived during
+  // render (prev-value compare) instead of a useEffect, so there's no extra frame.
+  const [prevSearchQuery, setPrevSearchQuery] = useState(headerSearchQuery);
+  if (headerSearchQuery !== prevSearchQuery) {
+    setPrevSearchQuery(headerSearchQuery);
+    setPage(1);
+  }
+
+  const censusDeviceByPatientId = useMemo(
+    () => buildCensusDeviceByPatientId(censusEntries),
+    [censusEntries]
+  );
+
   const resultsColumns = useMemo(
     () =>
       buildResultsColumns({
-        pdfPreviewLoadingId,
+        censusDeviceByPatientId,
         getAppointmentLabsHref: actions.getAppointmentLabsHref,
         openResultDetails: actions.openResultDetails,
-        openResultPdfPreview: actions.openResultPdfPreview,
         terminologyText,
       }),
     [
-      pdfPreviewLoadingId,
+      censusDeviceByPatientId,
       actions.getAppointmentLabsHref,
       actions.openResultDetails,
-      actions.openResultPdfPreview,
       terminologyText,
     ]
   );
 
+  // Tablet sheds the lower-priority Order ID + IVLS Device ID columns so the
+  // table fits a 768-1279px viewport without horizontal scroll.
+  const tabletResultsColumns = useMemo(
+    () => resultsColumns.filter((column) => column.key !== 'orderId' && column.key !== 'ivls'),
+    [resultsColumns]
+  );
+
   const summary = useMemo(
-    () => ({ totalResults: results.length, censusCount: censusEntries.length }),
+    () => ({
+      totalResults: results.length,
+      censusCount: censusEntries.length,
+      awaitingReviewCount: results.filter(resultAwaitingReview).length,
+    }),
     [results, censusEntries.length]
   );
 
@@ -1039,6 +1526,8 @@ const useIdexxWorkspacePage = () => {
     setAutoRefresh,
     modalityFilter,
     setModalityFilter,
+    awaitingReviewOnly,
+    setAwaitingReviewOnly,
     pageSize,
     setPageSize,
     page: currentPage,
@@ -1063,62 +1552,77 @@ const useIdexxWorkspacePage = () => {
     totalPages,
     paginatedResults,
     resultsColumns,
+    tabletResultsColumns,
+    censusDeviceByPatientId,
     summary,
     censusEntries,
+    results,
     actions,
   };
 };
+
+const IdexxHubHeader = ({ subtitleSuffix }: { subtitleSuffix: React.ReactNode }) => (
+  <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col gap-2">
+      <h1 className="flex flex-wrap items-center gap-2 text-page-title">
+        IDEXX diagnostics
+        <HubInfoPill />
+      </h1>
+      <p className="text-[13.5px]" style={{ color: 'var(--ink-muted)' }}>
+        Orders and results from your in-house analyzers{subtitleSuffix}
+      </p>
+    </div>
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <Primary
+        href="/appointments"
+        text="New order"
+        icon={<IoAdd aria-hidden="true" />}
+        ariaLabel="Create a new order"
+      />
+    </div>
+  </div>
+);
 
 const IdexxWorkspacePage = () => {
   const terminologyText = useCompanionTerminologyText();
   const s = useIdexxWorkspacePage();
   const autoRefreshLabel = getAutoRefreshLabel(s.autoRefresh);
   const refreshButtonLabel = getRefreshButtonLabel(s.loading);
-  const resultModalOverlayClassName = getResultModalOverlayClassName(s.showResultModal);
-  const resultModalContainerClassName = getResultModalContainerClassName(s.showResultModal);
   const startRow = getStartRow(s.page, s.pageSize, s.paginatedResults.length);
-  const idexxHubLabel = (
-    <span className="inline-flex items-center gap-2 py-1 my-1">
-      <span className="inline-flex items-center justify-center rounded-md bg-white px-1.5 py-1">
-        <Image
-          src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
-          alt="IDEXX"
-          width={94}
-          height={40}
-          className="h-6 w-auto object-contain"
-        />
-      </span>
-      <span>{'Hub'}</span>
-    </span>
-  );
+  const showSkeleton = s.loading && s.filteredResults.length === 0;
+  const activeAppointmentLabsHref = s.activeResultDetail
+    ? s.actions.getAppointmentLabsHref(s.activeResultDetail)
+    : '';
+  const subtitleSuffix =
+    s.summary.awaitingReviewCount > 0 ? (
+      <>
+        {' · '}
+        <span className="font-semibold" style={{ color: 'var(--ink-body)' }}>
+          {s.summary.awaitingReviewCount} results awaiting review
+        </span>
+      </>
+    ) : null;
+  const handleRefresh = () => {
+    s.actions.refresh().catch(() => undefined);
+  };
+  const handleToggleAutoRefresh = () => {
+    s.setAutoRefresh((prev) => !prev);
+  };
 
   if (!s.integrationEnabled && !s.loading) {
     return (
-      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-        <h1 className="text-heading-2 text-text-primary flex items-center gap-2">
-          {idexxHubLabel}
-          <GlassTooltip content="IDEXX integration is currently disabled." side="bottom">
-            <button
-              type="button"
-              aria-label="IDEXX Hub info"
-              className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
-            >
-              <IoInformationCircleOutline size={20} />
-            </button>
-          </GlassTooltip>
-        </h1>
-        <Link
-          href="/integrations"
-          className="text-body-4 text-text-brand underline underline-offset-2"
-        >
-          Open Integrations
-        </Link>
+      <div className="flex min-h-[70vh] flex-col gap-4 p-3 md:p-5">
+        <IdexxHubHeader subtitleSuffix={null} />
+        <NotConnectedState />
+        <div className="text-caption-2 text-text-extra">
+          {IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="flex flex-col gap-4 p-3 md:p-5">
       <PdfPreviewOverlay
         open={s.showPdfPreview}
         pdfUrl={s.pdfPreviewUrl}
@@ -1132,57 +1636,9 @@ const IdexxWorkspacePage = () => {
         onClose={() => s.setShowFollowUpFrame(false)}
       />
 
-      <MobileSearchBar placeholder="Search result / order" />
-      <div className="flex justify-between items-start gap-3 flex-wrap">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-heading-2 text-text-primary flex items-center gap-2">
-            {idexxHubLabel}
-            <GlassTooltip
-              content="Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care diagnostics for a seamless workflow."
-              side="bottom"
-            >
-              <button
-                type="button"
-                aria-label="IDEXX Hub info"
-                className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
-              >
-                <IoInformationCircleOutline size={20} />
-              </button>
-            </GlassTooltip>
-          </h1>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <Secondary
-            href="#"
-            text={autoRefreshLabel}
-            onClick={() => s.setAutoRefresh((prev) => !prev)}
-            className="px-4"
-          />
-          <Primary
-            href="#"
-            text={refreshButtonLabel}
-            onClick={() => s.actions.refresh().catch(() => undefined)}
-            className="px-4"
-          />
-        </div>
-      </div>
+      <MobileSearchBar placeholder="Search accession, patient" />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-        <div className="rounded-2xl border border-card-border p-3 bg-white">
-          <div className="text-caption-1 text-text-secondary">Results</div>
-          <div className="text-body-3-emphasis text-text-primary">{s.summary.totalResults}</div>
-        </div>
-        <div className="rounded-2xl border border-card-border p-3 bg-white">
-          <div className="text-caption-1 text-text-secondary">Census entries</div>
-          <div className="text-body-3-emphasis text-text-primary">{s.summary.censusCount}</div>
-        </div>
-        <div className="rounded-2xl border border-card-border p-3 bg-white">
-          <div className="text-caption-1 text-text-secondary">Last refreshed</div>
-          <div className="text-body-4 text-text-primary">
-            {formatDateTimeLocal(s.lastRefreshedAt, 'Not refreshed yet')}
-          </div>
-        </div>
-      </div>
+      <IdexxHubHeader subtitleSuffix={subtitleSuffix} />
 
       {s.error ? (
         <div role="alert" className="text-body-4 text-text-error">
@@ -1190,51 +1646,95 @@ const IdexxWorkspacePage = () => {
         </div>
       ) : null}
 
-      <Accordion title="Diagnostic orders and results" defaultOpen showEditIcon={false} isEditing>
-        <div className="flex flex-col gap-3 py-2">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-full sm:w-[220px]">
-              <LabelDropdown
-                placeholder="Modality"
-                options={MODALITY_FILTERS}
-                defaultOption={s.modalityFilter}
-                onSelect={(option) => {
-                  s.setModalityFilter(option.value as ModalityFilter);
-                  s.setPage(1);
-                }}
+      <CensusStrip
+        entries={s.censusEntries}
+        results={s.results}
+        totalResults={s.summary.totalResults}
+      />
+
+      <ModalityPills
+        modalityFilter={s.modalityFilter}
+        awaitingReviewOnly={s.awaitingReviewOnly}
+        onSelectModality={(value) => {
+          s.setModalityFilter(value);
+          s.setPage(1);
+        }}
+        onToggleAwaitingReview={() => {
+          s.setAwaitingReviewOnly((prev) => !prev);
+          s.setPage(1);
+        }}
+      />
+
+      <div
+        className="flex flex-col overflow-hidden rounded-2xl border"
+        style={{
+          background: 'var(--screen)',
+          borderColor: 'var(--hairline)',
+          boxShadow: '0 1px 2px var(--sh03), 0 8px 22px var(--sh05)',
+        }}
+      >
+        {showSkeleton ? (
+          <SyncingSkeleton lastRefreshedAt={s.lastRefreshedAt} />
+        ) : (
+          <>
+            {/* Desktop (>=1280px): full-detail table. */}
+            <div className="hidden xl:block">
+              <GenericTable data={s.paginatedResults} columns={s.resultsColumns} bordered={false} />
+            </div>
+            {/* Tablet (768-1279px): the pruned table (drops Order ID + IVLS). */}
+            <div className="hidden md:block xl:hidden">
+              <GenericTable
+                data={s.paginatedResults}
+                columns={s.tabletResultsColumns}
+                bordered={false}
               />
             </div>
-            <div className="w-full sm:w-[180px]">
-              <LabelDropdown
-                placeholder="Page size"
-                options={PAGE_SIZE_OPTIONS.map((size) => ({
-                  label: String(size),
-                  value: String(size),
-                }))}
-                defaultOption={String(s.pageSize)}
-                onSelect={(option) => {
-                  s.setPageSize(Number(option.value));
-                  s.setPage(1);
-                }}
+            {/* Phone (<768px): each order becomes a stacked card. */}
+            <div className="flex flex-col gap-3 p-3 md:hidden">
+              <MobileResultsList
+                paginatedResults={s.paginatedResults}
+                getAppointmentLabsHref={s.actions.getAppointmentLabsHref}
+                censusDeviceByPatientId={s.censusDeviceByPatientId}
+                openResultDetails={s.actions.openResultDetails}
               />
             </div>
-          </div>
+          </>
+        )}
 
-          <div className="hidden xl:flex">
-            <GenericTable data={s.paginatedResults} columns={s.resultsColumns} bordered={false} />
+        <div
+          className="flex flex-col gap-2 border-t p-3"
+          style={{ borderColor: 'var(--hairline)' }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-caption-1 text-text-secondary">
+              {s.filteredResults.length} orders · last device sync{' '}
+              {formatDateTimeLocal(s.lastRefreshedAt, '—')}
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Secondary
+                href="#"
+                text={autoRefreshLabel}
+                onClick={handleToggleAutoRefresh}
+                className="px-4"
+              />
+              <Secondary
+                href="#"
+                text={refreshButtonLabel}
+                onClick={handleRefresh}
+                className="px-4"
+              />
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="inline-flex items-center gap-1.5 text-caption-1 font-semibold transition-colors"
+                style={{ color: 'var(--blue-text)' }}
+              >
+                <IoRefreshOutline size={13} aria-hidden="true" />
+                Refresh from IDEXX
+              </button>
+            </div>
           </div>
-
-          <div className="flex xl:hidden flex-col gap-3">
-            <MobileResultsList
-              paginatedResults={s.paginatedResults}
-              getAppointmentLabsHref={s.actions.getAppointmentLabsHref}
-              pdfPreviewLoadingId={s.pdfPreviewLoadingId}
-              openResultDetails={s.actions.openResultDetails}
-              openResultPdfPreview={s.actions.openResultPdfPreview}
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div
               aria-live="polite"
               aria-atomic="true"
@@ -1243,40 +1743,58 @@ const IdexxWorkspacePage = () => {
               Showing {startRow}-{(s.page - 1) * s.pageSize + s.paginatedResults.length} of{' '}
               {s.filteredResults.length}
             </div>
-            <nav
-              aria-label="Results pagination"
-              className="flex items-center gap-2 flex-wrap justify-end"
-            >
-              <Back
-                onClick={() => s.setPage((p) => Math.max(1, p - 1))}
-                disabled={s.page <= 1}
-                className={s.page <= 1 ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''}
-              />
-              <div aria-current="page" className="text-body-4 text-text-primary">
-                Page {s.page} / {s.totalPages}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="w-[130px]">
+                <LabelDropdown
+                  placeholder="Page size"
+                  options={PAGE_SIZE_OPTIONS.map((size) => ({
+                    label: String(size),
+                    value: String(size),
+                  }))}
+                  defaultOption={String(s.pageSize)}
+                  onSelect={(option) => {
+                    s.setPageSize(Number(option.value));
+                    s.setPage(1);
+                  }}
+                />
               </div>
-              <Next
-                onClick={() => s.setPage((p) => Math.min(s.totalPages, p + 1))}
-                disabled={s.page >= s.totalPages}
-                className={
-                  s.page >= s.totalPages ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''
-                }
-              />
-            </nav>
+              <nav
+                aria-label="Results pagination"
+                className="flex flex-wrap items-center justify-end gap-2"
+              >
+                <Back
+                  onClick={() => s.setPage((p) => Math.max(1, p - 1))}
+                  disabled={s.page <= 1}
+                  className={s.page <= 1 ? 'hover:bg-neutral-0! cursor-not-allowed opacity-40' : ''}
+                />
+                <div aria-current="page" className="text-body-4 text-text-primary">
+                  Page {s.page} / {s.totalPages}
+                </div>
+                <Next
+                  onClick={() => s.setPage((p) => Math.min(s.totalPages, p + 1))}
+                  disabled={s.page >= s.totalPages}
+                  className={
+                    s.page >= s.totalPages
+                      ? 'hover:bg-neutral-0! cursor-not-allowed opacity-40'
+                      : ''
+                  }
+                />
+              </nav>
+            </div>
           </div>
         </div>
-      </Accordion>
+      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <Accordion title="Census overview" defaultOpen showEditIcon={false} isEditing>
-          <div className="flex flex-col gap-2 py-2 max-h-[420px] overflow-y-auto pr-1">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Accordion title="Patient census" defaultOpen showEditIcon={false} isEditing>
+          <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto py-2 pr-1">
             <CensusEntriesList entries={s.censusEntries} terminologyText={terminologyText} />
           </div>
         </Accordion>
 
         <Accordion title="Order lookup" defaultOpen showEditIcon={false} isEditing>
           <div className="flex flex-col gap-3 py-2">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+            <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_auto]">
               <FormInput
                 intype="text"
                 inname="idexx-order-id"
@@ -1306,37 +1824,24 @@ const IdexxWorkspacePage = () => {
         </Accordion>
       </div>
 
-      <ModalBase
+      <Modal
         showModal={s.showResultModal}
         setShowModal={s.setShowResultModal}
-        overlayClassName={resultModalOverlayClassName}
-        containerClassName={resultModalContainerClassName}
-        aria-labelledby="idexx-result-modal-title"
+        size="md"
+        aria-labelledby={ORDER_DETAIL_TITLE_ID}
       >
-        <div className="flex flex-col h-full gap-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 id="idexx-result-modal-title" className="text-heading-3 text-text-primary">
-                Result details
-              </h3>
-              <div className="text-body-4 text-text-secondary">
-                Detailed diagnostic payload in Yosemite Crew theme.
-              </div>
-            </div>
-            <Close onClick={() => s.setShowResultModal(false)} />
-          </div>
+        <OrderDetailPanel
+          activeResultDetail={s.activeResultDetail}
+          resultDetailLoading={s.resultDetailLoading}
+          terminologyText={terminologyText}
+          appointmentLabsHref={activeAppointmentLabsHref}
+          pdfPreviewLoadingId={s.pdfPreviewLoadingId}
+          openResultPdfPreview={s.actions.openResultPdfPreview}
+          onClose={() => s.setShowResultModal(false)}
+        />
+      </Modal>
 
-          <ResultDetailModalContent
-            resultDetailLoading={s.resultDetailLoading}
-            activeResultDetail={s.activeResultDetail}
-            terminologyText={terminologyText}
-          />
-        </div>
-      </ModalBase>
-
-      <div className="text-caption-2 text-text-extra pt-1">
-        {IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}
-      </div>
+      <div className="text-caption-2 text-text-extra">{IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER}</div>
     </div>
   );
 };
@@ -1348,5 +1853,23 @@ const ProtectedIdexxWorkspace = () => (
     </OrgGuard>
   </ProtectedRoute>
 );
+
+// Exported for unit testing of the pure helpers / presentational branches.
+export {
+  getInitials,
+  isResultComplete,
+  formatCensusIvlsDevices,
+  getCensusDeviceSerial,
+  buildCensusDeviceByPatientId,
+  getCensusCardStatus,
+  getMeterMeta,
+  getOrderUiUrl,
+  getOrderPdfUrl,
+  buildAppointmentIdByOrderId,
+  getOrderExternalStatusSuffix,
+  normalizeModality,
+  matchesResultQuery,
+  OrderDetailPanel,
+};
 
 export default ProtectedIdexxWorkspace;

@@ -20,10 +20,7 @@ import {
   Platform,
 } from 'react-native';
 import {deleteParentProfile} from '../../../../src/features/account/services/profileService';
-import {
-  deleteAmplifyAccount,
-  deleteFirebaseAccount,
-} from '../../../../src/features/auth/services/accountDeletion';
+import {deleteSupertokensAccount} from '../../../../src/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '../../../../src/shared/utils/imageUri';
 import {calculateAgeFromDateOfBirth} from '../../../../src/shared/utils/helpers';
 import {setSelectedCompanion} from '../../../../src/features/companion';
@@ -31,6 +28,7 @@ import {
   getFreshStoredTokens,
   isTokenExpired,
 } from '../../../../src/features/auth/sessionManager';
+import {usePreferences} from '../../../../src/features/preferences/PreferencesContext';
 
 // --- Mocks ---
 
@@ -53,6 +51,12 @@ const mockLogout = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../../../src/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
+
+// Appearance selector is covered by its own test; stub it here.
+jest.mock(
+  '@/shared/components/common/AppearanceSelector/AppearanceSelector',
+  () => ({AppearanceSelector: () => null}),
+);
 
 // Theme Hook - must return function directly, not variable
 jest.mock('../../../../src/hooks', () => ({
@@ -84,8 +88,7 @@ jest.mock('../../../../src/features/account/services/profileService', () => ({
   deleteParentProfile: jest.fn(),
 }));
 jest.mock('../../../../src/features/auth/services/accountDeletion', () => ({
-  deleteAmplifyAccount: jest.fn(),
-  deleteFirebaseAccount: jest.fn(),
+  deleteSupertokensAccount: jest.fn(),
 }));
 jest.mock('../../../../src/features/auth/sessionManager', () => ({
   getFreshStoredTokens: jest.fn(() =>
@@ -197,7 +200,8 @@ jest.mock(
             <TouchableOpacity
               key={item.id}
               onPress={() => onItemPress(item.id)}
-              testID={`menu-item-${item.id}`}>
+              testID={`menu-item-${item.id}`}
+              accessibilityValue={{text: String(item.tintIcon)}}>
               <Text>{item.label}</Text>
             </TouchableOpacity>
           ))}
@@ -289,7 +293,6 @@ describe('AccountScreen', () => {
 
     (useAuth as jest.Mock).mockReturnValue({
       logout: mockLogout,
-      provider: 'firebase',
     });
 
     store = mockStore({
@@ -321,6 +324,17 @@ describe('AccountScreen', () => {
     expect(normalizeImageUri).toHaveBeenCalledWith(
       'https://example.com/avatar.jpg',
     );
+  });
+
+  it('converts the stored kg weight to the preferred display unit', () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      weightUnit: 'lbs',
+      temperatureUnit: 'F',
+    });
+    renderScreen();
+
+    // currentWeight is always stored in kg; 50 kg -> ~110.2 lbs.
+    expect(screen.getByText(/110\.2 lbs/)).toBeTruthy();
   });
 
   it('renders user profile correctly with only first name', () => {
@@ -448,6 +462,14 @@ describe('AccountScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('EditParentOverview', {
       companionId: 'primary',
     });
+  });
+
+  it('exposes button roles and labels on the companion edit buttons', () => {
+    renderScreen();
+    const johnEditButton = screen.getByLabelText('Edit John Doe');
+    const buddyEditButton = screen.getByLabelText('Edit Buddy');
+    expect(johnEditButton.props.accessibilityRole).toBe('button');
+    expect(buddyEditButton.props.accessibilityRole).toBe('button');
   });
 
   it('navigates to Edit Companion Profile when allowed (Primary Parent)', () => {
@@ -601,6 +623,9 @@ describe('AccountScreen', () => {
   it('navigates to menu items correctly', () => {
     renderScreen();
 
+    fireEvent.press(screen.getByTestId('menu-item-preferences'));
+    expect(mockNavigate).toHaveBeenCalledWith('Preferences');
+
     fireEvent.press(screen.getByTestId('menu-item-faqs'));
     expect(mockNavigate).toHaveBeenCalledWith('FAQ');
 
@@ -612,6 +637,17 @@ describe('AccountScreen', () => {
 
     fireEvent.press(screen.getByTestId('menu-item-contact'));
     expect(mockNavigate).toHaveBeenCalledWith('ContactUs');
+  });
+
+  it('opts the FAQ icon out of tinting since its bitmap has an opaque background', () => {
+    renderScreen();
+
+    expect(
+      screen.getByTestId('menu-item-faqs').props.accessibilityValue,
+    ).toEqual({text: 'false'});
+    expect(
+      screen.getByTestId('menu-item-preferences').props.accessibilityValue,
+    ).toEqual({text: 'undefined'});
   });
 
   it('opens external link for About Us', () => {
@@ -667,11 +703,7 @@ describe('AccountScreen', () => {
     expect(hardwareBackPressHandler?.()).toBe(false);
   });
 
-  it('handles Delete Account confirmation flow (Amplify)', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      logout: mockLogout,
-      provider: 'amplify',
-    });
+  it('handles Delete Account confirmation flow (SuperTokens)', async () => {
     renderScreen();
 
     fireEvent.press(screen.getByTestId('menu-item-delete'));
@@ -682,39 +714,9 @@ describe('AccountScreen', () => {
     });
 
     expect(deleteParentProfile).toHaveBeenCalledWith('parent-1', 'valid-token');
-    expect(deleteAmplifyAccount).toHaveBeenCalled();
+    expect(deleteSupertokensAccount).toHaveBeenCalled();
     expect(mockLogout).toHaveBeenCalled();
   });
-
-  it('handles Delete Account confirmation flow (Firebase)', async () => {
-    renderScreen();
-    fireEvent.press(screen.getByTestId('menu-item-delete'));
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('confirm-delete-btn'));
-    });
-
-    expect(deleteFirebaseAccount).toHaveBeenCalled();
-  });
-
-  it('deletes the profile without provider-specific deletion for other providers', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      logout: mockLogout,
-      provider: 'custom',
-    });
-    renderScreen();
-    fireEvent.press(screen.getByTestId('menu-item-delete'));
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('confirm-delete-btn'));
-    });
-
-    expect(deleteParentProfile).toHaveBeenCalledWith('parent-1', 'valid-token');
-    expect(deleteAmplifyAccount).not.toHaveBeenCalled();
-    expect(deleteFirebaseAccount).not.toHaveBeenCalled();
-    expect(mockLogout).toHaveBeenCalled();
-  });
-
   it('handles Delete Account error (expired token)', async () => {
     (isTokenExpired as jest.Mock).mockReturnValue(true);
 

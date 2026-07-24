@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
 import TimezonePreference from '@/app/features/settings/pages/Settings/Sections/TimezonePreference';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -13,28 +14,6 @@ import {
   setPreferredTimeZone,
   setTimezoneSyncModeForOrg,
 } from '@/app/lib/timezone';
-
-jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
-  __esModule: true,
-  default: ({ options, onSelect, placeholder }: any) => (
-    <div>
-      <div>{placeholder}</div>
-      {options.map((option: any) => (
-        <button key={option.value} type="button" onClick={() => onSelect(option)}>
-          {option.label}
-        </button>
-      ))}
-    </div>
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
 
 jest.mock('@/app/hooks/useNotify', () => ({ useNotify: jest.fn() }));
 jest.mock('@/app/hooks/useProfiles', () => ({ usePrimaryOrgProfile: jest.fn() }));
@@ -51,12 +30,15 @@ jest.mock('@/app/lib/timezone', () => ({
   setTimezoneSyncModeForOrg: jest.fn(),
 }));
 
+const pill = () => screen.getByLabelText('Timezone') as HTMLSelectElement;
+
 describe('TimezonePreference', () => {
   const notify = jest.fn();
   const orgState: any = { primaryOrgId: 'org-1' };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    orgState.primaryOrgId = 'org-1';
     (useNotify as jest.Mock).mockReturnValue({ notify });
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) => selector(orgState));
     (usePrimaryOrgProfile as jest.Mock).mockReturnValue({
@@ -73,12 +55,21 @@ describe('TimezonePreference', () => {
     (patchUserProfile as jest.Mock).mockResolvedValue({});
   });
 
-  it('saves custom timezone', async () => {
+  it('renders the preference row with the device zone selected', () => {
     render(<TimezonePreference />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use custom timezone' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Berlin' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save timezone' }));
+    expect(screen.getByText('Timezone')).toBeInTheDocument();
+    expect(screen.getByText('Used for slots and reminders')).toBeInTheDocument();
+    expect(pill().value).toBe('device');
+    expect(screen.getByRole('option', { name: 'Device · Asia/Kolkata' })).toBeInTheDocument();
+  });
+
+  // Auto-save model: the pill commits on change, so there is no Save button and a
+  // successful write stays silent (the page header carries the indicator).
+  it('pins a custom zone as soon as it is picked', async () => {
+    render(<TimezonePreference />);
+
+    fireEvent.change(pill(), { target: { value: 'Europe/Berlin' } });
 
     await waitFor(() => {
       expect(setTimezoneSyncModeForOrg).toHaveBeenCalledWith('org-1', 'custom');
@@ -89,17 +80,39 @@ describe('TimezonePreference', () => {
         })
       );
     });
-    expect(notify).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'Timezone updated' })
-    );
+    expect(setPreferredTimeZone).toHaveBeenCalledWith('Europe/Berlin');
+    expect(pill().value).toBe('Europe/Berlin');
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  // getTimezoneSyncModeForOrg returns 'custom' on mount -> the effect's custom branch
+  // seeds the pill from the profile; switching back to the sentinel restores device mode.
+  it('hydrates custom mode and switches back to the device zone', async () => {
+    (getTimezoneSyncModeForOrg as jest.Mock).mockReturnValue('custom');
+
+    render(<TimezonePreference />);
+    expect(pill().value).toBe('Europe/Berlin');
+
+    fireEvent.change(pill(), { target: { value: 'device' } });
+
+    await waitFor(() => {
+      expect(setTimezoneSyncModeForOrg).toHaveBeenCalledWith('org-1', 'device');
+      expect(patchUserProfile).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          personalDetails: expect.objectContaining({ timezone: 'Asia/Kolkata' }),
+        })
+      );
+    });
+    expect(setPreferredTimeZone).toHaveBeenCalledWith('Asia/Kolkata');
+    expect(pill().value).toBe('device');
   });
 
   it('shows missing org error', async () => {
     orgState.primaryOrgId = '';
 
     render(<TimezonePreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save timezone' }));
+    fireEvent.change(pill(), { target: { value: 'Europe/Berlin' } });
 
     await waitFor(() => {
       expect(notify).toHaveBeenCalledWith(
@@ -116,12 +129,55 @@ describe('TimezonePreference', () => {
     (patchUserProfile as jest.Mock).mockRejectedValue(new Error('boom'));
 
     render(<TimezonePreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save timezone' }));
+    fireEvent.change(pill(), { target: { value: 'Europe/Berlin' } });
 
     await waitFor(() => {
       expect(notify).toHaveBeenCalledWith(
         'error',
         expect.objectContaining({ title: 'Unable to update timezone' })
+      );
+    });
+  });
+
+  // A custom option with an empty value -> `timezone || DEFAULT_TIMEZONE` falls through
+  // to DEFAULT_TIMEZONE ('Europe/Berlin').
+  it('falls back to the default timezone when the custom selection is empty', async () => {
+    (getTimezoneOptions as jest.Mock).mockReturnValue([
+      { value: '', label: 'Empty TZ' },
+      { value: 'Europe/Berlin', label: 'Berlin' },
+    ]);
+
+    render(<TimezonePreference />);
+    fireEvent.change(pill(), { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(setPreferredTimeZone).toHaveBeenCalledWith('Europe/Berlin');
+      expect(patchUserProfile).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          personalDetails: expect.objectContaining({ timezone: 'Europe/Berlin' }),
+        })
+      );
+    });
+  });
+
+  // profile null -> parseTimezoneFromProfile(undefined) resolves to the default timezone;
+  // exercises the optional chaining on profile?.personalDetails.
+  it('handles an absent profile by using the default timezone', async () => {
+    (usePrimaryOrgProfile as jest.Mock).mockReturnValue(null);
+    (getTimezoneSyncModeForOrg as jest.Mock).mockReturnValue('custom');
+
+    render(<TimezonePreference />);
+    expect(pill().value).toBe('Europe/Berlin');
+
+    fireEvent.change(pill(), { target: { value: 'Asia/Kolkata' } });
+
+    await waitFor(() => {
+      expect(patchUserProfile).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({
+          personalDetails: expect.objectContaining({ timezone: 'Asia/Kolkata' }),
+        })
       );
     });
   });

@@ -112,6 +112,43 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+jest.mock('supertokens-web-js', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+  },
+}));
+
+jest.mock('supertokens-web-js/recipe/emailpassword', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => ({})) },
+}));
+
+jest.mock('supertokens-web-js/recipe/emailverification', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => ({})) },
+}));
+
+jest.mock('supertokens-web-js/recipe/multifactorauth', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => ({})) },
+}));
+
+jest.mock('supertokens-web-js/recipe/passwordless', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => ({})) },
+}));
+
+jest.mock('supertokens-web-js/recipe/session', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => ({})) },
+}));
+
+jest.mock('supertokens-web-js/recipe/totp', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => ({})) },
+}));
+
 // Global test cleanup to prevent hanging
 afterEach(() => {
   // Clear any pending timers

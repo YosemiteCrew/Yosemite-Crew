@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const invoiceActionLimiter = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const withAppointmentOrgPermissions = jest.fn(() =>
@@ -32,8 +32,8 @@ const InvoiceController = {
 const rateLimit = jest.fn(() => invoiceActionLimiter);
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("express-rate-limit", () => rateLimit);
@@ -112,7 +112,7 @@ describe("invoice.router", () => {
 
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognitoMobile);
+    ).toContain(requireMobileAuth);
     expect(
       mobileAppointmentRoute?.stack.map((layer) => layer.handle),
     ).toContain(invoiceActionLimiter);
@@ -122,56 +122,56 @@ describe("invoice.router", () => {
     );
     const mobileInvoiceRoute = findRoute("/mobile/:invoiceId", "get");
     expect(addChargesRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(addChargesRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(appointmentListRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(appointmentListRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(
       mobilePaymentIntentRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognitoMobile);
+    ).toContain(requireMobileAuth);
     expect(
       mobilePaymentIntentRoute?.stack.map((layer) => layer.handle),
     ).toContain(invoiceActionLimiter);
     expect(mobileInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognitoMobile,
+      requireMobileAuth,
     );
     expect(mobileInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(paymentIntentRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(paymentIntentRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(organisationListRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(organisationListRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(checkoutSessionRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(checkoutSessionRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(markPaidRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(markPaidRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(
       paymentCollectionMethodRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(
       paymentCollectionMethodRoute?.stack.map((layer) => layer.handle),
     ).toContain(invoiceActionLimiter);
@@ -180,25 +180,25 @@ describe("invoice.router", () => {
       "post",
     );
     expect(bootstrapRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(bootstrapRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(getInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(getInvoiceRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(creditNoteRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(creditNoteRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
     );
     expect(voidCreditNoteRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(voidCreditNoteRoute?.stack.map((layer) => layer.handle)).toContain(
       invoiceActionLimiter,
@@ -208,8 +208,30 @@ describe("invoice.router", () => {
     expect(withAppointmentOrgPermissions).toHaveBeenCalledTimes(3);
     expect(withPaymentIntentOrgPermissions).toHaveBeenCalledTimes(1);
     expect(withOrgPermissions).toHaveBeenCalledTimes(1);
-    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(5);
+    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(6);
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
+    expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
+  it("derives the organisation from the invoice on the invoice read route so a member of another organisation cannot read it by id", () => {
+    const invoiceReadRoute = findRoute("/:invoiceId", "get");
+    const handles = invoiceReadRoute?.stack.map((layer) => layer.handle);
+
+    expect(handles).toContain(requireWebAuth);
+
+    const orgScopingMiddlewares = withInvoiceOrgPermissions.mock.results.map(
+      (result) => result.value,
+    );
+    const permissionMiddlewares = requirePermission.mock.results.map(
+      (result) => result.value,
+    );
+
+    expect(orgScopingMiddlewares.some((mw) => handles?.includes(mw))).toBe(
+      true,
+    );
+    expect(permissionMiddlewares.some((mw) => handles?.includes(mw))).toBe(
+      true,
+    );
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
   });
 

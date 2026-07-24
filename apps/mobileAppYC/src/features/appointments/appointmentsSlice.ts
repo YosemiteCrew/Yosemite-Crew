@@ -231,11 +231,6 @@ export const createAppointment = createAsyncThunk<
       );
     }
 
-    console.log(
-      '[createAppointment] bookPayload:',
-      JSON.stringify(bookPayload, null, 2),
-    );
-
     const {appointment, invoice, paymentIntent} =
       await appointmentApi.bookAppointment({
         payload: bookPayload,
@@ -609,8 +604,7 @@ const appointmentsSlice = createSlice({
       })
       .addCase(recordPayment.fulfilled, (state, action) => {
         const refreshed = (action.payload as any)?.appointment as
-          | Appointment
-          | undefined;
+          Appointment | undefined;
         if (refreshed) {
           const inferredStatus: AppointmentStatus =
             refreshed.status &&

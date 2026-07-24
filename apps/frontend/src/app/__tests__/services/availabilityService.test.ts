@@ -158,7 +158,12 @@ describe('availabilityService', () => {
   it('deletes override and removes store entry', async () => {
     (deleteData as jest.Mock).mockResolvedValue({});
 
-    await deleteOveride({ _id: 'o3', dayOfWeek: '2026-04-01', organisationId: 'org-1' } as any);
+    await deleteOveride({
+      _id: 'o3',
+      weekStartDate: new Date('2026-04-01T00:00:00.000Z'),
+      dayOfWeek: 'Wednesday',
+      organisationId: 'org-1',
+    } as any);
 
     expect(deleteData).toHaveBeenCalledWith(
       '/fhir/v1/availability/org-1/weekly?weekStartDate=2026-04-01'
@@ -168,7 +173,7 @@ describe('availabilityService', () => {
 
   it('throws when override payload is invalid for delete', async () => {
     await expect(
-      deleteOveride({ _id: '', dayOfWeek: '', organisationId: '' } as any)
+      deleteOveride({ _id: '', weekStartDate: '', organisationId: '' } as any)
     ).rejects.toThrow('Cannot delete overides.');
   });
 });

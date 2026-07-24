@@ -4,7 +4,7 @@ import {API_CONFIG} from '@/config/variables';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
-const shouldLogNetworkActivity = typeof __DEV__ === 'undefined' || __DEV__;
+const shouldLogNetworkActivity = typeof __DEV__ !== 'undefined' && __DEV__;
 
 const buildAbsoluteUrl = (config: AxiosRequestConfig): string => {
   const rawUrl = config.url ?? '';
@@ -65,7 +65,7 @@ client.interceptors.response.use(
         method: response.config?.method,
         url: buildAbsoluteUrl(response.config ?? {}),
         status: response.status,
-        data: response.data,
+        hasBody: response.data != null,
       });
     }
     return response;
@@ -78,7 +78,7 @@ client.interceptors.response.use(
           url: buildAbsoluteUrl(error.config ?? {}),
           status: error.response.status,
           message: error.message,
-          data: error.response.data,
+          hasBody: error.response.data != null,
         });
       } else {
         console.log('[API] Error', {

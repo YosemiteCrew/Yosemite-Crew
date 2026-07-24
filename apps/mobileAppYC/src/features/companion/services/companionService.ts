@@ -528,10 +528,7 @@ const postCompanion = async (
   logCompanionApiEvent('request', {
     method: 'POST',
     endpoint: COMPANION_ENDPOINT,
-    payload: {
-      payload,
-      parentId,
-    },
+    hasPayload: payload != null,
   });
   try {
     const response = await apiClient.post<
@@ -550,7 +547,7 @@ const postCompanion = async (
       method: 'POST',
       endpoint: COMPANION_ENDPOINT,
       status: response.status,
-      data: response.data,
+      hasBody: response.data != null,
     });
     return response;
   } catch (error) {
@@ -591,7 +588,7 @@ const putCompanion = async (
       method: 'PUT',
       endpoint,
       status: response.status,
-      data: response.data,
+      hasBody: response.data != null,
     });
     return response;
   } catch (error) {
@@ -623,7 +620,7 @@ const getCompanion = async (
       method: 'GET',
       endpoint,
       status: response.status,
-      data: response.data,
+      hasBody: response.data != null,
     });
     return response;
   } catch (error) {
@@ -657,7 +654,7 @@ const listCompanionsByParent = async (
       method: 'GET',
       endpoint,
       status: response.status,
-      data: response.data,
+      hasBody: response.data != null,
     });
     return response;
   } catch (error) {

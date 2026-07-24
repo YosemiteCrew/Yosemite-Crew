@@ -72,6 +72,21 @@ const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   return res.status(500).json({ message: defaultMessage });
 };
 
+// `vetIds` (staff identifiers) is an authenticated-only field. The slot routes
+// are a signed-out discovery surface, so an anonymous caller receives the time
+// windows without the practitioner assignment hint; a signed-in caller (staff
+// web app, or the mobile app once the user has authenticated to book) keeps it.
+const isAuthenticatedRequest = (req: Request): boolean =>
+  Boolean((req as OrgRequest).userId);
+
+const withoutVetIds = <T extends { vetIds: string[] }>(
+  value: T,
+): Omit<T, "vetIds"> => {
+  const clone: T = { ...value };
+  delete (clone as Partial<T>).vetIds;
+  return clone;
+};
+
 const parseCoordinates = (
   latString: string | undefined,
   lngString: string | undefined,
@@ -378,9 +393,13 @@ export const ServiceController = {
         referenceDate,
       );
 
+      const data = isAuthenticatedRequest(req)
+        ? result
+        : { ...result, windows: result.windows.map(withoutVetIds) };
+
       return res.status(200).json({
         success: true,
-        data: result,
+        data,
       });
     } catch (error: unknown) {
       return handleError(error, res, "Unable to fetch bookable slots");
@@ -413,9 +432,16 @@ export const ServiceController = {
         serviceIds,
       });
 
+      const sanitizedMatches = isAuthenticatedRequest(req)
+        ? matches
+        : matches.map((match) => ({
+            ...match,
+            slot: withoutVetIds(match.slot),
+          }));
+
       return res.status(200).json({
         success: true,
-        data: { matches },
+        data: { matches: sanitizedMatches },
       });
     } catch (error: unknown) {
       return handleError(error, res, "Unable to fetch calendar prefill");

@@ -43,6 +43,15 @@ type LaunchTaskWorkflowOptions = {
   deferUntil?: Date;
 };
 
+/**
+ * Both fields are required so that a caller cannot silently opt out of the
+ * ownership check by omitting them.
+ */
+export type ScheduleActor = {
+  actorId: string;
+  canEditAny: boolean;
+};
+
 type AppointmentContext = {
   patientId?: string;
   parentId?: string;
@@ -241,15 +250,22 @@ const materializeWorkflowTasks = async (params: {
 const loadAppointmentContext = async (
   client: Prisma.TransactionClient,
   templateInstance: {
+    organisationId: string;
     appointmentId?: string | null;
     encounterId?: string | null;
     signedAt?: Date | null;
     createdAt: Date;
   },
 ): Promise<AppointmentContext> => {
+  // The generated tasks inherit the patient/parent/lead/support-staff ids read
+  // here, so the appointment must be scoped to the instance's organisation: an
+  // unscoped lookup would copy another tenant's identifiers into these tasks.
   const appointment = templateInstance.appointmentId
     ? await client.appointment.findFirst({
-        where: { id: templateInstance.appointmentId },
+        where: {
+          id: templateInstance.appointmentId,
+          organisationId: templateInstance.organisationId,
+        },
         select: {
           appointmentKind: true,
           patient: true,
@@ -261,11 +277,21 @@ const loadAppointmentContext = async (
       })
     : null;
 
+  if (templateInstance.appointmentId && !appointment) {
+    throw new TaskWorkflowServiceError(
+      "Appointment does not belong to organisation",
+      403,
+    );
+  }
+
   const encounterId =
     templateInstance.encounterId ?? appointment?.encounterId ?? undefined;
   const admission = encounterId
-    ? await client.admission.findUnique({
-        where: { encounterId },
+    ? await client.admission.findFirst({
+        where: {
+          encounterId,
+          organisationId: templateInstance.organisationId,
+        },
         select: { admittedAt: true },
       })
     : null;
@@ -459,10 +485,42 @@ const launchWorkflowInstance = async (
   };
 };
 
+/**
+ * `tasks:edit:own` grants these routes to callers who do not hold
+ * `tasks:edit:any`, so the ownership relationship the permission implies has to
+ * be established here — the route only proves the caller holds one of the two.
+ */
+const assertScheduleActorMayWrite = (
+  instance: {
+    authorId: string | null;
+    signedBy: string | null;
+    taskSchedule?: { createdBy: string; activatedBy: string | null } | null;
+  },
+  actor: ScheduleActor,
+) => {
+  if (actor.canEditAny) {
+    return;
+  }
+
+  const actorId = actor.actorId.trim();
+  const owns =
+    !!actorId &&
+    (instance.authorId === actorId ||
+      instance.signedBy === actorId ||
+      instance.taskSchedule?.createdBy === actorId);
+
+  if (!owns) {
+    throw new TaskWorkflowServiceError(
+      "Forbidden – insufficient permissions",
+      403,
+    );
+  }
+};
+
 const loadScheduleByInstanceId = async (
   client: Prisma.TransactionClient,
   instanceId: string,
-  organisationId?: string,
+  organisationId: string,
 ): Promise<TemplateInstanceWithSchedule> => {
   const instance = normalizeTemplateInstance(
     await client.templateInstance.findUnique({
@@ -480,7 +538,7 @@ const loadScheduleByInstanceId = async (
     }),
   );
 
-  if (organisationId && instance.organisationId !== organisationId) {
+  if (instance.organisationId !== organisationId.trim()) {
     throw new TaskWorkflowServiceError(
       "Template instance does not belong to organisation",
       403,
@@ -526,8 +584,8 @@ export const TaskWorkflowService = {
 
   async launchFromTemplateInstance(
     instanceId: string,
-    organisationId?: string,
-    submittedBy?: string,
+    organisationId: string,
+    actor: ScheduleActor,
     options?: LaunchTaskWorkflowOptions,
   ) {
     const client = options?.client ?? prisma;
@@ -547,25 +605,27 @@ export const TaskWorkflowService = {
       }),
     );
 
-    if (organisationId && instance.organisationId !== organisationId) {
+    if (instance.organisationId !== organisationId.trim()) {
       throw new TaskWorkflowServiceError(
         "Template instance does not belong to organisation",
         403,
       );
     }
 
+    assertScheduleActorMayWrite(instance, actor);
+
     return launchWorkflowInstance(
       client,
       instance,
-      (submittedBy ?? instance.authorId ?? instance.signedBy ?? "").trim(),
+      (actor.actorId || instance.authorId || instance.signedBy || "").trim(),
       options,
     );
   },
 
   async pauseSchedule(
     instanceId: string,
-    actorId: string,
-    organisationId?: string,
+    actor: ScheduleActor,
+    organisationId: string,
   ) {
     const client = prisma;
     const instance = await loadScheduleByInstanceId(
@@ -573,12 +633,13 @@ export const TaskWorkflowService = {
       instanceId,
       organisationId,
     );
+    assertScheduleActorMayWrite(instance, actor);
 
     const updated = await client.taskSchedule.update({
       where: { templateInstanceId: instance.id },
       data: {
         status: "PAUSED",
-        activatedBy: actorId.trim(),
+        activatedBy: actor.actorId.trim(),
       },
     });
 
@@ -587,8 +648,8 @@ export const TaskWorkflowService = {
 
   async resumeSchedule(
     instanceId: string,
-    actorId: string,
-    organisationId?: string,
+    actor: ScheduleActor,
+    organisationId: string,
   ) {
     const client = prisma;
     const instance = await loadScheduleByInstanceId(
@@ -596,6 +657,7 @@ export const TaskWorkflowService = {
       instanceId,
       organisationId,
     );
+    assertScheduleActorMayWrite(instance, actor);
 
     if (instance.taskSchedule.status !== "PAUSED") {
       throw new TaskWorkflowServiceError("Schedule is not paused", 400);
@@ -605,7 +667,7 @@ export const TaskWorkflowService = {
       where: { templateInstanceId: instance.id },
       data: {
         status: "ACTIVE",
-        activatedBy: actorId.trim(),
+        activatedBy: actor.actorId.trim(),
       },
     });
 
@@ -614,8 +676,8 @@ export const TaskWorkflowService = {
 
   async cancelSchedule(
     instanceId: string,
-    actorId: string,
-    organisationId?: string,
+    actor: ScheduleActor,
+    organisationId: string,
   ) {
     const client = prisma;
     const instance = await loadScheduleByInstanceId(
@@ -623,12 +685,13 @@ export const TaskWorkflowService = {
       instanceId,
       organisationId,
     );
+    assertScheduleActorMayWrite(instance, actor);
 
     const generatedTaskIds = toTaskIdList(
       instance.taskSchedule.generatedTaskIds,
     );
     for (const taskId of generatedTaskIds) {
-      await TaskService.changeStatus(taskId, "CANCELLED", actorId.trim());
+      await TaskService.changeStatus(taskId, "CANCELLED", actor.actorId.trim());
     }
 
     const updated = await client.taskSchedule.update({
@@ -645,8 +708,8 @@ export const TaskWorkflowService = {
 
   async regenerateSchedule(
     instanceId: string,
-    organisationId?: string,
-    submittedBy?: string,
+    organisationId: string,
+    actor: ScheduleActor,
     options?: LaunchTaskWorkflowOptions,
   ) {
     const client = options?.client ?? prisma;
@@ -655,11 +718,12 @@ export const TaskWorkflowService = {
       instanceId,
       organisationId,
     );
+    assertScheduleActorMayWrite(instance, actor);
 
     return launchWorkflowInstance(
       client,
       instance,
-      (submittedBy ?? instance.authorId ?? instance.signedBy ?? "").trim(),
+      (actor.actorId || instance.authorId || instance.signedBy || "").trim(),
       {
         ...options,
         force: true,

@@ -149,6 +149,13 @@ describe('LabTests', () => {
     },
   };
 
+  // Guarantee real timers are restored after every test so a fake-timer test
+  // that throws before its own cleanup can't leak into a later (real-timer) one.
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     orgStoreStateMock.primaryOrgId = 'org-1';
@@ -414,6 +421,50 @@ describe('LabTests', () => {
     });
 
     expect(screen.getByText('Order 100329789')).toBeInTheDocument();
+  });
+
+  it('stages a searched test as pending instead of queueing it immediately, until confirmed (bug #1973)', async () => {
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    await waitFor(() => {
+      expect(result.current.tests).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.selectSearchResult('9126');
+    });
+
+    expect(result.current.pendingTest?.code).toBe('9126');
+    expect(result.current.selectedTests).toHaveLength(0);
+    expect(result.current.selectedTestLabel).toBe('Chem Panel (9126)');
+
+    act(() => {
+      result.current.confirmPendingTest();
+    });
+
+    expect(result.current.pendingTest).toBeNull();
+    expect(result.current.selectedTests.map((test) => test.code)).toEqual(['9126']);
+    expect(result.current.selectedTestLabel).toBe('');
+  });
+
+  it('discards a pending test without queueing it when cancelled', async () => {
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    await waitFor(() => {
+      expect(result.current.tests).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.selectSearchResult('9126');
+    });
+    expect(result.current.pendingTest?.code).toBe('9126');
+
+    act(() => {
+      result.current.cancelPendingTest();
+    });
+
+    expect(result.current.pendingTest).toBeNull();
+    expect(result.current.selectedTests).toHaveLength(0);
   });
 
   it('refreshes the appointment orders when the IDEXX iframe is closed', async () => {
@@ -1390,5 +1441,293 @@ describe('LabTests', () => {
     await waitFor(() => {
       expect(screen.getByText('IDEXX Order Acknowledgment #past-1')).toBeInTheDocument();
     });
+  });
+
+  it('surfaces an error when loading IDEXX devices fails', async () => {
+    listIdexxIvlsDevicesMock.mockRejectedValue(new Error('device down'));
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Unable to load IDEXX integration/device state.')
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('reassigns veterinarian and technician when the appointment staff changes', async () => {
+    const apptA: any = {
+      id: 'appt-a',
+      companion: { id: 'patient-1', parent: { id: 'parent-1' } },
+      lead: { name: 'Dr A' },
+      supportStaff: [{ id: 's1', name: 'Tech A' }],
+    };
+    const apptB: any = {
+      id: 'appt-b',
+      companion: { id: 'patient-1', parent: { id: 'parent-1' } },
+      lead: { name: 'Dr B' },
+      supportStaff: [{ id: 's2', name: 'Tech B' }],
+    };
+
+    const { result, rerender } = renderHook(({ a }) => useLabTests(a), {
+      initialProps: { a: apptA },
+    });
+
+    await waitFor(() => {
+      expect(result.current.veterinarian).toBe('Dr A');
+    });
+    expect(result.current.technician).toBe('Tech A');
+
+    rerender({ a: apptB });
+
+    await waitFor(() => {
+      expect(result.current.veterinarian).toBe('Dr B');
+    });
+    expect(result.current.technician).toBe('Tech B');
+  });
+
+  it('lets a non-complete past order launch the ordering iframe', async () => {
+    const latest = {
+      _id: 'ord-latest-complete',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      companionId: 'patient-1',
+      status: 'COMPLETE',
+      modality: 'REFERENCE_LAB',
+      idexxOrderId: 'latest-complete-1',
+      updatedAt: '2026-06-02T10:00:00Z',
+      tests: ['9126'],
+    };
+    const past = {
+      _id: 'ord-past-created',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      companionId: 'patient-1',
+      status: 'CREATED',
+      modality: 'REFERENCE_LAB',
+      idexxOrderId: 'past-created-1',
+      updatedAt: '2026-06-01T10:00:00Z',
+      uiUrl: 'https://integration.vetconnectplus.com/order/past-created',
+      tests: ['9126'],
+    };
+    listIdexxOrdersMock.mockResolvedValue([latest, past]);
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Order past-created-1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByTitle('IDEXX order UI')).toBeInTheDocument();
+  });
+
+  it('applies result filtering during follow-up polling', async () => {
+    jest.useFakeTimers();
+    try {
+      const followupOrder = {
+        _id: 'ord-fp-results',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'SUBMITTED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: 'fp-results-1',
+        uiUrl: 'https://vetconnectplus.com/order',
+        updatedAt: '2026-06-01T10:00:00Z',
+        tests: ['9126'],
+      };
+      listIdexxOrdersMock.mockResolvedValue([followupOrder]);
+      getIdexxOrderByIdMock.mockResolvedValue({
+        ...followupOrder,
+        updatedAt: '2026-06-01T10:10:00Z',
+      });
+      listIdexxResultsMock.mockResolvedValue([
+        {
+          _id: 'r-fp',
+          provider: 'IDEXX',
+          resultId: 'res-fp',
+          orderId: 'fp-results-1',
+          patientId: 'patient-1',
+          status: 'FINAL',
+        },
+      ]);
+
+      const { result } = renderHook(() => useLabTests(appointment));
+
+      act(() => {
+        result.current.openOrderIframe('followup', 'SUBMITTED', followupOrder as LabOrder);
+      });
+
+      await waitFor(() => {
+        expect(result.current.showOrderIframe).toBe(true);
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(8000);
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(result.current.results.map((r) => r.resultId)).toContain('res-fp');
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('surfaces an error when polling the order status fails', async () => {
+    jest.useFakeTimers();
+    try {
+      const createdOrder = {
+        _id: 'ord-poll-fail',
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        companionId: 'patient-1',
+        status: 'CREATED',
+        modality: 'REFERENCE_LAB',
+        idexxOrderId: 'poll-fail-1',
+        uiUrl: 'https://vetconnectplus.com/order',
+        tests: ['9126'],
+      };
+      listIdexxOrdersMock.mockResolvedValue([createdOrder]);
+      getIdexxOrderByIdMock.mockRejectedValue(new Error('poll boom'));
+
+      const { result } = renderHook(() => useLabTests(appointment));
+
+      act(() => {
+        result.current.openOrderIframe('order', 'CREATED', createdOrder as LabOrder);
+      });
+
+      await waitFor(() => {
+        expect(result.current.showOrderIframe).toBe(true);
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(8000);
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).toBe('Unable to poll order status while IDEXX frame is open.');
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('revokes the blob URL when closing the PDF preview', async () => {
+    const idexxService = jest.requireMock('@/app/features/integrations/services/idexxService');
+    idexxService.getIdexxResultPdfBlob.mockResolvedValue(new Blob(['pdf']));
+    const createObjectURL = jest.fn().mockReturnValue('blob:preview-close');
+    const revokeObjectURL = jest.fn();
+    (URL as any).createObjectURL = createObjectURL;
+    (URL as any).revokeObjectURL = revokeObjectURL;
+
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    await act(async () => {
+      await result.current.openResultPdfPreview('res-close');
+    });
+
+    await waitFor(() => {
+      expect(result.current.pdfPreviewUrl).toBe('blob:preview-close');
+    });
+
+    act(() => {
+      result.current.closePdfPreview();
+    });
+
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-close');
+    expect(result.current.showPdfPreview).toBe(false);
+    expect(result.current.pdfPreviewUrl).toBeNull();
+  });
+
+  it('opens the newest result PDF when an order has multiple results', async () => {
+    const multiOrder = {
+      _id: 'ord-multi',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      companionId: 'patient-1',
+      status: 'SUBMITTED',
+      modality: 'REFERENCE_LAB',
+      idexxOrderId: 'multi-1',
+      tests: ['9126'],
+    };
+    listIdexxOrdersMock.mockResolvedValue([multiOrder]);
+    listIdexxResultsMock.mockResolvedValue([
+      {
+        _id: 'r-old',
+        provider: 'IDEXX',
+        resultId: 'res-old',
+        orderId: 'multi-1',
+        patientId: 'patient-1',
+        status: 'FINAL',
+        updatedAt: '2026-06-01T09:00:00Z',
+      },
+      {
+        _id: 'r-new',
+        provider: 'IDEXX',
+        resultId: 'res-new',
+        orderId: 'multi-1',
+        patientId: 'patient-1',
+        status: 'FINAL',
+        updatedAt: '2026-06-02T09:00:00Z',
+      },
+    ]);
+    const idexxService = jest.requireMock('@/app/features/integrations/services/idexxService');
+    idexxService.getIdexxResultPdfBlob.mockResolvedValue(new Blob(['pdf']));
+    (URL as any).createObjectURL = jest.fn().mockReturnValue('blob:multi');
+    (URL as any).revokeObjectURL = jest.fn();
+
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    await waitFor(() => {
+      expect(result.current.results).toHaveLength(2);
+    });
+
+    await act(async () => {
+      await result.current.openResultPdfForOrder(multiOrder as LabOrder);
+    });
+
+    await waitFor(() => {
+      expect(result.current.pdfPreviewTitle).toBe('IDEXX Result PDF #res-new');
+    });
+  });
+
+  it('errors when opening an acknowledgment PDF that is unavailable', async () => {
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    act(() => {
+      result.current.openOrderAcknowledgement({
+        _id: 'ord-no-pdf',
+        idexxOrderId: 'no-pdf-1',
+        status: 'CREATED',
+      } as LabOrder);
+    });
+
+    expect(result.current.error).toBe('Acknowledgment PDF is not available for this order.');
+
+    // Settle the hook's mount loads before the test unmounts so they don't
+    // leak an act(...) warning into the next test.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  it('shows a loading message while appointment orders are still loading', async () => {
+    listIdexxOrdersMock.mockReturnValue(new Promise<never>(() => {}));
+
+    render(<LabTests activeAppointment={appointment} />);
+
+    // Orders never resolve (stays loading), but the chained device -> census
+    // loads do — drain all pending microtasks inside act so their state
+    // updates don't warn.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByText('Loading appointment lab orders...')).toBeInTheDocument();
   });
 });

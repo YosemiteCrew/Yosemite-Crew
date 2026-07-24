@@ -98,6 +98,7 @@ type BusinessCheckoutContext = {
   externalCustomerId?: string | null;
   priceId: string;
   seats: number;
+  canAcceptPayments: boolean;
 };
 
 type CheckoutCustomerInput = {
@@ -270,8 +271,7 @@ export const FinanceSubscriptionService = {
         referenceType: input.referenceType ?? undefined,
         referenceId: input.referenceId ?? undefined,
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         occurredAt: input.occurredAt ?? new Date(),
       },
     });
@@ -393,8 +393,7 @@ export const FinanceSubscriptionService = {
         appointmentsUsed: toPositiveInteger(input.appointmentsUsed ?? 0),
         toolsUsed: toPositiveInteger(input.toolsUsed ?? 0),
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         snapshotAt: input.snapshotAt ?? new Date(),
       },
     });
@@ -466,8 +465,7 @@ export const FinanceSubscriptionService = {
         grantedAt: input.grantedAt ?? new Date(),
         expiresAt: input.expiresAt ?? undefined,
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
       },
       update: {
         name: input.name ?? undefined,
@@ -477,8 +475,7 @@ export const FinanceSubscriptionService = {
         grantedAt: input.grantedAt ?? undefined,
         expiresAt: input.expiresAt ?? undefined,
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
       },
     });
   },
@@ -539,6 +536,28 @@ export const FinanceSubscriptionService = {
   },
 
   async upsertSubscriptionProviderLink(input: SubscriptionProviderLinkInput) {
+    // Callers patch single keys (e.g. lastPaymentStatus). Replacing the whole
+    // document would drop subscriptionStatus/seatQuantity, which the seat-sync
+    // plan reads back.
+    const existing = input.metadata
+      ? await prisma.financeProviderLink.findUnique({
+          where: {
+            orgId_provider: {
+              orgId: input.orgId,
+              provider: input.provider,
+            },
+          },
+          select: { metadata: true },
+        })
+      : null;
+
+    const mergedMetadata = input.metadata
+      ? ({
+          ...readJsonRecord(existing?.metadata),
+          ...input.metadata,
+        } as unknown as Prisma.InputJsonValue)
+      : undefined;
+
     return prisma.financeProviderLink.upsert({
       where: {
         orgId_provider: {
@@ -555,9 +574,7 @@ export const FinanceSubscriptionService = {
           input.externalSubscriptionItemId ?? undefined,
         externalPriceId: input.externalPriceId ?? undefined,
         externalProductId: input.externalProductId ?? undefined,
-        metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+        metadata: mergedMetadata,
       },
       update: {
         externalCustomerId: input.externalCustomerId ?? undefined,
@@ -566,9 +583,7 @@ export const FinanceSubscriptionService = {
           input.externalSubscriptionItemId ?? undefined,
         externalPriceId: input.externalPriceId ?? undefined,
         externalProductId: input.externalProductId ?? undefined,
-        metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+        metadata: mergedMetadata,
       },
     });
   },
@@ -577,7 +592,7 @@ export const FinanceSubscriptionService = {
     orgId: string,
     interval: BusinessCheckoutInterval,
   ): Promise<BusinessCheckoutContext> {
-    const [org, providerLink] = await Promise.all([
+    const [org, providerLink, orgBilling] = await Promise.all([
       prisma.organization.findUnique({
         where: { id: orgId },
         select: { name: true, stripeAccountId: true },
@@ -592,6 +607,10 @@ export const FinanceSubscriptionService = {
         select: {
           externalCustomerId: true,
         },
+      }),
+      prisma.organizationBilling.findUnique({
+        where: { orgId },
+        select: { canAcceptPayments: true },
       }),
     ]);
     if (!org) throw new Error("Organisation not found");
@@ -620,6 +639,7 @@ export const FinanceSubscriptionService = {
       externalCustomerId: providerLink?.externalCustomerId ?? null,
       priceId,
       seats,
+      canAcceptPayments: orgBilling?.canAcceptPayments ?? false,
     };
   },
 

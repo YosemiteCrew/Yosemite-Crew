@@ -306,6 +306,7 @@ const SlotComponent: React.FC<SlotProps> = ({
   );
 
   const tryCreateAppointmentAt = (minute: number) => {
+    /* v8 ignore next -- defensive guard: the create button only mounts when both dropDate and onCreateAppointmentAt are set, so this early return is unreachable from the UI */
     if (!dropDate || !onCreateAppointmentAt) return;
     const snapped = Math.round(minute / 5) * 5;
     const slotTime = new Date(dropDate);
@@ -337,7 +338,7 @@ const SlotComponent: React.FC<SlotProps> = ({
     <>
       <section
         aria-label={slotRegionLabel}
-        className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && 'border-r'}`}
+        className={`relative overflow-auto scrollbar-hidden border-l border-card-border ${dayIndex === length && 'border-r'}`}
         style={{ height: `${height}px` }}
         onDragOver={(event) => {
           if (!draggedAppointmentId) return;
@@ -392,7 +393,7 @@ const SlotComponent: React.FC<SlotProps> = ({
           availabilitySegments.map((segment, index) => (
             <div
               key={`drop-availability-${index}-${segment.top}`}
-              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-grey-light bg-calendar-availability-overlay"
+              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-card-border bg-calendar-availability-overlay"
               style={{ top: segment.top, height: segment.segmentHeight }}
             />
           ))}
@@ -420,7 +421,9 @@ const SlotComponent: React.FC<SlotProps> = ({
             onDropPreviewClear={() => setDropPreviewMinute(null)}
           />
         ) : (
-          <div className="relative h-full bg-white overflow-visible px-1">
+          // Transparent so the week grid's today-column tint reads through; the
+          // calendar container already supplies the --screen surface underneath.
+          <div className="relative h-full overflow-visible px-1">
             {laidOutZoomInEvents.map(
               ({ ev, startMinute, visibleDurationMinutes, laneIndex, laneCount }) => {
                 const itemKey = getSlotEventKey(ev);

@@ -1,6 +1,7 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
-import {Step2Screen} from '../../../../src/features/adverseEventReporting/screens/Step2Screen';
+import {mockTheme} from '../../../setup/mockTheme';
+import {Step2Screen} from '@/features/adverseEventReporting/screens/Step2Screen';
 
 // --- Mocks ---
 
@@ -8,90 +9,94 @@ import {Step2Screen} from '../../../../src/features/adverseEventReporting/screen
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockParentNavigate = jest.fn();
+const mockGetParent = jest.fn(() => ({navigate: mockParentNavigate}));
 
 const mockNavigation = {
   navigate: mockNavigate,
   goBack: mockGoBack,
-  getParent: jest.fn(() => ({navigate: mockParentNavigate})),
+  getParent: mockGetParent,
 } as any;
 
-// 2. Redux
-// We use a mock function that we can control via implementation,
-// but we ensure the import itself passes the selector through to be called.
+// 2. Redux — passthrough selector so the auth.user branch logic actually runs.
 const mockUseSelector = jest.fn();
 jest.mock('react-redux', () => ({
   useSelector: (selector: any) => mockUseSelector(selector),
 }));
 
-// 3. Child Components
-// Mock AERLayout
-jest.mock(
-  '../../../../src/features/adverseEventReporting/components/AERLayout',
-  () => {
-    const {View, Text, TouchableOpacity} = require('react-native');
-    return ({children, onBack, bottomButton, stepLabel}: any) => (
-      <View testID="aer-layout">
-        <Text>{stepLabel}</Text>
-        <TouchableOpacity onPress={onBack} testID="layout-back">
-          <Text>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={bottomButton.onPress} testID="layout-next">
-          <Text>{bottomButton.title}</Text>
-        </TouchableOpacity>
-        {children}
-      </View>
-    );
-  },
-);
+// 3. Theme hook (shared complete warm-bone theme mock)
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: mockTheme, isDark: false}),
+}));
 
-// Mock AERInfoSection
-jest.mock(
-  '../../../../src/features/adverseEventReporting/components/AERInfoSection',
-  () => {
-    const {View, Text, TouchableOpacity} = require('react-native');
-    return ({title, onEdit, rows}: any) => (
-      <View testID="aer-info-section">
-        <Text>{title}</Text>
-        {/* Button to trigger the main Section Edit action */}
-        <TouchableOpacity onPress={onEdit} testID="section-edit-btn">
-          <Text>Edit Section</Text>
-        </TouchableOpacity>
+// 4. AERLayout (default export) — expose step label + back/next + children.
+jest.mock('@/features/adverseEventReporting/components/AERLayout', () => {
+  const {View, Text, TouchableOpacity} = require('react-native');
+  const MockAERLayout = ({children, stepLabel, onBack, bottomButton}: any) => (
+    <View testID="aer-layout">
+      <Text>{stepLabel}</Text>
+      <TouchableOpacity onPress={onBack} testID="layout-back">
+        <Text>Back</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={bottomButton.onPress} testID="layout-next">
+        <Text>{bottomButton.title}</Text>
+      </TouchableOpacity>
+      {children}
+    </View>
+  );
+  return {__esModule: true, default: MockAERLayout};
+});
 
-        {/* Render rows to verify data mapping and individual row onPress */}
-        {rows.map((row: any, index: number) => (
-          <TouchableOpacity
-            key={row.label}
-            onPress={row.onPress}
-            testID={`row-${index}`}>
-            <Text>
-              {row.label}: {row.value}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  },
-);
+// 5. LiquidGlassCard (named export) — render children only.
+jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
+  const {View} = require('react-native');
+  const LiquidGlassCard = ({children}: any) => (
+    <View testID="liquid-glass-card">{children}</View>
+  );
+  return {LiquidGlassCard};
+});
+
+// 6. RowButton (named export) — expose label, value and onPress for assertions.
+jest.mock('@/shared/components/common/RowButton', () => {
+  const {Text, TouchableOpacity} = require('react-native');
+  const RowButton = ({label, value, onPress}: any) => (
+    <TouchableOpacity testID={`row-${label}`} onPress={onPress}>
+      <Text testID={`row-label-${label}`}>{label}</Text>
+      <Text testID={`row-value-${label}`}>{value}</Text>
+    </TouchableOpacity>
+  );
+  return {RowButton};
+});
+
+// 7. Separator (named export)
+jest.mock('@/shared/components/common/Separator', () => {
+  const {View} = require('react-native');
+  const Separator = () => <View testID="separator" />;
+  return {Separator};
+});
+
+// --- Helpers ---
+
+const setupState = (user: any) => {
+  mockUseSelector.mockImplementation((selector: any) =>
+    selector({auth: {user}}),
+  );
+};
+
+const renderScreen = () =>
+  render(<Step2Screen navigation={mockNavigation} route={{} as any} />);
+
+const rowValue = (utils: any, label: string) =>
+  utils.getByTestId(`row-value-${label}`).props.children;
 
 // --- Test Suite ---
 
 describe('Step2Screen', () => {
-  // Helper to mock the state and ensure the selector callback runs
-  const setupState = (user: any) => {
-    mockUseSelector.mockImplementation((selector: any) =>
-      selector({
-        auth: {user},
-      }),
-    );
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default navigation behavior: getParent returns a valid navigator
-    mockNavigation.getParent.mockReturnValue({navigate: mockParentNavigate});
+    mockGetParent.mockReturnValue({navigate: mockParentNavigate});
   });
 
-  it('renders correctly with full user data (Happy Path)', () => {
+  it('renders the header, title, subtitle, banner and Next button (happy path)', () => {
     setupState({
       firstName: 'John',
       lastName: 'Doe',
@@ -108,118 +113,118 @@ describe('Step2Screen', () => {
       },
     });
 
-    const {getByText} = render(
-      <Step2Screen navigation={mockNavigation} route={{} as any} />,
-    );
+    const utils = renderScreen();
+    const {getByText, getByTestId} = utils;
 
-    // Verify Layout Labels
+    // Layout wiring
     expect(getByText('Step 2 of 5')).toBeTruthy();
-    expect(getByText('Parent Information')).toBeTruthy();
+    expect(getByTestId('layout-back')).toBeTruthy();
+    expect(getByText('Next')).toBeTruthy();
 
-    // Verify mapped data exists in the rows
-    expect(getByText('First name: John')).toBeTruthy();
-    expect(getByText('Phone number: 123456')).toBeTruthy();
-    expect(getByText('Currency: GBP')).toBeTruthy();
-    expect(getByText('City: London')).toBeTruthy();
+    // Screen copy
+    expect(getByText('Who is reporting?')).toBeTruthy();
+    expect(getByText(/Prefilled from your account/)).toBeTruthy();
 
-    // Verify Date Formatting (presence of the label implies row was rendered)
-    expect(getByText(/Date of birth:/)).toBeTruthy();
+    // Helper banner (globally-mocked Ionicons renders as icon-<name>)
+    expect(getByTestId('icon-lock-closed-outline')).toBeTruthy();
+    expect(
+      getByText('Shared only with the recipients you picked in step 1.'),
+    ).toBeTruthy();
+
+    // Mapped row values (left branches of the ?? / ternary logic)
+    expect(rowValue(utils, 'First name')).toBe('John');
+    expect(rowValue(utils, 'Last name')).toBe('Doe');
+    expect(rowValue(utils, 'Phone number')).toBe('123456');
+    expect(rowValue(utils, 'Email address')).toBe('john@example.com');
+    expect(rowValue(utils, 'Currency')).toBe('GBP');
+    expect(rowValue(utils, 'Address')).toBe('123 Main St');
+    expect(rowValue(utils, 'City')).toBe('London');
+    expect(rowValue(utils, 'State/Province')).toBe('Greater London');
+    expect(rowValue(utils, 'Postal code')).toBe('SW1');
+    expect(rowValue(utils, 'Country')).toBe('UK');
+
+    // Date is formatted with the exact same options (timezone-independent).
+    const expectedDob = new Date('1990-01-01T00:00:00.000Z').toLocaleDateString(
+      'en-US',
+      {day: '2-digit', month: 'short', year: 'numeric'},
+    );
+    expect(rowValue(utils, 'Date of birth')).toBe(expectedDob);
+    expect(expectedDob.length).toBeGreaterThan(0);
   });
 
-  it('renders correctly with missing/null user data (Fallbacks)', () => {
-    // Passing null allows us to test the `?? ''` logic and default 'USD'
-    mockUseSelector.mockImplementation((selector: any) =>
-      selector({
-        auth: {user: null},
-      }),
-    );
-
-    const {getByText} = render(
-      <Step2Screen navigation={mockNavigation} route={{} as any} />,
-    );
-
-    // Verify Fallbacks (Empty strings)
-    expect(getByText('First name: ')).toBeTruthy();
-    expect(getByText('Last name: ')).toBeTruthy();
-    expect(getByText('Email address: ')).toBeTruthy();
-
-    // Verify Currency default logic
-    expect(getByText('Currency: USD')).toBeTruthy();
-
-    // Verify Date fallback logic
-    expect(getByText('Date of birth: ')).toBeTruthy();
-
-    // Verify Address nesting fallback logic
-    expect(getByText('Address: ')).toBeTruthy();
-    expect(getByText('Country: ')).toBeTruthy();
+  it('renders a separator between every row except the last (11 rows -> 10 separators)', () => {
+    setupState({firstName: 'A'});
+    const {getAllByTestId} = renderScreen();
+    expect(getAllByTestId('separator')).toHaveLength(10);
   });
 
-  it('navigates back when layout Back button is pressed', () => {
+  it('falls back to empty strings and USD when the user is null', () => {
+    setupState(null);
+    const utils = renderScreen();
+
+    expect(rowValue(utils, 'First name')).toBe('');
+    expect(rowValue(utils, 'Last name')).toBe('');
+    expect(rowValue(utils, 'Phone number')).toBe('');
+    expect(rowValue(utils, 'Email address')).toBe('');
+    expect(rowValue(utils, 'Currency')).toBe('USD');
+    expect(rowValue(utils, 'Date of birth')).toBe('');
+    expect(rowValue(utils, 'Address')).toBe('');
+    expect(rowValue(utils, 'City')).toBe('');
+    expect(rowValue(utils, 'State/Province')).toBe('');
+    expect(rowValue(utils, 'Postal code')).toBe('');
+    expect(rowValue(utils, 'Country')).toBe('');
+  });
+
+  it('handles a user present with no address, no currency and no dateOfBirth', () => {
+    // Exercises the middle branches: authUser present but address/currency/dob nullish.
+    setupState({firstName: 'Jane'});
+    const utils = renderScreen();
+
+    expect(rowValue(utils, 'First name')).toBe('Jane');
+    expect(rowValue(utils, 'Currency')).toBe('USD');
+    expect(rowValue(utils, 'Date of birth')).toBe('');
+    expect(rowValue(utils, 'Address')).toBe('');
+    expect(rowValue(utils, 'City')).toBe('');
+    expect(rowValue(utils, 'State/Province')).toBe('');
+    expect(rowValue(utils, 'Postal code')).toBe('');
+    expect(rowValue(utils, 'Country')).toBe('');
+  });
+
+  it('navigates back when the layout Back button is pressed', () => {
     setupState({});
-    const {getByTestId} = render(
-      <Step2Screen navigation={mockNavigation} route={{} as any} />,
-    );
-
+    const {getByTestId} = renderScreen();
     fireEvent.press(getByTestId('layout-back'));
     expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 
-  it('navigates to "Step3" when layout Next button is pressed', () => {
+  it('navigates to Step3 when the Next button is pressed', () => {
     setupState({});
-    const {getByTestId} = render(
-      <Step2Screen navigation={mockNavigation} route={{} as any} />,
-    );
-
+    const {getByTestId} = renderScreen();
     fireEvent.press(getByTestId('layout-next'));
     expect(mockNavigate).toHaveBeenCalledWith('Step3');
   });
 
-  it('navigates to Edit Profile when "Edit" is pressed on the info section header', () => {
-    setupState({});
-    const {getByTestId} = render(
-      <Step2Screen navigation={mockNavigation} route={{} as any} />,
-    );
+  it('navigates to the parent EditParentOverview when a row is pressed', () => {
+    setupState({firstName: 'John'});
+    const {getByTestId} = renderScreen();
 
-    fireEvent.press(getByTestId('section-edit-btn'));
+    fireEvent.press(getByTestId('row-First name'));
 
-    expect(mockNavigation.getParent).toHaveBeenCalled();
+    expect(mockGetParent).toHaveBeenCalled();
     expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
       screen: 'EditParentOverview',
       params: {companionId: 'parent'},
     });
   });
 
-  it('navigates to Edit Profile when an individual row is pressed', () => {
-    setupState({});
-    const {getByTestId} = render(
-      <Step2Screen navigation={mockNavigation} route={{} as any} />,
-    );
+  it('does not crash or navigate when getParent() returns undefined', () => {
+    mockGetParent.mockReturnValueOnce(undefined);
+    setupState({firstName: 'John'});
+    const {getByTestId} = renderScreen();
 
-    // Press the first row (First Name)
-    fireEvent.press(getByTestId('row-0'));
+    fireEvent.press(getByTestId('row-First name'));
 
-    expect(mockNavigation.getParent).toHaveBeenCalled();
-    expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'EditParentOverview',
-      params: {companionId: 'parent'},
-    });
-  });
-
-  it('handles safe navigation when getParent() returns undefined', () => {
-    // Override mock to return undefined specifically for this test case
-    // This covers the branch: navigation.getParent<any>()?.navigate(...)
-    mockNavigation.getParent.mockReturnValueOnce(undefined);
-    setupState({});
-
-    const {getByTestId} = render(
-      <Step2Screen navigation={mockNavigation} route={{} as any} />,
-    );
-
-    // Trigger edit action
-    fireEvent.press(getByTestId('section-edit-btn'));
-
-    // Should call getParent, but NOT crash and NOT call navigate
-    expect(mockNavigation.getParent).toHaveBeenCalled();
+    expect(mockGetParent).toHaveBeenCalled();
     expect(mockParentNavigate).not.toHaveBeenCalled();
   });
 });

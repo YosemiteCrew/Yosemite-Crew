@@ -14,10 +14,10 @@ slug: /
 
 <h1 align="center" >Open-Source Operating System for Animal Health</h1>
 
-<div align="center"> 
-  
-[![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Figma](https://img.shields.io/badge/Figma-383838?logo=figma)](https://www.figma.com/design/NAAV4XGcJ6FlGXGK68AUbp/Yosemite-Crew?node-id=0-1&t=qCMi0h3RReIRMkrK-1) [![Discord](https://img.shields.io/discord/1325181058777616395?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YosemiteCrew/Yosemite-Crew) 
-  
+<div align="center">
+
+[![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Figma](https://img.shields.io/badge/Figma-383838?logo=figma)](https://www.figma.com/design/NAAV4XGcJ6FlGXGK68AUbp/Yosemite-Crew?node-id=0-1&t=qCMi0h3RReIRMkrK-1) [![Discord](https://img.shields.io/discord/1325181058777616395?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)
+
 </div>
 
 <br />
@@ -105,8 +105,8 @@ For Developers
 
 - [TypeScript](https://www.typescriptlang.org/) for type safety
 - [Turborepo](https://turbo.build) and [PNPM Workspaces](https://pnpm.io/workspaces) for a powerful monorepo structure and efficient build system
-- [Express](https://expressjs.com/) as a backend framework, with [MongoDB](https://www.mongodb.com/) for data storage, [Redis](https://redis.io/) for lightning-fast caching
-- [React](https://reactjs.org/) for the frontend, with [Redux](https://redux.js.org/) for state management
+- [Express](https://expressjs.com/) as a backend framework, with [Supabase](https://supabase.com/) for data storage, [Redis](https://redis.io/) for lightning-fast caching
+- [React](https://reactjs.org/) for the frontend, with [Zustand](https://zustand.docs.pmnd.rs/) for state management
 - [React Native](https://reactnative.dev/) for mobile app development
 - [AWS](https://aws.amazon.com) to ensure reliable and scalable cloud infrastructure
 

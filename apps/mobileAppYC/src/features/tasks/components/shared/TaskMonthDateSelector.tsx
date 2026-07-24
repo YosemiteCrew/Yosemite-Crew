@@ -119,7 +119,17 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
             !dateInfo.isCurrentMonth && styles.dateItemDisabled,
           ]}
           onPress={() => onDateSelect(dateInfo.date)}
-          disabled={!dateInfo.isCurrentMonth}>
+          disabled={!dateInfo.isCurrentMonth}
+          accessibilityRole="radio"
+          accessibilityState={{
+            selected: dateInfo.isSelected,
+            disabled: !dateInfo.isCurrentMonth,
+          }}
+          accessibilityLabel={
+            dateInfo.hasTask
+              ? `${dateInfo.dayName} ${dateInfo.dayNumber}, has tasks`
+              : `${dateInfo.dayName} ${dateInfo.dayNumber}`
+          }>
           <Text
             style={[
               styles.dayName,
@@ -153,7 +163,9 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
         <PressableOpacity
           activeOpacity={0.7}
           onPress={handlePreviousMonth}
-          style={styles.monthArrow}>
+          style={styles.monthArrow}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month">
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
 
@@ -164,7 +176,9 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
         <PressableOpacity
           activeOpacity={0.7}
           onPress={handleNextMonth}
-          style={styles.monthArrow}>
+          style={styles.monthArrow}
+          accessibilityRole="button"
+          accessibilityLabel="Next month">
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
       </View>

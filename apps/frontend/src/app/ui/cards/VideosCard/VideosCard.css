@@ -1,0 +1,18 @@
+.videos-card-subtitle {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.videos-card-tile {
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
+}
+
+.videos-card-caption {
+  padding: 13px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-body);
+}

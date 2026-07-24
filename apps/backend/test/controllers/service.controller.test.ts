@@ -5,8 +5,7 @@ import {
   ServiceServiceError,
 } from "../../src/services/service.service";
 import { CatalogService } from "../../src/services/catalog.service";
-import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
-import { ParentModel } from "../../src/models/parent";
+import { getParentAddressForAuthUser } from "../../src/utils/location";
 import helpers from "../../src/utils/helper";
 import logger from "../../src/utils/logger";
 
@@ -48,8 +47,9 @@ jest.mock("../../src/services/catalog.service", () => ({
   },
 }));
 
-jest.mock("../../src/services/authUserMobile.service");
-jest.mock("../../src/models/parent");
+jest.mock("../../src/utils/location", () => ({
+  getParentAddressForAuthUser: jest.fn(),
+}));
 jest.mock("../../src/utils/helper", () => ({
   __esModule: true,
   default: {
@@ -125,14 +125,10 @@ describe("ServiceController", () => {
         query: { serviceName: "Vet" },
         headers: { "x-user-id": "header-user" },
       });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce(null);
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce(null);
 
       await ServiceController.listOrganisationByServiceName(req, res);
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
-        "header-user",
-      );
+      expect(getParentAddressForAuthUser).toHaveBeenCalledWith("header-user");
     });
 
     it("resolves userId from auth object if headers are missing", async () => {
@@ -140,14 +136,10 @@ describe("ServiceController", () => {
         query: { serviceName: "Vet" },
         userId: "auth-user", // simulated AuthenticatedRequest
       });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce(null);
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce(null);
 
       await ServiceController.listOrganisationByServiceName(req, res);
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
-        "auth-user",
-      );
+      expect(getParentAddressForAuthUser).toHaveBeenCalledWith("auth-user");
     });
   });
 
@@ -353,11 +345,8 @@ describe("ServiceController", () => {
 
     it("returns 400 if parent address is missing/incomplete", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
-        address: { city: "NY" },
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce({
+        city: "NY",
       }); // Missing postalCode
 
       await ServiceController.listOrganisationByServiceName(req, res);
@@ -369,11 +358,9 @@ describe("ServiceController", () => {
 
     it("returns 400 if geolocation from parent address fails", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
-        address: { city: "NY", postalCode: "10001" },
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce({
+        city: "NY",
+        postalCode: "10001",
       });
       (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({
         lat: null,
@@ -389,11 +376,9 @@ describe("ServiceController", () => {
 
     it("returns 200 when geolocating successfully from parent address", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
-        address: { city: "NY", postalCode: "10001" },
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce({
+        city: "NY",
+        postalCode: "10001",
       });
       (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({
         lat: 40.7,
@@ -452,17 +437,24 @@ describe("ServiceController", () => {
       );
     });
 
-    it("returns 200 on success", async () => {
+    const bookableWindowSet = () => ({
+      date: "2026-01-01",
+      dayOfWeek: "THURSDAY",
+      windows: [
+        { startTime: "09:00", endTime: "09:30", vetIds: ["vet-1", "vet-2"] },
+      ],
+    });
+
+    it("redacts staff vetIds for an anonymous caller", async () => {
       req = mockRequest({
         body: { serviceId: "1", organisationId: "2", date: "2026-01-01" },
       });
       (
         CatalogService.getBookableSlotsService as jest.Mock
-      ).mockResolvedValueOnce({
-        slots: [],
-      });
+      ).mockResolvedValueOnce(bookableWindowSet());
 
       await ServiceController.getBookableSlotsForService(req, res);
+
       expect(CatalogService.getBookableSlotsService).toHaveBeenCalledWith(
         "1",
         "2",
@@ -471,7 +463,43 @@ describe("ServiceController", () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        data: { slots: [] },
+        data: {
+          date: "2026-01-01",
+          dayOfWeek: "THURSDAY",
+          windows: [{ startTime: "09:00", endTime: "09:30" }],
+        },
+      });
+      const payload = (res.json as jest.Mock).mock.calls[0][0] as {
+        data: { windows: Array<Record<string, unknown>> };
+      };
+      expect(payload.data.windows[0]).not.toHaveProperty("vetIds");
+    });
+
+    it("keeps vetIds for an authenticated caller", async () => {
+      req = mockRequest({
+        body: { serviceId: "1", organisationId: "2", date: "2026-01-01" },
+        userId: "vet-1",
+      });
+      (
+        CatalogService.getBookableSlotsService as jest.Mock
+      ).mockResolvedValueOnce(bookableWindowSet());
+
+      await ServiceController.getBookableSlotsForService(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          date: "2026-01-01",
+          dayOfWeek: "THURSDAY",
+          windows: [
+            {
+              startTime: "09:00",
+              endTime: "09:30",
+              vetIds: ["vet-1", "vet-2"],
+            },
+          ],
+        },
       });
     });
 
@@ -510,33 +538,35 @@ describe("ServiceController", () => {
       );
     });
 
-    it("returns 200 on success", async () => {
-      req = mockRequest({
-        body: {
-          organisationId: "org-1",
-          date: "2026-04-01",
-          minuteOfDay: 1425,
-          leadId: "vet-1",
-          serviceIds: ["svc-1"],
+    const prefillMatches = () => [
+      {
+        serviceId: "svc-1",
+        slot: {
+          startTime: "23:45",
+          endTime: "00:00",
+          vetIds: ["vet-1"],
         },
-      });
+        meta: {
+          localStartMinute: 1425,
+          localEndMinute: 1440,
+        },
+      },
+    ];
+
+    const prefillBody = {
+      organisationId: "org-1",
+      date: "2026-04-01",
+      minuteOfDay: 1425,
+      leadId: "vet-1",
+      serviceIds: ["svc-1"],
+    };
+
+    it("redacts staff vetIds for an anonymous caller", async () => {
+      req = mockRequest({ body: prefillBody });
 
       (
         CatalogService.getCalendarPrefillMatches as jest.Mock
-      ).mockResolvedValueOnce([
-        {
-          serviceId: "svc-1",
-          slot: {
-            startTime: "23:45",
-            endTime: "00:00",
-            vetIds: ["vet-1"],
-          },
-          meta: {
-            localStartMinute: 1425,
-            localEndMinute: 1440,
-          },
-        },
-      ]);
+      ).mockResolvedValueOnce(prefillMatches());
 
       await ServiceController.getCalendarPrefill(req, res);
 
@@ -547,6 +577,40 @@ describe("ServiceController", () => {
         leadId: "vet-1",
         serviceIds: ["svc-1"],
       });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          matches: [
+            {
+              serviceId: "svc-1",
+              slot: {
+                startTime: "23:45",
+                endTime: "00:00",
+              },
+              meta: {
+                localStartMinute: 1425,
+                localEndMinute: 1440,
+              },
+            },
+          ],
+        },
+      });
+      const payload = (res.json as jest.Mock).mock.calls[0][0] as {
+        data: { matches: Array<{ slot: Record<string, unknown> }> };
+      };
+      expect(payload.data.matches[0].slot).not.toHaveProperty("vetIds");
+    });
+
+    it("keeps vetIds for an authenticated caller", async () => {
+      req = mockRequest({ body: prefillBody, userId: "vet-1" });
+
+      (
+        CatalogService.getCalendarPrefillMatches as jest.Mock
+      ).mockResolvedValueOnce(prefillMatches());
+
+      await ServiceController.getCalendarPrefill(req, res);
+
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,

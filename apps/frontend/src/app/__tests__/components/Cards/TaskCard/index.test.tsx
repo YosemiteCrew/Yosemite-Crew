@@ -18,22 +18,50 @@ jest.mock('@/app/lib/tasks', () => ({
   canShowTaskStatusChangeAction: jest.fn(() => true),
   getTaskQuickDetails: jest.fn((task: any) => [
     { label: 'Category', value: task.category || '-' },
-    { label: 'Description', value: task.description || '-' },
-    { label: 'Additional notes', value: task.additionalNotes || '-' },
+    {
+      label: 'Instructions (optional)',
+      value: task.description || task.additionalNotes || '-',
+    },
   ]),
 }));
 
-jest.mock('react-icons/io5', () => ({
-  IoEyeOutline: () => <span>view-icon</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdOutlineAutorenew: () => <span>status-icon</span>,
-}));
-
-jest.mock('react-icons/io', () => ({
-  IoIosCalendar: () => <span>calendar-icon</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
 
@@ -73,7 +101,7 @@ describe('TaskCard Component', () => {
     // Header
     expect(screen.getByText('Order supplies')).toBeInTheDocument();
 
-    expect(screen.getByText('Description:')).toBeInTheDocument();
+    expect(screen.getByText('Instructions (optional):')).toBeInTheDocument();
     expect(screen.getByText('Buy gloves and masks')).toBeInTheDocument();
 
     // Category
@@ -92,9 +120,9 @@ describe('TaskCard Component', () => {
 
     expect(screen.getByText('In_progress')).toBeInTheDocument();
 
-    expect(screen.getByText('view-icon')).toBeInTheDocument();
-    expect(screen.getByText('status-icon')).toBeInTheDocument();
-    expect(screen.getByText('calendar-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('IoEyeOutline')).toBeInTheDocument();
+    expect(screen.getByTestId('IoSyncOutline')).toBeInTheDocument();
+    expect(screen.getByTestId('IoIosCalendar')).toBeInTheDocument();
   });
 
   it('handles missing optional fields gracefully', () => {
@@ -115,7 +143,7 @@ describe('TaskCard Component', () => {
     );
 
     // Still renders labels and doesn't crash
-    expect(screen.getByText('Description:')).toBeInTheDocument();
+    expect(screen.getByText('Instructions (optional):')).toBeInTheDocument();
     expect(screen.getByText('Category:')).toBeInTheDocument();
     expect(screen.getByText('From:')).toBeInTheDocument();
     expect(screen.getByText('To:')).toBeInTheDocument();
@@ -134,7 +162,7 @@ describe('TaskCard Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('view-icon'));
+    fireEvent.click(screen.getByTestId('IoEyeOutline'));
 
     expect(mockHandleView).toHaveBeenCalledTimes(1);
     expect(mockHandleView).toHaveBeenCalledWith(expect.objectContaining({ _id: 'task-1' }));

@@ -1,4 +1,6 @@
 // src/assets/images/index.ts
+import {MEDIA_SOURCES} from '@/shared/constants/mediaSources';
+
 export const Images = {
   // Onboarding & Auth
   welcomeIllustration: require('./auth/welcome-illustration.png'),
@@ -13,12 +15,8 @@ export const Images = {
   copyIcon: require('./icons/copyIcon.png'),
   offlineImage: require('./icons/offlineImage.png'),
   yosemiteLogo: require('./icons/yosemiteLogo.png'),
-  merckLogo: {
-    uri: 'https://d2il6osz49gpup.cloudfront.net/integrations/merckLogo.png',
-  },
-  msdQuickActionLogo: {
-    uri: 'https://d2il6osz49gpup.cloudfront.net/integrations/MSDLogo.png',
-  },
+  merckLogo: {uri: MEDIA_SOURCES.integrations.merckLogo},
+  msdQuickActionLogo: {uri: MEDIA_SOURCES.integrations.msdLogo},
   backIcon: require('./icons/back.png'),
   emailIcon: require('./icons/emailIcon.png'),
   facebookIcon: require('./icons/facebookIcon.png'),

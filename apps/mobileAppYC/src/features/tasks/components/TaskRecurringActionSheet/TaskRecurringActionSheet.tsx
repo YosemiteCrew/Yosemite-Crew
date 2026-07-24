@@ -192,7 +192,7 @@ const createStyles = (theme: any) =>
     primaryButtonText: {
       ...theme.typography.buttonH6Clash19,
       textAlign: 'center',
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     secondaryButtonText: {
       ...theme.typography.buttonH6Clash19,

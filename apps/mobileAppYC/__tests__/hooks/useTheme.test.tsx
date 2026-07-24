@@ -1,6 +1,6 @@
 import {renderHook, act} from '@testing-library/react-native';
 import {Appearance} from 'react-native';
-import {createThemeHook, useTheme} from '../../src/shared/hooks/useTheme';
+import {useTheme} from '../../src/shared/hooks/useTheme';
 import {
   setTheme,
   toggleTheme,
@@ -11,22 +11,22 @@ import {darkTheme, lightTheme} from '../../src/theme';
 
 // --- Mocks ---
 
-// Mock Redux hooks
 jest.mock('../../src/app/hooks', () => ({
   useAppDispatch: jest.fn(),
   useAppSelector: jest.fn(),
 }));
 
-// Mock Actions
 jest.mock('../../src/features/theme', () => ({
-  setTheme: jest.fn(),
-  toggleTheme: jest.fn(),
-  updateSystemTheme: jest.fn(),
+  setTheme: jest.fn(mode => ({type: 'theme/setTheme', payload: mode})),
+  toggleTheme: jest.fn(() => ({type: 'theme/toggleTheme'})),
+  updateSystemTheme: jest.fn(scheme => ({
+    type: 'theme/updateSystemTheme',
+    payload: scheme,
+  })),
 }));
 
-// Mock Appearance
 jest.mock('react-native/Libraries/Utilities/Appearance', () => ({
-  getColorScheme: jest.fn(),
+  getColorScheme: jest.fn(() => 'light'),
   addChangeListener: jest.fn(() => ({remove: jest.fn()})),
 }));
 
@@ -36,97 +36,109 @@ describe('useTheme Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (hooks.useAppDispatch as jest.Mock).mockReturnValue(mockDispatch);
-    // Default Selector state: Light mode
     (hooks.useAppSelector as jest.Mock).mockReturnValue({
       theme: 'light',
       isDark: false,
     });
   });
 
-  // ===========================================================================
-  // 1. Initialization & Locked State
-  // ===========================================================================
-
-  it('initializes with light theme and isDark=false (locked mode)', () => {
+  it('returns the light theme when isDark is false and is not locked', () => {
     const {result} = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe(lightTheme);
     expect(result.current.isDark).toBe(false);
     expect(result.current.themeMode).toBe('light');
-    expect(result.current.darkModeLocked).toBe(true);
+    expect(result.current.darkModeLocked).toBe(false);
   });
 
-  it('forces light mode dispatch if stored state is inadvertently dark (correction logic)', () => {
-    // Simulate stored state being 'dark'
+  it('returns the espresso dark theme when isDark is true', () => {
     (hooks.useAppSelector as jest.Mock).mockReturnValue({
       theme: 'dark',
       isDark: true,
     });
 
-    renderHook(() => useTheme());
+    const {result} = renderHook(() => useTheme());
 
-    // Because DARK_MODE_ENABLED is false, it should immediately dispatch 'light'
-    expect(mockDispatch).toHaveBeenCalledWith(setTheme('light'));
+    expect(result.current.theme).toBe(darkTheme);
+    expect(result.current.isDark).toBe(true);
+    expect(result.current.themeMode).toBe('dark');
   });
 
-  it('does NOT dispatch correction if stored state is already light', () => {
-    (hooks.useAppSelector as jest.Mock).mockReturnValue({
-      theme: 'light',
-      isDark: false,
-    });
-
+  it('syncs the system appearance on mount', () => {
     renderHook(() => useTheme());
 
-    expect(mockDispatch).not.toHaveBeenCalledWith(setTheme('light'));
+    expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('light'));
   });
 
-  // ===========================================================================
-  // 2. Helper Functions (Safeguards)
-  // ===========================================================================
-
-  it('safeSetTheme ignores requests to change theme when locked', () => {
+  it('setTheme dispatches the requested mode', () => {
     const {result} = renderHook(() => useTheme());
 
     act(() => {
       result.current.setTheme('dark');
     });
 
-    // Should NOT call the actual redux action for dark
-    expect(mockDispatch).not.toHaveBeenCalledWith(setTheme('dark'));
+    expect(mockDispatch).toHaveBeenCalledWith(setTheme('dark'));
   });
 
-  it('safeSetTheme ensures light mode if currently not light (redundancy check)', () => {
-    // Simulate improper state again
-    (hooks.useAppSelector as jest.Mock).mockReturnValue({
-      theme: 'system', // Not 'light'
-      isDark: false,
-    });
-
-    const {result} = renderHook(() => useTheme());
-
-    act(() => {
-      result.current.setTheme('system');
-    });
-
-    // Should correct it to light
-    expect(mockDispatch).toHaveBeenCalledWith(setTheme('light'));
-  });
-
-  it('safeToggleTheme does nothing when locked', () => {
+  it('toggleTheme dispatches the toggle action', () => {
     const {result} = renderHook(() => useTheme());
 
     act(() => {
       result.current.toggleTheme();
     });
 
-    expect(mockDispatch).not.toHaveBeenCalledWith(toggleTheme());
+    expect(mockDispatch).toHaveBeenCalledWith(toggleTheme());
   });
 
-  it('syncs system theme and exposes dark-mode controls when enabled', () => {
+  it('unsubscribes from appearance changes on unmount', () => {
+    const remove = jest.fn();
+    (Appearance.addChangeListener as jest.Mock).mockReturnValue({remove});
+
+    const {unmount} = renderHook(() => useTheme());
+    unmount();
+
+    expect(remove).toHaveBeenCalled();
+  });
+
+  it('does not crash on unmount when addChangeListener returns void', () => {
+    (Appearance.addChangeListener as jest.Mock).mockReturnValue(undefined);
+
+    const {unmount} = renderHook(() => useTheme());
+
+    expect(() => unmount()).not.toThrow();
+  });
+
+  it('does not crash on unmount when the subscription lacks remove', () => {
+    (Appearance.addChangeListener as jest.Mock).mockReturnValue({});
+
+    const {unmount} = renderHook(() => useTheme());
+
+    expect(() => unmount()).not.toThrow();
+  });
+
+  it('syncs a dark system appearance and reacts to appearance changes', () => {
+    (Appearance.getColorScheme as jest.Mock).mockReturnValue('dark');
+    let captured: ((p: {colorScheme: string | null}) => void) | undefined;
+    (Appearance.addChangeListener as jest.Mock).mockImplementation(cb => {
+      captured = cb;
+      return {remove: jest.fn()};
+    });
+
+    renderHook(() => useTheme());
+
+    expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('dark'));
+
+    act(() => {
+      captured?.({colorScheme: 'light'});
+    });
+
+    expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('light'));
+  });
+
+  it('syncs system theme and exposes dark-mode controls in system mode', () => {
     const remove = jest.fn();
     let appearanceListener:
-      | ((event: {colorScheme: 'light' | 'dark' | null}) => void)
-      | undefined;
+      ((event: {colorScheme: 'light' | 'dark' | null}) => void) | undefined;
 
     (Appearance.getColorScheme as jest.Mock).mockReturnValue('dark');
     (Appearance.addChangeListener as jest.Mock).mockImplementation(listener => {
@@ -138,8 +150,7 @@ describe('useTheme Hook', () => {
       isDark: true,
     });
 
-    const useEnabledTheme = createThemeHook(true);
-    const {result, unmount} = renderHook(() => useEnabledTheme());
+    const {result, unmount} = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe(darkTheme);
     expect(result.current.isDark).toBe(true);

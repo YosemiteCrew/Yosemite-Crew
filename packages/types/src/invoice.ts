@@ -7,12 +7,7 @@ import type {
 import dayjs from 'dayjs';
 
 export type InvoiceStatus =
-  | 'PENDING'
-  | 'AWAITING_PAYMENT'
-  | 'PAID'
-  | 'FAILED'
-  | 'CANCELLED'
-  | 'REFUNDED';
+  'PENDING' | 'AWAITING_PAYMENT' | 'PAID' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
 
 export type CreditNoteStatus = 'DRAFT' | 'ISSUED' | 'VOIDED';
 
@@ -94,6 +89,16 @@ export type Invoice = {
   stripeReceiptUrl?: string;
   stripeCheckoutSessionId?: string;
   stripeCheckoutUrl?: string;
+
+  /**
+   * BACKEND WORK REQUIRED — not persisted today. When the payment link was
+   * actually delivered to the client. Creating a Stripe payment link
+   * (POST /invoices/:id/payments/sessions) only proves a link EXISTS; it does not
+   * prove it was sent. Consumers therefore say "payment link ready" while this is
+   * absent and only claim "sent" once the backend stamps it. Populating it also
+   * needs a passthrough in the frontend's normalizeFinanceInvoice.
+   */
+  paymentLinkSentAt?: string;
 
   metadata?: Record<string, string | number | boolean>;
   settlementSummary?: InvoiceSettlementSummary;

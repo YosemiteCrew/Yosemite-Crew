@@ -14,15 +14,32 @@
   text-align: center;
   padding: 10px 10px;
   border-radius: 0px 0px 16px 16px;
+  /* Warm frosted-glass toast: translucent tint over a soft float + top sheen. */
+  box-shadow:
+    0 12px 34px var(--sh12),
+    inset 0 1px 0 var(--glass-inset-hi);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
 }
 .SignError.errofoundbg {
-  background: var(--color-toast-error-bg);
+  background: color-mix(in srgb, var(--color-toast-error-bg) 88%, transparent);
 }
 .SignError.oppsbg {
-  background: var(--color-toast-warning-bg);
+  background: color-mix(in srgb, var(--color-toast-warning-bg) 88%, transparent);
 }
 .SignError.CongratsBg {
-  background: var(--color-toast-success-bg);
+  background: color-mix(in srgb, var(--color-toast-success-bg) 88%, transparent);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .SignError.errofoundbg {
+    background: var(--color-toast-error-bg);
+  }
+  .SignError.oppsbg {
+    background: var(--color-toast-warning-bg);
+  }
+  .SignError.CongratsBg {
+    background: var(--color-toast-success-bg);
+  }
 }
 .SignError .ErroItemDiv {
   position: static;

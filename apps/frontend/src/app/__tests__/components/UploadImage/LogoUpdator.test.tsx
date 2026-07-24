@@ -33,13 +33,24 @@ jest.mock('axios', () => ({
   put: jest.fn(),
 }));
 
-jest.mock('react-icons/md', () => ({
-  MdArrowRightAlt: () => <span>arrow</span>,
-}));
-
-jest.mock('react-icons/io5', () => ({
-  IoCamera: () => <span>camera</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 describe('LogoUpdator', () => {
   beforeEach(() => {
@@ -100,7 +111,7 @@ describe('LogoUpdator', () => {
     expect(
       screen.getByText('Please choose a valid image file (PNG, JPG, or WEBP).')
     ).toBeInTheDocument();
-    expect(screen.getByText('camera')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
   });
 
   it('swaps the image src to the default avatar when the logo image errors', () => {
@@ -265,7 +276,8 @@ describe('LogoUpdator', () => {
     fireEvent.click(screen.getAllByAltText('Logo')[0]);
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(fileInput, { target: { files: [] } });
-    expect(screen.queryByText('camera')).toBeInTheDocument();
+    // No file picked -> no preview set, so the camera placeholder stays rendered.
+    expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
   });
 
   it('ignores repeat update clicks while an upload is already in progress', async () => {

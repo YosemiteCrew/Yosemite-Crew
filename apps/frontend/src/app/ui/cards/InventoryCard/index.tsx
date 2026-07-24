@@ -1,4 +1,5 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
 import {
   displayStatusLabel,
@@ -20,14 +21,16 @@ const formatCurrency = (value: string | number | undefined) => {
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
   const totalValue = () => {
-    const price = Number(item.pricing?.selling ?? 0);
-    const onHand = Number(item.stock?.current ?? 0);
+    // `item.pricing` / `item.stock` are dereferenced unguarded further up this same
+    // render (unit cost, stock), so they are always present by the time this runs.
+    const price = Number(item.pricing.selling ?? 0);
+    const onHand = Number(item.stock.current ?? 0);
     if (!Number.isFinite(price) || !Number.isFinite(onHand)) return '—';
     return `$ ${Math.round(price * onHand)}`;
   };
 
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-body-3-emphasis text-text-primary">{item.basicInfo.name}</div>
       </div>
@@ -69,12 +72,10 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
           {displayValue(item.stock.stockLocation)}
         </div>
       </div>
-      <div
+      <StatusPill
         style={getInventoryStatusStyle(displayStatusLabel(item))}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
-        {displayStatusLabel(item)}
-      </div>
+        label={displayStatusLabel(item)}
+      />
       <div className="flex gap-3 w-full">
         <Secondary
           href="#"

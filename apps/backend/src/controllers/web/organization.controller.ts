@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
+import { z } from "zod";
 import logger from "../../utils/logger";
 import {
-  OrganisationSearchInput,
   OrganizationService,
   OrganizationServiceError,
   type OrganizationFHIRPayload,
@@ -11,6 +11,16 @@ import { stringify } from "node:querystring";
 import helpers from "src/utils/helper";
 import { resolveUserIdFromRequest } from "src/utils/request";
 import { getParentAddressForAuthUser } from "src/utils/location";
+
+// Only strings reach the `googlePlacesId` / `name` Prisma filters: a structured value such
+// as `{"not": null}` survives mongoSanitize and would otherwise match an arbitrary org.
+const organisationSearchSchema = z.object({
+  placeId: z.string().min(1).optional(),
+  lat: z.number().finite().optional(),
+  lng: z.number().finite().optional(),
+  name: z.string().min(1).optional(),
+  addressLine: z.string().min(1).optional(),
+});
 
 const isOrganizationPayload = (
   payload: unknown,
@@ -247,8 +257,14 @@ export const OrganizationController = {
 
   checkIsPMSOrganistaion: async (req: Request, res: Response) => {
     try {
-      const body = req.body as OrganisationSearchInput;
-      const result = await OrganizationService.resolveOrganisation(body);
+      const parsedBody = organisationSearchSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({ message: "Invalid search input." });
+      }
+
+      const result = await OrganizationService.resolveOrganisation(
+        parsedBody.data,
+      );
       return res.status(200).json(result);
     } catch (error) {
       handleOrganizationError(

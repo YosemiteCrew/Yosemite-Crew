@@ -1,5 +1,5 @@
 import React from 'react';
-import { LuCheck } from 'react-icons/lu';
+import { IoCheckmarkOutline } from 'react-icons/io5';
 
 /**
  * Small green "Billed" pill shown on a services/packages or prescription line
@@ -8,7 +8,7 @@ import { LuCheck } from 'react-icons/lu';
  */
 const BilledBadge = () => (
   <span className="inline-flex items-center gap-1 rounded-2xl border border-pill-success-border bg-pill-success-bg px-2 py-0.5 text-caption-2 font-medium text-pill-success-text">
-    <LuCheck size={12} aria-hidden="true" />
+    <IoCheckmarkOutline size={12} aria-hidden="true" />
     Billed
   </span>
 );

@@ -107,6 +107,39 @@ describe('taskService', () => {
     expect(taskStoreState.setTasksForOrg).toHaveBeenCalledWith('org-1', [{ _id: 't-filtered' }]);
   });
 
+  it('fetches each requested audience separately and merges the results (bug #1967)', async () => {
+    getDataMock.mockImplementation((_url: string, query?: Record<string, unknown>) => {
+      if (query?.audience === 'PARENT_TASK') {
+        return Promise.resolve({ data: [{ _id: 'p1', audience: 'PARENT_TASK' }] });
+      }
+      if (query?.audience === 'EMPLOYEE_TASK') {
+        return Promise.resolve({
+          data: [
+            { _id: 'e1', audience: 'EMPLOYEE_TASK' },
+            { _id: 'p1', audience: 'EMPLOYEE_TASK' }, // stale duplicate id, last-write-wins is fine
+          ],
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    await loadTasksForPrimaryOrg({
+      filters: { includeCompleted: true, audience: ['EMPLOYEE_TASK', 'PARENT_TASK'] },
+    });
+
+    expect(getDataMock).toHaveBeenCalledWith('/v1/task/pms/organisation/org-1', {
+      includeCompleted: true,
+      audience: 'EMPLOYEE_TASK',
+    });
+    expect(getDataMock).toHaveBeenCalledWith('/v1/task/pms/organisation/org-1', {
+      includeCompleted: true,
+      audience: 'PARENT_TASK',
+    });
+    const [, mergedTasks] = taskStoreState.setTasksForOrg.mock.calls[0];
+    expect(mergedTasks).toHaveLength(2);
+    expect(mergedTasks.map((task: any) => task._id).sort()).toEqual(['e1', 'p1']);
+  });
+
   it('loads companion-scoped PMS tasks with filters', async () => {
     getDataMock.mockResolvedValue({ data: [{ _id: 'comp-task' }] });
 
@@ -421,10 +454,11 @@ describe('taskService', () => {
     );
   });
 
-  it('does not upsert when audience is not EMPLOYEE_TASK', async () => {
-    postDataMock.mockResolvedValue({ data: { _id: 't4', audience: 'OTHER' } });
-    await createTask({ _id: '', source: 'CUSTOM', audience: 'OTHER' } as any);
-    expect(taskStoreState.upsertTask).not.toHaveBeenCalled();
+  it('upserts a created parent task so it appears without waiting on a refetch (bug #1967)', async () => {
+    const created = { _id: 't4', audience: 'PARENT_TASK' };
+    postDataMock.mockResolvedValue({ data: created });
+    await createTask({ _id: '', source: 'CUSTOM', audience: 'PARENT_TASK' } as any);
+    expect(taskStoreState.upsertTask).toHaveBeenCalledWith(created);
   });
 
   it('returns without creating task when no primaryOrgId', async () => {

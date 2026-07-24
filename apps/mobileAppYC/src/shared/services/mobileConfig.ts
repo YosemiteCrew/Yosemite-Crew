@@ -22,11 +22,7 @@ const resolveMobileConfigUrl = (): string => {
 };
 
 export type MobileEnv =
-  | 'dev'
-  | 'development'
-  | 'staging'
-  | 'prod'
-  | 'production';
+  'dev' | 'development' | 'staging' | 'prod' | 'production';
 
 export interface MobileConfig {
   env: MobileEnv;
@@ -113,7 +109,7 @@ export const fetchMobileConfig = async (
     console.log('[MobileConfig] Response', {
       url: resolvedUrl,
       status: response.status,
-      data: response.data,
+      hasBody: response.data != null,
     });
     return response.data;
   } catch (error) {

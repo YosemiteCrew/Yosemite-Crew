@@ -18,6 +18,8 @@ type RevampCatalogState = {
   error?: string;
   loadedSpecialityIds: string[];
 
+  clearCatalog: () => void;
+
   loadOrganisationCatalog: (organisationId: string, opts?: { force?: boolean }) => Promise<void>;
   loadSpecialityCatalog: (
     organisationId: string,
@@ -145,6 +147,22 @@ export const useRevampCatalogStore = create<RevampCatalogState>()((set, get) => 
   packages: [],
   status: 'idle',
   loadedSpecialityIds: [],
+
+  clearCatalog: () => {
+    // The in-flight promise maps are module scoped, so they must be dropped too —
+    // otherwise a load started for the previous org resolves into the cleared store.
+    organisationLoadPromises.clear();
+    specialityLoadPromises.clear();
+    packageDetailPromises.clear();
+    set({
+      specialities: [],
+      services: [],
+      packages: [],
+      status: 'idle',
+      error: undefined,
+      loadedSpecialityIds: [],
+    });
+  },
 
   loadOrganisationCatalog: async (organisationId, opts) => {
     const state = get();

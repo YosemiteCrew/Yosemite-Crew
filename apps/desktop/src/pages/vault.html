@@ -11,38 +11,64 @@
     <link rel="stylesheet" href="vault.css" />
   </head>
   <body>
-    <div class="header">
-      <div class="header-top">
-        <h1>Document Vault</h1>
-        <span class="badge" id="encBadge">checking…</span>
+    <div class="vault-main">
+      <div class="header">
+        <div class="header-top">
+          <h1>All documents</h1>
+          <span class="badge" id="encBadge">checking…</span>
+          <span class="header-meta">
+            <span id="docCount">0 documents</span>
+            <span class="dot-sep">·</span>
+            <span id="sizeInfo">0 KB</span>
+          </span>
+        </div>
+        <div class="search-row">
+          <svg
+            class="search-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.2-3.2" />
+          </svg>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search by filename…"
+            autocomplete="off"
+            aria-label="Search documents by filename"
+          />
+          <span id="searchCount" class="search-count"></span>
+        </div>
+        <div class="drop-zone" id="dropZone">Drop files here to add them to the vault</div>
       </div>
-      <div class="sub">
-        <span id="docCount">0 documents</span>
-        <span id="sizeInfo">0 KB</span>
-      </div>
-      <div class="search-row">
-        <span class="search-icon">&#x1F50D;</span>
-        <input
-          type="text"
-          id="searchInput"
-          placeholder="Search by filename…"
-          autocomplete="off"
-          aria-label="Search documents by filename"
-        />
-        <span id="searchCount" class="search-count"></span>
-      </div>
-    </div>
 
-    <div class="drop-zone" id="dropZone">Drop files here to add them to the vault</div>
-
-    <div class="list-wrap" id="listWrap">
-      <div class="loading" id="loadingMsg">Loading documents</div>
-      <div class="empty hidden" id="emptyMsg">
-        <div class="empty-icon">&#x1F4C4;</div>
-        <div class="empty-title">No documents in the vault</div>
-        <div class="empty-hint">Drag files here or use the command palette to save documents</div>
+      <div class="list-wrap" id="listWrap">
+        <div class="loading" id="loadingMsg">Loading documents</div>
+        <div class="empty hidden" id="emptyMsg">
+          <div class="empty-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+              <path d="M14 3v5h5" />
+            </svg>
+          </div>
+          <div class="empty-title">No documents in the vault</div>
+          <div class="empty-hint">Drag files here or use the command palette to save documents</div>
+        </div>
+        <div id="docList"></div>
       </div>
-      <div id="docList"></div>
     </div>
 
     <div class="preview-panel" id="previewPanel">
@@ -55,9 +81,9 @@
         <div class="preview-text hidden" id="previewText"></div>
         <div class="preview-meta" id="previewMeta"></div>
         <div class="preview-actions">
-          <button id="previewExport">Export…</button>
-          <button id="previewReveal">Reveal in Finder</button>
-          <button id="previewDel" class="danger-text">Delete</button>
+          <button id="previewExport" class="preview-primary">Export…</button>
+          <button id="previewReveal" class="preview-ghost">Reveal in Finder</button>
+          <button id="previewDel" class="preview-danger">Delete</button>
         </div>
       </div>
     </div>

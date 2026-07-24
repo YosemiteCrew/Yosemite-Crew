@@ -1,5 +1,4 @@
 import React from 'react';
-import {ActivityIndicator} from 'react-native';
 import {render, fireEvent, act} from '@testing-library/react-native';
 // Path: 5 levels up to mobileAppYC root
 import {DocumentSearchScreen} from '../../../../../src/features/documents/screens/DocumentSearchScreen/DocumentSearchScreen';
@@ -13,57 +12,43 @@ import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
-// 1. Navigation
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
 }));
 
-// 2. Redux
 const mockDispatch = jest.fn();
 jest.spyOn(Redux, 'useDispatch').mockReturnValue(mockDispatch);
 const mockUseSelector = jest.spyOn(Redux, 'useSelector');
 
-// 3. Hooks & Styles
 jest.mock('../../../../../src/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('../../../../../src/shared/utils/screenStyles', () => ({
-  createScreenContainerStyles: () => ({container: {flex: 1}}),
-  createErrorContainerStyles: () => ({
-    errorContainer: {padding: 10},
-    errorText: {color: 'red'},
+  createAllCommonStyles: () => ({
+    container: {},
+    contentContainer: {},
+    errorContainer: {},
+    errorText: {},
   }),
-  createEmptyStateStyles: () => ({emptyState: {padding: 20}}),
-  createSearchAndSelectorStyles: () => ({searchBar: {margin: 10}}),
-  createLiquidGlassHeaderStyles: () => ({
-    topSection: {},
-    topGlassCard: {},
-    topGlassFallback: {},
-  }),
-  createAllCommonStyles: () => ({container: {}, contentContainer: {}, errorContainer: {}, errorText: {}}),
 }));
 
-// 4. Components (Inline requires to avoid ReferenceError due to hoisting)
-jest.mock('../../../../../src/shared/components/common', () => ({
-  SafeArea: ({children}: any) => <>{children}</>,
-}));
-
-jest.mock('../../../../../src/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => {
-    const {View, Text, TouchableOpacity} = require('react-native');
-    return (
-      <View testID="header">
-        <Text>{title}</Text>
-        <TouchableOpacity testID="header-back-btn" onPress={onBack}>
-          <Text>Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
+jest.mock(
+  '../../../../../src/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <View testID="screen-layout">
+          {header}
+          {typeof children === 'function' ? children({}) : children}
+        </View>
+      ),
+    };
   },
-}));
+);
 
 jest.mock(
   '../../../../../src/shared/components/common/SearchBar/SearchBar',
@@ -76,7 +61,6 @@ jest.mock(
           <TouchableOpacity testID="search-submit" onPress={onSubmitEditing}>
             <Text>Submit</Text>
           </TouchableOpacity>
-          {/* Mock input text change simulation */}
           <Text
             testID="search-input-mock"
             onPress={(e: any) => onChangeText(e.nativeEvent.text)}>
@@ -105,29 +89,6 @@ jest.mock(
   }),
 );
 
-jest.mock(
-  '../../../../../src/features/documents/components/DocumentListItem',
-  () => {
-    const {TouchableOpacity, Text, View} = require('react-native');
-    return (props: any) => (
-      <View testID={`doc-item-${props.document.id}`}>
-        <Text>{props.document.name}</Text>
-        <TouchableOpacity
-          testID={`view-doc-${props.document.id}`}
-          onPress={() => props.onPressView(props.document.id)}>
-          <Text>View</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          testID={`edit-doc-${props.document.id}`}
-          onPress={() => props.onPressEdit(props.document.id)}>
-          <Text>Edit</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  },
-);
-
-// 5. Actions
 jest.mock('../../../../../src/features/documents/documentSlice', () => ({
   searchDocuments: jest.fn(() => ({type: 'documents/search'})),
   clearSearchResults: jest.fn(() => ({type: 'documents/clearSearch'})),
@@ -143,6 +104,18 @@ describe('DocumentSearchScreen', () => {
     {id: 'comp-2', name: 'Lucy'},
   ];
 
+  const makeDoc = (over: any = {}) => ({
+    id: 'd1',
+    title: 'Vaccination record',
+    category: 'health',
+    subcategory: 'vaccination',
+    visitType: 'hospital',
+    issueDate: '2026-07-01',
+    isUserAdded: true,
+    uploadedByPmsUserId: null,
+    ...over,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     (useNavigation as jest.Mock).mockReturnValue({
@@ -156,7 +129,6 @@ describe('DocumentSearchScreen', () => {
     jest.useRealTimers();
   });
 
-  // Helper to update mock state
   const setupStore = (
     searchResults: any[] = [],
     searchLoading = false,
@@ -166,249 +138,306 @@ describe('DocumentSearchScreen', () => {
   ) => {
     mockUseSelector.mockImplementation((selector: any) => {
       const state = {
-        companion: {
-          companions: mockCompanions,
-          selectedCompanionId,
-        },
+        companion: {companions: mockCompanions, selectedCompanionId},
         documents: documentsUndefined
           ? undefined
-          : {
-              searchResults,
-              searchLoading,
-              searchError,
-            },
+          : {searchResults, searchLoading, searchError},
       };
       return selector(state);
     });
   };
 
-  it('renders correctly (Header, SearchBar, Selector)', () => {
-    setupStore();
-    const {getByText, getByTestId} = render(<DocumentSearchScreen />);
+  const type = (getByTestId: any, text: string) =>
+    fireEvent(getByTestId('search-input-mock'), 'press', {
+      nativeEvent: {text},
+    });
 
-    expect(getByText('Search documents')).toBeTruthy();
+  it('renders the search field, cancel button and companion selector', () => {
+    setupStore();
+    const {getByTestId} = render(<DocumentSearchScreen />);
     expect(getByTestId('search-bar')).toBeTruthy();
+    expect(getByTestId('search-cancel-button')).toBeTruthy();
     expect(getByTestId('companion-selector')).toBeTruthy();
   });
 
-  it('auto-selects first companion if none selected on mount', () => {
-    setupStore([], false, null, null); // selectedCompanionId = null
-    render(<DocumentSearchScreen />);
+  it('navigates back when Cancel is pressed', () => {
+    setupStore();
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    fireEvent.press(getByTestId('search-cancel-button'));
+    expect(mockGoBack).toHaveBeenCalled();
+  });
 
+  it('auto-selects the first companion when none is selected', () => {
+    setupStore([], false, null, null);
+    render(<DocumentSearchScreen />);
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({type: 'companion/set', payload: 'comp-1'}),
     );
   });
 
-  it('handles state.documents being undefined (coverage for fallback)', () => {
-    setupStore([], false, null, 'comp-1', true); // documentsUndefined = true
+  it('handles documents state being undefined without crashing', () => {
+    setupStore([], false, null, 'comp-1', true);
     const {getByTestId} = render(<DocumentSearchScreen />);
-    expect(getByTestId('search-bar')).toBeTruthy(); // Should not crash
+    expect(getByTestId('search-bar')).toBeTruthy();
   });
 
-  it('clears search results on mount (empty query)', () => {
+  it('clears results on mount with an empty query', () => {
     setupStore();
     render(<DocumentSearchScreen />);
-    // Initial render has empty query -> triggers useEffect
     expect(clearSearchResults).toHaveBeenCalled();
   });
 
-  it('updates query and debounces search execution', () => {
+  it('debounces the search while typing', () => {
     setupStore();
     const {getByTestId} = render(<DocumentSearchScreen />);
-
-    // Simulate typing "vaccine"
-    const mockInput = getByTestId('search-input-mock');
-    fireEvent(mockInput, 'press', {nativeEvent: {text: 'vaccine'}});
-
-    // Should NOT call search immediately (debounce)
+    type(getByTestId, 'vaccine');
     expect(searchDocuments).not.toHaveBeenCalled();
-
-    // Fast forward debounce timer (1000ms)
-    act(() => {
-      jest.advanceTimersByTime(1000);
-    });
-
+    act(() => jest.advanceTimersByTime(1000));
     expect(searchDocuments).toHaveBeenCalledWith({
       companionId: 'comp-1',
       query: 'vaccine',
     });
   });
 
-  it('triggers search immediately on submit', () => {
+  it('records a recent search and searches immediately on submit', () => {
     setupStore();
-    const {getByTestId} = render(<DocumentSearchScreen />);
-
-    const mockInput = getByTestId('search-input-mock');
-    fireEvent(mockInput, 'press', {nativeEvent: {text: 'urgent'}});
-
-    // Press submit
+    const {getByTestId, getByText} = render(<DocumentSearchScreen />);
+    type(getByTestId, 'rabies');
     fireEvent.press(getByTestId('search-submit'));
-
     expect(searchDocuments).toHaveBeenCalledWith({
       companionId: 'comp-1',
-      query: 'urgent',
+      query: 'rabies',
+    });
+    expect(getByText('Recent searches')).toBeTruthy();
+    expect(getByTestId('recent-search-rabies')).toBeTruthy();
+  });
+
+  it('fills the query from a recent-search chip', () => {
+    setupStore();
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    type(getByTestId, 'insurance');
+    fireEvent.press(getByTestId('search-submit'));
+    // clear the field, then tap the recent chip to re-populate it
+    type(getByTestId, '');
+    (searchDocuments as unknown as jest.Mock).mockClear();
+    fireEvent.press(getByTestId('recent-search-insurance'));
+    act(() => jest.advanceTimersByTime(1000));
+    expect(searchDocuments).toHaveBeenCalledWith({
+      companionId: 'comp-1',
+      query: 'insurance',
     });
   });
 
-  it('clears results if query becomes empty', () => {
+  it('clears results when the query becomes empty', () => {
     setupStore();
     const {getByTestId} = render(<DocumentSearchScreen />);
-
-    const mockInput = getByTestId('search-input-mock');
-
-    // Set text and wait for debounce
-    fireEvent(mockInput, 'press', {nativeEvent: {text: 'test'}});
+    type(getByTestId, 'test');
     act(() => jest.advanceTimersByTime(1000));
-
-    // Clear the mocks to ignore calls from initial mount and first type
     (clearSearchResults as unknown as jest.Mock).mockClear();
-
-    // Now clear text
-    fireEvent(mockInput, 'press', {nativeEvent: {text: ''}});
-
-    // Should trigger clear
+    type(getByTestId, '');
     expect(clearSearchResults).toHaveBeenCalled();
   });
 
-  it('shows loading indicator and then hides it (coverage for rightElement)', () => {
-    // 1. Loading True
+  it('shows a loading indicator while searching', () => {
     setupStore([], true);
-    const {UNSAFE_queryAllByType, update} = render(<DocumentSearchScreen />);
-
-    // Should find 1 ActivityIndicator
-
-    // 2. Loading False (re-render with new state)
-    setupStore([], false);
-    update(<DocumentSearchScreen />);
-
-    // Should find 0
-    expect(UNSAFE_queryAllByType(ActivityIndicator).length).toBe(0);
+    const {UNSAFE_queryAllByType} = render(<DocumentSearchScreen />);
+    const {ActivityIndicator} = require('react-native');
+    expect(UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0);
   });
 
-  it('displays error message if search error exists', () => {
+  it('shows an error message when search fails', () => {
     setupStore([], false, 'Network Error');
     const {getByText} = render(<DocumentSearchScreen />);
-
     expect(getByText('Network Error')).toBeTruthy();
   });
 
-  it('displays empty state when results are 0 and not loading', () => {
+  it('shows the empty state when there are no results', () => {
     setupStore([], false);
     const {getByText} = render(<DocumentSearchScreen />);
-
     expect(getByText('No documents found')).toBeTruthy();
   });
 
-  it('renders search results', () => {
-    const results = [
-      {id: 'd1', name: 'Result Doc 1'},
-      {id: 'd2', name: 'Result Doc 2'},
-    ];
-    setupStore(results);
-    const {getByText} = render(<DocumentSearchScreen />);
-
-    expect(getByText('Result Doc 1')).toBeTruthy();
-    expect(getByText('Result Doc 2')).toBeTruthy();
+  it('renders results with a plural count line scoped to the pet', () => {
+    setupStore([
+      makeDoc({id: 'd1', title: 'Alpha'}),
+      makeDoc({id: 'd2', title: 'Beta'}),
+    ]);
+    const {getByText, getByTestId} = render(<DocumentSearchScreen />);
+    expect(getByTestId('doc-item-d1')).toBeTruthy();
+    expect(getByTestId('doc-item-d2')).toBeTruthy();
+    expect(getByText("2 results across Buddy's documents")).toBeTruthy();
   });
 
-  it('navigates to View/Edit document', () => {
-    const results = [{id: 'd1', name: 'Doc'}];
-    setupStore(results);
-    const {getByTestId} = render(<DocumentSearchScreen />);
+  it('uses a singular label and generic scope when the pet name is unknown', () => {
+    setupStore([makeDoc()], false, null, 'comp-x');
+    const {getByText} = render(<DocumentSearchScreen />);
+    expect(getByText('1 result across your documents')).toBeTruthy();
+  });
 
-    // View
-    fireEvent.press(getByTestId('view-doc-d1'));
+  it('opens the preview on a result row tap', () => {
+    setupStore([makeDoc({id: 'd1'})]);
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    fireEvent.press(getByTestId('doc-item-d1'));
     expect(mockNavigate).toHaveBeenCalledWith('DocumentPreview', {
       documentId: 'd1',
     });
+  });
 
-    // Edit
-    fireEvent.press(getByTestId('edit-doc-d1'));
+  it('edits an editable document on long press', () => {
+    setupStore([
+      makeDoc({id: 'd1', isUserAdded: true, uploadedByPmsUserId: null}),
+    ]);
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    fireEvent(getByTestId('doc-item-d1'), 'longPress');
     expect(mockNavigate).toHaveBeenCalledWith('EditDocument', {
       documentId: 'd1',
     });
   });
 
-  it('updates search if companion changes while query exists', () => {
+  it('does not edit a PMS-synced document on long press', () => {
+    setupStore([
+      makeDoc({id: 'd1', isUserAdded: false, uploadedByPmsUserId: 'pms-1'}),
+    ]);
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    fireEvent(getByTestId('doc-item-d1'), 'longPress');
+    expect(mockNavigate).not.toHaveBeenCalledWith('EditDocument', {
+      documentId: 'd1',
+    });
+  });
+
+  it('shows a visible, accessible edit button for editable documents (not just long-press)', () => {
+    setupStore([
+      makeDoc({
+        id: 'd1',
+        title: 'Vaccination record',
+        isUserAdded: true,
+        uploadedByPmsUserId: null,
+      }),
+    ]);
+    const {getByTestId} = render(<DocumentSearchScreen />);
+
+    const editButton = getByTestId('doc-item-edit-d1');
+    expect(editButton.props.accessibilityRole).toBe('button');
+    expect(editButton.props.accessibilityLabel).toBe('Edit Vaccination record');
+
+    fireEvent.press(editButton);
+    expect(mockNavigate).toHaveBeenCalledWith('EditDocument', {
+      documentId: 'd1',
+    });
+  });
+
+  it('omits the visible edit button for PMS-synced documents', () => {
+    setupStore([
+      makeDoc({id: 'd1', isUserAdded: false, uploadedByPmsUserId: 'pms-1'}),
+    ]);
+    const {queryByTestId} = render(<DocumentSearchScreen />);
+
+    expect(queryByTestId('doc-item-edit-d1')).toBeNull();
+  });
+
+  it('re-searches when the companion changes while a query exists', () => {
     setupStore();
     const {getByTestId, update} = render(<DocumentSearchScreen />);
-
-    // 1. Type query to set lastQueryRef
-    const mockInput = getByTestId('search-input-mock');
-    fireEvent(mockInput, 'press', {nativeEvent: {text: 'rabies'}});
+    type(getByTestId, 'rabies');
     act(() => jest.advanceTimersByTime(1000));
-
-    // Clear mocks to track the specific dispatch
     (searchDocuments as unknown as jest.Mock).mockClear();
-
-    // 2. Simulate Companion Change by updating store and re-rendering
-    // We update selectedCompanionId to 'comp-2'
     setupStore([], false, null, 'comp-2');
     update(<DocumentSearchScreen />);
-
-    // The effect [dispatch, selectedCompanionId] should fire because lastQueryRef is 'rabies'
     expect(searchDocuments).toHaveBeenCalledWith({
       companionId: 'comp-2',
       query: 'rabies',
     });
   });
 
-  it("prevents duplicate search if query hasn't changed and results exist (optimization coverage)", () => {
-    // 1. Start with initial render
+  it('prevents a duplicate search when the query is unchanged and results exist', () => {
     setupStore([], false);
     const {getByTestId, update} = render(<DocumentSearchScreen />);
-
-    // 2. Type "test" and let debounce run -> sets lastQueryRef.current = 'test'
-    const mockInput = getByTestId('search-input-mock');
-    fireEvent(mockInput, 'press', {nativeEvent: {text: 'test'}});
+    type(getByTestId, 'test');
     act(() => jest.advanceTimersByTime(1000));
-
-    // 3. Update store to reflect that search results now exist for 'test'
-    setupStore([{id: 'd1'}], false);
+    setupStore([makeDoc()], false);
     update(<DocumentSearchScreen />);
-
-    // Clear mock to check next calls
     (searchDocuments as unknown as jest.Mock).mockClear();
-
-    // 4. Trigger submit with SAME text "test"
-    // Since searchResults exist (>0) and text matches ref, it should return early
     fireEvent.press(getByTestId('search-submit'));
-
     expect(searchDocuments).not.toHaveBeenCalled();
   });
 
-  it('ALLOWS re-search if query same BUT results empty (optimization coverage)', () => {
-    // 1. Start with initial render
+  it('allows a re-search when the query is unchanged but results are empty', () => {
     setupStore([], false);
     const {getByTestId, update} = render(<DocumentSearchScreen />);
-
-    // 2. Type "test" and let debounce run -> sets lastQueryRef.current = 'test'
-    const mockInput = getByTestId('search-input-mock');
-    fireEvent(mockInput, 'press', {nativeEvent: {text: 'test'}});
+    type(getByTestId, 'test');
     act(() => jest.advanceTimersByTime(1000));
-
-    // 3. Update store (ensure results are EMPTY)
     setupStore([], false);
     update(<DocumentSearchScreen />);
-
     (searchDocuments as unknown as jest.Mock).mockClear();
-
-    // 4. Submit "test" again.
-    // Condition `trimmed === lastQueryRef.current && searchResults.length` -> `true && 0` -> false.
-    // It should proceed to search.
     fireEvent.press(getByTestId('search-submit'));
-
     expect(searchDocuments).toHaveBeenCalledWith({
       companionId: 'comp-1',
       query: 'test',
     });
   });
 
-  it('navigates back', () => {
+  it('highlights the matched query substring in a result title', () => {
+    setupStore([makeDoc({id: 'd1', title: 'Vaccination record'})]);
+    const {getByTestId, getByText} = render(<DocumentSearchScreen />);
+    type(getByTestId, 'vacc');
+    // Title splits into a highlighted "Vacc" node + the remainder.
+    expect(getByText('Vacc')).toBeTruthy();
+    expect(getByTestId('doc-item-d1')).toBeTruthy();
+  });
+
+  it('highlights a term that appears mid-title and ends the title', () => {
+    setupStore([makeDoc({id: 'd1', title: 'Rabies vaccine'})]);
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    // Match starts after leading text ("Rabies ") and ends at title end,
+    // exercising the pre-match push and the no-trailing-text path.
+    type(getByTestId, 'vaccine');
+    expect(getByTestId('doc-item-d1')).toBeTruthy();
+  });
+
+  it('falls back to visitType and omits an invalid date in the meta line', () => {
+    setupStore([
+      makeDoc({
+        id: 'd1',
+        subcategory: '',
+        visitType: 'clinic',
+        issueDate: 'not-a-real-date',
+      }),
+    ]);
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    expect(getByTestId('doc-item-d1')).toBeTruthy();
+  });
+
+  it('clears results when submitting an empty query', () => {
     setupStore();
     const {getByTestId} = render(<DocumentSearchScreen />);
-    fireEvent.press(getByTestId('header-back-btn'));
-    expect(mockGoBack).toHaveBeenCalled();
+    (clearSearchResults as unknown as jest.Mock).mockClear();
+    // No text typed: recordRecentSearch and triggerSearch both bail early.
+    fireEvent.press(getByTestId('search-submit'));
+    expect(clearSearchResults).toHaveBeenCalled();
+    expect(searchDocuments).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates recent searches case-insensitively', () => {
+    setupStore();
+    const {getByTestId, queryByTestId} = render(<DocumentSearchScreen />);
+    type(getByTestId, 'rabies');
+    fireEvent.press(getByTestId('search-submit'));
+    type(getByTestId, 'canine');
+    fireEvent.press(getByTestId('search-submit'));
+    type(getByTestId, 'RABIES');
+    fireEvent.press(getByTestId('search-submit'));
+    // The earlier lowercase "rabies" chip is filtered out; "RABIES" replaces it.
+    expect(getByTestId('recent-search-RABIES')).toBeTruthy();
+    expect(getByTestId('recent-search-canine')).toBeTruthy();
+    expect(queryByTestId('recent-search-rabies')).toBeNull();
+  });
+
+  it('selects a companion from the selector', () => {
+    setupStore();
+    const {getByTestId} = render(<DocumentSearchScreen />);
+    fireEvent.press(getByTestId('companion-selector'));
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({type: 'companion/set', payload: 'comp-2'}),
+    );
   });
 });

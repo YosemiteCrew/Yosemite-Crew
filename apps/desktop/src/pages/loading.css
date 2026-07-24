@@ -1,89 +1,88 @@
-:root {
-  --brand-925: var(--color-brand-925);
-  --brand-900: var(--color-brand-900);
-  --ink: var(--text-primary);
-  --muted: var(--text-tertiary);
-}
+/* Loading splash — warm-bone. Full-window radial glow, haloed logo, sliding bar. */
+
 body {
-  color: var(--ink);
-  background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(59, 135, 236, 0.18), transparent 60%),
-    linear-gradient(180deg, var(--surface-card) 0%, var(--surface-page) 100%);
-  -webkit-user-select: none;
-  user-select: none;
   overflow: hidden;
 }
-/* NOTE: deliberately NO `-webkit-app-region: drag` strip here. In tab mode
-   this page stays mounted as the window's base layer behind the tab-bar and
-   content WebContentsViews. A drag region declared here is promoted to a
-   window-level native drag rect that swallows ALL mouse input over the
-   tab-bar view stacked on top of it, making its controls unclickable.
-   Window dragging in tab mode is handled by the tab bar's own drag-spacer
-   (pointer events -> windowDragBy). */
+
 .wrap {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 26px;
-  animation: rise 0.5s ease-out both;
+  gap: 22px;
+  background: var(--screen);
+  padding: 40px;
+  text-align: center;
 }
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+
+.wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(900px 500px at 50% -10%, var(--glow-b12), transparent 60%);
+  pointer-events: none;
 }
+
 .badge {
   position: relative;
   display: grid;
   place-items: center;
 }
-/* The logo art already includes its own badge ring and a BETA pill that breaks
-   the circle, so we deliberately avoid a hard frame here. A framed circle clipped
-   the protruding pill and left a dark backing square behind the mark. Instead a
-   soft circular brand glow sits behind the artwork. */
+
 .badge::before {
   content: '';
   position: absolute;
-  width: 132px;
-  height: 132px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(59, 135, 236, 0.34), transparent 70%);
+  width: 150px;
+  height: 150px;
+  border-radius: var(--radius-pill);
+  background: radial-gradient(circle, var(--glow-b26), transparent 70%);
   filter: blur(14px);
 }
+
 .logo {
   position: relative;
-  z-index: 1;
-  width: 136px;
-  height: auto;
-  /* drop-shadow follows the artwork's alpha, so there is no square halo */
-  filter: drop-shadow(0 10px 22px rgba(59, 135, 236, 0.28));
+  width: 112px;
+  height: 112px;
+  filter: drop-shadow(0 10px 22px var(--glow-b20));
+  animation: pop 0.8s var(--ease-spring) 0.15s both;
 }
+
 .title {
+  position: relative;
   font-size: 19px;
-  font-weight: 680;
-  letter-spacing: 0.2px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
+
 .track {
+  position: relative;
   width: 220px;
   height: 4px;
-  border-radius: 999px;
-  background: rgba(59, 135, 236, 0.15);
+  border-radius: var(--radius-pill);
+  background: var(--glow-b14);
   overflow: hidden;
 }
+
 .bar {
-  height: 100%;
+  display: block;
   width: 40%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--brand-925), var(--brand-900));
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--blue);
   animation: slide 1.3s ease-in-out infinite;
 }
+
+.tip {
+  position: relative;
+  font-size: 13px;
+  color: var(--ink-muted);
+  transition: opacity 0.35s ease;
+  min-height: 1.2em;
+}
+
 @keyframes slide {
   0% {
     transform: translateX(-120%);
@@ -92,22 +91,21 @@ body {
     transform: translateX(320%);
   }
 }
-.tip {
-  font-size: 13px;
-  color: var(--muted);
-  min-height: 18px;
-  transition: opacity 0.4s;
-}
-@media (prefers-color-scheme: dark) {
-  body {
-    background:
-      radial-gradient(1200px 600px at 50% -10%, rgba(59, 135, 236, 0.28), transparent 60%),
-      linear-gradient(180deg, var(--surface-card) 0%, var(--surface-page) 100%);
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .bar,
-  .wrap {
+  .logo,
+  .bar {
     animation: none;
   }
 }

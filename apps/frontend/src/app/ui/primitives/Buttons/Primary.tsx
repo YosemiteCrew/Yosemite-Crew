@@ -4,19 +4,24 @@ import './ButtonEffects.css';
 
 type PrimaryProps = Omit<BaseButtonProps, 'sizeClasses' | 'baseClasses'>;
 
+// Height, horizontal padding and label size travel together per size — the
+// font-size lives in ButtonEffects.css because .yc-primary-button sets it with
+// !important and a utility class cannot reliably outrank that.
 const sizeClasses: Record<ButtonSize, string> = {
-  default: 'py-[11px]',
-  large: 'py-[11px]',
+  compact: 'min-h-8 px-[14px] yc-primary-button--compact',
+  small: 'min-h-9 px-4 yc-primary-button--small',
+  default: 'min-h-10 px-[18px]',
+  large: 'min-h-11 px-5',
 };
 
 const baseClasses =
-  'yc-primary-button px-4 gap-2 flex items-center justify-center rounded-2xl! transition-[background-color,border-color] duration-200 ease-out text-body-3-emphasis text-center text-neutral-0!';
+  'yc-primary-button gap-[7px] flex items-center justify-center rounded-full! transition-[background-color] duration-200 ease-out text-center';
 
 const Primary = ({ className, style, ...rest }: Readonly<PrimaryProps>) => (
   <BaseButton
     {...rest}
     className={className}
-    style={{ backgroundColor: 'var(--color-text-primary)', ...style }}
+    style={{ backgroundColor: 'var(--cta)', ...style }}
     sizeClasses={sizeClasses}
     baseClasses={baseClasses}
   />

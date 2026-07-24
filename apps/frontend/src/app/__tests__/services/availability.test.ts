@@ -375,7 +375,8 @@ describe('Availability Service', () => {
   describe('deleteOveride', () => {
     const validOverride = {
       _id: 'ov-1',
-      dayOfWeek: '2023-10-01',
+      weekStartDate: new Date('2023-10-01T00:00:00.000Z'),
+      dayOfWeek: 'Sunday',
       organisationId: 'org-1',
     } as unknown as ApiOverrides;
 
@@ -390,14 +391,43 @@ describe('Availability Service', () => {
       expect(mockRemoveOverride).toHaveBeenCalledWith('ov-1');
     });
 
+    it('keys the delete on weekStartDate, never the day name', async () => {
+      (axiosService.deleteData as jest.Mock).mockResolvedValue({});
+
+      await deleteOveride(validOverride);
+
+      // The backend safeDate()s this query param, so a day name would 400.
+      const url = (axiosService.deleteData as jest.Mock).mock.calls[0][0];
+      expect(url).toContain('weekStartDate=2023-10-01');
+      expect(url).not.toContain('Sunday');
+    });
+
+    it('accepts an ISO string weekStartDate from the API', async () => {
+      (axiosService.deleteData as jest.Mock).mockResolvedValue({});
+
+      await deleteOveride({
+        ...validOverride,
+        weekStartDate: '2023-10-01T00:00:00.000Z',
+      } as unknown as ApiOverrides);
+
+      expect(axiosService.deleteData).toHaveBeenCalledWith(
+        '/fhir/v1/availability/org-1/weekly?weekStartDate=2023-10-01'
+      );
+    });
+
     // Fix: cast invalid objects to 'any' to bypass TS check but verify runtime validation logic
     it('throws if override ID is missing', async () => {
       const invalid = { ...validOverride, _id: undefined };
       await expect(deleteOveride(invalid as any)).rejects.toThrow('Cannot delete overides.');
     });
 
-    it('throws if dayOfWeek is missing', async () => {
-      const invalid = { ...validOverride, dayOfWeek: undefined };
+    it('throws if weekStartDate is missing', async () => {
+      const invalid = { ...validOverride, weekStartDate: undefined };
+      await expect(deleteOveride(invalid as any)).rejects.toThrow('Cannot delete overides.');
+    });
+
+    it('throws if weekStartDate is not a real date', async () => {
+      const invalid = { ...validOverride, weekStartDate: 'Sunday' };
       await expect(deleteOveride(invalid as any)).rejects.toThrow('Cannot delete overides.');
     });
 

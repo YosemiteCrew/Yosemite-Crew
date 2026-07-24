@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { OrganisationRoomController } from "../controllers/web/organisation-room.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
@@ -12,7 +12,7 @@ const router = Router();
 // Create room
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:edit:any"),
   OrganisationRoomController.create,
@@ -21,7 +21,7 @@ router.post(
 // Update room
 router.put(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:edit:any"),
   OrganisationRoomController.update,
@@ -30,7 +30,7 @@ router.put(
 // List rooms by organisation
 router.get(
   "/organization/:organizationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:view:any"),
   OrganisationRoomController.getAllByOrganizationId,
@@ -38,7 +38,7 @@ router.get(
 
 router.get(
   "/organization/:organizationId/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:view:any"),
   OrganisationRoomController.getById,
@@ -46,7 +46,7 @@ router.get(
 
 router.get(
   "/organization/:organizationId/summary",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:view:any"),
   OrganisationRoomController.getAllByOrganizationId,
@@ -54,7 +54,7 @@ router.get(
 
 router.patch(
   "/organization/:organizationId/:id/availability",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:edit:any"),
   OrganisationRoomController.toggleAvailability,
@@ -63,7 +63,7 @@ router.patch(
 // Delete room
 router.delete(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:edit:any"),
   OrganisationRoomController.delete,

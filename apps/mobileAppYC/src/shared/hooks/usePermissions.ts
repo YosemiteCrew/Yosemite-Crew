@@ -19,13 +19,12 @@ export const usePermissions = (selectedCompanionId?: string | null) => {
   const defaultAccess = useSelector(
     (state: RootState) => state.coParent?.defaultAccess ?? null,
   );
-  const globalRole = useSelector(
-    (state: RootState) => state.coParent?.lastFetchedRole,
-  );
-  const globalPermissions = useSelector(
-    (state: RootState) => state.coParent?.lastFetchedPermissions,
-  );
 
+  // Deliberately does NOT fall back to `lastFetchedRole`/`lastFetchedPermissions`
+  // (the most recently fetched companion's access, which may belong to a
+  // completely different companion than the one being checked here). Absent an
+  // explicit per-companion or default grant, access must default to deny, not
+  // to whatever role happened to load last.
   const accessForCompanion = useMemo(
     () =>
       selectedCompanionId
@@ -35,22 +34,13 @@ export const usePermissions = (selectedCompanionId?: string | null) => {
   );
 
   const role = useMemo(
-    () =>
-      (
-        accessForCompanion?.role ??
-        defaultAccess?.role ??
-        globalRole ??
-        ''
-      ).toUpperCase(),
-    [accessForCompanion, defaultAccess, globalRole],
+    () => (accessForCompanion?.role ?? '').toUpperCase(),
+    [accessForCompanion],
   );
 
   const permissions = useMemo(
-    () =>
-      accessForCompanion?.permissions ??
-      defaultAccess?.permissions ??
-      globalPermissions,
-    [accessForCompanion, defaultAccess, globalPermissions],
+    () => accessForCompanion?.permissions,
+    [accessForCompanion],
   );
 
   const isPrimary = useMemo(() => role.includes('PRIMARY'), [role]);

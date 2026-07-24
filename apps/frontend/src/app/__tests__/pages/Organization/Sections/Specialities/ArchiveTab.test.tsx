@@ -2,14 +2,62 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: () => <span data-testid="icon-delete" />,
-  MdOutlineUnarchive: () => <span data-testid="icon-restore" />,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/ai', () => ({
-  AiOutlineInfoCircle: () => <span data-testid="icon-info" />,
-}));
+jest.mock(
+  'react-icons/ai',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 const mockRestoreService = jest.fn();
 const mockDeleteService = jest.fn();
@@ -45,13 +93,21 @@ jest.mock('@/app/hooks/useBilling', () => ({
   useCurrencyForPrimaryOrg: () => 'USD',
 }));
 
+const mockFormatMoney = jest.fn((amount: number, _currency?: string) => `$ ${amount.toFixed(2)}`);
 jest.mock('@/app/lib/money', () => ({
-  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
+  formatMoney: (amount: number, currency?: string) => mockFormatMoney(amount, currency),
 }));
 
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  default: ({ children, setShowModal }: { children: React.ReactNode; setShowModal: any }) => (
+    <div>
+      <button type="button" onClick={() => setShowModal(false)}>
+        Dismiss modal
+      </button>
+      {children}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
@@ -92,6 +148,29 @@ import ArchiveTab from '@/app/features/organization/pages/Specialities/ArchiveTa
 
 const SPEC_ID = 'spec-1';
 
+const archivedService = (overrides: Record<string, unknown> = {}) => ({
+  id: 's1',
+  name: 'Ultrasound',
+  code: 'US',
+  type: 'PROCEDURE',
+  specialityId: SPEC_ID,
+  status: 'ARCHIVED',
+  ...overrides,
+});
+
+const archivedPackage = (overrides: Record<string, unknown> = {}) => ({
+  id: 'p1',
+  name: 'Wellness Plan',
+  code: 'WP1',
+  durationText: 'Approx. 60 mins',
+  specialityId: SPEC_ID,
+  status: 'ARCHIVED',
+  ...overrides,
+});
+
+// Shapes an axios-style catalog error whose nested message getCatalogErrorMessage prefers.
+const catalogError = (message: string) => ({ response: { data: { error: { message } } } });
+
 describe('ArchiveTab', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -99,6 +178,7 @@ describe('ArchiveTab', () => {
     mockDeleteService.mockResolvedValue(undefined);
     mockRestorePackage.mockResolvedValue(undefined);
     mockDeletePackage.mockResolvedValue(undefined);
+    mockLoadSpecialityCatalog.mockResolvedValue(undefined);
     mockServices = [];
     mockPackages = [];
   });
@@ -106,7 +186,7 @@ describe('ArchiveTab', () => {
   it('shows empty state when no archived items', () => {
     render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
     expect(screen.getByText('No archived services or packages.')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-info')).toBeInTheDocument();
+    expect(screen.getByTestId('IoInformationCircleOutline')).toBeInTheDocument();
   });
 
   it('filters services by specialityId and ARCHIVED status', () => {
@@ -332,5 +412,136 @@ describe('ArchiveTab', () => {
     ];
     render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
     expect(screen.getByText('CUSTOM_TYPE')).toBeInTheDocument();
+  });
+
+  it('loads the archived catalog on mount', async () => {
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-9" />);
+    await waitFor(() =>
+      expect(mockLoadSpecialityCatalog).toHaveBeenCalledWith('org-9', SPEC_ID, {
+        force: true,
+        includeArchive: true,
+      })
+    );
+  });
+
+  it('swallows a failing catalog load without notifying', async () => {
+    mockLoadSpecialityCatalog.mockRejectedValue(new Error('network down'));
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+    await waitFor(() => expect(mockLoadSpecialityCatalog).toHaveBeenCalled());
+    expect(screen.getByText('No archived services or packages.')).toBeInTheDocument();
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('prefers the service currency over the primary org currency', () => {
+    mockServices = [archivedService({ currency: 'EUR' })];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+    expect(mockFormatMoney).toHaveBeenCalledWith(50, 'EUR');
+  });
+
+  it('falls back to the primary org currency when the service has none', () => {
+    mockServices = [archivedService()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+    expect(mockFormatMoney).toHaveBeenCalledWith(50, 'USD');
+  });
+
+  it('notifies with the api message when restoring a service fails', async () => {
+    mockRestoreService.mockRejectedValue(catalogError('Service code already in use'));
+    mockServices = [archivedService()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Ultrasound' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to restore service',
+        text: 'Service code already in use',
+      })
+    );
+  });
+
+  it('notifies with the generic fallback when restoring a package fails', async () => {
+    mockRestorePackage.mockRejectedValue(new Error('boom'));
+    mockPackages = [archivedPackage()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Wellness Plan' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to restore package',
+        text: 'Please try again.',
+      })
+    );
+  });
+
+  it('notifies and keeps the modal open when deleting a service fails', async () => {
+    mockDeleteService.mockRejectedValue(catalogError('Service is used by 2 packages'));
+    mockServices = [archivedService()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Ultrasound permanently' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to delete item',
+        text: 'Service is used by 2 packages',
+      })
+    );
+    // the confirm modal stays mounted so the user can retry
+    expect(screen.getByText('Delete service')).toBeInTheDocument();
+  });
+
+  it('notifies with the generic fallback when deleting a package fails', async () => {
+    mockDeletePackage.mockRejectedValue(new Error('boom'));
+    mockPackages = [archivedPackage()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Wellness Plan permanently' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to delete item',
+        text: 'This item could not be deleted. Please try again.',
+      })
+    );
+  });
+
+  it('closes the confirm modal on cancel without deleting', () => {
+    mockServices = [archivedService()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Ultrasound permanently' }));
+    expect(screen.getByText('Delete service')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText('Delete service')).not.toBeInTheDocument();
+    expect(mockDeleteService).not.toHaveBeenCalled();
+  });
+
+  it('closes the confirm modal from the modal header close button', () => {
+    mockServices = [archivedService()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Ultrasound permanently' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByText('Delete service')).not.toBeInTheDocument();
+    expect(mockDeleteService).not.toHaveBeenCalled();
+  });
+
+  it('closes the confirm modal when the overlay dismisses it', () => {
+    mockPackages = [archivedPackage()];
+    render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Wellness Plan permanently' }));
+    expect(screen.getByText('Delete package')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss modal' }));
+
+    expect(screen.queryByText('Delete package')).not.toBeInTheDocument();
+    expect(mockDeletePackage).not.toHaveBeenCalled();
   });
 });

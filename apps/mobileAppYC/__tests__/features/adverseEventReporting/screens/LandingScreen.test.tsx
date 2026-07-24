@@ -18,22 +18,14 @@ jest.mock('../../../../src/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// 3. Mock Images
-jest.mock('../../../../src/assets/images', () => ({
-  Images: {
-    adverse1: {uri: 'test-image-uri'},
-  },
-}));
-
-// 4. Mock Child Components
+// 3. Mock Child Components
 // We mock AERLayout to expose the 'onBack' and 'bottomButton' props as clickable elements.
 jest.mock(
   '../../../../src/features/adverseEventReporting/components/AERLayout',
   () => {
     const {View, TouchableOpacity, Text} = require('react-native');
-    return ({children, onBack, bottomButton, stepLabel}: any) => (
+    return ({children, onBack, bottomButton}: any) => (
       <View testID="aer-layout">
-        <Text testID="step-label">{stepLabel}</Text>
         <TouchableOpacity onPress={onBack} testID="layout-back-btn">
           <Text>Back</Text>
         </TouchableOpacity>
@@ -48,22 +40,6 @@ jest.mock(
   },
 );
 
-jest.mock(
-  '../../../../src/features/legal/components/LegalContentRenderer',
-  () => {
-    const {View} = require('react-native');
-    return () => <View testID="legal-content-renderer" />;
-  },
-);
-
-// 5. Mock Content Data
-jest.mock(
-  '../../../../src/features/adverseEventReporting/content/generalInfoSections',
-  () => ({
-    generalInfoSections: [],
-  }),
-);
-
 // --- Test Suite ---
 
 describe('LandingScreen', () => {
@@ -71,7 +47,7 @@ describe('LandingScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders correctly with layout, image, and content', () => {
+  it('renders the layout, hero, explainer, and safety callout', () => {
     const {getByTestId, getByText} = render(
       <LandingScreen navigation={mockNavigation} route={{} as any} />,
     );
@@ -79,11 +55,52 @@ describe('LandingScreen', () => {
     // Verify Layout is present
     expect(getByTestId('aer-layout')).toBeTruthy();
 
-    // Verify Step Label passed to layout
-    expect(getByText('General information')).toBeTruthy();
+    // Hero + explainer copy
+    expect(
+      getByText('If a medicine or vaccine went wrong, report it.'),
+    ).toBeTruthy();
+    expect(
+      getByText(
+        'Your report reaches the people who track drug safety: the ' +
+          'manufacturer, your clinic, or the regulatory authority. It takes about ' +
+          'five minutes.',
+      ),
+    ).toBeTruthy();
 
-    // Verify Legal Content Renderer is present (mocked)
-    expect(getByTestId('legal-content-renderer')).toBeTruthy();
+    // Hero icon tile + safety callout icon
+    expect(getByTestId('icon-shield-half-outline')).toBeTruthy();
+    expect(getByTestId('icon-alert-circle-outline')).toBeTruthy();
+
+    // Safety callout copy
+    expect(
+      getByText(
+        'If your companion is in danger right now, call the vet first. This ' +
+          'report can wait.',
+      ),
+    ).toBeTruthy();
+
+    // Start CTA title passed to the layout
+    expect(getByText('Start report')).toBeTruthy();
+  });
+
+  it('renders the numbered five-step overview', () => {
+    const {getByText} = render(
+      <LandingScreen navigation={mockNavigation} route={{} as any} />,
+    );
+
+    // Step labels
+    expect(getByText('Who to notify')).toBeTruthy();
+    expect(getByText('Parent information')).toBeTruthy();
+    expect(getByText('Which companion')).toBeTruthy();
+    expect(getByText('Companion information')).toBeTruthy();
+    expect(getByText('The product and what happened')).toBeTruthy();
+
+    // Step badge numbers 1-5
+    expect(getByText('1')).toBeTruthy();
+    expect(getByText('2')).toBeTruthy();
+    expect(getByText('3')).toBeTruthy();
+    expect(getByText('4')).toBeTruthy();
+    expect(getByText('5')).toBeTruthy();
   });
 
   it('navigates to "Step1" when the Start button is pressed', () => {

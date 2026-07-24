@@ -1,5 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { FaCloudUploadAlt, FaFilePdf, FaFileWord, FaFileImage, FaTrashAlt } from 'react-icons/fa';
+import {
+  IoCloudUploadOutline,
+  IoDocumentTextOutline,
+  IoImageOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 import Image from 'next/image';
 
 import './UploadImage.css';
@@ -16,10 +21,10 @@ const DEFAULT_FILES: File[] = [];
 const DEFAULT_EXISTING_FILES: ExistingFile[] = [];
 
 function getFileIcon(type: string) {
-  if (type === 'application/pdf') return <FaFilePdf className="file-icon pdf" />;
-  if (type.includes('word')) return <FaFileWord className="file-icon word" />;
-  if (type.startsWith('image/')) return <FaFileImage className="file-icon img" />;
-  return <FaFileImage className="file-icon" />;
+  if (type === 'application/pdf') return <IoDocumentTextOutline className="file-icon pdf" />;
+  if (type.includes('word')) return <IoDocumentTextOutline className="file-icon word" />;
+  if (type.startsWith('image/')) return <IoImageOutline className="file-icon img" />;
+  return <IoImageOutline className="file-icon" />;
 }
 
 type ExistingFile = {
@@ -85,7 +90,7 @@ const UploadImage = ({
         aria-label={placeholder}
       >
         <div className="upldCont">
-          <FaCloudUploadAlt className="upload-cloud" />
+          <IoCloudUploadOutline className="upload-cloud" />
           <h6>{placeholder}</h6>
           <p>
             Only DOC, PDF, PNG, JPEG formats with
@@ -129,7 +134,7 @@ const UploadImage = ({
               onClick={() => handleDelete(idx)}
               aria-label={`Remove ${file.name}`}
             >
-              <FaTrashAlt />
+              <IoTrashOutline />
             </button>
           </div>
         ))}
@@ -157,7 +162,7 @@ const UploadImage = ({
               onClick={() => handleDeleteExisting(idx)}
               aria-label={`Remove ${file.name}`}
             >
-              <FaTrashAlt />
+              <IoTrashOutline />
             </button>
           </div>
         ))}

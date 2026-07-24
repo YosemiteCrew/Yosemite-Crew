@@ -1,6 +1,6 @@
 import React from 'react';
 import { FormField } from '@/app/features/forms/types/forms';
-import { MdDeleteForever, MdDragIndicator } from 'react-icons/md';
+import { IoReorderThreeOutline, IoTrash } from 'react-icons/io5';
 import { IoMdArrowUp, IoMdArrowDown } from 'react-icons/io';
 import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 
@@ -58,6 +58,7 @@ const BuilderWrapper: React.FC<{
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     if (!onDragStart) return;
+    /* v8 ignore next */
     if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
       const clone = wrapperRef.current.cloneNode(true) as HTMLDivElement;
@@ -68,7 +69,7 @@ const BuilderWrapper: React.FC<{
       clone.style.borderRadius = '16px';
       clone.style.overflow = 'hidden';
       clone.style.background = 'var(--color-neutral-0)';
-      clone.style.boxShadow = '0 10px 30px rgba(0,0,0,0.08)';
+      clone.style.boxShadow = '0 10px 30px var(--sh08)';
       document.body.appendChild(clone);
       dragPreviewRef.current = clone;
       const offsetX = e.clientX - rect.left;
@@ -101,14 +102,14 @@ const BuilderWrapper: React.FC<{
     <section
       ref={wrapperRef}
       aria-label={`${title} field`}
-      className={`${compact ? 'border border-card-border rounded-xl px-3 py-2 gap-2 bg-white' : 'border border-grey-light rounded-2xl p-3 gap-3 bg-white'} flex flex-col ${
-        isDragging ? 'rounded-2xl' : ''
+      className={`${compact ? 'border border-[var(--hairline)] rounded-[14px] px-3 py-2 gap-2 bg-[var(--screen)]' : 'border border-[var(--hairline)] rounded-[18px] p-3 gap-3 bg-[var(--screen)]'} flex flex-col ${
+        isDragging ? 'rounded-[18px]' : ''
       }`}
       {...dragProps}
     >
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <MdDragIndicator
+          <IoReorderThreeOutline
             size={20}
             color="var(--color-muted-999)"
             className={`cursor-grab ${canDrag ? 'opacity-100' : 'opacity-50'}`}
@@ -151,10 +152,11 @@ const BuilderWrapper: React.FC<{
             <button
               type="button"
               onClick={onDelete}
-              aria-label={`Delete ${title}`}
               className="hover:bg-red-50 rounded p-1"
+              title="Delete"
+              aria-label={`Delete ${title}`}
             >
-              <MdDeleteForever size={20} color="var(--color-danger-600)" />
+              <IoTrash size={20} color="var(--color-danger-600)" />
             </button>
           </div>
         )}

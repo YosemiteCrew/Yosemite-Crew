@@ -13,9 +13,24 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   ),
 }));
 
-jest.mock('react-icons/md', () => ({
-  MdError: () => <span data-testid="error-icon" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 describe('ErrorToast', () => {
   it('renders title and text and invokes closeToast', () => {
@@ -32,7 +47,7 @@ describe('ErrorToast', () => {
 
     expect(screen.getByText('Error title')).toBeInTheDocument();
     expect(screen.getByText('Something broke')).toBeInTheDocument();
-    expect(screen.getByTestId('error-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('IoAlertCircle')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Close'));
     expect(closeToast).toHaveBeenCalledTimes(1);

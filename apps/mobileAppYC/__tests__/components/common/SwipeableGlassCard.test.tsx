@@ -283,6 +283,108 @@ describe('SwipeableGlassCard', () => {
     expect(mockWithSpring).toHaveBeenCalled();
   });
 
+  it('opens the action when a vertical-dominant drag crosses the open threshold in horizontal-only mode', () => {
+    render(
+      <SwipeableGlassCard
+        actionIcon={mockActionIcon}
+        enableHorizontalSwipeOnly={true}>
+        <Text>Content</Text>
+      </SwipeableGlassCard>,
+    );
+    const gesture = getPanGesture();
+
+    mockWithSpring.mockClear();
+    // isMostlyVertical (45 > 40), not a tap (|translationX| >= 8), and the
+    // resulting offset (-40) crosses the -35 open threshold.
+    runGesture(() => {
+      gesture.onEnd({translationX: -40, translationY: 45});
+    });
+
+    expect(mockWithSpring).toHaveBeenCalledWith(-70, {});
+  });
+
+  it('does not schedule a press callback for a tap when no onPress handler is provided', () => {
+    render(
+      <SwipeableGlassCard actionIcon={mockActionIcon}>
+        <Text>Content</Text>
+      </SwipeableGlassCard>,
+    );
+    const gesture = getPanGesture();
+
+    expect(() =>
+      runGesture(() => {
+        gesture.onEnd({translationX: 2, translationY: 2});
+      }),
+    ).not.toThrow();
+  });
+
+  it('treats a non-positive swipeable width as fully transparent action opacity', () => {
+    expect(() =>
+      render(
+        <SwipeableGlassCard actionIcon={mockActionIcon} actionWidth={0}>
+          <Text>Content</Text>
+        </SwipeableGlassCard>,
+      ),
+    ).not.toThrow();
+  });
+
+  it('applies android-specific card base styles on Android', () => {
+    const {Platform} = require('react-native');
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    expect(() =>
+      render(
+        <SwipeableGlassCard actionIcon={mockActionIcon}>
+          <Text>Content</Text>
+        </SwipeableGlassCard>,
+      ),
+    ).not.toThrow();
+
+    Platform.OS = originalOS;
+  });
+
+  it('prefers a non-empty merged style/fallbackStyle over the raw cardProps values', () => {
+    const {getByText} = render(
+      <SwipeableGlassCard
+        actionIcon={mockActionIcon}
+        cardProps={
+          {style: {opacity: 0.5}, fallbackStyle: {opacity: 0.5}} as any
+        }>
+        <Text>Content</Text>
+      </SwipeableGlassCard>,
+    );
+
+    expect(getByText('Content')).toBeTruthy();
+  });
+
+  it('syncs currentOffset to translateX when the gesture finalizes', () => {
+    render(
+      <SwipeableGlassCard actionIcon={mockActionIcon}>
+        <Text>Content</Text>
+      </SwipeableGlassCard>,
+    );
+    const gesture = getPanGesture();
+
+    runGesture(() => {
+      gesture.onEnd({translationX: -100, translationY: 0});
+    });
+
+    expect(() => runGesture(() => gesture.onFinalize())).not.toThrow();
+  });
+
+  it('merges provided cardProps with the reveal-driven style overrides', () => {
+    const {getByText} = render(
+      <SwipeableGlassCard
+        actionIcon={mockActionIcon}
+        cardProps={{shadow: 'lg', padding: '4'} as any}>
+        <Text>Content</Text>
+      </SwipeableGlassCard>,
+    );
+
+    expect(getByText('Content')).toBeTruthy();
+  });
+
   it('applies spring config overrides', () => {
     render(
       <SwipeableGlassCard

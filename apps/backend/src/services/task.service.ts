@@ -4,6 +4,7 @@ import {
   TaskSource as PrismaTaskSource,
   TaskKind as PrismaTaskKind,
   TaskStatus as PrismaTaskStatus,
+  TaskPriority as PrismaTaskPriority,
 } from "@prisma/client";
 import { isTaskCategory } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
@@ -25,6 +26,7 @@ export class TaskServiceError extends Error {
 export type TaskAudience = "EMPLOYEE_TASK" | "PARENT_TASK";
 export type TaskSource = "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
 export type TaskStatus = PrismaTaskStatus;
+export type TaskPriority = PrismaTaskPriority;
 
 export type MedicationDoseInput = {
   time?: string;
@@ -56,6 +58,13 @@ const TASK_STATUSES = new Set<TaskStatus>([
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
+]);
+
+const TASK_PRIORITIES = new Set<TaskPriority>([
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
 ]);
 
 type TaskRow = Prisma.TaskGetPayload<Record<string, never>>;
@@ -104,6 +113,11 @@ const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
 
 const sanitizeTaskCategory = (value: unknown): string | undefined =>
   typeof value === "string" && isTaskCategory(value) ? value : undefined;
+
+const sanitizeTaskPriority = (value: unknown): TaskPriority | undefined =>
+  typeof value === "string" && TASK_PRIORITIES.has(value as TaskPriority)
+    ? (value as TaskPriority)
+    : undefined;
 
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value)
@@ -232,6 +246,29 @@ const recordTaskCreatedAudit = async (task: TaskLike) =>
 const assertCanUpdateTask = (isCreator: boolean, isAssignee: boolean) => {
   if (!isCreator && !isAssignee) {
     throw new TaskServiceError("Not allowed to update this task", 403);
+  }
+};
+
+const isTaskActor = (
+  task: { createdBy: string; assignedTo: string | null },
+  actorId: string,
+) => task.createdBy === actorId || task.assignedTo === actorId;
+
+/**
+ * A recurrence scope of ALL / THIS_AND_FOLLOWING fans a single authorized task
+ * id out across the whole series. Ownership was only ever proven for the task
+ * named in the URL, so every other row has to be re-checked before it is
+ * written; occurrences can be reassigned individually.
+ */
+const assertActorOwnsSeriesRows = (
+  rows: Array<{ id: string; createdBy: string; assignedTo: string | null }>,
+  actorId: string,
+) => {
+  if (rows.some((row) => !isTaskActor(row, actorId))) {
+    throw new TaskServiceError(
+      "Not allowed to update every task in this series",
+      403,
+    );
   }
 };
 
@@ -469,9 +506,7 @@ const normalizeRecurrenceScope = (value?: string): RecurrenceScope => {
 
 const getSeriesMasterId = (task: TaskRow): string | undefined => {
   const recurrence = task.recurrence as
-    | { isMaster?: boolean; masterTaskId?: string }
-    | null
-    | undefined;
+    { isMaster?: boolean; masterTaskId?: string } | null | undefined;
 
   if (recurrence?.masterTaskId) return recurrence.masterTaskId;
   if (recurrence?.isMaster) return task.id;
@@ -503,6 +538,10 @@ const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
     updates.subcategory === undefined
       ? (task.subcategory ?? undefined)
       : (updates.subcategory ?? undefined),
+  priority:
+    updates.priority === undefined
+      ? (task.priority ?? undefined)
+      : (sanitizeTaskPriority(updates.priority) ?? task.priority ?? undefined),
   timezone:
     updates.timezone === undefined
       ? (task.timezone ?? undefined)
@@ -572,6 +611,7 @@ const buildCreateTaskData = (input: {
     id: string;
     name: string;
   }[];
+  priority?: TaskPriority;
 }) => ({
   organisationId: input.organisationId ?? undefined,
   appointmentId: input.appointmentId ?? undefined,
@@ -599,6 +639,7 @@ const buildCreateTaskData = (input: {
   calendarEventId: undefined,
   attachments: toNullableJsonInput(input.attachments ?? []),
   status: "PENDING" as PrismaTaskStatus,
+  priority: sanitizeTaskPriority(input.priority),
 });
 
 type TaskWriteClient = Pick<Prisma.TransactionClient, "task">;
@@ -621,6 +662,7 @@ const updateTaskRow = async (
     description?: string;
     additionalNotes?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     dueAt?: Date;
     timezone?: string | null;
     assignedTo?: string;
@@ -663,6 +705,12 @@ const updateTaskRow = async (
         updates.subcategory === undefined
           ? (task.subcategory ?? undefined)
           : (updates.subcategory ?? undefined),
+      priority:
+        updates.priority === undefined
+          ? (task.priority ?? undefined)
+          : (sanitizeTaskPriority(updates.priority) ??
+            task.priority ??
+            undefined),
       dueAt: updates.dueAt ?? task.dueAt,
       timezone:
         updates.timezone === undefined
@@ -927,6 +975,7 @@ const buildTaskListWhere = async (params: {
   status?: TaskStatus[];
   category?: string;
   subcategory?: string;
+  priority?: TaskPriority;
   kind?: PrismaTaskKind;
   dueFrom?: Date;
   dueTo?: Date;
@@ -973,6 +1022,7 @@ const buildTaskListBaseWhere = (
     assignedTo?: string;
     category?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     status?: TaskStatus[];
     dueFrom?: Date;
     dueTo?: Date;
@@ -1131,6 +1181,7 @@ const buildPatientWhere = (params: {
 const buildTaskScalarFilters = (params: {
   category?: string;
   subcategory?: string;
+  priority?: TaskPriority;
   status?: TaskStatus[];
   includeCompleted?: boolean;
   dueFrom?: Date;
@@ -1146,6 +1197,11 @@ const buildTaskScalarFilters = (params: {
   const subcategory = asNonEmptyString(params.subcategory);
   if (subcategory) {
     baseWhere.subcategory = subcategory;
+  }
+
+  const priority = sanitizeTaskPriority(params.priority);
+  if (priority) {
+    baseWhere.priority = priority;
   }
 
   const status = sanitizeStatusList(params.status);
@@ -1192,6 +1248,7 @@ export interface BaseTaskCreateInput {
     id: string;
     name: string;
   }[];
+  priority?: TaskPriority;
 }
 
 export interface CreateFromLibraryInput extends BaseTaskCreateInput {
@@ -1226,6 +1283,7 @@ export interface TaskUpdateInput {
   description?: string;
   additionalNotes?: string;
   subcategory?: string;
+  priority?: TaskPriority;
   dueAt?: Date;
   timezone?: string | null;
   assignedTo?: string;
@@ -1297,6 +1355,7 @@ export const TaskService = {
         reminder: input.reminder,
         syncWithCalendar: input.syncWithCalendar,
         attachments: input.attachments,
+        priority: input.priority,
       }),
     });
 
@@ -1327,8 +1386,7 @@ export const TaskService = {
       (template.defaultRole === "PARENT" ? "PARENT_TASK" : "EMPLOYEE_TASK");
 
     const templateMedication = (template.defaultMedication ?? undefined) as
-      | MedicationInput
-      | undefined;
+      MedicationInput | undefined;
 
     assertCompanionRequirement({
       audience,
@@ -1409,6 +1467,7 @@ export const TaskService = {
         reminder,
         syncWithCalendar: input.syncWithCalendar,
         attachments: input.attachments,
+        priority: input.priority,
       }),
     });
 
@@ -1454,6 +1513,7 @@ export const TaskService = {
         reminder: input.reminder,
         syncWithCalendar: input.syncWithCalendar,
         attachments: input.attachments,
+        priority: input.priority,
       }),
     });
 
@@ -1523,9 +1583,7 @@ export const TaskService = {
   ): Promise<TaskLike> {
     const inferredScope = normalizeRecurrenceScope(scopeOrOrganisationId);
     const scope: RecurrenceScope =
-      scopeOrOrganisationId === inferredScope
-        ? inferredScope
-        : "THIS";
+      scopeOrOrganisationId === inferredScope ? inferredScope : "THIS";
     const orgScope = asNonEmptyString(
       organisationId ??
         (scope === "THIS" && scopeOrOrganisationId !== "THIS"
@@ -1543,13 +1601,22 @@ export const TaskService = {
     const isAssignee = task.assignedTo === actorId;
     assertCanUpdateTask(isCreator, isAssignee);
 
-    if (updates.assignedTo !== undefined) {
-      if (!isCreator) {
-        throw new TaskServiceError("Only task creator can reassign task", 403);
-      }
+    // Clients PATCH the whole entity, so `assignedTo` is present even when it
+    // is unchanged. Only a real change of assignee counts as a reassignment.
+    const isReassigningUser =
+      updates.assignedTo !== undefined &&
+      updates.assignedTo !== task.assignedTo;
+    if (isReassigningUser && !isCreator) {
+      throw new TaskServiceError("Only task creator can reassign task", 403);
     }
 
-    if (updates.assignedGroupId !== undefined && !isCreator) {
+    // `assignedGroupId` is nullable, so it has three input states: absent
+    // (no-op), `null` (an explicit clear, which IS a reassignment), or an id.
+    // Only an absent field or an unchanged value is exempt.
+    const isReassigningGroup =
+      updates.assignedGroupId !== undefined &&
+      updates.assignedGroupId !== task.assignedGroupId;
+    if (isReassigningGroup && !isCreator) {
       throw new TaskServiceError("Only task creator can reassign task", 403);
     }
 
@@ -1564,15 +1631,13 @@ export const TaskService = {
           description: updates.description,
           additionalNotes: updates.additionalNotes,
           subcategory: updates.subcategory,
+          priority: updates.priority,
           dueAt: updates.dueAt,
           timezone: updates.timezone,
           assignedTo: updates.assignedTo,
           assignedGroupId: updates.assignedGroupId,
           assignedBy:
-            updates.assignedTo !== undefined ||
-            updates.assignedGroupId !== undefined
-              ? actorId
-              : undefined,
+            isReassigningUser || isReassigningGroup ? actorId : undefined,
           medication: updates.medication,
           observationToolId: updates.observationToolId,
           reminder: updates.reminder,
@@ -1585,10 +1650,7 @@ export const TaskService = {
 
       const mapped = toTaskLike(updated);
 
-      if (
-        updates.assignedTo !== undefined ||
-        updates.assignedGroupId !== undefined
-      ) {
+      if (isReassigningUser || isReassigningGroup) {
         await recordTaskAudit({
           organisationId: mapped.organisationId,
           patientId: mapped.patientId,
@@ -1634,6 +1696,11 @@ export const TaskService = {
       toOccurrenceDueAt(row.dueAt, splitDueAt);
     const futureRows = seriesRows.filter(
       (row) => row.id !== task.id && row.dueAt >= task.dueAt,
+    );
+
+    assertActorOwnsSeriesRows(
+      normalizedScope === "ALL" ? seriesRows : [master, ...futureRows],
+      actorId,
     );
 
     const updatedRows = await prisma.$transaction(async (tx) => {
@@ -1712,10 +1779,7 @@ export const TaskService = {
 
     const mapped = toTaskLike(updated);
 
-    if (
-      updates.assignedTo !== undefined ||
-      updates.assignedGroupId !== undefined
-    ) {
+    if (isReassigningUser || isReassigningGroup) {
       await recordTaskAudit({
         organisationId: mapped.organisationId,
         patientId: mapped.patientId,
@@ -1739,8 +1803,14 @@ export const TaskService = {
     taskId: string,
     actorId: string,
     scope: RecurrenceScope = "THIS",
+    organisationId?: string,
   ): Promise<void> {
-    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    const orgScope = asNonEmptyString(organisationId);
+    const task = await prisma.task.findFirst({
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
+    });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
     const isCreator = task.createdBy === actorId;
@@ -1766,15 +1836,26 @@ export const TaskService = {
           { recurrence: { path: ["masterTaskId"], equals: seriesMasterId } },
         ],
       },
-      select: { id: true, dueAt: true },
+      select: { id: true, dueAt: true, createdBy: true, assignedTo: true },
     });
 
-    const cancellableIds =
+    const cancellableRows =
       normalizedScope === "ALL"
-        ? seriesIds.map((row) => row.id)
-        : seriesIds
-            .filter((row) => row.dueAt >= task.dueAt)
-            .map((row) => row.id);
+        ? seriesIds
+        : seriesIds.filter((row) => row.dueAt >= task.dueAt);
+
+    // THIS_AND_FOLLOWING also rewrites the master's recurrence end date, so the
+    // master counts as a written row even when it falls before the split point.
+    assertActorOwnsSeriesRows(
+      normalizedScope === "ALL"
+        ? cancellableRows
+        : seriesIds.filter(
+            (row) => row.dueAt >= task.dueAt || row.id === seriesMasterId,
+          ),
+      actorId,
+    );
+
+    const cancellableIds = cancellableRows.map((row) => row.id);
 
     await prisma.$transaction(async (tx) => {
       await tx.task.updateMany({
@@ -1947,6 +2028,7 @@ export const TaskService = {
     status?: TaskStatus[];
     category?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     kind?: PrismaTaskKind;
     dueFrom?: Date;
     dueTo?: Date;
@@ -1973,6 +2055,7 @@ export const TaskService = {
       status: params.status,
       category: params.category,
       subcategory: params.subcategory,
+      priority: params.priority,
       kind: params.kind,
       dueFrom: params.dueFrom,
       dueTo: params.dueTo,
@@ -2047,7 +2130,10 @@ export const TaskService = {
 
   async listForCompanion(params: {
     patientId: string;
-    organisationId?: string;
+    // Required key, nullable value: the mobile route is parent-scoped and has no
+    // organisation, but every caller must state its scope rather than omit the
+    // field, because Prisma drops an `undefined` predicate from the `where`.
+    organisationId: string | undefined;
     audience?: TaskAudience;
     companionId?: string;
     clientId?: string;
@@ -2062,6 +2148,7 @@ export const TaskService = {
     status?: TaskStatus[];
     category?: string;
     subcategory?: string;
+    priority?: TaskPriority;
     kind?: PrismaTaskKind;
     dueFrom?: Date;
     dueTo?: Date;
@@ -2089,6 +2176,7 @@ export const TaskService = {
       status: params.status,
       category: params.category,
       subcategory: params.subcategory,
+      priority: params.priority,
       kind: params.kind,
       dueFrom: params.dueFrom,
       dueTo: params.dueTo,

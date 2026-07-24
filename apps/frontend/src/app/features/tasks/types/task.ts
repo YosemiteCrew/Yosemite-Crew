@@ -4,17 +4,24 @@ import {
   status,
   StatusOption,
 } from '@/app/features/companions/pages/Companions/types';
-import { type TaskKind as CanonicalTaskKind } from '@/app/features/tasks/constants/taskTaxonomy';
+import {
+  type TaskKind as CanonicalTaskKind,
+  type TaskPriority as CanonicalTaskPriority,
+} from '@/app/features/tasks/constants/taskTaxonomy';
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
 export type TaskKind = CanonicalTaskKind;
+export type TaskPriority = CanonicalTaskPriority;
 
 /** Repeat options shown in task pickers (single-sourced from the taxonomy). */
 export { TASK_REPEAT_OPTIONS as TaskRecurrenceOptions } from '@/app/features/tasks/constants/taskTaxonomy';
 
 /** Category options shown in task pickers (single-sourced from the taxonomy). */
 export { TASK_CATEGORY_OPTIONS as TaskKindOptions } from '@/app/features/tasks/constants/taskTaxonomy';
+
+/** Priority options shown in task pickers (single-sourced from the taxonomy). */
+export { TASK_PRIORITY_OPTIONS as TaskPriorityOptions } from '@/app/features/tasks/constants/taskTaxonomy';
 
 export const TaskStatusOptions = [
   { label: 'Pending', value: 'PENDING' },
@@ -28,6 +35,8 @@ export type Task = {
   organisationId?: string;
   appointmentId?: string;
   companionId?: string;
+  /** The companion the task is about; sent to the API so parent tasks link correctly. */
+  patientId?: string;
   createdBy?: string;
   assignedBy?: string;
   assignedTo: string;
@@ -36,6 +45,7 @@ export type Task = {
   libraryTaskId?: string;
   templateId?: string;
   category: string;
+  priority?: TaskPriority;
   name: string;
   description?: string;
   additionalNotes?: string;
@@ -136,6 +146,7 @@ export const EMPTY_TASK: Task = {
   libraryTaskId: undefined,
   templateId: undefined,
   category: 'CARE',
+  priority: 'MEDIUM',
   recurrence: {
     type: 'ONCE',
     isMaster: false,
@@ -154,6 +165,7 @@ export const EMPTY_COMPANION_TASK: Task = {
   libraryTaskId: undefined,
   templateId: undefined,
   category: 'CARE',
+  priority: 'MEDIUM',
   recurrence: {
     type: 'ONCE',
     isMaster: false,
@@ -209,6 +221,6 @@ export const TaskStatusFilters: StatusOption[] = [
 
 export const TaskFilters: FilterOption[] = [
   filter('All', 'all'),
-  filter('Organizations', 'employee_task'),
-  filter('Companions', 'parent_task'),
+  filter('Team', 'employee_task'),
+  filter('Pet parents', 'parent_task'),
 ];

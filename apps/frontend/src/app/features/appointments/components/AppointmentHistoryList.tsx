@@ -28,7 +28,7 @@ const AppointmentHistoryList = ({ companionId }: AppointmentHistoryListProps) =>
             {sortedAppointments.map((appointment) => (
               <div
                 key={appointment.id}
-                className="w-full rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer"
+                className="w-full rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer"
               >
                 <AppointmentCardContent appointment={appointment} />
               </div>

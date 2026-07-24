@@ -86,8 +86,13 @@ export const validateTaskForm = (
     newErrors.assignedTo = 'Assigned to is required';
   }
 
+  if (formData.syncWithCalendar && !formData.calendarProvider) {
+    newErrors.calendarProvider = 'Please select a calendar provider';
+  }
+
   const isMedication = formData.healthTaskType === 'give-medication';
-  const isObservationalTool = formData.healthTaskType === 'take-observational-tool';
+  const isObservationalTool =
+    formData.healthTaskType === 'take-observational-tool';
 
   if (isMedication) {
     validateMedicationFields(formData, newErrors, checkBackdates);

@@ -14,20 +14,20 @@ type SectionContainerProps = {
    */
   disableFocusBorder?: boolean;
   /**
-   * Tighten the top padding so it matches the bottom padding (≈20px) instead of
-   * the default roomy header gap. Use when the first child should sit close to
-   * the top, e.g. a rich-text editor whose text/toolbar starts near the border.
+   * Tighten the top padding so the header sits closer to the top border. Use
+   * when the first child should sit high in the card, e.g. a rich-text editor
+   * whose text/toolbar starts near the border.
    */
   compactTop?: boolean;
   /**
-   * Override the floating title's typography (size/weight/colour). When set it
-   * replaces the default size + colour — use a shared token class such as
+   * Override the title's typography (size/weight/colour). When set it replaces
+   * the default size + colour — use a shared token class such as
    * `text-yc-20-b-primary` to apply a specific reusable style.
    */
   titleClassName?: string;
   /**
-   * Optional node rendered just before the title text on the top border (e.g. a
-   * small "+" add affordance). It sits inside the floating title chip.
+   * Optional node rendered just before the title text in the header row (e.g. a
+   * small "+" add affordance). It sits inline, left of the title.
    */
   titleIcon?: React.ReactNode;
 };
@@ -44,43 +44,37 @@ const SectionContainer = ({
   titleClassName,
   titleIcon,
 }: SectionContainerProps) => {
-  const titleSize = nested
-    ? 'text-[14px] sm:text-[16px] font-medium'
-    : 'text-[16px] sm:text-[20px] font-medium';
+  // Plain, static section title — sentence case, 15px/700 on --ink (14px when
+  // nested). Matches the design system: no floating chip, no coloured box on the
+  // border, transparent background.
+  const titleSize = nested ? 'text-[14px]' : 'text-[15px]';
 
-  const resolvedTitleColor = titleColor ?? 'var(--color-input-border-active)';
   const focusBorder = disableFocusBorder ? '' : 'focus-within:border-input-border-active';
-  let topPadding = nested ? 'pt-7' : 'pt-9';
-  if (compactTop) topPadding = 'pt-5';
+  const topPadding = compactTop ? 'pt-4' : 'pt-5';
 
   // A shared token class (`titleClassName`) fully owns the title typography +
-  // colour; otherwise fall back to the default size class + inline colour.
-  const titleTypography = titleClassName ?? titleSize;
-  const titleStyle = titleClassName ? undefined : { color: resolvedTitleColor };
+  // colour; otherwise fall back to the default size/weight class + inline colour
+  // (defaults to --ink, honouring any `titleColor` override).
+  const titleTypography = titleClassName ?? `${titleSize} font-bold tracking-[-0.01em]`;
+  const titleStyle = titleClassName ? undefined : { color: titleColor ?? 'var(--ink)' };
 
   return (
     <div
       className={`relative rounded-2xl border border-input-border-default ${focusBorder} transition-colors duration-150 pb-5 px-5 ${topPadding} ${className ?? ''}`}
     >
-      {/* Title floats on the top border — capped so it never runs into the right
-          slot. `leading-snug` (not `leading-none`) gives descenders ('g'/'y')
-          room so `truncate`'s overflow-hidden does not clip them. */}
-      <span
-        aria-hidden
-        className={`pointer-events-none absolute top-0 left-4 -translate-y-1/2 flex items-center gap-2 bg-(--whitebg) px-1.5 leading-snug ${titleTypography} ${titleSlot ? 'max-w-[55%] sm:max-w-[60%]' : 'max-w-[calc(100%-2rem)]'}`}
-        style={titleStyle}
-      >
-        {titleIcon}
-        <span className="truncate">{title}</span>
-      </span>
-      {titleSlot && (
+      {/* Static header row: title (with optional leading icon) on the left, the
+          optional slot right-aligned. `truncate` keeps a long title on one line
+          while the slot stays pinned right. */}
+      <div className="mb-4 flex items-center justify-between gap-3">
         <span
-          aria-hidden
-          className="pointer-events-none absolute top-0 right-4 -translate-y-1/2 bg-(--whitebg) px-1.5 leading-none flex items-center gap-1.5 shrink-0"
+          className={`flex min-w-0 items-center gap-2 leading-snug ${titleTypography}`}
+          style={titleStyle}
         >
-          {titleSlot}
+          {titleIcon}
+          <span className="truncate">{title}</span>
         </span>
-      )}
+        {titleSlot && <span className="flex shrink-0 items-center gap-1.5">{titleSlot}</span>}
+      </div>
       {children}
     </div>
   );

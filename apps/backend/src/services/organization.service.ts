@@ -1,4 +1,3 @@
-import { isValidObjectId } from "mongoose";
 import type { OrganizationMongo } from "../models/organization";
 import {
   fromOrganizationRequestDTO,
@@ -334,10 +333,7 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
     return undefined;
   }
 
-  if (
-    !isValidObjectId(identifier) &&
-    !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
-  ) {
+  if (!/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
     throw new OrganizationServiceError("Invalid identifier format.", 400);
   }
 
@@ -354,7 +350,7 @@ const resolveOrganisationByPlaceId = async (placeId: string) => {
 
   return {
     isPmsOrganisation: true as const,
-    organisation: buildFHIRResponseFromPrisma(org),
+    organisation: buildPublicSummaryFromPrisma(org),
   };
 };
 
@@ -394,7 +390,7 @@ const resolveOrganisationByCoordinates = async (lat: number, lng: number) => {
 
   return {
     isPmsOrganisation: true as const,
-    organisation: buildFHIRResponseFromPrisma(closest),
+    organisation: buildPublicSummaryFromPrisma(closest),
   };
 };
 
@@ -411,7 +407,7 @@ const resolveOrganisationByName = async (name: string) => {
 
   return {
     isPmsOrganisation: true as const,
-    organisation: buildFHIRResponseFromPrisma(org),
+    organisation: buildPublicSummaryFromPrisma(org),
   };
 };
 
@@ -629,6 +625,25 @@ const buildFHIRResponseFromPrisma = (
 
   return toOrganizationResponseDTO(response, responseOptions);
 };
+
+/**
+ * Projection for the unauthenticated `/check` route. The full organisation resource carries
+ * tax/DUNS identifiers, compliance certificate numbers, the Stripe account id and contact
+ * details; an anonymous caller only needs to learn that the organisation exists and how to
+ * reference it, so nothing else is assembled here.
+ */
+const buildPublicSummaryFromPrisma = (
+  organisation: PrismaOrganizationWithAddress,
+): ReturnType<typeof toOrganizationResponseDTO> =>
+  toOrganizationResponseDTO({
+    _id: organisation.fhirId ?? organisation.id,
+    name: organisation.name,
+    type: coerceOrganizationType(organisation.type),
+    isActive: organisation.isActive ?? true,
+    googlePlacesId: organisation.googlePlacesId ?? undefined,
+    taxId: "",
+    phoneNo: "",
+  });
 
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
   const attributes = fromOrganizationRequestDTO(payload);

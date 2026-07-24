@@ -143,6 +143,23 @@ export const formatCurrency = (
   }
 };
 
+/**
+ * The document-store id for an entry, or null when the record does not live in
+ * the document store. Only DOCUMENT rows carry one: `link.id` is a document id
+ * exclusively when the link itself is a document link, because a lab result's,
+ * invoice's or task's link id belongs to a different service and would be
+ * rejected by the document download endpoint.
+ */
+export const resolveHistoryDocumentId = (entry: HistoryEntry): string | null => {
+  const payloadDocumentId = getPayloadString(entry.payload, ['documentId']);
+  if (payloadDocumentId) return payloadDocumentId.trim();
+  const linkKind = String(entry.link.kind ?? '')
+    .trim()
+    .toLowerCase();
+  const linkId = String(entry.link.id ?? '').trim();
+  return linkKind === 'document' && linkId ? linkId : null;
+};
+
 export const getPrimaryActionLabel = (entry: HistoryEntry) => {
   if (entry.type === 'DOCUMENT') return 'Open file';
   if (entry.type === 'LAB_RESULT') return 'Open result';

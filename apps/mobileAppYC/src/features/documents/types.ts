@@ -34,6 +34,10 @@ export interface DocumentCategory {
   id: string;
   label: string;
   icon: any;
+  /** Short descriptive subtitle shown under the category title on the hub. */
+  description?: string;
+  /** Warm-bone surface-token key for the category's pastel icon tile. */
+  iconTint?: string;
   isSynced: boolean;
   fileCount: number;
   subcategories: DocumentSubcategory[];

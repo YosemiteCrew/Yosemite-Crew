@@ -1,19 +1,18 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 // test/services/documenso.service.test.ts
 import axios from "axios";
-import OrganizationModel from "../../src/models/organization";
+import { prisma } from "src/config/prisma";
 import logger from "../../src/utils/logger";
 import { DocumensoError } from "@documenso/sdk-typescript/models/errors/index.js";
 
 // --- MOCK SETUP ---
 jest.mock("axios");
 
-jest.mock("../../src/models/organization", () => ({
-  __esModule: true,
-  default: {
-    findOne: jest.fn().mockReturnValue({
-      lean: jest.fn(),
-    }),
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -28,6 +27,7 @@ jest.mock("../../src/utils/logger", () => ({
 
 const mockCreateV0 = jest.fn();
 const mockDistribute = jest.fn();
+const mockGet = jest.fn();
 
 jest.mock("@documenso/sdk-typescript", () => {
   return {
@@ -35,6 +35,7 @@ jest.mock("@documenso/sdk-typescript", () => {
       documents: {
         createV0: mockCreateV0,
         distribute: mockDistribute,
+        get: mockGet,
       },
     })),
   };
@@ -378,6 +379,53 @@ describe("DocumensoService", () => {
       });
     });
 
+    describe("getDocumentStatus", () => {
+      it("returns the document status reported by Documenso", async () => {
+        mockGet.mockResolvedValueOnce({ id: 1, status: "COMPLETED" });
+
+        const status = await DocumensoService.getDocumentStatus({
+          documentId: 1,
+          apiKey: "custom",
+        });
+
+        expect(status).toBe("COMPLETED");
+        expect(mockGet).toHaveBeenCalledWith({ documentId: 1 });
+      });
+
+      it("returns a non-completed status verbatim rather than coercing it", async () => {
+        mockGet.mockResolvedValueOnce({ id: 1, status: "PENDING" });
+
+        await expect(
+          DocumensoService.getDocumentStatus({ documentId: 1 }),
+        ).resolves.toBe("PENDING");
+      });
+
+      it("rethrows a DocumensoError so callers cannot mistake an outage for a signature", async () => {
+        mockGet.mockRejectedValueOnce(
+          new (DocumensoError as any)("Not found", 404, "No document"),
+        );
+
+        await expect(
+          DocumensoService.getDocumentStatus({ documentId: 404 }),
+        ).rejects.toThrow("Not found");
+        expect(logger.error).toHaveBeenCalledWith("API error:", "Not found");
+        expect(logger.error).toHaveBeenCalledWith("Status code:", 404);
+        expect(logger.error).toHaveBeenCalledWith("Body:", "No document");
+      });
+
+      it("rethrows an unexpected error", async () => {
+        mockGet.mockRejectedValueOnce(new Error("Network disconnect"));
+
+        await expect(
+          DocumensoService.getDocumentStatus({ documentId: 1 }),
+        ).rejects.toThrow("Network disconnect");
+        expect(logger.error).toHaveBeenCalledWith(
+          "An unexpected error occurred:",
+          expect.any(Error),
+        );
+      });
+    });
+
     describe("downloadSignedDocument", () => {
       it("downloads document successfully with override api key", async () => {
         (axios.get as jest.Mock).mockResolvedValueOnce({
@@ -406,43 +454,43 @@ describe("DocumensoService", () => {
       });
     });
 
-    describe("resolveOrganisationApiKey & buildOrganizationLookupQuery", () => {
-      it("generates $or query if both Types.ObjectId and regex match", async () => {
+    describe("resolveOrganisationApiKey", () => {
+      it("returns the documensoApiKey when the organisation is found", async () => {
         const mockOrgId = "507f1f77bcf86cd799439011";
-        (OrganizationModel.findOne as jest.Mock).mockReturnValueOnce({
-          lean: jest
-            .fn()
-            .mockResolvedValue({ documensoApiKey: "key_obj_regex" }),
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+          documensoApiKey: "key_obj_regex",
         });
 
         const key = await DocumensoService.resolveOrganisationApiKey(mockOrgId);
         expect(key).toBe("key_obj_regex");
-        expect(OrganizationModel.findOne).toHaveBeenCalledWith(
-          { $or: [{ _id: mockOrgId }, { fhirId: mockOrgId }] },
-          { documensoApiKey: 1 },
-        );
+        expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+          where: { OR: [{ id: mockOrgId }, { fhirId: mockOrgId }] },
+          select: { documensoApiKey: true },
+        });
       });
 
-      it("generates single query if only regex matches", async () => {
+      it("returns null when the organisation is not found", async () => {
         const mockFhirId = "valid-fhir-id-123";
-        (OrganizationModel.findOne as jest.Mock).mockReturnValueOnce({
-          lean: jest.fn().mockResolvedValue(null),
-        });
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+          null,
+        );
 
         const key =
           await DocumensoService.resolveOrganisationApiKey(mockFhirId);
         expect(key).toBeNull();
-        expect(OrganizationModel.findOne).toHaveBeenCalledWith(
-          { fhirId: mockFhirId },
-          { documensoApiKey: 1 },
-        );
+        expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+          where: { OR: [{ id: mockFhirId }, { fhirId: mockFhirId }] },
+          select: { documensoApiKey: true },
+        });
       });
 
-      it("throws error if neither matches (empty queries array)", async () => {
-        const invalidId = "invalid id with spaces !!";
-        await expect(
-          DocumensoService.resolveOrganisationApiKey(invalidId),
-        ).rejects.toThrow("Invalid organisation id");
+      it("returns null when the organisation has no documensoApiKey", async () => {
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+          documensoApiKey: null,
+        });
+
+        const key = await DocumensoService.resolveOrganisationApiKey("org-1");
+        expect(key).toBeNull();
       });
     });
 

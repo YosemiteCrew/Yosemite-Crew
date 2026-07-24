@@ -16,6 +16,7 @@ import {
   toUserOrganizationResponseDTO,
 } from '@yosemite-crew/types';
 import { toPermissionArray } from '@/app/lib/permissions';
+import { loadOrgs } from '@/app/features/organization/services/orgService';
 
 // ----------------------------------------------------------------------------
 // 1. Mocks
@@ -25,6 +26,9 @@ jest.mock('@/app/services/axios');
 jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/stores/teamStore');
 jest.mock('@/app/lib/permissions');
+jest.mock('@/app/features/organization/services/orgService', () => ({
+  loadOrgs: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('@yosemite-crew/types', () => ({
   ...jest.requireActual('@yosemite-crew/types'),
   fromUserOrganizationRequestDTO: jest.fn(),
@@ -275,6 +279,28 @@ describe('Team Service', () => {
 
       expect(axios.postData).toHaveBeenCalledWith('/fhir/v1/organisation-invites/tok-123/accept');
       expect(mockSetPrimaryOrg).toHaveBeenCalledWith('new-org-id');
+    });
+
+    it('reloads orgs before selecting the newly accepted org', async () => {
+      (axios.postData as jest.Mock).mockResolvedValue({});
+
+      await acceptInvite(invite);
+
+      // The accepted org is absent from the store until this reload, so selecting
+      // it first would leave callers resolving routes against no membership.
+      expect(loadOrgs).toHaveBeenCalledWith({ silent: true });
+      expect((loadOrgs as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+        mockSetPrimaryOrg.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('does not select the org when the reload fails', async () => {
+      (axios.postData as jest.Mock).mockResolvedValue({});
+      (loadOrgs as jest.Mock).mockRejectedValueOnce(new Error('reload failed'));
+
+      await acceptInvite(invite);
+
+      expect(mockSetPrimaryOrg).not.toHaveBeenCalled();
     });
 
     it('catches and logs errors (does not throw)', async () => {

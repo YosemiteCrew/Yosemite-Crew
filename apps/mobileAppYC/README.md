@@ -113,22 +113,22 @@ If an iOS build works on this setup but fails on a newer Xcode, first compare `x
 
 #### Android tooling
 
-| Tool                     | Version / value                            |
+| Tool | Version / value |
 | ------------------------ | ------------------------------------------ | ----------------------- |
-| Java                     | `17.0.16`                                  |
-| JRE/JDK                  | OpenJDK Zulu `17.0.16+8-LTS`               |
-| javac path               | `/usr/bin/javac`                           |
-| Android Studio           | `2025.1 AI-251.26094.121.2512.13930704`    |
-| Android SDK path         | `/Users/YOUR_USERNAME/Library/Android/sdk` |
-| Android SDK API levels   | `35`, `36`                                 |
-| Android SDK Build Tools  | `35.0.0`                                   |
-| Android emulator         | `36.1.9.0`                                 |
-| adb                      | `1.0.41`, platform-tools `36.0.0-13206524` |
-| Android system image     | `android-35                                | Google Play ARM 64 v8a` |
-| Android NDK              | Not installed                              |
-| Android Hermes           | Enabled                                    |
-| Android New Architecture | Enabled                                    |
-| Gradle wrapper           | `8.14.3`                                   |
+| Java | `17.0.16` |
+| JRE/JDK | OpenJDK Zulu `17.0.16+8-LTS` |
+| javac path | `/usr/bin/javac` |
+| Android Studio | `2025.1 AI-251.26094.121.2512.13930704` |
+| Android SDK path | `/Users/YOUR_USERNAME/Library/Android/sdk` |
+| Android SDK API levels | `35`, `36` |
+| Android SDK Build Tools | `35.0.0` |
+| Android emulator | `36.1.9.0` |
+| adb | `1.0.41`, platform-tools `36.0.0-13206524` |
+| Android system image | `android-35                                | Google Play ARM 64 v8a` |
+| Android NDK | Not installed |
+| Android Hermes | Enabled |
+| Android New Architecture | Enabled |
+| Gradle wrapper | `8.14.3` |
 
 #### Other native tooling
 

@@ -113,26 +113,62 @@ jest.mock('@/app/ui/primitives/Icons/Next', () => ({
   ),
 }));
 
-jest.mock('react-icons/io', () => ({
-  IoIosCalendar: () => <span>reschedule</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io5', () => ({
-  IoChevronForward: () => <span>chevron</span>,
-  IoArrowForward: () => <span>arrow</span>,
-  IoEyeOutline: () => <span>view</span>,
-  IoCalendarOutline: () => <span>reschedule</span>,
-  IoDocumentTextOutline: () => <span>soap</span>,
-  IoCardOutline: () => <span>finance</span>,
-  IoFlaskOutline: () => <span>lab</span>,
-  IoPerson: () => <span>person</span>,
-  IoTimeOutline: () => <span>time</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdMeetingRoom: () => <span>room</span>,
-  MdOutlineAutorenew: () => <span>change-status</span>,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 describe('DayCalendar (Appointments)', () => {
   const handleViewAppointment = jest.fn();
@@ -363,7 +399,9 @@ describe('DayCalendar (Appointments)', () => {
     expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
   });
 
-  it('updates current date with navigation', () => {
+  it('renders a bare day header with no in-grid day arrows', () => {
+    // Day navigation is owned by the header toolbar's date-nav pill (covered in
+    // Header.test.tsx); the grid's day header is just the frame's label + date.
     render(
       <DayCalendar
         events={[]}
@@ -376,13 +414,8 @@ describe('DayCalendar (Appointments)', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Next'));
-    fireEvent.click(screen.getByText('Prev'));
-
-    const nextFn = setCurrentDate.mock.calls[0][0];
-    const prevFn = setCurrentDate.mock.calls[1][0];
-
-    expect(nextFn(new Date(2025, 0, 6)).getDate()).toBe(7);
-    expect(prevFn(new Date(2025, 0, 6)).getDate()).toBe(5);
+    expect(screen.queryByText('Next')).not.toBeInTheDocument();
+    expect(screen.queryByText('Prev')).not.toBeInTheDocument();
+    expect(setCurrentDate).not.toHaveBeenCalled();
   });
 });

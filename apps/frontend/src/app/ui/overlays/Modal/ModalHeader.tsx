@@ -4,16 +4,64 @@ import Close from '@/app/ui/primitives/Icons/Close';
 type ModalHeaderProps = {
   title: string;
   onClose: () => void;
+  /**
+   * Uppercase kicker above the title naming the kind of panel ("Record detail").
+   * The design uses it on detail peeks, not on form panels.
+   */
+  eyebrow?: string;
+  /** Supporting line under the title: identifiers, timestamps, counts. */
+  meta?: React.ReactNode;
+  /** Leading glyph rendered before the title, inside the title row. */
+  icon?: React.ReactNode;
+  /** Header-level controls that sit left of the close button. */
+  actions?: React.ReactNode;
+  /** Wired to the shell's aria-labelledby so the title names the dialog. */
+  titleId?: string;
+  /** Blocks dismissal while the panel has work in flight. */
+  isCloseDisabled?: boolean;
 };
 
-const ModalHeader = ({ title, onClose }: ModalHeaderProps) => (
-  <div className="flex justify-between items-center">
-    {/* Spacer that mirrors the Close button size — keeps title visually centred */}
-    <div aria-hidden="true" className="size-9 shrink-0" />
-    <div className="flex justify-center items-center gap-2">
-      <div className="text-body-1 text-text-primary">{title}</div>
+/**
+ * The single header for every panel. Type comes from the design files, measured
+ * at 1:1 off the Records "Record detail" and Inventory "Restock" drawers:
+ * eyebrow 12px/700 uppercase +0.12em, title 17px/700 -0.02em, meta 12.5px/400.
+ *
+ * The title is left-aligned. Panels used to pad the row with an invisible
+ * `size-8` spacer to optically centre it; the design left-aligns, so callers
+ * drop the spacer rather than reproducing it here.
+ */
+const ModalHeader = ({
+  title,
+  onClose,
+  eyebrow,
+  meta,
+  icon,
+  actions,
+  titleId,
+  isCloseDisabled,
+}: ModalHeaderProps) => (
+  <div className="flex items-start justify-between gap-3">
+    <div className="flex min-w-0 flex-col gap-[3px]">
+      {eyebrow && (
+        <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--ink-faint)]">
+          {eyebrow}
+        </span>
+      )}
+      <div className="flex min-w-0 items-center gap-2">
+        {icon}
+        <h2
+          id={titleId}
+          className="truncate text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]"
+        >
+          {title}
+        </h2>
+      </div>
+      {meta && <span className="text-[12.5px] text-[var(--ink-faint)]">{meta}</span>}
     </div>
-    <Close onClick={onClose} />
+    <div className="flex shrink-0 items-center gap-2">
+      {actions}
+      <Close onClick={onClose} isDisabled={isCloseDisabled} />
+    </div>
   </div>
 );
 

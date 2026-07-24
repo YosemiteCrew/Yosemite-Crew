@@ -150,6 +150,23 @@ const allocateInvoiceDiscountAcrossLines = (
   return allocations.map((amount) => amount / MONEY_SCALE);
 };
 
+/**
+ * Share of the post-line-discount amount that the overall invoice discount
+ * takes, expressed as a percentage. Derived from the resolved discount amount
+ * rather than the raw input value, so a FIXED_AMOUNT discount is measured on
+ * the same scale as a PERCENTAGE one.
+ */
+export const calculateInvoiceDiscountPercentOfBase = (
+  invoiceDiscountTotal: number,
+  baseAmount: number,
+): number => {
+  if (baseAmount <= 0 || invoiceDiscountTotal <= 0) {
+    return 0;
+  }
+
+  return roundMoney((invoiceDiscountTotal / baseAmount) * 100);
+};
+
 export const calculateInvoicePricing = (
   input: InvoicePricingInput,
 ): InvoicePricingBreakdown => {

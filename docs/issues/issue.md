@@ -63,8 +63,8 @@ Observed issues:
 ```json
 [
   {
-    "_id": "69c638f3652d6c830b65b929",
-    "userId": "c364b892-3021-7006-3c50-bf2ffed3f26d",
+    "_id": "aaaaaaaaaaaaaaaaaaaaaa01",
+    "userId": "11111111-1111-1111-1111-111111111111",
     "dayOfWeek": "MONDAY",
     "slots": [
       {
@@ -77,8 +77,8 @@ Observed issues:
     "updatedAt": "2026-03-27T07:59:47.780Z"
   },
   {
-    "_id": "69c638f3652d6c830b65b92d",
-    "userId": "c364b892-3021-7006-3c50-bf2ffed3f26d",
+    "_id": "aaaaaaaaaaaaaaaaaaaaaa02",
+    "userId": "11111111-1111-1111-1111-111111111111",
     "dayOfWeek": "SATURDAY",
     "slots": [
       {
@@ -95,7 +95,7 @@ Observed issues:
 
 ### 2) Calendar flow API call
 
-- Request URL: `https://devapi.yosemitecrew.com/fhir/v1/availability/6970ca8262012cc3e1c93099/base/all`
+- Request URL: `https://devapi.yosemitecrew.com/fhir/v1/availability/bbbbbbbbbbbbbbbbbbbbbb01/base/all`
 - Method: `GET`
 
 Response contains multiple records (org-level defaults + multiple users), including entries for the same user as above. Example excerpt:
@@ -104,9 +104,9 @@ Response contains multiple records (org-level defaults + multiple users), includ
 {
   "data": [
     {
-      "_id": "6970d1772a9f903dd29359a3",
+      "_id": "aaaaaaaaaaaaaaaaaaaaaa03",
       "userId": "",
-      "organisationId": "6970ca8262012cc3e1c93099",
+      "organisationId": "bbbbbbbbbbbbbbbbbbbbbb01",
       "dayOfWeek": "MONDAY",
       "slots": [
         {
@@ -117,9 +117,9 @@ Response contains multiple records (org-level defaults + multiple users), includ
       ]
     },
     {
-      "_id": "69c638f3652d6c830b65b929",
-      "userId": "c364b892-3021-7006-3c50-bf2ffed3f26d",
-      "organisationId": "6970ca8262012cc3e1c93099",
+      "_id": "aaaaaaaaaaaaaaaaaaaaaa01",
+      "userId": "11111111-1111-1111-1111-111111111111",
+      "organisationId": "bbbbbbbbbbbbbbbbbbbbbb01",
       "dayOfWeek": "MONDAY",
       "slots": [
         {

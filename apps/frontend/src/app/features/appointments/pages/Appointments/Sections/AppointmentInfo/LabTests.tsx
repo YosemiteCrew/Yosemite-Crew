@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { MdOpenInNew } from 'react-icons/md';
+import { IoOpenOutline } from 'react-icons/io5';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
@@ -36,7 +37,7 @@ import {
 import { formatDateTimeLocal } from '@/app/lib/date';
 import {
   formatTestPrice,
-  getOrderStatusBadgeClass,
+  getOrderStatusTone,
   getTestSpecimen,
   getTestTurnaround,
   resolveOrderPdfUrl,
@@ -154,11 +155,11 @@ const PastOrderCard = ({
           Updated: {formatDateTimeLocal(order.updatedAt, '-')}
         </div>
       </div>
-      <span
-        className={`text-label-xsmall px-2 py-1 rounded w-fit ${getOrderStatusBadgeClass(order, resultProgressByOrderId)}`}
-      >
-        {getOrderDisplayStatus(order)}
-      </span>
+      <StatusPill
+        className="w-fit"
+        tone={getOrderStatusTone(order, resultProgressByOrderId)}
+        label={getOrderDisplayStatus(order)}
+      />
     </div>
     <div className="flex flex-wrap items-center gap-2 justify-end">
       {getOrderDisplayStatus(order) === 'Complete' ? (
@@ -198,6 +199,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [query, setQuery] = useState('');
   const [selectedTestLabel, setSelectedTestLabel] = useState('');
   const [selectedTests, setSelectedTests] = useState<IdexxTest[]>([]);
+  const [pendingTest, setPendingTest] = useState<IdexxTest | null>(null);
   const [appointmentOrders, setAppointmentOrders] = useState<LabOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [modality, setModality] = useState<'REFERENCE_LAB' | 'INHOUSE'>('REFERENCE_LAB');
@@ -620,22 +622,59 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     setLatestOrder(order);
   }, []);
 
+  const findTestByValue = useCallback(
+    (value: string) => tests.find((test) => test.code === value || test._id === value),
+    [tests]
+  );
+
+  // Single source of truth for "put this test in the queue, deduped by code" -
+  // both the direct-add and confirm-pending paths below route through it so
+  // they can't diverge.
+  const queueTest = useCallback((test: IdexxTest) => {
+    setSelectedTests((prev) => (prev.some((t) => t.code === test.code) ? prev : [...prev, test]));
+  }, []);
+
   const addTest = useCallback(
     (value: string) => {
-      const match = tests.find((test) => test.code === value || test._id === value);
+      const match = findTestByValue(value);
       if (!match) return;
       setSelectedTestLabel('');
       setQuery('');
-      setSelectedTests((prev) => {
-        if (prev.some((test) => test.code === match.code)) return prev;
-        return [...prev, match];
-      });
+      queueTest(match);
     },
-    [tests]
+    [findTestByValue, queueTest]
   );
 
   const removeTest = useCallback((code: string) => {
     setSelectedTests((prev) => prev.filter((test) => test.code !== code));
+  }, []);
+
+  // Search selection only stages a candidate test - it does not queue it. The
+  // workspace Diagnostics step requires the explicit "Add to Queue" action
+  // below before a searched test lands in the Test Queue (bug #1973).
+  const selectSearchResult = useCallback(
+    (value: string) => {
+      const match = findTestByValue(value);
+      if (!match) return;
+      setPendingTest(match);
+      const label = `${match.display} (${match.code})`;
+      setSelectedTestLabel(label);
+      setQuery(label);
+    },
+    [findTestByValue]
+  );
+
+  const confirmPendingTest = useCallback(() => {
+    if (pendingTest) queueTest(pendingTest);
+    setPendingTest(null);
+    setSelectedTestLabel('');
+    setQuery('');
+  }, [pendingTest, queueTest]);
+
+  const cancelPendingTest = useCallback(() => {
+    setPendingTest(null);
+    setSelectedTestLabel('');
+    setQuery('');
   }, []);
 
   const handleCreateOrder = useCallback(async () => {
@@ -657,6 +696,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
       setLatestOrder(created);
       upsertAppointmentOrder(created);
       setSelectedTests([]);
+      setPendingTest(null);
       setSelectedTestLabel('');
       setQuery('');
       setNotes('');
@@ -771,6 +811,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     selectedTestLabel,
     setSelectedTestLabel,
     selectedTests,
+    pendingTest,
     modality,
     setModality,
     selectedIvls,
@@ -822,6 +863,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     openOrderAcknowledgement,
     setActiveOrderForActions,
     addTest,
+    selectSearchResult,
+    confirmPendingTest,
+    cancelPendingTest,
     removeTest,
     handleCreateOrder,
     handleAddToCensus,
@@ -942,7 +986,7 @@ const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
       onReachEnd={s.loadMoreTests}
       hasMore={s.testsHasMore}
       isLoadingMore={s.testsLoadingMore}
-      optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
+      optionClassName="w-full text-start rounded-2xl! border border-card-border bg-neutral-0 px-3 py-2 mb-2 last:mb-0 hover:bg-neutral-0 transition-colors"
       renderOption={(option) => {
         const test = option.meta as IdexxTest | undefined;
         if (!test) return option.label;
@@ -950,9 +994,7 @@ const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
           <div className="flex flex-col gap-1">
             <div className="flex items-start justify-between gap-2">
               <div className="text-body-4 text-text-primary pr-2">{test.display}</div>
-              <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                {formatTestPrice(test)}
-              </div>
+              <StatusPill tone="info" label={formatTestPrice(test)} />
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1 text-text-secondary">
               <span>Code: {test.code}</span>
@@ -975,14 +1017,12 @@ const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
             key={test.code}
             type="button"
             onClick={() => s.removeTest(test.code)}
-            className="rounded-xl! border border-card-border bg-white px-3 py-2 text-left min-w-55 max-w-70 transition-colors hover:bg-white"
+            className="rounded-xl! border border-card-border bg-neutral-0 px-3 py-2 text-left min-w-55 max-w-70 transition-colors hover:bg-neutral-0"
             title="Remove test from selection"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="text-body-4 text-text-primary truncate">{test.display}</div>
-              <div className="text-label-xsmall px-2 py-1 rounded bg-blue-50 text-blue-700 whitespace-nowrap">
-                {formatTestPrice(test)}
-              </div>
+              <StatusPill tone="info" label={formatTestPrice(test)} />
             </div>
             <div className="mt-0.5 text-caption-1 text-text-secondary truncate">
               {test.code} • Turnaround time: {getTestTurnaround(test)}
@@ -1080,7 +1120,7 @@ const LabOrderStatus = ({ s }: { s: UseLabTestsReturn }) => (
       </div>
       {s.latestOrder ? (
         <>
-          <div className="rounded-2xl border border-card-border p-3 bg-white flex flex-col gap-3">
+          <div className="rounded-2xl border border-card-border p-3 bg-neutral-0 flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex flex-col gap-1">
                 <div className="text-body-3 text-text-primary">
@@ -1090,11 +1130,11 @@ const LabOrderStatus = ({ s }: { s: UseLabTestsReturn }) => (
                   Updated: {formatDateTimeLocal(s.latestOrder.updatedAt, '-')}
                 </div>
               </div>
-              <span
-                className={`text-label-xsmall px-2 py-1 rounded w-fit ${getOrderStatusBadgeClass(s.latestOrder, s.resultProgressByOrderId)}`}
-              >
-                {s.getOrderDisplayStatus(s.latestOrder)}
-              </span>
+              <StatusPill
+                className="w-fit"
+                tone={getOrderStatusTone(s.latestOrder, s.resultProgressByOrderId)}
+                label={s.getOrderDisplayStatus(s.latestOrder)}
+              />
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <Primary
@@ -1180,9 +1220,9 @@ const LabResultsList = ({ s }: { s: UseLabTestsReturn }) => (
           <Link
             href="/appointments/idexx-workspace"
             aria-label="Open IDEXX Hub"
-            className="size-8 rounded-full border border-card-border bg-white text-text-secondary hover:text-text-brand hover:border-text-brand transition-colors inline-flex items-center justify-center"
+            className="size-8 rounded-full border border-card-border bg-neutral-0 text-text-secondary hover:text-blue-text hover:border-text-brand transition-colors inline-flex items-center justify-center"
           >
-            <MdOpenInNew size={16} />
+            <IoOpenOutline size={16} />
           </Link>
         </div>
       </div>
@@ -1243,7 +1283,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+      <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
           <div className="flex flex-col">
             <div className="text-body-2 text-text-primary">{title}</div>
@@ -1266,7 +1306,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
         </div>
         <div className="relative flex-1">
           {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
               <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
             </div>
           )}
@@ -1307,7 +1347,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
         </div>
         <Link
           href="/integrations"
-          className="text-body-4 text-text-brand underline underline-offset-2"
+          className="text-body-4 text-blue-text underline underline-offset-2"
         >
           Enable IDEXX in Integrations
         </Link>

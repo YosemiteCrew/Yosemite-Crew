@@ -1,7 +1,8 @@
 import validator from "validator";
 import { User } from "@yosemite-crew/types";
-import { CognitoService } from "./cognito.service";
+import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";
+import { UserOrganizationService } from "./user-organization.service";
 import { prisma } from "src/config/prisma";
 
 export class UserServiceError extends Error {
@@ -226,11 +227,12 @@ export const UserService = {
       })),
     );
 
-    await Promise.all(
-      mappings.map((mapping) =>
-        prisma.userOrganization.delete({ where: { id: mapping.id } }),
-      ),
-    );
+    // Sequential, and via the service rather than a raw delete: deleteById releases the
+    // organisation's member slot and re-syncs Stripe seats, so a direct delete here would
+    // leave usersActiveCount and the billed seat count overstated.
+    for (const mapping of mappings) {
+      await UserOrganizationService.deleteById(mapping.id);
+    }
 
     await Promise.all([
       prisma.userProfile.deleteMany({ where: { userId } }),
@@ -283,12 +285,13 @@ export const UserService = {
       return toUserDomain(user);
     }
 
-    await CognitoService.updateUserName({
-      userPoolId: process.env.COGNITO_USER_POOL_ID!,
-      cognitoUserId: userId,
-      firstName,
-      lastName,
-    });
+    // Sync the display name to the auth provider through the neutral
+    // boundary; a no-op when no provider is configured (the database stays
+    // the source of truth for names).
+    const authService = getAuthService();
+    if (authService) {
+      await authService.updateUserName(userId, { firstName, lastName });
+    }
 
     const updatedUser = await prisma.user.update({
       where: { userId },

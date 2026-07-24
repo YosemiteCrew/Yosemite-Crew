@@ -8,7 +8,7 @@ import {
 } from '@/app/features/companions/components/AddCompanion/type';
 import { getEmailValidationError, validatePhone, toTitleCase } from '@/app/lib/validators';
 import { CompanionType, RecordStatus } from '@yosemite-crew/types';
-import { formatDisplayDate, getAgeInYears } from '@/app/lib/date';
+import { formatDisplayDate, formatCompanionAge } from '@/app/lib/date';
 import {
   fetchBreedCodeEntries,
   BreedCodeEntry,
@@ -157,12 +157,7 @@ export const fmtDate = (v?: Date | string) => {
   return formatDisplayDate(v, '-');
 };
 
-export const fmtAge = (dob?: Date | string) => {
-  if (!dob) return '-';
-  const age = getAgeInYears(dob);
-  if (!Number.isFinite(age) || age < 0) return '-';
-  return `${age} ${age === 1 ? 'Yr' : 'Yrs'}`;
-};
+export const fmtAge = (dob?: Date | string) => formatCompanionAge(dob) || '-';
 
 export const fmt = (v?: string | number | null) => String(v ?? '').trim() || '-';
 
@@ -306,7 +301,7 @@ export const getModalTitle = (
 ): string => {
   if (mode === 'view') return companionTitle || terminologyText('Patient Details');
   if (mode === 'edit') return terminologyText('Edit Patient / Client');
-  return terminologyText('New Patient / Client');
+  return terminologyText('Add companion');
 };
 
 export const getSexLabel = (

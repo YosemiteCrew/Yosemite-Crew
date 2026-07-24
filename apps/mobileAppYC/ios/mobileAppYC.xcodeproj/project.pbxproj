@@ -26,7 +26,9 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		8CDF7234D58144ABAB092E35 /* SFProText-regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 28621C890A9E481DB0D9B6D6 /* SFProText-regular.ttf */; };
 		B16AD49F1216448AB1FE638B /* Satoshi-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = CD336A2EB96D4E3A842ADBBC /* Satoshi-Light.otf */; };
+		CA3524178EF34A1685826155 /* Newsreader-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B65C712C98FF43F8A6656D1C /* Newsreader-Italic.ttf */; };
 		DDBFAE588BE04905ACDBD2DA /* Satoshi-Black.otf in Resources */ = {isa = PBXBuildFile; fileRef = FD410C24CA4B417686DFF96F /* Satoshi-Black.otf */; };
+		DE06AFB86A0F434485CA8DB9 /* Newsreader-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3D614F803DB84EDC8E843231 /* Newsreader-Regular.ttf */; };
 		E01900E6C1C24FC3A177B22B /* Satoshi-Bold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 3C5821CD04F54EBF928A90A1 /* Satoshi-Bold.otf */; };
 		E606C93345D04B8A9337E586 /* Satoshi-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 3A036FB79F8A4C37B13EA70F /* Satoshi-Regular.otf */; };
 		E6A943B3E225420BA9785A03 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */; };
@@ -47,6 +49,7 @@
 		2B5B68E281BF4F2DA60491A9 /* ClashDisplay-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Regular.otf"; path = "../assets/fonts/ClashDisplay-Regular.otf"; sourceTree = "<group>"; };
 		3A036FB79F8A4C37B13EA70F /* Satoshi-Regular.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Regular.otf"; path = "../assets/fonts/Satoshi-Regular.otf"; sourceTree = "<group>"; };
 		3C5821CD04F54EBF928A90A1 /* Satoshi-Bold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Bold.otf"; path = "../assets/fonts/Satoshi-Bold.otf"; sourceTree = "<group>"; };
+		3D614F803DB84EDC8E843231 /* Newsreader-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Newsreader-Regular.ttf"; path = "../assets/fonts/Newsreader-Regular.ttf"; sourceTree = "<group>"; };
 		42635969955E4156B6472E3C /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = mobileAppYC/Colors.xcassets; sourceTree = "<group>"; };
 		471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = mobileAppYC/BootSplash.storyboard; sourceTree = "<group>"; };
 		50A38EED94DAC7F54ED7F0F4 /* libPods-mobileAppYC.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-mobileAppYC.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,6 +62,7 @@
 		9B6F853E1DE74D949EF0A172 /* ClashDisplay-Bold.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Bold.otf"; path = "../assets/fonts/ClashDisplay-Bold.otf"; sourceTree = "<group>"; };
 		AEF6A6C942B4489AA39854D7 /* Satoshi-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Medium.otf"; path = "../assets/fonts/Satoshi-Medium.otf"; sourceTree = "<group>"; };
 		B20BB11C225246958C33590A /* ClashDisplay-Medium.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "ClashDisplay-Medium.otf"; path = "../assets/fonts/ClashDisplay-Medium.otf"; sourceTree = "<group>"; };
+		B65C712C98FF43F8A6656D1C /* Newsreader-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Newsreader-Italic.ttf"; path = "../assets/fonts/Newsreader-Italic.ttf"; sourceTree = "<group>"; };
 		C2A7A51412EC866CACB03FF2 /* Pods-mobileAppYC.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.debug.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.debug.xcconfig"; sourceTree = "<group>"; };
 		CC000001000000000000CC01 /* Config.debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Config.debug.xcconfig; path = mobileAppYC/Config.debug.xcconfig; sourceTree = "<group>"; };
 		CC000002000000000000CC02 /* Config.release.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Config.release.xcconfig; path = mobileAppYC/Config.release.xcconfig; sourceTree = "<group>"; };
@@ -98,6 +102,8 @@
 				28D2C7847A484697B1AF1F8E /* ClashDisplay-Variable.ttf */,
 				28621C890A9E481DB0D9B6D6 /* SFProText-regular.ttf */,
 				6635D2D3DB7B494180948B38 /* SFProText-semibold.ttf */,
+				3D614F803DB84EDC8E843231 /* Newsreader-Regular.ttf */,
+				B65C712C98FF43F8A6656D1C /* Newsreader-Italic.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -252,6 +258,8 @@
 				53B74F3B2EA2CDCF0004CD51 /* GoogleService-Info.plist in Resources */,
 				8CDF7234D58144ABAB092E35 /* SFProText-regular.ttf in Resources */,
 				604359F293D642278FF2C9F8 /* SFProText-semibold.ttf in Resources */,
+				DE06AFB86A0F434485CA8DB9 /* Newsreader-Regular.ttf in Resources */,
+				CA3524178EF34A1685826155 /* Newsreader-Italic.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

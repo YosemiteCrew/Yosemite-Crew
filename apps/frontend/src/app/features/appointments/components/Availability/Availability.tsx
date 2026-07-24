@@ -10,7 +10,7 @@ import {
   generateTimeOptions,
 } from '@/app/features/appointments/components/Availability/utils';
 import TimeSlot from '@/app/features/appointments/components/Availability/TimeSlot';
-import { FaCirclePlus, FaCircleMinus } from 'react-icons/fa6';
+import { IoAdd, IoClose } from 'react-icons/io5';
 import Dublicate from '@/app/features/appointments/components/Availability/Dublicate';
 
 type AvailabilityProps = {
@@ -19,6 +19,76 @@ type AvailabilityProps = {
   twoColumnLayout?: boolean;
   readOnly?: boolean;
 };
+
+/**
+ * 36x22 pill switch — blue track with the knob to the right when the day is on,
+ * warm band track with a hairline outline and the knob to the left when it is off.
+ * The native checkbox stays as the (visually hidden) a11y control.
+ */
+const DayToggle = ({
+  day,
+  checked,
+  disabled,
+  onToggle,
+}: {
+  day: string;
+  checked: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) => (
+  <label className={`relative inline-flex shrink-0 ${disabled ? '' : 'cursor-pointer'}`}>
+    <input
+      type="checkbox"
+      aria-label={`Enable availability for ${day}`}
+      checked={checked}
+      onChange={() => {
+        if (disabled) return;
+        onToggle();
+      }}
+      disabled={disabled}
+      className="absolute size-full cursor-[inherit] opacity-0"
+    />
+    <span
+      aria-hidden="true"
+      className="pointer-events-none block h-[22px] w-9 rounded-full border transition-colors duration-150"
+      style={{
+        background: checked ? 'var(--blue)' : 'var(--band)',
+        borderColor: checked ? 'var(--blue)' : 'var(--divider)',
+      }}
+    >
+      <span
+        className="absolute top-[3px] size-4 rounded-full transition-all duration-150"
+        style={{
+          left: checked ? '17px' : '3px',
+          background: checked ? '#ffffff' : 'var(--screen)',
+          boxShadow: '0 1px 2px var(--sh08)',
+        }}
+      />
+    </span>
+  </label>
+);
+
+/** 28px outlined circle action — the design's add-range / copy-to-other-days chrome. */
+const CircleAction = ({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    onClick={onClick}
+    className="flex size-7 shrink-0 items-center justify-center rounded-full border transition-colors"
+    style={{ borderColor: 'var(--hairline)', color: 'var(--ink-faint)' }}
+  >
+    {children}
+  </button>
+);
 
 const Availability: React.FC<AvailabilityProps> = ({
   availability,
@@ -66,89 +136,99 @@ const Availability: React.FC<AvailabilityProps> = ({
     return timeOptions.filter((_, idx) => idx > startIdx);
   };
 
-  const renderDayCard = (day: string) => (
-    <div
-      key={day}
-      className="mb-3 break-inside-avoid rounded-2xl border border-card-border bg-white p-3"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <input
-            type="checkbox"
-            aria-label={`Enable availability for ${day}`}
-            checked={availability[day].enabled}
-            onChange={() => {
-              if (readOnly) return;
-              toggleDay(day);
-            }}
-            disabled={readOnly}
-            className="w-[18px]! h-[18px]!"
-          />
-          <span className="text-body-4 text-text-primary truncate">{day}</span>
-        </div>
-        {availability[day].enabled && !readOnly && (
-          <Dublicate setAvailability={setAvailability} day={day} />
-        )}
-      </div>
+  // Table-style row: toggle | day name | ranges | actions, separated by a hairline
+  // rule inside one card. The row being edited lifts onto the soft warm wash.
+  const renderDayRow = (day: string) => {
+    const { enabled, intervals } = availability[day];
+    return (
+      <div
+        key={day}
+        className="grid break-inside-avoid grid-cols-[40px_96px_1fr_auto] items-center gap-3.5 border-t px-6 py-3 transition-colors focus-within:bg-[var(--surface-soft)]"
+        style={{ borderTopColor: 'var(--hairline)' }}
+      >
+        <DayToggle
+          day={day}
+          checked={enabled}
+          disabled={readOnly}
+          onToggle={() => toggleDay(day)}
+        />
+        <span
+          className="truncate text-[13.5px] leading-[120%]"
+          style={{
+            color: enabled ? 'var(--ink)' : 'var(--ink-faint)',
+            fontWeight: enabled ? 700 : 600,
+          }}
+        >
+          {day}
+        </span>
 
-      {availability[day].enabled && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {availability[day].intervals.map((interval: Interval, i: number) => {
-            const endOptions = getEndOptions(interval.start);
-            return (
-              <div key={i + interval.start} className="inline-flex items-center gap-2">
-                <TimeSlot
-                  interval={interval}
-                  timeOptions={timeOptions}
-                  timeIndex={timeIndex}
-                  setAvailability={setAvailability}
-                  day={day}
-                  intervalIndex={i}
-                  field="start"
-                  disabled={readOnly}
-                />
-                <TimeSlot
-                  interval={interval}
-                  timeOptions={endOptions}
-                  timeIndex={timeIndex}
-                  setAvailability={setAvailability}
-                  day={day}
-                  intervalIndex={i}
-                  field="end"
-                  disabled={readOnly}
-                />
-                {!readOnly && (
-                  <div className="border-none outline-none bg-white flex items-center justify-center shrink-0">
-                    {i === 0 ? (
-                      <FaCirclePlus
-                        color="var(--color-neutral-900)"
-                        size={20}
-                        onClick={() => addInterval(day)}
-                        className="cursor-pointer"
-                      />
-                    ) : (
-                      <FaCircleMinus
-                        color="var(--color-neutral-900)"
-                        size={20}
-                        onClick={() => deleteInterval(day, i)}
-                        className="cursor-pointer"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        {enabled ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {intervals.map((interval: Interval, i: number) => {
+              const endOptions = getEndOptions(interval.start);
+              return (
+                <div key={i + interval.start} className="inline-flex items-center gap-2">
+                  <TimeSlot
+                    interval={interval}
+                    timeOptions={timeOptions}
+                    timeIndex={timeIndex}
+                    setAvailability={setAvailability}
+                    day={day}
+                    intervalIndex={i}
+                    field="start"
+                    disabled={readOnly}
+                  />
+                  <TimeSlot
+                    interval={interval}
+                    timeOptions={endOptions}
+                    timeIndex={timeIndex}
+                    setAvailability={setAvailability}
+                    day={day}
+                    intervalIndex={i}
+                    field="end"
+                    disabled={readOnly}
+                  />
+                  {!readOnly && i > 0 && (
+                    <button
+                      type="button"
+                      aria-label={`Remove range ${i + 1} for ${day}`}
+                      title="Remove range"
+                      onClick={() => deleteInterval(day, i)}
+                      className="flex size-6 shrink-0 items-center justify-center rounded-full"
+                      style={{ color: 'var(--ink-faint)' }}
+                    >
+                      <IoClose size={13} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="text-[12.5px]" style={{ color: 'var(--ink-faint)' }}>
+            Day off
+          </span>
+        )}
+
+        <div className="flex items-center gap-2">
+          {enabled && !readOnly && (
+            <>
+              <CircleAction label={`Add range for ${day}`} onClick={() => addInterval(day)}>
+                <IoAdd size={14} aria-hidden="true" />
+              </CircleAction>
+              <Dublicate setAvailability={setAvailability} day={day} />
+            </>
+          )}
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   return (
     <div
       className={twoColumnLayout ? 'w-full columns-1 md:columns-2 [column-gap:0.75rem]' : 'w-full'}
     >
-      {daysOfWeek.map(renderDayCard)}
+      {daysOfWeek.map(renderDayRow)}
     </div>
   );
 };

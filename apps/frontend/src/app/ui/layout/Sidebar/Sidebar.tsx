@@ -5,23 +5,21 @@ import Image from 'next/image';
 import { IconType } from 'react-icons';
 import {
   IoBookOutline,
+  IoBusinessOutline,
   IoCalendarOutline,
   IoChatbubbleEllipsesOutline,
+  IoChevronBackOutline,
+  IoChevronForwardOutline,
+  IoCubeOutline,
   IoExtensionPuzzleOutline,
   IoGitNetworkOutline,
   IoGlobeOutline,
+  IoGridOutline,
   IoKeyOutline,
+  IoListOutline,
+  IoPaw,
   IoWalletOutline,
 } from 'react-icons/io5';
-import {
-  MdDashboard,
-  MdInventory2,
-  MdOutlineChecklist,
-  MdOutlineCorporateFare,
-  MdOutlineKeyboardDoubleArrowLeft,
-  MdOutlineKeyboardDoubleArrowRight,
-} from 'react-icons/md';
-import { FaPaw } from 'react-icons/fa6';
 
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -29,27 +27,27 @@ import { useUserProfileStore } from '@/app/stores/profileStore';
 import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { appRoutes, devRoutes } from '@/app/config/routes';
 import type { RouteItem } from '@/app/config/routes';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
-import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
+import { hasAnyRequiredPermission, resolveMembershipPermissions } from '@/app/lib/routePermissions';
 import {
   isSidebarCollapsedByDefault,
   setSidebarCollapsedPreference,
 } from '@/app/lib/sidebarPreference';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
+import { useIsTabletRail } from './useIsTabletRail';
 
 import './Sidebar.css';
 
 const ROUTE_ICONS: Record<string, IconType> = {
-  Dashboard: MdDashboard,
-  Organization: MdOutlineCorporateFare,
+  Dashboard: IoGridOutline,
+  Organization: IoBusinessOutline,
   Appointments: IoCalendarOutline,
-  Tasks: MdOutlineChecklist,
+  Tasks: IoListOutline,
   Chat: IoChatbubbleEllipsesOutline,
   Finance: IoWalletOutline,
-  Companions: FaPaw,
-  Inventory: MdInventory2,
+  Companions: IoPaw,
+  Inventory: IoCubeOutline,
   Integrations: IoGitNetworkOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
@@ -89,7 +87,11 @@ const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(() => isSidebarCollapsedByDefault());
+  const [prefersCollapsed, setPrefersCollapsed] = useState(() => isSidebarCollapsedByDefault());
+  // Tablet is always the icon rail, so it overrides a stored desktop preference
+  // (which would otherwise render the 224px sidebar after a desktop -> tablet resize).
+  const isTabletRail = useIsTabletRail();
+  const isCollapsed = isTabletRail || prefersCollapsed;
 
   const isDevPortal = pathname?.startsWith('/developers') || false;
   const routes = isDevPortal ? devRoutes : appRoutes;
@@ -104,7 +106,7 @@ const Sidebar = () => {
   const membership = useOrgStore((s) =>
     primaryOrgId ? (s.membershipsByOrgId?.[primaryOrgId] ?? null) : null
   );
-  const effectivePermissions = membership?.effectivePermissions ?? [];
+  const effectivePermissions = resolveMembershipPermissions(membership);
 
   const routeIcons = useMemo(() => ROUTE_ICONS, []);
 
@@ -118,14 +120,17 @@ const Sidebar = () => {
   };
 
   const handleToggleCollapse = () => {
-    setIsCollapsed((prev) => {
+    setPrefersCollapsed((prev) => {
       const next = !prev;
       setSidebarCollapsedPreference(next);
       return next;
     });
   };
 
-  const isInitialLoading = orgStatus !== 'loaded';
+  // Skip the org-data loading gate on localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD so
+  // the nav renders for UI/styling work without a session. No effect when deployed.
+  const authGuardDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === 'true';
+  const isInitialLoading = orgStatus !== 'loaded' && !authGuardDisabled;
   const currentRole = membership?.roleDisplay ?? membership?.roleCode;
   const authenticatedLogoHref = isDevPortal
     ? '/developers/home'
@@ -138,25 +143,29 @@ const Sidebar = () => {
   // Developer portal doesn't need org data to load
   if (isInitialLoading && !isDevPortal) return <div className="sidebar"></div>;
 
-  const orgMissing = !primaryOrg;
+  // A deactivated mapping counts as no org: an empty permission set alone would
+  // still leave routes that declare no required permission reachable.
+  const orgMissing = !primaryOrg || membership?.active === false;
   const orgVerified = !!primaryOrg?.isVerified;
 
   return (
-    <div className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <div
+      className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''} ${isDevPortal ? 'sidebar-dev' : ''}`}
+    >
       <div className={`sidebar-top ${isCollapsed ? 'sidebar-top-collapsed' : ''}`}>
         <Link
           href={authenticatedLogoHref}
           className={`logo ${isCollapsed ? 'logo-collapsed' : ''}`}
           aria-label="Yosemite Crew dashboard"
         >
-          <Image
-            src={MEDIA_SOURCES.logo}
-            alt="Yosemite Crew"
-            width={112}
-            height={72}
-            priority
-            style={{ width: 'auto' }}
-          />
+          <Image src="/icon.svg" alt="Yosemite Crew" width={40} height={40} priority />
+          {/* The mark alone carries the brand here; the link keeps its aria-label
+              so the accessible name survives dropping the wordmark. */}
+          {!isCollapsed && isDevPortal && (
+            <span className="sidebar-wordmark-group">
+              <span className="sidebar-dev-sublabel">Developers</span>
+            </span>
+          )}
         </Link>
       </div>
       <div className="sidebar-routes">
@@ -177,6 +186,7 @@ const Sidebar = () => {
                     (orgMissing || (needsVerifiedOrg && !orgVerified) || !hasRoutePermission);
 
                 const isActive = pathname === route.href;
+                /* v8 ignore next -- every route name in APP_ROUTE_GROUPS/DEV_ROUTE_GROUPS maps to an entry in ROUTE_ICONS, so the IoBookOutline fallback is unreachable */
                 const RouteIcon = routeIcons[route.name] || IoBookOutline;
 
                 const onClick: React.MouseEventHandler<HTMLAnchorElement> = (e) => {
@@ -187,7 +197,7 @@ const Sidebar = () => {
 
                 const routeIcon = (
                   <span className="route-icon" aria-hidden>
-                    <RouteIcon size={18} className="route-icon-svg" />
+                    <RouteIcon size={17} className="route-icon-svg" />
                   </span>
                 );
 
@@ -232,24 +242,33 @@ const Sidebar = () => {
         ))}
       </div>
       <div className="sidebar-footer">
-        <GlassTooltip
-          content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          side={isCollapsed ? 'right' : 'top'}
-          className="sidebar-route-tooltip"
-        >
-          <button
-            type="button"
-            onClick={handleToggleCollapse}
-            className="sidebar-collapse-btn"
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        {!isCollapsed && (
+          <span className="sidebar-status">
+            <span className="sidebar-status-dot" aria-hidden />
+            {'All systems live'}
+          </span>
+        )}
+        {/* Tablet is locked to the rail by the breakpoint contract, so there is
+            nothing to toggle between there. */}
+        {!isTabletRail && (
+          <GlassTooltip
+            content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            side={isCollapsed ? 'right' : 'top'}
           >
-            {isCollapsed ? (
-              <MdOutlineKeyboardDoubleArrowRight size={21} />
-            ) : (
-              <MdOutlineKeyboardDoubleArrowLeft size={21} />
-            )}
-          </button>
-        </GlassTooltip>
+            <button
+              type="button"
+              onClick={handleToggleCollapse}
+              className="sidebar-collapse-btn"
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isCollapsed ? (
+                <IoChevronForwardOutline size={17} />
+              ) : (
+                <IoChevronBackOutline size={17} />
+              )}
+            </button>
+          </GlassTooltip>
+        )}
       </div>
     </div>
   );

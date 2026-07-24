@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { Card } from '@/app/ui';
 import { LabelDropdown } from '@/app/ui/inputs';
+import SegmentedPill, {
+  SegmentedPillOption,
+} from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import {
   CALCULATORS,
   CALCULATOR_CATEGORIES,
@@ -15,6 +18,13 @@ type CalculatorBrowserProps = {
   initialValues?: Record<string, string>;
   initialSpecies?: CalculatorSpecies;
 };
+
+// The design's calculators panel switches category on a segmented pill track
+// rather than a dropdown. The registry carries more categories than fit a
+// narrow panel, so the track scrolls horizontally instead of wrapping.
+const CATEGORY_OPTIONS: ReadonlyArray<SegmentedPillOption<string>> = CALCULATOR_CATEGORIES.map(
+  (name) => ({ label: name, value: name })
+);
 
 const CalculatorBrowser = ({ initialValues, initialSpecies }: CalculatorBrowserProps) => {
   const [category, setCategory] = useState(CALCULATOR_CATEGORIES[0]);
@@ -30,12 +40,17 @@ const CalculatorBrowser = ({ initialValues, initialSpecies }: CalculatorBrowserP
 
   return (
     <div className="flex flex-col gap-4">
-      <LabelDropdown
-        placeholder="Category"
-        options={CALCULATOR_CATEGORIES.map((name) => ({ label: name, value: name }))}
-        defaultOption={category}
-        onSelect={(option) => handleCategory(option.value)}
-      />
+      <div className="-mx-1 overflow-x-auto px-1 pb-px">
+        <div className="w-max">
+          <SegmentedPill
+            options={CATEGORY_OPTIONS}
+            value={category}
+            onChange={handleCategory}
+            ariaLabel="Calculator category"
+            size="md"
+          />
+        </div>
+      </div>
       <LabelDropdown
         placeholder="Calculator"
         options={calculators.map((calc) => ({ label: calc.label, value: calc.key }))}

@@ -30,9 +30,18 @@ const AllDayEventsRow = ({
   onMarkerDoubleClick,
   onMarkerContextMenu,
 }: AllDayEventsRowProps) => (
-  <div className="p-2 border-b border-grey-light bg-slate-50 shrink-0">
-    <div className="text-xs font-satoshi text-grey-text mb-1">All-day</div>
-    <div className="flex flex-wrap gap-2">
+  // All-week tray from the frame: --inset surface, 10px/700/0.08em all-caps label.
+  <div
+    className="shrink-0 border-b px-[10px] py-2"
+    style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--inset)' }}
+  >
+    <div
+      className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] font-satoshi"
+      style={{ color: 'var(--ink-faint)' }}
+    >
+      All-day
+    </div>
+    <div className="flex flex-wrap gap-[7px]">
       {allDayEvents.map((ev, idx) => {
         const itemKey = getEventKey(ev, idx, 'all-day');
         return (
@@ -46,7 +55,7 @@ const AllDayEventsRow = ({
             onClick={(event) => onMarkerClick(event, itemKey)}
             onDoubleClick={() => onMarkerDoubleClick(ev)}
             onContextMenu={(event) => onMarkerContextMenu(event, ev)}
-            className="flex items-center gap-2 rounded-full! px-3 py-1 text-xs font-satoshi"
+            className="flex items-center gap-1.5 rounded-full! px-[10px] py-[5px] text-[11px] font-semibold font-satoshi"
             style={getStatusStyle(ev.status)}
           >
             <Image
@@ -54,14 +63,14 @@ const AllDayEventsRow = ({
                 getAppointmentCompanionPhotoUrl(ev.companion),
                 (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
               )}
-              height={20}
-              width={20}
+              height={18}
+              width={18}
               priority
-              className="size-5 rounded-full object-cover"
+              className="size-[18px] rounded-full object-cover"
               alt={''}
             />
-            <span className="font-medium truncate max-w-40">{getCompanionDisplayName(ev)}</span>
-            <span className="opacity-70 truncate max-w-30">{ev.concern || ''}</span>
+            <span className="truncate max-w-40">{getCompanionDisplayName(ev)}</span>
+            <span className="opacity-75 truncate max-w-30 font-normal">{ev.concern || ''}</span>
           </button>
         );
       })}
