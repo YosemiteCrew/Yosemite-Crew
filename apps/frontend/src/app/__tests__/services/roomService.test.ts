@@ -3,7 +3,7 @@ import {
   createRoom,
   updateRoom,
 } from '@/app/features/organization/services/roomService';
-import { getData, postData, putData } from '@/app/services/axios';
+import { deleteData, getData, postData, putData } from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import {
@@ -21,6 +21,7 @@ jest.mock('@/app/services/axios');
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPutData = putData as jest.Mock;
+const mockedDeleteData = deleteData as jest.Mock;
 
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: { getState: jest.fn() },
@@ -360,6 +361,7 @@ describe('Room Service', () => {
       mockedToDTO.mockReturnValue(mockDTO);
       mockedPutData.mockResolvedValue({ data: mockResponseData });
       mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockResolvedValue({ data: [] });
 
       await updateRoom(mockUpdateInput);
 
@@ -388,6 +390,7 @@ describe('Room Service', () => {
       mockedToDTO.mockReturnValue(mockDTO);
       mockedPutData.mockResolvedValue({ data: mockResponseData });
       mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockResolvedValue({ data: [] });
 
       await updateRoom({
         id: 'room-1',
@@ -412,6 +415,58 @@ describe('Room Service', () => {
       await expect(updateRoom(mockUpdateInput)).rejects.toThrow('Update Error');
       expect(consoleSpy).toHaveBeenCalledWith('Failed to update room:', error);
       consoleSpy.mockRestore();
+    });
+
+    it('deletes stale unit groups and their units when the room type no longer supports units', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Puppy Ward', type: 'SURGERY' };
+      const staleGroup = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Extra large',
+        unitCount: 5,
+      };
+      const staleUnit = {
+        id: 'unit-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: 'POD-1',
+        displayName: 'Pod 1',
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockImplementation((url: string) => {
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [staleGroup] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          return Promise.resolve({ data: [staleUnit] });
+        }
+        return Promise.resolve({ data: [] });
+      });
+      mockedDeleteData.mockResolvedValue({ data: {} });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Puppy Ward',
+        type: 'SURGERY',
+        availability: { species: ['CANINE'], totalUnits: 0 },
+        units: [],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: [];
+      });
+
+      expect(mockedDeleteData).toHaveBeenCalledWith('/fhir/v1/room-unit/unit-1');
+      expect(mockedDeleteData).toHaveBeenCalledWith('/fhir/v1/room-unit-group/group-1');
+      expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalledWith('room-1', []);
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', []);
     });
   });
 });

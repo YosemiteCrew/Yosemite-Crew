@@ -231,6 +231,24 @@ const updateUnitGroup = async (group: RoomUnitGroup) => {
   return fromFHIRRoomUnitGroup(res.data);
 };
 
+const deleteUnitGroup = async (groupId: string) => {
+  const res = await deleteData<ReturnType<typeof toFHIRRoomUnitGroup>>(
+    `/fhir/v1/room-unit-group/${groupId}`
+  );
+  return fromFHIRRoomUnitGroup(res.data);
+};
+
+const listUnitGroupsForRoom = async (organisationId: string, roomId: string) => {
+  const res = await getData<ReturnType<typeof toFHIRRoomUnitGroup>[]>(
+    `/fhir/v1/room-unit-group${buildQuery({
+      organizationId: organisationId,
+      roomId,
+      isActive: true,
+    })}`
+  );
+  return res.data.map(fromFHIRRoomUnitGroup);
+};
+
 const createUnit = async (unit: RoomUnit) => {
   const res = await postData<ReturnType<typeof toFHIRRoomUnit>>(
     '/fhir/v1/room-unit',
@@ -277,13 +295,49 @@ const syncUnitsForGroup = async (
   return [...currentUnits.slice(0, desiredCount), ...createdUnits];
 };
 
-const syncRoomUnitGroups = async (room: OrganisationRoom, source: RoomMutationPayload) => {
-  if (!canSyncUnits(room)) return;
+const deleteUnitGroupAndItsUnits = async (group: RoomUnitGroup) => {
+  const staleUnits = await listRoomUnitsForGroup(group.organisationId, group.roomId, group.id);
+  for (const unit of staleUnits) {
+    await deleteUnit(unit.id);
+  }
+  await deleteUnitGroup(group.id);
+};
+
+const syncRoomUnitGroups = async (
+  room: OrganisationRoom,
+  source: RoomMutationPayload,
+  options?: { pruneStaleGroups?: boolean }
+) => {
+  const { setRoomUnitGroupsForRoom, setRoomUnitsForRoom } = useOrganisationRoomStore.getState();
+  const desiredUnitGroups = canSyncUnits(room) ? getDesiredUnitGroups(source) : [];
+
+  // A type change away from a unit-capable room (or clearing every unit row)
+  // must delete the previously-synced groups, not just stop touching them -
+  // otherwise the stale group (and its units) stay active and resurface the
+  // old config next time the room is opened. A brand-new room can't have any
+  // groups yet, so this only runs for updates.
+  if (options?.pruneStaleGroups) {
+    const existingGroups = await listUnitGroupsForRoom(room.organisationId, room.id);
+    const desiredIds = new Set(
+      desiredUnitGroups
+        .map((draft) => draft.id)
+        .filter(
+          (id): id is string => typeof id === 'string' && id.length > 0 && !id.startsWith('unit-')
+        )
+    );
+    const staleGroups = existingGroups.filter((group) => !desiredIds.has(group.id));
+    for (const group of staleGroups) {
+      await deleteUnitGroupAndItsUnits(group);
+    }
+  }
+
+  if (!desiredUnitGroups.length) {
+    setRoomUnitGroupsForRoom(room.id, []);
+    setRoomUnitsForRoom(room.id, []);
+    return;
+  }
 
   const speciesConstraints = toSpeciesConstraints(source.availability?.species);
-  const desiredUnitGroups = getDesiredUnitGroups(source);
-  if (!desiredUnitGroups.length) return;
-
   const syncedGroups: RoomUnitGroup[] = [];
   const syncedUnits: RoomUnit[] = [];
 
@@ -307,7 +361,6 @@ const syncRoomUnitGroups = async (room: OrganisationRoom, source: RoomMutationPa
     syncedUnits.push(...(await syncUnitsForGroup(group, unitCount, group.speciesConstraints)));
   }
 
-  const { setRoomUnitGroupsForRoom, setRoomUnitsForRoom } = useOrganisationRoomStore.getState();
   setRoomUnitGroupsForRoom(room.id, syncedGroups);
   setRoomUnitsForRoom(room.id, syncedUnits);
 };
@@ -366,7 +419,7 @@ export const updateRoom = async (payload: RoomMutationPayload) => {
     );
     const normalRoom = buildNormalizedRoom(normalizedPayload, res.data, payload.availability);
     upsertRoom(normalRoom);
-    await syncRoomUnitGroups(normalRoom, payload);
+    await syncRoomUnitGroups(normalRoom, payload, { pruneStaleGroups: true });
   } catch (err) {
     console.error('Failed to update room:', err);
     throw err;
