@@ -1,4 +1,10 @@
+import { type ReactNode } from 'react';
+
 export type ChartKey = { name: string; color: string };
+
+/* recharts hands the tooltip label in as a ReactNode and the hovered payload as a
+   readonly array, so the chart wrappers have to accept those widths verbatim. */
+export type ChartTooltipLabelFormatter = (label: ReactNode, payload?: readonly any[]) => ReactNode;
 
 export type AxisLabelConfig = {
   value: string;
