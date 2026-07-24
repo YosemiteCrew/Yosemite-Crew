@@ -136,29 +136,25 @@ const RoomSelectorSection = ({
   defaultOption,
   onSelect,
   fallback,
-}: RoomSelectorSectionProps) => (
-  <div className="relative">
-    <span
-      className="pointer-events-none absolute left-4 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-neutral-0 px-1 font-satoshi text-sm leading-none"
-      style={{ color: 'var(--color-input-text-placeholder)' }}
-    >
-      {label}
-    </span>
-    {canEditRoom ? (
-      <LabelDropdown
-        placeholder={savingRoom ? 'Saving…' : `Select ${label.toLowerCase()}`}
-        options={options}
-        defaultOption={defaultOption}
-        onSelect={onSelect}
-        searchable={false}
-      />
-    ) : (
+}: RoomSelectorSectionProps) =>
+  canEditRoom ? (
+    <LabelDropdown
+      placeholder={savingRoom ? 'Saving…' : label}
+      options={options}
+      defaultOption={defaultOption}
+      onSelect={onSelect}
+      searchable={false}
+    />
+  ) : (
+    <div>
+      <span className="mb-1.5 block font-satoshi text-sm font-semibold text-text-secondary">
+        {label}
+      </span>
       <div className="border border-input-border-default rounded-2xl px-4 py-3 min-h-12 font-satoshi text-base text-text-primary">
         {fallback}
       </div>
-    )}
-  </div>
-);
+    </div>
+  );
 
 type OverviewLeftColumnProps = {
   companion: ReturnType<typeof getAppointmentCompanion>;
