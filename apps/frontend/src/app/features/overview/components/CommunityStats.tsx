@@ -5,6 +5,7 @@ const DynamicChartCard = dynamic(() => import('@/app/ui/widgets/DynamicChart/Dyn
   ssr: false,
 });
 import { TrafficDataPoint, StarsDataPoint } from '../hooks/useOverviewStats';
+import type { ChartTooltipLabelFormatter } from '@/app/ui/widgets/DynamicChart/chartAxis';
 
 type CommunityStatsProps = {
   trafficChart: TrafficDataPoint[];
@@ -190,7 +191,7 @@ type ChartConfig = {
   xAxisTicks?: number[];
   xAxisDomain?: [number, number];
   xTickFormatter?: (value: string | number) => string;
-  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => React.ReactNode;
+  tooltipLabelFormatter?: ChartTooltipLabelFormatter;
 };
 
 const buildStarsChartConfig = (
