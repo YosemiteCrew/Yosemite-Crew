@@ -304,6 +304,80 @@ describe("UserProfileService", () => {
         }),
       );
     });
+
+    it("preserves the existing address when the update payload omits it", async () => {
+      const existingAddress = {
+        addressLine: "Line 1",
+        city: "City",
+        state: "State",
+        postalCode: "12345",
+        country: "US",
+      };
+
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: existingAddress,
+      });
+      (prisma.userProfile.update as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: {
+          ...completeProfile.personalDetails,
+          gender: "FEMALE",
+        },
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        // The relational row hasn't been touched by this call yet - it still
+        // reflects the pre-update address, same as production.
+        address: existingAddress,
+      });
+      (prisma.userProfile.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: {
+          ...completeProfile.personalDetails,
+          gender: "FEMALE",
+        },
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: existingAddress,
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        roleCode: "OWNER",
+      });
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValueOnce([
+        {
+          slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+        },
+      ]);
+
+      await UserProfileService.update(userId, organizationId, {
+        // Only gender changes - no `address` key at all, unlike the
+        // full-object saves the frontend normally sends.
+        personalDetails: { gender: "FEMALE" },
+      });
+
+      expect(prisma.userProfileAddress.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining(existingAddress),
+          update: expect.objectContaining(existingAddress),
+        }),
+      );
+      expect(prisma.userProfileAddress.deleteMany).not.toHaveBeenCalled();
+    });
   });
 
   describe("getByUserId", () => {

@@ -746,15 +746,28 @@ const sanitizeCreatePayload = (
 
 const sanitizeUpdatePayload = (
   payload: UpdateUserProfilePayload,
-): { attributes: Partial<UserProfileMongo> } => {
+): {
+  attributes: Partial<UserProfileMongo>;
+  personalDetailsAddressProvided: boolean;
+} => {
   const sanitized: Partial<UserProfileMongo> = {};
   let hasProfileUpdate = false;
+  let personalDetailsAddressProvided = false;
 
   if ("personalDetails" in payload) {
     sanitized.personalDetails = sanitizePersonalDetails(
       payload.personalDetails,
     );
     hasProfileUpdate = true;
+    // A caller updating only e.g. gender or timezone sends a personalDetails
+    // object with no `address` key at all - that must preserve the existing
+    // address rather than read as "clear it" (sanitizeAddress(undefined) and an
+    // explicit address:null are otherwise indistinguishable downstream).
+    personalDetailsAddressProvided =
+      typeof payload.personalDetails === "object" &&
+      payload.personalDetails !== null &&
+      !Array.isArray(payload.personalDetails) &&
+      "address" in payload.personalDetails;
   }
 
   if ("professionalDetails" in payload) {
@@ -770,6 +783,7 @@ const sanitizeUpdatePayload = (
 
   return {
     attributes: pruneUndefined(sanitized),
+    personalDetailsAddressProvided,
   };
 };
 
@@ -875,7 +889,8 @@ export const UserProfileService = {
   ): Promise<UserProfileType | null> {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
-    const { attributes } = sanitizeUpdatePayload(payload);
+    const { attributes, personalDetailsAddressProvided } =
+      sanitizeUpdatePayload(payload);
 
     const existing = await prisma.userProfile.findFirst({
       where: { userId: identifier, organizationId: organizationIdentifier },
@@ -907,10 +922,19 @@ export const UserProfileService = {
     // it yet. Reading through buildPersonalDetailsFromPrisma would prefer that stale
     // relational row over the new address, so the sync below would just write the old
     // value back and the edit would never appear (including after a refresh). Use the
-    // freshly-submitted personalDetails directly instead, same as create() does.
-    const personalDetails =
-      attributes.personalDetails ??
-      (existing.personalDetails as UserProfilePersonalDetailsMongo | undefined);
+    // freshly-submitted personalDetails directly instead, same as create() does - but
+    // only for the address itself when the caller's payload actually included one; a
+    // gender-only or timezone-only update has no `address` key at all and must keep
+    // the existing address rather than reading its absence as "clear it".
+    const existingPersonalDetails = buildPersonalDetailsFromPrisma(existing);
+    const personalDetails = attributes.personalDetails
+      ? {
+          ...attributes.personalDetails,
+          address: personalDetailsAddressProvided
+            ? attributes.personalDetails.address
+            : existingPersonalDetails?.address,
+        }
+      : existingPersonalDetails;
     await syncUserProfileAddress(updated.id, personalDetails?.address);
 
     let availability: UserAvailability[] = [];

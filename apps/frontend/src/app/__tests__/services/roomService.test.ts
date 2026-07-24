@@ -417,7 +417,7 @@ describe('Room Service', () => {
       consoleSpy.mockRestore();
     });
 
-    it('deletes stale unit groups and their units when the room type no longer supports units', async () => {
+    it('deactivates stale unit groups and their units when the room type no longer supports units', async () => {
       const mockDTO = { resourceType: 'Location', id: 'room-1' };
       const mockResponseData = { resourceType: 'Location', id: 'room-1' };
       const mockFinalRoom = { id: 'room-1', name: 'Puppy Ward', type: 'SURGERY' };
@@ -450,7 +450,6 @@ describe('Room Service', () => {
         }
         return Promise.resolve({ data: [] });
       });
-      mockedDeleteData.mockResolvedValue({ data: {} });
 
       await updateRoom({
         id: 'room-1',
@@ -463,10 +462,48 @@ describe('Room Service', () => {
         units: [];
       });
 
-      expect(mockedDeleteData).toHaveBeenCalledWith('/fhir/v1/room-unit/unit-1');
-      expect(mockedDeleteData).toHaveBeenCalledWith('/fhir/v1/room-unit-group/group-1');
+      // Deactivated in place (not deleted) - a hard delete would cascade onto
+      // RoomUnitAssignment history and null out any admission's current unit.
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedDeleteData).not.toHaveBeenCalled();
       expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalledWith('room-1', []);
       expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', []);
+    });
+
+    it('does not prune unit groups when a partial update omits units and availability', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Renamed Ward', type: 'INPATIENT' };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+
+      // A rename-only payload: no `units` key, no `availability` key at all -
+      // as distinct from an explicit empty list/zero total.
+      await updateRoom({
+        id: 'room-1',
+        name: 'Renamed Ward',
+        type: 'INPATIENT',
+      } as OrganisationRoom);
+
+      expect(mockedGetData).not.toHaveBeenCalledWith(
+        expect.stringContaining('/fhir/v1/room-unit-group')
+      );
+      expect(mockedPutData).not.toHaveBeenCalledWith(
+        expect.stringContaining('/fhir/v1/room-unit-group/'),
+        expect.anything()
+      );
+      // Leaves the client-side cache alone too - there's nothing to reconcile.
+      expect(mockSetRoomUnitGroupsForRoom).not.toHaveBeenCalled();
+      expect(mockSetRoomUnitsForRoom).not.toHaveBeenCalled();
     });
   });
 });

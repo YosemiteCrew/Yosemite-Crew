@@ -231,13 +231,6 @@ const updateUnitGroup = async (group: RoomUnitGroup) => {
   return fromFHIRRoomUnitGroup(res.data);
 };
 
-const deleteUnitGroup = async (groupId: string) => {
-  const res = await deleteData<ReturnType<typeof toFHIRRoomUnitGroup>>(
-    `/fhir/v1/room-unit-group/${groupId}`
-  );
-  return fromFHIRRoomUnitGroup(res.data);
-};
-
 const listUnitGroupsForRoom = async (organisationId: string, roomId: string) => {
   const res = await getData<ReturnType<typeof toFHIRRoomUnitGroup>[]>(
     `/fhir/v1/room-unit-group${buildQuery({
@@ -252,6 +245,14 @@ const listUnitGroupsForRoom = async (organisationId: string, roomId: string) => 
 const createUnit = async (unit: RoomUnit) => {
   const res = await postData<ReturnType<typeof toFHIRRoomUnit>>(
     '/fhir/v1/room-unit',
+    toFHIRRoomUnit(unit)
+  );
+  return fromFHIRRoomUnit(res.data);
+};
+
+const updateUnit = async (unit: RoomUnit) => {
+  const res = await putData<ReturnType<typeof toFHIRRoomUnit>>(
+    `/fhir/v1/room-unit/${unit.id}`,
     toFHIRRoomUnit(unit)
   );
   return fromFHIRRoomUnit(res.data);
@@ -295,24 +296,42 @@ const syncUnitsForGroup = async (
   return [...currentUnits.slice(0, desiredCount), ...createdUnits];
 };
 
-const deleteUnitGroupAndItsUnits = async (group: RoomUnitGroup) => {
+// Units/groups can carry admission history (RoomUnitAssignment.unit cascades on
+// delete, and Admission.currentUnit is set-null) - a physical delete here would
+// silently corrupt that history or clear a patient's current location. Marking
+// them inactive instead keeps every row (and the history it's linked to) intact
+// while dropping them out of the room's active configuration.
+const deactivateUnitGroupAndItsUnits = async (group: RoomUnitGroup) => {
   const staleUnits = await listRoomUnitsForGroup(group.organisationId, group.roomId, group.id);
   for (const unit of staleUnits) {
-    await deleteUnit(unit.id);
+    await updateUnit({ ...unit, isActive: false });
   }
-  await deleteUnitGroup(group.id);
+  await updateUnitGroup({ ...group, isActive: false });
 };
+
+// The caller must have actually said something about units for pruning to run -
+// a partial update that never mentions `units`/`availability` (e.g. renaming a
+// room) leaves both undefined, and treating that as "zero desired groups" would
+// wipe out a room's entire unit configuration on an unrelated edit.
+const providesUnitConfig = (source: RoomMutationPayload) =>
+  source.units !== undefined || source.availability?.totalUnits !== undefined;
 
 const syncRoomUnitGroups = async (
   room: OrganisationRoom,
   source: RoomMutationPayload,
   options?: { pruneStaleGroups?: boolean }
 ) => {
+  // A partial update that never mentions units/availability at all (e.g. a
+  // plain rename) must leave the room's unit configuration - and the client's
+  // cache of it - completely untouched, not read the omission as "zero units
+  // desired" and wipe out everything that was there.
+  if (options?.pruneStaleGroups && !providesUnitConfig(source)) return;
+
   const { setRoomUnitGroupsForRoom, setRoomUnitsForRoom } = useOrganisationRoomStore.getState();
   const desiredUnitGroups = canSyncUnits(room) ? getDesiredUnitGroups(source) : [];
 
   // A type change away from a unit-capable room (or clearing every unit row)
-  // must delete the previously-synced groups, not just stop touching them -
+  // must deactivate the previously-synced groups, not just stop touching them -
   // otherwise the stale group (and its units) stay active and resurface the
   // old config next time the room is opened. A brand-new room can't have any
   // groups yet, so this only runs for updates.
@@ -327,7 +346,7 @@ const syncRoomUnitGroups = async (
     );
     const staleGroups = existingGroups.filter((group) => !desiredIds.has(group.id));
     for (const group of staleGroups) {
-      await deleteUnitGroupAndItsUnits(group);
+      await deactivateUnitGroupAndItsUnits(group);
     }
   }
 
