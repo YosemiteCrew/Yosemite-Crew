@@ -378,6 +378,89 @@ describe("UserProfileService", () => {
       );
       expect(prisma.userProfileAddress.deleteMany).not.toHaveBeenCalled();
     });
+
+    it("clears an explicitly emptied address field instead of leaving the stale value", async () => {
+      (prisma.userProfile.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: {
+          addressLine: "Line 1",
+          city: "City",
+          state: "State",
+          postalCode: "12345",
+          country: "US",
+        },
+      });
+      (prisma.userProfile.update as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: {
+          addressLine: "Line 1",
+          city: "City",
+          state: "State",
+          postalCode: "12345",
+          country: "US",
+        },
+      });
+      (prisma.userProfile.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: createdId,
+        userId,
+        organizationId,
+        personalDetails: completeProfile.personalDetails,
+        professionalDetails: completeProfile.professionalDetails,
+        status: "COMPLETED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        address: {
+          addressLine: "Line 1",
+          city: "City",
+          state: "State",
+          postalCode: "12345",
+          country: null,
+        },
+      });
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        roleCode: "OWNER",
+      });
+      (BaseAvailabilityService.getByUserId as jest.Mock).mockResolvedValueOnce([
+        {
+          slots: [{ startTime: "09:00", endTime: "10:00", isAvailable: true }],
+        },
+      ]);
+
+      // Country emptied out, every other address field resubmitted unchanged -
+      // the same shape the frontend's address form always sends.
+      await UserProfileService.update(userId, organizationId, {
+        personalDetails: {
+          ...completeProfile.personalDetails,
+          address: {
+            addressLine: "Line 1",
+            city: "City",
+            state: "State",
+            postalCode: "12345",
+            country: "",
+          },
+        },
+      });
+
+      expect(prisma.userProfileAddress.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ country: null }),
+        }),
+      );
+    });
   });
 
   describe("getByUserId", () => {

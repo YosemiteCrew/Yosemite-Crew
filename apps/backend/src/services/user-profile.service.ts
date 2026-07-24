@@ -573,14 +573,19 @@ const syncUserProfileAddress = async (
       latitude: address.latitude ?? undefined,
       longitude: address.longitude ?? undefined,
     },
+    // Unlike `create`, this row already exists - an omitted field here means
+    // the caller cleared it (e.g. emptied the Country input), not "leave it
+    // alone". Prisma treats an explicit `undefined` in an update as "don't
+    // touch this column", which would leave the stale value in place and have
+    // it resurface on the next read; `null` actually clears it.
     update: {
-      addressLine: address.addressLine ?? undefined,
-      country: address.country ?? undefined,
-      city: address.city ?? undefined,
-      state: address.state ?? undefined,
-      postalCode: address.postalCode ?? undefined,
-      latitude: address.latitude ?? undefined,
-      longitude: address.longitude ?? undefined,
+      addressLine: address.addressLine ?? null,
+      country: address.country ?? null,
+      city: address.city ?? null,
+      state: address.state ?? null,
+      postalCode: address.postalCode ?? null,
+      latitude: address.latitude ?? null,
+      longitude: address.longitude ?? null,
     },
   });
 };

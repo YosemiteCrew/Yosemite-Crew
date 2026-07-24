@@ -428,6 +428,7 @@ describe('Room Service', () => {
         name: 'Pod',
         size: 'Extra large',
         unitCount: 5,
+        isActive: true,
       };
       const staleUnit = {
         id: 'unit-1',
@@ -436,6 +437,7 @@ describe('Room Service', () => {
         unitGroupId: 'group-1',
         code: 'POD-1',
         displayName: 'Pod 1',
+        isActive: true,
       };
 
       mockedToDTO.mockReturnValue(mockDTO);
@@ -504,6 +506,86 @@ describe('Room Service', () => {
       // Leaves the client-side cache alone too - there's nothing to reconcile.
       expect(mockSetRoomUnitGroupsForRoom).not.toHaveBeenCalled();
       expect(mockSetRoomUnitsForRoom).not.toHaveBeenCalled();
+    });
+
+    it('reactivates an archived group and unit instead of creating duplicates with the same name/code', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
+      const archivedGroup = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Large',
+        unitCount: 1,
+        isActive: false,
+      };
+      const archivedUnit = {
+        id: 'unit-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: 'POD-1',
+        displayName: 'Pod 1',
+        isActive: false,
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedPutData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedPostData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedGetData.mockImplementation((url: string) => {
+        if (url === '/fhir/v1/organisation-room/room-1') {
+          return Promise.resolve({ data: mockResponseData });
+        }
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [archivedGroup] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          // The active-only lookup (isActive=true) sees nothing; the
+          // unscoped lookup used for reactivation sees the archived row.
+          return Promise.resolve({
+            data: url.includes('isActive=true') ? [] : [archivedUnit],
+          });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 2 },
+        units: [{ id: 'unit-new', name: 'Pod', size: 'Large', count: 2 }],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      // Reactivated via PUT, reusing the archived rows' own ids - a fresh POST
+      // would collide on the roomId+name / roomId+code unique indexes.
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: true })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-1',
+        expect.objectContaining({ isActive: true })
+      );
+      expect(mockedPostData).not.toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group',
+        expect.anything()
+      );
+      // The second desired unit has no archived match, so it's still created fresh.
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit',
+        expect.objectContaining({ code: 'POD-2' })
+      );
     });
   });
 });

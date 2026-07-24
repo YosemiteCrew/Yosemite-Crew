@@ -123,7 +123,10 @@ const toDomain = (row: RoomUnitGroupRow): RoomUnitGroup => ({
 const getRoomUnitGroupDelegate = (): RoomUnitGroupDelegate =>
   (prisma as unknown as { roomUnitGroup: RoomUnitGroupDelegate }).roomUnitGroup;
 
-const assertRoomExists = async (roomId: string, organisationId: string) => {
+const assertRoomBelongsToOrganisation = async (
+  roomId: string,
+  organisationId: string,
+): Promise<RoomRow> => {
   const room = (await prisma.organisationRoom.findUnique({
     where: { id: roomId },
     select: { id: true, organisationId: true, type: true },
@@ -137,12 +140,24 @@ const assertRoomExists = async (roomId: string, organisationId: string) => {
     throw new RoomUnitGroupServiceError("Room organisation mismatch.", 409);
   }
 
+  return room;
+};
+
+const assertRoomSupportsUnits = (room: RoomRow) => {
   if (!roomTypeSupportsUnits(room.type)) {
     throw new RoomUnitGroupServiceError(
       "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
       409,
     );
   }
+};
+
+// Used by create (and by update when actually moving a group to a different
+// room) - a brand-new group-room association must target a room that
+// currently supports units.
+const assertRoomExists = async (roomId: string, organisationId: string) => {
+  const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
+  assertRoomSupportsUnits(room);
 };
 
 export const RoomUnitGroupService = {
@@ -214,7 +229,17 @@ export const RoomUnitGroupService = {
       }
 
       const roomId = optionalNonEmptyString(input.roomId) ?? current.roomId;
-      await assertRoomExists(roomId, organisationId);
+      const room = await assertRoomBelongsToOrganisation(
+        roomId,
+        organisationId,
+      );
+      // Only require the target room to currently support units when the group
+      // is actually being moved there. A same-room update (e.g. deactivating a
+      // group after its room's type changed away from a unit-capable one) must
+      // still be possible - otherwise that type change can never be cleaned up.
+      if (roomId !== current.roomId) {
+        assertRoomSupportsUnits(room);
+      }
 
       const unitCount =
         input.unitCount == null

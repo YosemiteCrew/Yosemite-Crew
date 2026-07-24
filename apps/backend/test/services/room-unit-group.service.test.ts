@@ -216,6 +216,78 @@ describe("RoomUnitGroupService", () => {
     expect(result.unitCount).toBe(2);
   });
 
+  it("allows deactivating a group after its room's type no longer supports units", async () => {
+    // The room's type has since changed away from a unit-capable type (e.g.
+    // INPATIENT -> SURGERY) - the group isn't moving rooms, so cleanup must
+    // still be able to deactivate it instead of 409ing forever.
+    mockedPrisma.organisationRoom.findUnique.mockResolvedValue({
+      id: "room_1",
+      organisationId: "org_1",
+      type: "SURGERY",
+    });
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.roomUnitGroup.update.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await RoomUnitGroupService.update("group_1", "org_1", {
+      isActive: false,
+    });
+
+    expect(result.isActive).toBe(false);
+  });
+
+  it("still rejects moving a group into a room that does not support units", async () => {
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.organisationRoom.findUnique.mockResolvedValueOnce({
+      id: "room_2",
+      organisationId: "org_1",
+      type: "EXAM_ROOM",
+    });
+
+    await expect(
+      RoomUnitGroupService.update("group_1", "org_1", { roomId: "room_2" }),
+    ).rejects.toMatchObject({
+      message:
+        "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
+      statusCode: 409,
+    });
+  });
+
   it("deletes a room unit group within the same organisation", async () => {
     mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue({
       id: "group_1",

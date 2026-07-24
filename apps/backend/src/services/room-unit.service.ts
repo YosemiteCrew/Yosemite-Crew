@@ -163,7 +163,10 @@ const getOccupiedUnitIds = async (
   );
 };
 
-const assertRoomExists = async (roomId: string, organisationId: string) => {
+const assertRoomBelongsToOrganisation = async (
+  roomId: string,
+  organisationId: string,
+): Promise<RoomRow> => {
   const room = (await prisma.organisationRoom.findUnique({
     where: { id: roomId },
     select: { id: true, organisationId: true, type: true },
@@ -177,12 +180,24 @@ const assertRoomExists = async (roomId: string, organisationId: string) => {
     throw new RoomUnitServiceError("Room organisation mismatch.", 409);
   }
 
+  return room;
+};
+
+const assertRoomSupportsUnits = (room: RoomRow) => {
   if (!roomTypeSupportsUnits(room.type)) {
     throw new RoomUnitServiceError(
       "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
       409,
     );
   }
+};
+
+// Used by create (and by update when actually moving a unit to a different
+// room) - a brand-new unit-room association must target a room that currently
+// supports units.
+const assertRoomExists = async (roomId: string, organisationId: string) => {
+  const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
+  assertRoomSupportsUnits(room);
 };
 
 const assertRoomUnitGroupExists = async (
@@ -265,7 +280,15 @@ export const RoomUnitService = {
       input.unitGroupId === undefined
         ? (current.unitGroupId ?? undefined)
         : (normalizeOptionalString(input.unitGroupId) ?? undefined);
-    await assertRoomExists(roomId, organisationId);
+    const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
+    // Only require the target room to currently support units when the unit is
+    // actually being moved there. A same-room update (e.g. deactivating a unit
+    // after its room's type changed away from a unit-capable one) must still be
+    // possible - otherwise that type change can never be cleaned up, leaving the
+    // stale unit active forever while every request to fix it 409s.
+    if (roomId !== current.roomId) {
+      assertRoomSupportsUnits(room);
+    }
     if (unitGroupId) {
       await assertRoomUnitGroupExists(unitGroupId, roomId, organisationId);
     }

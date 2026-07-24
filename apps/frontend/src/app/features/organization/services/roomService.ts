@@ -215,6 +215,24 @@ const listRoomUnitsForGroup = async (
   return res.data.map(fromFHIRRoomUnit);
 };
 
+// Includes inactive units - used to find a previously-deactivated unit whose
+// deterministic code (`${groupName}-${n}`) would otherwise collide with the
+// `@@unique([roomId, code])` constraint when creating a "new" one.
+const listAllUnitsForGroup = async (
+  organisationId: string,
+  roomId: string,
+  unitGroupId: string
+) => {
+  const res = await getData<ReturnType<typeof toFHIRRoomUnit>[]>(
+    `/fhir/v1/room-unit${buildQuery({
+      organizationId: organisationId,
+      roomId,
+      unitGroupId,
+    })}`
+  );
+  return res.data.map(fromFHIRRoomUnit);
+};
+
 const createUnitGroup = async (group: RoomUnitGroup) => {
   const res = await postData<ReturnType<typeof toFHIRRoomUnitGroup>>(
     '/fhir/v1/room-unit-group',
@@ -231,12 +249,15 @@ const updateUnitGroup = async (group: RoomUnitGroup) => {
   return fromFHIRRoomUnitGroup(res.data);
 };
 
+// Includes inactive groups - callers derive the active subset themselves. A
+// previously-deactivated group can occupy the exact name a "new" one would get
+// (`@@unique([roomId, name])`), so the reconciling create/update loop needs to
+// see it too, not just the pruning step that only cares about active ones.
 const listUnitGroupsForRoom = async (organisationId: string, roomId: string) => {
   const res = await getData<ReturnType<typeof toFHIRRoomUnitGroup>[]>(
     `/fhir/v1/room-unit-group${buildQuery({
       organizationId: organisationId,
       roomId,
-      isActive: true,
     })}`
   );
   return res.data.map(fromFHIRRoomUnitGroup);
@@ -276,20 +297,45 @@ const syncUnitsForGroup = async (
     await deleteUnit(unit.id);
   }
 
+  const missingCount = desiredCount - currentUnits.length;
+  // A previously-deactivated unit under this same group can occupy the exact
+  // code a fresh one would get (`@@unique([roomId, code])`), so look for one
+  // to reactivate before creating - only when we actually need more units.
+  const archivedByCode =
+    missingCount > 0
+      ? new Map(
+          (await listAllUnitsForGroup(group.organisationId, group.roomId, group.id))
+            .filter((unit) => !unit.isActive)
+            .map((unit) => [unit.code, unit] as const)
+        )
+      : new Map<string, RoomUnit>();
+
   for (let index = currentUnits.length; index < desiredCount; index += 1) {
     const unitNumber = index + 1;
+    const code = `${group.name}-${unitNumber}`.replace(/\s+/g, '-').toUpperCase();
+    const archived = archivedByCode.get(code);
+    const displayName = `${group.name} ${unitNumber}`;
     createdUnits.push(
-      await createUnit({
-        id: '',
-        organisationId: group.organisationId,
-        roomId: group.roomId,
-        unitGroupId: group.id,
-        code: `${group.name}-${unitNumber}`.replace(/\s+/g, '-').toUpperCase(),
-        displayName: `${group.name} ${unitNumber}`,
-        size: group.size,
-        speciesConstraints,
-        isActive: true,
-      })
+      archived
+        ? await updateUnit({
+            ...archived,
+            unitGroupId: group.id,
+            displayName,
+            size: group.size,
+            speciesConstraints,
+            isActive: true,
+          })
+        : await createUnit({
+            id: '',
+            organisationId: group.organisationId,
+            roomId: group.roomId,
+            unitGroupId: group.id,
+            code,
+            displayName,
+            size: group.size,
+            speciesConstraints,
+            isActive: true,
+          })
     );
   }
 
@@ -330,13 +376,20 @@ const syncRoomUnitGroups = async (
   const { setRoomUnitGroupsForRoom, setRoomUnitsForRoom } = useOrganisationRoomStore.getState();
   const desiredUnitGroups = canSyncUnits(room) ? getDesiredUnitGroups(source) : [];
 
+  // Fetched once (active + inactive) when reconciling on update: the active
+  // subset drives pruning below, and the inactive subset lets the create loop
+  // reactivate an archived group instead of colliding with its old name
+  // (`@@unique([roomId, name])`). A brand-new room can't have either, so this
+  // only runs for updates.
+  const existingGroups = options?.pruneStaleGroups
+    ? await listUnitGroupsForRoom(room.organisationId, room.id)
+    : [];
+
   // A type change away from a unit-capable room (or clearing every unit row)
   // must deactivate the previously-synced groups, not just stop touching them -
   // otherwise the stale group (and its units) stay active and resurface the
-  // old config next time the room is opened. A brand-new room can't have any
-  // groups yet, so this only runs for updates.
+  // old config next time the room is opened.
   if (options?.pruneStaleGroups) {
-    const existingGroups = await listUnitGroupsForRoom(room.organisationId, room.id);
     const desiredIds = new Set(
       desiredUnitGroups
         .map((draft) => draft.id)
@@ -344,7 +397,9 @@ const syncRoomUnitGroups = async (
           (id): id is string => typeof id === 'string' && id.length > 0 && !id.startsWith('unit-')
         )
     );
-    const staleGroups = existingGroups.filter((group) => !desiredIds.has(group.id));
+    const staleGroups = existingGroups.filter(
+      (group) => group.isActive && !desiredIds.has(group.id)
+    );
     for (const group of staleGroups) {
       await deactivateUnitGroupAndItsUnits(group);
     }
@@ -356,17 +411,26 @@ const syncRoomUnitGroups = async (
     return;
   }
 
+  const archivedGroupsByName = new Map(
+    existingGroups.filter((group) => !group.isActive).map((group) => [group.name, group] as const)
+  );
+
   const speciesConstraints = toSpeciesConstraints(source.availability?.species);
   const syncedGroups: RoomUnitGroup[] = [];
   const syncedUnits: RoomUnit[] = [];
 
   for (const [index, draft] of desiredUnitGroups.entries()) {
     const unitCount = Math.max(1, Number(draft.count ?? 1));
+    const name = draft.name?.trim() || `Unit type ${index + 1}`;
+    const draftId = draft.id?.startsWith('unit-') ? '' : (draft.id ?? '');
+    // Reuse a previously-deactivated group with the same name rather than
+    // creating a fresh row, which would collide on that same unique index.
+    const groupId = draftId || archivedGroupsByName.get(name)?.id || '';
     const groupPayload: RoomUnitGroup = {
-      id: draft.id?.startsWith('unit-') ? '' : (draft.id ?? ''),
+      id: groupId,
       organisationId: room.organisationId,
       roomId: room.id,
-      name: draft.name?.trim() || `Unit type ${index + 1}`,
+      name,
       size: draft.size,
       unitCount,
       speciesConstraints: draft.speciesConstraints ?? speciesConstraints,
