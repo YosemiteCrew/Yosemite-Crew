@@ -282,6 +282,9 @@ const localPage = (page: DesktopPage): string => path.join(__dirname, 'pages', `
 // In tab mode, navigation/content targets the active tab's WebContents; before
 // tab mode (welcome/loading) it targets the base window contents.
 let tabChromeView: WebContentsView | null = null;
+// Owned by setupIdleLock, but declared here so the layout pass can keep it
+// full-window and topmost for as long as the workspace is locked.
+let lockOverlayView: WebContentsView | null = null;
 let tabMode = false;
 let tabSearchOpen = false;
 
@@ -380,6 +383,20 @@ const raiseTabChrome = (): void => {
   }
 };
 
+// Keep the lock overlay full-window and above everything else. raiseTabChrome
+// re-adds the chrome on every layout, so without this a resize while the
+// biometric prompt is pending would leave a stale-sized overlay with the tab
+// strip - and the newly exposed workspace - live on top of it.
+const raiseLockOverlay = (): void => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const view = lockOverlayView;
+  if (!view || view.webContents.isDestroyed()) return;
+  const b = mainWindow.getContentBounds();
+  view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+  mainWindow.contentView.removeChildView(view);
+  mainWindow.contentView.addChildView(view);
+};
+
 const layoutTabChrome = (): void => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const b = mainWindow.getContentBounds();
@@ -387,6 +404,7 @@ const layoutTabChrome = (): void => {
   layoutChromeStrip(b, isVertical);
   layoutContentPanes(b, isVertical);
   raiseTabChrome();
+  raiseLockOverlay();
 };
 
 // Switch the window into multi-tab mode: mount the tab-bar chrome view and the
@@ -1250,7 +1268,6 @@ const setupIdleLock = (ses: Session): void => {
   // In-app lock screen shown over the workspace while biometric unlock is
   // pending, so patient data isn't visible behind the OS prompt. A full-window
   // WebContentsView added last (top-most) covers the tab chrome and content.
-  let lockOverlayView: WebContentsView | null = null;
   const lockOverlay = createIdleLockOverlay({
     mount: () => {
       const win = mainWindow;
@@ -1260,8 +1277,8 @@ const setupIdleLock = (ses: Session): void => {
       });
       lockOverlayView = view;
       win.contentView.addChildView(view);
-      const b = win.getContentBounds();
-      view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+      // Sizes and raises it; every later layout pass does the same.
+      raiseLockOverlay();
       applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
       void view.webContents.loadFile(localPage('idle-lock'));
     },
@@ -1289,20 +1306,23 @@ const setupIdleLock = (ses: Session): void => {
         bio.lock();
         lockOverlay.show();
         logger.info('biometric_lock_engaged');
-        void bio.authenticate('Unlock Yosemite Crew PIMS').then((ok) => {
-          if (ok) {
-            locked = false;
-            lockOverlay.hide();
-            logger.info('biometric_unlock_success');
-          } else {
+        void bio
+          .authenticate('Unlock Yosemite Crew PIMS')
+          .then((ok) => {
+            if (ok) {
+              locked = false;
+              logger.info('biometric_unlock_success');
+              return;
+            }
             logger.warn('biometric_unlock_failed');
-            lockOverlay.hide();
             void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
               persistAuthHint(false);
               loadStartUrl();
             });
-          }
-        });
+          })
+          // Uncover the workspace exactly once, however the prompt resolved. A
+          // rejection would otherwise strand the overlay over a locked app.
+          .finally(() => lockOverlay.hide());
       } else {
         void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
           persistAuthHint(false);

@@ -253,8 +253,11 @@ body {
   transition: opacity 0.12s ease;
 }
 
+/* focus-within keeps the actions (and their focus ring) visible for keyboard
+   users, who reach them without ever hovering or selecting the row. */
 .doc:hover .doc-actions,
-.doc.selected .doc-actions {
+.doc.selected .doc-actions,
+.doc:focus-within .doc-actions {
   opacity: 1;
 }
 

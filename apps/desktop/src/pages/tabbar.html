@@ -19,6 +19,9 @@
       .ts-panel {
         position: absolute;
         top: 8px;
+        /* The UA dialog stylesheet sets left: 0; without resetting it the fixed
+           width over-constrains the insets and the panel snaps to the left edge. */
+        left: auto;
         right: 12px;
         width: 460px;
         max-height: calc(100vh - 24px);
@@ -271,7 +274,7 @@
         </button>
         <div id="sync-badge" class="not-ready" title="Sync status"></div>
       </div>
-      <div id="win-caption" class="win-caption" aria-hidden="true">
+      <div id="win-caption" class="win-caption">
         <button id="win-min" class="win-btn" type="button" aria-label="Minimize" title="Minimize">
           <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
         </button>

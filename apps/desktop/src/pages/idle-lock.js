@@ -14,10 +14,12 @@
     unlockBtn.disabled = true;
     statusEl.textContent = 'Verifying…';
     Promise.resolve(yc.authenticateBiometric('Unlock Yosemite Crew PIMS'))
-      .then(function (ok) {
-        // The main process observes the unlock and restores the workspace; the
-        // page only surfaces progress so the button never looks dead.
-        statusEl.textContent = ok ? 'Unlocked' : 'Could not verify. Try again.';
+      .then(function (res) {
+        // The handler resolves to { ok, authenticated } - never a bare boolean,
+        // so the response object itself is always truthy. The main process
+        // observes the unlock and restores the workspace; the page only surfaces
+        // progress so the button never looks dead.
+        statusEl.textContent = res?.ok ? 'Unlocked' : 'Could not verify. Try again.';
       })
       .catch(function () {
         statusEl.textContent = 'Could not verify. Try again.';
