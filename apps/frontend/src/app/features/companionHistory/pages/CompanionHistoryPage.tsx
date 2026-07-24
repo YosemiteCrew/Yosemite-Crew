@@ -9,6 +9,7 @@ import { IoAddOutline, IoCheckmarkOutline, IoPencilOutline } from 'react-icons/i
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import PhoneCompanionRecord from '@/app/features/companionHistory/pages/phone/PhoneCompanionRecord';
 import {
@@ -319,10 +320,19 @@ const ParentProfilePanel = ({
           ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
-          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[11px] py-1 text-[11px] font-bold text-[var(--status-completed-text)]">
-            Dues cleared
-            <IoCheckmarkOutline size={11} aria-hidden="true" />
-          </span>
+          <StatusPill
+            tokens={{
+              bg: 'var(--status-completed-bg)',
+              text: 'var(--status-completed-text)',
+              border: 'var(--status-completed-border)',
+            }}
+            label={
+              <>
+                Dues cleared
+                <IoCheckmarkOutline size={11} aria-hidden="true" />
+              </>
+            }
+          />
           <div className="flex flex-col items-start gap-1.5 md:items-end">
             {alerts.map((alert) => (
               <AlertPill
