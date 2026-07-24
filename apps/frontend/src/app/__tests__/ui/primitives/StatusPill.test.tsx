@@ -63,4 +63,25 @@ describe('StatusPill', () => {
     // stretched by a flex column's default align-items: stretch.
     expect(screen.getByText('Low stock')).toHaveClass('w-fit');
   });
+  it('carries the design badge geometry: 3px 10px, 10px/700, +0.08em, normal leading', () => {
+    // Measured off the design sources: the badge computes to 21.5px tall. Any
+    // drift here (py-0.5, tracking-[0.06em], leading-none) is what made the same
+    // status render at three different sizes across the app.
+    render(<StatusPill label="Awaiting payment" />);
+    const pill = screen.getByText('Awaiting payment');
+    expect(pill).toHaveClass('px-2.5', 'py-[3px]', 'text-[10px]', 'font-bold');
+    expect(pill).toHaveClass('tracking-[0.08em]', 'leading-[normal]', 'uppercase');
+  });
+  it('clips a clamped label inside its own border instead of bleeding across it', () => {
+    render(<StatusPill label="Awaiting payment" />);
+    const pill = screen.getByText('Awaiting payment');
+    // max-w-full without overflow-hidden lets whitespace-nowrap text run past
+    // the pill border and over the next column.
+    expect(pill).toHaveClass('max-w-full', 'overflow-hidden', 'whitespace-nowrap');
+    expect(pill).toHaveAttribute('title', 'Awaiting payment');
+  });
+  it('omits the title when the label is not plain text', () => {
+    render(<StatusPill label={<span>Dues cleared</span>} />);
+    expect(screen.getByText('Dues cleared').closest('span[title]')).toBeNull();
+  });
 });
