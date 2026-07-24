@@ -589,8 +589,7 @@ const buildPersonalDetailsFromPrisma = (
   profile: PrismaUserProfileWithAddress,
 ): UserProfilePersonalDetailsMongo | undefined => {
   const rawPersonalDetails = profile.personalDetails as
-    | UserProfilePersonalDetailsMongo
-    | undefined;
+    UserProfilePersonalDetailsMongo | undefined;
 
   if (!rawPersonalDetails && !profile.address) {
     return undefined;
@@ -633,8 +632,7 @@ const buildDomainProfileFromPrisma = (
   options?: { statusOverride?: UserProfileMongo["status"] },
 ): UserProfileType => {
   const rawProfessionalDetails = profile.professionalDetails as
-    | UserProfileProfessionalDetailsMongo
-    | undefined;
+    UserProfileProfessionalDetailsMongo | undefined;
 
   const personalDetails = buildPersonalDetailsFromPrisma(profile);
 
@@ -904,7 +902,15 @@ export const UserProfileService = {
           })
         : existing;
 
-    const personalDetails = buildPersonalDetailsFromPrisma(updated);
+    // `updated.address` (from the `include` above) is still the pre-update relational
+    // row here - the address just written into personalDetails hasn't been synced to
+    // it yet. Reading through buildPersonalDetailsFromPrisma would prefer that stale
+    // relational row over the new address, so the sync below would just write the old
+    // value back and the edit would never appear (including after a refresh). Use the
+    // freshly-submitted personalDetails directly instead, same as create() does.
+    const personalDetails =
+      attributes.personalDetails ??
+      (existing.personalDetails as UserProfilePersonalDetailsMongo | undefined);
     await syncUserProfileAddress(updated.id, personalDetails?.address);
 
     let availability: UserAvailability[] = [];
@@ -925,8 +931,7 @@ export const UserProfileService = {
         organizationId: updated.organizationId,
         personalDetails,
         professionalDetails: updated.professionalDetails as
-          | UserProfileProfessionalDetailsMongo
-          | undefined,
+          UserProfileProfessionalDetailsMongo | undefined,
         status: updated.status ?? "DRAFT",
       },
       availability,
@@ -1011,8 +1016,7 @@ export const UserProfileService = {
       organizationId: profile.organizationId,
       personalDetails: personalDetailsForStatus,
       professionalDetails: (profile.professionalDetails ?? undefined) as
-        | UserProfileProfessionalDetailsMongo
-        | undefined,
+        UserProfileProfessionalDetailsMongo | undefined,
       status: profile.status ?? "DRAFT",
     };
     const status = determineProfileStatus(profileForStatus, availability);
