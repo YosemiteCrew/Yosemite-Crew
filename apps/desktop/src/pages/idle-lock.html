@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src file:; font-src file:; style-src file:; script-src file:;"
+    />
+    <title>Locked — Yosemite Crew PIMS</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="idle-lock.css" />
+  </head>
+  <body>
+    <div class="lock-bg" aria-hidden="true">
+      <span class="lock-bg-rail"></span>
+      <span class="lock-bg-main">
+        <span class="sk sk-title"></span>
+        <span class="sk-row">
+          <span class="sk sk-card"></span>
+          <span class="sk sk-card"></span>
+          <span class="sk sk-card"></span>
+        </span>
+        <span class="sk sk-panel"></span>
+      </span>
+    </div>
+    <div class="lock-scrim" aria-hidden="true"></div>
+
+    <dialog class="lock-card" open aria-label="App locked">
+      <span class="lock-icon">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 11c-1.5 0-3 .4-4 1.2" />
+          <path d="M8 8.5A5 5 0 0 1 16 8.5" />
+          <path d="M6 11.5A8 8 0 0 1 18 11.5" />
+          <path d="M9.5 15.5c.6-.6 1.5-1 2.5-1s1.9.4 2.5 1" />
+          <path d="M12 18.5v.01" />
+        </svg>
+      </span>
+      <h1>Locked</h1>
+      <p>Locked after inactivity. Patient data stays encrypted while the app is locked.</p>
+
+      <button class="unlock" id="unlock" type="button">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 11c-1.5 0-3 .4-4 1.2" />
+          <path d="M8 8.5A5 5 0 0 1 16 8.5" />
+          <path d="M6 11.5A8 8 0 0 1 18 11.5" />
+          <path d="M9.5 15.5c.6-.6 1.5-1 2.5-1s1.9.4 2.5 1" />
+          <path d="M12 18.5v.01" />
+        </svg>
+        <span>Unlock with Touch ID</span>
+      </button>
+      <button class="use-password" id="usePassword" type="button">Use password instead</button>
+
+      <div class="lock-user">
+        <span class="lock-user-ic">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="5" y="11" width="14" height="9" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+        </span>
+        <span class="lock-user-name">Encrypted on this device</span>
+      </div>
+
+      <output class="lock-status" id="lockStatus"></output>
+    </dialog>
+
+    <script src="idle-lock.js"></script>
+  </body>
+</html>

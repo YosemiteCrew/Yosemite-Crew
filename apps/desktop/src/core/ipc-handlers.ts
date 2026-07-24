@@ -138,6 +138,13 @@ export interface IpcServices {
 
   // Manual window drag from the tab bar (see windowDragBy in preload).
   moveWindowBy: (dx: number, dy: number) => void;
+  // Caption-button controls for the frameless window (Windows/Linux).
+  minimizeWindow: () => void;
+  toggleMaximizeWindow: () => void;
+  closeWindow: () => void;
+  // Action taken on the idle-lock screen. The main process owns the unlock
+  // lifecycle; the lock page only asks for one of these two outcomes.
+  idleUnlock: (mode: 'biometric' | 'password') => void;
 }
 
 export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): void => {
@@ -970,5 +977,21 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
     if (dx === 0 && dy === 0) return;
     services.moveWindowBy(dx, dy);
+  });
+
+  // Fire-and-forget caption-button controls for the frameless window. No args,
+  // no return value; the main process acts on the current main window. They stay
+  // out of ARG_CHANNELS, so the registry drops any message that carries args as
+  // well as any from an untrusted sender.
+  registry.on('yc:window-minimize', () => services.minimizeWindow());
+  registry.on('yc:window-toggle-maximize', () => services.toggleMaximizeWindow());
+  registry.on('yc:window-close', () => services.closeWindow());
+
+  // Fire-and-forget: the lock page asks to retry Touch ID or to fall back to
+  // signing in with a password. Anything but those two modes is dropped.
+  registry.on('yc:idle-unlock', (_event, args) => {
+    const [mode] = args;
+    if (mode !== 'biometric' && mode !== 'password') return;
+    services.idleUnlock(mode);
   });
 };
