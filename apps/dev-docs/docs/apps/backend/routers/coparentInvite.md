@@ -10,7 +10,7 @@ Handles co-parent invitations, letting a pet parent invite another person to sha
 
 ### POST /sent
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `JSON`
 - Body fields: `email`, `companionId`, `inviteeName`
 - Controller: `CoParentInviteController.sendInvite`
@@ -18,7 +18,7 @@ Handles co-parent invitations, letting a pet parent invite another person to sha
 
 ### POST /accept
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `JSON`
 - Body fields: `token`
 - Controller: `CoParentInviteController.acceptInvite`
@@ -33,6 +33,6 @@ Handles co-parent invitations, letting a pet parent invite another person to sha
 
 ### GET /pending
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `CoParentInviteController.getPendingInvites`
 - Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`

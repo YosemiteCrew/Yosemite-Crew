@@ -72,12 +72,12 @@ SuperTokens sits behind the provider-neutral boundary in `packages/auth`
 (#1672); product code uses `requireWebAuth`/`requireMobileAuth` and never
 imports a provider SDK. For web/PIMS, SuperTokens session auth is initialized
 in `src/app.ts` via `@yosemite-crew/auth` and handles the staff session.
-Mobile authenticates with **AWS Cognito or Firebase**: `authorizeCognitoMobile`
-(`src/middlewares/auth.ts`) inspects the token issuer and verifies Cognito
-tokens with `jsonwebtoken` + `jwks-rsa`, or Firebase tokens (issuer
-`securetoken.google.com`, used by social login) via Firebase Admin. Never drop
-the Firebase path - it would reject existing social-login users. Add web auth
-changes on the SuperTokens side. Never roll custom auth flows.
+Mobile routes use `requireMobileAuth` (`src/middlewares/auth.ts`), which
+verifies the pet-parent SuperTokens session through the same boundary; use
+`requireAnyAuth` only for routes genuinely shared by both products. During the
+cutover grace window (`AUTH_LEGACY_TOKEN_GRACE=true`) the middleware also
+accepts residual tokens from the previous providers, scoped to the profile
+their issuer served. Never roll custom auth flows.
 
 ---
 

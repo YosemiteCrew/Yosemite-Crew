@@ -10,54 +10,54 @@ Covers invoices tied to appointments: listing them, adding charges, looking them
 
 ### GET /mobile/appointment/:appointmentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Controller: `InvoiceController.listInvoicesForAppointment`
 
 ### GET /mobile/payment-intent/:paymentIntentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `paymentIntentId`
 - Controller: `InvoiceController.getInvoiceByPaymentIntentId`
 
 ### GET /mobile/:invoiceId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `invoiceId`
 - Controller: `InvoiceController.getInvoiceById`
 
 ### POST /appointment/:appointmentId/charges
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `appointmentId`
 - Controller: `InvoiceController.addChargesToAppointment`
 
 ### GET /appointment/:appointmentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `appointmentId`
 - Controller: `InvoiceController.listInvoicesForAppointment`
 
 ### GET /payment-intent/:paymentIntentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `paymentIntentId`
 - Controller: `InvoiceController.getInvoiceByPaymentIntentId`
 
 ### GET /organisation/:organisationId/list
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `organisationId`
 - Controller: `InvoiceController.listInvoicesForOrganisation`
 
 ### POST /:invoiceId/checkout-session
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `invoiceId`
 - Controller: `InvoiceController.createCheckoutSessionForInvoice`
 
 ### GET /:invoiceId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `invoiceId`
 - Controller: `InvoiceController.getInvoiceById`

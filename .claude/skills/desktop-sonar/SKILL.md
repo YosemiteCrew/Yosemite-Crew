@@ -22,8 +22,9 @@ or when writing new Electron/renderer code.
 ## Authoritative Source — Do Not Freeze a Snapshot
 
 The single source of truth for open issues is the **SonarCloud project
-`yosemitecrew_Yosemite-Crew_Desktop`**, analyzed in CI by
-`.github/workflows/sonar-cloud-analysis.yml`. The rule mix changes over time, so **check the live
+`yosemitecrew_Yosemite-Crew_Desktop`**. PR and branch pushes are analyzed in CI by the scan-only
+`_sonar` stage of `.github/workflows/ci.yaml`; `.github/workflows/sonar-cloud-analysis.yml` is
+the nightly type-aware backstop. The rule mix changes over time, so **check the live
 project for the current list** rather than trusting any static dump. This skill documents the
 _categories_ and _fix patterns_ that recur on this codebase, not a frozen issue count.
 
@@ -68,37 +69,37 @@ complexity and smell check is still the SonarCloud analysis.
 
 ## TypeScript / JS Rules (with one-line fixes)
 
-| Rule               | Fix                                                                                                                                   |
+| Rule | Fix |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------------- |
 | `typescript:S1874` | Deprecated `webContents.goBack()/goForward()` → `webContents.navigationHistory.goBack()/goForward()` (also `canGoBack/canGoForward`). |
-| `*:S7764`          | Prefer `globalThis` over bare `window` in renderer page scripts.                                                                      |
-| `*:S7761`          | Prefer `.dataset` over `get/set/removeAttribute('data-…')`.                                                                           |
-| `*:S6582`          | Optional chaining: `a && a.b` → `a?.b`.                                                                                               |
-| `typescript:S6606` | Nullish coalescing: `                                                                                                                 |     | `→`??`/`??=`when the left side can be`0`/`''`. |
-| `typescript:S7741` | `=== undefined` over `typeof x === 'undefined'`.                                                                                      |
-| `*:S7735`          | Invert unexpected negated conditions (`if(!x){A}else{B}`) or use an early return.                                                     |
-| `*:S3358`          | Extract nested ternaries into a named helper.                                                                                         |
-| `typescript:S3776` | Cognitive complexity > 15 → extract helper functions.                                                                                 |
-| `typescript:S2004` | Functions nested > 4 levels → extract.                                                                                                |
-| `typescript:S4325` | Remove unnecessary type assertions.                                                                                                   |
-| `typescript:S7748` | No zero-fraction numbers (`1.0` → `1`).                                                                                               |
-| `typescript:S6564` | Remove redundant type alias.                                                                                                          |
-| `typescript:S6598` | Type literal with only a call signature → function type.                                                                              |
-| `typescript:S6551` | Robust error stringify: `error instanceof Error ? error.message : String(error)`.                                                     |
-| `typescript:S7754` | `.some()` over `.find()` when the result is used as a boolean.                                                                        |
-| `typescript:S2486` | Handle the caught error, or use a paramless `catch {}` for a deliberate ignore.                                                       |
-| `typescript:S7780` | `String.raw` for strings containing backslashes.                                                                                      |
-| `typescript:S7743` | Avoid a confusing IIFE with a parenthesized arrow body.                                                                               |
-| `typescript:S3735` | Remove a stray `void` operator. (`void promise` to satisfy `no-floating-promises` is fine and is **not** what this flags.)            |
-| `typescript:S4043` | Copy before sorting: `[...arr].sort()` / `.toSorted()`.                                                                               |
+| `*:S7764` | Prefer `globalThis` over bare `window` in renderer page scripts. |
+| `*:S7761` | Prefer `.dataset` over `get/set/removeAttribute('data-…')`. |
+| `*:S6582` | Optional chaining: `a && a.b` → `a?.b`. |
+| `typescript:S6606` | Nullish coalescing: `                                                                                                                |     |`→`??`/`??=`when the left side can be`0`/`''`. |
+| `typescript:S7741` | `=== undefined` over `typeof x === 'undefined'`. |
+| `*:S7735` | Invert unexpected negated conditions (`if(!x){A}else{B}`) or use an early return. |
+| `*:S3358` | Extract nested ternaries into a named helper. |
+| `typescript:S3776` | Cognitive complexity > 15 → extract helper functions. |
+| `typescript:S2004` | Functions nested > 4 levels → extract. |
+| `typescript:S4325` | Remove unnecessary type assertions. |
+| `typescript:S7748` | No zero-fraction numbers (`1.0` → `1`). |
+| `typescript:S6564` | Remove redundant type alias. |
+| `typescript:S6598` | Type literal with only a call signature → function type. |
+| `typescript:S6551` | Robust error stringify: `error instanceof Error ? error.message : String(error)`. |
+| `typescript:S7754` | `.some()` over `.find()` when the result is used as a boolean. |
+| `typescript:S2486` | Handle the caught error, or use a paramless `catch {}` for a deliberate ignore. |
+| `typescript:S7780` | `String.raw` for strings containing backslashes. |
+| `typescript:S7743` | Avoid a confusing IIFE with a parenthesized arrow body. |
+| `typescript:S3735` | Remove a stray `void` operator. (`void promise` to satisfy `no-floating-promises` is fine and is **not** what this flags.) |
+| `typescript:S4043` | Copy before sorting: `[...arr].sort()` / `.toSorted()`. |
 
 ### Modern method preferences
 
-| Rule      | Fix                                                                 |
+| Rule | Fix |
 | --------- | ------------------------------------------------------------------- | --- |
-| `*:S6557` | `String.startsWith(...)` over regex/`indexOf` at position 0.        |
-| `*:S7781` | `String.replaceAll(...)` over global-regex `replace`.               |
-| `*:S7765` | `.includes()` over `indexOf(…) !== -1`.                             |
+| `*:S6557` | `String.startsWith(...)` over regex/`indexOf` at position 0. |
+| `*:S7781` | `String.replaceAll(...)` over global-regex `replace`. |
+| `*:S7765` | `.includes()` over `indexOf(…) !== -1`. |
 | `*:S7758` | `codePointAt` / `String.fromCodePoint` over the char-code variants. |
 | `*:S7767` | `Math.trunc(x)` over `x                                             | 0`. |
 

@@ -10,20 +10,20 @@ Lets an invited user act on organisation invites: accept or decline a specific i
 
 ### POST /:token/accept
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `token`
 - Controller: `OrganisationInviteController.acceptInvite`
 - Response: `400`: keys `message`, `401`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /:token/decline
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `token`
 - Controller: `OrganisationInviteController.rejectInvite`
 - Response: `400`: keys `message`, `401`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### GET /me/pending
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Controller: `OrganisationInviteController.listMyPendingInvites`
 - Response: `401`: keys `message`, `200`: keys `message`, `500`: keys `message`

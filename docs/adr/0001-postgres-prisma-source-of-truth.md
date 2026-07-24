@@ -1,6 +1,6 @@
 # 0001. Postgres + Prisma as the target source of truth
 
-**Status:** Accepted (migration in progress)
+**Status:** Accepted (migration complete - exit criteria met by #1819, 2026-07-18)
 **Date:** 2026-06-07
 
 ## Context
@@ -13,18 +13,20 @@ A full big-bang cutover from MongoDB to Postgres was rejected as too risky for a
 
 Adopt PostgreSQL via Prisma Migrate (`packages/database/prisma/schema.prisma`) as the target single source of truth, migrated incrementally behind a runtime flag rather than a single cutover:
 
-- `apps/backend/src/config/db.ts` only opens a MongoDB connection when `READ_FROM_POSTGRES` is **not** `"true"`.
-- Individual services (e.g. `audit-trail.service.ts`, `inventory.service.ts`) check `READ_FROM_POSTGRES` to decide which store to read from, and a `shouldDualWrite` flag to optionally write to both stores during the transition window for a given entity.
-- Each entity migrates independently: dual-write until confidence is established, then flip reads to Postgres, then remove the Mongo write path and the Mongoose model for that entity.
+- During the transition, `apps/backend/src/config/db.ts` only opened a MongoDB connection when `READ_FROM_POSTGRES` was **not** `"true"`. The file (and the Mongo connection) was deleted in #1819 once Postgres became unconditional.
+- Individual services (e.g. `audit-trail.service.ts`, `inventory.service.ts`) checked `READ_FROM_POSTGRES` to decide which store to read from, and a `shouldDualWrite` flag to optionally write to both stores during the transition window for a given entity.
+- Each entity migrated independently: dual-write until confidence was established, then reads flipped to Postgres, then the Mongo write path and the Mongoose model for that entity were removed.
 
 ## Consequences
 
 **Good:**
+
 - Each entity can be migrated and rolled back independently — a bad migration for one model doesn't block or risk the others.
 - Relational integrity (foreign keys, joins) for tenant-scoped and financial data moves into the database instead of application-level enforcement.
 - Zero-downtime migration path; no maintenance window required.
 
 **Bad / accepted trade-offs:**
+
 - Two datastores are live simultaneously for an extended period. Until every entity's Mongo write path is removed, the codebase carries the cognitive and operational cost of both.
 - Dual-write is not transactional across the two stores — a partial failure (write succeeds in one store, fails in the other) is possible during the dual-write window for a given entity.
 - `READ_FROM_POSTGRES` is a single global flag today, not per-entity; per-entity migration state currently lives in each service's own conditional logic rather than one central registry.

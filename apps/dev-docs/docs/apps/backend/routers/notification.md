@@ -10,13 +10,13 @@ Lets the mobile app list a pet parent's notifications and mark one as seen. Both
 
 ### GET /mobile
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `NotificationController.listNotifications`
 - Response: `401`: keys `authenticated`, `message`, `404`: keys `message`, `200`: JSON, `500`: keys `message`
 
 ### POST /mobile/:notificationId/seen
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `notificationId`
 - Controller: `NotificationController.markAsSeen`
 - Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`

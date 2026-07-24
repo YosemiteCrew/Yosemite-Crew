@@ -10,7 +10,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### POST /admin/:orgId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Controller: `FormController.createForm`
@@ -18,7 +18,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /admin/:orgId/forms
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Controller: `FormController.getFormListForOrganisation`
@@ -26,7 +26,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /admin/:orgId/:formId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`, `formId`
 - Controller: `FormController.getFormForAdmin`
@@ -34,7 +34,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### PUT /admin/:orgId/:formId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`, `formId`
 - Controller: `FormController.updateForm`
@@ -42,7 +42,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### POST /admin/:formId/publish
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
 - Controller: `FormController.publishForm`
@@ -50,7 +50,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### POST /admin/:formId/unpublish
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
 - Controller: `FormController.unpublishForm`
@@ -58,7 +58,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### POST /admin/:formId/archive
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
 - Controller: `FormController.archiveForm`
@@ -66,7 +66,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### POST /admin/:formId/submit
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
 - Controller: `FormController.submitFormFromPMS`
@@ -74,7 +74,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /appointments/:appointmentId/soap-notes
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `appointmentId`
 - Query: `latestOnly`
@@ -83,7 +83,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /appointments/:appointmentId/forms
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `appointmentId`
 - Query: `isPMS`, `serviceId`, `species`
@@ -92,7 +92,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### POST /form-submissions/:submissionId/sign
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `submissionId`
 - Controller: `FormSigningController.startSigning`
@@ -100,7 +100,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /form-submissions/:submissionId/signed-document
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `submissionId`
 - Controller: `FormSigningController.getSignedDocument`
@@ -108,28 +108,28 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /public/:formId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `none`
 - Params: `formId`
 - Controller: `FormController.submitForm`
 - Response: `401`: keys `Unauthorized`, `message`, `201`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/submissions/:formId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `formId`
 - Controller: `FormController.getFormSubmissions`
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/forms/:formId/submissions
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `formId`
 - Controller: `FormController.listFormSubmissions`
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/forms/:organizationId/:serivceId/consent-form
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `organizationId`, `serivceId`
 - Query: `species`
 - Controller: `FormController.getConsentFormForParent`
@@ -137,7 +137,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /mobile/appointments/:appointmentId/soap-notes
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Query: `latestOnly`
 - Controller: `FormController.getSOAPNotesByAppointment`
@@ -145,7 +145,7 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /mobile/appointments/:appointmentId/forms
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Query: `isPMS`, `serviceId`, `species`
 - Controller: `FormController.getFormsForAppointment`
@@ -153,14 +153,14 @@ Manages clinical and consent forms, form submissions, and signing, including SOA
 
 ### GET /mobile/form-submissions/:submissionId/pdf
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `submissionId`
 - Controller: `FormController.getFormSubmissionPDF`
 - Response: `500`: keys `message`
 
 ### POST /mobile/form-submissions/:submissionId/sign
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `submissionId`
 - Controller: `FormSigningController.startSigningMobile`
 - Response: `200`: keys `err`, `message`, `400`: JSON
