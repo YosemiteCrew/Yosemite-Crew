@@ -43,7 +43,7 @@ describe('Team section', () => {
     expect(screen.getByText('Employment')).toBeInTheDocument();
   });
 
-  it('renders role, employment and an uppercase status pill for a member', () => {
+  it('renders role, employment and a status pill for a member', () => {
     useTeamMock.mockReturnValue([
       {
         _id: 'team-1',
@@ -58,7 +58,7 @@ describe('Team section', () => {
 
     expect(screen.getByText('Veterinarian')).toBeInTheDocument();
     expect(screen.getByText('Full time')).toBeInTheDocument();
-    expect(screen.getByText('AVAILABLE')).toBeInTheDocument();
+    expect(screen.getByText('Available')).toBeInTheDocument();
     expect(screen.getByText('Small animals')).toBeInTheDocument();
   });
 

@@ -5,6 +5,7 @@ import type { Appointment } from '@yosemite-crew/types';
 
 import PhoneWeekOverview from '@/app/features/appointments/components/Calendar/responsive/PhoneWeekOverview';
 import { toDateKey } from '@/app/features/appointments/components/Calendar/responsive/phoneWeekLoad';
+import { buildPreferredTimeZoneDayInstant, setPreferredTimeZone } from '@/app/lib/timezone';
 
 jest.mock('react-icons/io5', () => ({
   IoChevronBackOutline: () => <span data-testid="icon-back" />,
@@ -61,6 +62,7 @@ const renderOverview = (props: Partial<React.ComponentProps<typeof PhoneWeekOver
 
 beforeEach(() => {
   idCounter = 0;
+  window.localStorage.clear();
 });
 
 describe('PhoneWeekOverview — header', () => {
@@ -206,6 +208,28 @@ describe('PhoneWeekOverview — day rows', () => {
   it('marks no day as current when nothing is selected', () => {
     renderOverview({ appointments: makeMany(TUESDAY, 2) });
     expect(screen.queryByRole('button', { current: 'date' })).not.toBeInTheDocument();
+  });
+
+  it('keys the current-day marker in the preferred time zone past +12', () => {
+    // Pacific/Auckland is UTC+13 in January (NZDT). Selecting 7 Jan builds its instant at noon
+    // Auckland - 2026-01-06T23:00Z - which reads as 6 Jan in the device zone. Keying the marker
+    // device-locally highlighted the wrong row; it must be keyed in the preferred zone so the
+    // pressed day stays highlighted (matches how the model buckets each row's appointments).
+    setPreferredTimeZone('Pacific/Auckland');
+    const januaryWeekStart = new Date(Date.UTC(2026, 0, 5, 12));
+    const selectedWednesday = buildPreferredTimeZoneDayInstant(2026, 1, 7);
+
+    render(
+      <PhoneWeekOverview
+        weekStart={januaryWeekStart}
+        appointments={[]}
+        selectedDate={selectedWednesday}
+      />
+    );
+
+    const selected = screen.getByRole('button', { current: 'date' });
+    expect(within(selected).getByText('WED')).toBeInTheDocument();
+    expect(selected).toHaveClass('yc-pwo-row--selected');
   });
 
   it('tones down a day whose work is all done', () => {

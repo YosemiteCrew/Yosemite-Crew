@@ -1,3 +1,4 @@
+import { useRouter } from 'next/navigation';
 import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
@@ -66,10 +67,18 @@ type ProviderOption = {
   label: string;
   available: boolean;
   unavailableReason?: string;
+  /** Provider hub to open on click. IDEXX is always the selected provider, so
+   *  without this the logo looks clickable but nothing happens. */
+  workspaceHref?: string;
 };
 
 const PROVIDERS: ProviderOption[] = [
-  { key: 'IDEXX', label: 'IDEXX', available: true },
+  {
+    key: 'IDEXX',
+    label: 'IDEXX',
+    available: true,
+    workspaceHref: '/appointments/idexx-workspace',
+  },
   {
     key: 'RAD_ANALYZER',
     label: 'RadAnalyzer',
@@ -106,37 +115,44 @@ const IntegrationPills = ({
 }: {
   selected: DiagnosticProvider;
   onSelect: (provider: DiagnosticProvider) => void;
-}) => (
-  <div className="flex flex-wrap items-center gap-3">
-    {PROVIDERS.map((provider) => {
-      const active = selected === provider.key;
-      const disabled = !provider.available;
-      return (
-        <button
-          key={provider.key}
-          type="button"
-          aria-pressed={active}
-          disabled={disabled}
-          title={disabled ? provider.unavailableReason : undefined}
-          onClick={() => {
-            if (!disabled) onSelect(provider.key);
-          }}
-          className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
-            disabled,
-            active
-          )}`}
-        >
-          <ProviderContent provider={provider} />
-          {disabled ? (
-            <span className="text-caption-2 text-text-secondary">Coming soon</span>
-          ) : (
-            active && <IoOpenOutline size={14} aria-hidden="true" />
-          )}
-        </button>
-      );
-    })}
-  </div>
-);
+}) => {
+  const router = useRouter();
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {PROVIDERS.map((provider) => {
+        const active = selected === provider.key;
+        const disabled = !provider.available;
+        return (
+          <button
+            key={provider.key}
+            type="button"
+            aria-pressed={active}
+            disabled={disabled}
+            title={disabled ? provider.unavailableReason : undefined}
+            aria-label={provider.workspaceHref ? `Open the ${provider.label} workspace` : undefined}
+            onClick={() => {
+              if (disabled) return;
+              onSelect(provider.key);
+              if (provider.workspaceHref) router.push(provider.workspaceHref);
+            }}
+            className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
+              disabled,
+              active
+            )}`}
+          >
+            <ProviderContent provider={provider} />
+            {disabled ? (
+              <span className="text-caption-2 text-text-secondary">Coming soon</span>
+            ) : (
+              active && <IoOpenOutline size={14} aria-hidden="true" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 /**
  * Maps a lab order / result status string to the shared design-system pill
@@ -292,6 +308,32 @@ const TestTypeSelect = ({ s }: { s: UseLabTestsReturn }) => (
   />
 );
 
+const PendingTestConfirmation = ({ s }: { s: UseLabTestsReturn }) => {
+  if (!s.pendingTest) return null;
+  const test = s.pendingTest;
+  return (
+    <div
+      data-testid="pending-test-confirmation"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4"
+    >
+      <div className="flex flex-col gap-1">
+        <span className="text-body-4 font-medium text-text-primary">{test.display}</span>
+        <span className="text-caption-1 text-text-secondary">
+          Code: {test.code} · {formatTestPrice(test)}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Secondary text="Cancel" onClick={s.cancelPendingTest} />
+        <Primary
+          text="Add to Queue"
+          icon={<IoCheckmarkOutline aria-hidden="true" />}
+          onClick={s.confirmPendingTest}
+        />
+      </div>
+    </div>
+  );
+};
+
 const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   <div className="grid items-stretch gap-5 lg:grid-cols-[1fr_320px]">
     <div className="flex flex-col gap-4">
@@ -302,7 +344,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
           label: `${test.display} (${test.code})`,
           meta: test,
         }))}
-        onSelect={s.addTest}
+        onSelect={s.selectSearchResult}
         query={s.selectedTestLabel || s.query}
         setQuery={(value: string) => {
           s.setSelectedTestLabel(value);
@@ -329,6 +371,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
           );
         }}
       />
+      <PendingTestConfirmation s={s} />
       <p className="max-w-2xl text-body-4 text-text-secondary">
         IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
         this contract. Use reference lab for external IDEXX ordering.
@@ -337,7 +380,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         <FormDesc
           intype="text"
           inname="lab-notes"
-          inlabel="Notes"
+          inlabel="Order notes"
           value={s.notes}
           onChange={(e) => s.setNotes(e.target.value)}
         />
@@ -555,6 +598,16 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                       <MetaPill label={formatModality(order.modality) as string} />
                     )}
                   </span>
+                  {/* Order notes are saved at the order level (IDEXX has no per-test notes),
+                      shown here so they remain visible after refreshing or reopening (bug #1973). */}
+                  {order.notes && (
+                    <span
+                      className="truncate text-caption-1 text-text-secondary"
+                      title={order.notes}
+                    >
+                      <strong>Order notes:</strong> {order.notes}
+                    </span>
+                  )}
                 </span>
                 <span className="truncate text-body-4 text-text-secondary">
                   {formatDateTimeLocal(order.updatedAt ?? order.createdAt, '-')}
@@ -712,7 +765,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   return createPortal(
     <div
-      className="fixed inset-0 z-5000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
       data-signing-overlay="true"
     >
       <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
@@ -726,14 +779,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
               </span>
             ) : null}
           </span>
-          <button
-            type="button"
-            onClick={s.closeOrderIframeManually}
-            className="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/5"
-            aria-label="Close IDEXX order frame"
-          >
-            <Close iconOnly />
-          </button>
+          <Close onClick={s.closeOrderIframeManually} />
         </div>
         <div className="relative flex-1">
           {loaded ? null : (

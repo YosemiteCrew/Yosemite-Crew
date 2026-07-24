@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import Accordion from '@/app/ui/primitives/Accordion/Accordion';
+import Modal from '@/app/ui/overlays/Modal';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import {
@@ -18,6 +20,7 @@ type HistoryDocumentUploadProps = {
 };
 
 const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploadProps) => {
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<CompanionRecord>(emptyCompanionRecord);
   const [saving, setSaving] = useState(false);
@@ -65,6 +68,7 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
       });
       setFile(null);
       setFormDataErrors({});
+      setUploadOpen(false);
       onUploaded?.();
     } catch (error) {
       console.error('Failed to save companion document:', error);
@@ -75,19 +79,38 @@ const HistoryDocumentUpload = ({ companionId, onUploaded }: HistoryDocumentUploa
 
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_EDIT_ANY]}>
-      <Accordion title="Upload records" defaultOpen={false} showEditIcon={false} isEditing>
-        <CompanionDocumentUploadForm
-          companionId={companionId}
-          formData={formData}
-          setFormData={setFormData}
-          file={file}
-          setFile={setFile}
-          formDataErrors={formDataErrors}
-          saving={saving}
-          onSave={handleSave}
-          issueDateInputId="historyIncludeIssueDate"
+      <div className="flex justify-end">
+        <Primary
+          href="#"
+          text="Upload record"
+          onClick={() => setUploadOpen(true)}
+          className="w-auto"
         />
-      </Accordion>
+      </div>
+
+      <Modal
+        variant="centered"
+        size="md"
+        showModal={uploadOpen}
+        setShowModal={setUploadOpen}
+        onClose={() => setUploadOpen(false)}
+        aria-label="Upload record"
+      >
+        <div className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto scrollbar-hidden">
+          <ModalHeader title="Upload record" onClose={() => setUploadOpen(false)} />
+          <CompanionDocumentUploadForm
+            companionId={companionId}
+            formData={formData}
+            setFormData={setFormData}
+            file={file}
+            setFile={setFile}
+            formDataErrors={formDataErrors}
+            saving={saving}
+            onSave={handleSave}
+            issueDateInputId="historyIncludeIssueDate"
+          />
+        </div>
+      </Modal>
     </PermissionGate>
   );
 };

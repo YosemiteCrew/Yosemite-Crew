@@ -225,7 +225,7 @@ describe('TasksPanel — guard + load', () => {
       expect(mockLoadTasks).toHaveBeenCalledWith({
         force: true,
         silent: true,
-        filters: { includeCompleted: true },
+        filters: { includeCompleted: true, audience: ['EMPLOYEE_TASK', 'PARENT_TASK'] },
       })
     );
     await settle();

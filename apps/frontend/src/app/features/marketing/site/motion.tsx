@@ -378,9 +378,26 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
     return () => cancelAnimationFrame(frame);
   }, [inView, reduced, target, suffix, value]);
 
+  // Reserve the final value's width (invisible sizer) and overlay the animating
+  // value, with tabular-nums for equal-width digits. Otherwise the number's
+  // width changes every frame while counting up, reflowing the surrounding text
+  // (the flicker that settles once the final number lands).
   return (
-    <span ref={ref} className={className} style={style}>
-      {display}
+    <span
+      ref={ref}
+      className={className}
+      style={{
+        ...style,
+        position: 'relative',
+        display: 'inline-block',
+        whiteSpace: 'nowrap',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      <span aria-hidden="true" style={{ visibility: 'hidden' }}>
+        {value}
+      </span>
+      <span style={{ position: 'absolute', left: 0, top: 0 }}>{display}</span>
     </span>
   );
 }

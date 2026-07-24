@@ -123,7 +123,10 @@ const toDomain = (row: RoomUnitGroupRow): RoomUnitGroup => ({
 const getRoomUnitGroupDelegate = (): RoomUnitGroupDelegate =>
   (prisma as unknown as { roomUnitGroup: RoomUnitGroupDelegate }).roomUnitGroup;
 
-const assertRoomExists = async (roomId: string, organisationId: string) => {
+const assertRoomBelongsToOrganisation = async (
+  roomId: string,
+  organisationId: string,
+): Promise<RoomRow> => {
   const room = (await prisma.organisationRoom.findUnique({
     where: { id: roomId },
     select: { id: true, organisationId: true, type: true },
@@ -137,12 +140,24 @@ const assertRoomExists = async (roomId: string, organisationId: string) => {
     throw new RoomUnitGroupServiceError("Room organisation mismatch.", 409);
   }
 
+  return room;
+};
+
+const assertRoomSupportsUnits = (room: RoomRow) => {
   if (!roomTypeSupportsUnits(room.type)) {
     throw new RoomUnitGroupServiceError(
       "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
       409,
     );
   }
+};
+
+// Used by create (and by update when actually moving a group to a different
+// room) - a brand-new group-room association must target a room that
+// currently supports units.
+const assertRoomExists = async (roomId: string, organisationId: string) => {
+  const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
+  assertRoomSupportsUnits(room);
 };
 
 export const RoomUnitGroupService = {
@@ -214,7 +229,21 @@ export const RoomUnitGroupService = {
       }
 
       const roomId = optionalNonEmptyString(input.roomId) ?? current.roomId;
-      await assertRoomExists(roomId, organisationId);
+      const room = await assertRoomBelongsToOrganisation(
+        roomId,
+        organisationId,
+      );
+      // Only exempt a same-room *deactivation* from the room-type check -
+      // otherwise a type change away from a unit-capable room could never be
+      // cleaned up (every cleanup request would 409). Any other same-room
+      // update (reactivating, renaming, resizing) must still be rejected
+      // while the room doesn't support units, or it recreates the exact
+      // invalid state - an active group on a non-unit-capable room - that
+      // create and move operations are meant to prevent.
+      const isDeactivating = input.isActive === false;
+      if (roomId !== current.roomId || !isDeactivating) {
+        assertRoomSupportsUnits(room);
+      }
 
       const unitCount =
         input.unitCount == null

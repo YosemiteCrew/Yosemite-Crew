@@ -280,6 +280,9 @@ export type PrescriptionItem = {
   billedAt?: string;
   /** Who finalized/charged the item (display only). */
   billedByName?: string;
+  /** True once the item is persisted as a finalized clinical record (status COMPLETED/SIGNED).
+   * A finalized row must not be re-POSTed on the next save - the backend rejects it with 409. */
+  finalized?: boolean;
 };
 
 /** Full employee + schedule task category set. */

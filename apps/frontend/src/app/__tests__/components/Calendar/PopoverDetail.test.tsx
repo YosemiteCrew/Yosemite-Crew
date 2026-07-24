@@ -12,8 +12,11 @@ describe('PopoverDetail', () => {
   });
 
   it('applies emphasized styling when emphasized is true', () => {
-    const { container } = render(<PopoverDetail label="Status" value="Confirmed" emphasized />);
-    expect(container.querySelector('.text-yc-16-b-primary')).toBeInTheDocument();
+    render(<PopoverDetail label="Status" value="Confirmed" emphasized />);
+    expect(screen.getByText('Confirmed').parentElement?.parentElement).toHaveClass(
+      'font-bold',
+      'text-[var(--ink)]'
+    );
   });
 
   it('renders the icon when provided', () => {

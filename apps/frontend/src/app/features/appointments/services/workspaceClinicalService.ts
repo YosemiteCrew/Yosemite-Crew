@@ -858,8 +858,12 @@ const prescriptionFromMedicationRequest = (
     return undefined;
   };
   const fulfillmentValue = str('fulfillment');
+  // A finalized prescription (COMPLETED/SIGNED) serializes to FHIR status 'active'; a draft stays
+  // 'draft'. Once finalized it can no longer be PATCHed to draft, so flag it to skip the re-save.
+  const finalized = resource.status === 'active';
   return {
     id: resource.id ?? `rx-${index + 1}`,
+    finalized,
     medicineName:
       str('medication', 'medicineName', 'name') ??
       resource.medicationCodeableConcept?.text ??

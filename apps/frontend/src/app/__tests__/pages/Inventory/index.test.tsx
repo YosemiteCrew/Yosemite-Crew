@@ -162,6 +162,11 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </button>
   ),
+  Secondary: ({ text, onClick, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="secondary-btn">
+      {text}
+    </button>
+  ),
 }));
 
 // Mock Filters
@@ -692,6 +697,7 @@ describe('Inventory Page', () => {
         leadName: null,
         location: null,
         currency: null,
+        status: 'DISPENSED',
         reviewedAt: '2026-07-01T10:00:00.000Z',
         paymentStatus: 'PAID',
         invoiceId: 'invoice-1',
@@ -745,6 +751,25 @@ describe('Inventory Page', () => {
         stockUnitQty: 7,
         prescription: { dose: '', freq: '', duration: '', refill: '', route: 'oral' },
       });
+
+      // Bug #1968: reviewedAt marks when a request was reviewed at all (dispensed
+      // OR marked not dispensed) - a "Not dispensed" row must not show a
+      // "Dispensed" timestamp just because it carries a reviewedAt value.
+      const notDispensedRequest = mapDispenseRequestToRecord(
+        baseDispenseRequest({
+          status: 'NOT_DISPENSED',
+          reviewedAt: '2026-07-01T10:00:00.000Z',
+        }) as any
+      );
+      expect(notDispensedRequest.timeDispensed).toBeUndefined();
+
+      const pendingRequest = mapDispenseRequestToRecord(
+        baseDispenseRequest({
+          status: 'PENDING',
+          reviewedAt: '2026-07-01T10:00:00.000Z',
+        }) as any
+      );
+      expect(pendingRequest.timeDispensed).toBeUndefined();
 
       const summaryFallback = mapDispenseRequestToRecord(
         baseDispenseRequest({
@@ -988,7 +1013,6 @@ describe('Inventory Page', () => {
     // Default catalog visibility is Active: the active expired item counts, the hidden
     // low-stock item does not (it is not in the visible view).
     expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Low stock (0)' })).toBeInTheDocument();
   });
 
   it('exercises inventory filter bar search, filter, and sort callbacks directly', () => {
@@ -1019,64 +1043,6 @@ describe('Inventory Page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sort: Name' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
     expect(setSortMode).toHaveBeenCalledWith('stock');
-  });
-
-  it('exercises the catalog category chips and low-stock chip', () => {
-    const setFilters = jest.fn();
-    const toggleCategoryFilter = jest.fn();
-
-    render(
-      <InventoryFilterBar
-        filters={{ ...defaultFilters, categories: ['Medicine'], status: 'LOW_STOCK', search: '' }}
-        selectedFilterChips={[]}
-        sortMode="name"
-        setFilterOpen={jest.fn()}
-        setFilters={setFilters}
-        setSortMode={jest.fn()}
-        categoryOptions={['Medicine', 'Food']}
-        toggleCategoryFilter={toggleCategoryFilter}
-        lowStockCount={3}
-      />
-    );
-
-    // The selected category chip renders active (bold); an unselected one toggles.
-    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveClass('font-bold');
-    fireEvent.click(screen.getByRole('button', { name: 'Food' }));
-    expect(toggleCategoryFilter).toHaveBeenCalledWith('Food');
-
-    // "All" clears the category selection.
-    fireEvent.click(screen.getByRole('button', { name: 'All' }));
-    expect(setFilters).toHaveBeenCalledTimes(1);
-
-    // The danger low-stock chip shows the count and toggles the status filter.
-    const lowStock = screen.getByRole('button', { name: 'Low stock (3)' });
-    expect(lowStock).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(lowStock);
-    expect(setFilters).toHaveBeenCalledTimes(2);
-  });
-
-  it('renders the low-stock chip inactive when the status filter is cleared', () => {
-    // No toggleCategoryFilter provided: clicking a chip is a safe no-op.
-    render(
-      <InventoryFilterBar
-        filters={{ ...defaultFilters, categories: [], status: 'ALL', search: '' }}
-        selectedFilterChips={[]}
-        sortMode="name"
-        setFilterOpen={jest.fn()}
-        setFilters={jest.fn()}
-        setSortMode={jest.fn()}
-        categoryOptions={['Medicine']}
-        lowStockCount={0}
-      />
-    );
-
-    // With no categories selected, "All" is the active chip.
-    expect(screen.getByRole('button', { name: 'All' })).toHaveClass('font-bold');
-    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }));
-    expect(screen.getByRole('button', { name: 'Low stock (0)' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
   });
 
   it('renders the active filter bar variants directly', () => {

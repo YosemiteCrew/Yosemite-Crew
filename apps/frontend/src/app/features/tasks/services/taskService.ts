@@ -18,7 +18,11 @@ export type TaskListFilters = {
   clientId?: string;
   templateInstanceId?: string;
   scheduleId?: string;
-  audience?: Task['audience'];
+  // The backend filters audience by strict equality with no explicit value
+  // defaulting to EMPLOYEE_TASK (see loadTasksForPrimaryOrg), so a single
+  // request can only ever return one audience. Pass an array to fetch every
+  // listed audience and merge the results into one store update.
+  audience?: Task['audience'] | Task['audience'][];
   assignedTo?: string;
   assignedRole?: string;
   fromDueAt?: string | Date;
@@ -54,6 +58,15 @@ const taskListQuery = (filters: TaskListFilters | CompanionTaskListFilters = {})
   };
 };
 
+const fetchOrgTasks = async (primaryOrgId: string, filters?: TaskListFilters): Promise<Task[]> => {
+  const query = taskListQuery(filters);
+  const hasQuery = Object.values(query).some((value) => value !== undefined && value !== '');
+  const res = hasQuery
+    ? await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId, query)
+    : await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId);
+  return res.data ?? [];
+};
+
 export const loadTasksForPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
@@ -69,12 +82,25 @@ export const loadTasksForPrimaryOrg = async (opts?: {
   if (!shouldFetchTasks(status, hasOrgData, opts)) return;
   if (!opts?.silent) startLoading();
   try {
-    const query = taskListQuery(opts?.filters);
-    const hasQuery = Object.values(query).some((value) => value !== undefined && value !== '');
-    const res = hasQuery
-      ? await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId, query)
-      : await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId);
-    const tasks = res.data ?? [];
+    const { audience, ...restFilters } = opts?.filters ?? {};
+    let tasks: Task[];
+    if (Array.isArray(audience)) {
+      // The backend only matches audience by strict equality (no explicit value
+      // defaults to EMPLOYEE_TASK), so each requested audience needs its own
+      // request; merge and dedupe before the single store update below.
+      const batches = await Promise.all(
+        audience.map((value) => fetchOrgTasks(primaryOrgId, { ...restFilters, audience: value }))
+      );
+      const byId = new Map<string, Task>();
+      for (const batch of batches) {
+        for (const task of batch) {
+          if (task._id) byId.set(task._id, task);
+        }
+      }
+      tasks = Array.from(byId.values());
+    } else {
+      tasks = await fetchOrgTasks(primaryOrgId, { ...restFilters, audience });
+    }
     setTasksForOrg(primaryOrgId, tasks);
   } catch (err) {
     console.error('Failed to load tasks:', err);
@@ -133,9 +159,7 @@ export const createTask = async (task: Task) => {
     }
     const res = await postData<Task>(route, payload);
     const normalTask = res.data;
-    if (normalTask.audience === 'EMPLOYEE_TASK') {
-      upsertTask(normalTask);
-    }
+    upsertTask(normalTask);
   } catch (err) {
     console.error('Failed to create task:', err);
     throw err;

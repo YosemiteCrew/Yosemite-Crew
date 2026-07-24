@@ -18,6 +18,7 @@ import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { getSafeOrgImageUrl } from '@/app/lib/urls';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 import './DataTable.css';
 
@@ -84,12 +85,7 @@ const getInventoryImageSrc = (item: InventoryItem) => {
 };
 
 const StatusPill = ({ label }: { label: string }) => (
-  <span
-    className="inline-flex items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] whitespace-nowrap"
-    style={getInventoryStatusStyle(label)}
-  >
-    {label}
-  </span>
+  <SharedStatusPill label={label} style={getInventoryStatusStyle(label)} />
 );
 
 const ProductCell = ({ item }: { item: InventoryItem }) => {

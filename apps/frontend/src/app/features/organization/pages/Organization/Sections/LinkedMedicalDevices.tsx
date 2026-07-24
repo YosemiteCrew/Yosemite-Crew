@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useIntegrationStore } from '@/app/stores/integrationStore';
 import {
@@ -98,7 +98,7 @@ const LinkedMedicalDevices = () => {
     : 'not yet';
 
   return (
-    <AccordionButton title="Linked medical devices" showButton={false}>
+    <SectionCard title="Linked medical devices" showButton={false}>
       <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         <div className="flex items-center justify-between gap-3 px-5! py-3! border-b border-[var(--hairline)]">
           <div className="text-[11.5px] text-[var(--ink-faint)]">
@@ -182,7 +182,7 @@ const LinkedMedicalDevices = () => {
           </Link>
         </div>
       </div>
-    </AccordionButton>
+    </SectionCard>
   );
 };
 

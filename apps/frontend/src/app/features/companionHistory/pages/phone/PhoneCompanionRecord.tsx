@@ -22,6 +22,7 @@ import type {
 import { buildCompanionDetails } from '@/app/lib/companionWorkspaceDetails';
 import { formatCompanionAge } from '@/app/lib/date';
 import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type PhoneCompanionRecordProps = {
   companionId: string;
@@ -147,10 +148,19 @@ const PhoneRecordIdentity = ({
           onRemove={onRemoveAlert}
         />
       ))}
-      <span className="inline-flex items-center gap-1 rounded-full border border-(--status-completed-border) bg-(--status-completed-bg) px-2.5 py-1 text-[9.5px] font-bold text-(--status-completed-text)">
-        Dues cleared
-        <IoCheckmarkOutline size={10} aria-hidden="true" />
-      </span>
+      <StatusPill
+        label={
+          <>
+            Dues cleared
+            <IoCheckmarkOutline size={10} aria-hidden="true" />
+          </>
+        }
+        tokens={{
+          bg: 'var(--status-completed-bg)',
+          text: 'var(--status-completed-text)',
+          border: 'var(--status-completed-border)',
+        }}
+      />
       <button
         type="button"
         aria-label={addAlertLabel}
@@ -358,7 +368,7 @@ const PhoneCompanionRecord = ({
   const clientNote = clientAlerts[0]?.label;
 
   return (
-    <div className="-mx-4 -my-5 flex h-[calc(100dvh-54px-72px-env(safe-area-inset-bottom,0px))] min-h-[480px] flex-col bg-(--screen)">
+    <div className="flex h-[calc(100dvh-54px-72px-env(safe-area-inset-bottom,0px))] min-h-[480px] flex-col bg-(--screen)">
       <PhoneRecordHeader title={title} onBack={onBack} onEdit={canEdit ? onEdit : undefined} />
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-[18px] py-4">
         {companion ? (

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   IoChevronDownOutline,
   IoCopyOutline,
+  IoLockClosedOutline,
   IoPrintOutline,
   IoShieldOutline,
   IoTrashOutline,
@@ -231,7 +232,11 @@ const PrescriptionRow = ({
 }) => {
   // Billed/paid items are locked: fields render read-only and there is no delete.
   const isBilled = Boolean(item.billed);
-  const rowReadOnly = readOnly || isBilled;
+  // A finalized (COMPLETED/SIGNED) prescription is a locked clinical record too. The save loop
+  // skips re-saving finalized rows, so if the fields stayed editable a clinician's edits would be
+  // silently dropped (never persisted) yet still shown/invoiced. Lock the fields like billed rows.
+  const isFinalized = !isBilled && Boolean(item.finalized);
+  const rowReadOnly = readOnly || isBilled || isFinalized;
   const errors = validatePrescriptionItem(item);
 
   // Inventory-owned facts. Form/Route only become editable when inventory did not supply them.
@@ -261,6 +266,12 @@ const PrescriptionRow = ({
             <StockHealthPill qty={item.stockQty} low={item.lowStock ?? false} />
           )}
           {isBilled && <BilledBadge />}
+          {isFinalized && (
+            <span className="inline-flex items-center gap-1 rounded-2xl border border-card-border bg-neutral-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+              <IoLockClosedOutline size={12} aria-hidden="true" />
+              Finalized
+            </span>
+          )}
           <FulfillmentDropdown
             value={item.fulfillment}
             disabled={rowReadOnly}
@@ -372,7 +383,7 @@ const PrescriptionRow = ({
             onChange={(value) => onUpdateItem(item.id, { instructions: value })}
           />
         </div>
-        <span className="shrink-0 self-center text-body-3-emphasis font-bold text-text-primary">
+        <span className="shrink-0 self-start text-body-3-emphasis font-bold text-text-primary">
           {item.priceCents == null ? '-' : formatCents(item.priceCents)}
         </span>
       </div>

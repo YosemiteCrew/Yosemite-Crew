@@ -222,6 +222,7 @@ const medicationTreatmentItemToPrescription = (
   const priceCents = Math.round((asNumber(priceSnapshot.unitPrice) ?? 0) * 100);
   // Treatment items carry `quantity` as a number, while PrescriptionItem.qty is a string.
   const quantity = asNumber(item.quantity) ?? asString(item.quantity);
+  const billed = asString(item.billingStatus) === 'BILLED';
   return {
     id: asString(item.id) ?? `prescription-${index + 1}`,
     medicineName: asString(item.name) ?? asString(productSnapshot.name) ?? 'Medication',
@@ -231,7 +232,9 @@ const medicationTreatmentItemToPrescription = (
     fulfillment: 'IN_HOUSE',
     priceCents,
     inventoryItemId: asString(item.productId) ?? asString(productSnapshot.inventoryItemId),
-    billed: asString(item.billingStatus) === 'BILLED',
+    billed,
+    // A billed medication is a finalized clinical record - never re-POST it on save.
+    finalized: billed,
   };
 };
 
@@ -266,6 +269,10 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
   const fulfillment = fulfillmentFrom(item.fulfillment ?? prescription.fulfillment);
   const priceCents =
     asNumber(item.priceCents) ?? Math.round((asNumber(priceSnapshot.unitPrice) ?? 0) * 100);
+  // A prescription persisted in a final clinical status (COMPLETED/SIGNED) can no longer be
+  // PATCHed back to draft - the backend rejects that with 409. Flag it so the save loop skips it.
+  const artifactStatus = asString(artifact.status);
+  const finalized = artifactStatus === 'COMPLETED' || artifactStatus === 'SIGNED';
 
   const lines = asArray(prescription.items);
   if (lines.length === 0) {
@@ -273,6 +280,7 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
     return [
       {
         id: baseId,
+        finalized,
         medicineName: fallbackName,
         strength: asString(item.strength) ?? asString(item.dosage),
         dosageForm: asString(item.dosageForm) ?? asString(metadata.dosageForm),
@@ -302,6 +310,7 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
     };
     return {
       id: asString(line.id) ?? `${baseId}-${lineIndex + 1}`,
+      finalized,
       medicineName: asString(line.medication) ?? metaStr('medicineName') ?? fallbackName,
       brand: metaStr('brand'),
       genericName: metaStr('genericName'),
@@ -369,7 +378,9 @@ const normalizePrescriptions = (
     );
     linkedIds.forEach((value) => sourceIds.add(value));
     prescriptionLinesFromEnvelope(item).forEach((line) => {
-      byId.set(line.id, { ...line, billed: isLineBilled(line, linkedIds) });
+      const billed = isLineBilled(line, linkedIds);
+      // A billed line is finalized too - it must never be re-POSTed on the next save.
+      byId.set(line.id, { ...line, billed, finalized: line.finalized || billed });
     });
   });
   treatmentItems.filter(isMedicationTreatmentItem).forEach((item, index) => {

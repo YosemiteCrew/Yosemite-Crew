@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 
 import { appRoutes } from '@/app/config/routes';
-import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
+import { hasAnyRequiredPermission, resolveMembershipPermissions } from '@/app/lib/routePermissions';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
@@ -34,9 +34,11 @@ export function usePhoneNavGate(): PhoneNavGate {
   const membership = useOrgStore((s) =>
     primaryOrgId ? (s.membershipsByOrgId?.[primaryOrgId] ?? null) : null
   );
-  const effectivePermissions = membership?.effectivePermissions ?? [];
+  const effectivePermissions = resolveMembershipPermissions(membership);
 
-  const orgMissing = !primaryOrg;
+  // A deactivated mapping counts as no org: an empty permission set alone would
+  // still leave routes that declare no required permission reachable.
+  const orgMissing = !primaryOrg || membership?.active === false;
   const orgVerified = !!primaryOrg?.isVerified;
 
   const isRouteEnabled = (routeName?: string): boolean => {

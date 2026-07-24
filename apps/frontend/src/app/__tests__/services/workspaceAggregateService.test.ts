@@ -654,6 +654,8 @@ describe('workspaceAggregateService', () => {
         medicineName: 'Metronidazole',
         priceCents: 1800,
         billed: true,
+        // #1909: a billed medication is a finalized record — never re-POSTed on save.
+        finalized: true,
       }),
     ]);
   });
@@ -751,6 +753,8 @@ describe('workspaceAggregateService', () => {
         route: 'PO',
         frequency: 'BID',
         qty: '2',
+        // #1909: artifact status COMPLETED means the line is finalized (skip re-save).
+        finalized: true,
       }),
     ]);
     expect(patch.services).toBeUndefined();
@@ -784,7 +788,10 @@ describe('workspaceAggregateService', () => {
       ],
     });
 
-    expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: true })]);
+    expect(patch.prescription).toEqual([
+      // #1909: a billed line is finalized too, even when the artifact carries no final status.
+      expect.objectContaining({ id: 'line-1', billed: true, finalized: true }),
+    ]);
   });
 
   it('does not mark a same-drug artifact prescription as billed without a prescription link', () => {
@@ -830,7 +837,10 @@ describe('workspaceAggregateService', () => {
       treatmentItems: [],
     });
 
-    expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: false })]);
+    expect(patch.prescription).toEqual([
+      // An unbilled line with no final artifact status is not finalized and stays re-savable.
+      expect.objectContaining({ id: 'line-1', billed: false, finalized: false }),
+    ]);
   });
 
   it('reconciles a document packet and builds a packet PDF blob URL', async () => {

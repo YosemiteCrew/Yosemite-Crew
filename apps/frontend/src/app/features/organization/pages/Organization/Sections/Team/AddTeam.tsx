@@ -1,6 +1,8 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import React, { useMemo, useState } from 'react';
 import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -10,7 +12,6 @@ import { sendInvite } from '@/app/features/organization/services/teamService';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { TeamFormDataType } from '@/app/features/organization/types/team';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import Close from '@/app/ui/primitives/Icons/Close';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { useCanMoreForPrimaryOrg } from '@/app/hooks/useBilling';
@@ -88,17 +89,11 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="size-8" aria-hidden="true" />
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add team</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title="Add team" onClose={() => setShowModal(false)} />
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 scrollbar-hidden">
           <Accordion title="Add team" defaultOpen showEditIcon={false} isEditing={true}>
             <div className="flex flex-col gap-3">
               <FormInput
@@ -135,16 +130,17 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
               />
             </div>
           </Accordion>
-          <div className="flex flex-col items-end gap-2 w-full">
-            {formDataErrors.booking && (
-              <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
-                <IoIosWarning className="text-text-error" size={14} />
-                <span>{formDataErrors.booking}</span>
-              </div>
-            )}
-            <Primary href="#" text="Send invite" onClick={handleSave} className="w-full" />
-          </div>
         </div>
+
+        {formDataErrors.booking && (
+          <div className="flex items-center gap-1 px-2 text-caption-2 text-text-error">
+            <IoIosWarning className="text-text-error" size={14} />
+            <span>{formDataErrors.booking}</span>
+          </div>
+        )}
+        <ModalFooter align="stretch">
+          <Primary href="#" text="Send invite" onClick={handleSave} />
+        </ModalFooter>
       </div>
     </Modal>
   );

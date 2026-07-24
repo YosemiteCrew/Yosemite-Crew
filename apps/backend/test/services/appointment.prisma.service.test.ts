@@ -3210,6 +3210,126 @@ describe("AppointmentPrismaService", () => {
       expect(result.status).toBe("IN_PROGRESS");
     });
 
+    it("creates and stamps an encounter when the appointment goes IN_PROGRESS without one (bug #1903)", async () => {
+      // A checked-in appointment can lack an encounter (e.g. CHECKED_IN set from the edit form
+      // rather than the encounter-creating check-in action). The transition must create one and
+      // stamp its actual-start, otherwise the visit timer would stay "Not started" forever.
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        status: "IN_PROGRESS",
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({ status: "CHECKED_IN", caseId: "case_1", encounterId: null }),
+      );
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+      mockedPrisma.encounter.create.mockResolvedValue({ id: "enc_new" } as any);
+      mockedPrisma.encounter.findUnique.mockResolvedValue({
+        id: "enc_new",
+        status: "arrived",
+        periodStart: new Date("2026-06-10T10:00:00.000Z"),
+      } as any);
+      mockedPrisma.encounter.update.mockResolvedValue({ id: "enc_new" } as any);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          caseId: "case_1",
+          encounterId: "enc_new",
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const before = Date.now();
+      const result = await AppointmentPrismaService.updateAppointmentPMS(
+        "appt_1",
+        { resourceType: "Appointment" } as any,
+      );
+
+      // A new encounter is created for the checked-in appointment that had none...
+      expect(mockedPrisma.encounter.create).toHaveBeenCalled();
+      // ...and its actual-start is stamped to the transition time so the timer runs.
+      const stampCall = mockedPrisma.encounter.update.mock.calls.find(
+        ([arg]: any[]) =>
+          arg?.where?.id === "enc_new" && arg?.data?.status === "in-progress",
+      );
+      const stampedPeriodStart = stampCall?.[0]?.data?.periodStart as Date;
+      expect(stampedPeriodStart).toBeInstanceOf(Date);
+      expect(stampedPeriodStart.getTime()).toBeGreaterThanOrEqual(before);
+      // The freshly-linked encounter/case are persisted on the appointment, not nulled out.
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "appt_1" },
+          data: expect.objectContaining({
+            encounterId: "enc_new",
+            caseId: "case_1",
+          }),
+        }),
+      );
+      expect(result.status).toBe("IN_PROGRESS");
+    });
+
+    it("builds the ensured encounter from the patched patient, not the pre-update row", async () => {
+      // A request that both starts the appointment AND changes the companion must create the new
+      // encounter for the PATCHED patient, matching the appointment the update writes (Codex).
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        status: "IN_PROGRESS",
+        patient: {
+          id: "comp_new",
+          name: "New Pet",
+          parent: { id: "parent_new" },
+        },
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "CHECKED_IN",
+          caseId: "case_1",
+          encounterId: null,
+          patient: {
+            id: "comp_old",
+            name: "Old Pet",
+            parent: { id: "parent_old" },
+          },
+        }),
+      );
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_new",
+      } as any);
+      mockedPrisma.encounter.create.mockResolvedValue({ id: "enc_new" } as any);
+      mockedPrisma.encounter.findUnique.mockResolvedValue({
+        id: "enc_new",
+        status: "arrived",
+        periodStart: new Date("2026-06-10T10:00:00.000Z"),
+      } as any);
+      mockedPrisma.encounter.update.mockResolvedValue({ id: "enc_new" } as any);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          caseId: "case_1",
+          encounterId: "enc_new",
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+
+      expect(mockedPrisma.encounter.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            patientId: "comp_new",
+            parentId: "parent_new",
+          }),
+        }),
+      );
+    });
+
     it("preserves a recorded start and status when the encounter is already under way", async () => {
       seedInProgressTransition({
         status: "onleave",

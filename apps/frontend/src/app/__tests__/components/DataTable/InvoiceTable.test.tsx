@@ -225,7 +225,7 @@ describe('InvoiceTable', () => {
     expect(screen.getByTestId('cell-appointment-id')).toHaveTextContent('Sam');
   });
 
-  it('pairs the appointment type with the time only in the desktop sub-line and falls back to appointmentDate for the time', () => {
+  it('shows the appointment time (not the type) in the desktop Parent / patient sub-line, since Services already shows the type', () => {
     useAppointmentsForPrimaryOrgMock.mockReturnValue([
       {
         id: 'appt-1',
@@ -238,13 +238,12 @@ describe('InvoiceTable', () => {
 
     render(<InvoiceTable filteredList={[invoice]} />);
 
-    // The Date column already carries 'Jan 1', so the desktop sub-line must not
-    // repeat it — only the appointment type and time.
-    const desktopSub = within(screen.getByTestId('generic-table')).getByTitle(
-      'Wellness exam · 10:00 AM'
-    );
-    expect(desktopSub).toBeInTheDocument();
-    expect(desktopSub).not.toHaveTextContent('Jan 1');
+    // Two appointments for the same patient on the same date are otherwise
+    // indistinguishable in this table without opening each row, since the
+    // Date column shows only the date - the time must survive here.
+    const cell = within(screen.getByTestId('cell-appointment-id'));
+    expect(cell.getByTitle('10:00 AM')).toBeInTheDocument();
+    expect(cell.queryByText(/Wellness exam/)).not.toBeInTheDocument();
   });
 
   it('renders an empty subtitle and no date cell when the appointment is not found', () => {

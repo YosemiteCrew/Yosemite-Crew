@@ -28,7 +28,7 @@ import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { appRoutes, devRoutes } from '@/app/config/routes';
 import type { RouteItem } from '@/app/config/routes';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
-import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
+import { hasAnyRequiredPermission, resolveMembershipPermissions } from '@/app/lib/routePermissions';
 import {
   isSidebarCollapsedByDefault,
   setSidebarCollapsedPreference,
@@ -106,7 +106,7 @@ const Sidebar = () => {
   const membership = useOrgStore((s) =>
     primaryOrgId ? (s.membershipsByOrgId?.[primaryOrgId] ?? null) : null
   );
-  const effectivePermissions = membership?.effectivePermissions ?? [];
+  const effectivePermissions = resolveMembershipPermissions(membership);
 
   const routeIcons = useMemo(() => ROUTE_ICONS, []);
 
@@ -143,7 +143,9 @@ const Sidebar = () => {
   // Developer portal doesn't need org data to load
   if (isInitialLoading && !isDevPortal) return <div className="sidebar"></div>;
 
-  const orgMissing = !primaryOrg;
+  // A deactivated mapping counts as no org: an empty permission set alone would
+  // still leave routes that declare no required permission reachable.
+  const orgMissing = !primaryOrg || membership?.active === false;
   const orgVerified = !!primaryOrg?.isVerified;
 
   return (

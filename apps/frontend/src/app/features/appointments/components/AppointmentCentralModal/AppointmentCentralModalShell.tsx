@@ -1,7 +1,7 @@
 'use client';
 import React, { useId } from 'react';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
-import { IoClose } from 'react-icons/io5';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 
 type AppointmentCentralModalShellProps = {
@@ -54,59 +54,28 @@ const AppointmentCentralModalShell = ({
         showModal ? 'opacity-100' : 'opacity-0 pointer-events-none',
       ].join(' ')}
     >
-      <div
-        className="modal-max-h relative flex flex-col flex-1 min-h-0 overflow-hidden rounded-[22px]"
-        style={{
-          background: 'var(--color-neutral-0)',
-          boxShadow: '0 40px 110px rgba(0, 0, 0, 0.42)',
-        }}
-      >
+      <div className="modal-max-h relative flex flex-col flex-1 min-h-0 overflow-hidden rounded-[22px] bg-neutral-0 shadow-[0_40px_110px_rgba(0,0,0,0.42)]">
         {/* Full-panel loading overlay — sits above header + body */}
         {isLoading && (
-          <div
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 rounded-[22px]"
-            style={{ background: 'var(--color-neutral-0)' }}
-          >
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 rounded-[22px] bg-neutral-0">
             <YosemiteLoader label={loadingLabel} />
-            <p
-              className="text-body-4 text-text-secondary text-center"
-              style={{ fontFamily: 'var(--font-satoshi), sans-serif' }}
-            >
+            <p className="text-body-4 text-text-secondary text-center">
               Finalizing your appointment…
             </p>
           </div>
         )}
 
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3 sm:px-6 shrink-0 border-b border-card-border"
-          style={{ background: 'var(--screen)' }}
-        >
-          <h2
-            id={titleId}
-            style={{
-              fontFamily: 'var(--font-satoshi), sans-serif',
-              fontSize: 18,
-              fontWeight: 700,
-              lineHeight: '120%',
-              letterSpacing: '-0.02em',
-              color: 'var(--ink)',
-            }}
-          >
-            {title}
-          </h2>
-          <button
-            type="button"
-            aria-label="Close"
-            className="flex items-center justify-center size-8 shrink-0 rounded-full border border-[var(--hairline)] hover:border-[var(--hairline-hover)] transition-colors"
-            onClick={() => {
+        <div className="px-4 py-3 sm:px-6 shrink-0 border-b border-card-border bg-[var(--screen)]">
+          <ModalHeader
+            title={title}
+            titleId={titleId}
+            onClose={() => {
               if (canClose && !canClose()) return;
               setShowModal(false);
               onClose?.();
             }}
-          >
-            <IoClose size={16} color="var(--ink-faint)" aria-hidden="true" />
-          </button>
+          />
         </div>
 
         {/* Body */}

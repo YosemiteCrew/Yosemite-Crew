@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { IoPrintOutline, IoSaveOutline } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import ServicesPackagesEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/ServicesPackagesEditor';
@@ -56,7 +55,6 @@ import {
   resolveScheduleTasksFromTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
-import { startRouteLoader } from '@/app/lib/routeLoader';
 import type { PrescriptionTemplateOption } from '@/app/features/appointments/services/workspaceTemplateService';
 import type { TemplateLike } from '@yosemite-crew/types';
 import {
@@ -700,7 +698,6 @@ const TreatmentStep = ({
   // -only + "Billed" badge + no delete); adding new items always stays allowed.
   const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
   const isInpatient = encounter.mode === 'INPATIENT';
-  const router = useRouter();
   const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
   // The outpatient visit schedule is built from the companion's real upcoming
   // appointments already in the store (there is no dedicated outpatient "series" data
@@ -785,9 +782,11 @@ const TreatmentStep = ({
     // BEFORE the persist/no-persist branch so it blocks even when org/encounter haven't hydrated
     // (otherwise the step would silently advance without validating). Each row must carry the
     // required clinical instructions (frequency, duration, quantity, route, form) and pass every
-    // number-format rule.
+    // number-format rule. Finalized rows are read-only and skipped by the save loop, so exclude
+    // them: an older/external finalized record missing a now-required field must not wedge the
+    // save behind a validation error the clinician cannot fix.
     const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
-      getPrescriptionSaveErrors(rx)
+      rx.finalized ? [] : getPrescriptionSaveErrors(rx)
     );
     if (prescriptionErrors.length > 0) {
       setPrescriptionError(prescriptionErrors[0]);
@@ -830,6 +829,13 @@ const TreatmentStep = ({
       // create-or-update is keyed off the row id.
       const reconciledPrescriptions = await Promise.all(
         normalizedPrescriptions.map(async (rx) => {
+          // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
+          // only ever set from persisted server state, so it always carries a real id). Re-POSTing
+          // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
+          // already-persisted, already-dispensed row untouched instead of re-saving it.
+          if (rx.finalized) {
+            return rx;
+          }
           const savedRx = await savePrescriptionArtifact(
             { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
             rx
@@ -898,10 +904,9 @@ const TreatmentStep = ({
           <OutpatientSchedule
             schedule={outpatientSchedule}
             readOnly={readOnly}
-            onAddVisit={() => {
-              startRouteLoader();
-              router.push('/appointments');
-            }}
+            // Same as inpatient's "+": stay in the workspace and open the Quick
+            // Actions Tasks side modal instead of routing away to /appointments.
+            onAddVisit={() => setActiveSideAction('TASKS')}
           />
         )}
         {scheduleError && <p className="text-caption-1 text-red-600">{scheduleError}</p>}

@@ -25,7 +25,7 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => (props: any) => {
+jest.mock('@/app/ui/primitives/SectionCard/SectionCard', () => (props: any) => {
   accordionButtonSpy(props);
   return (
     <div data-testid="accordion-button">
@@ -111,7 +111,7 @@ describe('Organization documents section', () => {
 
     const badge = screen.getByText('E-SIGN');
     expect(badge).toBeInTheDocument();
-    expect(badge).toHaveClass('bg-[var(--status-completed-bg)]');
+    expect(badge).toHaveStyle({ backgroundColor: 'var(--status-completed-bg)' });
     expect(screen.getByTestId('icon-template')).toBeInTheDocument();
     expect(screen.queryByTestId('icon-doc')).not.toBeInTheDocument();
   });

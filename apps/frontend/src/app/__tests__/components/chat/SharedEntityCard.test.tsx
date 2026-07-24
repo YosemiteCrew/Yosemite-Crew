@@ -85,7 +85,7 @@ describe('SharedEntityCard', () => {
       />
     );
     const pill = screen.getByText('PAID');
-    expect(pill).toHaveStyle({ background: 'var(--status-completed-bg)' });
+    expect(pill).toHaveStyle({ backgroundColor: 'var(--status-completed-bg)' });
   });
 
   it('falls back to the requested tone for an unmapped status', () => {
@@ -94,7 +94,9 @@ describe('SharedEntityCard', () => {
         entity={makeEntity({ entityType: 'INVOICE', snapshot: { status: 'MYSTERY' } })}
       />
     );
-    expect(screen.getByText('MYSTERY')).toHaveStyle({ background: 'var(--status-requested-bg)' });
+    expect(screen.getByText('MYSTERY')).toHaveStyle({
+      backgroundColor: 'var(--status-requested-bg)',
+    });
   });
 
   it('omits the status pill when snapshot.status is not a string', () => {

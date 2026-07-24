@@ -115,7 +115,7 @@ const DispensaryRow = ({
 
   return (
     <div
-      className="grid items-center gap-3 border-t border-card-border px-5 py-3 text-[13.5px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
+      className="grid items-center gap-2.5 border-t border-card-border px-5 py-3 text-[13.5px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
       style={{ gridTemplateColumns: GRID_COLUMNS }}
     >
       <div

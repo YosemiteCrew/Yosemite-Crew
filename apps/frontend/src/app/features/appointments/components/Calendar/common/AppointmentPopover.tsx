@@ -172,7 +172,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
         onClose={onClose}
       />
 
-      <div className="mt-4 grid grid-cols-2 gap-x-7 gap-y-5 px-1">
+      <div className="mt-3.5 grid grid-cols-2 gap-x-5 gap-y-3 px-1">
         <PopoverDetail
           label="Speciality"
           value={appointment.appointmentType?.speciality?.name || '-'}
@@ -190,12 +190,12 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
         <PopoverDetail label={paymentTitle} value={paymentValue} emphasized />
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 px-1">
+      <div className="mt-3.5 grid grid-cols-2 gap-3 px-1">
         <StaffInput label="Lead" value={appointment.lead?.name || '-'} />
         <StaffInput label="Support" value={supportStaffValue} />
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-2 px-1">
+      <div className="mt-3.5 flex items-center justify-between gap-2 px-1">
         {canEditAppointments && isRequestedLikeStatus(appointment.status) && (
           <RequestActionButtons
             appointment={appointment}

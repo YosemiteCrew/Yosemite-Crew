@@ -605,6 +605,8 @@ textarea:focus-visible {
   --warn: #f59e0b;
   /* always-dark spotlight blocks (manifesto / code / phone bezel) */
   --spot: #1d1c1b;
+  /* ink that sits on --spot; light in both themes because --spot never flips */
+  --spot-ink: #eae2d5;
   /* light-surface code card syntax + mockup avatar chips */
   --code-str: #006642;
   --avatar-violet-bg: #f5f3ff;
@@ -734,6 +736,7 @@ html[data-theme='dark'] {
   --success: #2bbd86;
   --warn: #f5a83c;
   --spot: #17140f;
+  --spot-ink: #f4efe6;
   --code-str: #8acbb4;
   --avatar-violet-bg: rgba(167, 139, 250, 0.2);
   --avatar-violet-ink: #cbb2f4;

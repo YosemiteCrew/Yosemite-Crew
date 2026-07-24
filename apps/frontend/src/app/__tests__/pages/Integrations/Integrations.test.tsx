@@ -46,7 +46,14 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ primaryOrgId: 'org-1' }),
+  useOrgStore: (selector: any) =>
+    selector({
+      primaryOrgId: 'org-1',
+      status: 'loaded',
+      // Owner membership so integrations:edit:any resolves and the mutation
+      // controls render for these cases.
+      membershipsByOrgId: { 'org-1': { roleCode: 'OWNER' } },
+    }),
 }));
 
 jest.mock('@/app/hooks/useIntegrations', () => ({
@@ -104,13 +111,13 @@ jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
+  Primary: ({ text, onClick, isDisabled, ariaLabel }: any) => (
+    <button type="button" aria-label={ariaLabel} onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),
-  Secondary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
+  Secondary: ({ text, onClick, isDisabled, ariaLabel }: any) => (
+    <button type="button" aria-label={ariaLabel} onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),

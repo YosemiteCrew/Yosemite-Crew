@@ -14,6 +14,8 @@ import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
+import { useHasPermission } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   loadIntegrationsForPrimaryOrg,
   useIntegrationByProviderForPrimaryOrg,
@@ -33,7 +35,7 @@ import {
 import { IvlsDevice, LabOrder } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import {
   IoBookOutline,
   IoExtensionPuzzleOutline,
@@ -44,6 +46,7 @@ import {
 } from 'react-icons/io5';
 import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type StatusTokens = { bg: string; text: string; border: string };
 
@@ -67,6 +70,11 @@ const statusTokens: Record<string, StatusTokens> = {
     bg: 'var(--color-pill-info-bg)',
     text: 'var(--color-pill-info-text)',
     border: 'var(--color-pill-info-border)',
+  },
+  'coming-soon': {
+    bg: 'var(--color-pill-neutral-bg)',
+    text: 'var(--color-pill-neutral-text)',
+    border: 'var(--color-pill-neutral-border)',
   },
 };
 
@@ -203,17 +211,7 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <span
-          className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
-          style={{
-            backgroundColor: dt.bg,
-            color: dt.text,
-            borderColor: dt.border,
-            borderStyle: 'solid',
-          }}
-        >
-          {statusLabel}
-        </span>
+        <StatusPill label={statusLabel} tokens={dt} showDot={statusKey === 'active'} />
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
         <div className="text-text-secondary">Last cloud poll</div>
@@ -227,39 +225,37 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   );
 };
 
-const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
+// Resolves this page's status keys (enabled/disabled/valid/active/…) to the
+// shared StatusPill, keeping the key semantics and the enabled-only live dot so
+// no call site changes. Colours still come from the local token maps.
+const NEUTRAL_FALLBACK_TOKENS: StatusTokens = {
+  bg: 'var(--color-card-hover)',
+  text: 'var(--color-text-secondary)',
+  border: 'var(--color-card-border)',
+};
+
+const StatusPill = ({
+  status,
+  label,
+  tokens: tokensOverride,
+  showDot,
+}: {
+  status?: string;
+  label?: string;
+  // Pills whose colours come from a different map (device, credentials) pass
+  // their tokens directly; everything else looks the key up in statusTokens.
+  tokens?: StatusTokens;
+  showDot?: boolean;
+}) => {
   const key = (status ?? 'disabled').toLowerCase();
   const normalizedLabel = label ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-  const tokens = statusTokens[key];
-  const isLive = key === 'enabled';
+  const tokens = tokensOverride ?? statusTokens[key] ?? NEUTRAL_FALLBACK_TOKENS;
   return (
-    <span
-      className="shrink-0 max-w-full inline-flex items-center gap-1.5 whitespace-nowrap uppercase tracking-[0.06em] text-label-xsmall px-2.5 py-1 rounded-full! border!"
-      style={
-        tokens
-          ? {
-              backgroundColor: tokens.bg,
-              color: tokens.text,
-              borderColor: tokens.border,
-              borderStyle: 'solid',
-            }
-          : {
-              backgroundColor: 'var(--color-card-hover)',
-              color: 'var(--color-text-secondary)',
-              borderColor: 'var(--color-card-border)',
-              borderStyle: 'solid',
-            }
-      }
-    >
-      {isLive ? (
-        <span
-          aria-hidden="true"
-          className="size-1.5 rounded-full"
-          style={{ backgroundColor: 'var(--success)' }}
-        />
-      ) : null}
-      {normalizedLabel}
-    </span>
+    <SharedStatusPill
+      label={normalizedLabel}
+      tokens={tokens}
+      showDot={showDot ?? key === 'enabled'}
+    />
   );
 };
 
@@ -337,17 +333,7 @@ const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
             <span className="min-w-0 truncate font-semibold text-text-primary">
               {formatOrderLabel(order)}
             </span>
-            <span
-              className="shrink-0 text-label-xsmall px-2 py-0.5 rounded-full! border!"
-              style={{
-                backgroundColor: tokens.bg,
-                color: tokens.text,
-                borderColor: tokens.border,
-                borderStyle: 'solid',
-              }}
-            >
-              {formatOrderStatusLabel(order.status)}
-            </span>
+            <StatusPill label={formatOrderStatusLabel(order.status)} tokens={tokens} />
           </div>
         );
       })}
@@ -494,6 +480,14 @@ const useIdexxActions = (s: IdexxActionsState) => {
 const useIntegrationsPage = () => {
   const primaryOrg = usePrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  // Most roles can view the catalog but not change it: the backend requires
+  // integrations:edit:any for the credentials, enable, disable and validate
+  // routes, so those controls stay hidden rather than 403 on click.
+  const canEditIntegrations = useHasPermission(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
+  // Supervisor, Assistant and Receptionist can view the catalog without holding
+  // labs:view:any, and the device/order loaders hit lab routes that require it,
+  // so those reads are skipped rather than failing the page on open.
+  const canViewLabs = useHasPermission(PERMISSIONS.LABS_VIEW_ANY);
   const integrations = useIntegrationsForPrimaryOrg();
   const {
     integration: merckIntegration,
@@ -527,6 +521,14 @@ const useIntegrationsPage = () => {
   useEffect(() => {
     const run = async () => {
       if (!primaryOrgId) return;
+      if (!canViewLabs) {
+        // Losing lab access (org switch, or the permission revoked) must drop
+        // anything fetched under the previous one, or the settings modal keeps
+        // rendering stale devices and orders.
+        setDevices([]);
+        setRecentOrders([]);
+        return;
+      }
       if (idexxIntegration?.status === 'enabled') {
         try {
           const ivls = await listIdexxIvlsDevices(primaryOrgId);
@@ -549,7 +551,7 @@ const useIntegrationsPage = () => {
       }
     };
     run().catch(() => undefined);
-  }, [primaryOrgId, idexxIntegration?.status]);
+  }, [primaryOrgId, idexxIntegration?.status, canViewLabs]);
 
   useEffect(() => {
     setValidateState(resolveValidateState(idexxIntegration?.credentialsStatus));
@@ -622,6 +624,8 @@ const useIntegrationsPage = () => {
   return {
     primaryOrg,
     primaryOrgId,
+    canEditIntegrations,
+    canViewLabs,
     integrationStatus,
     integrationsLastFetchedAt,
     idexxIntegration,
@@ -658,6 +662,8 @@ const useIntegrationsPage = () => {
     handleMerckEnableDisable,
   };
 };
+
+const INTEGRATION_SETTINGS_TITLE_ID = 'integration-settings-title';
 
 const IdexxSettingsModal = ({
   showSettings,
@@ -718,33 +724,32 @@ const IdexxSettingsModal = ({
   const enabledAtText = formatOptionalDate(idexxIntegration?.enabledAt, 'Not enabled');
 
   return (
-    <Modal showModal={showSettings} setShowModal={setShowSettings}>
+    <Modal
+      showModal={showSettings}
+      setShowModal={setShowSettings}
+      aria-labelledby={INTEGRATION_SETTINGS_TITLE_ID}
+    >
       <div className="flex flex-col h-full gap-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-heading-3 text-text-primary">Integration settings</h3>
-            <div className="text-body-4 text-text-secondary">
-              Configure IDEXX for this organization
-            </div>
-          </div>
-          <Close onClick={() => setShowSettings(false)} />
-        </div>
-        <div className="flex items-center justify-between rounded-xl border border-[var(--hairline)] px-3 py-2 bg-[var(--field-bg)]">
+        <ModalHeader
+          title="Integration settings"
+          meta="Configure IDEXX for this organization"
+          onClose={() => setShowSettings(false)}
+          titleId={INTEGRATION_SETTINGS_TITLE_ID}
+        />
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--hairline)] px-3 py-2 bg-[var(--field-bg)]">
           <div className="text-caption-1 text-text-secondary">
             Last refreshed: <span className="text-text-primary">{lastRefreshedText}</span>
           </div>
-          <button
-            type="button"
+          <Secondary
+            size="compact"
+            text="Refresh"
+            ariaLabel="Refresh integrations"
+            icon={<IoRefreshOutline className={refreshIconClass} aria-hidden="true" />}
             onClick={() => {
               handleManualRefresh().catch(() => undefined);
             }}
-            className="size-8 rounded-full! border border-[var(--hairline)] flex items-center justify-center text-text-primary hover:bg-card-hover"
-            aria-label="Refresh integrations"
-            title="Refresh integrations"
-            disabled={refreshing}
-          >
-            <IoRefreshOutline className={refreshIconClass} size={16} />
-          </button>
+            isDisabled={refreshing}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-1">
@@ -784,27 +789,10 @@ const IdexxSettingsModal = ({
               <div className="grid grid-cols-2 gap-2 text-caption-1">
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
-                  <span
-                    className="text-label-xsmall px-2 py-1 rounded-2xl! border!"
-                    style={(() => {
-                      const t = credentialsStatusTokens[credentialsStatusKey];
-                      return t
-                        ? {
-                            backgroundColor: t.bg,
-                            color: t.text,
-                            borderColor: t.border,
-                            borderStyle: 'solid',
-                          }
-                        : {
-                            backgroundColor: 'var(--color-card-hover)',
-                            color: 'var(--color-text-secondary)',
-                            borderColor: 'var(--color-card-border)',
-                            borderStyle: 'solid',
-                          };
-                    })()}
-                  >
-                    {credentialsStatusLabel}
-                  </span>
+                  <StatusPill
+                    label={credentialsStatusLabel}
+                    tokens={credentialsStatusTokens[credentialsStatusKey]}
+                  />
                 </div>
                 <div className="text-text-secondary">Last validated</div>
                 <div className="text-text-primary text-right">{lastValidatedText}</div>
@@ -935,14 +923,11 @@ const INTEGRATION_CARD_TITLE_STYLE: React.CSSProperties = { color: 'var(--ink)' 
 const INTEGRATION_CARD_DESC_CLASS = 'text-[12.5px] leading-[1.55] line-clamp-4';
 const INTEGRATION_CARD_DESC_STYLE: React.CSSProperties = { color: 'var(--ink-muted)' };
 const INTEGRATION_CARD_ACTIONS_CLASS = 'mt-auto flex flex-wrap items-center gap-2 pt-0.5';
-const COMING_SOON_PILL_CLASS =
-  'shrink-0 max-w-full whitespace-nowrap text-label-xsmall px-2 py-1 rounded-2xl! border!';
-
 // 42x42 / radius 13 icon chip that leads each card header.
 const INTEGRATION_ICON_CLASS =
   'flex size-[42px] shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold tracking-[0.02em]';
 const INTEGRATION_ICON_STYLES = {
-  idexx: { background: 'var(--spot)', color: '#f4efe6' },
+  idexx: { background: 'var(--spot)', color: 'var(--spot-ink)' },
   merck: { background: 'var(--blue-soft)', color: 'var(--blue-text)' },
   vetnio: { background: 'var(--avatar-green-bg)', color: 'var(--avatar-green-ink)' },
   quickBooks: { background: 'var(--avatar-amber-bg)', color: 'var(--avatar-amber-ink)' },
@@ -991,13 +976,14 @@ const IdexxIntegrationCard = ({
         patient automatically.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        {s.idexxEnabled ? (
+        {s.idexxEnabled && s.canViewLabs && (
           <Secondary
             href="/appointments/idexx-workspace"
             text="Open workspace"
             className="px-4 whitespace-nowrap"
           />
-        ) : (
+        )}
+        {!s.idexxEnabled && s.canEditIntegrations && (
           <Primary
             href="#"
             text={buttonLabel}
@@ -1006,17 +992,19 @@ const IdexxIntegrationCard = ({
             className="px-4 whitespace-nowrap"
           />
         )}
-        <button
-          type="button"
-          onClick={() => s.setShowSettings(true)}
-          aria-label="Manage credentials"
-          title="Manage"
-          className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
-          style={MANAGE_ICON_BUTTON_STYLE}
-        >
-          <IoSettingsOutline size={14} aria-hidden="true" />
-        </button>
-        {s.idexxEnabled ? (
+        {s.canEditIntegrations && (
+          <button
+            type="button"
+            onClick={() => s.setShowSettings(true)}
+            aria-label="Manage credentials"
+            title="Manage"
+            className={`${CARD_ICON_BUTTON_CLASS} ml-auto`}
+            style={MANAGE_ICON_BUTTON_STYLE}
+          >
+            <IoSettingsOutline size={14} aria-hidden="true" />
+          </button>
+        )}
+        {s.idexxEnabled && s.canEditIntegrations ? (
           <button
             type="button"
             onClick={s.handleEnableDisable}
@@ -1058,13 +1046,14 @@ const MerckIntegrationCard = ({
         for every clinic.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        {s.merckEnabled ? (
-          <Primary
+        {s.merckEnabled && (
+          <Secondary
             href="/integrations/merck-manuals"
             text="Open manuals"
             className="px-4 whitespace-nowrap"
           />
-        ) : (
+        )}
+        {!s.merckEnabled && s.canEditIntegrations && (
           <Primary
             href="#"
             text={buttonLabel}
@@ -1073,7 +1062,7 @@ const MerckIntegrationCard = ({
             className="px-4 whitespace-nowrap"
           />
         )}
-        {s.merckEnabled ? (
+        {s.merckEnabled && s.canEditIntegrations ? (
           <button
             type="button"
             onClick={s.handleMerckEnableDisable}
@@ -1106,23 +1095,22 @@ const RadIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           RadAnalyzer
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
+          }}
+        >
+          Notify me
+        </span>
       </div>
     </div>
   );
@@ -1144,24 +1132,23 @@ const VetnioIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Vetnio
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered documentation for veterinary practices &mdash; instantly generate clinical notes,
         discharge summaries, and client communications from consultations.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
+          }}
+        >
+          Notify me
+        </span>
       </div>
     </div>
   );
@@ -1183,24 +1170,23 @@ const QuickBooksIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           QuickBooks
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Accounting sync for invoices, payments, customers, and financial workflows through
         QuickBooks Online.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
+          }}
+        >
+          Notify me
+        </span>
       </div>
     </div>
   );
@@ -1222,17 +1208,7 @@ const LaikaIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Laika
         </div>
-        <span
-          className={COMING_SOON_PILL_CLASS}
-          style={{
-            backgroundColor: 'var(--color-pill-neutral-bg)',
-            color: 'var(--color-pill-neutral-text)',
-            borderColor: 'var(--color-pill-neutral-border)',
-            borderStyle: 'solid',
-          }}
-        >
-          Coming soon
-        </span>
+        <StatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
@@ -1240,7 +1216,16 @@ const LaikaIntegrationCard = ({
         veterinary medical data.
       </div>
       <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <Primary href="#" text="Coming soon" isDisabled className="px-4 whitespace-nowrap" />
+        <span
+          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
+          style={{
+            background: 'transparent',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--divider)',
+          }}
+        >
+          Notify me
+        </span>
       </div>
     </div>
   );
@@ -1355,8 +1340,11 @@ const IntegrationsPage = () => {
         ) : null}
       </div>
 
+      {/* Every control inside the panel hits an integrations:edit:any route, so
+          it never mounts for a view-only role - closing the paths that open it
+          from a failed validate or enable as well as from the gear. */}
       <IdexxSettingsModal
-        showSettings={s.showSettings}
+        showSettings={s.canEditIntegrations && s.showSettings}
         setShowSettings={s.setShowSettings}
         idexxIntegration={s.idexxIntegration}
         idexxEnabled={s.idexxEnabled}

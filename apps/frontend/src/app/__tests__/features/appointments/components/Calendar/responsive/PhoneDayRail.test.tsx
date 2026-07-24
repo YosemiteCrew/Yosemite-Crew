@@ -230,11 +230,25 @@ describe('PhoneDayRail', () => {
     expect(screen.queryByText('Nothing booked today.')).not.toBeInTheDocument();
   });
 
-  it('folds the whole day and shows the empty state when nothing is booked', () => {
+  it('folds the whole day into a free band when nothing is booked, without overlaying the empty label on it', () => {
     render(<PhoneDayRail appointments={[]} />);
 
     expect(screen.queryAllByTestId('day-rail-block')).toHaveLength(0);
+    // The fold's "… free · folded" band is the empty state here; the separate
+    // "Nothing booked today." overlay would just stack on top of it, so it is
+    // suppressed when a fold is present.
     expect(screen.getByText('08:00 to 16:00 free · folded')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing booked today.')).not.toBeInTheDocument();
+  });
+
+  it('shows the empty label when nothing is booked and the window is too short to fold', () => {
+    // A one-hour window cannot fold (below the fold threshold), so there is no
+    // free band to carry the empty state — the label is shown instead.
+    render(
+      <PhoneDayRail appointments={[]} dayWindow={{ startHour: 8, endHour: 9 }} minFoldHours={2} />
+    );
+
+    expect(screen.queryByTestId('day-rail-fold')).not.toBeInTheDocument();
     expect(screen.getByText('Nothing booked today.')).toBeInTheDocument();
   });
 

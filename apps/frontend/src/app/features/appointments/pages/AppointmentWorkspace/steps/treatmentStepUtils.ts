@@ -85,10 +85,18 @@ export const packageToLineItem = (pkg: PackageRevamp) => {
 
 // Workspace task loads must include COMPLETED tasks: the backend list excludes
 // them by default, which would make completed schedule rows vanish on refresh.
+// Also request both audiences explicitly: setTasksForOrg replaces the entire
+// org bucket on every load, and the backend's org task list defaults to
+// EMPLOYEE_TASK when no audience is given - an employee-only refresh here
+// would silently wipe out every already-loaded Parent task (bug #1967 follow-up,
+// same fix as TasksPanel.tsx's WORKSPACE_TASK_LOAD).
 export const WORKSPACE_TASK_LOAD = {
   force: true,
   silent: true,
-  filters: { includeCompleted: true },
+  filters: {
+    includeCompleted: true,
+    audience: ['EMPLOYEE_TASK', 'PARENT_TASK'] as Task['audience'][],
+  },
 };
 
 export const taskStatusToScheduleStatus = (status: Task['status']) => {

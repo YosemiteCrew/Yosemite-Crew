@@ -4,7 +4,14 @@ import Link from 'next/link';
 import { IoAdd } from 'react-icons/io5';
 import { useOrgWithMemberships } from '@/app/hooks/useOrgSelectors';
 import { useOrgStore } from '@/app/stores/orgStore';
+import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 import '@/app/features/settings/styles/Settings.css';
+
+const PRIMARY_PILL_TOKENS: StatusPillTokens = {
+  bg: 'var(--status-completed-bg)',
+  text: 'var(--status-completed-text)',
+  border: 'var(--status-completed-border)',
+};
 
 // Avatar palette for the non-primary organizations, mirroring the design's
 // rotating violet/green/amber tokens. The primary org always uses the blue tile.
@@ -65,9 +72,7 @@ const YourOrganizations = () => {
               </span>
             </span>
             {isPrimary ? (
-              <span className="inline-flex flex-none items-center rounded-full border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[9px] py-0.5 text-[9.5px] font-bold text-[var(--status-completed-text)]">
-                PRIMARY
-              </span>
+              <StatusPill label="PRIMARY" tokens={PRIMARY_PILL_TOKENS} className="flex-none" />
             ) : (
               <button
                 type="button"

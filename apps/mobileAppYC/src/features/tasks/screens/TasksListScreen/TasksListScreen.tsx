@@ -4,6 +4,7 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
+import {useTranslation} from 'react-i18next';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
@@ -22,6 +23,7 @@ import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
 import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
 import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
+import {Images} from '@/assets/images';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksList'>;
 type Route = RouteProp<TaskStackParamList, 'TasksList'>;
@@ -30,6 +32,7 @@ export const TasksListScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
+  const {t} = useTranslation();
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -82,6 +85,18 @@ export const TasksListScreen: React.FC = () => {
     if (companionId) {
       dispatch(setSelectedCompanion(companionId));
     }
+  };
+
+  // Tasks always belong to a companion — AddTask can't be submitted without
+  // one selected (its companion selector has no "add companion" affordance
+  // of its own), so hide the header add action rather than send the user
+  // into a form they can't complete.
+  const hasCompanions = companions.length > 0;
+
+  const handleAddTask = () => {
+    navigation.navigate('AddTask', {
+      prefillDate: formatDateToISODate(selectedDate),
+    });
   };
 
   const renderTask = ({item}: {item: Task}) => {
@@ -139,6 +154,9 @@ export const TasksListScreen: React.FC = () => {
           title={`${resolveCategoryLabel(category)} tasks`}
           showBackButton
           onBack={() => navigation.goBack()}
+          rightIcon={hasCompanions ? Images.addIconDark : undefined}
+          onRightPress={hasCompanions ? handleAddTask : undefined}
+          rightAccessibilityLabel={t('tasks.addTaskAccessibilityLabel')}
           glass={false}
         />
       }

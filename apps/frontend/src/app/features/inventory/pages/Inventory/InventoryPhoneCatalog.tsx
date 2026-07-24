@@ -3,6 +3,7 @@ import React from 'react';
 import { IoAlertCircleOutline, IoCubeOutline } from 'react-icons/io5';
 import clsx from 'clsx';
 
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { InventoryFiltersState, InventoryItem } from './types';
 import { getStatusBadgeStyle } from './utils';
 import { buildInventoryPhoneMeta, type InventoryPhoneMeta } from './InventoryPhoneCatalog.utils';
@@ -72,12 +73,11 @@ export const InventoryPhoneCard = ({
               </span>
             )}
           </span>
-          <span
-            className="inline-flex flex-none items-center rounded-full border px-[9px] py-[3px] text-[9.5px] font-bold uppercase whitespace-nowrap"
+          <StatusPill
+            label={meta.statusLabel}
             style={getStatusBadgeStyle(meta.statusLabel)}
-          >
-            {meta.statusLabel}
-          </span>
+            className="flex-none"
+          />
         </span>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-[var(--ink-muted)]">
           {meta.onHandText && (

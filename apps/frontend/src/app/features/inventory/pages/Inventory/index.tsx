@@ -43,7 +43,6 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import {
   IoAddOutline,
-  IoAlertCircleOutline,
   IoChevronDownOutline,
   IoInformationCircleOutline,
   IoOptionsOutline,
@@ -215,7 +214,10 @@ export const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryR
     requestType,
     invoiceId: req.invoiceId ?? undefined,
     paymentStatus: req.paymentStatus ?? undefined,
-    timeDispensed: req.reviewedAt ?? undefined,
+    // reviewedAt marks when the request was reviewed (dispensed OR marked not
+    // dispensed) - only surface it as "Dispensed" when it was actually dispensed,
+    // otherwise a "Not dispensed" row wrongly shows a dispensed timestamp (bug #1968).
+    timeDispensed: req.status === 'DISPENSED' ? (req.reviewedAt ?? undefined) : undefined,
     items: req.medications.map((m) => {
       const metadataDoseUnit =
         typeof m.metadata?.doseUnit === 'string' ? m.metadata.doseUnit : undefined;
@@ -281,12 +283,7 @@ type InventoryFilterBarProps = {
   setFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
-  categoryOptions?: string[];
-  toggleCategoryFilter?: (category: string) => void;
-  lowStockCount?: number;
 };
-
-const LOW_STOCK_STATUS = 'LOW_STOCK';
 
 const chipClass = (active: boolean) =>
   clsx(
@@ -303,13 +300,7 @@ export const InventoryFilterBar = ({
   setFilterOpen,
   setFilters,
   setSortMode,
-  categoryOptions = [],
-  toggleCategoryFilter,
-  lowStockCount = 0,
 }: InventoryFilterBarProps) => {
-  const selectedCategories = filters.categories ?? [];
-  const selectedCategorySet = new Set(selectedCategories);
-  const lowStockActive = filters.status === LOW_STOCK_STATUS;
   const [sortOpen, setSortOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -353,43 +344,8 @@ export const InventoryFilterBar = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setFilters((prev) => ({ ...prev, categories: [], category: 'all' }))}
-          className={chipClass(selectedCategories.length === 0)}
-        >
-          All
-        </button>
-        {categoryOptions.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => toggleCategoryFilter?.(category)}
-            className={chipClass(selectedCategorySet.has(category))}
-          >
-            {category}
-          </button>
-        ))}
-        <span className="mx-1 h-[18px] w-px bg-[var(--hairline)]" aria-hidden="true" />
-        <button
-          type="button"
-          aria-pressed={lowStockActive}
-          onClick={() =>
-            setFilters((prev) => ({
-              ...prev,
-              status: prev.status === LOW_STOCK_STATUS ? 'ALL' : LOW_STOCK_STATUS,
-            }))
-          }
-          className={clsx(
-            'inline-flex items-center gap-1.5 rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-[13px] py-1.5 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
-            lowStockActive && 'shadow-[0_1px_3px_var(--sh08)]'
-          )}
-        >
-          <IoAlertCircleOutline size={12} aria-hidden="true" />
-          Low stock ({lowStockCount})
-        </button>
-      </div>
+      {/* Category and Low-stock quick pills were removed here: both are covered by
+          the Filter dropdown (category + stock-health), leaving only Active/Hidden. */}
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-center gap-2">
           {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
@@ -577,9 +533,6 @@ type ActiveFilterBarProps = {
   dispensaryStatusFilter: DispensaryStatus | 'ALL';
   setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
-  categoryOptions?: string[];
-  toggleCategoryFilter?: (category: string) => void;
-  lowStockCount?: number;
 };
 
 export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
@@ -592,9 +545,6 @@ export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
         setFilterOpen={props.setFilterOpen}
         setFilters={props.setFilters}
         setSortMode={props.setSortMode}
-        categoryOptions={props.categoryOptions}
-        toggleCategoryFilter={props.toggleCategoryFilter}
-        lowStockCount={props.lowStockCount}
       />
     );
   }
@@ -1321,9 +1271,6 @@ const useInventoryContent = () => {
                 dispensaryStatusFilter={dispensaryStatusFilter}
                 setDispensaryStatusFilter={setDispensaryStatusFilter}
                 setDispensarySearch={setDispensarySearch}
-                categoryOptions={categoryOptions}
-                toggleCategoryFilter={toggleCategoryFilter}
-                lowStockCount={lowStockCount}
               />
             </div>
 

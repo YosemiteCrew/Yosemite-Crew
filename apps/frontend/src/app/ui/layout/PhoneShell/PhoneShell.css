@@ -251,7 +251,7 @@
      --screen icon (--blue-text) + label + context line. */
   .yc-phone-more-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
     margin: 0;
     padding: 0;
@@ -362,6 +362,15 @@
 
   .yc-phone-more-row-icon-developer-portal {
     color: var(--cyan-text);
+  }
+
+  /* Sign out is the one destructive row in the sheet, so it reads in danger. */
+  .yc-phone-more-row-icon-signout {
+    color: var(--danger-text);
+  }
+
+  .yc-phone-more-row-signout .yc-phone-more-row-label {
+    color: var(--danger-text);
   }
 
   .yc-phone-more-row-label {

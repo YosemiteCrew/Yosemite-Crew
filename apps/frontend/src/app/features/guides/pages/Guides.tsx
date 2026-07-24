@@ -9,6 +9,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 const GUIDES_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import GuidePlayerModal from '@/app/ui/overlays/Modal/GuidePlayerModal';
 import Search from '@/app/ui/inputs/Search';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import FilteredEmptyState from '@/app/ui/layout/states/FilteredEmptyState';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
@@ -180,12 +181,11 @@ const Guides = () => {
                 >
                   {video.duration}
                 </span>
-                <span
-                  className="absolute left-2.5 top-2.5 rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em]"
-                  style={{ backgroundColor: 'rgba(247,243,236,0.92)', color: '#1d1c1b' }}
-                >
-                  {video.category}
-                </span>
+                <StatusPill
+                  className="absolute left-2.5 top-2.5"
+                  tone="neutral"
+                  label={video.category}
+                />
               </div>
               <div className="flex flex-col gap-1.5 px-4 pb-[15px] pt-3.5">
                 <span className="text-[14.5px] font-bold text-[var(--ink)]">{video.title}</span>

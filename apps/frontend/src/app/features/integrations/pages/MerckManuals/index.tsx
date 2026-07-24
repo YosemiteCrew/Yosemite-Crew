@@ -42,6 +42,7 @@ import {
   IoOptionsOutline,
   IoSearchOutline,
 } from 'react-icons/io5';
+import StatusPill, { StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type MerckManualsPageProps = {
   embedded?: boolean;
@@ -429,7 +430,7 @@ const MerckSearchPanel = ({
   disabled?: boolean;
 }) => (
   <div className="flex flex-col gap-3.5">
-    <div className="flex items-center gap-2 flex-nowrap">
+    <div className="flex items-end gap-2 flex-nowrap">
       <div className="flex-1 min-w-0">
         <FormInput
           intype="text"
@@ -446,6 +447,7 @@ const MerckSearchPanel = ({
           text={loading ? 'Searching...' : 'Search'}
           onClick={() => void performSearch(undefined, true)}
           isDisabled={loading || !query.trim()}
+          className="h-12!"
         />
         <button
           type="button"
@@ -520,15 +522,22 @@ const MerckSearchPanel = ({
   </div>
 );
 
-const READER_AUDIENCE_META: Record<MerckAudience, { label: string; className: string }> = {
+const READER_AUDIENCE_META: Record<MerckAudience, { label: string; tokens: StatusPillTokens }> = {
   PROV: {
     label: 'PROFESSIONAL',
-    className:
-      'bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]',
+    tokens: {
+      bg: 'var(--status-upcoming-bg)',
+      text: 'var(--status-upcoming-text)',
+      border: 'var(--status-upcoming-border)',
+    },
   },
   PAT: {
     label: 'PET PARENT',
-    className: 'bg-blue-soft text-blue-text border-[var(--status-upcoming-border)]',
+    tokens: {
+      bg: 'var(--blue-soft)',
+      text: 'var(--blue-text)',
+      border: 'var(--status-upcoming-border)',
+    },
   },
 };
 
@@ -574,6 +583,7 @@ const MerckReaderPortal = ({
   readerLoading,
   readerBlocked,
   audience,
+  copied,
   onCopyUrl,
   setReaderOpen,
   setReaderLoading,
@@ -585,6 +595,7 @@ const MerckReaderPortal = ({
   readerLoading: boolean;
   readerBlocked: boolean;
   audience: MerckAudience;
+  copied: string | null;
   onCopyUrl: (url: string) => void;
   setReaderOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
@@ -622,11 +633,11 @@ const MerckReaderPortal = ({
             >
               {readerTitle}
             </div>
-            <span
-              className={`inline-flex flex-none items-center rounded-full border px-2.5 py-[3px] text-[9.5px] font-bold tracking-[0.06em] ${audienceMeta.className}`}
-            >
-              {audienceMeta.label}
-            </span>
+            <StatusPill
+              label={audienceMeta.label}
+              tokens={audienceMeta.tokens}
+              className="flex-none"
+            />
           </div>
           <div className="flex flex-none items-center gap-2">
             <button
@@ -635,7 +646,7 @@ const MerckReaderPortal = ({
               className="flex items-center gap-1.5 rounded-full! border border-hairline px-3 py-[7px] text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
             >
               <IoLinkOutline size={13} aria-hidden="true" />
-              Copy manual URL
+              {copied === readerUrl ? 'Copied!' : 'Copy manual URL'}
             </button>
             <Link
               href={readerUrl}
@@ -903,6 +914,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         readerLoading={readerLoading}
         readerBlocked={readerBlocked}
         audience={audience}
+        copied={copied}
         onCopyUrl={onCopyUrl}
         setReaderOpen={setReaderOpen}
         setReaderLoading={setReaderLoading}

@@ -21,7 +21,7 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@secretlint/secretlint-rule-no-dotenv": "^11.3.0",
-    "@secretlint/secretlint-rule-preset-recommend": "^11.3.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "aws-cdk-lib": "2.246.0",
     "constructs": "^10.6.0",
     "eslint": "^9.33.0",
@@ -128,6 +128,7 @@
       "tar": "7.5.17",
       "tar-fs@<=3.1.3": "3.1.3",
       "fast-uri": "3.1.3",
+      "websocket-driver": "0.7.5",
       "react-native>jest-environment-node": "^30.4.1"
     }
   }

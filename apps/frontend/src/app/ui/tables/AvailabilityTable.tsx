@@ -1,4 +1,5 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 
 import Image from 'next/image';
@@ -112,9 +113,7 @@ const AvailabilityTable = ({
       key: 'status',
       width: '12%',
       render: (item: Team) => (
-        <div className="appointment-status" style={getAvailabilityStatusStyle(item.status)}>
-          {item.status}
-        </div>
+        <StatusPill style={getAvailabilityStatusStyle(item.status)} label={item.status} />
       ),
     },
   ];

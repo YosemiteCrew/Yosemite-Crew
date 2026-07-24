@@ -187,7 +187,7 @@ export const Arrow = ({ open }: { open: boolean }) => (
 // ─── Floating label ─────────────────────────────────────────────────────────────
 export const FloatLabel = ({ floated, children }: { floated: boolean; children: ReactNode }) => (
   <span
-    className="pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-neutral-0 px-1 transition-all duration-150"
+    className="yc-float-label pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-neutral-0 px-1 transition-all duration-150"
     style={
       floated
         ? { ...floatLabelActive, top: 0, transform: 'translateY(-50%)' }
@@ -341,7 +341,7 @@ export const PersonRow = ({
       <div
         ref={triggerRef}
         className={clsx(
-          'relative flex items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] transition-colors duration-150 cursor-text',
+          'relative flex items-center min-h-[46px] border-[1.5px] bg-neutral-0 transition-colors duration-150 cursor-text',
           visibleOpen
             ? 'rounded-t-[12px] border-input-border-active border-b-0'
             : 'rounded-[12px] border-[var(--hairline)]',
@@ -574,8 +574,6 @@ export const TimeSlotDropdown = ({
   const selectedLabel = selectedSlot
     ? formatUtcTimeToLocalLabel(selectedSlot.startTime)
     : (prefillLabel ?? null);
-  const isFloated = Boolean(selectedLabel) || open;
-
   // Read position synchronously from the DOM at render time — no state delay
   const portalStyle = open ? getPortalStyle(triggerRef.current) : null;
 
@@ -609,27 +607,30 @@ export const TimeSlotDropdown = ({
       : null;
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} className="flex w-full flex-col">
+      <span className="mb-1.5 block truncate text-[12px] font-semibold text-[var(--ink-soft)]">
+        {label}
+      </span>
       <button
         type="button"
         ref={triggerRef}
         className={clsx(
-          'relative flex w-full items-center min-h-[46px] border-[1.5px] bg-[var(--field-bg)] text-left transition-colors duration-150 select-none',
+          'relative flex h-[44px] w-full items-center rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[13px] pr-9 text-left text-[13px] transition-colors duration-150 select-none focus:shadow-[0_0_0_3px_var(--glow-b10)]',
           open
-            ? 'rounded-t-[12px] border-input-border-active border-b-0'
-            : 'rounded-[12px] border-[var(--hairline)]',
-          error ? 'border-input-border-error!' : ''
+            ? 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]'
+            : error
+              ? 'border-[var(--danger)]!'
+              : 'border-[var(--hairline)]!'
         )}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        aria-label={selectedLabel ? `${label}, ${selectedLabel}` : label}
       >
-        <FloatLabel floated={isFloated}>{label}</FloatLabel>
-
-        <span className="flex-1 min-w-0 pl-5 pr-11 py-3">
+        <span className="flex-1 min-w-0">
           <TimeSlotTriggerValue isLoading={isLoading} selectedLabel={selectedLabel} />
         </span>
 
-        <span className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center">
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
           <Arrow open={open} />
         </span>
       </button>
@@ -640,10 +641,25 @@ export const TimeSlotDropdown = ({
 };
 
 // ─── SlotBadge — duration display ──────────────────────────────────────────────
+// Matches the shared Datepicker / LabelDropdown field: label above the control,
+// h-44, field-bg, rounded-12, hairline border - so it lines up with Date/Type.
 export const SlotBadge = ({ label }: { label: string | null }) => (
-  <div className="relative flex items-center min-h-[46px] border-[1.5px] border-[var(--hairline)] rounded-[12px] bg-[var(--field-bg)] px-5 py-3">
-    <FloatLabel floated={Boolean(label)}>Slot duration</FloatLabel>
-    <span style={label ? text16R : { ...text16R, color: INPUT_PLACEHOLDER }}>{label ?? ''}</span>
+  <div className="flex w-full flex-col">
+    <span className="mb-1.5 block truncate text-[12px] font-semibold text-[var(--ink-soft)]">
+      Slot duration
+    </span>
+    <div className="relative flex h-[44px] w-full items-center rounded-[12px]! border-[1.5px] border-[var(--hairline)]! bg-[var(--field-bg)] px-[13px]">
+      <span
+        className="text-[13px]"
+        style={
+          label
+            ? { ...text16R, fontSize: 13 }
+            : { ...text16R, fontSize: 13, color: INPUT_PLACEHOLDER }
+        }
+      >
+        {label ?? ''}
+      </span>
+    </div>
   </div>
 );
 
@@ -758,7 +774,9 @@ export const AppointmentFormContent = ({
   onCancel,
   variant = 'modal',
 }: AppointmentFormContentProps) => (
-  <div className="relative">
+  // Rebind --field-bg to the warm surface so every field (Date/Time/Slot/Type and
+  // the person pickers) shares one warm token instead of the cool #fafafa default.
+  <div className="relative [--field-bg:var(--color-neutral-0)]">
     <div
       className={
         variant === 'sheet'
@@ -1373,12 +1391,12 @@ const useAddAppointmentCentralModalView = ({
       );
       if (mins > 0) return `${mins} mins`;
     }
-    if (formData.durationMinutes) return `${formData.durationMinutes} mins`;
-    // Before a time slot is chosen, fall back to the selected service's configured
-    // duration so the badge reflects the picked service instead of staying empty.
+    // Prefer the selected service's configured duration over a possibly-stale slot
+    // duration so switching service/speciality updates the badge immediately.
     // Display-only: booking still requires a real slot (durationMinutes validation).
     const serviceMins = Number(ServiceInfoData?.duration);
     if (Number.isFinite(serviceMins) && serviceMins > 0) return `${serviceMins} mins`;
+    if (formData.durationMinutes) return `${formData.durationMinutes} mins`;
     return null;
   }, [selectedSlot, formData.durationMinutes, ServiceInfoData?.duration]);
 

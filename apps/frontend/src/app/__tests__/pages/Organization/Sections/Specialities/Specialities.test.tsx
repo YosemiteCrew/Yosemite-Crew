@@ -25,7 +25,7 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => (props: any) => {
+jest.mock('@/app/ui/primitives/SectionCard/SectionCard', () => (props: any) => {
   accordionButtonSpy(props);
   return (
     <div data-testid="accordion-button">

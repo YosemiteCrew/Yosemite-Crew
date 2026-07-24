@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import Image from 'next/image';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { IoEye, IoOpenOutline } from 'react-icons/io5';
@@ -72,9 +73,7 @@ const renderServices = (item: Invoice) => (
 );
 
 const renderStatus = (item: Invoice) => (
-  <div className="appointment-status" style={getInvoiceStatusStyle(item?.status)}>
-    {toTitle(item?.status)}
-  </div>
+  <StatusPill style={getInvoiceStatusStyle(item?.status)} label={toTitle(item?.status)} />
 );
 
 const renderPayment = (item: Invoice) => (
@@ -150,14 +149,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       getAppointmentCompanionPhotoUrl(companion),
       (companion?.species as ImageType) ?? 'other'
     );
-    // The Date column already carries the appointment date, so the desktop
-    // sub-line pairs the appointment type with the time only — no duplicated
-    // date. On tablet the Date column is dropped, so the date folds back in.
+    // The Services column already carries the appointment type, and the Date
+    // column carries the date, but neither shows the time — so the desktop
+    // sub-line keeps just the time (not the type, which really is duplicated).
+    // On tablet, Services/Date are dropped entirely, so their content folds
+    // back in here alongside the time.
     const foldedDate =
       foldMeta && appointment ? formatDateLabel(appointment.appointmentDate) : undefined;
     const appointmentSubtitle = appointment
       ? buildAppointmentSubtitle(
-          appointment.appointmentType?.name,
+          foldMeta ? appointment.appointmentType?.name : undefined,
           formatTimeLabel(appointment.startTime ?? appointment.appointmentDate),
           foldedDate
         )
@@ -215,12 +216,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
             title="Open appointment finance"
           >
             {formatDateLabel(appointment.appointmentDate)}
-            <IoOpenOutline
-              size={12}
-              style={{ color: 'var(--ink-faint)' }}
-              className="shrink-0"
-              aria-hidden="true"
-            />
+            <IoOpenOutline size={12} className="shrink-0" aria-hidden="true" />
           </button>
         )}
       </div>

@@ -29,7 +29,7 @@ import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import { useCalendarWeekNavigation } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import { getStartOfWeek } from '@/app/features/appointments/components/Calendar/weekHelpers';
 
-type FilterOption = { key: string; name: string };
+type FilterOption = { key: string; name: string; dotColor?: string };
 type StatusOption = {
   key: string;
   name: string;
@@ -168,7 +168,7 @@ const StatusFilterDropdown = ({
         createPortal(
           <div
             ref={dropdown.panelRef}
-            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_var(--color-shadow-soft)] overflow-hidden"
             style={dropdown.style}
           >
             {statusOptions.map((status) => {
@@ -256,6 +256,13 @@ const FilterPills = ({
                 aria-hidden="true"
                 className="size-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: 'var(--danger)' }}
+              />
+            )}
+            {!isEmergencyFilter && filter.dotColor && (
+              <span
+                aria-hidden="true"
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: filter.dotColor }}
               />
             )}
             <span>{filter.name}</span>

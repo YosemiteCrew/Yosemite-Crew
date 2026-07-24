@@ -14,6 +14,7 @@ import { Organisation, Service } from '@yosemite-crew/types';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { Team as TeamProp } from '@/app/features/organization/types/team';
 import { useSpecialitiesWithServiceNamesForPrimaryOrg } from '@/app/hooks/useSpecialities';
+import { loadServicesForOrg } from '@/app/features/organization/services/serviceService';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { usePermissions } from '@/app/hooks/usePermissions';
@@ -23,7 +24,10 @@ import AddTeam from '@/app/features/organization/pages/Organization/Sections/Tea
 import TeamInfo from '@/app/features/organization/pages/Organization/Sections/Team/TeamInfo';
 import OrgProfileEditCards from '@/app/features/organization/pages/Organization/Sections/OrgProfileEditCards';
 import { useOrgProfileForm } from '@/app/features/organization/pages/Organization/Sections/useOrgProfileForm';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
+  COMPLETED_PILL_TOKENS,
+  UPCOMING_PILL_TOKENS,
   avatarAccentFor,
   humanize,
   initialsOf,
@@ -100,14 +104,17 @@ const ProfileCardCompact = ({ org }: { org: Organisation }) => {
             {org.name || 'Organization'}
           </span>
           {org.isVerified && (
-            <span className="inline-flex items-center gap-[3px] rounded-full border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-2 py-[2px] text-[8.5px] font-bold text-[var(--status-completed-text)]">
-              <IoShieldCheckmark size={8} aria-hidden="true" />
-              VERIFIED
-            </span>
+            <StatusPill
+              tokens={COMPLETED_PILL_TOKENS}
+              label={
+                <>
+                  <IoShieldCheckmark size={8} aria-hidden="true" />
+                  VERIFIED
+                </>
+              }
+            />
           )}
-          <span className="inline-flex items-center rounded-full border border-[var(--status-upcoming-border)] bg-[var(--status-upcoming-bg)] px-2 py-[2px] text-[8.5px] font-bold text-[var(--status-upcoming-text)]">
-            {orgTypePillLabel(org.type)}
-          </span>
+          <StatusPill label={orgTypePillLabel(org.type)} tokens={UPCOMING_PILL_TOKENS} />
         </span>
         <span className="mt-[3px] block text-[11px] leading-[1.45] text-[var(--ink-faint)]">
           {line1}
@@ -154,11 +161,7 @@ const TeamListRow = ({ team, onOpen }: { team: TeamProp; onOpen: (team: TeamProp
           {teamSubline(team) || '—'}
         </span>
       </span>
-      <span
-        className={`inline-flex flex-none items-center rounded-full border px-2 py-[2px] text-[8.5px] font-bold ${pill.className}`}
-      >
-        {pill.label}
-      </span>
+      <StatusPill label={pill.label} tokens={pill.tokens} className="flex-none" />
     </button>
   );
 };
@@ -257,6 +260,17 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeTeam, setActiveTeam] = useState<TeamProp | null>(teams[0] ?? null);
+
+  // The desktop Specialities panel loads the catalog on mount; the phone screen
+  // must too, or the specialities accordion has no services to reveal when tapped.
+  // Keep a missing id as undefined (never the string "undefined") so loadServicesForOrg can fall
+  // back to the store's primary org id / skip, instead of fetching /organisation/undefined.
+  const primaryOrgId = primaryOrg._id ? String(primaryOrg._id) : undefined;
+  useEffect(() => {
+    loadServicesForOrg(primaryOrgId).catch(() => {
+      // Leave the accordion bodies empty if the load fails; the list still renders.
+    });
+  }, [primaryOrgId]);
 
   useEffect(() => {
     setActiveTeam((prev) => {

@@ -273,7 +273,7 @@ describe("ClinicalTermsService", () => {
             codes: [],
             species: ["SA"],
           },
-        ])
+        ]),
       );
     });
 
@@ -297,16 +297,16 @@ describe("ClinicalTermsService", () => {
             label: "Test Concept",
             domain: "Diagnosis",
             active: true,
-            source: "VeNom",  // Changed from "test" to valid enum value
+            source: "VeNom", // Changed from "test" to valid enum value
             designations: [],
             codes: [],
             species: ["SA"],
           },
-        ])
+        ]),
       );
-      
+
       const result = await ClinicalTermsService.importFromFile(
-        "test-data-clinical/concepts.json"
+        "test-data-clinical/concepts.json",
       );
       expect(CodeService.upsertEntry).toHaveBeenCalled();
       expect(result).toHaveProperty("entriesUpserted");
@@ -314,19 +314,19 @@ describe("ClinicalTermsService", () => {
 
     it("should reject path traversal with double dots", async () => {
       await expect(
-        ClinicalTermsService.importFromFile("../../../etc/passwd")
+        ClinicalTermsService.importFromFile("../../../etc/passwd"),
       ).rejects.toThrow("Invalid file path");
     });
 
     it("should reject path traversal in middle of path", async () => {
       await expect(
-        ClinicalTermsService.importFromFile("data/../../../etc/passwd")
+        ClinicalTermsService.importFromFile("data/../../../etc/passwd"),
       ).rejects.toThrow("Invalid file path");
     });
 
     it("should reject absolute Unix paths", async () => {
       await expect(
-        ClinicalTermsService.importFromFile("/etc/passwd")
+        ClinicalTermsService.importFromFile("/etc/passwd"),
       ).rejects.toThrow("Invalid file path");
     });
 
@@ -334,25 +334,27 @@ describe("ClinicalTermsService", () => {
       const windowsPath = "C:\\Windows\\System32\\config\\sam";
       if (path.isAbsolute(windowsPath)) {
         await expect(
-          ClinicalTermsService.importFromFile(windowsPath)
+          ClinicalTermsService.importFromFile(windowsPath),
         ).rejects.toThrow("Invalid file path");
       } else {
         // On Unix, this would fail with ENOENT or parsing error, which is acceptable
         await expect(
-          ClinicalTermsService.importFromFile(windowsPath)
+          ClinicalTermsService.importFromFile(windowsPath),
         ).rejects.toThrow();
       }
     });
 
     it("should reject URL-encoded path traversal", async () => {
       await expect(
-        ClinicalTermsService.importFromFile("..%2F..%2F..%2Fetc%2Fpasswd")
+        ClinicalTermsService.importFromFile("..%2F..%2F..%2Fetc%2Fpasswd"),
       ).rejects.toThrow("Invalid file path");
     });
 
     it("should reject backslash path traversal", async () => {
       await expect(
-        ClinicalTermsService.importFromFile("..\\..\\..\\windows\\system32\\config\\sam")
+        ClinicalTermsService.importFromFile(
+          "..\\..\\..\\windows\\system32\\config\\sam",
+        ),
       ).rejects.toThrow("Invalid file path");
     });
   });

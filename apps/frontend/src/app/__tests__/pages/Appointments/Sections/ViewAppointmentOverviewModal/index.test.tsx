@@ -583,6 +583,46 @@ describe('ViewAppointmentOverviewModal', () => {
     await settle();
   });
 
+  it('only dims the field being saved, keeping both labels visible', async () => {
+    mockRoomState = inpatientRoomState();
+    let resolveUpdate: () => void = () => undefined;
+    (updateAppointment as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUpdate = resolve;
+        })
+    );
+
+    render(
+      <ViewAppointmentOverviewModal {...defaultProps} activeAppointment={inpatientAppointment()} />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('room-dropdown'));
+    });
+
+    // Room's label is unchanged (never swaps to "Saving…") and only its own
+    // wrapper is dimmed/non-interactive - Unit stays fully usable.
+    expect(screen.getByTestId('room-dropdown')).toHaveTextContent('Select Room');
+    expect(screen.getByTestId('unit-dropdown')).toHaveTextContent('Select Unit');
+    expect(screen.getByTestId('room-dropdown').parentElement).toHaveClass(
+      'pointer-events-none',
+      'opacity-60'
+    );
+    expect(screen.getByTestId('unit-dropdown').parentElement).not.toHaveClass(
+      'pointer-events-none'
+    );
+
+    await act(async () => {
+      resolveUpdate();
+    });
+    await settle();
+
+    expect(screen.getByTestId('room-dropdown').parentElement).not.toHaveClass(
+      'pointer-events-none'
+    );
+  });
+
   it('assigns the room and unit for an inpatient appointment with an encounter', async () => {
     mockRoomState = inpatientRoomState();
     render(

@@ -304,8 +304,11 @@ describe('ChatContainer', () => {
       { id: 'u2', userId: 'user-2', name: 'User Two', email: 'u2@test.com' },
       { id: 'u3', userId: 'user-3', name: 'User Three', email: 'u3@test.com' },
     ]);
+    // The org-scoped session list doubles as the organisation allow-list for
+    // channels created before channels carried an organisation stamp, so the
+    // default mock claims the shared fixture channel for the active org.
     (chatService.getChatSessions as jest.Mock).mockResolvedValue({
-      channels: [],
+      channels: [{ channelId: 'channel-1' }],
     });
     (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
 
@@ -1224,6 +1227,74 @@ describe('ChatContainer', () => {
       expect(result).toContain(byMember);
       expect(result).not.toContain(stateless);
       expect(result).not.toContain(unrelated);
+    });
+  });
+
+  describe('channel filtering by organisation', () => {
+    type FilterFn = (channels: unknown[]) => unknown[];
+    const getFilter = () =>
+      (globalThis as unknown as { __testChannelFilter?: FilterFn }).__testChannelFilter;
+
+    const renderForFilter = async () => {
+      await act(async () => {
+        render(<ChatContainer scope="clients" />);
+      });
+      await waitFor(() => expect(getFilter()).toBeDefined());
+      return getFilter() as FilterFn;
+    };
+
+    const clientChannel = (id: string, data: Record<string, unknown>) => ({
+      ...defaultMockChannel,
+      id,
+      type: 'messaging',
+      data: { appointmentId: `appt-${id}`, ...data },
+      state: { members: {} },
+    });
+
+    it('drops a channel stamped with another organisation', async () => {
+      const mine = clientChannel('mine', { organisationId: 'org-1' });
+      const theirs = clientChannel('theirs', { organisationId: 'org-2' });
+      const filter = await renderForFilter();
+
+      const result = filter([mine, theirs]);
+      expect(result).toContain(mine);
+      expect(result).not.toContain(theirs);
+    });
+
+    it('keeps a cross-clinic channel that lists the active organisation', async () => {
+      const shared = clientChannel('shared', { organisationIds: ['org-2', 'org-1'] });
+      const foreign = clientChannel('foreign', { organisationIds: ['org-2', 'org-3'] });
+      const filter = await renderForFilter();
+
+      const result = filter([shared, foreign]);
+      expect(result).toContain(shared);
+      expect(result).not.toContain(foreign);
+    });
+
+    it('drops an unstamped channel the organisation has no session for', async () => {
+      const known = clientChannel('channel-1', {});
+      const unknown = clientChannel('other-org-channel', {});
+      const filter = await renderForFilter();
+
+      const result = filter([known, unknown]);
+      expect(result).toContain(known);
+      expect(result).not.toContain(unknown);
+    });
+
+    it('keeps unstamped channels when the session list could not be loaded', async () => {
+      (chatService.getChatSessions as jest.Mock).mockRejectedValue(new Error('offline'));
+      const unknown = clientChannel('other-org-channel', {});
+      const filter = await renderForFilter();
+
+      expect(filter([unknown])).toContain(unknown);
+    });
+
+    it('scopes to the organisation switched into rather than the one loaded before', async () => {
+      const theirs = clientChannel('theirs', { organisationId: 'org-2' });
+      const filter = await renderForFilter();
+
+      expect(filter([theirs])).not.toContain(theirs);
+      expect(chatService.getChatSessions).toHaveBeenCalledWith('org-1', { includeClosed: true });
     });
   });
 

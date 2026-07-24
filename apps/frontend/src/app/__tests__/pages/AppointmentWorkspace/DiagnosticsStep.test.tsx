@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import type { Appointment } from '@yosemite-crew/types';
@@ -15,6 +15,13 @@ expect.extend(toHaveNoViolations);
 
 // ---- module-under-mock: the real IDEXX backend hook + exported helpers ----
 const mockUseLabTests = jest.fn();
+
+const mockRouterPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush, replace: jest.fn(), prefetch: jest.fn() }),
+  useSearchParams: () => ({ get: jest.fn(() => null), entries: jest.fn(() => [].entries()) }),
+  usePathname: () => '/',
+}));
 
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests',
@@ -133,6 +140,7 @@ const baseHook = (overrides: Partial<UseLabTestsReturn> = {}): UseLabTestsReturn
     selectedTestLabel: '',
     setSelectedTestLabel: jest.fn(),
     selectedTests: [makeTest()],
+    pendingTest: null,
     modality: 'REFERENCE_LAB',
     setModality: jest.fn(),
     selectedIvls: '',
@@ -188,6 +196,9 @@ const baseHook = (overrides: Partial<UseLabTestsReturn> = {}): UseLabTestsReturn
     openOrderAcknowledgement: jest.fn(),
     setActiveOrderForActions: jest.fn(),
     addTest: jest.fn(),
+    selectSearchResult: jest.fn(),
+    confirmPendingTest: jest.fn(),
+    cancelPendingTest: jest.fn(),
     removeTest: jest.fn(),
     handleCreateOrder: jest.fn(),
     handleAddToCensus: jest.fn(),
@@ -222,7 +233,10 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   it('renders provider pills with IDEXX selected and the order builder/queue/results sections', () => {
     renderStep();
 
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     expect(screen.getByRole('img', { name: 'IDEXX' })).toBeInTheDocument();
     expect(screen.getByText('Order Builder')).toBeInTheDocument();
     expect(screen.getByText('Test Queue')).toBeInTheDocument();
@@ -261,7 +275,10 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     // Clicking the disabled provider does not switch away from the IDEXX builder.
     fireEvent.click(radButton);
     expect(screen.getByText('Order Builder')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
   it('keeps diagnostic history visible but hides new-order controls when read-only', () => {
@@ -378,7 +395,7 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   it('updates order builder fields through the backend hook callbacks', () => {
     const { hook } = renderStep({ modality: 'REFERENCE_LAB' });
 
-    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Fasted sample' } });
+    fireEvent.change(screen.getByLabelText('Order notes'), { target: { value: 'Fasted sample' } });
     fireEvent.change(screen.getByLabelText('Collection Date'), { target: { value: '2026-06-03' } });
     fireEvent.click(screen.getByRole('button', { name: /veterinarian: dr\. tim apple/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Sarah Mitchell' }));
@@ -392,6 +409,38 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(hook.setVeterinarian).toHaveBeenCalledWith('tech-1');
     expect(hook.setTechnician).toHaveBeenCalledWith('vet-1');
     expect(hook.setModality).toHaveBeenCalledWith('INHOUSE');
+  });
+
+  it('stages a search result instead of queueing it directly (bug #1973)', () => {
+    const { hook } = renderStep({
+      tests: [makeTest({ code: 'NEW001', display: 'Unique New Test' })],
+    });
+
+    const input = screen.getByLabelText('Search for lab tests');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Unique' } });
+    fireEvent.click(screen.getByRole('button', { name: /Unique New Test/ }));
+
+    expect(hook.selectSearchResult).toHaveBeenCalledWith('NEW001');
+    expect(hook.addTest).not.toHaveBeenCalled();
+  });
+
+  it('shows a pending test confirmation card and wires its Add/Cancel actions', () => {
+    const { hook } = renderStep({ pendingTest: makeTest({ code: 'SA250' }) });
+
+    const confirmation = screen.getByTestId('pending-test-confirmation');
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Add to Queue' }));
+    expect(hook.confirmPendingTest).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    expect(hook.cancelPendingTest).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows saved order notes in Order Status so they remain visible after refresh (bug #1973)', () => {
+    renderStep({ appointmentOrders: [makeOrder({ notes: 'Fasted patient' })] });
+
+    expect(screen.getByText(/Order notes:/)).toBeInTheDocument();
+    expect(screen.getByText(/Fasted patient/)).toBeInTheDocument();
   });
 
   it('disables create when no tests are queued and renders the empty queue message', () => {
@@ -517,14 +566,18 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     printSpy.mockRestore();
   });
 
-  it('keeps IDEXX selected when its already-active pill is clicked', () => {
+  it('opens the IDEXX workspace when the logo pill is clicked', () => {
     renderStep();
 
-    // Clicking the enabled IDEXX pill runs the onSelect path (setSelectedProvider).
-    fireEvent.click(screen.getByRole('button', { name: 'IDEXX' }));
+    // IDEXX is always the selected provider, so selection alone left the logo
+    // looking clickable while doing nothing visible. It now opens the hub.
+    fireEvent.click(screen.getByRole('button', { name: 'Open the IDEXX workspace' }));
 
-    expect(screen.getByRole('button', { name: 'IDEXX' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('Order Builder')).toBeInTheDocument();
+    expect(mockRouterPush).toHaveBeenCalledWith('/appointments/idexx-workspace');
+    expect(screen.getByRole('button', { name: 'Open the IDEXX workspace' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
   it('labels a non-submitted, non-created order "Open IDEXX" and opens it as an order source', () => {

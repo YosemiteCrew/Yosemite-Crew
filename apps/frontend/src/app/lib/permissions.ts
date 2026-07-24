@@ -75,13 +75,7 @@ export function toPermissionArray(input: string[] | undefined): Permission[] {
 }
 
 export type RoleCode =
-  | 'OWNER'
-  | 'ADMIN'
-  | 'SUPERVISOR'
-  | 'VETERINARIAN'
-  | 'TECHNICIAN'
-  | 'ASSISTANT'
-  | 'RECEPTIONIST';
+  'OWNER' | 'ADMIN' | 'SUPERVISOR' | 'VETERINARIAN' | 'TECHNICIAN' | 'ASSISTANT' | 'RECEPTIONIST';
 
 /**
  * Baseline permissions per role.
@@ -266,6 +260,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'document:view:any',
     'document:edit:any',
+    'integrations:view:any',
   ],
 
   VETERINARIAN: [
@@ -314,6 +309,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'labs:view:any',
     'labs:edit:any',
+    'integrations:view:any',
   ],
 
   TECHNICIAN: [
@@ -359,6 +355,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'labs:view:any',
     'labs:edit:any',
+    'integrations:view:any',
   ],
 
   ASSISTANT: [
@@ -401,6 +398,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'room:edit:any',
 
     'document:view:any',
+    'integrations:view:any',
   ],
 
   RECEPTIONIST: [
@@ -445,5 +443,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     'room:edit:any',
 
     'document:view:any',
+    'integrations:view:any',
   ],
 };

@@ -3,7 +3,7 @@ import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { BillingSubscriptionInterval } from '@/app/features/billing/types/billing';
 import { getUpgradeLink } from '@/app/features/billing/services/billingService';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
 import { logger } from '@/app/lib/logger';
 
@@ -41,13 +41,7 @@ const Upgrade = () => {
         <Primary href="#" onClick={() => setSelectPopup(true)} text="Upgrade" />
       </div>
       <CenterModal showModal={selectPopup} setShowModal={setSelectPopup} onClose={handleCancel}>
-        <div className="flex justify-between items-center">
-          <div className="size-8" aria-hidden="true" />
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Select billing cycle</div>
-          </div>
-          <Close onClick={handleCancel} />
-        </div>
+        <ModalHeader title="Select billing cycle" onClose={handleCancel} />
         <div className="w-full flex items-center justify-between gap-2 flex-col">
           <div className="flex items-center gap-2">
             <button

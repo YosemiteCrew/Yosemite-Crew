@@ -56,6 +56,24 @@ describe('ModalBase', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('stays open when the click lands inside another modal', () => {
+    const { setShowModal, onClose } = renderModal();
+
+    // Modals portal to document.body, so one opened from inside another is a
+    // DOM sibling. Clicking it must not read as an outside click here.
+    const sibling = document.createElement('dialog');
+    sibling.className = 'yc-modal-dialog';
+    const inner = document.createElement('button');
+    sibling.appendChild(inner);
+    document.body.appendChild(sibling);
+
+    fireEvent.mouseDown(inner);
+    expect(setShowModal).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    sibling.remove();
+  });
+
   it('does not close when canClose returns false', () => {
     const { setShowModal, onClose } = renderModal({ canClose: () => false });
 

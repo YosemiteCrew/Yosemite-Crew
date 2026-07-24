@@ -35,6 +35,8 @@ const requirePermission = jest.fn(() => requirePermissionMiddleware);
 
 const FinanceController = {
   webhook: jest.fn(),
+  getDiscountSettings: jest.fn(),
+  updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
   addInvoiceItems: jest.fn(),
@@ -211,6 +213,31 @@ describe("finance.router", () => {
     expect(rateLimit).toHaveBeenCalledTimes(1);
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
+  });
+
+  it("guards the discount settings routes with billing permissions", () => {
+    expect(
+      findRoute(
+        "/organisation/:organisationId/discount-settings",
+        "get",
+      )?.stack.map((layer) => layer.handle),
+    ).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      FinanceController.getDiscountSettings,
+    ]);
+    expect(
+      findRoute(
+        "/organisation/:organisationId/discount-settings",
+        "put",
+      )?.stack.map((layer) => layer.handle),
+    ).toEqual([
+      requireWebAuth,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      FinanceController.updateDiscountSettings,
+    ]);
   });
 
   it("exposes the remaining finance contract routes", () => {
