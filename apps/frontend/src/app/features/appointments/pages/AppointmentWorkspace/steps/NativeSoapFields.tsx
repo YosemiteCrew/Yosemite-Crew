@@ -31,7 +31,7 @@ const NativeSoapFields = ({
   <>
     <SectionContainer
       titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
-      title="S · Subjective"
+      title="Subjective (History)"
       compactTop
       disableFocusBorder
     >
@@ -46,7 +46,7 @@ const NativeSoapFields = ({
 
     <SectionContainer
       titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
-      title="O · Objective"
+      title="Objective (Examination)"
       compactTop
       disableFocusBorder
     >
@@ -68,7 +68,7 @@ const NativeSoapFields = ({
 
     <SectionContainer
       titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
-      title="A · Assessment"
+      title="Assessment (Differential)"
       compactTop
       disableFocusBorder
     >
@@ -83,7 +83,7 @@ const NativeSoapFields = ({
 
     <SectionContainer
       titleClassName="text-[10.5px] font-bold uppercase tracking-[0.1em] text-blue-text"
-      title="P · Plan"
+      title="Plan"
       compactTop
       disableFocusBorder
     >
