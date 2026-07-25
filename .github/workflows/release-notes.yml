@@ -9,12 +9,15 @@ on:
     tags:
       - '*-v*'
 
-permissions:
-  contents: write
+# Deny by default at workflow level, grant the minimum on the job that needs it,
+# matching desktop-release.yml.
+permissions: {}
 
 jobs:
   generate-notes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to create or edit the GitHub Release
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
