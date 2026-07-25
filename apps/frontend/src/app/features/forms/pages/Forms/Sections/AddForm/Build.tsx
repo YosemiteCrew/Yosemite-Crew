@@ -1,5 +1,6 @@
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import {
   IoAddOutline,
@@ -1667,13 +1668,19 @@ const BuilderCanvas: React.FC<BuilderCanvasProps> = ({
 /** Linked-service tag: violet for a service, blue for a package, per the design. */
 const LinkedServiceBadge: React.FC<{ badge?: string }> = ({ badge }) => {
   const label = (badge ?? 'SERVICE').toUpperCase();
-  const tone =
+  const tokens =
     label === 'PACKAGE'
-      ? 'border-[var(--status-upcoming-border)] bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)]'
-      : 'border-[var(--status-in-progress-border)] bg-[var(--status-in-progress-bg)] text-[var(--status-in-progress-text)]';
-  return (
-    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${tone}`}>{label}</span>
-  );
+      ? {
+          bg: 'var(--status-upcoming-bg)',
+          text: 'var(--status-upcoming-text)',
+          border: 'var(--status-upcoming-border)',
+        }
+      : {
+          bg: 'var(--status-in-progress-bg)',
+          text: 'var(--status-in-progress-text)',
+          border: 'var(--status-in-progress-border)',
+        };
+  return <StatusPill tokens={tokens} label={label} />;
 };
 
 type BuilderSettingsPanelProps = {

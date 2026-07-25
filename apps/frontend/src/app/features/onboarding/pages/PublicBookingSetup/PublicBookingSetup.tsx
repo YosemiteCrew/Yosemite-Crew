@@ -11,6 +11,7 @@ import {
   IoGlobeOutline,
   IoRocketOutline,
 } from 'react-icons/io5';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
@@ -43,10 +44,15 @@ const copyText = async (value: string): Promise<boolean> => {
 };
 
 const AssumedBanner = () => (
-  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-[var(--warn-bg)] border border-[var(--warn-border)] text-[10px] font-bold text-[var(--warn-text)]">
-    <IoAlertCircleOutline size={11} aria-hidden="true" />
-    FIELDS ASSUMED · confirm with product
-  </span>
+  <StatusPill
+    tokens={{ bg: 'var(--warn-bg)', text: 'var(--warn-text)', border: 'var(--warn-border)' }}
+    label={
+      <>
+        <IoAlertCircleOutline size={11} aria-hidden="true" />
+        FIELDS ASSUMED · confirm with product
+      </>
+    }
+  />
 );
 
 const SetupHeader = ({ step, label }: { step: 1 | 2; label: string }) => (
