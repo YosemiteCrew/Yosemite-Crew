@@ -49,13 +49,21 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 // Mock EmptyDocumentsScreen to avoid complex dependencies
-jest.mock('@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
-  const ReactModule = require('react');
-  const {View, Text} = require('react-native');
-  return {
-    EmptyDocumentsScreen: () => ReactModule.createElement(View, {}, ReactModule.createElement(Text, {}, 'Empty Documents')),
-  };
-});
+jest.mock(
+  '@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen',
+  () => {
+    const ReactModule = require('react');
+    const {View, Text} = require('react-native');
+    return {
+      EmptyDocumentsScreen: () =>
+        ReactModule.createElement(
+          View,
+          {},
+          ReactModule.createElement(Text, {}, 'Empty Documents'),
+        ),
+    };
+  },
+);
 
 const createTestStore = () => {
   return configureStore({
@@ -77,35 +85,50 @@ describe('Placeholder Screens Snapshots', () => {
     jest.clearAllMocks();
   });
 
+  // These trees used to be created and left mounted. React 19 keeps scheduler
+  // work queued for an un-unmounted tree, and from Jest 30 that callback firing
+  // after the environment is torn down fails whichever suite the worker picks
+  // up next ("trying to `require` a file after the Jest environment has been
+  // torn down"). Unmounting inside act drains that work here instead. The tree
+  // is serialised before the act so these remain first-render snapshots.
+  const renderSnapshot = (ui: React.ReactElement) => {
+    const tree = renderer.create(ui);
+    const json = tree.toJSON();
+    renderer.act(() => {
+      tree.unmount();
+    });
+    return json;
+  };
+
   describe('TasksMainScreen', () => {
     it('should render correctly', () => {
-      const tree = renderer.create(
+      const tree = renderSnapshot(
         <Provider store={store}>
           <TasksMainScreen />
-        </Provider>
-      ).toJSON();
+        </Provider>,
+      );
       expect(tree).toMatchSnapshot();
     });
   });
 
   describe('AppointmentsScreen', () => {
     it('should render correctly', () => {
-      const tree = renderer.create(
+      const tree = renderSnapshot(
         <Provider store={store}>
           <AppointmentsScreen />
-        </Provider>
-      ).toJSON();
+        </Provider>,
+      );
       expect(tree).toMatchSnapshot();
     });
   });
 
   describe('DocumentsScreen', () => {
     it('should render correctly', () => {
-      const tree = renderer.create(
+      const tree = renderSnapshot(
         <Provider store={store}>
           <DocumentsScreen />
-        </Provider>
-      ).toJSON();
+        </Provider>,
+      );
       expect(tree).toMatchSnapshot();
     });
   });

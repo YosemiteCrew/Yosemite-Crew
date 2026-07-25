@@ -1,5 +1,6 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
+import type { AppointmentRequestDTO } from "@yosemite-crew/types";
 // 1. FIXED IMPORTS: Up 3 levels to reach 'src' from 'test/controllers/web'
 import { AppointmentController } from "../../../src/controllers/web/appointment.controller";
 import { AppointmentService } from "../../../src/services/appointment.service";
@@ -220,7 +221,7 @@ describe("AppointmentController", () => {
       await AppointmentController.createFromPms(req as any, res as Response);
       expect(
         mockedAppointmentService.createAppointmentFromPms,
-      ).toHaveBeenCalledWith({}, true, undefined);
+      ).toHaveBeenCalledWith({} as AppointmentRequestDTO, true, undefined);
     });
 
     it("should success (201) with createPayment=false", async () => {
@@ -233,7 +234,7 @@ describe("AppointmentController", () => {
       await AppointmentController.createFromPms(req as any, res as Response);
       expect(
         mockedAppointmentService.createAppointmentFromPms,
-      ).toHaveBeenCalledWith({}, false, undefined);
+      ).toHaveBeenCalledWith({} as AppointmentRequestDTO, false, undefined);
     });
 
     it("should handle error", async () => {
