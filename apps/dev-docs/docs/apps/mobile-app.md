@@ -224,7 +224,7 @@ The template `config-templates/env/.env.example` is informational only. This app
 
 #### Authentication (SuperTokens)
 
-The app authenticates with **SuperTokens** sessions against the Yosemite Crew backend (`supertokens-react-native`) - there are no separate auth config files to create. The SDK is initialized at startup against the API selected by `USE_DEV_API` in `variables.local.ts`, attaches the session tokens via headers, and refreshes the access token automatically. Email-OTP sign-in works out of the box; **Google and Facebook sign-in additionally require the social-provider IDs in `variables.local.ts`** (see section A below - the copied template leaves them empty, and `configureSocialProviders()` skips provider initialization with a warning when they are missing).
+The app authenticates with **SuperTokens** sessions against the Yosemite Crew backend (`supertokens-react-native`) - there are no separate auth config files to create. The SDK is initialized at startup against the API selected by `USE_DEV_API` in `variables.local.ts`, attaches the session tokens via headers, and refreshes the access token automatically. Email-OTP sign-in works out of the box; **Google, Facebook, and (on Android) Apple sign-in additionally require the social-provider IDs in `variables.local.ts`** (see section A below - the copied template leaves them empty, and `configureSocialProviders()` skips provider initialization with a warning when they are missing).
 
 - `USE_DEV_API = true` → sessions against `devapi.yosemitecrew.com` (recommended for development)
 - `USE_DEV_API = false` → sessions against `api.yosemitecrew.com` (production)
@@ -256,10 +256,14 @@ Setting `USE_DEV_API = true` routes all API calls - including SuperTokens authen
 
 Everything else in the file has sensible defaults and inline comments explaining each option, with one exception: social sign-in. The template ships `PASSWORDLESS_AUTH_CONFIG.googleWebClientId` and `PASSWORDLESS_AUTH_CONFIG.facebookAppId` empty, and `configureSocialProviders()` (in `src/features/auth/services/socialAuth.ts`) skips initializing a provider whose ID is absent - Google/Facebook sign-in buttons will then fail while email OTP keeps working. To enable them:
 
-| Field                                        | Where to find it                                                                                            |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `PASSWORDLESS_AUTH_CONFIG.googleWebClientId` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs → the **Web** client ID         |
-| `PASSWORDLESS_AUTH_CONFIG.facebookAppId`     | Meta for Developers → your app → App ID (must match the ID in the native Facebook config, sections C and E) |
+| Field                                        | Where to find it                                                                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `PASSWORDLESS_AUTH_CONFIG.googleWebClientId` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs → the **Web** client ID                              |
+| `PASSWORDLESS_AUTH_CONFIG.facebookAppId`     | Meta for Developers → your app → App ID (must match the ID in the native Facebook config, sections C and E)                      |
+| `PASSWORDLESS_AUTH_CONFIG.appleServiceId`    | Apple Developer portal → Certificates, Identifiers & Profiles → Identifiers → Services IDs (a Sign in with Apple **Service ID**) |
+| `PASSWORDLESS_AUTH_CONFIG.appleRedirectUri`  | A return URL registered on that same Service ID's Sign in with Apple configuration                                               |
+
+The two Apple fields are used only by the **Android** web-based flow (`signInWithAppleAndroid()` passes them to `appleAuthAndroid.configure()`); iOS uses the native Apple flow and ignores them. Note the template ships truthy **placeholder** values for both, so Apple sign-in on a fresh Android build fails against Apple's servers until you replace them - leave the placeholders if you do not need Apple sign-in locally.
 
 `GOOGLE_PLACES_CONFIG.apiKey` is used by the React Native JavaScript Google Places service. It is separate from the native Google Maps SDK keys used by Android and iOS map rendering.
 
