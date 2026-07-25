@@ -3,6 +3,8 @@ const isMobilePath = (file) =>
   file.startsWith('apps/mobileAppYC/') || file.includes('/apps/mobileAppYC/');
 const isFrontendPath = (file) =>
   file.startsWith('apps/frontend/') || file.includes('/apps/frontend/');
+// Generated Docusaurus mirror (apps/dev-docs postbuild output) - never lint build artifacts.
+const isDevDocsMirrorPath = (file) => file.includes('apps/frontend/public/dev-docs/');
 const MOBILE_ESLINT_IGNORED_FILES = new Set([
   '.eslintrc.js',
   'jest.config.js',
@@ -45,7 +47,7 @@ module.exports = {
       .map((file) => toMobileRelativePath(file))
       .filter((file) => shouldLintWithMobileEslint(file));
     const frontendFiles = files
-      .filter((file) => isFrontendPath(file))
+      .filter((file) => isFrontendPath(file) && !isDevDocsMirrorPath(file))
       .map((file) => toFrontendRelativePath(file));
     const nonMobileFiles = files.filter(
       (file) =>

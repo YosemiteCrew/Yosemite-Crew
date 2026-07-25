@@ -238,11 +238,13 @@ describe('observationToolService', () => {
           '/v1/observation-tools/mobile/tools',
           expect.objectContaining({
             params: {onlyActive: 'true'},
-            headers: expect.not.objectContaining({
-              'x-user-id': expect.anything(),
-            }),
           }),
         );
+        // The caller must never spoof the user id in a header. Asserted on the
+        // recorded config rather than with expect.not.objectContaining, which
+        // from Jest 30 no longer matches an undefined received value.
+        const [, listConfig] = (apiClient.get as jest.Mock).mock.calls[0];
+        expect(listConfig?.headers?.['x-user-id']).toBeUndefined();
 
         expect(result).toHaveLength(2);
         expect(result[0].id).toBe('list-id-1');

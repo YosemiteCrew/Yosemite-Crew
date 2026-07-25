@@ -10,13 +10,13 @@ Manages the mappings between users and the organisations they belong to: listing
 
 ### POST /
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Controller: `UserOrganizationController.listMappingsForUser`
 - Response: `401`: keys `Unauthorized`, `message`, `200`: keys `message`, `500`: keys `message`
 
 ### GET /org/mapping/:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `organisationId`
 - Controller: `UserOrganizationController.listByOrganisationId`
 - Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`

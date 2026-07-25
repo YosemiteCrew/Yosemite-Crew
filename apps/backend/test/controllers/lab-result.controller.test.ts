@@ -91,7 +91,7 @@ describe("LabResultController", () => {
       organisationId: "org-1",
       provider: "IDEXX",
       orderId: "order-1",
-      companionId: undefined,
+      patientId: undefined,
       limit: 10,
     });
     expect(IdexxResultsQueryService.search).not.toHaveBeenCalled();
