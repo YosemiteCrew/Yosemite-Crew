@@ -7,6 +7,7 @@ import {
   canRescheduleTask,
   getPreferredNextTaskStatus,
   getInvalidTaskStatusTransitionMessage,
+  getTaskInstructions,
   getTaskQuickDetails,
 } from '@/app/lib/tasks';
 import { Task } from '@/app/features/tasks/types/task';
@@ -172,6 +173,22 @@ describe('getInvalidTaskStatusTransitionMessage', () => {
   });
 });
 
+describe('getTaskInstructions', () => {
+  it('prefers the description written by the task form', () => {
+    const task = { description: 'Test desc', additionalNotes: 'Some notes' } as Task;
+    expect(getTaskInstructions(task)).toBe('Test desc');
+  });
+
+  it('falls back to additionalNotes for workflow-materialized tasks', () => {
+    const task = { additionalNotes: 'Some notes' } as Task;
+    expect(getTaskInstructions(task)).toBe('Some notes');
+  });
+
+  it('returns an empty string when a task has neither', () => {
+    expect(getTaskInstructions({} as Task)).toBe('');
+  });
+});
+
 describe('getTaskQuickDetails', () => {
   it('returns detail rows for a task', () => {
     const task = {
@@ -181,10 +198,17 @@ describe('getTaskQuickDetails', () => {
     } as Task;
 
     const details = getTaskQuickDetails(task);
-    expect(details).toHaveLength(3);
+    // "Additional notes" is no longer a row of its own; instructions are one field.
+    expect(details).toHaveLength(2);
     expect(details[0]).toEqual({ label: 'Category', value: 'Health' });
-    expect(details[1]).toEqual({ label: 'Description', value: 'Test desc' });
-    expect(details[2]).toEqual({ label: 'Additional notes', value: 'Some notes' });
+    expect(details[1]).toEqual({ label: 'Instructions (optional)', value: 'Test desc' });
+  });
+
+  it('surfaces additionalNotes as the instructions when no description is set', () => {
+    const task = { category: 'Health', additionalNotes: 'Some notes' } as Task;
+
+    const details = getTaskQuickDetails(task);
+    expect(details[1]).toEqual({ label: 'Instructions (optional)', value: 'Some notes' });
   });
 
   it('uses dash for missing fields', () => {

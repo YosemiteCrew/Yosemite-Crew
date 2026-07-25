@@ -166,11 +166,14 @@ jest.mock('@/features/tasks/utils/userHelpers', () => ({
 // UI component mocks
 // ---------------------------------------------------------------------------
 
+let lastContentPaddingChildren: any = null;
+
 jest.mock(
   '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
   () => ({
     LiquidGlassHeaderScreen: ({header, children}: any) => {
       const {View} = require('react-native');
+      lastContentPaddingChildren = children;
       return (
         <View>
           {header}
@@ -182,9 +185,15 @@ jest.mock(
 );
 
 jest.mock('@/shared/components/common', () => ({
-  Input: ({label, value}: any) => {
-    const {Text} = require('react-native');
-    return <Text>{`${label}:${value}`}</Text>;
+  Input: ({label, value, onChangeText}: any) => {
+    const {Text, TouchableOpacity} = require('react-native');
+    return (
+      <TouchableOpacity
+        testID={`input-${label}`}
+        onPress={() => onChangeText?.('changed')}>
+        <Text>{`${label}:${value}`}</Text>
+      </TouchableOpacity>
+    );
   },
 }));
 
@@ -286,9 +295,9 @@ jest.mock(
 );
 
 jest.mock('@/features/tasks/components/form', () => ({
-  TaskFormContent: () => {
+  TaskFormContent: ({taskFormMode}: any) => {
     const {Text} = require('react-native');
-    return <Text>Form Content</Text>;
+    return <Text testID="task-form-mode">Form Content: {taskFormMode}</Text>;
   },
   TaskFormFooter: ({onSave, loading}: any) => {
     const {TouchableOpacity, Text} = require('react-native');
@@ -567,6 +576,44 @@ describe('EditTaskScreen — additional coverage', () => {
         );
       });
     });
+
+    it('falls back to "Companion" when the assigned companion cannot be found', async () => {
+      mockHookData.task = {
+        ...mockHookData.task,
+        companionId: 'unknown-companion',
+      };
+      mockCreateCalendarEventForTask.mockResolvedValue(null);
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      await waitFor(() => {
+        expect(mockCreateCalendarEventForTask).toHaveBeenCalledWith(
+          expect.anything(),
+          'Companion',
+          expect.any(String),
+        );
+      });
+    });
+
+    it('omits calendarProvider on the updated task when formData has none', async () => {
+      mockHookData.formData = {
+        ...mockHookData.formData,
+        calendarProvider: '',
+      };
+      mockCreateCalendarEventForTask.mockResolvedValue(null);
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      await waitFor(() => {
+        expect(mockCreateCalendarEventForTask).toHaveBeenCalledWith(
+          expect.objectContaining({calendarProvider: undefined}),
+          expect.any(String),
+          expect.any(String),
+        );
+      });
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -624,27 +671,68 @@ describe('EditTaskScreen — additional coverage', () => {
   // -------------------------------------------------------------------------
 
   describe('handleSave — recurring tasks', () => {
-    it('calls updateTask directly for daily frequency', async () => {
+    it.each(['daily', 'weekly', 'monthly'])(
+      'asks for the change scope instead of saving straight away (%s)',
+      async frequency => {
+        Object.assign(mockHookData, {
+          task: {id: 't1', title: 'Task', companionId: 'c1', frequency},
+        });
+
+        const {getByTestId} = renderScreen();
+        fireEvent.press(getByTestId('save-btn'));
+
+        // The scope sheet is offered; nothing is written until an option is picked.
+        expect(getByTestId('save-all-btn')).toBeTruthy();
+        expect(getByTestId('save-for-day-btn')).toBeTruthy();
+        await waitFor(() => {
+          expect(mockUpdateTask).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it('saves once a scope is chosen', async () => {
       Object.assign(mockHookData, {
         task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
       });
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('save-btn'));
+      fireEvent.press(getByTestId('save-all-btn'));
 
       await waitFor(() => {
         expect(mockUpdateTask).toHaveBeenCalled();
       });
     });
 
-    it('calls updateTask directly for weekly frequency', async () => {
+    it('surfaces an error when saving a chosen scope rejects', async () => {
+      const error = new Error('Save failed');
+      mockUnwrap.mockRejectedValue(error);
+      mockUpdateTask.mockReturnValue({unwrap: mockUnwrap});
       Object.assign(mockHookData, {
-        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'weekly'},
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
       });
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('save-btn'));
+      fireEvent.press(getByTestId('save-for-day-btn'));
 
+      await waitFor(() => {
+        expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
+          'Unable to update task',
+          error,
+        );
+      });
+    });
+
+    it('does not offer a scope choice for a one-off task', async () => {
+      Object.assign(mockHookData, {
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'once'},
+      });
+
+      const {queryByTestId, getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      expect(queryByTestId('save-all-btn')).toBeNull();
       await waitFor(() => {
         expect(mockUpdateTask).toHaveBeenCalled();
       });
@@ -867,7 +955,25 @@ describe('EditTaskScreen — additional coverage', () => {
       });
     });
 
-    it('shows confirm sheet and calls deleteTask regardless of task frequency', async () => {
+    it('asks for the delete scope on a recurring task instead of deleting straight away', async () => {
+      Object.assign(mockHookData, {
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
+      });
+      setupDispatch();
+
+      const {getByTestId, queryByTestId} = renderScreen();
+      fireEvent.press(getByTestId('header-delete-btn'));
+
+      // The plain single-action confirm must not stand in for the scope choice.
+      expect(queryByTestId('confirm-primary-btn')).toBeNull();
+      expect(getByTestId('confirm-delete-all-btn')).toBeTruthy();
+      expect(getByTestId('confirm-delete-day-btn')).toBeTruthy();
+      await waitFor(() => {
+        expect(mockDeleteTask).not.toHaveBeenCalled();
+      });
+    });
+
+    it('deletes a recurring task once a scope is chosen', async () => {
       Object.assign(mockHookData, {
         task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
       });
@@ -875,7 +981,7 @@ describe('EditTaskScreen — additional coverage', () => {
 
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('header-delete-btn'));
-      fireEvent.press(getByTestId('confirm-primary-btn'));
+      fireEvent.press(getByTestId('confirm-delete-all-btn'));
 
       await waitFor(() => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
@@ -940,6 +1046,70 @@ describe('EditTaskScreen — additional coverage', () => {
         );
       });
     });
+
+    it('calls showErrorAlert when deleting all occurrences rejects', async () => {
+      const error = new Error('Delete failed');
+      mockUnwrap.mockRejectedValue(error);
+      mockDeleteTask.mockReturnValue({unwrap: mockUnwrap});
+      mockHookData.task = {
+        id: 't1',
+        title: 'Task',
+        companionId: 'c1',
+        frequency: 'daily',
+      };
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('confirm-delete-all-btn'));
+
+      await waitFor(() => {
+        expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
+          'Unable to delete task',
+          error,
+        );
+      });
+    });
+
+    it('calls showErrorAlert when deleting this day only rejects', async () => {
+      const error = new Error('Delete failed');
+      mockUnwrap.mockRejectedValue(error);
+      mockDeleteTask.mockReturnValue({unwrap: mockUnwrap});
+      mockHookData.task = {
+        id: 't1',
+        title: 'Task',
+        companionId: 'c1',
+        frequency: 'daily',
+      };
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+
+      await waitFor(() => {
+        expect(mockHookData.showErrorAlert).toHaveBeenCalledWith(
+          'Unable to delete task for this day',
+          error,
+        );
+      });
+    });
+  });
+
+  describe('recurring delete — this day only', () => {
+    it('deletes the task when the this-day-only scope is chosen', async () => {
+      Object.assign(mockHookData, {
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'weekly'},
+      });
+      setupDispatch();
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('header-delete-btn'));
+      fireEvent.press(getByTestId('confirm-delete-day-btn'));
+
+      await waitFor(() => {
+        expect(mockDeleteTask).toHaveBeenCalledWith({
+          taskId: 't1',
+          companionId: 'c1',
+        });
+      });
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -972,6 +1142,109 @@ describe('EditTaskScreen — additional coverage', () => {
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('discard-btn'));
       expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // taskFormMode selection
+  // -------------------------------------------------------------------------
+
+  describe('taskFormMode selection', () => {
+    afterEach(() => {
+      mockHookData.isMedicationForm = false;
+      mockHookData.isObservationalToolForm = false;
+    });
+
+    it('resolves to "medication" when isMedicationForm is true', () => {
+      mockHookData.isMedicationForm = true;
+      const {getByTestId} = renderScreen();
+      expect(getByTestId('task-form-mode').props.children).toEqual([
+        'Form Content: ',
+        'medication',
+      ]);
+    });
+
+    it('resolves to "observationalTool" when isObservationalToolForm is true', () => {
+      mockHookData.isObservationalToolForm = true;
+      const {getByTestId} = renderScreen();
+      expect(getByTestId('task-form-mode').props.children).toEqual([
+        'Form Content: ',
+        'observationalTool',
+      ]);
+    });
+
+    it('resolves to "simple" by default', () => {
+      const {getByTestId} = renderScreen();
+      expect(getByTestId('task-form-mode').props.children).toEqual([
+        'Form Content: ',
+        'simple',
+      ]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Delete confirmation — cancel
+  // -------------------------------------------------------------------------
+
+  describe('delete confirmation — cancel', () => {
+    it('closes the sheet without deleting when Cancel is pressed', () => {
+      const {getByTestId} = renderScreen();
+      expect(() =>
+        fireEvent.press(getByTestId('confirm-secondary-btn')),
+      ).not.toThrow();
+      expect(mockDeleteTask).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleSave — form validation
+  // -------------------------------------------------------------------------
+
+  describe('handleSave — validation', () => {
+    it('does not save when validateForm reports the form is invalid', () => {
+      mockHookData.validateForm.mockReturnValue(false);
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      expect(mockUpdateTask).not.toHaveBeenCalled();
+
+      mockHookData.validateForm.mockReturnValue(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Content padding calculation
+  // -------------------------------------------------------------------------
+
+  describe('scroll content padding', () => {
+    it('uses the provided numeric paddingTop when available', () => {
+      renderScreen();
+      expect(() => lastContentPaddingChildren({paddingTop: 25})).not.toThrow();
+    });
+
+    it('falls back to the default paddingTop when none is provided', () => {
+      renderScreen();
+      expect(() => lastContentPaddingChildren(undefined)).not.toThrow();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Locked category input — no-op onChangeText
+  // -------------------------------------------------------------------------
+
+  describe('locked category input', () => {
+    it('renders the resolved category label for the read-only Task type field', () => {
+      const {getByText} = renderScreen();
+      expect(getByText('Task type:HEALTH')).toBeTruthy();
+    });
+
+    it('invokes the read-only onChangeText no-op without side effects', () => {
+      const {getByTestId} = renderScreen();
+      expect(() =>
+        fireEvent.press(getByTestId('input-Task type')),
+      ).not.toThrow();
+      expect(mockUpdateTask).not.toHaveBeenCalled();
     });
   });
 });

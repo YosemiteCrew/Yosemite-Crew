@@ -269,7 +269,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "prescription:view:any",
     "prescription:view:own",
     "prescription:edit:own",
-    "prescription:edit:any",
 
     "companions:view:any",
     "companions:edit:any",

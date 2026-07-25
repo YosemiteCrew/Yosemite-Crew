@@ -3,10 +3,8 @@ import {NavigationContainer} from '@react-navigation/native';
 import {render, waitFor, fireEvent} from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Alert, Linking} from 'react-native';
-import {
-  AppNavigator,
-  _resetOnboardingStoreForTesting,
-} from '../../src/navigation/AppNavigator';
+import {AppNavigator} from '../../src/navigation/AppNavigator';
+import {_resetOnboardingStoreForTesting} from '../../src/navigation/onboardingStore';
 import {GlobalLoaderProvider} from '../../src/context/GlobalLoaderContext';
 import {useAuth} from '../../src/features/auth/context/AuthContext';
 import {useEmergency} from '../../src/features/home/context/EmergencyContext';
@@ -36,6 +34,8 @@ const mockDispatch = jest.fn();
 // We'll use a variable to control the return value of the pending invites selector dynamically
 let mockPendingInvites: any[] = [];
 let mockLinkedHospitals: any[] = [];
+let mockOmitCoParentSlice = false;
+let mockSelectedCompanionId: string | null = 'comp-123';
 
 jest.mock('react-redux', () => ({
   useDispatch: () => mockDispatch,
@@ -46,12 +46,14 @@ jest.mock('react-redux', () => ({
       selector ===
         require('../../src/features/companion').selectSelectedCompanionId
     ) {
-      return 'comp-123';
+      return mockSelectedCompanionId;
     }
     if (typeof selector === 'function') {
       return selector({
         theme: {theme: 'light', isDark: false},
-        coParent: {pendingInvites: mockPendingInvites},
+        ...(mockOmitCoParentSlice
+          ? {}
+          : {coParent: {pendingInvites: mockPendingInvites}}),
       });
     }
     return mockPendingInvites;
@@ -156,7 +158,8 @@ jest.mock('../../src/features/home/components/EmergencyBottomSheet', () => {
   const React = require('react');
   const {View, Text} = require('react-native');
   return {
-    EmergencyBottomSheet: React.forwardRef((props: any, ref: any) => {
+    EmergencyBottomSheet: (props: any) => {
+      const {ref} = props;
       React.useImperativeHandle(ref, () => ({
         open: mockEmergencySheetOpen,
         close: mockEmergencySheetClose,
@@ -167,7 +170,7 @@ jest.mock('../../src/features/home/components/EmergencyBottomSheet', () => {
           <Text onPress={props.onAdverseEvent}>Report Adverse Event</Text>
         </View>
       );
-    }),
+    },
   };
 });
 
@@ -177,7 +180,8 @@ jest.mock(
     // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View, Text} = require('react-native');
-    return React.forwardRef((props: any, ref: any) => {
+    return (props: any) => {
+      const {ref} = props;
       React.useImperativeHandle(ref, () => ({
         open: mockCoParentSheetOpen,
         close: mockCoParentSheetClose,
@@ -190,7 +194,7 @@ jest.mock(
           <Text onPress={props.onDecline}>Decline Invite</Text>
         </View>
       );
-    });
+    };
   },
 );
 
@@ -218,7 +222,7 @@ jest.mock(
     // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View} = require('react-native');
-    return React.forwardRef((_props: any, ref: any) => {
+    return ({ref}: any) => {
       React.useImperativeHandle(ref, () =>
         mockRenderNetworkSheetWithRef
           ? {
@@ -228,7 +232,7 @@ jest.mock(
           : null,
       );
       return <View testID="NetworkStatusBottomSheet" />;
-    });
+    };
   },
 );
 
@@ -257,6 +261,8 @@ describe('AppNavigator', () => {
     _resetOnboardingStoreForTesting();
     mockPendingInvites = []; // Reset store state mock
     mockLinkedHospitals = [];
+    mockOmitCoParentSlice = false;
+    mockSelectedCompanionId = 'comp-123';
     mockRenderNetworkSheetWithRef = true;
     mockDispatch.mockImplementation(action => action);
 
@@ -501,6 +507,57 @@ describe('AppNavigator', () => {
       });
     });
 
+    it('does not emit the pending-profile-updated event if unmounted before seeding completes', async () => {
+      const {DeviceEventEmitter} = require('react-native');
+      const emitSpy = jest.spyOn(DeviceEventEmitter, 'emit');
+
+      const mockUser = {
+        id: 'u1',
+        email: 'recover@test.com',
+        parentId: null,
+        profileToken: 'pt1',
+      };
+      (useAuth as jest.Mock).mockReturnValue({
+        isLoggedIn: true,
+        user: mockUser,
+      });
+
+      (SessionManager.getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        idToken: 'id-token',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
+      (SessionManager.isTokenExpired as jest.Mock).mockReturnValue(false);
+
+      let resolveTokens: (value: any) => void = () => {};
+      (SessionManager.getFreshStoredTokens as jest.Mock).mockImplementation(
+        () =>
+          new Promise(resolve => {
+            resolveTokens = resolve;
+          }),
+      );
+
+      const view = renderNavigator();
+      view.unmount();
+
+      resolveTokens({
+        idToken: 'id-token',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
+
+      await waitFor(() => {
+        expect(AsyncStorage.setItem).toHaveBeenCalled();
+      });
+
+      expect(emitSpy).not.toHaveBeenCalledWith(
+        'PENDING_PROFILE_UPDATED',
+        expect.anything(),
+      );
+
+      emitSpy.mockRestore();
+    });
+
     it('logs and skips if seeding the pending profile throws', async () => {
       (useAuth as jest.Mock).mockReturnValue({
         isLoggedIn: true,
@@ -662,6 +719,32 @@ describe('AppNavigator', () => {
 
       await waitFor(() => {
         expect(openUrlSpy).toHaveBeenCalledWith('tel:+15550000003');
+      });
+    });
+
+    it('EmergencySheet: resolves linked hospitals for a null selected companion id', async () => {
+      mockSelectedCompanionId = null;
+
+      expect(() => renderNavigator()).not.toThrow();
+    });
+
+    it('EmergencySheet: treats the initial hospital with no timestamps as the earliest', async () => {
+      mockLinkedHospitals = [
+        {id: 'no-timestamps', phone: '+1 555 000 0004'},
+        {
+          id: 'has-updated',
+          phone: '+1 555 000 0005',
+          updatedAt: '2026-03-01T00:00:00.000Z',
+        },
+      ];
+
+      const {getByText} = renderNavigator();
+
+      await waitFor(() => expect(getByText('Call Vet')).toBeTruthy());
+      fireEvent.press(getByText('Call Vet'));
+
+      await waitFor(() => {
+        expect(openUrlSpy).toHaveBeenCalledWith('tel:+15550000005');
       });
     });
 
@@ -869,6 +952,52 @@ describe('AppNavigator', () => {
       renderNavigator();
       await waitFor(() => {
         expect(CoParentActions.fetchPendingInvites).toHaveBeenCalled();
+      });
+    });
+
+    it('CoParentInviteSheet: filters out invites the current user sent themselves', async () => {
+      mockPendingInvites = [
+        {
+          token: 'sent-by-me',
+          inviteeName: 'Self Sent',
+          invitedBy: {id: 'p1'}, // matches user.parentId ('p1') -> filtered out
+        },
+        {
+          token: 'received',
+          inviteeName: 'Received Invite',
+          invitedBy: {id: 'someone-else'},
+        },
+      ];
+
+      const view = renderNavigator();
+
+      await waitFor(() =>
+        expect(view.getByText('Received Invite')).toBeTruthy(),
+      );
+      expect(view.queryByText('Self Sent')).toBeNull();
+    });
+
+    it('CoParentInviteSheet: keeps an invite whose sender id has no id field at all', async () => {
+      mockPendingInvites = [
+        {
+          token: 'no-sender-id',
+          inviteeName: 'No Sender Id',
+          invitedBy: {},
+        },
+      ];
+
+      const view = renderNavigator();
+
+      await waitFor(() => expect(view.getByText('No Sender Id')).toBeTruthy());
+    });
+
+    it('CoParentInviteSheet: defaults to an empty invite list when the coParent slice is missing from state', async () => {
+      mockOmitCoParentSlice = true;
+
+      expect(() => renderNavigator()).not.toThrow();
+
+      await waitFor(() => {
+        expect(mockCoParentSheetClose).toHaveBeenCalled();
       });
     });
 

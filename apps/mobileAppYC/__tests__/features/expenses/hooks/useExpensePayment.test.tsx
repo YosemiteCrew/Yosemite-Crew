@@ -72,12 +72,10 @@ describe('useExpensePayment Hook', () => {
 
     // Default Thunk implementations (simulate successful unwrap)
     (fetchExpenseInvoice as unknown as jest.Mock).mockReturnValue({
-      unwrap: jest
-        .fn()
-        .mockResolvedValue({
-          invoice: mockInvoice,
-          paymentIntent: mockInvoice.paymentIntent,
-        }),
+      unwrap: jest.fn().mockResolvedValue({
+        invoice: mockInvoice,
+        paymentIntent: mockInvoice.paymentIntent,
+      }),
     });
     (fetchExpensePaymentIntent as unknown as jest.Mock).mockReturnValue({
       unwrap: jest.fn().mockResolvedValue({}),
@@ -146,6 +144,33 @@ describe('useExpensePayment Hook', () => {
           params: expect.objectContaining({appointmentId: 'appt-ext'}),
         }),
       );
+    });
+
+    it('should ignore appointment-id extensions without a value', async () => {
+      const invoice = {
+        id: 'inv-ext-missing-value',
+        extension: [{url: 'http://example/appointment-id'}],
+      };
+      const {result} = renderHook(() => useExpensePayment());
+
+      const unwrapInvoice = jest
+        .fn()
+        .mockResolvedValue({invoice, paymentIntent: null});
+      (fetchExpenseInvoice as unknown as jest.Mock).mockReturnValue({
+        unwrap: unwrapInvoice,
+      });
+
+      await act(async () => {
+        await result.current.openPaymentScreen(mockExpense as any);
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Payment unavailable',
+        expect.stringContaining(
+          'Invoice does not contain appointment reference',
+        ),
+      );
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
 
     it('should extract appointmentId from account reference', async () => {
@@ -279,12 +304,10 @@ describe('useExpensePayment Hook', () => {
   describe('Payment Intent Fetching', () => {
     it('should fetch invoice if not provided', async () => {
       const {result} = renderHook(() => useExpensePayment());
-      const unwrap = jest
-        .fn()
-        .mockResolvedValue({
-          invoice: mockInvoice,
-          paymentIntent: {clientSecret: 'cs_1'},
-        });
+      const unwrap = jest.fn().mockResolvedValue({
+        invoice: mockInvoice,
+        paymentIntent: {clientSecret: 'cs_1'},
+      });
       (fetchExpenseInvoice as unknown as jest.Mock).mockReturnValue({unwrap});
 
       await act(async () => {
@@ -412,6 +435,30 @@ describe('useExpensePayment Hook', () => {
         paymentIntentId: 'pi_stripe',
       });
     });
+
+    it('does not fetch a new intent when a preloaded intent already has a secret', async () => {
+      const {result} = renderHook(() => useExpensePayment());
+
+      await act(async () => {
+        await result.current.openPaymentScreen(
+          mockExpense as any,
+          mockInvoice as any,
+          {clientSecret: 'cs_preloaded'} as any,
+        );
+      });
+
+      expect(fetchExpenseInvoice).not.toHaveBeenCalled();
+      expect(fetchExpensePaymentIntentByInvoice).not.toHaveBeenCalled();
+      expect(fetchExpensePaymentIntent).not.toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'Appointments',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            paymentIntent: {clientSecret: 'cs_preloaded'},
+          }),
+        }),
+      );
+    });
   });
 
   // ===========================================================================
@@ -441,18 +488,36 @@ describe('useExpensePayment Hook', () => {
       );
     });
 
+    it('should use current navigation when getParent is not available', async () => {
+      const localNavigate = jest.fn();
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: localNavigate,
+      });
+
+      const {result} = renderHook(() => useExpensePayment());
+      const unwrap = jest.fn().mockResolvedValue({invoice: mockInvoice});
+      (fetchExpenseInvoice as unknown as jest.Mock).mockReturnValue({unwrap});
+
+      await act(async () => {
+        await result.current.openPaymentScreen(mockExpense as any);
+      });
+
+      expect(localNavigate).toHaveBeenCalledWith(
+        'Appointments',
+        expect.anything(),
+      );
+    });
+
     it('should find TabNavigation by searching parents (Deep Search)', async () => {
-      // Mock a deep hierarchy: Stack -> Stack -> Tab (Appointments) -> Root
       const mockTabNav = {
         navigate: jest.fn(),
         getState: () => ({routeNames: ['Appointments']}),
+        getParent: () => null,
       };
-      const mockStack2 = {getParent: () => mockTabNav, getState: () => ({})};
-      const mockStack1 = {getParent: () => mockStack2, getState: () => ({})};
 
       (useNavigation as jest.Mock).mockReturnValue({
         navigate: jest.fn(), // Should NOT use this one
-        getParent: () => mockStack1,
+        getParent: () => mockTabNav,
         getState: () => ({}),
       });
 
@@ -464,6 +529,49 @@ describe('useExpensePayment Hook', () => {
       await act(async () => {
         await result.current.openPaymentScreen(mockExpense as any);
       });
+
+      expect(mockTabNav.navigate).toHaveBeenCalledWith(
+        'Appointments',
+        expect.anything(),
+      );
+    });
+
+    it('should find tab navigation through the parent search loop', async () => {
+      const mockTabNav = {
+        navigate: jest.fn(),
+        getState: () => ({routeNames: ['Appointments']}),
+        getParent: () => null,
+      };
+      const firstParent = {
+        getParent: () => null,
+        getState: () => ({routeNames: ['Other', 'Appointments']}),
+        navigate: mockTabNav.navigate,
+      };
+      const getParent = jest
+        .fn()
+        .mockReturnValueOnce(null)
+        .mockReturnValueOnce(null)
+        .mockReturnValueOnce(null)
+        .mockReturnValueOnce(firstParent);
+
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: jest.fn(),
+        getParent,
+        getState: () => ({}),
+      });
+
+      const {result} = renderHook(() => useExpensePayment());
+      const unwrap = jest.fn().mockResolvedValue({invoice: mockInvoice});
+      (fetchExpenseInvoice as unknown as jest.Mock).mockReturnValue({unwrap});
+
+      await act(async () => {
+        await result.current.openPaymentScreen(mockExpense as any);
+      });
+
+      expect(mockTabNav.navigate).toHaveBeenCalledWith(
+        'Appointments',
+        expect.anything(),
+      );
     });
 
     it('should fallback to 3 levels up if "Appointments" route not found explicitly', async () => {

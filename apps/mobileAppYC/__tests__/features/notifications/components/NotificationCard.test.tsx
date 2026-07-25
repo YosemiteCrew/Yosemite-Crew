@@ -4,7 +4,33 @@ import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {NotificationCard} from '../../../../src/features/notifications/components/NotificationCard/NotificationCard';
 // FIX 1 & 2: Removed the unused 'Images' import which was causing the module error.
 // FIX 3: Added 'Image' to imports so we can use it in getAllByType
-import {PanResponder, Animated, Image} from 'react-native';
+import {Image, Pressable, StyleSheet} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getAllByType
+// must match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
+
+const mockPanGestures: any[] = [];
+
+const mockCreatePanGesture = () => {
+  const handlers: Record<string, any> = {};
+  const gesture: Record<string, any> = {handlers};
+  [
+    'enabled',
+    'activeOffsetX',
+    'onStart',
+    'onUpdate',
+    'onEnd',
+    'onFinalize',
+  ].forEach(method => {
+    gesture[method] = jest.fn((value: any) => {
+      handlers[method] = value;
+      return gesture;
+    });
+  });
+  mockPanGestures.push(handlers);
+  return gesture;
+};
 
 // --- Mocks ---
 
@@ -56,55 +82,34 @@ jest.mock('@/assets/images', () => {
   };
 });
 
-// 6. Setup PanResponder and Animated Spies
-beforeAll(() => {
-  jest.spyOn(PanResponder, 'create').mockImplementation((config: any) => ({
-    panHandlers: {
-      onStartShouldSetResponder: config.onStartShouldSetPanResponder,
-      onMoveShouldSetResponder: config.onMoveShouldSetPanResponder,
-      onResponderGrant: config.onPanResponderGrant,
-      onResponderMove: config.onPanResponderMove,
-      onResponderRelease: config.onPanResponderRelease,
-      testID: 'SWIPE_ANIMATED_VIEW',
+jest.mock('react-native-gesture-handler', () => {
+  const {View} = require('react-native');
+  return {
+    GestureDetector: ({children, gesture}: any) => (
+      <View testID="SWIPE_GESTURE_DETECTOR" gesture={gesture}>
+        {children}
+      </View>
+    ),
+    Gesture: {
+      Pan: jest.fn(() => mockCreatePanGesture()),
     },
-  }));
-
-  // @ts-ignore
-  jest.spyOn(Animated, 'event').mockImplementation(() => jest.fn());
-
-  jest
-    .spyOn(Animated, 'timing')
-    .mockImplementation((value: any, config: any) => {
-      return {
-        start: (callback?: any) => {
-          if (typeof config.toValue === 'number') {
-            value.setValue(config.toValue);
-          }
-          if (callback) callback({finished: true});
-        },
-        stop: jest.fn(),
-        reset: jest.fn(),
-      };
-    });
-
-  jest
-    .spyOn(Animated, 'spring')
-    .mockImplementation((value: any, config: any) => {
-      return {
-        start: (callback?: any) => {
-          if (config.toValue && typeof config.toValue === 'object') {
-            value.setValue(config.toValue);
-          }
-          if (callback) callback({finished: true});
-        },
-        stop: jest.fn(),
-        reset: jest.fn(),
-      };
-    });
+  };
 });
 
-afterAll(() => {
-  jest.restoreAllMocks();
+jest.mock('react-native-reanimated', () => {
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    default: {View},
+    runOnJS: (fn: any) => fn,
+    useAnimatedStyle: (factory: any) => factory(),
+    useSharedValue: (value: any) => ({value}),
+    withSpring: (value: any) => value,
+    withTiming: (value: any, _config: any, callback?: any) => {
+      callback?.(true);
+      return value;
+    },
+  };
 });
 
 // --- Test Data ---
@@ -133,17 +138,13 @@ describe('NotificationCard', () => {
     jest.clearAllMocks();
   });
 
-  const getSwipeableView = () => screen.getByTestId('SWIPE_ANIMATED_VIEW');
+  const getPanGesture = () => mockPanGestures[mockPanGestures.length - 1];
 
-  const triggerPanHandler = (
-    handlerName: string,
-    evt = {},
-    gestureState = {},
-  ) => {
-    const view = getSwipeableView();
+  const triggerGestureHandler = (handlerName: string, event = {}) => {
+    const gesture = getPanGesture();
     act(() => {
-      if (view.props[handlerName]) {
-        view.props[handlerName](evt, gestureState);
+      if (gesture[handlerName]) {
+        gesture[handlerName](event);
       }
     });
   };
@@ -202,6 +203,41 @@ describe('NotificationCard', () => {
       const images = screen.UNSAFE_getAllByType(Image);
       expect(images[0].props.source.uri).toBe('default-icon-uri');
     });
+
+    it.each([
+      ['health', mockTheme.colors.successSurface],
+      ['appointments', mockTheme.colors.indigoSurface],
+      ['messages', mockTheme.colors.blueSoft],
+      ['dietary', mockTheme.colors.warningSurface],
+    ] as const)('tints the icon tile for the %s category', (category, bg) => {
+      render(
+        <NotificationCard
+          notification={{...baseNotification, category} as any}
+        />,
+      );
+      const iconTile = screen.UNSAFE_getAllByType(Image)[0].parent;
+      const tileStyle = StyleSheet.flatten(iconTile?.props.style);
+      expect(tileStyle.backgroundColor).toBe(bg);
+    });
+
+    it('falls back to the neutral tile when the category is unknown', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+      const iconTile = screen.UNSAFE_getAllByType(Image)[0].parent;
+      const tileStyle = StyleSheet.flatten(iconTile?.props.style);
+      expect(tileStyle.backgroundColor).toBe(mockTheme.colors.screen2);
+    });
+
+    it('applies the read title style when the notification is already read', () => {
+      const readNotif = {...baseNotification, status: 'read' as const};
+      render(<NotificationCard notification={readNotif as any} />);
+      const titleStyle = StyleSheet.flatten(
+        screen.getByText('Test Notification').props.style,
+      );
+      // Read notifications use titleRead (fontWeight 600), not the bold
+      // titleUnread variant (Satoshi-Bold / fontWeight 700).
+      expect(titleStyle.fontWeight).toBe('600');
+      expect(titleStyle.fontFamily).not.toBe('Satoshi-Bold');
+    });
   });
 
   describe('Time Formatting Logic', () => {
@@ -249,70 +285,60 @@ describe('NotificationCard', () => {
         />,
       );
 
-      const card = screen.getByTestId('liquid-glass-card');
-      fireEvent.press(card.parent!);
+      const [touchable] = screen.UNSAFE_getAllByType(PressableType);
+      fireEvent.press(touchable);
       expect(onPress).toHaveBeenCalled();
+    });
+
+    it('exposes a button role and title-based label on the card body', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+      const card = screen.getByLabelText('Test Notification');
+      expect(card.props.accessibilityRole).toBe('button');
+      expect(card.props.accessibilityState).toEqual({disabled: false});
     });
 
     it('swipeEnabled prop defaults to true if not provided', () => {
       render(<NotificationCard notification={baseNotification as any} />);
-      const view = getSwipeableView();
-      expect(view.props.onStartShouldSetResponder()).toBe(true);
+      expect(getPanGesture().enabled).toBe(true);
+      expect(getPanGesture().activeOffsetX).toEqual([-5, 5]);
     });
 
-    it('disables pan responder when swipeEnabled is false', () => {
+    it('disables pan gesture when swipeEnabled is false', () => {
       render(
         <NotificationCard
           notification={baseNotification as any}
           swipeEnabled={false}
         />,
       );
-      const view = getSwipeableView();
-      expect(view.props.onStartShouldSetResponder()).toBe(false);
+      expect(getPanGesture().enabled).toBe(false);
     });
 
-    it('returns false for onMoveShouldSetPanResponder if swipeEnabled is false', () => {
-      render(
-        <NotificationCard
-          notification={baseNotification as any}
-          swipeEnabled={false}
-        />,
-      );
-      const view = getSwipeableView();
-      expect(view.props.onMoveShouldSetResponder({}, {dx: 10})).toBe(false);
-    });
-
-    it('determines move responder based on DX threshold', () => {
-      render(<NotificationCard notification={baseNotification as any} />);
-      const view = getSwipeableView();
-
-      expect(view.props.onMoveShouldSetResponder({}, {dx: 2})).toBe(false);
-      expect(view.props.onMoveShouldSetResponder({}, {dx: 6})).toBe(true);
-    });
-
-    it('sets dragging state on Grant (disabling the Touchable)', () => {
+    it('sets dragging state on gesture start', () => {
       render(
         <NotificationCard
           notification={baseNotification as any}
           onPress={jest.fn()}
         />,
       );
-      triggerPanHandler('onResponderGrant');
+      triggerGestureHandler('onStart');
+
+      const [touchable] = screen.UNSAFE_getAllByType(PressableType);
+      expect(touchable.props.disabled).toBe(true);
     });
 
-    it('does NOT set dragging state on Grant if swipeEnabled is false', () => {
+    it('clears dragging state on gesture finalize', () => {
       render(
         <NotificationCard
           notification={baseNotification as any}
           onPress={jest.fn()}
-          swipeEnabled={false}
         />,
       );
 
-      triggerPanHandler('onResponderGrant');
+      triggerGestureHandler('onStart');
+      triggerGestureHandler('onFinalize');
 
-      const card = screen.getByTestId('liquid-glass-card');
-      const disabledState = card.parent!.props.accessibilityState?.disabled;
+      const [touchable] = screen.UNSAFE_getAllByType(PressableType);
+      const disabledState = touchable.props.disabled;
       expect(!!disabledState).toBe(false);
     });
 
@@ -325,7 +351,7 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler('onResponderRelease', {}, {dx: SWIPE_THRESHOLD + 10});
+      triggerGestureHandler('onEnd', {translationX: SWIPE_THRESHOLD + 10});
       expect(onDismiss).toHaveBeenCalled();
     });
 
@@ -338,11 +364,9 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler(
-        'onResponderRelease',
-        {},
-        {dx: -(SWIPE_THRESHOLD + 10)},
-      );
+      triggerGestureHandler('onEnd', {
+        translationX: -(SWIPE_THRESHOLD + 10),
+      });
 
       expect(onArchive).toHaveBeenCalled();
     });
@@ -358,8 +382,9 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler('onResponderGrant');
-      triggerPanHandler('onResponderRelease', {}, {dx: 10});
+      triggerGestureHandler('onStart');
+      triggerGestureHandler('onUpdate', {translationX: 10});
+      triggerGestureHandler('onEnd', {translationX: 10});
 
       expect(onDismiss).not.toHaveBeenCalled();
       expect(onArchive).not.toHaveBeenCalled();
@@ -375,8 +400,85 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler('onResponderRelease', {}, {dx: 500});
-      expect(onDismiss).not.toHaveBeenCalled();
+      expect(getPanGesture().enabled).toBe(false);
+    });
+
+    it('swipes left past threshold without an onArchive handler and does not throw', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(() =>
+        triggerGestureHandler('onEnd', {
+          translationX: -(SWIPE_THRESHOLD + 10),
+        }),
+      ).not.toThrow();
+    });
+
+    it('swipes right past threshold without an onDismiss handler and does not throw', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(() =>
+        triggerGestureHandler('onEnd', {translationX: SWIPE_THRESHOLD + 10}),
+      ).not.toThrow();
+    });
+  });
+
+  describe('Visible action row (non-swipe alternative)', () => {
+    it('renders "Mark as read" and "Archive" buttons for an unread notification when swipe is enabled', () => {
+      const onDismiss = jest.fn();
+      const onArchive = jest.fn();
+      render(
+        <NotificationCard
+          notification={baseNotification as any}
+          onDismiss={onDismiss}
+          onArchive={onArchive}
+        />,
+      );
+
+      const markAsRead = screen.getByLabelText('Mark as read');
+      const archive = screen.getByLabelText('Archive notification');
+      expect(markAsRead.props.accessibilityRole).toBe('button');
+      expect(archive.props.accessibilityRole).toBe('button');
+
+      fireEvent.press(markAsRead);
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+
+      fireEvent.press(archive);
+      expect(onArchive).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits "Mark as read" for an already-read notification but keeps Archive', () => {
+      const readNotif = {...baseNotification, status: 'read' as const};
+      render(
+        <NotificationCard
+          notification={readNotif as any}
+          onDismiss={jest.fn()}
+          onArchive={jest.fn()}
+        />,
+      );
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.getByLabelText('Archive notification')).toBeTruthy();
+    });
+
+    it('hides the action row entirely when swipeEnabled is false', () => {
+      render(
+        <NotificationCard
+          notification={baseNotification as any}
+          onDismiss={jest.fn()}
+          onArchive={jest.fn()}
+          swipeEnabled={false}
+        />,
+      );
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.queryByLabelText('Archive notification')).toBeNull();
+    });
+
+    it('hides the action row when neither onDismiss nor onArchive is provided', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.queryByLabelText('Archive notification')).toBeNull();
     });
   });
 });

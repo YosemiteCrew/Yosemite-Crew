@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {MedicationFrequency} from '@/features/tasks/types';
 import {resolveMedicationFrequencyLabel} from '@/features/tasks/utils/taskLabels';
 
@@ -14,25 +17,38 @@ interface MedicationFrequencyBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-const frequencies: MedicationFrequency[] = ['once', 'daily', 'weekly', 'monthly'];
+const frequencies: MedicationFrequency[] = [
+  'once',
+  'daily',
+  'weekly',
+  'monthly',
+];
 
-export const MedicationFrequencyBottomSheet = forwardRef<
-  MedicationFrequencyBottomSheetRef,
-  MedicationFrequencyBottomSheetProps
->(({selectedFrequency, onSelect, onSheetChange}, ref) => {
+export const MedicationFrequencyBottomSheet = ({
+  selectedFrequency,
+  onSelect,
+  onSheetChange,
+  ref,
+}: MedicationFrequencyBottomSheetProps & {
+  ref?: React.Ref<MedicationFrequencyBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<any>(null);
 
-  const frequencyItems: SelectItem[] = useMemo(() =>
-    frequencies.map(frequency => ({
-      id: frequency,
-      label: resolveMedicationFrequencyLabel(frequency),
-    })), []
+  const frequencyItems: SelectItem[] = useMemo(
+    () =>
+      frequencies.map(frequency => ({
+        id: frequency,
+        label: resolveMedicationFrequencyLabel(frequency),
+      })),
+    [],
   );
 
-  const selectedItem = selectedFrequency ? {
-    id: selectedFrequency,
-    label: resolveMedicationFrequencyLabel(selectedFrequency),
-  } : null;
+  const selectedItem = selectedFrequency
+    ? {
+        id: selectedFrequency,
+        label: resolveMedicationFrequencyLabel(selectedFrequency),
+      }
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -63,7 +79,7 @@ export const MedicationFrequencyBottomSheet = forwardRef<
       onSheetChange={onSheetChange}
     />
   );
-});
+};
 
 MedicationFrequencyBottomSheet.displayName = 'MedicationFrequencyBottomSheet';
 

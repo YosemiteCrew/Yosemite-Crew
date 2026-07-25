@@ -167,7 +167,7 @@ describe('DosageBottomSheet', () => {
     });
   });
 
-  it('resets to latest dosages when sheet is re-opened', () => {
+  it('resets to latest dosages when props change', () => {
     const {getByTestId, rerender, ref} = setup({
       dosages: [{id: '1', label: 'Initial', time: '2023-01-01T08:00:00.000Z'}],
     });
@@ -184,14 +184,6 @@ describe('DosageBottomSheet', () => {
       />,
     );
 
-    // Prop change alone does not overwrite the working copy
-    expect(getByTestId('input-label-Initial')).toBeTruthy();
-
-    // Opening the sheet resets tempDosages to the latest prop
-    act(() => {
-      ref.current?.open();
-    });
-
     expect(getByTestId('input-label-Updated')).toBeTruthy();
   });
 
@@ -207,6 +199,12 @@ describe('DosageBottomSheet', () => {
     expect(getByDisplayValue('Dose 1')).toBeTruthy();
   });
 
+  it('exposes button role and label on the "Add" row', () => {
+    const {getByLabelText} = setup({dosages: []});
+    const addButton = getByLabelText('Add dose');
+    expect(addButton.props.accessibilityRole).toBe('button');
+  });
+
   it('removes a dosage when delete button is pressed', () => {
     const {queryByTestId, UNSAFE_getAllByType} = setup({
       dosages: [{id: '1', label: 'ToRemove', time: '2023-01-01T08:00:00.000Z'}],
@@ -219,32 +217,43 @@ describe('DosageBottomSheet', () => {
       img => img.props.source.uri === 'delete-icon',
     );
 
+    expect(deleteIcon!.parent!.props.accessibilityRole).toBe('button');
+    expect(deleteIcon!.parent!.props.accessibilityLabel).toBe('Remove dose');
+
     // FIX: Added non-null assertion (!) for TS error
     fireEvent.press(deleteIcon!.parent!);
 
     expect(queryByTestId('input-label-ToRemove')).toBeNull();
   });
 
-  it('updates dosage label when text changes', () => {
+  it('updates dosage label when text changes, leaving other dosages untouched', () => {
     const {getByTestId} = setup({
-      dosages: [{id: '1', label: 'OldLabel', time: '2023-01-01T08:00:00.000Z'}],
+      dosages: [
+        {id: '1', label: 'OldLabel', time: '2023-01-01T08:00:00.000Z'},
+        {id: '2', label: 'OtherDose', time: '2023-01-01T09:00:00.000Z'},
+      ],
     });
 
     const labelInput = getByTestId('input-label-OldLabel');
     fireEvent.changeText(labelInput, 'NewLabel');
 
     expect(getByTestId('input-label-NewLabel')).toBeTruthy();
+    expect(getByTestId('input-label-OtherDose')).toBeTruthy();
   });
 
   it('opens time picker and updates time on confirm', async () => {
     const initialTime = '2023-01-01T10:00:00.000Z';
-    const {getByTestId, queryByTestId, UNSAFE_getAllByType} = setup({
-      dosages: [{id: '1', label: 'Dose', time: initialTime}],
-    });
+    const {getByTestId, queryByTestId, getByLabelText, UNSAFE_getAllByType} =
+      setup({
+        dosages: [{id: '1', label: 'Dose', time: initialTime}],
+      });
 
     // 1. Open Picker
     const images = UNSAFE_getAllByType(Image);
     const clockIcon = images.find(img => img.props.source.uri === 'clock-icon');
+
+    const timeButton = getByLabelText(/^Time, /);
+    expect(timeButton.props.accessibilityRole).toBe('button');
 
     // FIX: Added non-null assertion (!) for TS error
     fireEvent.press(clockIcon!.parent!);
@@ -258,7 +267,10 @@ describe('DosageBottomSheet', () => {
     expect(queryByTestId('SimpleDatePicker')).toBeNull();
 
     // 4. Verify Save uses new time
-    fireEvent.press(getByTestId('header-save-btn'));
+    await act(async () => {
+      fireEvent.press(getByTestId('header-save-btn'));
+    });
+
     expect(mockOnSave).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({
@@ -351,6 +363,16 @@ describe('DosageBottomSheet', () => {
       expect(pickerVal).toBeTruthy();
     });
 
+    it('handles an ISO-shaped string that parses to an invalid Date', () => {
+      const {UNSAFE_getAllByType} = setup({
+        dosages: [{id: '1', label: 'BadISO', time: 'not-a-realT-date'}],
+      });
+
+      const inputs = UNSAFE_getAllByType(TextInput);
+      const timeInput = inputs[1];
+      expect(timeInput.props.value).toBe('Invalid time');
+    });
+
     it('handles NaN/Corrupt Time-only format', () => {
       const {UNSAFE_getAllByType} = setup({
         dosages: [{id: '1', label: 'Corrupt', time: 'NaN:NaN'}],
@@ -359,6 +381,73 @@ describe('DosageBottomSheet', () => {
       const inputs = UNSAFE_getAllByType(TextInput);
       const timeInput = inputs[1];
       expect(timeInput.props.value).toBe('Invalid time');
+    });
+
+    it('catches a thrown error when the dosage time is not a string and falls back gracefully', () => {
+      const {UNSAFE_getAllByType, getByTestId} = setup({
+        dosages: [{id: '1', label: 'Broken', time: null as any}],
+      });
+
+      const inputs = UNSAFE_getAllByType(TextInput);
+      const timeInput = inputs[1];
+      expect(timeInput.props.value).toBe('Invalid time');
+
+      const images = UNSAFE_getAllByType(Image);
+      const clockIcon = images.find(
+        img => img.props.source.uri === 'clock-icon',
+      );
+      fireEvent.press(clockIcon!.parent!);
+
+      // getDateFromDosageTime also hit its catch and fell back to `new Date()`.
+      const pickerVal = getByTestId('datepicker-value').props.children;
+      expect(pickerVal).toBeTruthy();
+    });
+  });
+
+  describe('Save Handling', () => {
+    it('ignores a second save press while the first save is still in flight', async () => {
+      let resolveSave: () => void = () => {};
+      mockOnSave.mockImplementation(
+        () =>
+          new Promise<void>(resolve => {
+            resolveSave = resolve;
+          }),
+      );
+      const {getByTestId} = setup({
+        dosages: [{id: '1', label: 'Dose', time: '10:00:00'}],
+      });
+
+      const saveButton = getByTestId('header-save-btn');
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+      await act(async () => {
+        fireEvent.press(saveButton);
+      });
+
+      expect(mockOnSave).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveSave();
+      });
+    });
+
+    it('warns and recovers when onSave rejects', async () => {
+      mockOnSave.mockRejectedValueOnce(new Error('save failed'));
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const {getByTestId} = setup({
+        dosages: [{id: '1', label: 'Dose', time: '10:00:00'}],
+      });
+
+      await act(async () => {
+        fireEvent.press(getByTestId('header-save-btn'));
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[DosageBottomSheet] Failed to save dosages',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
     });
   });
 });

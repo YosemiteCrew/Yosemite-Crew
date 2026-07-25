@@ -1,5 +1,13 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Pressable, StyleSheet, Switch, Text, View} from 'react-native';
+import {
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+  ViewStyle,
+} from 'react-native';
 import {
   createAnimatedComponent,
   useSharedValue,
@@ -9,7 +17,12 @@ import {
 } from 'react-native-reanimated';
 
 import {useTranslation} from 'react-i18next';
-import MapView, {Marker, PROVIDER_GOOGLE, type Region} from 'react-native-maps';
+import MapView, {
+  Marker,
+  PROVIDER_GOOGLE,
+  type Region,
+  type UserLocationChangeEvent,
+} from 'react-native-maps';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
@@ -55,6 +68,7 @@ export interface MapDiscoveryViewProps {
   onCategoryChange: (c: BusinessCategory | undefined) => void;
   onOpenNowChange: (v: boolean) => void;
   onBack: () => void;
+  onMapUserLocationChange?: (location: UserLocation | null) => void;
   searchResultsOverlay?: React.ReactNode;
   onSearchBarLayout?: (height: number) => void;
 }
@@ -90,6 +104,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   onCategoryChange,
   onOpenNowChange,
   onBack,
+  onMapUserLocationChange,
   searchResultsOverlay,
   onSearchBarLayout,
 }) => {
@@ -193,6 +208,21 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
     bottomSheetRef.current?.show();
   }, [onSelectClinic]);
 
+  const handleUserLocationChange = useCallback(
+    (event: UserLocationChangeEvent) => {
+      const coordinate = event.nativeEvent.coordinate;
+      if (!coordinate) {
+        onMapUserLocationChange?.(null);
+        return;
+      }
+      onMapUserLocationChange?.({
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+      });
+    },
+    [onMapUserLocationChange],
+  );
+
   const mapItems = useMemo(
     () => clusterClinics(clinics, mapRegion?.latitudeDelta ?? 0),
     [clinics, mapRegion],
@@ -226,6 +256,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
+        onUserLocationChange={handleUserLocationChange}
         onRegionChangeComplete={onRegionChange}
         onPress={selectedClinic ? handleDeselectClinic : undefined}>
         {mapItems.map(item => {
@@ -255,40 +286,17 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
           );
         })}
       </MapView>
-      <View
-        style={styles.topBar}
-        pointerEvents="box-none"
-        onLayout={
-          onSearchBarLayout
-            ? e => onSearchBarLayout(e.nativeEvent.layout.height)
-            : undefined
-        }>
-        <View style={styles.headerShadowWrapper} pointerEvents="auto">
-          <LiquidGlassCard
-            glassEffect="clear"
-            interactive={false}
-            shadow="none"
-            colorScheme="light"
-            style={headerCardStyle}
-            fallbackStyle={styles.headerCardFallback}>
-            <Header
-              title={t('mapDiscovery.title')}
-              showBackButton
-              onBack={onBack}
-              glass={false}
-            />
-            <SearchBar
-              placeholder={t('mapDiscovery.searchPlaceholder')}
-              mode="input"
-              value={searchQuery}
-              onChangeText={onSearchChange}
-              onSubmitEditing={onSearchSubmit}
-              onIconPress={onSearchSubmit}
-              containerStyle={styles.searchBar}
-            />
-          </LiquidGlassCard>
-        </View>
-      </View>
+      <MapTopBar
+        styles={styles}
+        headerCardStyle={headerCardStyle}
+        title={t('mapDiscovery.title')}
+        searchPlaceholder={t('mapDiscovery.searchPlaceholder')}
+        searchQuery={searchQuery}
+        onBack={onBack}
+        onSearchChange={onSearchChange}
+        onSearchSubmit={onSearchSubmit}
+        onSearchBarLayout={onSearchBarLayout}
+      />
       {!selectedClinic && (
         <AnimatedView style={[styles.openNowMapToggle, toggleAnimatedStyle]}>
           <View style={styles.openNowToggleCard} pointerEvents="auto">
@@ -307,39 +315,15 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
       )}
       {searchResultsOverlay}
       {selectedClinic && (
-        <View
-          style={[
-            styles.selectedClinicOverlay,
-            {paddingBottom: insets.bottom + 16},
-          ]}
-          pointerEvents="box-none">
-          <Pressable
-            style={styles.selectedClinicDismiss}
-            onPress={handleDeselectClinic}
-            hitSlop={8}>
-            <Text style={styles.selectedClinicDismissText}>✕</Text>
-          </Pressable>
-          <BusinessCard
-            name={selectedClinic.name}
-            openText={selectedClinic.openHours}
-            description={selectedClinic.address}
-            distanceText={resolveDistanceText(selectedClinic)}
-            ratingText={
-              selectedClinic.rating == null
-                ? undefined
-                : `${selectedClinic.rating}`
-            }
-            photo={selectedClinic.photo}
-            fallbackPhoto={fallbacks[selectedClinic.id]?.photo ?? null}
-            glassEffect="none"
-            onBook={() =>
-              navigation.navigate('BusinessDetails', {
-                businessId: selectedClinic.id,
-                distanceMi: selectedClinic.distanceMi,
-              })
-            }
-          />
-        </View>
+        <SelectedClinicOverlay
+          styles={styles}
+          bottomInset={insets.bottom}
+          onDismiss={handleDeselectClinic}
+          clinic={selectedClinic}
+          distanceText={resolveDistanceText(selectedClinic)}
+          fallbackPhoto={fallbacks[selectedClinic.id]?.photo ?? null}
+          navigation={navigation}
+        />
       )}
       {!selectedClinic && (
         <ClinicBottomSheet
@@ -356,6 +340,109 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
     </View>
   );
 };
+
+interface MapTopBarProps {
+  styles: ReturnType<typeof createStyles>;
+  headerCardStyle: StyleProp<ViewStyle>;
+  title: string;
+  searchPlaceholder: string;
+  searchQuery: string;
+  onBack: () => void;
+  onSearchChange: (text: string) => void;
+  onSearchSubmit: () => void;
+  onSearchBarLayout?: (height: number) => void;
+}
+
+const MapTopBar: React.FC<MapTopBarProps> = ({
+  styles,
+  headerCardStyle,
+  title,
+  searchPlaceholder,
+  searchQuery,
+  onBack,
+  onSearchChange,
+  onSearchSubmit,
+  onSearchBarLayout,
+}) => (
+  <View
+    style={styles.topBar}
+    pointerEvents="box-none"
+    onLayout={
+      onSearchBarLayout
+        ? e => onSearchBarLayout(e.nativeEvent.layout.height)
+        : undefined
+    }>
+    <View style={styles.headerShadowWrapper} pointerEvents="auto">
+      <LiquidGlassCard
+        glassEffect="clear"
+        interactive={false}
+        shadow="none"
+        colorScheme="light"
+        style={headerCardStyle}
+        fallbackStyle={styles.headerCardFallback}>
+        <Header title={title} showBackButton onBack={onBack} glass={false} />
+        <SearchBar
+          placeholder={searchPlaceholder}
+          mode="input"
+          value={searchQuery}
+          onChangeText={onSearchChange}
+          onSubmitEditing={onSearchSubmit}
+          onIconPress={onSearchSubmit}
+          containerStyle={styles.searchBar}
+        />
+      </LiquidGlassCard>
+    </View>
+  </View>
+);
+
+interface SelectedClinicOverlayProps {
+  styles: ReturnType<typeof createStyles>;
+  bottomInset: number;
+  onDismiss: () => void;
+  clinic: VetBusiness;
+  distanceText?: string;
+  fallbackPhoto?: string | null;
+  navigation: NativeStackNavigationProp<AppointmentStackParamList>;
+}
+
+const SelectedClinicOverlay: React.FC<SelectedClinicOverlayProps> = ({
+  styles,
+  bottomInset,
+  onDismiss,
+  clinic,
+  distanceText,
+  fallbackPhoto,
+  navigation,
+}) => (
+  <View
+    style={[styles.selectedClinicOverlay, {paddingBottom: bottomInset + 16}]}
+    pointerEvents="box-none">
+    <Pressable
+      style={styles.selectedClinicDismiss}
+      onPress={onDismiss}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel="Dismiss clinic details">
+      <Text style={styles.selectedClinicDismissText}>✕</Text>
+    </Pressable>
+    <BusinessCard
+      name={clinic.name}
+      openText={clinic.openHours}
+      description={clinic.address}
+      distanceText={distanceText}
+      ratingText={clinic.rating == null ? undefined : `${clinic.rating}`}
+      photo={clinic.photo}
+      fallbackPhoto={fallbackPhoto}
+      glassEffect="none"
+      onBook={() =>
+        navigation.navigate('BusinessDetails', {
+          businessId: clinic.id,
+          distanceMi: clinic.distanceMi,
+        })
+      }
+    />
+  </View>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

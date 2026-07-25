@@ -1,18 +1,25 @@
 /**
- * TaskCard — full coverage test suite
+ * TaskCard — warm-bone redesign coverage suite
  *
- * Targets 90%+ coverage across:
- *  • calculateNearestDosageTime (future, past-wrap, invalid, empty)
- *  • formattedTime (valid, invalid, missing)
- *  • formattedNearestDosage (valid, invalid)
- *  • observationalToolLabel (hex-id fallback, known label, non-OT)
- *  • useEffect OT fetch (already resolved, API success, API throws)
- *  • renderTaskDetails (medication, OT, hygiene, dietary, no match, undefined)
- *  • avatar logic (URI vs placeholder, with/without assignee)
- *  • status badges (completed, pending, cancelled)
- *  • showCompleteButton + completeButtonVariant (liquid-glass, CardActionButton variants)
- *  • handleCompletePress (OT task vs regular)
- *  • SwipeableActionCard passthrough props
+ * The card was rebuilt: no status text badges, no emoji detail rows, no
+ * AvatarGroup, no LiquidGlassButton/CardActionButton. Instead it renders a
+ * leading tinted icon tile, a single dot-joined meta line
+ * "{categoryLabel} · {typeLabel} · {context}", a strike-through + success
+ * check-circle completed state, a "Take" pill for observational-tool tasks
+ * and a "Mark complete" cta pill (+ optional ellipsis) for other tasks.
+ *
+ * Targets the surviving logic branches:
+ *  • resolveTileVisual (every category / sub-type glyph)
+ *  • formattedDate (success + throw fallback) and its context slot
+ *  • formattedTime (valid, no-seconds, NaN, unsplittable, undefined)
+ *  • calculateNearestDosageTime (future, past-wrap, invalid-skip, empty, null)
+ *  • observationalToolLabel + async OT fetch (resolved, hex-id, api name/null/throw, skips)
+ *  • completed visual state (strike, check circle, 0.6 opacity)
+ *  • avatar trailing stack (placeholder initials + uri image)
+ *  • Take pill + Mark-complete pill rendering + press routing
+ *  • edit ellipsis rendering + press
+ *  • row tap (onPressView)
+ *  • SwipeableActionCard prop passthrough
  */
 
 import React from 'react';
@@ -23,9 +30,10 @@ import {
   waitFor,
   act,
 } from '@testing-library/react-native';
+import {Image, StyleSheet} from 'react-native';
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import type {TaskCardProps} from '@/features/tasks/components/TaskCard/TaskCard';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
@@ -35,47 +43,19 @@ import {observationToolApi} from '@/features/observationalTools/services/observa
 // Mocks
 // ---------------------------------------------------------------------------
 
+// Warm-bone tokens (inkBody, inkFaint, blueSoft, navActive, cta, ctaText,
+// success, avatar*Bg/Ink, screen, screen2, hairline, shadows.none, …) come
+// from the shared complete theme so the redesigned styles never crash.
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        secondary: 'purple',
-        textSecondary: 'gray',
-        successSurface: 'lightgreen',
-        success: 'green',
-        warningSurface: 'lightyellow',
-        warning: 'orange',
-        errorSurface: 'lightsalmon',
-        error: 'red',
-        borderMuted: 'lightgray',
-        white: 'white',
-      },
-      spacing: {
-        '1': 4,
-        '2': 8,
-        '2.5': 10,
-        '3': 12,
-        '4': 16,
-        '12': 48,
-        '14': 56,
-        '18': 72,
-      },
-      borderRadius: {full: 9999, md: 8},
-      typography: {
-        h6Clash: {fontSize: 14, fontWeight: '600'},
-        bodySmall: {fontSize: 12},
-        labelSmall: {fontSize: 11},
-        button: {fontSize: 14},
-      },
-    },
-    isDark: false,
-  }),
+  useTheme: () => {
+    const {createMockUseTheme} = require('../../setup/mockTheme');
+    return createMockUseTheme();
+  },
 }));
 
-jest.mock(
-  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
-  () => ({formatDateForDisplay: jest.fn(() => 'Oct 29, 2025')}),
-);
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: jest.fn(() => 'Oct 29, 2025'),
+}));
 
 jest.mock('@/shared/components/common/cardStyles', () => ({
   createCardStyles: jest.fn(() => ({card: {}, fallback: {}})),
@@ -85,17 +65,26 @@ jest.mock('@/shared/utils/imageUri', () => ({
   normalizeImageUri: jest.fn((uri: string | undefined) => uri ?? null),
 }));
 
-jest.mock('@/features/tasks/utils/taskLabels', () => ({
-  resolveObservationalToolLabel: jest.fn((raw: string) => raw),
-}));
+// Keep the real hygiene/dietary label helpers (they now feed the meta line's
+// typeLabel) but keep observational-tool resolution controllable.
+jest.mock('@/features/tasks/utils/taskLabels', () => {
+  const actual = jest.requireActual('@/features/tasks/utils/taskLabels');
+  return {
+    ...actual,
+    resolveObservationalToolLabel: jest.fn((raw: string) => raw),
+  };
+});
 
 jest.mock(
   '@/features/observationalTools/services/observationToolService',
   () => ({
     observationToolApi: {get: jest.fn()},
+    getCachedObservationToolName: jest.fn(() => null),
   }),
 );
 
+// SwipeableActionCard is the card surface + swipe wrapper — keep it mocked so
+// its passthrough props stay assertable.
 jest.mock(
   '@/shared/components/common/SwipeableActionCard/SwipeableActionCard',
   () => ({
@@ -110,45 +99,8 @@ jest.mock(
   }),
 );
 
-jest.mock(
-  '@/shared/components/common/CardActionButton/CardActionButton',
-  () => ({
-    CardActionButton: jest.fn(({label, onPress, variant}) => {
-      const {TouchableOpacity, Text} = require('react-native');
-      return (
-        <TouchableOpacity
-          testID={`mock-action-button-${variant ?? 'default'}`}
-          onPress={onPress}>
-          <Text>{label}</Text>
-        </TouchableOpacity>
-      );
-    }),
-  }),
-);
-
-jest.mock(
-  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
-  () => ({
-    LiquidGlassButton: jest.fn(({title, onPress}) => {
-      const {TouchableOpacity, Text} = require('react-native');
-      return (
-        <TouchableOpacity testID="mock-liquid-glass-button" onPress={onPress}>
-          <Text>{title}</Text>
-        </TouchableOpacity>
-      );
-    }),
-  }),
-);
-
-jest.mock('@/shared/components/common/AvatarGroup/AvatarGroup', () => ({
-  AvatarGroup: jest.fn(({avatars}) => {
-    const {View} = require('react-native');
-    return <View testID="mock-avatar-group" avatars={avatars} />;
-  }),
-}));
-
 // ---------------------------------------------------------------------------
-// Fixtures
+// Fixtures / helpers
 // ---------------------------------------------------------------------------
 
 const mockNormalizeImageUri = normalizeImageUri as jest.Mock;
@@ -161,11 +113,14 @@ const baseProps: TaskCardProps = {
   date: '2025-10-29T10:00:00.000Z',
   companionName: 'Buddy',
   status: 'pending',
-  category: 'general',
+  category: 'general' as TaskCardProps['category'],
 };
 
 const renderCard = (props: Partial<TaskCardProps> = {}) =>
   render(<TaskCard {...baseProps} {...props} />);
+
+const flatten = (style: unknown) => StyleSheet.flatten(style as never) ?? {};
+const styleOf = (el: {props: {style?: unknown}}) => flatten(el.props.style);
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -184,71 +139,138 @@ describe('TaskCard', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Basic rendering
+  // Core rendering — title + dot-joined meta line
   // -------------------------------------------------------------------------
 
-  describe('Rendering — core content', () => {
-    it('renders title, companion name and formatted date', () => {
+  describe('Rendering — title and meta line', () => {
+    it('renders the title and the dot-joined meta line', () => {
       renderCard();
       expect(screen.getByText('Morning Walk')).toBeTruthy();
-      expect(screen.getByText('Buddy')).toBeTruthy();
-      expect(screen.getByText(/Oct 29, 2025/)).toBeTruthy();
+      // category · (no typeLabel for general) · companion context
+      expect(screen.getByText('General · Buddy')).toBeTruthy();
     });
 
-    it('falls back to raw date string when formatDateForDisplay throws', () => {
+    it('uses the formatted date as context when no companion or time', () => {
+      renderCard({companionName: '', time: undefined});
+      expect(screen.getByText('General · Oct 29, 2025')).toBeTruthy();
+    });
+
+    it('falls back to the raw date string when formatDateForDisplay throws', () => {
       (formatDateForDisplay as jest.Mock).mockImplementation(() => {
         throw new Error('bad date');
       });
-      renderCard({date: '2025-10-29T10:00:00.000Z'});
+      renderCard({companionName: '', time: undefined});
       expect(screen.getByText(/2025-10-29/)).toBeTruthy();
     });
   });
 
   // -------------------------------------------------------------------------
-  // Status badges
+  // Leading tinted category tile (resolveTileVisual)
   // -------------------------------------------------------------------------
 
-  describe('Status badges', () => {
-    it('shows Completed badge for COMPLETED status', () => {
-      renderCard({status: 'completed'});
-      expect(screen.getByText('Completed')).toBeTruthy();
-      expect(screen.queryByText('Pending')).toBeNull();
-      expect(screen.queryByText('Cancelled')).toBeNull();
+  describe('Leading category tile glyph', () => {
+    it('renders the checkbox glyph for the default (general) category', () => {
+      renderCard();
+      expect(screen.getByTestId('icon-checkbox-outline')).toBeTruthy();
     });
 
-    it('shows Pending badge for PENDING status', () => {
-      renderCard({status: 'pending'});
-      expect(screen.getByText('Pending')).toBeTruthy();
-      expect(screen.queryByText('Completed')).toBeNull();
+    it('renders the medkit glyph for medication tasks', () => {
+      renderCard({
+        category: 'health',
+        details: {taskType: 'give-medication'},
+      });
+      expect(screen.getByTestId('icon-medkit-outline')).toBeTruthy();
     });
 
-    it('shows Cancelled badge for CANCELLED status (lowercase)', () => {
-      renderCard({status: 'cancelled'});
-      expect(screen.getByText('Cancelled')).toBeTruthy();
-      expect(screen.queryByText('Pending')).toBeNull();
+    it('renders the pulse glyph for observational-tool tasks', () => {
+      renderCard({
+        category: 'health',
+        details: {taskType: 'take-observational-tool'},
+      });
+      expect(screen.getByTestId('icon-pulse-outline')).toBeTruthy();
     });
 
-    it('shows Cancelled badge for CANCELLED status (uppercase)', () => {
-      renderCard({status: 'CANCELLED' as any});
-      expect(screen.getByText('Cancelled')).toBeTruthy();
+    it('renders the walk glyph for hygiene exercise tasks', () => {
+      renderCard({
+        category: 'hygiene',
+        details: {taskType: 'take-exercise'},
+      });
+      expect(screen.getByTestId('icon-walk-outline')).toBeTruthy();
     });
 
-    it('shows no badge for unknown status', () => {
-      renderCard({status: 'unknown' as any});
-      expect(screen.queryByText('Completed')).toBeNull();
-      expect(screen.queryByText('Pending')).toBeNull();
-      expect(screen.queryByText('Cancelled')).toBeNull();
+    it('renders the sparkles glyph for other hygiene tasks', () => {
+      renderCard({
+        category: 'hygiene',
+        details: {taskType: 'give-bath'},
+      });
+      expect(screen.getByTestId('icon-sparkles-outline')).toBeTruthy();
+    });
+
+    it('renders the nutrition glyph for dietary tasks', () => {
+      renderCard({
+        category: 'dietary',
+        details: {taskType: 'meals'},
+      });
+      expect(screen.getByTestId('icon-nutrition-outline')).toBeTruthy();
+    });
+
+    it('renders the create glyph for custom tasks', () => {
+      renderCard({category: 'custom', details: undefined});
+      expect(screen.getByTestId('icon-create-outline')).toBeTruthy();
     });
   });
 
   // -------------------------------------------------------------------------
-  // Time formatting
+  // Completed visual state
   // -------------------------------------------------------------------------
 
-  describe('formattedTime', () => {
-    it('formats 24h time to 12h display', () => {
+  describe('Completed state', () => {
+    it('strikes the title and shows the success check circle', () => {
+      renderCard({status: 'completed'});
+      expect(styleOf(screen.getByText('Morning Walk')).textDecorationLine).toBe(
+        'line-through',
+      );
+      expect(screen.getByTestId('icon-checkmark')).toBeTruthy();
+      // context becomes "done" on the meta line
+      expect(screen.getByText('General · done')).toBeTruthy();
+    });
+
+    it('shows "done {time}" context when a completed task has a time', () => {
+      renderCard({status: 'completed', time: '14:30:00'});
+      expect(screen.getByText('General · done 2:30 PM')).toBeTruthy();
+    });
+
+    it('treats an uppercase COMPLETED status as completed', () => {
+      renderCard({status: 'COMPLETED' as TaskCardProps['status']});
+      expect(screen.getByTestId('icon-checkmark')).toBeTruthy();
+      expect(styleOf(screen.getByText('Morning Walk')).textDecorationLine).toBe(
+        'line-through',
+      );
+    });
+
+    it('applies 0.6 opacity to the card surface when completed', () => {
+      renderCard({status: 'completed'});
+      const card = screen.getByTestId('mock-swipe-card');
+      expect(flatten(card.props.cardStyle).opacity).toBe(0.6);
+    });
+
+    it('does not strike or check a pending task', () => {
+      renderCard({status: 'pending'});
+      expect(
+        styleOf(screen.getByText('Morning Walk')).textDecorationLine,
+      ).toBeUndefined();
+      expect(screen.queryByTestId('icon-checkmark')).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // formattedTime — feeds the meta context slot
+  // -------------------------------------------------------------------------
+
+  describe('formattedTime context', () => {
+    it('formats 24h time to a 12h display', () => {
       renderCard({time: '14:30:00'});
-      expect(screen.getByText('Oct 29, 2025 - 2:30 PM')).toBeTruthy();
+      expect(screen.getByText('General · 2:30 PM')).toBeTruthy();
     });
 
     it('formats time without seconds', () => {
@@ -256,144 +278,227 @@ describe('TaskCard', () => {
       expect(screen.getByText(/9:05 AM/)).toBeTruthy();
     });
 
-    it('returns original string when hours are NaN', () => {
+    it('returns the original string when hours are NaN', () => {
       renderCard({time: 'bad:30'});
-      expect(screen.getByText(/Oct 29, 2025 - bad:30/)).toBeTruthy();
+      expect(screen.getByText(/bad:30/)).toBeTruthy();
     });
 
-    it('returns original string when time format cannot be split', () => {
+    it('returns the original string when the time cannot be split', () => {
       renderCard({time: 'invalid-time-string'});
       expect(screen.getByText(/invalid-time-string/)).toBeTruthy();
     });
 
-    it('shows no time suffix when time is undefined', () => {
+    it('falls back to the companion context when time is undefined', () => {
       renderCard({time: undefined});
-      expect(screen.getByText('Oct 29, 2025')).toBeTruthy();
+      expect(screen.getByText('General · Buddy')).toBeTruthy();
     });
 
-    it('shows no time suffix when time is empty string', () => {
-      renderCard({time: ''});
-      expect(screen.getByText('Oct 29, 2025')).toBeTruthy();
+    it('returns the original value when time.split throws (non-string time)', () => {
+      // A non-string truthy time makes `.split` throw, hitting the catch that
+      // returns the raw value.
+      renderCard({time: 123 as unknown as string});
+      expect(screen.getByText('General · 123')).toBeTruthy();
     });
   });
 
   // -------------------------------------------------------------------------
-  // calculateNearestDosageTime + formattedNearestDosage
+  // calculateNearestDosageTime — medication context slot
   // -------------------------------------------------------------------------
 
-  describe('Medication nearest dosage time', () => {
+  describe('Medication nearest dosage context', () => {
     const medicationProps: Partial<TaskCardProps> = {
       category: 'health',
-      details: {
-        taskType: 'give-medication',
-        medicineName: 'Apoquel',
-        medicineType: 'Tablet',
-      },
+      details: {taskType: 'give-medication'},
     };
 
-    it('displays nearest future dosage time', () => {
-      // Use a time well in the future (23:59) so it is always "upcoming today"
+    it('shows the nearest future dosage time', () => {
       renderCard({
         ...medicationProps,
         details: {
-          ...medicationProps.details,
-          dosages: [{time: '23:59', dosage: '1', label: '1 tab'}],
+          ...(medicationProps.details as object),
+          dosages: [{time: '23:59', dosage: '1'}],
         },
       });
       expect(screen.getByText(/11:59 PM/)).toBeTruthy();
     });
 
-    it('falls back to earliest dosage when all dosages are in the past', () => {
-      // 00:01 is always in the past
+    it('falls back to the earliest dosage when all are in the past', () => {
       renderCard({
         ...medicationProps,
         details: {
-          ...medicationProps.details,
+          ...(medicationProps.details as object),
           dosages: [
-            {time: '00:01', dosage: '1', label: 'early tab'},
-            {time: '00:02', dosage: '2', label: 'later tab'},
+            {time: '00:01', dosage: '1'},
+            {time: '00:02', dosage: '2'},
           ],
         },
       });
-      // Should display 12:01 AM (the earliest)
       expect(screen.getByText(/12:01 AM/)).toBeTruthy();
     });
 
-    it('handles empty dosages array gracefully (no time appended)', () => {
+    it('skips invalid dosage entries and keeps the valid one', () => {
       renderCard({
         ...medicationProps,
         details: {
-          ...medicationProps.details,
-          dosages: [],
+          ...(medicationProps.details as object),
+          dosages: [
+            {time: 'bad:time', dosage: '1'},
+            {time: '23:59', dosage: '1'},
+          ],
         },
       });
-      // With no dosages nearestDosageTime is null → task time is used (none provided)
-      expect(screen.getByText('Oct 29, 2025')).toBeTruthy();
+      expect(screen.getByText(/11:59 PM/)).toBeTruthy();
+    });
+
+    it('appends no time when every dosage entry is invalid', () => {
+      renderCard({
+        ...medicationProps,
+        details: {
+          ...(medicationProps.details as object),
+          dosages: [{time: 'bad:time', dosage: '1'}],
+        },
+      });
+      expect(
+        screen.getByText('General · Give medication · Buddy'),
+      ).toBeTruthy();
+    });
+
+    it('appends no time when the dosages array is empty', () => {
+      renderCard({
+        ...medicationProps,
+        details: {...(medicationProps.details as object), dosages: []},
+      });
+      expect(
+        screen.getByText('General · Give medication · Buddy'),
+      ).toBeTruthy();
     });
 
     it('handles null dosages gracefully', () => {
       renderCard({
         ...medicationProps,
-        details: {
-          ...medicationProps.details,
-          dosages: null,
-        },
+        details: {...(medicationProps.details as object), dosages: null},
       });
-      expect(screen.getByText('Oct 29, 2025')).toBeTruthy();
+      expect(
+        screen.getByText('General · Give medication · Buddy'),
+      ).toBeTruthy();
     });
 
-    it('skips invalid dosage time entries', () => {
-      // One invalid, one valid future entry
+    it('skips a dosage whose time throws on split and keeps the valid one', () => {
+      // A non-string time makes `.split` throw inside the map — exercises the
+      // try/catch skip path (distinct from the NaN early-return).
       renderCard({
         ...medicationProps,
         details: {
-          ...medicationProps.details,
+          ...(medicationProps.details as object),
           dosages: [
-            {time: 'bad:time', dosage: '1', label: 'skip'},
-            {time: '23:59', dosage: '1', label: 'valid'},
+            {time: null, dosage: '1'},
+            {time: '23:59', dosage: '1'},
           ],
         },
       });
       expect(screen.getByText(/11:59 PM/)).toBeTruthy();
     });
 
-    it('returns null (no time) when all dosage entries have invalid times', () => {
+    it('drops the nearest dosage context when formatting the selected dosage throws', () => {
+      const splitOnceThenThrow = {
+        split: jest
+          .fn()
+          .mockReturnValueOnce(['23', '59'])
+          .mockImplementationOnce(() => {
+            throw new Error('format failed');
+          }),
+      };
       renderCard({
         ...medicationProps,
         details: {
-          ...medicationProps.details,
-          dosages: [{time: 'bad:time', dosage: '1', label: 'skip'}],
+          ...(medicationProps.details as object),
+          dosages: [
+            {time: splitOnceThenThrow, dosage: '1'} as unknown as {
+              time: string;
+              dosage: string;
+            },
+          ],
         },
       });
-      expect(screen.getByText('Oct 29, 2025')).toBeTruthy();
+      expect(
+        screen.getByText('General · Give medication · Buddy'),
+      ).toBeTruthy();
     });
 
-    it('does not display dosage time for non-medication health tasks', () => {
+    it('drops the nearest dosage context when display formatting has NaN hours', () => {
+      const splitValidThenNaN = {
+        split: jest
+          .fn()
+          .mockReturnValueOnce(['23', '59'])
+          .mockReturnValueOnce(['bad', '10']),
+      };
       renderCard({
-        category: 'health',
-        details: {taskType: 'take-observational-tool', toolType: 'Pain Score'},
-        time: '09:00:00',
+        ...medicationProps,
+        details: {
+          ...(medicationProps.details as object),
+          dosages: [
+            {time: splitValidThenNaN, dosage: '1'} as unknown as {
+              time: string;
+              dosage: string;
+            },
+          ],
+        },
       });
-      // Should show task time, not dosage time
-      expect(screen.getByText(/9:00 AM/)).toBeTruthy();
+      expect(
+        screen.getByText('General · Give medication · Buddy'),
+      ).toBeTruthy();
+    });
+
+    it('picks the smaller of two future dosages (reduce comparison arm)', () => {
+      // Two future dosages, largest first, so the reduce must swap to the
+      // smaller upcoming time.
+      renderCard({
+        ...medicationProps,
+        details: {
+          ...(medicationProps.details as object),
+          dosages: [
+            {time: '23:59', dosage: '1'},
+            {time: '23:58', dosage: '2'},
+          ],
+        },
+      });
+      expect(screen.getByText(/11:58 PM/)).toBeTruthy();
+    });
+
+    it('picks the earliest of two past dosages (fallback reduce comparison arm)', () => {
+      // All in the past, largest first, so the earliest-dosage reduce must
+      // swap to the smaller time.
+      renderCard({
+        ...medicationProps,
+        details: {
+          ...(medicationProps.details as object),
+          dosages: [
+            {time: '00:02', dosage: '1'},
+            {time: '00:01', dosage: '2'},
+          ],
+        },
+      });
+      expect(screen.getByText(/12:01 AM/)).toBeTruthy();
     });
   });
 
   // -------------------------------------------------------------------------
-  // observationalToolLabel (sync resolution)
+  // observationalToolLabel — sync resolution into the meta line
   // -------------------------------------------------------------------------
 
-  describe('observationalToolLabel — sync resolution', () => {
-    it('shows the resolved label when resolveObservationalToolLabel returns a name', () => {
+  describe('Observational tool label — sync resolution', () => {
+    it('shows the resolved label when it is a readable name', async () => {
       mockResolveOtLabel.mockReturnValue('Pain Score');
       renderCard({
         category: 'health',
         details: {taskType: 'take-observational-tool', toolType: 'pain-score'},
       });
-      expect(screen.getByText('📋 Tool: Pain Score')).toBeTruthy();
+      expect(screen.getByText(/Pain Score/)).toBeTruthy();
+      await act(async () => {});
+      expect(mockObservationToolGet).not.toHaveBeenCalled();
     });
 
-    it('shows "Observational tool" when resolved value looks like a Mongo ID', () => {
+    it('shows the "Observational tool" fallback for a Mongo-id label', () => {
       mockResolveOtLabel.mockReturnValue('507f1f77bcf86cd799439011');
       renderCard({
         category: 'health',
@@ -402,26 +507,7 @@ describe('TaskCard', () => {
           toolType: '507f1f77bcf86cd799439011',
         },
       });
-      // The hex-id branch sets observationalToolLabel to 'Observational tool'
-      // which triggers the API fetch path; API returns null so label stays
       expect(screen.getByText(/Observational tool/)).toBeTruthy();
-    });
-
-    it('returns null for non-OT health task', () => {
-      renderCard({
-        category: 'health',
-        details: {
-          taskType: 'give-medication',
-          medicineName: 'X',
-          medicineType: 'Y',
-        },
-      });
-      expect(screen.queryByText(/📋/)).toBeNull();
-    });
-
-    it('returns null for non-health category', () => {
-      renderCard({category: 'general', details: undefined});
-      expect(screen.queryByText(/📋/)).toBeNull();
     });
   });
 
@@ -429,11 +515,10 @@ describe('TaskCard', () => {
   // useEffect — async OT label fetch
   // -------------------------------------------------------------------------
 
-  describe('useEffect — OT label async fetch', () => {
-    it('updates label from API when initial label is a hex ID', async () => {
+  describe('Observational tool label — async fetch', () => {
+    it('updates the label from the API when the initial value is a hex id', async () => {
       mockResolveOtLabel.mockReturnValue('507f1f77bcf86cd799439011');
       mockObservationToolGet.mockResolvedValue({name: 'Blood Pressure'});
-
       renderCard({
         category: 'health',
         details: {
@@ -441,16 +526,14 @@ describe('TaskCard', () => {
           toolType: '507f1f77bcf86cd799439011',
         },
       });
-
       await waitFor(() => {
-        expect(screen.getByText('📋 Tool: Blood Pressure')).toBeTruthy();
+        expect(screen.getByText(/Blood Pressure/)).toBeTruthy();
       });
     });
 
-    it('keeps "Observational tool" fallback when API returns null', async () => {
+    it('keeps the "Observational tool" fallback when the API returns null', async () => {
       mockResolveOtLabel.mockReturnValue('507f1f77bcf86cd799439011');
       mockObservationToolGet.mockResolvedValue(null);
-
       renderCard({
         category: 'health',
         details: {
@@ -458,16 +541,15 @@ describe('TaskCard', () => {
           toolType: '507f1f77bcf86cd799439011',
         },
       });
-
       await waitFor(() => {
-        expect(screen.getByText('📋 Tool: Observational tool')).toBeTruthy();
+        expect(mockObservationToolGet).toHaveBeenCalled();
       });
+      expect(screen.getByText(/Observational tool/)).toBeTruthy();
     });
 
-    it('keeps "Observational tool" fallback when API throws', async () => {
+    it('keeps the "Observational tool" fallback when the API throws', async () => {
       mockResolveOtLabel.mockReturnValue('507f1f77bcf86cd799439011');
       mockObservationToolGet.mockRejectedValue(new Error('network'));
-
       renderCard({
         category: 'health',
         details: {
@@ -475,49 +557,40 @@ describe('TaskCard', () => {
           toolType: '507f1f77bcf86cd799439011',
         },
       });
-
       await waitFor(() => {
-        expect(screen.getByText('📋 Tool: Observational tool')).toBeTruthy();
+        expect(mockObservationToolGet).toHaveBeenCalled();
       });
+      expect(screen.getByText(/Observational tool/)).toBeTruthy();
     });
 
-    it('skips API fetch when label is already resolved (not a hex ID)', async () => {
+    it('skips the API fetch when the label is already resolved', async () => {
       mockResolveOtLabel.mockReturnValue('Pain Score');
       mockObservationToolGet.mockResolvedValue({name: 'Should Not Be Used'});
-
       renderCard({
         category: 'health',
         details: {taskType: 'take-observational-tool', toolType: 'pain-score'},
       });
-
-      await waitFor(() => {
-        expect(screen.getByText('📋 Tool: Pain Score')).toBeTruthy();
-      });
+      await act(async () => {});
+      expect(screen.getByText(/Pain Score/)).toBeTruthy();
       expect(mockObservationToolGet).not.toHaveBeenCalled();
     });
 
-    it('does not run fetch when category is not health', async () => {
+    it('does not fetch when the category is not health', async () => {
       renderCard({category: 'general', details: undefined});
-      // Give any pending microtasks a tick
       await act(async () => {});
       expect(mockObservationToolGet).not.toHaveBeenCalled();
     });
 
-    it('does not run fetch when taskType is not take-observational-tool', async () => {
+    it('does not fetch when the task type is not an observational tool', async () => {
       renderCard({
         category: 'health',
-        details: {
-          taskType: 'give-medication',
-          medicineName: 'X',
-          medicineType: 'Y',
-        },
+        details: {taskType: 'give-medication'},
       });
       await act(async () => {});
       expect(mockObservationToolGet).not.toHaveBeenCalled();
     });
 
-    it('does not run fetch when toolType is falsy', async () => {
-      mockResolveOtLabel.mockReturnValue('Observational tool');
+    it('does not fetch when the toolType is falsy', async () => {
       renderCard({
         category: 'health',
         details: {taskType: 'take-observational-tool', toolType: ''},
@@ -525,253 +598,225 @@ describe('TaskCard', () => {
       await act(async () => {});
       expect(mockObservationToolGet).not.toHaveBeenCalled();
     });
-  });
 
-  // -------------------------------------------------------------------------
-  // renderTaskDetails
-  // -------------------------------------------------------------------------
-
-  describe('renderTaskDetails', () => {
-    it('renders medication name, type, and dosage labels', () => {
-      renderCard({
-        category: 'health',
-        details: {
-          taskType: 'give-medication',
-          medicineName: 'Metacam',
-          medicineType: 'Liquid',
-          dosages: [{label: '0.5ml'}, {label: '0.5ml'}],
-        },
+    it('does not set the fallback label when the fetch rejects after unmount', async () => {
+      // Reject only after unmount so the effect's `active` guard is false when
+      // the catch runs — exercises the inactive branch (no setState).
+      mockResolveOtLabel.mockReturnValue('507f1f77bcf86cd799439011');
+      let rejectFetch: (reason?: unknown) => void = () => {};
+      const pending = new Promise((_resolve, reject) => {
+        rejectFetch = reject;
       });
-      expect(screen.getByText('💊 Metacam (Liquid)')).toBeTruthy();
-      expect(screen.getByText('Doses: 0.5ml, 0.5ml')).toBeTruthy();
-    });
-
-    it('renders medication without dosages section when dosages is empty', () => {
-      renderCard({
-        category: 'health',
-        details: {
-          taskType: 'give-medication',
-          medicineName: 'Metacam',
-          medicineType: 'Liquid',
-          dosages: [],
-        },
-      });
-      expect(screen.getByText('💊 Metacam (Liquid)')).toBeTruthy();
-      expect(screen.queryByText(/Doses:/)).toBeNull();
-    });
-
-    it('renders medication without dosages section when dosages is absent', () => {
-      renderCard({
-        category: 'health',
-        details: {
-          taskType: 'give-medication',
-          medicineName: 'Metacam',
-          medicineType: 'Liquid',
-        },
-      });
-      expect(screen.getByText('💊 Metacam (Liquid)')).toBeTruthy();
-      expect(screen.queryByText(/Doses:/)).toBeNull();
-    });
-
-    it('renders observational tool label', () => {
-      mockResolveOtLabel.mockReturnValue('Weight Check');
-      renderCard({
+      mockObservationToolGet.mockReturnValue(pending);
+      const {unmount} = renderCard({
         category: 'health',
         details: {
           taskType: 'take-observational-tool',
-          toolType: 'Weight Check',
+          toolType: '507f1f77bcf86cd799439011',
         },
       });
-      expect(screen.getByText('📋 Tool: Weight Check')).toBeTruthy();
-    });
-
-    it('renders hygiene task description', () => {
-      renderCard({
-        category: 'hygiene',
-        details: {description: 'Brush teeth'},
+      unmount();
+      rejectFetch(new Error('network'));
+      await act(async () => {
+        await pending.catch(() => {});
       });
-      expect(screen.getByText('Brush teeth')).toBeTruthy();
-    });
-
-    it('renders dietary task description', () => {
-      renderCard({
-        category: 'dietary',
-        details: {description: '1 cup kibble'},
-      });
-      expect(screen.getByText('1 cup kibble')).toBeTruthy();
-    });
-
-    it('renders nothing for hygiene task without description', () => {
-      renderCard({category: 'hygiene', details: {}});
-      expect(screen.queryByText(/💊/)).toBeNull();
-      expect(screen.queryByText(/📋/)).toBeNull();
-    });
-
-    it('renders nothing when details is undefined', () => {
-      renderCard({details: undefined});
-      expect(screen.queryByText(/💊/)).toBeNull();
-      expect(screen.queryByText(/📋/)).toBeNull();
-    });
-
-    it('renders nothing for unrecognised category+details combination', () => {
-      renderCard({
-        category: 'general',
-        details: {description: 'should not appear'},
-      });
-      expect(screen.queryByText('should not appear')).toBeNull();
+      expect(mockObservationToolGet).toHaveBeenCalled();
     });
   });
 
   // -------------------------------------------------------------------------
-  // Avatar logic
+  // Health sub-type label (typeLabel)
   // -------------------------------------------------------------------------
 
-  describe('Avatar logic', () => {
-    it('uses URI when companionAvatar normalizes to a string', () => {
-      mockNormalizeImageUri.mockReturnValue(
-        'https://cdn.example.com/buddy.jpg',
-      );
-      renderCard({companionAvatar: 'buddy.jpg', assignedToName: undefined});
-      const group = screen.getByTestId('mock-avatar-group');
-      expect(group.props.avatars).toEqual([
-        {uri: 'https://cdn.example.com/buddy.jpg'},
-      ]);
+  describe('Health type label', () => {
+    it('labels a vaccination task', () => {
+      renderCard({
+        category: 'health',
+        details: {taskType: 'vaccination'},
+      });
+      expect(screen.getByText('General · Vaccination · Buddy')).toBeTruthy();
     });
 
-    it('uses placeholder initial when companionAvatar normalizes to null', () => {
+    it('omits the type segment for an unrecognised health task', () => {
+      // details undefined → no give-medication/observational/vaccination match,
+      // so typeLabel falls through to the (absent) subcategory label.
+      renderCard({category: 'health', details: undefined});
+      expect(screen.getByText('General · Buddy')).toBeTruthy();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Avatar trailing stack
+  // -------------------------------------------------------------------------
+
+  describe('Avatar trailing stack', () => {
+    it('shows the companion initial placeholder when no avatar resolves', () => {
       mockNormalizeImageUri.mockReturnValue(null);
       renderCard({companionAvatar: undefined, assignedToName: undefined});
-      const group = screen.getByTestId('mock-avatar-group');
-      expect(group.props.avatars).toEqual([{placeholder: 'B'}]);
+      expect(screen.getByText('B')).toBeTruthy();
     });
 
-    it('appends assignee URI when assignedToAvatar is provided', () => {
-      mockNormalizeImageUri
-        .mockReturnValueOnce('buddy.png') // companion
-        .mockReturnValueOnce('john.png'); // assignee
-      renderCard({
-        companionAvatar: 'buddy.png',
-        assignedToName: 'John Doe',
-        assignedToAvatar: 'john.png',
-      });
-      const group = screen.getByTestId('mock-avatar-group');
-      expect(group.props.avatars).toEqual([
-        {uri: 'buddy.png'},
-        {uri: 'john.png'},
-      ]);
-    });
-
-    it('appends assignee placeholder when assignedToAvatar normalizes to null', () => {
-      mockNormalizeImageUri
-        .mockReturnValueOnce(null) // companion
-        .mockReturnValueOnce(null); // assignee
+    it('appends the assignee initial placeholder', () => {
+      mockNormalizeImageUri.mockReturnValue(null);
       renderCard({
         companionAvatar: undefined,
         assignedToName: 'Alice Wonder',
         assignedToAvatar: undefined,
       });
-      const group = screen.getByTestId('mock-avatar-group');
-      expect(group.props.avatars).toEqual([
-        {placeholder: 'B'},
-        {placeholder: 'A'},
-      ]);
+      expect(screen.getByText('B')).toBeTruthy();
+      expect(screen.getByText('A')).toBeTruthy();
     });
 
-    it('does not append assignee when assignedToName is undefined', () => {
-      mockNormalizeImageUri.mockReturnValue(null);
-      renderCard({assignedToName: undefined});
-      const group = screen.getByTestId('mock-avatar-group');
-      expect(group.props.avatars).toHaveLength(1);
+    it('renders an image (no placeholder) when the avatar uri resolves', () => {
+      mockNormalizeImageUri.mockReturnValue(
+        'https://cdn.example.com/buddy.jpg',
+      );
+      renderCard({companionAvatar: 'buddy.jpg', assignedToName: undefined});
+      expect(screen.queryByText('B')).toBeNull();
+      expect(screen.UNSAFE_getAllByType(Image)).toHaveLength(1);
+    });
+
+    it('renders an assignee image when the assignee avatar uri resolves', () => {
+      // Both avatars resolve to a uri → the assignee image push branch runs and
+      // two <Image> avatars render (no initial placeholders).
+      mockNormalizeImageUri.mockReturnValue('https://cdn.example.com/x.jpg');
+      renderCard({
+        companionAvatar: 'buddy.jpg',
+        assignedToName: 'Alice Wonder',
+        assignedToAvatar: 'alice.jpg',
+      });
+      expect(screen.queryByText('B')).toBeNull();
+      expect(screen.queryByText('A')).toBeNull();
+      expect(screen.UNSAFE_getAllByType(Image)).toHaveLength(2);
     });
   });
 
   // -------------------------------------------------------------------------
-  // Complete button variants
+  // Mark-complete pill (non-OT action row)
   // -------------------------------------------------------------------------
 
-  describe('showCompleteButton — button variants', () => {
-    it('renders LiquidGlassButton (default variant) with custom label', () => {
+  describe('Mark-complete pill', () => {
+    it('renders the default "Mark complete" pill for a pending non-OT task', () => {
       renderCard({
         showCompleteButton: true,
         status: 'pending',
-        completeButtonVariant: 'liquid-glass',
+        category: 'general',
+        onPressComplete: jest.fn(),
+      });
+      expect(screen.getByText('Mark complete')).toBeTruthy();
+    });
+
+    it('renders a custom completeButtonLabel', () => {
+      renderCard({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'general',
         completeButtonLabel: 'Mark Done',
         onPressComplete: jest.fn(),
       });
-      expect(screen.getByTestId('mock-liquid-glass-button')).toBeTruthy();
       expect(screen.getByText('Mark Done')).toBeTruthy();
     });
 
-    it('renders CardActionButton for primary variant', () => {
+    it('does not render the pill when showCompleteButton is false', () => {
       renderCard({
-        showCompleteButton: true,
+        showCompleteButton: false,
         status: 'pending',
-        completeButtonVariant: 'primary',
         onPressComplete: jest.fn(),
       });
-      expect(screen.getByTestId('mock-action-button-primary')).toBeTruthy();
+      expect(screen.queryByText('Mark complete')).toBeNull();
     });
 
-    it('renders CardActionButton for success variant', () => {
+    it('does not render the pill when the task is completed', () => {
       renderCard({
         showCompleteButton: true,
-        status: 'pending',
-        completeButtonVariant: 'success',
+        status: 'completed',
         onPressComplete: jest.fn(),
       });
-      expect(screen.getByTestId('mock-action-button-success')).toBeTruthy();
+      expect(screen.queryByText('Mark complete')).toBeNull();
     });
 
-    it('renders CardActionButton for secondary variant', () => {
+    it('exposes button role and the visible label as the accessibility label', () => {
       renderCard({
         showCompleteButton: true,
         status: 'pending',
-        completeButtonVariant: 'secondary',
+        category: 'general',
+        completeButtonLabel: 'Mark Done',
         onPressComplete: jest.fn(),
       });
-      expect(screen.getByTestId('mock-action-button-secondary')).toBeTruthy();
+      const pill = screen.getByLabelText('Mark Done');
+      expect(pill.props.accessibilityRole).toBe('button');
     });
 
-    it('does not render button when showCompleteButton is false', () => {
-      renderCard({showCompleteButton: false, status: 'pending'});
-      expect(screen.queryByTestId('mock-liquid-glass-button')).toBeNull();
-      expect(screen.queryByTestId(/mock-action-button/)).toBeNull();
-    });
-
-    it('does not render button when task is completed', () => {
-      renderCard({showCompleteButton: true, status: 'completed'});
-      expect(screen.queryByTestId('mock-liquid-glass-button')).toBeNull();
-    });
-
-    it('does not render button when handleCompletePress is undefined', () => {
+    it('does not render the pill when there is no complete handler', () => {
       renderCard({
         showCompleteButton: true,
         status: 'pending',
+        category: 'general',
         onPressComplete: undefined,
         onPressTakeObservationalTool: undefined,
       });
-      expect(screen.queryByTestId('mock-liquid-glass-button')).toBeNull();
+      expect(screen.queryByText('Mark complete')).toBeNull();
     });
   });
 
   // -------------------------------------------------------------------------
-  // handleCompletePress routing
+  // Take pill (observational-tool trailing)
   // -------------------------------------------------------------------------
 
-  describe('handleCompletePress routing', () => {
-    it('calls onPressComplete for non-OT tasks', () => {
+  describe('Take pill', () => {
+    it('renders a "Take" pill for a pending observational-tool task', () => {
+      renderCard({
+        category: 'health',
+        details: {taskType: 'take-observational-tool'},
+        showCompleteButton: true,
+        status: 'pending',
+        onPressComplete: jest.fn(),
+      });
+      expect(screen.getByText('Take')).toBeTruthy();
+    });
+
+    it('exposes button role and label on the "Take" pill', () => {
+      renderCard({
+        category: 'health',
+        details: {taskType: 'take-observational-tool'},
+        showCompleteButton: true,
+        status: 'pending',
+        onPressComplete: jest.fn(),
+      });
+      const pill = screen.getByLabelText('Take');
+      expect(pill.props.accessibilityRole).toBe('button');
+    });
+
+    it('does not render the "Take" pill once the task is completed', () => {
+      renderCard({
+        category: 'health',
+        details: {taskType: 'take-observational-tool'},
+        showCompleteButton: true,
+        status: 'completed',
+        onPressComplete: jest.fn(),
+      });
+      expect(screen.queryByText('Take')).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Complete-press routing
+  // -------------------------------------------------------------------------
+
+  describe('Complete-press routing', () => {
+    it('calls onPressComplete when the Mark-complete pill is pressed', () => {
       const onPressComplete = jest.fn();
       renderCard({
         showCompleteButton: true,
         status: 'pending',
-        onPressComplete,
         category: 'general',
+        onPressComplete,
       });
-      fireEvent.press(screen.getByTestId('mock-liquid-glass-button'));
+      fireEvent.press(screen.getByText('Mark complete'));
       expect(onPressComplete).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onPressTakeObservationalTool for OT tasks when provided', () => {
+    it('routes the Take pill to onPressTakeObservationalTool when provided', () => {
       const onPressTakeObservationalTool = jest.fn();
       const onPressComplete = jest.fn();
       renderCard({
@@ -782,12 +827,12 @@ describe('TaskCard', () => {
         onPressTakeObservationalTool,
         onPressComplete,
       });
-      fireEvent.press(screen.getByTestId('mock-liquid-glass-button'));
+      fireEvent.press(screen.getByText('Take'));
       expect(onPressTakeObservationalTool).toHaveBeenCalledTimes(1);
       expect(onPressComplete).not.toHaveBeenCalled();
     });
 
-    it('falls back to onPressComplete for OT task when onPressTakeObservationalTool is absent', () => {
+    it('falls back to onPressComplete for an OT task without a take handler', () => {
       const onPressComplete = jest.fn();
       renderCard({
         showCompleteButton: true,
@@ -797,8 +842,93 @@ describe('TaskCard', () => {
         onPressTakeObservationalTool: undefined,
         onPressComplete,
       });
-      fireEvent.press(screen.getByTestId('mock-liquid-glass-button'));
+      fireEvent.press(screen.getByText('Take'));
       expect(onPressComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Edit ellipsis (action row)
+  // -------------------------------------------------------------------------
+
+  describe('Edit ellipsis', () => {
+    it('renders the ellipsis and calls onPressEdit when it is pressed', () => {
+      const onPressEdit = jest.fn();
+      const onPressComplete = jest.fn();
+      renderCard({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'general',
+        showEditAction: true,
+        onPressEdit,
+        onPressComplete,
+      });
+      const ellipsis = screen.getByTestId('icon-ellipsis-horizontal');
+      fireEvent.press(ellipsis);
+      expect(onPressEdit).toHaveBeenCalledTimes(1);
+      expect(onPressComplete).not.toHaveBeenCalled();
+    });
+
+    it('exposes button role and a "More options" label on the ellipsis button', () => {
+      renderCard({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'general',
+        showEditAction: true,
+        onPressEdit: jest.fn(),
+        onPressComplete: jest.fn(),
+      });
+      const button = screen.getByLabelText('More options');
+      expect(button.props.accessibilityRole).toBe('button');
+    });
+
+    it('does not render the ellipsis when showEditAction is false', () => {
+      renderCard({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'general',
+        showEditAction: false,
+        onPressEdit: jest.fn(),
+        onPressComplete: jest.fn(),
+      });
+      expect(screen.queryByTestId('icon-ellipsis-horizontal')).toBeNull();
+    });
+
+    it('does not render the ellipsis when onPressEdit is undefined', () => {
+      renderCard({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'general',
+        showEditAction: true,
+        onPressEdit: undefined,
+        onPressComplete: jest.fn(),
+      });
+      expect(screen.queryByTestId('icon-ellipsis-horizontal')).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Row tap
+  // -------------------------------------------------------------------------
+
+  describe('Row tap', () => {
+    it('calls onPressView when the card row is pressed', () => {
+      const onPressView = jest.fn();
+      renderCard({onPressView});
+      fireEvent.press(screen.getByText('Morning Walk'));
+      expect(onPressView).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposes button role and the task title as the accessibility label when pressable', () => {
+      renderCard({onPressView: jest.fn()});
+      const row = screen.getByLabelText('Morning Walk');
+      expect(row.props.accessibilityRole).toBe('button');
+    });
+
+    it('omits the button role when onPressView is undefined', () => {
+      renderCard({onPressView: undefined});
+      const row = screen.getByLabelText('Morning Walk');
+      expect(row.props.accessibilityRole).toBeUndefined();
     });
   });
 
@@ -807,21 +937,21 @@ describe('TaskCard', () => {
   // -------------------------------------------------------------------------
 
   describe('SwipeableActionCard props', () => {
-    it('passes showEditAction=true when prop is true and task is pending', () => {
+    it('passes showEditAction=true when the prop is true and the task is pending', () => {
       renderCard({showEditAction: true, status: 'pending'});
       expect(screen.getByTestId('mock-swipe-card').props.showEditAction).toBe(
         true,
       );
     });
 
-    it('forces showEditAction=false when task is completed', () => {
+    it('forces showEditAction=false when the task is completed', () => {
       renderCard({showEditAction: true, status: 'completed'});
       expect(screen.getByTestId('mock-swipe-card').props.showEditAction).toBe(
         false,
       );
     });
 
-    it('forces showEditAction=false when prop is false', () => {
+    it('forces showEditAction=false when the prop is false', () => {
       renderCard({showEditAction: false, status: 'pending'});
       expect(screen.getByTestId('mock-swipe-card').props.showEditAction).toBe(
         false,

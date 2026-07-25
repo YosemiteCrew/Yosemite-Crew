@@ -9,13 +9,8 @@
  */
 
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import {View, StyleSheet, Text, useWindowDimensions} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Attachment, useMessageContext} from 'stream-chat-react-native';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -23,101 +18,137 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {VoiceMessagePlayer} from './VoiceMessagePlayer';
 import {useTheme} from '@/hooks';
 
-const {width: SCREEN_WIDTH} = Dimensions.get('window');
-const MAX_WIDTH = SCREEN_WIDTH * 0.7;
+type ChatStyles = ReturnType<typeof createStyles>;
+
+const AudioAttachmentView: React.FC<{
+  styles: ChatStyles;
+  attachment: any;
+}> = ({styles, attachment}) => {
+  const duration =
+    attachment.duration && typeof attachment.duration === 'number'
+      ? attachment.duration * 1000
+      : undefined;
+  return (
+    <View style={styles.audioContainer}>
+      <VoiceMessagePlayer audioUrl={attachment.asset_url} duration={duration} />
+    </View>
+  );
+};
+
+const VideoAttachmentView: React.FC<{
+  styles: ChatStyles;
+  theme: any;
+  attachment: any;
+}> = ({styles, theme, attachment}) => {
+  const [videoPaused, setVideoPaused] = React.useState(true);
+  return (
+    <PressableOpacity
+      style={styles.videoContainer}
+      onPress={() => {
+        ReactNativeHapticFeedback.trigger('impactLight');
+        setVideoPaused(!videoPaused);
+      }}
+      activeOpacity={0.9}
+      accessibilityRole="button"
+      accessibilityLabel={videoPaused ? 'Play video' : 'Pause video'}>
+      <Video
+        source={{uri: attachment.asset_url}}
+        style={styles.video}
+        resizeMode="cover"
+        paused={videoPaused}
+        controls={false}
+        repeat={false}
+      />
+      {videoPaused && (
+        <View style={styles.playOverlay}>
+          <View style={styles.playButton}>
+            <Icon name="play-arrow" size={40} color={theme.colors.ink} />
+          </View>
+        </View>
+      )}
+      <View style={styles.videoInfo}>
+        <Icon name="videocam" size={16} color={theme.colors.inkMuted} />
+        <Text style={styles.videoText}>{attachment.title || 'Video'}</Text>
+      </View>
+    </PressableOpacity>
+  );
+};
+
+const FileAttachmentView: React.FC<{
+  styles: ChatStyles;
+  theme: any;
+  attachment: any;
+}> = ({styles, theme, attachment}) => {
+  const fileName = attachment.title || 'File';
+  const fileSize =
+    typeof attachment.file_size === 'number'
+      ? `${(attachment.file_size / 1024).toFixed(1)} KB`
+      : undefined;
+
+  return (
+    <PressableOpacity
+      style={styles.fileContainer}
+      onPress={() => {
+        ReactNativeHapticFeedback.trigger('impactLight');
+        // Open file (you can add Linking.openURL here)
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={fileName}>
+      <View style={styles.fileIcon}>
+        <Icon
+          name="insert-drive-file"
+          size={32}
+          color={theme.colors.blueText}
+        />
+      </View>
+      <View style={styles.fileInfo}>
+        <Text style={styles.fileName} numberOfLines={1}>
+          {fileName}
+        </Text>
+        {fileSize ? <Text style={styles.fileSize}>{fileSize}</Text> : null}
+      </View>
+      <Icon name="download" size={24} color={theme.colors.blueText} />
+    </PressableOpacity>
+  );
+};
 
 export const CustomAttachment: React.FC = () => {
   const {message} = useMessageContext();
   const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const [videoPaused, setVideoPaused] = React.useState(true);
+  const {width: screenWidth} = useWindowDimensions();
+  const maxWidth = screenWidth * 0.7;
+  const styles = React.useMemo(
+    () => createStyles(theme, maxWidth),
+    [theme, maxWidth],
+  );
 
   if (!message.attachments || message.attachments.length === 0) {
     return null;
   }
 
   const attachment = message.attachments[0];
-  const attachmentType = attachment.type;
 
-  // Handle audio attachments (voice messages)
-  if (attachmentType === 'audio' && attachment.asset_url) {
-    const duration =
-      attachment.duration && typeof attachment.duration === 'number'
-        ? attachment.duration * 1000
-        : undefined;
+  if (attachment.type === 'audio' && attachment.asset_url) {
+    return <AudioAttachmentView styles={styles} attachment={attachment} />;
+  }
+
+  if (attachment.type === 'video' && attachment.asset_url) {
     return (
-      <View style={styles.audioContainer}>
-        <VoiceMessagePlayer
-          audioUrl={attachment.asset_url}
-          duration={duration}
-        />
-      </View>
+      <VideoAttachmentView
+        styles={styles}
+        theme={theme}
+        attachment={attachment}
+      />
     );
   }
 
-  // Handle video attachments
-  if (attachmentType === 'video' && attachment.asset_url) {
+  if (attachment.type === 'file' && attachment.asset_url) {
     return (
-      <TouchableOpacity
-        style={styles.videoContainer}
-        onPress={() => {
-          ReactNativeHapticFeedback.trigger('impactLight');
-          setVideoPaused(!videoPaused);
-        }}
-        activeOpacity={0.9}>
-        <Video
-          source={{uri: attachment.asset_url}}
-          style={styles.video}
-          resizeMode="cover"
-          paused={videoPaused}
-          controls={false}
-          repeat={false}
-        />
-        {videoPaused && (
-          <View style={styles.playOverlay}>
-            <View style={styles.playButton}>
-              <Icon name="play-arrow" size={40} color={theme.colors.white} />
-            </View>
-          </View>
-        )}
-        <View style={styles.videoInfo}>
-          <Icon name="videocam" size={16} color={theme.colors.white} />
-          <Text style={styles.videoText}>{attachment.title || 'Video'}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }
-
-  // Handle file attachments with custom UI
-  if (attachmentType === 'file' && attachment.asset_url) {
-    const fileName = attachment.title || 'File';
-    const fileSize =
-      typeof attachment.file_size === 'number'
-        ? `${(attachment.file_size / 1024).toFixed(1)} KB`
-        : undefined;
-
-    return (
-      <TouchableOpacity
-        style={styles.fileContainer}
-        onPress={() => {
-          ReactNativeHapticFeedback.trigger('impactLight');
-          // Open file (you can add Linking.openURL here)
-        }}>
-        <View style={styles.fileIcon}>
-          <Icon
-            name="insert-drive-file"
-            size={32}
-            color={theme.colors.primary}
-          />
-        </View>
-        <View style={styles.fileInfo}>
-          <Text style={styles.fileName} numberOfLines={1}>
-            {fileName}
-          </Text>
-          {fileSize ? <Text style={styles.fileSize}>{fileSize}</Text> : null}
-        </View>
-        <Icon name="download" size={24} color={theme.colors.primary} />
-      </TouchableOpacity>
+      <FileAttachmentView
+        styles={styles}
+        theme={theme}
+        attachment={attachment}
+      />
     );
   }
 
@@ -125,17 +156,19 @@ export const CustomAttachment: React.FC = () => {
   return <Attachment attachment={attachment} />;
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, maxWidth: number) =>
   StyleSheet.create({
     audioContainer: {
       marginVertical: theme.spacing['1'],
     },
     videoContainer: {
-      width: MAX_WIDTH,
-      height: MAX_WIDTH * 0.75,
-      borderRadius: theme.borderRadius.md,
+      width: maxWidth,
+      height: maxWidth * 0.75,
+      borderRadius: theme.borderRadius.cardSmall,
       overflow: 'hidden',
-      backgroundColor: theme.colors.black,
+      backgroundColor: theme.colors.inset,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       position: 'relative',
     },
     video: {
@@ -151,8 +184,8 @@ const createStyles = (theme: any) =>
     playButton: {
       width: theme.spacing['14'],
       height: theme.spacing['14'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: 'rgba(255,255,255,0.3)',
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.glassSurfaceStrong,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -163,29 +196,31 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['1'],
-      backgroundColor: 'rgba(0,0,0,0.6)',
+      backgroundColor: theme.colors.screen2,
       paddingHorizontal: theme.spacing['2'],
       paddingVertical: theme.spacing['1'],
       borderRadius: theme.borderRadius.md,
     },
     videoText: {
-      color: theme.colors.white,
+      color: theme.colors.inkMuted,
       ...theme.typography.labelSmall,
     },
     fileContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       padding: theme.spacing['3'],
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       gap: theme.spacing['3'],
-      maxWidth: MAX_WIDTH,
+      maxWidth,
     },
     fileIcon: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
       borderRadius: theme.borderRadius.base,
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.blueSoft,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -196,11 +231,11 @@ const createStyles = (theme: any) =>
     fileName: {
       ...theme.typography.bodySmall,
       fontWeight: '600',
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
     },
     fileSize: {
       ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
   });
 

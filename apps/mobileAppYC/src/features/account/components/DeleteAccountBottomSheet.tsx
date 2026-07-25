@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {Text, View, StyleSheet} from 'react-native';
 
 import ConfirmActionBottomSheet, {
@@ -25,10 +19,15 @@ interface DeleteAccountBottomSheetProps {
   isProcessing?: boolean;
 }
 
-export const DeleteAccountBottomSheet = forwardRef<
-  DeleteAccountBottomSheetRef,
-  DeleteAccountBottomSheetProps
->(({email, onCancel, onDelete, isProcessing = false}, ref) => {
+export const DeleteAccountBottomSheet = ({
+  email,
+  onCancel,
+  onDelete,
+  isProcessing = false,
+  ref,
+}: DeleteAccountBottomSheetProps & {
+  ref?: React.Ref<DeleteAccountBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -110,6 +109,7 @@ export const DeleteAccountBottomSheet = forwardRef<
     <ConfirmActionBottomSheet
       ref={sheetRef}
       snapPoints={['50%', '60%']}
+      destructive
       title="Delete account"
       message="Are you sure you want to delete your account?"
       messageAlign="left"
@@ -126,7 +126,7 @@ export const DeleteAccountBottomSheet = forwardRef<
       primaryButton={{
         label: isProcessing ? 'Deleting...' : 'Delete',
         onPress: handleDelete,
-        tintColor: theme.colors.secondary,
+        tintColor: theme.colors.danger,
         textStyle: styles.deleteText,
         style: styles.deleteButton,
         disabled: isDeleteDisabled || isProcessing,
@@ -134,11 +134,14 @@ export const DeleteAccountBottomSheet = forwardRef<
       <View style={styles.noteBlock}>
         <Text style={styles.noteLabel}>Note: </Text>
         <Text style={styles.noteBody}>
-          If you're not the primary parent, your companion's details will still be linked to the current primary parent.
+          If you're not the primary parent, your companion's details will still
+          be linked to the current primary parent.
         </Text>
       </View>
 
-      <Text style={styles.warning}>To delete account re-write your email address.</Text>
+      <Text style={styles.warning}>
+        To delete account re-write your email address.
+      </Text>
 
       <Input
         label="Email address"
@@ -156,7 +159,7 @@ export const DeleteAccountBottomSheet = forwardRef<
       />
     </ConfirmActionBottomSheet>
   );
-});
+};
 
 DeleteAccountBottomSheet.displayName = 'DeleteAccountBottomSheet';
 
@@ -192,7 +195,7 @@ const createStyles = (theme: any) =>
     },
     noteBody: {
       ...theme.typography.inputLabel,
-      color: theme.colors.textPrimary,
+      color: theme.colors.secondary,
       textAlign: 'left',
       flex: 1,
     },
@@ -223,7 +226,7 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     deleteText: {
-        // YC/H6 Clash Grotesk 19
+      // YC/H6 Clash Grotesk 19
       ...theme.typography.buttonH6Clash19,
       textAlign: 'center',
       color: theme.colors.white,

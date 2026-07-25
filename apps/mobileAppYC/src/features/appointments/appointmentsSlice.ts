@@ -204,13 +204,17 @@ export const createAppointment = createAsyncThunk<
       isEmergency: payload.emergency ?? false,
       concern: payload.concern ?? '',
       appointmentKind: (payload.appointmentKinds?.[0] as any) ?? undefined,
-      attachments: payload.attachments
-        ?.filter(att => att.key)
-        .map(att => ({
-          key: att.key,
-          name: att.name ?? att.key,
-          contentType: att.contentType ?? undefined,
-        })),
+      attachments: payload.attachments?.flatMap(att =>
+        att.key
+          ? [
+              {
+                key: att.key,
+                name: att.name ?? att.key,
+                contentType: att.contentType ?? undefined,
+              },
+            ]
+          : [],
+      ),
     };
 
     const bookPayload = toFHIRAppointment(sharedAppointment);
@@ -226,11 +230,6 @@ export const createAppointment = createAsyncThunk<
           !participant?.actor?.reference?.startsWith('RelatedPerson/'),
       );
     }
-
-    console.log(
-      '[createAppointment] bookPayload:',
-      JSON.stringify(bookPayload, null, 2),
-    );
 
     const {appointment, invoice, paymentIntent} =
       await appointmentApi.bookAppointment({
@@ -591,9 +590,12 @@ const appointmentsSlice = createSlice({
       })
       .addCase(deleteCompanion.fulfilled, (state, action) => {
         const deletedId = action.payload;
-        const deletedAppointmentIds = new Set(
-          state.items.filter(a => a.companionId === deletedId).map(a => a.id),
-        );
+        const deletedAppointmentIds = new Set<string>();
+        for (const appointment of state.items) {
+          if (appointment.companionId === deletedId) {
+            deletedAppointmentIds.add(appointment.id);
+          }
+        }
         state.items = state.items.filter(a => a.companionId !== deletedId);
         state.invoices = state.invoices.filter(
           inv => !deletedAppointmentIds.has(inv.appointmentId),
@@ -602,8 +604,7 @@ const appointmentsSlice = createSlice({
       })
       .addCase(recordPayment.fulfilled, (state, action) => {
         const refreshed = (action.payload as any)?.appointment as
-          | Appointment
-          | undefined;
+          Appointment | undefined;
         if (refreshed) {
           const inferredStatus: AppointmentStatus =
             refreshed.status &&

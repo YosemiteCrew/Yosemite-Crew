@@ -1,7 +1,8 @@
-import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import TaskFormFields from '@/app/features/tasks/components/TaskFormFields';
 import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import { useTaskForm } from '@/app/hooks/useTaskForm';
 import React, { useEffect } from 'react';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
@@ -26,7 +27,6 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
     templateOptions,
     selectTemplate,
     handleCreate,
-    handleCreateTemplate,
     resetForm,
   } = useTaskForm({
     isCompanionTask: true,
@@ -49,7 +49,7 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
   }, [showModal, resetForm]);
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
         <ModalHeader title="Add task" onClose={() => setShowModal(false)} />
 
@@ -66,23 +66,16 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
             onSelectTemplate={selectTemplate}
           />
         </div>
-        <div className="flex justify-end items-end gap-3 w-full flex-col">
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-          <div className="flex gap-3 w-full">
-            <Secondary
-              href="#"
-              text="Save as template"
-              className="w-full hidden"
-              onClick={handleCreateTemplate}
-            />
+        <div className="flex flex-col w-full">
+          {error && <div className="text-caption-1 text-text-error text-center">{error}</div>}
+          <ModalFooter align="stretch">
             <Primary
               href="#"
               text={isLoading ? 'Saving...' : 'Save'}
-              className="w-full"
               onClick={handleCreate}
               isDisabled={isLoading}
             />
-          </div>
+          </ModalFooter>
         </div>
       </div>
     </Modal>

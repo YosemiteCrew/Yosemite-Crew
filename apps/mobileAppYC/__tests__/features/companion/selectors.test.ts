@@ -58,7 +58,7 @@ describe('companion selectors', () => {
   };
 
   const createMockState = (
-    companionState: Partial<CompanionState> = {}
+    companionState: Partial<CompanionState> = {},
   ): RootState => {
     return {
       companion: {
@@ -143,6 +143,18 @@ describe('companion selectors', () => {
       expect(result1).not.toBe(result2);
       expect(result1).toEqual([mockCompanion1]);
       expect(result2).toEqual([mockCompanion2]);
+    });
+
+    it('should default to an empty array when the companion slice is missing entirely', () => {
+      const state = {
+        auth: {} as any,
+        theme: {} as any,
+        documents: {} as any,
+      } as RootState;
+
+      const result = selectCompanions(state);
+
+      expect(result).toEqual([]);
     });
   });
 
@@ -372,15 +384,25 @@ describe('companion selectors', () => {
 
     it('should handle all valid category types', () => {
       const dogCompanion: Companion = {...mockCompanion1, category: 'dog'};
-      const catCompanion: Companion = {...mockCompanion1, id: 'cat_1', category: 'cat'};
-      const horseCompanion: Companion = {...mockCompanion1, id: 'horse_1', category: 'horse'};
+      const catCompanion: Companion = {
+        ...mockCompanion1,
+        id: 'cat_1',
+        category: 'cat',
+      };
+      const horseCompanion: Companion = {
+        ...mockCompanion1,
+        id: 'horse_1',
+        category: 'horse',
+      };
 
       const companions = [dogCompanion, catCompanion, horseCompanion];
       const state = createMockState({companions});
 
       expect(selectCompanionsByCategory(state, 'dog')).toEqual([dogCompanion]);
       expect(selectCompanionsByCategory(state, 'cat')).toEqual([catCompanion]);
-      expect(selectCompanionsByCategory(state, 'horse')).toEqual([horseCompanion]);
+      expect(selectCompanionsByCategory(state, 'horse')).toEqual([
+        horseCompanion,
+      ]);
     });
   });
 });

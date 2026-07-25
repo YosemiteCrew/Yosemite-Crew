@@ -1,11 +1,6 @@
-import React, {useMemo, useRef, useEffect, useState} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import React, {useCallback, useMemo, useRef, useEffect} from 'react';
+import {View, Text, ScrollView, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import type {NotificationCategory} from '../../types';
 
@@ -33,17 +28,18 @@ export const NotificationFilterPills: React.FC<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const scrollRef = useRef<ScrollView>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const containerWidthRef = useRef(0);
   const itemLayouts = useRef<
     Record<NotificationCategory, {x: number; width: number}>
   >({} as any);
   const currentScrollX = useRef(0);
-  const mounted = useRef(false);
 
-  // Center the selected pill whenever selection or layout changes
-  useEffect(() => {
-    const layout = itemLayouts.current[selectedFilter];
-    if (!layout || containerWidth === 0) return;
+  const centerSelectedPill = useCallback((filter: NotificationCategory) => {
+    const layout = itemLayouts.current[filter];
+    const containerWidth = containerWidthRef.current;
+    if (!layout || containerWidth === 0) {
+      return;
+    }
 
     const targetX = Math.max(
       0,
@@ -60,16 +56,22 @@ export const NotificationFilterPills: React.FC<
         }
       });
     });
+  }, []);
 
-    mounted.current = true;
-  }, [selectedFilter, containerWidth]);
+  // Center the selected pill whenever selection changes after layout is known.
+  useEffect(() => {
+    centerSelectedPill(selectedFilter);
+  }, [centerSelectedPill, selectedFilter]);
 
   return (
     <View
       style={styles.container}
       onLayout={e => {
         const w = e.nativeEvent.layout.width;
-        if (w > 0 && containerWidth === 0) setContainerWidth(w);
+        if (w > 0 && containerWidthRef.current !== w) {
+          containerWidthRef.current = w;
+          centerSelectedPill(selectedFilter);
+        }
       }}>
       <ScrollView
         horizontal
@@ -80,43 +82,55 @@ export const NotificationFilterPills: React.FC<
         }}
         contentContainerStyle={styles.content}
         scrollEventThrottle={16}>
-        {FILTER_OPTIONS.map(option => (
-          <TouchableOpacity
-            key={option.id}
-            onPress={() => onFilterChange(option.id)}
-            activeOpacity={0.8}
-            style={[
-              styles.pill,
-              selectedFilter === option.id && styles.pillActive,
-            ]}
-            onLayout={e => {
-              itemLayouts.current[option.id] = {
-                x: e.nativeEvent.layout.x,
-                width: e.nativeEvent.layout.width,
-              };
-            }}>
-            <Text
+        <View style={styles.contentRow}>
+          {FILTER_OPTIONS.map(option => (
+            <PressableOpacity
+              key={option.id}
+              onPress={() => onFilterChange(option.id)}
+              activeOpacity={0.8}
               style={[
-                styles.pillText,
-                selectedFilter === option.id && styles.pillTextActive,
-              ]}>
-              {option.label}
-            </Text>
-            {(unreadCounts[option.id] ?? 0) > 0 ? (
-              <View
+                styles.pill,
+                selectedFilter === option.id && styles.pillActive,
+              ]}
+              accessibilityRole="radio"
+              accessibilityState={{selected: selectedFilter === option.id}}
+              accessibilityLabel={
+                unreadCounts[option.id]
+                  ? `${option.label}, ${unreadCounts[option.id]} unread`
+                  : option.label
+              }
+              onLayout={e => {
+                itemLayouts.current[option.id] = {
+                  x: e.nativeEvent.layout.x,
+                  width: e.nativeEvent.layout.width,
+                };
+                if (option.id === selectedFilter) {
+                  centerSelectedPill(option.id);
+                }
+              }}>
+              <Text
                 style={[
-                  styles.badge,
-                  selectedFilter === option.id && styles.badgeActive,
+                  styles.pillText,
+                  selectedFilter === option.id && styles.pillTextActive,
                 ]}>
-                <Text style={styles.badgeText}>
-                  {unreadCounts[option.id]! > 9
-                    ? '9+'
-                    : unreadCounts[option.id]}
-                </Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-        ))}
+                {option.label}
+              </Text>
+              {(unreadCounts[option.id] ?? 0) > 0 ? (
+                <View
+                  style={[
+                    styles.badge,
+                    selectedFilter === option.id && styles.badgeActive,
+                  ]}>
+                  <Text style={styles.badgeText}>
+                    {unreadCounts[option.id]! > 9
+                      ? '9+'
+                      : unreadCounts[option.id]}
+                  </Text>
+                </View>
+              ) : null}
+            </PressableOpacity>
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
@@ -128,47 +142,51 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['1'],
     },
     content: {
-      gap: theme.spacing['2'],
       paddingRight: theme.spacing['2'],
     },
+    contentRow: {
+      flexDirection: 'row',
+      gap: theme.spacing['2'],
+    },
     pill: {
-      minWidth: theme.spacing['20'],
       height: theme.spacing['9'],
       paddingHorizontal: theme.spacing['4'],
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.pill,
       borderWidth: 1,
-      borderColor: theme.colors.secondary,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',
       gap: theme.spacing['1.25'],
     },
     pillActive: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.cta,
+      borderColor: theme.colors.cta,
     },
     pillText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.secondary,
+      ...theme.typography.labelXs,
+      color: theme.colors.inkMuted,
     },
     pillTextActive: {
-      color: theme.colors.primary,
+      color: theme.colors.ctaText,
+      fontWeight: '600',
     },
     badge: {
       minWidth: theme.spacing['5'],
       height: theme.spacing['5'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.secondary,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blueSoft,
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: theme.spacing['1'],
     },
     badgeActive: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.ctaText,
     },
     badgeText: {
       ...theme.typography.labelXs,
-      color: theme.colors.white,
+      color: theme.colors.blueText,
       fontWeight: '700',
     },
   });

@@ -11,16 +11,24 @@ import configureStore from 'redux-mock-store';
 // FIX: Relative imports
 import {AccountScreen} from '../../../../src/features/account/screens/AccountScreen';
 import {useAuth} from '../../../../src/features/auth/context/AuthContext';
-import {Linking, Alert, Image, BackHandler, ToastAndroid} from 'react-native';
-import {deleteParentProfile} from '../../../../src/features/account/services/profileService';
 import {
-  deleteAmplifyAccount,
-  deleteFirebaseAccount,
-} from '../../../../src/features/auth/services/accountDeletion';
+  Linking,
+  Alert,
+  Image,
+  BackHandler,
+  ToastAndroid,
+  Platform,
+} from 'react-native';
+import {deleteParentProfile} from '../../../../src/features/account/services/profileService';
+import {deleteSupertokensAccount} from '../../../../src/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '../../../../src/shared/utils/imageUri';
 import {calculateAgeFromDateOfBirth} from '../../../../src/shared/utils/helpers';
 import {setSelectedCompanion} from '../../../../src/features/companion';
-import {isTokenExpired} from '../../../../src/features/auth/sessionManager';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '../../../../src/features/auth/sessionManager';
+import {usePreferences} from '../../../../src/features/preferences/PreferencesContext';
 
 // --- Mocks ---
 
@@ -43,6 +51,12 @@ const mockLogout = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../../../src/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
+
+// Appearance selector is covered by its own test; stub it here.
+jest.mock(
+  '@/shared/components/common/AppearanceSelector/AppearanceSelector',
+  () => ({AppearanceSelector: () => null}),
+);
 
 // Theme Hook - must return function directly, not variable
 jest.mock('../../../../src/hooks', () => ({
@@ -74,8 +88,7 @@ jest.mock('../../../../src/features/account/services/profileService', () => ({
   deleteParentProfile: jest.fn(),
 }));
 jest.mock('../../../../src/features/auth/services/accountDeletion', () => ({
-  deleteAmplifyAccount: jest.fn(),
-  deleteFirebaseAccount: jest.fn(),
+  deleteSupertokensAccount: jest.fn(),
 }));
 jest.mock('../../../../src/features/auth/sessionManager', () => ({
   getFreshStoredTokens: jest.fn(() =>
@@ -187,7 +200,8 @@ jest.mock(
             <TouchableOpacity
               key={item.id}
               onPress={() => onItemPress(item.id)}
-              testID={`menu-item-${item.id}`}>
+              testID={`menu-item-${item.id}`}
+              accessibilityValue={{text: String(item.tintIcon)}}>
               <Text>{item.label}</Text>
             </TouchableOpacity>
           ))}
@@ -258,19 +272,27 @@ const defaultCompanions = [
 
 describe('AccountScreen', () => {
   let store: any;
+  let hardwareBackPressHandler: (() => boolean) | undefined;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPlatform.OS = 'ios';
+    Platform.OS = 'ios';
+    hardwareBackPressHandler = undefined;
     jest.spyOn(Alert, 'alert');
     jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
-    jest.spyOn(BackHandler, 'addEventListener');
+    jest
+      .spyOn(BackHandler, 'addEventListener')
+      .mockImplementation((_eventName: string, handler: () => boolean) => {
+        hardwareBackPressHandler = handler;
+        return {remove: jest.fn()} as any;
+      });
 
     // Default implementation: Token is valid
     (isTokenExpired as jest.Mock).mockReturnValue(false);
 
     (useAuth as jest.Mock).mockReturnValue({
       logout: mockLogout,
-      provider: 'firebase',
     });
 
     store = mockStore({
@@ -302,6 +324,17 @@ describe('AccountScreen', () => {
     expect(normalizeImageUri).toHaveBeenCalledWith(
       'https://example.com/avatar.jpg',
     );
+  });
+
+  it('converts the stored kg weight to the preferred display unit', () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      weightUnit: 'lbs',
+      temperatureUnit: 'F',
+    });
+    renderScreen();
+
+    // currentWeight is always stored in kg; 50 kg -> ~110.2 lbs.
+    expect(screen.getByText(/110\.2 lbs/)).toBeTruthy();
   });
 
   it('renders user profile correctly with only first name', () => {
@@ -338,6 +371,32 @@ describe('AccountScreen', () => {
     expect(screen.getByText(/5Y/)).toBeTruthy(); // Checks for age string
   });
 
+  it('omits zero age and renders companion profile images', () => {
+    (calculateAgeFromDateOfBirth as jest.Mock).mockReturnValue(0);
+    store = mockStore({
+      ...store.getState(),
+      companion: {
+        companions: [
+          {
+            id: 'c1',
+            name: 'Buddy',
+            breed: {breedName: 'Golden'},
+            gender: 'Male',
+            dateOfBirth: '2026-01-01',
+            profileImage: 'https://example.com/buddy.jpg',
+          },
+        ],
+      },
+    });
+
+    renderScreen(store);
+
+    expect(screen.queryByText(/0Y/)).toBeNull();
+    expect(normalizeImageUri).toHaveBeenCalledWith(
+      'https://example.com/buddy.jpg',
+    );
+  });
+
   // --- Avatar Logic ---
 
   it('renders fallback initials if avatar is missing or fails load', () => {
@@ -351,6 +410,17 @@ describe('AccountScreen', () => {
     renderScreen(store);
     expect(screen.getByText('J')).toBeTruthy(); // User
     expect(screen.getByText('B')).toBeTruthy(); // Companion
+  });
+
+  it('uses the companion fallback initial when the companion name is blank', () => {
+    store = mockStore({
+      ...store.getState(),
+      companion: {
+        companions: [{id: 'c1', name: '   ', profileImage: null}],
+      },
+    });
+    renderScreen(store);
+    expect(screen.getByText('C')).toBeTruthy();
   });
 
   it('handles image error state updates specifically', () => {
@@ -394,6 +464,14 @@ describe('AccountScreen', () => {
     });
   });
 
+  it('exposes button roles and labels on the companion edit buttons', () => {
+    renderScreen();
+    const johnEditButton = screen.getByLabelText('Edit John Doe');
+    const buddyEditButton = screen.getByLabelText('Edit Buddy');
+    expect(johnEditButton.props.accessibilityRole).toBe('button');
+    expect(buddyEditButton.props.accessibilityRole).toBe('button');
+  });
+
   it('navigates to Edit Companion Profile when allowed (Primary Parent)', () => {
     renderScreen();
     const allImages = screen.UNSAFE_getAllByType(Image);
@@ -412,6 +490,7 @@ describe('AccountScreen', () => {
 
   it('denies edit access and shows toast/alert if permissions missing (Android)', () => {
     mockPlatform.OS = 'android';
+    Platform.OS = 'android';
     const toastSpy = jest.spyOn(ToastAndroid, 'show');
 
     store = mockStore({
@@ -458,6 +537,59 @@ describe('AccountScreen', () => {
     }
   });
 
+  it('allows companion edit from explicit companion access permissions', () => {
+    store = mockStore({
+      auth: {user: defaultAuthUser},
+      companion: {companions: defaultCompanions},
+      coParent: {
+        accessByCompanionId: {
+          c1: {
+            role: 'SUPPORT',
+            permissions: {companionProfile: true},
+          },
+        },
+        defaultAccess: null,
+        lastFetchedRole: undefined,
+        lastFetchedPermissions: null,
+      },
+    });
+
+    renderScreen(store);
+
+    const editIcons = screen
+      .UNSAFE_getAllByType(Image)
+      .filter(img => img.props.source?.uri === 'edit-icon');
+
+    fireEvent.press(editIcons[1].parent);
+
+    expect(setSelectedCompanion).toHaveBeenCalledWith('c1');
+    expect(mockNavigate).toHaveBeenCalledWith('ProfileOverview', {
+      companionId: 'c1',
+    });
+  });
+
+  it('denies companion edit when no role or permissions are available', () => {
+    store = mockStore({
+      auth: {user: defaultAuthUser},
+      companion: {companions: defaultCompanions},
+      coParent: {},
+    });
+
+    renderScreen(store);
+
+    const editIcons = screen
+      .UNSAFE_getAllByType(Image)
+      .filter(img => img.props.source?.uri === 'edit-icon');
+
+    fireEvent.press(editIcons[1].parent);
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("You don't have access"),
+    );
+    expect(setSelectedCompanion).not.toHaveBeenCalled();
+  });
+
   it('denies edit access and shows Alert on iOS', () => {
     store = mockStore({
       ...store.getState(),
@@ -491,6 +623,9 @@ describe('AccountScreen', () => {
   it('navigates to menu items correctly', () => {
     renderScreen();
 
+    fireEvent.press(screen.getByTestId('menu-item-preferences'));
+    expect(mockNavigate).toHaveBeenCalledWith('Preferences');
+
     fireEvent.press(screen.getByTestId('menu-item-faqs'));
     expect(mockNavigate).toHaveBeenCalledWith('FAQ');
 
@@ -502,6 +637,17 @@ describe('AccountScreen', () => {
 
     fireEvent.press(screen.getByTestId('menu-item-contact'));
     expect(mockNavigate).toHaveBeenCalledWith('ContactUs');
+  });
+
+  it('opts the FAQ icon out of tinting since its bitmap has an opaque background', () => {
+    renderScreen();
+
+    expect(
+      screen.getByTestId('menu-item-faqs').props.accessibilityValue,
+    ).toEqual({text: 'false'});
+    expect(
+      screen.getByTestId('menu-item-preferences').props.accessibilityValue,
+    ).toEqual({text: 'undefined'});
   });
 
   it('opens external link for About Us', () => {
@@ -553,13 +699,11 @@ describe('AccountScreen', () => {
       'hardwareBackPress',
       expect.any(Function),
     );
+    expect(hardwareBackPressHandler?.()).toBe(true);
+    expect(hardwareBackPressHandler?.()).toBe(false);
   });
 
-  it('handles Delete Account confirmation flow (Amplify)', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      logout: mockLogout,
-      provider: 'amplify',
-    });
+  it('handles Delete Account confirmation flow (SuperTokens)', async () => {
     renderScreen();
 
     fireEvent.press(screen.getByTestId('menu-item-delete'));
@@ -570,21 +714,9 @@ describe('AccountScreen', () => {
     });
 
     expect(deleteParentProfile).toHaveBeenCalledWith('parent-1', 'valid-token');
-    expect(deleteAmplifyAccount).toHaveBeenCalled();
+    expect(deleteSupertokensAccount).toHaveBeenCalled();
     expect(mockLogout).toHaveBeenCalled();
   });
-
-  it('handles Delete Account confirmation flow (Firebase)', async () => {
-    renderScreen();
-    fireEvent.press(screen.getByTestId('menu-item-delete'));
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('confirm-delete-btn'));
-    });
-
-    expect(deleteFirebaseAccount).toHaveBeenCalled();
-  });
-
   it('handles Delete Account error (expired token)', async () => {
     (isTokenExpired as jest.Mock).mockReturnValue(true);
 
@@ -599,6 +731,27 @@ describe('AccountScreen', () => {
       });
     } catch (_error) {
       // Expected error bubbling up
+    }
+
+    expect(deleteParentProfile).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Delete Failed',
+      expect.stringContaining('sign in again'),
+    );
+  });
+
+  it('handles Delete Account error when token is missing', async () => {
+    (getFreshStoredTokens as jest.Mock).mockResolvedValueOnce({});
+
+    renderScreen();
+    fireEvent.press(screen.getByTestId('menu-item-delete'));
+
+    try {
+      await act(async () => {
+        await fireEvent.press(screen.getByTestId('confirm-delete-btn'));
+      });
+    } catch (_error) {
+      // expected error
     }
 
     expect(deleteParentProfile).not.toHaveBeenCalled();
@@ -694,6 +847,25 @@ describe('AccountScreen', () => {
     expect(Alert.alert).toHaveBeenCalledWith(
       'Delete Failed',
       expect.stringContaining('Failed to delete your account'),
+    );
+  });
+
+  it('handles Delete Account empty string error with the default message', async () => {
+    (deleteParentProfile as jest.Mock).mockRejectedValue('');
+    renderScreen();
+    fireEvent.press(screen.getByTestId('menu-item-delete'));
+
+    try {
+      await act(async () => {
+        await fireEvent.press(screen.getByTestId('confirm-delete-btn'));
+      });
+    } catch (_error) {
+      // expected error
+    }
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Delete Failed',
+      'Failed to delete your account. Please try again.',
     );
   });
 

@@ -228,6 +228,32 @@ describe('SubcategoryBottomSheet', () => {
     expect(getByTestId('selected-item').props.children).toBe('passport');
   });
 
+  it('resets to no selection on open when selectedSubcategory does not match any item', () => {
+    const {getByTestId, rerender} = render(
+      <SubcategoryBottomSheet
+        ref={ref}
+        category="admin"
+        selectedSubcategory={null}
+        onSave={mockOnSave}
+      />,
+    );
+
+    rerender(
+      <SubcategoryBottomSheet
+        ref={ref}
+        category="admin"
+        selectedSubcategory="not-a-real-subcategory"
+        onSave={mockOnSave}
+      />,
+    );
+
+    act(() => {
+      ref.current?.open();
+    });
+
+    expect(getByTestId('selected-item').props.children).toBe('none');
+  });
+
   it('calls close on internal ref', () => {
     render(
       <SubcategoryBottomSheet

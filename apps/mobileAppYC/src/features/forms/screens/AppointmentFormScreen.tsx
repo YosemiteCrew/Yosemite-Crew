@@ -1,18 +1,18 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useReducer, useState} from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
   StyleSheet,
   KeyboardAvoidingView,
-  TouchableWithoutFeedback,
   Keyboard,
   Platform,
   Linking,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -33,6 +33,10 @@ import {
   startFormSigning,
   fetchAppointmentForms,
 } from '@/features/forms';
+import {
+  stripHtmlToPlainText,
+  wrapPlainTextAsHtml,
+} from '@/features/forms/utils';
 import type {FormField} from '@yosemite-crew/types';
 import {createFormStyles} from '@/shared/utils/formStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
@@ -64,6 +68,16 @@ const isTruthy = (val: any): boolean => {
   return val !== undefined && val !== null && `${val}`.trim?.() !== '';
 };
 
+// A richtext answer is HTML (e.g. "<p></p>"), which is a non-empty string
+// even when it renders as no content — check the stripped plain text instead
+// of the raw markup so blank-only answers aren't treated as filled.
+const isFieldFilled = (field: FormField, val: any): boolean => {
+  if (field.type === 'richtext') {
+    return isTruthy(stripHtmlToPlainText(val));
+  }
+  return isTruthy(val);
+};
+
 const textIncludes = (haystack: string | undefined, needles: string[]) => {
   if (!haystack) {
     return false;
@@ -82,6 +96,102 @@ const cleanPlaceholder = (value?: string | null): string | undefined => {
 const cleanLabel = (value?: string | null): string | undefined => {
   if (!value) return value ?? undefined;
   return value.replaceAll(/pet/gi, 'Companion');
+};
+
+type PrefillContext = {
+  isAlreadyFilled: boolean;
+  today: Date;
+  ownerFullName: string;
+  companionName: string;
+  lockNonCheckboxInputs: boolean;
+  shouldPrefillOwner: (field: FormField) => boolean;
+  shouldPrefillCompanion: (field: FormField) => boolean;
+};
+
+// Extracted from the prefill useEffect's `fill` walker to keep its cognitive
+// complexity within the Sonar-enforced limit — this resolves a single
+// non-group, non-checkbox field's prefill value, independent of tree walking.
+const resolveFieldPrefillValue = (
+  field: FormField,
+  ctx: PrefillContext,
+): unknown => {
+  if (field.type === 'date' && !ctx.isAlreadyFilled) {
+    return ctx.today;
+  }
+  if (ctx.isAlreadyFilled) {
+    return undefined;
+  }
+  if (ctx.shouldPrefillOwner(field) && ctx.ownerFullName) {
+    return ctx.ownerFullName;
+  }
+  if (ctx.shouldPrefillCompanion(field) && ctx.companionName) {
+    return ctx.companionName;
+  }
+  const metaDefaultValue = (field as any).meta?.defaultValue;
+  if (typeof metaDefaultValue === 'string' && metaDefaultValue.trim()) {
+    return metaDefaultValue;
+  }
+  if (ctx.lockNonCheckboxInputs) {
+    const placeholderVal =
+      (field as any).placeholder ?? (field as any).text ?? '';
+    if (placeholderVal) {
+      return cleanPlaceholder(placeholderVal);
+    }
+  }
+  return undefined;
+};
+
+// values, richTextDrafts, and isDirty are reset together whenever the
+// submission changes and updated together on most edits — combined into one
+// reducer so those updates redraw the screen once, not once per setState call.
+type FormEditState = {
+  values: Record<string, any>;
+  richTextDrafts: Record<string, string>;
+  isDirty: boolean;
+};
+
+type FormEditAction =
+  | {type: 'reset'; values: Record<string, any>}
+  | {
+      type: 'mergeValues';
+      updater: (prev: Record<string, any>) => Record<string, any>;
+    }
+  | {type: 'setFieldValue'; fieldId: string; value: any}
+  | {type: 'setRichTextValue'; fieldId: string; draftText: string; value: any}
+  | {type: 'setDirty'; dirty: boolean};
+
+const formEditReducer = (
+  state: FormEditState,
+  action: FormEditAction,
+): FormEditState => {
+  switch (action.type) {
+    case 'reset':
+      return {values: action.values, richTextDrafts: {}, isDirty: false};
+    case 'mergeValues': {
+      const nextValues = action.updater(state.values);
+      return nextValues === state.values
+        ? state
+        : {...state, values: nextValues};
+    }
+    case 'setFieldValue':
+      return {
+        ...state,
+        values: {...state.values, [action.fieldId]: action.value},
+        isDirty: true,
+      };
+    case 'setRichTextValue':
+      return {
+        ...state,
+        values: {...state.values, [action.fieldId]: action.value},
+        richTextDrafts: {
+          ...state.richTextDrafts,
+          [action.fieldId]: action.draftText,
+        },
+        isDirty: true,
+      };
+    case 'setDirty':
+      return {...state, isDirty: action.dirty};
+  }
 };
 
 export const AppointmentFormScreen: React.FC = () => {
@@ -117,9 +227,17 @@ export const AppointmentFormScreen: React.FC = () => {
   );
   const signedPdfUrl = entry?.submission?.signing?.pdf?.url;
 
-  const [values, setValues] = useState<Record<string, any>>(
-    entry?.submission?.answers ?? {},
-  );
+  const [formEditState, dispatchFormEdit] = useReducer(formEditReducer, {
+    values: entry?.submission?.answers ?? {},
+    // Once a richtext field has been typed in, its raw (untrimmed) keystrokes
+    // are kept here and shown verbatim instead of re-deriving the controlled
+    // value from stripHtmlToPlainText(values[field.id]) every render — that
+    // round-trip's trailing .trim() would otherwise eat a just-typed trailing
+    // newline (e.g. pressing Return at the end) before the next keystroke.
+    richTextDrafts: {},
+    isDirty: false,
+  });
+  const {values, richTextDrafts, isDirty} = formEditState;
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isReadOnly = Boolean(
@@ -135,9 +253,66 @@ export const AppointmentFormScreen: React.FC = () => {
     entry.status !== 'signed';
   const lockNonCheckboxInputs = Boolean(allowSign);
 
+  const headerSubtitle = useMemo(() => {
+    const dateLabel = appointment?.date ? getDisplayDate(appointment.date) : '';
+    const detail = [dateLabel, companion?.name].filter(Boolean).join(', ');
+    return [appointment?.organisationName, detail ? `for ${detail}` : '']
+      .filter(Boolean)
+      .join(' · ');
+  }, [appointment?.organisationName, appointment?.date, companion?.name]);
+
+  const progress = useMemo(() => {
+    const schema = entry?.form?.schema;
+    if (!schema?.length) {
+      return 0;
+    }
+    let total = 0;
+    let filled = 0;
+    const walk = (field: FormField) => {
+      if (field.type === 'group') {
+        const nested = (field as any).fields;
+        if (Array.isArray(nested)) {
+          nested.forEach(walk);
+        }
+        return;
+      }
+      if (field.type === 'signature') {
+        return;
+      }
+      total += 1;
+      if (isFieldFilled(field, values[field.id])) {
+        filled += 1;
+      }
+    };
+    schema.forEach(walk);
+    return total ? Math.round((filled / total) * 100) : 0;
+  }, [entry?.form?.schema, values]);
+
   useEffect(() => {
-    setValues(entry?.submission?.answers ?? {});
+    dispatchFormEdit({type: 'reset', values: entry?.submission?.answers ?? {}});
   }, [entry?.submission]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', e => {
+      if (isReadOnly || !isDirty) {
+        return;
+      }
+      e.preventDefault();
+      Alert.alert(
+        'Discard changes?',
+        'Your answers have not been saved yet. If you leave now, they will be lost.',
+        [
+          {text: 'Keep Editing', style: 'cancel'},
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ],
+      );
+    });
+    return () => unsubscribe();
+  }, [navigation, isDirty, isReadOnly]);
 
   useEffect(() => {
     if (!entry?.form?.schema) {
@@ -158,51 +333,40 @@ export const AppointmentFormScreen: React.FC = () => {
       textIncludes(field.id, ['companion', 'patient', 'pet', 'animal']) ||
       textIncludes(field.label, ['companion', 'patient', 'pet', 'animal']);
 
-    setValues(prev => {
-      const next = {...prev};
-      let updated = false;
+    dispatchFormEdit({
+      type: 'mergeValues',
+      updater: prev => {
+        const next = {...prev};
+        let updated = false;
 
-      const fill = (field: FormField) => {
-        if (field.type === 'group') {
-          if (Array.isArray((field as any).fields)) {
-            (field as any).fields.forEach(fill);
+        const fill = (field: FormField) => {
+          if (field.type === 'group') {
+            if (Array.isArray((field as any).fields)) {
+              (field as any).fields.forEach(fill);
+            }
+            return;
           }
-          return;
-        }
-        const isCheckboxField = field.type === 'checkbox';
-        if (isCheckboxField) {
-          return;
-        }
-        if (field.type === 'date' && !isTruthy(next[field.id])) {
-          next[field.id] = today;
-          updated = true;
-          return;
-        }
-        if (isTruthy(next[field.id])) {
-          return;
-        }
-        if (shouldPrefillOwner(field) && ownerFullName) {
-          next[field.id] = ownerFullName;
-          updated = true;
-          return;
-        }
-        if (shouldPrefillCompanion(field) && companionName) {
-          next[field.id] = companionName;
-          updated = true;
-          return;
-        }
-        if (lockNonCheckboxInputs) {
-          const placeholderVal =
-            (field as any).placeholder ?? (field as any).text ?? '';
-          if (placeholderVal) {
-            next[field.id] = cleanPlaceholder(placeholderVal);
+          if (field.type === 'checkbox') {
+            return;
+          }
+          const resolved = resolveFieldPrefillValue(field, {
+            isAlreadyFilled: isFieldFilled(field, next[field.id]),
+            today,
+            ownerFullName,
+            companionName,
+            lockNonCheckboxInputs,
+            shouldPrefillOwner,
+            shouldPrefillCompanion,
+          });
+          if (resolved !== undefined) {
+            next[field.id] = resolved;
             updated = true;
           }
-        }
-      };
+        };
 
-      entry.form.schema.forEach(fill);
-      return updated ? next : prev;
+        entry.form.schema.forEach(fill);
+        return updated ? next : prev;
+      },
     });
   }, [
     companion?.name,
@@ -231,7 +395,7 @@ export const AppointmentFormScreen: React.FC = () => {
   }, [appointment, appointmentId, dispatch, entry, isFocused]);
 
   const handleChange = (fieldId: string, value: any) => {
-    setValues(prev => ({...prev, [fieldId]: value}));
+    dispatchFormEdit({type: 'setFieldValue', fieldId, value});
     setErrors(prev => ({...prev, [fieldId]: ''}));
   };
 
@@ -255,7 +419,7 @@ export const AppointmentFormScreen: React.FC = () => {
       return true;
     }
     const val = values[field.id];
-    const ok = isTruthy(val);
+    const ok = isFieldFilled(field, val);
     if (!ok) {
       setErrors(prev => ({...prev, [field.id]: 'Required'}));
     }
@@ -271,9 +435,7 @@ export const AppointmentFormScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!entry) {
-      return;
-    }
+    const activeEntry = entry as NonNullable<typeof entry>;
     const valid = validateForm();
     if (!valid) {
       return;
@@ -282,14 +444,23 @@ export const AppointmentFormScreen: React.FC = () => {
       const result = await dispatch(
         submitAppointmentForm({
           appointmentId,
-          form: entry.form,
+          form: activeEntry.form,
           answers: values,
-          formVersion: entry.formVersion,
+          formVersion: activeEntry.formVersion,
           companionId: appointment?.companionId ?? null,
         }),
       ).unwrap();
+      dispatchFormEdit({type: 'setDirty', dirty: false});
 
-      if (entry.signingRequired && result.submission?._id) {
+      if (activeEntry.signingRequired) {
+        if (!result.submission?._id) {
+          Alert.alert(
+            'Signing not started',
+            'Your answers were saved, but we could not start the signing process. Please try again from the appointment.',
+          );
+          navigation.goBack();
+          return;
+        }
         try {
           const signResult = await dispatch(
             startFormSigning({
@@ -303,10 +474,14 @@ export const AppointmentFormScreen: React.FC = () => {
               appointmentId,
               submissionId: result.submission._id,
               signingUrl: signResult.signingUrl,
-              formTitle: entry.form.name,
+              formTitle: activeEntry.form.name,
             });
             return;
           }
+          Alert.alert(
+            'Signing not started',
+            'Your answers were saved, but we could not start the signing process. Please try again from the appointment.',
+          );
         } catch (error: any) {
           const message =
             typeof error === 'string'
@@ -360,27 +535,26 @@ export const AppointmentFormScreen: React.FC = () => {
   };
 
   const handleOpenSignedPdf = React.useCallback(() => {
-    if (!signedPdfUrl) {
-      return;
-    }
-    Linking.openURL(signedPdfUrl).catch(() => {
+    Linking.openURL(signedPdfUrl as string).catch(() => {
       Alert.alert('Unable to open PDF', 'Please try again in a moment.');
     });
   }, [signedPdfUrl]);
 
-  const renderChoiceOptions = (
+  const buildChoiceOptions = (
     field: FormField & {options?: any[]},
     multiple: boolean,
   ) => {
     const disableSelection = lockNonCheckboxInputs && !multiple;
     const selected = values[field.id];
+    const selectedSet =
+      multiple && Array.isArray(selected) ? new Set(selected) : null;
     return (
       <View style={styles.optionList}>
         {(field.options ?? []).map(option => {
           const value =
             option.value ?? option.code ?? option.label ?? option.display;
           const isSelected = multiple
-            ? Array.isArray(selected) && selected.includes(value)
+            ? selectedSet?.has(value) === true
             : selected === value;
 
           if (multiple) {
@@ -389,6 +563,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 key={`${field.id}-${value}`}
                 value={isSelected}
                 onValueChange={() => {
+                  /* istanbul ignore next -- read-only checkboxes render through renderReadOnlyCheckbox instead. */
                   if (isReadOnly) return;
                   const next = Array.isArray(selected) ? [...selected] : [];
                   const idx = next.indexOf(value);
@@ -405,8 +580,10 @@ export const AppointmentFormScreen: React.FC = () => {
           }
 
           return (
-            <TouchableOpacity
+            <PressableOpacity
               key={`${field.id}-${value}`}
+              accessibilityRole="radio"
+              accessibilityState={{selected: isSelected}}
               style={[
                 styles.optionItem,
                 isSelected && styles.optionItemSelected,
@@ -419,8 +596,9 @@ export const AppointmentFormScreen: React.FC = () => {
                 style={[
                   styles.optionIndicator,
                   isSelected && styles.optionIndicatorSelected,
-                ]}
-              />
+                ]}>
+                {isSelected ? <View style={styles.optionInnerDot} /> : null}
+              </View>
               <Text
                 style={[
                   styles.optionLabel,
@@ -428,7 +606,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 ]}>
                 {option.label ?? option.display ?? value}
               </Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           );
         })}
       </View>
@@ -478,9 +656,59 @@ export const AppointmentFormScreen: React.FC = () => {
           label={cleanLabel(field.label)}
           value={displayWithFallback}
           editable={false}
-          multiline={field.type === 'textarea'}
-          inputStyle={field.type === 'textarea' ? styles.textArea : undefined}
+          multiline={field.type === 'textarea' || field.type === 'richtext'}
+          inputStyle={
+            field.type === 'textarea' || field.type === 'richtext'
+              ? styles.textArea
+              : undefined
+          }
           containerStyle={styles.readOnlyInputContainer}
+        />
+      </View>
+    );
+  };
+
+  // No WYSIWYG editor on mobile: edit the HTML answer as plain text and
+  // re-wrap it into simple <p> HTML on change so the stored value stays
+  // valid HTML for the web RichTextRenderer, instead of overwriting it with
+  // unwrapped plain text. Once the user has typed, show their raw draft
+  // rather than re-deriving from stripHtmlToPlainText(value) — that
+  // round-trip's .trim() would otherwise eat a trailing newline (e.g.
+  // pressing Return) before the next keystroke can be entered. Extracted
+  // out of renderEditableField's switch to keep its cognitive complexity
+  // within the Sonar-enforced limit.
+  const renderRichTextField = (
+    field: FormField,
+    value: any,
+    error: string,
+    labelText?: string,
+  ) => {
+    const displayValue = Object.hasOwn(richTextDrafts, field.id)
+      ? richTextDrafts[field.id]
+      : stripHtmlToPlainText(value);
+    return (
+      <View key={field.id} style={styles.fieldContainer}>
+        <Input
+          label={labelText}
+          value={displayValue}
+          placeholder={
+            lockNonCheckboxInputs
+              ? undefined
+              : cleanPlaceholder((field as any).placeholder)
+          }
+          onChangeText={text => {
+            dispatchFormEdit({
+              type: 'setRichTextValue',
+              fieldId: field.id,
+              draftText: text,
+              value: wrapPlainTextAsHtml(text),
+            });
+            setErrors(prev => ({...prev, [field.id]: ''}));
+          }}
+          multiline
+          inputStyle={styles.textArea}
+          error={error}
+          editable={!lockNonCheckboxInputs}
         />
       </View>
     );
@@ -514,6 +742,8 @@ export const AppointmentFormScreen: React.FC = () => {
             />
           </View>
         );
+      case 'richtext':
+        return renderRichTextField(field, value, error, labelText);
       case 'boolean':
         return (
           <View key={field.id} style={styles.fieldContainer}>
@@ -530,7 +760,7 @@ export const AppointmentFormScreen: React.FC = () => {
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Text style={styles.label}>{labelText}</Text>
-            {renderChoiceOptions(field as any, false)}
+            {buildChoiceOptions(field as any, false)}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
@@ -538,7 +768,7 @@ export const AppointmentFormScreen: React.FC = () => {
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Text style={styles.label}>{labelText}</Text>
-            {renderChoiceOptions(field as any, true)}
+            {buildChoiceOptions(field as any, true)}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
@@ -551,7 +781,6 @@ export const AppointmentFormScreen: React.FC = () => {
               editable={false}
               placeholder="Select date"
             />
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
       case 'signature':
@@ -645,93 +874,162 @@ export const AppointmentFormScreen: React.FC = () => {
     );
   }
 
+  const headerNode = (
+    <View style={styles.header}>
+      <PressableOpacity
+        testID="header-back"
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={styles.circleButton}
+        onPress={() => navigation.goBack()}>
+        <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
+      </PressableOpacity>
+
+      <View style={styles.headerTitleBlock}>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {entry.form.name}
+        </Text>
+        {headerSubtitle ? (
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {headerSubtitle}
+          </Text>
+        ) : null}
+      </View>
+
+      {isReadOnly ? (
+        <View style={styles.circleButton} />
+      ) : (
+        <View style={styles.headerRightSlot}>
+          <Text style={styles.headerStepText}>{`${progress}%`}</Text>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        testID="dismiss-keyboard-wrapper"
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}
+        style={styles.flex}>
         <LiquidGlassHeaderScreen
-          header={
-            <Header
-              title="Form"
-              showBackButton
-              onBack={() => navigation.goBack()}
-              glass={false}
-            />
-          }
+          header={headerNode}
           contentPadding={theme.spacing['3']}>
           {contentPaddingStyle => (
-            <ScrollView
-              contentContainerStyle={[styles.container, contentPaddingStyle]}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}>
-              <View style={styles.formSurface}>
-                <Text style={styles.title}>{entry.form.name}</Text>
-                {entry.form.description ? (
-                  <Text style={styles.description}>
-                    {entry.form.description}
-                  </Text>
-                ) : null}
-
-                <View style={styles.fieldsContainer}>
-                  {entry.form.schema.map(field => renderField(field))}
-                </View>
-
-                {isReadOnly ? null : (
-                  <LiquidGlassButton
-                    title={
-                      entry.signingRequired ? 'Submit & Continue' : 'Submit'
-                    }
-                    onPress={handleSubmit}
-                    height={56}
-                    borderRadius={theme.borderRadius.lg}
-                    textStyle={styles.buttonText}
-                    tintColor={theme.colors.secondary}
-                    disabled={submitting}
-                    loading={submitting}
-                  />
-                )}
-
-                {isReadOnly && canStartSigning ? (
-                  <LiquidGlassButton
-                    title="View & Sign"
-                    onPress={handleStartSigning}
-                    height={56}
-                    borderRadius={theme.borderRadius.lg}
-                    textStyle={styles.buttonText}
-                    tintColor={theme.colors.secondary}
-                    disabled={signing}
-                    loading={signing}
-                  />
-                ) : null}
-
-                {entry.status === 'signed' && signedPdfUrl ? (
-                  <LiquidGlassButton
-                    title="View & Download"
-                    onPress={handleOpenSignedPdf}
-                    height={56}
-                    borderRadius={theme.borderRadius.lg}
-                    textStyle={styles.buttonText}
-                    tintColor={theme.colors.secondary}
-                    glassEffect="clear"
-                    forceBorder
-                    borderColor={theme.colors.secondary}
-                  />
-                ) : null}
-
-                {entry.status === 'signed' && entry.submission?.submittedAt ? (
-                  <View style={styles.signedBadge}>
-                    <Text style={styles.signedBadgeText}>
-                      Signed on {getDisplayDate(entry.submission.submittedAt)}
-                    </Text>
+            <View style={styles.flex}>
+              {isReadOnly ? null : (
+                <View style={styles.progressWrap}>
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[styles.progressFill, {width: `${progress}%`}]}
+                    />
                   </View>
-                ) : null}
+                </View>
+              )}
+
+              <ScrollView
+                contentContainerStyle={[styles.container, contentPaddingStyle]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                <View style={styles.formSurface}>
+                  {entry.form.description ? (
+                    <Text style={styles.description}>
+                      {entry.form.description}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.fieldsContainer}>
+                    {(entry.form.schema ?? []).map(field => renderField(field))}
+                  </View>
+
+                  {isReadOnly ? null : (
+                    <View style={styles.helperBanner}>
+                      <Ionicons
+                        name="alert-circle-outline"
+                        size={16}
+                        color={theme.colors.blueText}
+                      />
+                      <Text style={styles.helperBannerText}>
+                        Answers are only saved when you submit. Leaving before
+                        then will discard your progress.
+                      </Text>
+                    </View>
+                  )}
+
+                  {entry.status === 'signed' &&
+                  entry.submission?.submittedAt ? (
+                    <View style={styles.signedBadge}>
+                      <Text style={styles.signedBadgeText}>
+                        Signed on {getDisplayDate(entry.submission.submittedAt)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </ScrollView>
+
+              <View style={styles.footer}>
+                <PressableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                  style={styles.footerBackBtn}
+                  onPress={() => navigation.goBack()}>
+                  <Text style={styles.footerBackText}>Back</Text>
+                </PressableOpacity>
+
+                <View style={styles.footerPrimarySlot}>
+                  {isReadOnly ? null : (
+                    <LiquidGlassButton
+                      title={
+                        entry.signingRequired ? 'Submit & Continue' : 'Submit'
+                      }
+                      onPress={handleSubmit}
+                      height={56}
+                      borderRadius={theme.borderRadius.button}
+                      textStyle={styles.buttonText}
+                      tintColor={theme.colors.cta}
+                      shadowIntensity="medium"
+                      disabled={submitting}
+                      loading={submitting}
+                    />
+                  )}
+
+                  {isReadOnly && canStartSigning ? (
+                    <LiquidGlassButton
+                      title="View & Sign"
+                      onPress={handleStartSigning}
+                      height={56}
+                      borderRadius={theme.borderRadius.button}
+                      textStyle={styles.buttonText}
+                      tintColor={theme.colors.cta}
+                      shadowIntensity="medium"
+                      disabled={signing}
+                      loading={signing}
+                    />
+                  ) : null}
+
+                  {entry.status === 'signed' && signedPdfUrl ? (
+                    <LiquidGlassButton
+                      title="View & Download"
+                      onPress={handleOpenSignedPdf}
+                      height={56}
+                      borderRadius={theme.borderRadius.button}
+                      textStyle={styles.secondaryButtonText}
+                      glassEffect="clear"
+                      forceBorder
+                      borderColor={theme.colors.divider}
+                    />
+                  ) : null}
+                </View>
               </View>
-            </ScrollView>
+            </View>
           )}
         </LiquidGlassHeaderScreen>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </KeyboardAvoidingView>
   );
 };
@@ -745,6 +1043,9 @@ const renderValueForDisplay = (field: FormField, value: any): string => {
   }
   if (field.type === 'boolean') {
     return value ? 'Yes' : 'No';
+  }
+  if (field.type === 'richtext') {
+    return stripHtmlToPlainText(value) || '—';
   }
   if (Array.isArray(value)) {
     return value.map(v => `${v}`).join(', ') || '—';
@@ -777,18 +1078,81 @@ const createStyles = (theme: any) => {
     keyboardAvoidingView: {
       flex: 1,
     },
-    container: {
-      paddingBottom: theme.spacing['18'],
-      paddingHorizontal: theme.spacing['2'],
+    flex: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingVertical: theme.spacing['2'],
+    },
+    circleButton: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitleBlock: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    headerTitle: {
+      ...theme.typography.labelSmall,
+      fontSize: 15.5,
+      fontWeight: '600',
+      letterSpacing: -0.2,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    headerSubtitle: {
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint,
+      textAlign: 'center',
+      marginTop: 1,
+    },
+    headerRightSlot: {
+      width: theme.spacing['10'],
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+    },
+    headerStepText: {
+      ...theme.typography.subtitleBold12,
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: theme.colors.inkFaint,
+    },
+    progressWrap: {
+      paddingHorizontal: theme.spacing['5'],
+      marginTop: theme.spacing['3.5'],
+    },
+    progressTrack: {
+      height: 6,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.inset,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: 6,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blue,
+    },
+    container: {
+      paddingTop: theme.spacing['3.5'],
+      paddingBottom: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['2'],
+      gap: theme.spacing['3.5'],
     },
     formSurface: {
       paddingHorizontal: theme.spacing['3'],
-      paddingVertical: theme.spacing['4'],
-      borderRadius: theme.borderRadius.lg,
       backgroundColor: 'transparent',
       borderWidth: 0,
-      gap: theme.spacing['3'],
+      gap: theme.spacing['3.5'],
     },
     loadingContainer: {
       padding: theme.spacing['4'],
@@ -796,69 +1160,85 @@ const createStyles = (theme: any) => {
       justifyContent: 'center',
     },
     title: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
     },
     description: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     fieldsContainer: {
-      gap: theme.spacing['3'],
-      marginTop: theme.spacing['2'],
+      gap: theme.spacing['3.5'],
     },
     fieldContainer: {
-      gap: theme.spacing['1'],
-      marginBottom: theme.spacing['3'],
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['1'],
     },
     label: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.pillSubtitleBold15,
+      fontSize: 14.5,
+      lineHeight: 18,
+      fontWeight: '700',
+      color: theme.colors.ink,
+      marginBottom: theme.spacing['1'],
     },
     readOnlyValue: {
       ...theme.typography.body14,
       color: theme.colors.text,
     },
     readOnlyInputContainer: {
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.fieldBg,
     },
     textArea: formStyles.textArea,
     optionList: {
-      gap: theme.spacing['2'],
+      gap: theme.spacing['2.5'],
     },
     optionItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: theme.spacing['3'],
+      minHeight: 50,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
       borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.md,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.field,
+      backgroundColor: theme.colors.screen2,
     },
     optionItemSelected: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primaryTint,
+      borderWidth: 1.5,
+      borderColor: theme.colors.blue,
+      backgroundColor: theme.colors.screen,
+      boxShadow: `0px 0px 0px 3px ${theme.colors.primaryTint}`,
     },
     optionIndicator: {
-      width: theme.spacing['4'],
-      height: theme.spacing['4'],
+      width: 20,
+      height: 20,
       borderRadius: theme.borderRadius.full,
-      borderWidth: 1,
-      borderColor: theme.colors.textSecondary,
-      marginRight: theme.spacing['2'],
-      backgroundColor: theme.colors.background,
+      borderWidth: 2,
+      borderColor: theme.colors.divider,
+      marginRight: theme.spacing['2.5'],
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.transparent,
     },
     optionIndicatorSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
+      borderColor: theme.colors.blue,
+    },
+    optionInnerDot: {
+      width: 8,
+      height: 8,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blue,
     },
     optionLabel: {
       ...theme.typography.body14,
-      color: theme.colors.secondary,
+      fontSize: 14.5,
+      color: theme.colors.inkMuted,
       flex: 1,
     },
     optionLabelSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
+      color: theme.colors.ink,
+      fontWeight: '700',
     },
     dateInput: {
       padding: theme.spacing['3'],
@@ -874,32 +1254,75 @@ const createStyles = (theme: any) => {
     },
     helperText: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     errorText: formStyles.errorText,
-    groupContainer: {
-      padding: theme.spacing['3'],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.borderRadius.md,
+    helperBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
       gap: theme.spacing['2'],
+      padding: theme.spacing['3'],
+      borderRadius: theme.borderRadius.field,
+      backgroundColor: theme.colors.blueSoft,
+    },
+    helperBannerText: {
+      ...theme.typography.body13,
+      color: theme.colors.blueText,
+      flex: 1,
+    },
+    groupContainer: {
+      padding: theme.spacing['4'],
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen2,
+      gap: theme.spacing['3'],
     },
     groupLabel: {
       ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
     },
     groupFields: {
-      gap: theme.spacing['2'],
+      gap: theme.spacing['3'],
+    },
+    footer: {
+      flexDirection: 'row',
+      gap: theme.spacing['2.5'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['3.5'],
+      paddingBottom: theme.spacing['6'],
+      backgroundColor: theme.colors.background,
+    },
+    footerBackBtn: {
+      flex: 1,
+      height: 56,
+      borderRadius: theme.borderRadius.button,
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.transparent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footerBackText: {
+      ...theme.typography.button,
+      color: theme.colors.inkBody,
+    },
+    footerPrimarySlot: {
+      flex: 2,
     },
     buttonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
+    },
+    secondaryButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.inkBody,
     },
     signedBadge: {
       backgroundColor: theme.colors.successSurface,
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.field,
       padding: theme.spacing['3'],
-      marginTop: theme.spacing['4'],
+      marginTop: theme.spacing['1'],
       alignItems: 'center',
     },
     signedBadgeText: {

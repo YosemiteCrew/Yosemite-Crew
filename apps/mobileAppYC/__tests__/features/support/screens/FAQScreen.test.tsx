@@ -121,7 +121,9 @@ jest.mock('../../../../src/features/support/data/faqData', () => ({
       categoryIds: ['cat1'],
       question: 'Question 1',
       answer: 'Answer 1 contains keyword.',
-      relatedIds: ['faq2'],
+      // 'ghost' has no matching entry -> exercises the not-found (`[]`) arm of the
+      // related-entry flatMap; 'faq2' resolves -> exercises the found (`[entry]`) arm.
+      relatedIds: ['faq2', 'ghost'],
     },
     {
       id: 'faq2',
@@ -135,7 +137,7 @@ jest.mock('../../../../src/features/support/data/faqData', () => ({
       categoryIds: ['cat2'],
       question: 'Question 3',
       answer: 'Answer 3',
-      relatedIds: [],
+      // relatedIds intentionally omitted -> exercises the `?? []` fallback.
     },
   ],
 }));
@@ -174,6 +176,19 @@ describe('FAQScreen', () => {
     // Expand FAQ1 again
     fireEvent.press(screen.getByText('Question 1'));
     expect(screen.getByText('Answer 1 contains keyword.')).toBeTruthy();
+  });
+
+  it('exposes a button role and expanded state on the FAQ question row', () => {
+    const {getByLabelText} = render(
+      <FAQScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    const questionRow = getByLabelText('Question 1');
+    expect(questionRow.props.accessibilityRole).toBe('button');
+    expect(questionRow.props.accessibilityState).toEqual({expanded: true});
+
+    fireEvent.press(questionRow);
+    expect(questionRow.props.accessibilityState).toEqual({expanded: false});
   });
 
   it('filters FAQs by Category', () => {
@@ -289,6 +304,15 @@ describe('FAQScreen', () => {
     expect(screen.queryByText('Answer 1 contains keyword.')).toBeNull();
   });
 
+  it('exposes a button role and label on the related-question row', () => {
+    const {getAllByLabelText} = render(
+      <FAQScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    const [relatedRow] = getAllByLabelText('Question 2');
+    expect(relatedRow.props.accessibilityRole).toBe('button');
+  });
+
   it('Related Questions: clears filter if navigating from filtered view', () => {
     render(<FAQScreen navigation={mockNavigation} route={mockRoute} />);
 
@@ -309,7 +333,7 @@ describe('FAQScreen', () => {
     expect(screen.getByText('Question 3')).toBeTruthy();
   });
 
-  it('Android LayoutAnimation: executes top-level conditional logic', () => {
+  it('Android LayoutAnimation: does not configure JS-thread layout animation', () => {
     // Use isolateModules to force re-evaluation of the module code
     jest.isolateModules(() => {
       // Mock Platform
@@ -327,10 +351,18 @@ describe('FAQScreen', () => {
 
       expect(
         UIManager.setLayoutAnimationEnabledExperimental,
-      ).toHaveBeenCalledWith(true);
+      ).not.toHaveBeenCalled();
     });
 
     // Restore Platform to avoid side effects
     Platform.OS = 'ios';
+  });
+
+  it('shows the empty-category state when the selected category has no entries', () => {
+    render(<FAQScreen navigation={mockNavigation} route={mockRoute} />);
+    // 'Empty Category' (empty_cat) has no matching FAQ entries, so selecting it
+    // renders the category empty-state.
+    fireEvent.press(screen.getByTestId('pill-empty_cat'));
+    expect(screen.getByText('No FAQs available in this category')).toBeTruthy();
   });
 });

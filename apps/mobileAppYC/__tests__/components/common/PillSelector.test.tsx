@@ -1,6 +1,6 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {ScrollView, StyleSheet} from 'react-native';
+import {ScrollView, StyleSheet, FlatList} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
   PillSelector,
@@ -80,6 +80,22 @@ describe('PillSelector Component', () => {
 
     expect(selectedStyle.color).toBe(mockTheme.colors.primary);
     expect(inactiveStyle.color).toBe(mockTheme.colors.text);
+  });
+
+  // ===========================================================================
+  // 3b. Accessibility
+  // ===========================================================================
+
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    const {getByLabelText} = render(<PillSelector {...defaultProps} />);
+
+    const selected = getByLabelText('Option 1');
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = getByLabelText('Option 2');
+    expect(unselected.props.accessibilityRole).toBe('radio');
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
   });
 
   // ===========================================================================
@@ -166,5 +182,127 @@ describe('PillSelector Component', () => {
 
     // scrollContent uses gap
     expect(flatStyle).toHaveProperty('gap', customSpacing);
+  });
+
+  // ===========================================================================
+  // 6. AutoScroll (FlatList) mode
+  // ===========================================================================
+
+  describe('autoScroll mode', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('renders a FlatList when autoScroll is true', () => {
+      const {UNSAFE_getByType} = render(
+        <PillSelector {...defaultProps} autoScroll />,
+      );
+      expect(UNSAFE_getByType(FlatList)).toBeTruthy();
+    });
+
+    it('renders each option via renderItem and calls onSelect when pressed', () => {
+      const {getByText} = render(<PillSelector {...defaultProps} autoScroll />);
+      fireEvent.press(getByText('Option 2'));
+      expect(defaultProps.onSelect).toHaveBeenCalledWith('2');
+    });
+
+    it('passes initialScrollIndex based on the selected option, or undefined if not found', () => {
+      const {UNSAFE_getByType, rerender} = render(
+        <PillSelector {...defaultProps} autoScroll selectedId="2" />,
+      );
+      expect(UNSAFE_getByType(FlatList).props.initialScrollIndex).toBe(1);
+
+      rerender(
+        <PillSelector {...defaultProps} autoScroll selectedId="not-found" />,
+      );
+      expect(
+        UNSAFE_getByType(FlatList).props.initialScrollIndex,
+      ).toBeUndefined();
+    });
+
+    it('computes getItemLayout using the fixed item width and pillSpacing/theme gap', () => {
+      const {UNSAFE_getByType} = render(
+        <PillSelector {...defaultProps} autoScroll pillSpacing={10} />,
+      );
+      const {getItemLayout} = UNSAFE_getByType(FlatList).props;
+
+      expect(getItemLayout(null, 2)).toEqual({
+        length: 120,
+        offset: 2 * (120 + 10),
+        index: 2,
+      });
+    });
+
+    it('warns via onScrollToIndexFailed without throwing', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const {UNSAFE_getByType} = render(
+        <PillSelector {...defaultProps} autoScroll />,
+      );
+      const {onScrollToIndexFailed} = UNSAFE_getByType(FlatList).props;
+
+      expect(() =>
+        onScrollToIndexFailed({
+          index: 1,
+          highestMeasuredFrameIndex: 0,
+          averageItemLength: 120,
+        }),
+      ).not.toThrow();
+      expect(warnSpy).toHaveBeenCalledWith('ScrollToIndex failed:', 1);
+
+      warnSpy.mockRestore();
+    });
+
+    it('does not schedule a scroll when the selected option is not found', () => {
+      const scrollToIndexSpy = jest.fn();
+      const {UNSAFE_getByType} = render(
+        <PillSelector {...defaultProps} autoScroll selectedId="missing" />,
+      );
+      (UNSAFE_getByType(FlatList) as any).instance = {
+        scrollToIndex: scrollToIndexSpy,
+      };
+
+      expect(() => jest.advanceTimersByTime(500)).not.toThrow();
+      expect(scrollToIndexSpy).not.toHaveBeenCalled();
+    });
+
+    it('schedules two scrollToIndex calls (initial + retry) when a valid selection exists', () => {
+      const scrollToIndexSpy = jest.fn();
+      jest
+        .spyOn(FlatList.prototype as any, 'scrollToIndex')
+        .mockImplementation(scrollToIndexSpy);
+
+      render(<PillSelector {...defaultProps} autoScroll selectedId="2" />);
+
+      expect(() => jest.advanceTimersByTime(100)).not.toThrow();
+      expect(scrollToIndexSpy).toHaveBeenCalledWith(
+        expect.objectContaining({index: 1, viewPosition: 0.5, animated: true}),
+      );
+
+      expect(() => jest.advanceTimersByTime(300)).not.toThrow();
+      expect(scrollToIndexSpy).toHaveBeenCalledTimes(2);
+
+      (FlatList.prototype as any).scrollToIndex.mockRestore();
+    });
+
+    it('does not scroll after the ref is cleared by an unmount before the timer fires', () => {
+      const scrollToIndexSpy = jest.fn();
+      jest
+        .spyOn(FlatList.prototype as any, 'scrollToIndex')
+        .mockImplementation(scrollToIndexSpy);
+
+      const {unmount} = render(
+        <PillSelector {...defaultProps} autoScroll selectedId="2" />,
+      );
+      unmount();
+
+      expect(() => jest.advanceTimersByTime(500)).not.toThrow();
+      expect(scrollToIndexSpy).not.toHaveBeenCalled();
+
+      (FlatList.prototype as any).scrollToIndex.mockRestore();
+    });
   });
 });

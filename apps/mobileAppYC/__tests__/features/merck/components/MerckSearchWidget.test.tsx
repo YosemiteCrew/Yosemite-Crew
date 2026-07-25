@@ -558,6 +558,36 @@ describe('MerckSearchWidget', () => {
     });
   });
 
+  it('exposes a button role and label on sublink pills', () => {
+    const initialEntries = [
+      {
+        id: 'e1',
+        title: 'Topic',
+        summaryText: '',
+        updatedAt: null,
+        audience: 'PAT',
+        primaryUrl: 'https://www.msdvetmanual.com/topic',
+        subLinks: [
+          {
+            label: 'Etiology',
+            url: 'https://www.msdvetmanual.com/etiology',
+          },
+        ],
+      },
+    ];
+
+    const {getByLabelText} = render(
+      <MerckSearchWidget
+        organisationId="org-1"
+        initialEntries={initialEntries}
+        initialHasSearched
+      />,
+    );
+
+    const pill = getByLabelText('Etiology');
+    expect(pill.props.accessibilityRole).toBe('button');
+  });
+
   it('shows idle state with logo and description before any search in non-compact mode', () => {
     const {getByText} = render(<MerckSearchWidget organisationId="org-1" />);
     expect(getByText('Search medical topics')).toBeTruthy();
@@ -703,6 +733,20 @@ describe('MerckSearchWidget', () => {
         expect.objectContaining({language: 'es'}),
       );
     });
+  });
+
+  it('exposes radio roles and selected state on the language pills', () => {
+    const {getByLabelText} = render(
+      <MerckSearchWidget organisationId="org-1" />,
+    );
+
+    fireEvent.press(getByLabelText('Show refine results'));
+
+    const english = getByLabelText('English');
+    const spanish = getByLabelText('Spanish');
+    expect(english.props.accessibilityRole).toBe('radio');
+    expect(english.props.accessibilityState).toEqual({selected: true});
+    expect(spanish.props.accessibilityState).toEqual({selected: false});
   });
 
   it('renders Open Full Search button in non-compact mode when onOpenFullSearch is provided', () => {

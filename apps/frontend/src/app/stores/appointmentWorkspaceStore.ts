@@ -22,6 +22,8 @@ import type {
   WorkspaceDocument,
   WorkspaceLockState,
   WorkspaceCapabilities,
+  WorkspaceSaveStatus,
+  WorkspaceSaveState,
 } from '@/app/features/appointments/types/workspace';
 import { buildEmptyEncounter } from '@/app/features/appointments/services/workspaceInitialData';
 import { isRichTextEmpty } from '@/app/lib/richText';
@@ -47,6 +49,9 @@ const defaultAnswersFromSchema = (
   const walk = (items: NonNullable<SoapTemplate['customSchema']>) => {
     items.forEach((field) => {
       if (field.type === 'group') {
+        // GroupField.fields is a required array (packages/types form.ts), so the
+        // `?? []` fallback is unreachable via the typed API — kept as a defensive guard.
+        /* v8 ignore next */
         walk(field.fields ?? []);
         return;
       }
@@ -114,6 +119,13 @@ type AppointmentWorkspaceState = {
    * schedule row's "View" is clicked, consumed + cleared by the panel.
    */
   focusTaskId: string | null;
+  /**
+   * Autosave lifecycle per appointment, driven off the existing explicit-save flow
+   * (no separate autosave engine): the SOAP and Summary save handlers push
+   * `saving` → `saved`/`offline` so the workspace can render the design's autosave
+   * indicator without fabricating a new persistence path.
+   */
+  saveStatusByAppointmentId: Record<string, WorkspaceSaveState>;
 
   initEncounter: (
     appointmentId: string,
@@ -143,6 +155,7 @@ type AppointmentWorkspaceState = {
         | 'readyForDischarge'
         | 'roomId'
         | 'unitId'
+        | 'startedAt'
         | 'admittedAt'
         | 'dischargedAt'
         | 'mode'
@@ -167,6 +180,12 @@ type AppointmentWorkspaceState = {
   setActiveStep: (step: WorkspaceStep) => void;
   setActiveSideAction: (action: SideAction | null) => void;
   setFocusTaskId: (taskId: string | null) => void;
+  /**
+   * Record the current autosave lifecycle state for an appointment. `saved` stamps
+   * the current time (unless `at` is supplied) so the indicator can show "Autosaved
+   * HH:MM"; other states clear the stamp.
+   */
+  setSaveStatus: (appointmentId: string, status: WorkspaceSaveStatus, at?: string) => void;
   /** Open the Quick Actions Tasks panel focused on a specific task (schedule View). */
   openTaskInQuickActions: (taskId: string) => void;
   setStepStatus: (
@@ -237,7 +256,7 @@ type AppointmentWorkspaceState = {
   addDocument: (appointmentId: string, document: Omit<WorkspaceDocument, 'id'>) => void;
   setWithdrawDeposit: (appointmentId: string, value: boolean) => void;
   setOverallDiscountPercent: (appointmentId: string, percent: number) => void;
-  addInvoiceLineItem: (appointmentId: string, item: Omit<InvoiceLineItem, 'id'>) => void;
+  addInvoiceLineItem: (appointmentId: string, item: Omit<InvoiceLineItem, 'id'>) => string;
   updateInvoiceLineItem: (
     appointmentId: string,
     id: string,
@@ -340,6 +359,7 @@ const mergeEncounterDataPatch = (
       | 'readyForDischarge'
       | 'roomId'
       | 'unitId'
+      | 'startedAt'
       | 'admittedAt'
       | 'dischargedAt'
       | 'mode'
@@ -382,6 +402,7 @@ const mergeEncounterDataPatch = (
   readyForDischarge: mergeReadyState(patch.readyForDischarge, enc.readyForDischarge),
   roomId: patch.roomId ?? enc.roomId,
   unitId: patch.unitId ?? enc.unitId,
+  startedAt: patch.startedAt ?? enc.startedAt,
   admittedAt: patch.admittedAt ?? enc.admittedAt,
   dischargedAt: patch.dischargedAt ?? enc.dischargedAt,
   mode: patch.mode ?? enc.mode,
@@ -431,6 +452,7 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
   activeStep: 'SOAP',
   activeSideAction: null,
   focusTaskId: null,
+  saveStatusByAppointmentId: {},
 
   initEncounter: (appointmentId, mode, staff) =>
     set((state) => {
@@ -479,6 +501,16 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
   setActiveStep: (step) => set({ activeStep: step }),
   setActiveSideAction: (action) => set({ activeSideAction: action }),
   setFocusTaskId: (taskId) => set({ focusTaskId: taskId }),
+  setSaveStatus: (appointmentId, status, at) =>
+    set((state) => ({
+      saveStatusByAppointmentId: {
+        ...state.saveStatusByAppointmentId,
+        [appointmentId]: {
+          status,
+          at: status === 'saved' ? (at ?? nowIso()) : undefined,
+        },
+      },
+    })),
   openTaskInQuickActions: (taskId) => set({ activeSideAction: 'TASKS', focusTaskId: taskId }),
 
   setStepStatus: (appointmentId, step, status) =>
@@ -802,11 +834,14 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       overallDiscountPercent: Math.min(100, Math.max(0, percent)),
     })),
 
-  addInvoiceLineItem: (appointmentId, item) =>
+  addInvoiceLineItem: (appointmentId, item) => {
+    const id = nextId('inv');
     patchEnc(set, appointmentId, (enc) => ({
       ...enc,
-      invoiceLineItems: [...enc.invoiceLineItems, { ...item, id: nextId('inv') }],
-    })),
+      invoiceLineItems: [...enc.invoiceLineItems, { ...item, id }],
+    }));
+    return id;
+  },
 
   updateInvoiceLineItem: (appointmentId, id, patch) =>
     patchEnc(set, appointmentId, (enc) => ({
@@ -829,17 +864,39 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       const paidFromDeposit = payment.method === 'DEPOSIT' || enc.withdrawDeposit;
       // Mark the matching saved treatment rows as billed so the Total Bill auto-seed
       // (InvoiceStep) does not re-add them after invoiceLineItems is cleared below.
-      const paidNames = new Set(enc.invoiceLineItems.map((item) => item.name.trim().toLowerCase()));
+      // Rows are matched by the source id the bill line was seeded from; two rows
+      // can carry the same name, and matching on name marks both. The name set
+      // only covers lines seeded before those ids existed.
+      const paidServiceIds = new Set(
+        enc.invoiceLineItems
+          .map((item) => item.sourceServiceLineId)
+          .filter((id): id is string => Boolean(id))
+      );
+      const paidPrescriptionIds = new Set(
+        enc.invoiceLineItems
+          .map((item) => item.sourcePrescriptionId)
+          .filter((id): id is string => Boolean(id))
+      );
+      const unlinkedPaidNames = new Set(
+        enc.invoiceLineItems
+          .filter((item) => !item.sourceServiceLineId && !item.sourcePrescriptionId)
+          .map((item) => item.name.trim().toLowerCase())
+      );
       const billedAt = nowIso();
+      const isPaidService = (service: LineItem) =>
+        paidServiceIds.has(service.id) || unlinkedPaidNames.has(service.name.trim().toLowerCase());
+      const isPaidPrescription = (rx: PrescriptionItem) =>
+        paidPrescriptionIds.has(rx.id) ||
+        unlinkedPaidNames.has(rx.medicineName.trim().toLowerCase());
       return {
         ...enc,
         services: enc.services.map((service) =>
-          paidNames.has(service.name.trim().toLowerCase())
+          isPaidService(service)
             ? { ...service, billed: true, billedAt, billedByName: payment.byName }
             : service
         ),
         prescription: enc.prescription.map((rx) =>
-          paidNames.has(rx.medicineName.trim().toLowerCase())
+          isPaidPrescription(rx)
             ? { ...rx, billed: true, billedAt, billedByName: payment.byName }
             : rx
         ),

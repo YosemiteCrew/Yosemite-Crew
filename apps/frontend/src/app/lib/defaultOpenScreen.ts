@@ -37,13 +37,10 @@ export const setSavedDefaultOpenScreenRoute = (route: DefaultOpenScreenRoute | n
       ? removeStorageItem('local', DEFAULT_OPEN_SCREEN_STORAGE_KEY)
       : setStorageItem('local', DEFAULT_OPEN_SCREEN_STORAGE_KEY, route);
 
+  // `setStorageItem`/`removeStorageItem` report success even without a window
+  // (their writes no-op server-side), so the window check is what makes this
+  // return false when nothing was actually persisted.
   if (!didPersist || !globalThis.window) return false;
-
-  globalThis.window.dispatchEvent(
-    new CustomEvent('yc:default-open-screen-changed', {
-      detail: { route },
-    })
-  );
   return true;
 };
 

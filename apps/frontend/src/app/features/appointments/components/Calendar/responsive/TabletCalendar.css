@@ -1,0 +1,79 @@
+/* PIMS tablet calendar (768–1023px).
+   Every value below is measured from the "Tablet week grid" frame in
+   `PIMS Responsive - Calendar`; the comment on each block names the source
+   declaration so a later change can be checked against the frame rather than
+   guessed. Colours are token-only, so light and dark come for free.
+
+   Ownership: the calendar's control strip (pager, Today, view switch, filters,
+   New, zoom) lives in `common/Header.tsx`, which the desktop pass owns. Nothing
+   here restyles it. This file only adds the period line the tablet frame puts
+   between the header and the grid, plus the grid's card surround. */
+
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  /* --------------------------------------------------------- period line */
+
+  /* Frame: padding 18px 20px on the content column, 12px gap to the grid. */
+  .yc-tablet-toolbar__body {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 20px 12px;
+    background: var(--screen);
+  }
+
+  .yc-tablet-toolbar__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  /* Frame: Newsreader 400 24px, letter-spacing -0.015em, var(--ink). */
+  .yc-tablet-toolbar__title {
+    margin: 0;
+    font-family: var(--font-newsreader), Georgia, serif;
+    font-weight: 400;
+    font-size: 24px;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  /* Frame: font-size 16px; color var(--ink-faint). */
+  .yc-tablet-toolbar__title-count {
+    font-size: 16px;
+    color: var(--ink-faint);
+  }
+
+  /* Frame: gap 12px; font-size 10.5px; color var(--ink-faint). */
+  .yc-tablet-toolbar__legend {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 12px;
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  .yc-tablet-toolbar__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Frame: 7px square, radius 2px. */
+  .yc-tablet-toolbar__legend-swatch {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+  }
+}
+
+/* The grid's own card surround (1px hairline, radius 18px, two-stop shadow) and
+   its internal geometry at this band (44px time gutter, seven equal 1fr columns,
+   9.5px hour labels) are already set by `AppointmentCalendar`'s container and by
+   the 768–1279 band of `common/WeekCalendar.css`. Both are owned by the desktop
+   pass, so nothing is duplicated here. */

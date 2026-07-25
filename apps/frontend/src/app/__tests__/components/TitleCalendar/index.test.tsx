@@ -38,7 +38,7 @@ describe('TitleCalendar', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: /Appointments/ })).toBeInTheDocument();
     expect(screen.getByText('(3)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Appointments info' })).toBeInTheDocument();
+    expect(screen.getByText('Daily schedule')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Add'));
     expect(setAddPopup).toHaveBeenCalledWith(true);
@@ -74,6 +74,11 @@ describe('TitleCalendar', () => {
       />
     );
 
+    expect(screen.getByRole('button', { name: 'Calendar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Board' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'List' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Table' })).not.toBeInTheDocument();
+
     const viewButtons = screen.getAllByRole('button');
     fireEvent.click(viewButtons[0]);
     fireEvent.click(viewButtons[1]);
@@ -82,6 +87,22 @@ describe('TitleCalendar', () => {
     expect(setActiveView).toHaveBeenCalledWith('calendar');
     expect(setActiveView).toHaveBeenCalledWith('board');
     expect(setActiveView).toHaveBeenCalledWith('list');
+  });
+
+  it('falls back to the default width for a single view option', () => {
+    const setActiveView = jest.fn();
+    render(
+      <TitleCalendar
+        title="One"
+        setAddPopup={jest.fn()}
+        count={1}
+        activeView="calendar"
+        setActiveView={setActiveView}
+        showAdd={false}
+        viewOptions={['calendar']}
+      />
+    );
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
   it('renders only configured view options', () => {

@@ -2,23 +2,7 @@ import { Appointment } from '@yosemite-crew/types';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
 
-export type AppointmentCentralFieldKey =
-  | 'patient'
-  | 'client'
-  | 'speciality'
-  | 'service'
-  | 'chiefComplaint'
-  | 'date'
-  | 'time'
-  | 'slot'
-  | 'lead'
-  | 'support'
-  | 'typeOfVisit'
-  | 'notifyVia'
-  | 'emergency';
-
 export type VisitType = 'Outpatient' | 'Inpatient';
-export type NotifyChannel = 'app' | 'sms' | 'email';
 
 export const VISIT_TYPE_OPTIONS: Array<{ label: string; value: VisitType }> = [
   { label: 'Outpatient', value: 'Outpatient' },

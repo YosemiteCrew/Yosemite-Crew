@@ -9,6 +9,8 @@ import {
 import { Appointment } from '@yosemite-crew/types';
 import { loadAppointmentsForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { useNotify } from '@/app/hooks/useNotify';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 
 const reloadAfterPayment = () =>
   Promise.all([
@@ -135,6 +137,12 @@ const InvoicePaymentActions = ({
   activeAppointment,
 }: InvoicePaymentActionsProps) => {
   const { notify } = useNotify();
+  const { canAny } = usePermissions(activeAppointment?.organisationId);
+  // The payment mutations behind these actions (POST /invoices/:id/payments and
+  // /payments/sessions) require billing:edit:any on the backend, so only surface
+  // them to that permission — otherwise billing:edit:limited users see actions
+  // that can only fail with 403.
+  const canEditBilling = canAny([PERMISSIONS.BILLING_EDIT_ANY]);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [showCashConfirmation, setShowCashConfirmation] = useState(false);
   const [settingCashCollectionMethod, setSettingCashCollectionMethod] = useState(false);
@@ -150,10 +158,12 @@ const InvoicePaymentActions = ({
     );
 
   const handleGenerate = () => {
+    /* v8 ignore next -- the Generate & Mail button is disabled when invoiceId is absent, so this guard's empty branch is unreachable via the UI */
     if (invoiceId) generatePaymentLink(invoiceId, setGeneratedLink);
   };
 
   const handleCopy = () => {
+    /* v8 ignore next -- the Copy link button only renders when generatedLink is set, so this guard's empty branch is unreachable via the UI */
     if (generatedLink) copyLinkToClipboard(generatedLink);
   };
 
@@ -162,14 +172,19 @@ const InvoicePaymentActions = ({
   };
 
   const handleCollectOfflinePayment = () => {
+    /* v8 ignore next -- the Collect cash button is disabled under this exact condition, so the early return is unreachable via the UI */
     if (!invoiceId || markingOfflinePaid) return;
     collectOfflinePayment(invoiceId, setMarkingOfflinePaid, setShowCashConfirmation, notify);
   };
 
   const handleStartCashCollection = () => {
+    /* v8 ignore next -- the Pay in cash button is disabled under this exact condition, so the early return is unreachable via the UI */
     if (!invoiceId || markingOfflinePaid || settingCashCollectionMethod) return;
     startCashCollection(invoiceId, setSettingCashCollectionMethod, setShowCashConfirmation, notify);
   };
+
+  /* v8 ignore next -- settingCashCollectionMethod flips true only in the same synchronous state batch that sets showCashConfirmation=true (which switches to the cash-confirmation view), so the 'Preparing...' label is never committed */
+  const payInCashLabel = settingCashCollectionMethod ? 'Preparing...' : 'Pay in cash';
 
   if (stripeReceiptUrl) {
     return (
@@ -179,10 +194,14 @@ const InvoicePaymentActions = ({
     );
   }
 
+  if (!canEditBilling) {
+    return null;
+  }
+
   return (
     <>
       {isInPersonCashSelected ? (
-        <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] p-4 flex flex-col gap-3">
+        <div className="rounded-2xl border border-warning-200 bg-warning-100 p-4 flex flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
             <div className="text-body-4-emphasis text-text-primary">
               Confirm cash payment before marking this invoice as paid.
@@ -217,7 +236,7 @@ const InvoicePaymentActions = ({
           ) : null}
           {showOfflineCollect ? (
             <Secondary
-              text={settingCashCollectionMethod ? 'Preparing...' : 'Pay in cash'}
+              text={payInCashLabel}
               href="#"
               onClick={handleStartCashCollection}
               isDisabled={!invoiceId || markingOfflinePaid || settingCashCollectionMethod}

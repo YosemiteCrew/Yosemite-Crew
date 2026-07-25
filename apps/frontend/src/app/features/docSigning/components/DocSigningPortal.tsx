@@ -72,12 +72,16 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
         embedded ? 'h-[75vh] min-h-[560px]' : 'h-[calc(100vh-140px)]'
       }`}
     >
+      {/* The third-party Documenso portal requires allow-same-origin to function, and
+          being cross-origin it cannot reach back into this site. Removing it breaks
+          signing, so this is a deliberate exception rather than a missing control. */}
+      {/* react-doctor-disable-next-line react-doctor/iframe-missing-sandbox */}
       <iframe
         src={portalUrl}
         className="size-full"
         title="Doc Signing Portal"
         allow="clipboard-read; clipboard-write; fullscreen"
-        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
+        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
         referrerPolicy="strict-origin"
       />
     </div>

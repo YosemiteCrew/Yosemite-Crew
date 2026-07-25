@@ -1,0 +1,115 @@
+/* Rich-text editor surface — mirrors the SOAP editor in the "PIMS - Appointments"
+   design. Hand-written CSS (not Tailwind arbitrary values) so every colour stays
+   a live var() and flips with html[data-theme]; the JIT inlines `bg-[var(--x)]`
+   to a light literal, which silently breaks dark mode. */
+
+/* Editable field: the recessed warm surface that distinguishes the typing area
+   from the card behind it (the reported "hard to tell" bug). */
+.yc-rte-field {
+  position: relative;
+  background: var(--field-bg);
+  border: 1.5px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+/* Focus: blue border + 3px glow (design's active-field state). */
+.yc-rte-field:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--glow-b10);
+}
+
+/* Docked toolbar bar — hidden until the field is focused, then it slots in at the
+   top with a hairline underline on the --screen band, exactly like the design's
+   active SOAP field. FloatingToolbar's buttons preventDefault on mousedown, so
+   clicking one keeps focus inside the field and the bar stays open. */
+.yc-rte-toolbar {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--screen);
+}
+.yc-rte-field:focus-within .yc-rte-toolbar {
+  display: flex;
+}
+.yc-rte-tool-btn {
+  display: flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: var(--ink-muted);
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+.yc-rte-tool-btn:hover {
+  color: var(--ink);
+}
+.yc-rte-tool-btn[aria-pressed='true'] {
+  background: var(--inset);
+  color: var(--ink);
+}
+.yc-rte-tool-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.yc-rte-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--hairline);
+}
+.yc-rte-toolbar-hint {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+
+/* Body + content: constant 10px 13px gutter (matches the design). The toolbar,
+   when present, sits above this in the same overflow-hidden box. */
+.yc-rte-body {
+  position: relative;
+  padding: 10px 13px;
+}
+.yc-rte-placeholder {
+  position: absolute;
+  top: 10px;
+  left: 13px;
+  right: 13px;
+  pointer-events: none;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-faint);
+}
+.yc-rte-content {
+  min-height: 60px;
+  outline: none;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-body);
+}
+.yc-rte-content ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.yc-rte-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.yc-rte-content li {
+  margin: 0.25rem 0;
+}
+.yc-rte-content p {
+  min-height: 1.25rem;
+}
+
+/* Read-only note: no field surface, no toolbar — history never reads as editable. */
+.yc-rte-readonly .yc-rte-content {
+  min-height: 0;
+}

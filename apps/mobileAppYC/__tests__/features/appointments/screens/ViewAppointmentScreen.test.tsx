@@ -8,10 +8,11 @@ import {
 } from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Alert, ActivityIndicator} from 'react-native';
+import {Alert, ActivityIndicator, Platform, ToastAndroid} from 'react-native';
 
 // --- Relative Imports ---
-import ViewAppointmentScreen, {
+import ViewAppointmentScreen from '../../../../src/features/appointments/screens/ViewAppointmentScreen';
+import {
   buildEmployeeDisplay,
   formatAppointmentDateTime,
   formatAppointmentFormValue,
@@ -21,7 +22,7 @@ import ViewAppointmentScreen, {
   normalizeAvatarUrl,
   resolveEmployeeAvatar,
   toImageSource,
-} from '../../../../src/features/appointments/screens/ViewAppointmentScreen';
+} from '../../../../src/features/appointments/screens/ViewAppointmentScreen.helpers';
 import * as AppointmentSlice from '../../../../src/features/appointments/appointmentsSlice';
 import * as LinkedBusinessSlice from '../../../../src/features/linkedBusinesses';
 import LocationService from '../../../../src/shared/services/LocationService';
@@ -172,7 +173,8 @@ jest.mock(
     const React = require('react');
     const {View, TouchableOpacity, Text} = require('react-native');
     return {
-      CancelAppointmentBottomSheet: React.forwardRef((props: any, ref: any) => {
+      CancelAppointmentBottomSheet: (props: any) => {
+        const {ref} = props;
         React.useImperativeHandle(ref, () => ({
           open: jest.fn(),
           close: jest.fn(),
@@ -184,7 +186,7 @@ jest.mock(
             </TouchableOpacity>
           </View>
         );
-      }),
+      },
     };
   },
 );
@@ -194,28 +196,42 @@ jest.mock(
   () => {
     // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
-    const {View} = require('react-native');
+    const {Text, TouchableOpacity, View} = require('react-native');
     // @ts-ignore
-    return React.forwardRef((_props: any, ref: any) => {
+    return ({ref, onClose}: any) => {
       React.useImperativeHandle(ref, () => ({
         open: jest.fn(),
         close: jest.fn(),
       }));
-      return <View testID="rescheduled-sheet" />;
-    });
+      return (
+        <View testID="rescheduled-sheet">
+          <TouchableOpacity testID="rescheduled-close" onPress={onClose}>
+            <Text>Close</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    };
   },
 );
 
 jest.mock(
   '../../../../src/features/documents/components/DocumentAttachmentViewer',
   () => {
-    const {View, Text} = require('react-native');
+    const {View, Text, TouchableOpacity} = require('react-native');
     return (props: any) => (
       <View testID="attachment-viewer">
         <Text>{props.documentTitle}</Text>
         {props.attachments?.map((a: any) => (
           <Text key={a.id}>{a.name}</Text>
         ))}
+        <TouchableOpacity
+          testID="pdf-touch-start"
+          onPress={props.onPdfTouchStart}>
+          <Text>PDF Start</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="pdf-touch-end" onPress={props.onPdfTouchEnd}>
+          <Text>PDF End</Text>
+        </TouchableOpacity>
       </View>
     );
   },
@@ -226,11 +242,16 @@ jest.mock(
   () => {
     const {Text, TouchableOpacity} = require('react-native');
     return {
-      DocumentCard: ({title, onPress}: any) => {
+      DocumentCard: ({title, onPress, onPressView}: any) => {
         return (
-          <TouchableOpacity testID={`doc-${title}`} onPress={onPress}>
-            <Text>{title}</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity testID={`doc-${title}`} onPress={onPressView}>
+              <Text>{title}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID={`doc-${title}-press`} onPress={onPress}>
+              <Text>{title} Press</Text>
+            </TouchableOpacity>
+          </>
         );
       },
     };
@@ -240,7 +261,7 @@ jest.mock(
 jest.mock('../../../../src/features/expenses/components', () => {
   const {View, Text, TouchableOpacity} = require('react-native');
   return {
-    ExpenseCard: ({title, onPressView, onPressPay, showPayButton}: any) => {
+    ExpenseCard: ({title, onPressView, payment}: any) => {
       return (
         <View testID={`expense-${title}`}>
           <Text>{title}</Text>
@@ -249,9 +270,9 @@ jest.mock('../../../../src/features/expenses/components', () => {
             testID={`view-invoice-${title}`}>
             <Text>View</Text>
           </TouchableOpacity>
-          {showPayButton && (
+          {payment?.status === 'unpaid' && payment.cta && (
             <TouchableOpacity
-              onPress={onPressPay}
+              onPress={payment.cta.onPress}
               testID={`pay-invoice-${title}`}>
               <Text>Pay</Text>
             </TouchableOpacity>
@@ -472,6 +493,7 @@ describe('ViewAppointmentScreen', () => {
       expect(toImageSource('https://example.com/string.png')).toEqual({
         uri: 'https://example.com/string.png',
       });
+      expect(toImageSource('null')).toBeUndefined();
     });
 
     it('builds cancellation notes for cash, cancelled, and active appointments', () => {
@@ -501,6 +523,9 @@ describe('ViewAppointmentScreen', () => {
       });
 
       expect(resolveEmployeeAvatar({}, {}, '   ')).toBeUndefined();
+
+      // No displayName argument at all (undefined, not just blank).
+      expect(resolveEmployeeAvatar({}, {})).toBeUndefined();
     });
 
     it('builds employee display for fallback, existing, and hidden states', () => {
@@ -546,6 +571,31 @@ describe('ViewAppointmentScreen', () => {
           apt: {},
           department: null,
           statusFlags: {isUpcoming: false},
+        }),
+      ).toBeNull();
+
+      // employeeTitle and department both falsy -> specialization falls back
+      // to the final '' in the ?? chain.
+      const noSpecializationInfo = buildEmployeeDisplay({
+        employee: null,
+        apt: {employeeName: 'Dr. NoSpec'},
+        department: null,
+        statusFlags: {isUpcoming: true},
+      });
+      expect(noSpecializationInfo).toMatchObject({
+        name: 'Dr. NoSpec',
+        specialization: '',
+      });
+
+      // No employee and no employeeName/employeeTitle on the appointment ->
+      // both employeeWithAvatar and employeeFallback resolve to null, so the
+      // final `?? null` fallback is what's returned.
+      expect(
+        buildEmployeeDisplay({
+          employee: null,
+          apt: {},
+          department: null,
+          statusFlags: {isUpcoming: true},
         }),
       ).toBeNull();
     });
@@ -618,6 +668,18 @@ describe('ViewAppointmentScreen', () => {
       expect(
         formatAppointmentFormValue({id: 'raw', type: 'text'} as any, 42),
       ).toBe('42');
+      expect(
+        formatAppointmentFormValue(
+          {id: 'story', type: 'richtext'} as any,
+          '<p>Patient is stable &amp; resting</p>',
+        ),
+      ).toBe('Patient is stable & resting');
+      expect(
+        formatAppointmentFormValue(
+          {id: 'story', type: 'richtext'} as any,
+          '<p></p>',
+        ),
+      ).toBe('—');
     });
 
     it('resolves appointment form actions for each form state', () => {
@@ -720,6 +782,51 @@ describe('ViewAppointmentScreen', () => {
           value: 'Taylor',
         },
       ]);
+
+      // No form schema at all, and the submission itself has no `answers`
+      // field (as opposed to an empty object) — exercises the `?? {}`
+      // fallback for the raw-answers path.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {},
+        } as any),
+      ).toEqual([]);
+
+      // An empty-string answer key exercises capitalize()'s empty-text guard.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {
+            answers: {
+              '': 'Untitled value',
+            },
+          },
+        } as any),
+      ).toEqual([{id: '', label: '', value: 'Untitled value'}]);
+
+      // A blank rich-text answer ("<p></p>") formats to '—' and is excluded
+      // from the schema-based rows, but its raw HTML must not leak back in
+      // through the raw-answer fallback — it should resolve to no rows.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {schema: [{id: 'story', label: 'Story', type: 'richtext'}]},
+          submission: {answers: {story: '<p></p>'}},
+        } as any),
+      ).toEqual([]);
+
+      // A non-schema raw answer alongside a blank schema-known rich-text
+      // field still comes through — only the rich-text value is stripped.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {schema: [{id: 'story', label: 'Story', type: 'richtext'}]},
+          submission: {
+            answers: {story: '<p></p>', extra_note: 'Orphaned answer'},
+          },
+        } as any),
+      ).toEqual([
+        {id: 'extra_note', label: 'Extra note', value: 'Orphaned answer'},
+      ]);
     });
   });
 
@@ -740,6 +847,44 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByText('Vaccine Record')).toBeTruthy();
       expect(screen.getByText('File1.pdf')).toBeTruthy();
       expect(screen.getByText('123 Test St')).toBeTruthy();
+    });
+
+    it('shows a loading state and fetches when the appointment is missing', () => {
+      const state = clone(defaultState);
+      state.appointments.items = [];
+
+      renderScreen(state);
+
+      expect(screen.getByText('Loading appointment...')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('header-back'));
+      expect(mockGoBack).toHaveBeenCalled();
+      expect(AppointmentSlice.fetchAppointmentById).toHaveBeenCalledWith({
+        appointmentId: mockAptId,
+      });
+    });
+
+    it('skips appointment document fetch when route appointment id is empty', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: ''},
+      });
+
+      renderScreen();
+
+      expect(screen.getByText('Loading appointment...')).toBeTruthy();
+      expect(
+        require('../../../../src/features/documents/documentSlice')
+          .fetchAppointmentDocuments,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('handles embedded PDF touch callbacks and reschedule sheet close', () => {
+      renderScreen();
+
+      fireEvent.press(screen.getByTestId('pdf-touch-start'));
+      fireEvent.press(screen.getByTestId('pdf-touch-end'));
+      fireEvent.press(screen.getByTestId('rescheduled-close'));
+
+      expect(screen.getByTestId('attachment-viewer')).toBeTruthy();
     });
 
     it('displays fallback business info if business entity is missing', () => {
@@ -846,6 +991,93 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByText('lab-result.pdf')).toBeTruthy();
       expect(screen.getByText('Attachment')).toBeTruthy();
     });
+
+    it('renders provider placeholder text when business and appointment lack identity fields', () => {
+      const state = clone(defaultState);
+      state.businesses.businesses = [];
+      state.appointments.items[0].organisationName = null;
+      state.appointments.items[0].organisationAddress = null;
+
+      renderScreen(state);
+
+      expect(screen.getAllByText('Provider').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Address')).toBeNull();
+      expect(screen.queryByText('123 Test St')).toBeNull();
+    });
+
+    it('derives the department from the appointment type when the service has no specialty', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].serviceId = null;
+      state.appointments.items[0].type = 'Wellness Exam';
+      state.appointments.items[0].serviceName = 'Annual Checkup';
+
+      renderScreen(state);
+
+      expect(screen.getAllByText('Annual Checkup').length).toBeGreaterThan(0);
+      expect(
+        require('../../../../src/features/forms').fetchAppointmentForms,
+      ).toHaveBeenCalledWith(expect.objectContaining({serviceId: null}));
+    });
+
+    it('uses the service name as the department when specialty and type are absent', () => {
+      const state = clone(defaultState);
+      state.businesses.services = [{id: 'srv-1', name: 'Dermatology Service'}];
+      state.appointments.items[0].type = null;
+
+      renderScreen(state);
+
+      expect(screen.getAllByText('Dermatology Service').length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    it('falls back to the appointment service name for the department when the service has no name', () => {
+      const state = clone(defaultState);
+      state.businesses.services = [{id: 'srv-1'}];
+      state.appointments.items[0].type = null;
+      state.appointments.items[0].serviceName = 'Portal Booked Service';
+
+      renderScreen(state);
+
+      expect(
+        screen.getAllByText('Portal Booked Service').length,
+      ).toBeGreaterThan(0);
+    });
+
+    it('renders an em dash service value and empty department when no service info exists', () => {
+      const state = clone(defaultState);
+      state.businesses.services = [{id: 'srv-1'}];
+      state.appointments.items[0].type = null;
+      state.appointments.items[0].serviceName = null;
+
+      renderScreen(state);
+
+      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    });
+
+    it('hides the uploaded documents section when there are no attachments', () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].uploadedFiles = null;
+
+      renderScreen(state);
+
+      expect(screen.queryByText('Your uploaded documents')).toBeNull();
+    });
+
+    it('resolves a null lead photo when the business photo is a dummy while loading', () => {
+      const photoUtils = jest.requireMock(
+        '../../../../src/features/appointments/utils/photoUtils',
+      );
+      photoUtils.isDummyPhoto.mockReturnValue(true);
+
+      const state = clone(defaultState);
+      state.appointments.items = [];
+
+      renderScreen(state);
+      photoUtils.isDummyPhoto.mockReturnValue(false);
+
+      expect(screen.getByText('Loading appointment...')).toBeTruthy();
+    });
   });
 
   // --- Status Variations (Branch Coverage) ---
@@ -894,6 +1126,7 @@ describe('ViewAppointmentScreen', () => {
     it('opens document on press', () => {
       renderScreen();
       fireEvent.press(screen.getByTestId('doc-Vaccine Record'));
+      fireEvent.press(screen.getByTestId('doc-Vaccine Record-press'));
       expect(mockNavigate).toHaveBeenCalledWith(
         'Documents',
         expect.objectContaining({
@@ -1056,6 +1289,21 @@ describe('ViewAppointmentScreen', () => {
       );
     });
 
+    it('formats the too-early message when appointment time is missing', async () => {
+      jest.setSystemTime(new Date('2023-12-25T00:00:00Z'));
+      const state = clone(defaultState);
+      state.appointments.items[0].date = '2023-12-26';
+      state.appointments.items[0].time = undefined;
+
+      renderScreen(state);
+      fireEvent.press(screen.getByTestId('btn-Check in'));
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Too early to check in',
+        expect.any(String),
+      );
+    });
+
     it('uses the singular minute label for one-minute check-in buffers', async () => {
       jest.setSystemTime(new Date('2023-12-25T00:00:00Z'));
       const state = clone(defaultState);
@@ -1136,6 +1384,41 @@ describe('ViewAppointmentScreen', () => {
           expect.anything(),
         );
       });
+    });
+
+    it('shows the Android success toast after check-in', async () => {
+      const originalOS = Platform.OS;
+      Platform.OS = 'android';
+      const toastSpy = jest
+        .spyOn(ToastAndroid, 'show')
+        .mockImplementation(jest.fn());
+
+      try {
+        renderScreen();
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('btn-Check in'));
+        });
+
+        expect(toastSpy).toHaveBeenCalledWith('Checked in', ToastAndroid.SHORT);
+      } finally {
+        Platform.OS = originalOS;
+        toastSpy.mockRestore();
+      }
+    });
+
+    it('checks in without a companion id and skips the companion refresh', async () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].companionId = null;
+
+      renderScreen(state);
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('btn-Check in'));
+      });
+
+      expect(AppointmentSlice.checkInAppointment).toHaveBeenCalled();
+      expect(
+        AppointmentSlice.fetchAppointmentsForCompanion,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -1293,6 +1576,113 @@ describe('ViewAppointmentScreen', () => {
       fireEvent.press(screen.getByTestId('pay-invoice-Consultation'));
       expect(mockOpenPayment).not.toHaveBeenCalled();
     });
+
+    it('omits payment actions for external invoice rows', () => {
+      mockSelectExpenses.mockReturnValue([
+        {...mockExpense1, source: 'external', invoiceId: 'external-1'},
+        mockExpense2,
+      ]);
+
+      render(
+        <Provider store={createTestStore(invoiceState)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      expect(screen.getByTestId('expense-Consultation')).toBeTruthy();
+    });
+
+    it('marks paid invoice rows as paid', () => {
+      mockSelectExpenses.mockReturnValue([
+        {...mockExpense1, status: 'PAID'},
+        mockExpense2,
+      ]);
+
+      render(
+        <Provider store={createTestStore(invoiceState)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      expect(screen.getByTestId('expense-Consultation')).toBeTruthy();
+    });
+
+    it('matches invoices by shared invoice id and dedupes rows without invoice ids', () => {
+      const state = clone(invoiceState);
+      state.appointments.items[0].invoiceId = 'inv-shared';
+      mockSelectExpenses.mockReturnValue([
+        {id: 'e1', title: 'By Apt', appointmentId: mockAptId, source: 'inApp'},
+        {
+          id: 'e2',
+          title: 'By Invoice',
+          appointmentId: 'other-apt',
+          invoiceId: 'inv-shared',
+          source: 'inApp',
+        },
+        {
+          id: 'e3',
+          title: 'Unrelated',
+          appointmentId: 'other-apt',
+          invoiceId: 'nomatch',
+          source: 'inApp',
+        },
+      ]);
+
+      render(
+        <Provider store={createTestStore(state)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      expect(screen.getByTestId('expense-By Apt')).toBeTruthy();
+      expect(screen.getByTestId('expense-By Invoice')).toBeTruthy();
+      expect(screen.queryByTestId('expense-Unrelated')).toBeNull();
+    });
+
+    it('ignores unrelated expenses when the appointment has no invoice id', () => {
+      const state = clone(invoiceState);
+      state.appointments.items[0].invoiceId = null;
+      mockSelectExpenses.mockReturnValue([
+        {
+          id: 'm1',
+          title: 'Match',
+          appointmentId: mockAptId,
+          invoiceId: 'inv-a',
+          source: 'inApp',
+        },
+        {
+          id: 'x1',
+          title: 'Other',
+          appointmentId: 'nope',
+          invoiceId: 'inv-b',
+          source: 'inApp',
+        },
+      ]);
+
+      render(
+        <Provider store={createTestStore(state)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      expect(screen.queryByTestId('expense-Match')).toBeNull();
+      expect(screen.queryByTestId('expense-Other')).toBeNull();
+      expect(screen.queryByText('Invoices')).toBeNull();
+    });
+
+    it('treats a lone appointment invoice id as a single invoice', () => {
+      const state = clone(invoiceState);
+      state.appointments.items[0].invoiceId = 'inv-solo';
+      mockSelectExpenses.mockReturnValue([]);
+
+      render(
+        <Provider store={createTestStore(state)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      expect(screen.queryByText('Invoices')).toBeNull();
+    });
   });
 
   // --- Cancellation & Employee ---
@@ -1330,6 +1720,25 @@ describe('ViewAppointmentScreen', () => {
         );
       });
       consoleSpy.mockRestore();
+    });
+
+    it('cancels an appointment that has no companion id', async () => {
+      const state = clone(defaultState);
+      state.appointments.items[0].companionId = null;
+
+      renderScreen(state);
+      fireEvent.press(screen.getByTestId('btn-Cancel Appointment'));
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('confirm-cancel'));
+      });
+
+      await waitFor(() => {
+        expect(mockGoBack).toHaveBeenCalled();
+      });
+      expect(
+        AppointmentSlice.fetchAppointmentsForCompanion,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -1406,6 +1815,46 @@ describe('ViewAppointmentScreen', () => {
         expect(LinkedBusinessSlice.fetchGooglePlacesImage).toHaveBeenCalledWith(
           'gp-1',
         );
+      });
+    });
+
+    it('treats a dummy business photo as no lead photo', () => {
+      const photoUtils = jest.requireMock(
+        '../../../../src/features/appointments/utils/photoUtils',
+      );
+      photoUtils.isDummyPhoto.mockReturnValue(true);
+
+      const state = clone(defaultState);
+      state.businesses.businesses[0].photo = 'http://dummy.jpg';
+      state.businesses.businesses[0].googlePlacesId = null;
+      state.appointments.items[0].businessGooglePlacesId = null;
+
+      render(
+        <Provider store={createTestStore(state)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+      photoUtils.isDummyPhoto.mockReturnValue(false);
+
+      expect(screen.getByTestId('summary-cards')).toBeTruthy();
+    });
+
+    it('skips setting the fallback photo when the secondary fetch has no photo url', async () => {
+      mockUnwrap
+        .mockRejectedValueOnce(new Error('Fail'))
+        .mockResolvedValueOnce({});
+
+      const state = clone(defaultState);
+      state.businesses.businesses[0].photo = null;
+
+      render(
+        <Provider store={createTestStore(state)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      await waitFor(() => {
+        expect(LinkedBusinessSlice.fetchGooglePlacesImage).toHaveBeenCalled();
       });
     });
   });
@@ -1691,6 +2140,32 @@ describe('ViewAppointmentScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
         screen: 'TaskView',
         params: {taskId: 'task-1'},
+      });
+    });
+
+    it('uses local navigation for linked tasks when parent tab navigation is unavailable', () => {
+      (mockGetParent as jest.Mock).mockReturnValue(null);
+
+      const state = clone(defaultState);
+      state.tasks.items = [
+        {
+          id: 'task-local',
+          appointmentId: mockAptId,
+          title: 'Local navigation task',
+          category: 'FOLLOW_UP',
+          date: '2024-01-02',
+          time: '12:00',
+          status: 'OPEN',
+          details: 'Use stack fallback',
+        },
+      ];
+
+      renderScreen(state);
+
+      fireEvent.press(screen.getByTestId('task-Local navigation task'));
+      expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
+        screen: 'TaskView',
+        params: {taskId: 'task-local'},
       });
     });
 

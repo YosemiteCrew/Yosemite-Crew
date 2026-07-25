@@ -46,7 +46,7 @@ describe('ReadyToggle', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By Dr Tim')).toBeInTheDocument();
+    expect(screen.getByText(/Ready for Discharge · Dr Tim/)).toBeInTheDocument();
     expect(screen.getByText(/Today,/)).toBeInTheDocument();
   });
 
@@ -58,7 +58,7 @@ describe('ReadyToggle', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By Clinical team')).toBeInTheDocument();
+    expect(screen.getByText(/Ready for Billing · Clinical team/)).toBeInTheDocument();
     expect(screen.getByText(/Jun 18,/)).toBeInTheDocument();
   });
 
@@ -113,8 +113,8 @@ describe('WorkspaceHeader', () => {
         onQuickActions={onQuickActions}
       />
     );
-    // Title uses the companion's first name only.
-    expect(screen.getByText(/Gigi’s Appointment/)).toBeInTheDocument();
+    // Title is the bare companion first name (design's compact identity row).
+    expect(screen.getByRole('heading', { name: 'Gigi' })).toBeInTheDocument();
     expect(screen.getByText('Needs muzzle')).toBeInTheDocument();
     expect(screen.getByTestId('workspace-alert-strip')).toHaveClass('overflow-x-auto');
     fireEvent.click(screen.getByRole('button', { name: /go back/i }));
@@ -209,6 +209,33 @@ describe('WorkspaceHeader', () => {
     );
     expect(screen.getByText('Emergency')).toBeInTheDocument();
   });
+
+  it('renders the visit timer in a resting state when no start is available', () => {
+    render(
+      <WorkspaceHeader
+        appointment={headerAppointment}
+        companionName="Gigi"
+        alerts={[]}
+        onBack={jest.fn()}
+        onQuickActions={jest.fn()}
+      />
+    );
+    expect(screen.getByTestId('visit-timer')).toHaveTextContent('Not started');
+  });
+
+  it('runs the visit timer from a supplied start', () => {
+    render(
+      <WorkspaceHeader
+        appointment={headerAppointment}
+        companionName="Gigi"
+        alerts={[]}
+        onBack={jest.fn()}
+        onQuickActions={jest.fn()}
+        visitStartAt={new Date(Date.now() - 5000)}
+      />
+    );
+    expect(screen.getByTestId('visit-timer')).toHaveAttribute('data-state', 'running');
+  });
 });
 
 describe('CompanionContextCard', () => {
@@ -254,7 +281,8 @@ describe('ReadyToggle stamp formatting', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By A')).toBeInTheDocument();
+    // The stamp is appended inline after the label.
+    expect(screen.getByText(/Ready for Billing · A/)).toBeInTheDocument();
     // A past date is rendered as "<Mon> <day>, <time>" — not the "Today," form.
     expect(screen.getByText(/Jun 15,/)).toBeInTheDocument();
     expect(screen.queryByText(/Today,/)).not.toBeInTheDocument();
@@ -268,7 +296,7 @@ describe('ReadyToggle stamp formatting', () => {
         onToggle={jest.fn()}
       />
     );
-    expect(screen.getByText('By A')).toBeInTheDocument();
+    expect(screen.getByText('Ready for Billing · A')).toBeInTheDocument();
   });
 });
 
@@ -290,7 +318,7 @@ describe('WorkspaceMetaBar', () => {
   it('renders consultation type for outpatient and fires Save & Next', () => {
     const props = baseProps('OUTPATIENT');
     render(<WorkspaceMetaBar {...props} />);
-    expect(screen.getByText('Ready for Billing')).toBeInTheDocument();
+    expect(screen.getByText('Ready for billing')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Diagnostics'));
     expect(props.onSaveAndNext).toHaveBeenCalled();
   });
@@ -314,12 +342,12 @@ describe('WorkspaceMetaBar', () => {
   it('labels the support staff field and keeps the lead field', () => {
     const props = baseProps('INPATIENT');
     render(<WorkspaceMetaBar {...props} />);
-    expect(screen.getByText('Assigned Lead')).toBeInTheDocument();
-    expect(screen.getByText('Support Staff')).toBeInTheDocument();
+    expect(screen.getByText('Assigned lead')).toBeInTheDocument();
+    expect(screen.getByText('Support staff')).toBeInTheDocument();
     expect(screen.queryByText('Assigned Nurse')).not.toBeInTheDocument();
     // Inpatient still surfaces the Ready toggles and the advance button.
-    expect(screen.getByText('Ready for Billing')).toBeInTheDocument();
-    expect(screen.getByText('Ready for Discharge')).toBeInTheDocument();
+    expect(screen.getByText('Ready for billing')).toBeInTheDocument();
+    expect(screen.getByText('Ready for discharge')).toBeInTheDocument();
   });
 
   it('renders lead and support profile photos when appointment metadata provides them', () => {
@@ -374,7 +402,7 @@ describe('WorkspaceMetaBar', () => {
       />
     );
 
-    expect(screen.getByText('Ready for Discharge')).toBeInTheDocument();
+    expect(screen.getByText('Ready for discharge')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^discharge$/i }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });

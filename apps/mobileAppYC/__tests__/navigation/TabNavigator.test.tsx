@@ -29,7 +29,12 @@ jest.mock('@react-navigation/bottom-tabs', () => {
 
   return {
     createBottomTabNavigator: () => ({
-      Navigator: ({children}: any) => <>{children}</>,
+      Navigator: ({children, tabBar}: any) => (
+        <>
+          {tabBar?.({state: {}, descriptors: {}, navigation: {}})}
+          {children}
+        </>
+      ),
       Screen: ({listeners, name}: any) => {
         const onPress = (e: any) => {
           if (listeners) {
@@ -167,6 +172,28 @@ describe('TabNavigator', () => {
       );
     });
 
+    it('pops to top without a target when nested stack has no key', () => {
+      mockGetState.mockReturnValue({
+        index: 0,
+        routes: [
+          {
+            name: 'HomeStack',
+            state: {
+              index: 1,
+              routes: [{name: 'Home'}, {name: 'Nested'}],
+            },
+          },
+        ],
+      });
+      const {getByTestId} = render(<TabNavigator />);
+      const preventDefault = jest.fn();
+
+      fireEvent(getByTestId('tab-HomeStack'), 'touchEnd', {preventDefault});
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledWith({type: 'POP_TO_TOP'});
+    });
+
     it('navigates to initial screen if tab focused, stack is shallow but wrong screen', () => {
       mockGetState.mockReturnValue({
         index: 0,
@@ -189,6 +216,31 @@ describe('TabNavigator', () => {
 
       expect(preventDefault).toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalledWith('Tasks', {screen: 'TasksMain'});
+    });
+
+    it('navigates appointments back to its initial screen when shallow but wrong screen', () => {
+      mockGetState.mockReturnValue({
+        index: 0,
+        routes: [
+          {
+            name: 'Appointments',
+            state: {
+              index: 0,
+              routes: [{name: 'PaymentInvoice'}],
+            },
+          },
+        ],
+      });
+
+      const {getByTestId} = render(<TabNavigator />);
+      const preventDefault = jest.fn();
+
+      fireEvent(getByTestId('tab-Appointments'), 'touchEnd', {preventDefault});
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'MyAppointments',
+      });
     });
 
     it('does nothing if navigating to same tab and already at correct root', () => {
@@ -261,6 +313,55 @@ describe('TabNavigator', () => {
       expect(preventDefault).not.toHaveBeenCalled();
     });
 
+    it('allows guarded tabs when there are no companions', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(
+        (selector: any) => {
+          const state = {
+            companion: {companions: [], selectedCompanionId: null},
+            coParent: {},
+          };
+          if (selector === selectSelectedCompanionId) {
+            return null;
+          }
+          try {
+            return selector(state);
+          } catch (_error) {
+            return null;
+          }
+        },
+      );
+
+      const {getByTestId} = render(<TabNavigator />);
+      const preventDefault = jest.fn();
+
+      fireEvent(getByTestId('tab-Documents'), 'touchEnd', {preventDefault});
+
+      expect(preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('allows guarded tabs when companion state is missing', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(
+        (selector: any) => {
+          const state = {coParent: {}};
+          if (selector === selectSelectedCompanionId) {
+            return null;
+          }
+          try {
+            return selector(state);
+          } catch (_error) {
+            return null;
+          }
+        },
+      );
+
+      const {getByTestId} = render(<TabNavigator />);
+      const preventDefault = jest.fn();
+
+      fireEvent(getByTestId('tab-Documents'), 'touchEnd', {preventDefault});
+
+      expect(preventDefault).not.toHaveBeenCalled();
+    });
+
     it('allows navigation if permission is granted', () => {
       mockStateWithPermissions({appointments: true}, 'SECONDARY');
       const {getByTestId} = render(<TabNavigator />);
@@ -302,6 +403,42 @@ describe('TabNavigator', () => {
 
       expect(preventDefault).toHaveBeenCalled();
       expect(ToastAndroid.show).toHaveBeenCalled();
+    });
+
+    it('blocks documents when no permissions are available', () => {
+      Platform.OS = 'ios';
+      (useSelector as unknown as jest.Mock).mockImplementation(
+        (selector: any) => {
+          const state = {
+            companion: {companions: [{id: 'c1'}], selectedCompanionId: 'c1'},
+            coParent: {
+              accessByCompanionId: {},
+              defaultAccess: null,
+              lastFetchedRole: 'SECONDARY',
+              lastFetchedPermissions: null,
+            },
+          };
+          if (selector === selectSelectedCompanionId) {
+            return 'c1';
+          }
+          try {
+            return selector(state);
+          } catch (_error) {
+            return null;
+          }
+        },
+      );
+
+      const {getByTestId} = render(<TabNavigator />);
+      const preventDefault = jest.fn();
+
+      fireEvent(getByTestId('tab-Documents'), 'touchEnd', {preventDefault});
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Permission needed',
+        expect.stringContaining("don't have access to documents"),
+      );
     });
   });
 });

@@ -1,5 +1,6 @@
 import React, {useMemo, useState} from 'react';
-import {View, Text, TouchableOpacity, Image, StyleSheet} from 'react-native';
+import {View, Text, Image, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {Input} from '@/shared/components/common/Input/Input';
@@ -45,12 +46,16 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
     setEditing(false);
   };
 
-  const displayValue =
-    value && value.trim().length > 0 ? value : '—';
+  const displayValue = value && value.trim().length > 0 ? value : '—';
 
   if (!editing) {
     return (
-      <TouchableOpacity style={styles.row} activeOpacity={0.8} onPress={startEdit}>
+      <PressableOpacity
+        style={styles.row}
+        activeOpacity={0.8}
+        onPress={startEdit}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}, ${displayValue}`}>
         <Text style={styles.label}>{label}</Text>
         <View style={styles.valueContainer}>
           <Text style={styles.value} numberOfLines={1}>
@@ -58,7 +63,7 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
           </Text>
           <Image source={Images.rightArrow} style={styles.rightArrow} />
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   }
 
@@ -160,7 +165,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.secondary,
     },
     saveButtonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.paragraphBold,
     },
   });

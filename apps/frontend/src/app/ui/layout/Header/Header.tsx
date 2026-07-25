@@ -13,15 +13,16 @@ import './Header.css';
 const getHeaderDockThreshold = () => Math.round(globalThis.window.innerHeight * 0.6);
 
 const Header = ({ user = false }: { user?: boolean }) => {
-  const [dockPublicHeader, setDockPublicHeader] = useState(false);
-  const [scrollBehaviorReady, setScrollBehaviorReady] = useState(false);
+  const [dockPublicHeader, setDockPublicHeader] = useState(() =>
+    globalThis.window === undefined
+      ? false
+      : Math.max(globalThis.window.scrollY, 0) >= getHeaderDockThreshold()
+  );
+  const [hasMounted] = useState(true);
   const tickingRef = useRef(false);
 
   useEffect(() => {
-    if (user) {
-      setScrollBehaviorReady(false);
-      return;
-    }
+    if (user) return;
 
     const updateHeaderState = () => {
       const currentScrollY = Math.max(globalThis.window.scrollY, 0);
@@ -35,8 +36,6 @@ const Header = ({ user = false }: { user?: boolean }) => {
       globalThis.window.requestAnimationFrame(updateHeaderState);
     };
 
-    updateHeaderState();
-    setScrollBehaviorReady(true);
     globalThis.window.addEventListener('scroll', handleScroll, { passive: true });
     globalThis.window.addEventListener('resize', handleScroll);
 
@@ -46,6 +45,7 @@ const Header = ({ user = false }: { user?: boolean }) => {
     };
   }, [user]);
 
+  const scrollBehaviorReady = hasMounted && !user;
   const publicHeaderDocked = scrollBehaviorReady && dockPublicHeader;
   const headerClassName = [
     'yc-liquid-header-shell flex items-center justify-center w-full',

@@ -1,5 +1,6 @@
 import React, {useCallback, useMemo} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, FlatList} from 'react-native';
+import {View, Text, StyleSheet, FlatList} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import type {ListRenderItemInfo} from 'react-native';
 import {useTheme} from '@/hooks';
 import {
@@ -15,20 +16,23 @@ type CalendarDayProps = {
 };
 
 const CalendarDay = React.memo(({item, onChange, styles}: CalendarDayProps) => (
-  <TouchableOpacity
+  <PressableOpacity
     style={[
       styles.day,
       item.isSelected && styles.dayActive,
       item.isToday && styles.dayToday,
     ]}
-    onPress={() => onChange(item.date)}>
+    onPress={() => onChange(item.date)}
+    accessibilityRole="radio"
+    accessibilityState={{selected: item.isSelected}}
+    accessibilityLabel={`${item.dayName} ${item.dayNumber}`}>
     <Text style={[styles.dayText, item.isSelected && styles.dayTextActive]}>
       {item.dayName}
     </Text>
     <Text style={[styles.dayNum, item.isSelected && styles.dayTextActive]}>
       {item.dayNumber}
     </Text>
-  </TouchableOpacity>
+  </PressableOpacity>
 ));
 
 export const CalendarRow: React.FC<{
@@ -55,13 +59,19 @@ export const CalendarRow: React.FC<{
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => shift(-7)}>
+        <PressableOpacity
+          onPress={() => shift(-7)}
+          accessibilityRole="button"
+          accessibilityLabel="Previous week">
           <Text style={styles.nav}>{'<'}</Text>
-        </TouchableOpacity>
+        </PressableOpacity>
         <Text style={styles.month}>{formatMonthYear(selectedDate)}</Text>
-        <TouchableOpacity onPress={() => shift(7)}>
+        <PressableOpacity
+          onPress={() => shift(7)}
+          accessibilityRole="button"
+          accessibilityLabel="Next week">
           <Text style={styles.nav}>{'>'}</Text>
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
       <FlatList
         horizontal

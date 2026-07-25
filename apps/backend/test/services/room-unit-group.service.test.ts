@@ -10,6 +10,7 @@ jest.mock("../../src/config/prisma", () => ({
     roomUnitGroup: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -169,7 +170,7 @@ describe("RoomUnitGroupService", () => {
   });
 
   it("keeps the existing unit count when an invalid update value is supplied", async () => {
-    mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue({
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValue({
       id: "group_1",
       organisationId: "org_1",
       roomId: "room_1",
@@ -196,7 +197,7 @@ describe("RoomUnitGroupService", () => {
       updatedAt: new Date(),
     });
 
-    const result = await RoomUnitGroupService.update("group_1", {
+    const result = await RoomUnitGroupService.update("group_1", "org_1", {
       unitCount: 2.5,
     });
 
@@ -213,6 +214,139 @@ describe("RoomUnitGroupService", () => {
       },
     });
     expect(result.unitCount).toBe(2);
+  });
+
+  it("allows deactivating a group after its room's type no longer supports units", async () => {
+    // The room's type has since changed away from a unit-capable type (e.g.
+    // INPATIENT -> SURGERY) - the group isn't moving rooms, so cleanup must
+    // still be able to deactivate it instead of 409ing forever.
+    mockedPrisma.organisationRoom.findUnique.mockResolvedValue({
+      id: "room_1",
+      organisationId: "org_1",
+      type: "SURGERY",
+    });
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.roomUnitGroup.update.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await RoomUnitGroupService.update("group_1", "org_1", {
+      isActive: false,
+    });
+
+    expect(result.isActive).toBe(false);
+  });
+
+  it("still rejects reactivating a group in a room that no longer supports units", async () => {
+    // The deactivation exemption must not extend to any other same-room
+    // update - reactivating (or editing while active) would recreate the
+    // exact invalid state create/move already reject.
+    mockedPrisma.organisationRoom.findUnique.mockResolvedValue({
+      id: "room_1",
+      organisationId: "org_1",
+      type: "SURGERY",
+    });
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      RoomUnitGroupService.update("group_1", "org_1", { isActive: true }),
+    ).rejects.toMatchObject({
+      message:
+        "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
+      statusCode: 409,
+    });
+  });
+
+  it("still rejects a same-room, non-deactivating edit when the room no longer supports units", async () => {
+    mockedPrisma.organisationRoom.findUnique.mockResolvedValue({
+      id: "room_1",
+      organisationId: "org_1",
+      type: "SURGERY",
+    });
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      RoomUnitGroupService.update("group_1", "org_1", { name: "Renamed" }),
+    ).rejects.toMatchObject({
+      message:
+        "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
+      statusCode: 409,
+    });
+  });
+
+  it("still rejects moving a group into a room that does not support units", async () => {
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.organisationRoom.findUnique.mockResolvedValueOnce({
+      id: "room_2",
+      organisationId: "org_1",
+      type: "EXAM_ROOM",
+    });
+
+    await expect(
+      RoomUnitGroupService.update("group_1", "org_1", { roomId: "room_2" }),
+    ).rejects.toMatchObject({
+      message:
+        "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
+      statusCode: 409,
+    });
   });
 
   it("deletes a room unit group within the same organisation", async () => {
@@ -281,8 +415,78 @@ describe("RoomUnitGroupService", () => {
     });
   });
 
+  it("does not update a group owned by another organisation", async () => {
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      RoomUnitGroupService.update("group_1", "org_2", { name: "Taken over" }),
+    ).rejects.toMatchObject({
+      message: "Room unit group not found.",
+      statusCode: 404,
+    });
+
+    expect(mockedPrisma.roomUnitGroup.findFirst).toHaveBeenCalledWith({
+      where: { id: "group_1", organisationId: "org_2" },
+    });
+    expect(mockedPrisma.roomUnitGroup.update).not.toHaveBeenCalled();
+  });
+
+  it("never reassigns the organisation of an updated group", async () => {
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValueOnce({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockedPrisma.roomUnitGroup.update.mockResolvedValue({
+      id: "group_1",
+      organisationId: "org_1",
+      roomId: "room_1",
+      name: "Dog ward",
+      size: "Medium",
+      unitCount: 2,
+      speciesConstraints: ["dog"],
+      capabilities: ["oxygen"],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await RoomUnitGroupService.update("group_1", "org_1", {
+      organisationId: "org_2",
+      name: "Dog ward",
+    });
+
+    expect(mockedPrisma.roomUnitGroup.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "group_1" },
+        data: expect.not.objectContaining({
+          organisationId: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("requires an organisation to list groups", async () => {
+    await expect(
+      RoomUnitGroupService.list({ organisationId: "" }),
+    ).rejects.toMatchObject({
+      message: "organisationId is required.",
+      statusCode: 400,
+    });
+
+    expect(mockedPrisma.roomUnitGroup.findMany).not.toHaveBeenCalled();
+  });
+
   it("rejects room org mismatches on update and delete", async () => {
-    mockedPrisma.roomUnitGroup.findUnique.mockResolvedValueOnce({
+    mockedPrisma.roomUnitGroup.findFirst.mockResolvedValueOnce({
       id: "group_1",
       organisationId: "org_1",
       roomId: "room_1",
@@ -302,7 +506,7 @@ describe("RoomUnitGroupService", () => {
     });
 
     await expect(
-      RoomUnitGroupService.update("group_1", { roomId: "room_1" }),
+      RoomUnitGroupService.update("group_1", "org_1", { roomId: "room_1" }),
     ).rejects.toMatchObject({
       message: "Room organisation mismatch.",
       statusCode: 409,

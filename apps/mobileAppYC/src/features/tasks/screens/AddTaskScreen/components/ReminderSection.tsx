@@ -1,11 +1,16 @@
 import React from 'react';
-import {View, Text, Switch, TouchableOpacity} from 'react-native';
+import {View, Text} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {Toggle} from '@/shared/components/common';
 import {createFormStyles} from '@/shared/utils/formStyles';
 import type {TaskFormData, ReminderOption} from '@/features/tasks/types';
 
 interface ReminderSectionProps {
   formData: TaskFormData;
-  updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
+  updateField: <K extends keyof TaskFormData>(
+    field: K,
+    value: TaskFormData[K],
+  ) => void;
   reminderOptions: ReminderOption[];
   theme: any;
 }
@@ -22,11 +27,10 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
     <>
       <View style={formStyles.toggleSection}>
         <Text style={formStyles.toggleLabel}>Reminder</Text>
-        <Switch
+        <Toggle
           value={formData.reminderEnabled}
           onValueChange={value => updateField('reminderEnabled', value)}
-          trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
-          thumbColor={theme.colors.white}
+          accessibilityLabel="Reminder"
         />
       </View>
 
@@ -35,7 +39,7 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
           {reminderOptions.map(option => {
             const isSelected = formData.reminderOptions === option;
             return (
-              <TouchableOpacity
+              <PressableOpacity
                 key={option}
                 style={[
                   formStyles.reminderPill,
@@ -47,7 +51,10 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
                   } else {
                     updateField('reminderOptions', option);
                   }
-                }}>
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{selected: isSelected}}
+                accessibilityLabel={option}>
                 <Text
                   style={[
                     formStyles.reminderPillText,
@@ -55,7 +62,7 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
                   ]}>
                   {option}
                 </Text>
-              </TouchableOpacity>
+              </PressableOpacity>
             );
           })}
         </View>

@@ -40,6 +40,9 @@ jest.mock('@/features/tasks/selectors', () => ({
   selectRecentTasksByCategory: jest.fn(),
   selectTaskCountByCategory: jest.fn(),
   selectTasksByCompanion: jest.fn(),
+  taskOccursOnDate: jest.fn((task: any, dateStr: string) =>
+    task.frequency === 'daily' ? dateStr >= task.date : task.date === dateStr,
+  ),
 }));
 
 jest.mock('@/features/auth/selectors', () => ({
@@ -93,6 +96,8 @@ jest.mock('@/features/tasks/components', () => {
         onPressEdit={props.onPressEdit}
         onPressComplete={props.onPressComplete}
         onPressTakeObservationalTool={props.onPressTakeObservationalTool}
+        showEditAction={props.showEditAction}
+        showCompleteButton={props.showCompleteButton}
       />
     ),
   };
@@ -147,6 +152,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
   getTaskCardMeta: jest.fn((task: any, _authUser: any) => ({
     isPending: task.status === 'pending',
     isCompleted: task.status === 'completed',
+    isCancelled: task.status === 'cancelled',
     assignedToData: undefined,
     isObservationalToolTask:
       task.details?.taskType === 'take-observational-tool',
@@ -198,6 +204,9 @@ jest.mock('@/features/tasks/components/shared/TaskMonthDateSelector', () => {
 
       return (
         <View testID="task-month-date-selector">
+          <Text testID="dates-with-tasks-count">
+            {props.datesWithTasks.size}
+          </Text>
           <FlatList
             data={dates}
             renderItem={({item}: any) => {
@@ -404,6 +413,54 @@ describe('TasksMainScreen', () => {
     expect(getByText('No tasks yet')).toBeTruthy();
   });
 
+  it('shows the weekday name instead of "Today" when selectedDate is not today', () => {
+    const {
+      useTaskDateSelection,
+    } = require('@/features/tasks/hooks/useTaskDateSelection');
+    useTaskDateSelection.mockReturnValue({
+      selectedDate: new Date('2023-01-17T12:00:00Z'), // system time is Jan 15
+      currentMonth: new Date('2023-01-01T12:00:00Z'),
+      handleDateSelect: mockHandleDateSelect,
+      handleMonthChange: mockHandleMonthChange,
+      setCurrentMonth: mockSetCurrentMonth,
+    });
+
+    // TaskProgressSummary (which renders the weekday/"Today" label) only
+    // renders when there's at least one task, so populate one.
+    const {
+      selectRecentTasksByCategory,
+      selectTaskCountByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const mockTask = {
+      id: 't1',
+      title: 'Walk',
+      category: 'health',
+      status: 'pending',
+      date: '2023-01-17',
+      time: '10:00',
+      companionId: 'c1',
+    };
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+    selectTaskCountByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'health') return (_state: any) => 1;
+        return (_state: any) => 0;
+      },
+    );
+
+    const {getByText, queryByText} = render(<TasksMainScreen />);
+
+    expect(queryByText(/^Today,/)).toBeNull();
+    expect(getByText('Tuesday, 0 of 1 done')).toBeTruthy();
+  });
+
   it('fetches tasks on focus if not hydrated', () => {
     const {selectHasHydratedCompanion} = require('@/features/tasks/selectors');
     selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
@@ -448,6 +505,73 @@ describe('TasksMainScreen', () => {
     expect(mockSetParams).toHaveBeenCalledWith({autoSelectDate: undefined});
   });
 
+  it('falls back to native Date parsing for a non YYYY-MM-DD autoSelectDate', () => {
+    (useRoute as unknown as jest.Mock).mockReturnValue({
+      params: {autoSelectDate: '2026-04-10T00:00:00.000Z'},
+    });
+
+    render(<TasksMainScreen />);
+
+    expect(mockHandleDateSelect).toHaveBeenCalledWith(expect.any(Date));
+    const selectedDateArg = mockHandleDateSelect.mock.calls.find(
+      call => call[0] instanceof Date,
+    )?.[0] as Date | undefined;
+    expect(selectedDateArg?.getUTCFullYear()).toBe(2026);
+  });
+
+  it('ignores an autoSelectDate that is not a valid date string', () => {
+    (useRoute as unknown as jest.Mock).mockReturnValue({
+      params: {autoSelectDate: 'not-a-real-date'},
+    });
+
+    render(<TasksMainScreen />);
+
+    expect(mockHandleDateSelect).not.toHaveBeenCalled();
+    expect(mockSetParams).not.toHaveBeenCalled();
+  });
+
+  it('computes recurring task occurrences across the visible month', () => {
+    const {selectTasksByCompanion} = require('@/features/tasks/selectors');
+    const dailyTask = {
+      id: 'daily-1',
+      title: 'Meds',
+      category: 'health',
+      status: 'pending',
+      date: '2023-01-01',
+      time: '08:00',
+      companionId: 'c1',
+      frequency: 'daily',
+    };
+    selectTasksByCompanion.mockReturnValue((_state: any) => [dailyTask]);
+
+    const {getByTestId} = render(<TasksMainScreen />);
+
+    // currentMonth is fixed at 2023-01-01 (31 days) in this suite's setup;
+    // a daily task starting on the 1st occurs on every day of the month.
+    expect(getByTestId('dates-with-tasks-count').props.children).toBe(31);
+  });
+
+  it('excludes days a recurring task does not occur on', () => {
+    const {selectTasksByCompanion} = require('@/features/tasks/selectors');
+    const weeklyTask = {
+      id: 'weekly-1',
+      title: 'Weigh-in',
+      category: 'health',
+      status: 'pending',
+      date: '2023-01-15',
+      time: '08:00',
+      companionId: 'c1',
+      frequency: 'weekly',
+    };
+    selectTasksByCompanion.mockReturnValue((_state: any) => [weeklyTask]);
+
+    const {getByTestId} = render(<TasksMainScreen />);
+
+    // The mocked taskOccursOnDate only matches non-daily tasks on their exact
+    // date, so only 1 of the 31 days in the visible month should be marked.
+    expect(getByTestId('dates-with-tasks-count').props.children).toBe(1);
+  });
+
   it('renders task cards when tasks exist for a specific category', () => {
     const {
       selectRecentTasksByCategory,
@@ -489,6 +613,52 @@ describe('TasksMainScreen', () => {
     expect(getByText('View More')).toBeTruthy();
   });
 
+  it('falls back to no avatar for a companion with no photo, and forwards an assignee avatar when present', () => {
+    const {
+      selectRecentTasksByCategory,
+      selectTaskCountByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const {getTaskCardMeta} = require('@/features/tasks/utils/taskCardHelpers');
+
+    // c2 has no profileImage in mockCompanions, exercising the `?? undefined` fallback.
+    const mockTask = {
+      id: 't2',
+      title: 'Groom',
+      category: 'hygiene',
+      status: 'pending',
+      date: '2023-01-15',
+      time: '10:00',
+      companionId: 'c2',
+      assignedTo: 'u1',
+      subcategory: 'Nail trim',
+    };
+
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'hygiene') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+    selectTaskCountByCategory.mockImplementation(
+      (_id: string, _d: Date, category: string) => {
+        if (category === 'hygiene') return (_state: any) => 1;
+        return (_state: any) => 0;
+      },
+    );
+    getTaskCardMeta.mockReturnValueOnce({
+      isPending: true,
+      isCompleted: false,
+      assignedToData: {avatar: 'assignee-avatar', name: 'Owner'},
+      isObservationalToolTask: false,
+    });
+
+    const {getByTestId} = render(<TasksMainScreen />);
+
+    expect(getByTestId('task-card-Groom')).toBeTruthy();
+  });
+
   it('dispatches markTaskStatus when complete button is pressed', () => {
     const {
       selectRecentTasksByCategory,
@@ -520,6 +690,68 @@ describe('TasksMainScreen', () => {
     fireEvent(card, 'pressComplete');
 
     expect(mockHandleCompleteTask).toHaveBeenCalledWith('t1');
+  });
+
+  it('navigates to view/edit task when the card view/edit actions are pressed', () => {
+    const {
+      selectRecentTasksByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const mockTask = {
+      id: 't1',
+      title: 'Task 1',
+      category: 'health',
+      status: 'pending',
+      companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
+    };
+
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: any, _d: any, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+
+    const {getByTestId} = render(<TasksMainScreen />);
+    const card = getByTestId('task-card-Task 1');
+
+    fireEvent(card, 'pressView');
+    expect(mockHandleViewTask).toHaveBeenCalledWith('t1');
+
+    fireEvent(card, 'pressEdit');
+    expect(mockHandleEditTask).toHaveBeenCalledWith('t1');
+  });
+
+  it('does not show the edit action for a cancelled task', () => {
+    const {
+      selectRecentTasksByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const mockTask = {
+      id: 't1',
+      title: 'Cancelled Task',
+      category: 'health',
+      status: 'cancelled',
+      companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
+    };
+
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: any, _d: any, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+
+    const {getByTestId} = render(<TasksMainScreen />);
+    const card = getByTestId('task-card-Cancelled Task');
+
+    expect(card.props.showEditAction).toBe(false);
   });
 
   it('navigates to Observational Tool if task type matches', () => {
@@ -661,6 +893,41 @@ describe('TasksMainScreen', () => {
     fireEvent(selector, 'select', 'c2');
 
     expect(setSelectedCompanion).toHaveBeenCalledWith('c2');
+  });
+
+  it('does not dispatch a companion change when the selector reports no selection', () => {
+    const {getByTestId} = render(<TasksMainScreen />);
+    const selector = getByTestId('companion-selector');
+
+    fireEvent(selector, 'select', null);
+
+    expect(setSelectedCompanion).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a generic companion name in the empty state when the selected companion is not found', () => {
+    (useSelector as unknown as jest.Mock).mockImplementation(cb => {
+      try {
+        const res = cb({
+          companion: {
+            companions: mockCompanions,
+            selectedCompanionId: 'unknown-id',
+          },
+        });
+        if (res !== undefined) return res;
+      } catch {}
+      if (typeof cb === 'function') {
+        try {
+          return cb();
+        } catch {
+          return undefined;
+        }
+      }
+      return undefined;
+    });
+
+    const {getByText} = render(<TasksMainScreen />);
+
+    expect(getByText('Start by adding a task for your companion')).toBeTruthy();
   });
 
   it('handles scrollToIndex failure in FlatList silently', () => {

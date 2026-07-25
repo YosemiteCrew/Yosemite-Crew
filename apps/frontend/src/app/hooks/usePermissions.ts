@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useOrgStore } from '@/app/stores/orgStore';
 import type { Permission } from '@/app/lib/permissions';
+import { resolveMembershipPermissions } from '@/app/lib/routePermissions';
 
 type CanInput =
   | Permission
@@ -28,8 +29,12 @@ export const usePermissions = (explicitOrgId?: string | null): PermissionCheckRe
 
   const permissions = useMemo<string[]>(() => {
     if (!activeOrgId) return [];
-    const membership = membershipsByOrgId[activeOrgId];
-    return membership?.effectivePermissions ?? [];
+    // The stored effectivePermissions array is a snapshot written at save time,
+    // so a membership written before a permission joined the role table keeps a
+    // stale set and every PermissionGate silently hides features the role owns
+    // (audit trail, analytics). The backend already recomputes from the role on
+    // each request, so deriving here keeps the two sides in agreement.
+    return resolveMembershipPermissions(membershipsByOrgId[activeOrgId]);
   }, [activeOrgId, membershipsByOrgId]);
 
   const hasPermission = useCallback(

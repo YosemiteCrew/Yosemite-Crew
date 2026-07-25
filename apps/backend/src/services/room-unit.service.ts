@@ -46,9 +46,12 @@ type RoomUnitDelegate = {
     };
   }): Promise<RoomUnitRow>;
   findUnique(args: { where: { id: string } }): Promise<RoomUnitRow | null>;
+  findFirst(args: {
+    where: { id: string; organisationId: string };
+  }): Promise<RoomUnitRow | null>;
   findMany(args: {
     where: {
-      organisationId?: string;
+      organisationId: string;
       roomId?: string;
       unitGroupId?: string;
       isActive?: boolean;
@@ -129,11 +132,8 @@ const getRoomUnitDelegate = (): RoomUnitDelegate =>
   (prisma as unknown as { roomUnit: RoomUnitDelegate }).roomUnit;
 
 const getOccupiedUnitIds = async (
-  organisationId?: string,
-): Promise<Set<string> | undefined> => {
-  const normalizedOrganisationId = normalizeOptionalString(organisationId);
-  if (!normalizedOrganisationId) return undefined;
-
+  organisationId: string,
+): Promise<Set<string>> => {
   const admissions = await (
     prisma as unknown as {
       admission: {
@@ -149,7 +149,7 @@ const getOccupiedUnitIds = async (
     }
   ).admission.findMany({
     where: {
-      organisationId: normalizedOrganisationId,
+      organisationId,
       dischargedAt: null,
       unitId: { not: null },
     },
@@ -163,7 +163,10 @@ const getOccupiedUnitIds = async (
   );
 };
 
-const assertRoomExists = async (roomId: string, organisationId: string) => {
+const assertRoomBelongsToOrganisation = async (
+  roomId: string,
+  organisationId: string,
+): Promise<RoomRow> => {
   const room = (await prisma.organisationRoom.findUnique({
     where: { id: roomId },
     select: { id: true, organisationId: true, type: true },
@@ -177,12 +180,24 @@ const assertRoomExists = async (roomId: string, organisationId: string) => {
     throw new RoomUnitServiceError("Room organisation mismatch.", 409);
   }
 
+  return room;
+};
+
+const assertRoomSupportsUnits = (room: RoomRow) => {
   if (!roomTypeSupportsUnits(room.type)) {
     throw new RoomUnitServiceError(
       "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
       409,
     );
   }
+};
+
+// Used by create (and by update when actually moving a unit to a different
+// room) - a brand-new unit-room association must target a room that currently
+// supports units.
+const assertRoomExists = async (roomId: string, organisationId: string) => {
+  const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
+  assertRoomSupportsUnits(room);
 };
 
 const assertRoomUnitGroupExists = async (
@@ -245,10 +260,15 @@ export const RoomUnitService = {
     return toDomain(created);
   },
 
-  async update(id: string, input: Partial<RoomUnit>): Promise<RoomUnit> {
+  async update(
+    id: string,
+    organisationIdInput: string,
+    input: Partial<RoomUnit>,
+  ): Promise<RoomUnit> {
     const unitId = requireString(id, "unitId");
-    const current = await getRoomUnitDelegate().findUnique({
-      where: { id: unitId },
+    const organisationId = requireString(organisationIdInput, "organisationId");
+    const current = await getRoomUnitDelegate().findFirst({
+      where: { id: unitId, organisationId },
     });
 
     if (!current) {
@@ -260,8 +280,18 @@ export const RoomUnitService = {
       input.unitGroupId === undefined
         ? (current.unitGroupId ?? undefined)
         : (normalizeOptionalString(input.unitGroupId) ?? undefined);
-    const organisationId = current.organisationId;
-    await assertRoomExists(roomId, organisationId);
+    const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
+    // Only exempt a same-room *deactivation* from the room-type check -
+    // otherwise a type change away from a unit-capable room could never be
+    // cleaned up (every cleanup request would 409). Any other same-room
+    // update (reactivating, renaming, resizing) must still be rejected while
+    // the room doesn't support units, or it recreates the exact invalid
+    // state - an active unit on a non-unit-capable room - that create and
+    // move operations are meant to prevent.
+    const isDeactivating = input.isActive === false;
+    if (roomId !== current.roomId || !isDeactivating) {
+      assertRoomSupportsUnits(room);
+    }
     if (unitGroupId) {
       await assertRoomUnitGroupExists(unitGroupId, roomId, organisationId);
     }
@@ -292,14 +322,18 @@ export const RoomUnitService = {
   },
 
   async list(filters: {
-    organisationId?: string;
+    organisationId: string;
     roomId?: string;
     unitGroupId?: string;
     isActive?: boolean;
   }): Promise<RoomUnit[]> {
+    const organisationId = requireString(
+      filters.organisationId,
+      "organisationId",
+    );
     const rows = await getRoomUnitDelegate().findMany({
       where: {
-        organisationId: normalizeOptionalString(filters.organisationId),
+        organisationId,
         roomId: normalizeOptionalString(filters.roomId),
         unitGroupId: normalizeOptionalString(filters.unitGroupId),
         isActive: filters.isActive,
@@ -307,13 +341,14 @@ export const RoomUnitService = {
       orderBy: { displayName: "asc" },
     });
 
-    const occupiedUnitIds = await getOccupiedUnitIds(filters.organisationId);
+    const occupiedUnitIds = await getOccupiedUnitIds(organisationId);
 
     return rows.map((row) => toDomain(row, occupiedUnitIds));
   },
 
-  async delete(id: string, organisationId?: string): Promise<RoomUnit> {
+  async delete(id: string, organisationIdInput: string): Promise<RoomUnit> {
     const unitId = requireString(id, "unitId");
+    const organisationId = requireString(organisationIdInput, "organisationId");
     const existing = await getRoomUnitDelegate().findUnique({
       where: { id: unitId },
     });
@@ -322,7 +357,7 @@ export const RoomUnitService = {
       throw new RoomUnitServiceError("Room unit not found.", 404);
     }
 
-    if (organisationId && existing.organisationId !== organisationId) {
+    if (existing.organisationId !== organisationId) {
       throw new RoomUnitServiceError("Unit organisation mismatch.", 409);
     }
 

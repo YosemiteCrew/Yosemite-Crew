@@ -1,5 +1,6 @@
 import React, {useMemo} from 'react';
-import {Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Image, StyleSheet, Text, View} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {
   ProfileImagePicker,
   type ProfileImagePickerRef,
@@ -47,17 +48,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           fallbackText={fallbackText}
         />
         {showCameraButton ? (
-          <TouchableOpacity
+          <PressableOpacity
             style={styles.cameraIconContainer}
-            onPress={() => pickerRef.current?.triggerPicker()}>
+            onPress={() => pickerRef.current?.triggerPicker()}
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo">
             <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-          </TouchableOpacity>
+          </PressableOpacity>
         ) : null}
       </View>
       <Text style={styles.profileName}>{title}</Text>
-      {subtitle ? (
-        <Text style={styles.profileSubtitle}>{subtitle}</Text>
-      ) : null}
+      {subtitle ? <Text style={styles.profileSubtitle}>{subtitle}</Text> : null}
     </View>
   );
 };
@@ -92,10 +93,7 @@ const createStyles = (theme: any) =>
       tintColor: theme.colors.white,
     },
     profileName: {
-      fontFamily: theme.typography.titleMedium.fontFamily,
-      fontSize: 22,
-      lineHeight: 28,
-      fontWeight: '500',
+      ...theme.typography.serifTitleSmall,
       color: theme.colors.secondary,
       marginTop: theme.spacing['4'],
       textAlign: 'center',

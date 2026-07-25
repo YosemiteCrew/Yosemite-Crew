@@ -4,32 +4,41 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme, useFormBottomSheets} from '@/hooks';
 import {Input} from '@/shared/components/common';
 import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {Images} from '@/assets/images';
 import type {AdverseEventStackParamList} from '@/navigation/types';
-import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
+import {SegmentedControl} from '@/shared/components/common/SegmentedControl/SegmentedControl';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
-import {
-  type UploadDocumentBottomSheetRef,
-} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {
-  type DeleteDocumentBottomSheetRef,
-} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {type UploadDocumentBottomSheetRef} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+import {type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import UploadDeleteSheets from '@/shared/components/common/UploadDeleteSheets/UploadDeleteSheets';
 import {useFileOperations} from '@/shared/hooks/useFileOperations';
-import {CountryBottomSheet, type CountryBottomSheetRef} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
-import {AdministrationMethodBottomSheet, type AdministrationMethodBottomSheetRef} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
+import {
+  CountryBottomSheet,
+  type CountryBottomSheetRef,
+} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
+import {
+  AdministrationMethodBottomSheet,
+  type AdministrationMethodBottomSheetRef,
+} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
 import type {DocumentFile} from '@/features/documents/types';
 import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
 import type {
   AdverseEventProductInfo,
+  QuantityUnit,
 } from '@/features/adverseEventReporting/types';
 import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReporting/content/supportedCountries';
+
+// Final step of the AER flow: all five progress segments read as complete.
+const AER_PROGRESS_SEGMENTS = ['seg-1', 'seg-2', 'seg-3', 'seg-4', 'seg-5'];
+
+const QUANTITY_UNIT_OPTIONS: {label: string; value: QuantityUnit}[] = [
+  {label: 'Tablet · piece', value: 'tablet'},
+  {label: 'Liquid · ml', value: 'liquid'},
+];
 
 const createInitialFormData = (): AdverseEventProductInfo => ({
   productName: '',
@@ -87,9 +96,7 @@ const findSupportedCountry = (
   const code = country.code;
   return (
     SUPPORTED_ADVERSE_EVENT_COUNTRIES.find(
-      c =>
-        (code && c.code === code) ||
-        (name && c.name.toLowerCase() === name),
+      c => (code && c.code === code) || (name && c.name.toLowerCase() === name),
     ) ?? null
   );
 };
@@ -98,6 +105,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const common = useMemo(() => createCommonFormStyles(theme), [theme]);
+  const today = useMemo(() => new Date(), []);
   const {draft, setProductInfo} = useAdverseEventReport();
 
   const [formData, setFormData] = useState<AdverseEventProductInfo>(() => {
@@ -197,11 +205,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
       }
     };
 
-    ensureText(
-      formData.productName,
-      'productName',
-      'Product name is required',
-    );
+    ensureText(formData.productName, 'productName', 'Product name is required');
     ensureText(formData.brandName, 'brandName', 'Brand name is required');
 
     if (!formData.manufacturingCountry) {
@@ -222,7 +226,8 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
     );
 
     if (!formData.administrationMethod) {
-      nextErrors.administrationMethod = 'Select how the product was administered';
+      nextErrors.administrationMethod =
+        'Select how the product was administered';
       hasError = true;
     }
 
@@ -280,282 +285,408 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
 
   return (
     <>
-    <AERLayout
-      stepLabel="Step 5 of 5"
-      onBack={() => navigation.goBack()}
-      bottomButton={{ title: 'Next', onPress: handleSubmit }}
-    >
-      <Text style={styles.sectionTitle}>Product Information</Text>
+      <AERLayout
+        onBack={() => navigation.goBack()}
+        bottomButton={{title: 'Submit report', onPress: handleSubmit}}>
+        <View style={styles.progressBar}>
+          {AER_PROGRESS_SEGMENTS.map(key => (
+            <View key={key} style={styles.progressSegment} />
+          ))}
+        </View>
 
-        <Input
-          label="Product name"
-          value={formData.productName}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, productName: text}));
-            clearFieldError('productName');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.productName}
-        />
+        <Text style={styles.sectionTitle}>The product and what happened</Text>
 
-        <Input
-          label="Brand name"
-          value={formData.brandName}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, brandName: text}));
-            clearFieldError('brandName');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.brandName}
-        />
-
-        <TouchableInput
-          label="Manufacturing country"
-          value={formData.manufacturingCountry?.name ?? ''}
-          placeholder="Select country"
-          onPress={() => {
+        <ProductDetailsFields
+          styles={styles}
+          common={common}
+          formData={formData}
+          formErrors={formErrors}
+          setFormData={setFormData}
+          clearFieldError={clearFieldError}
+          onEventDatePress={() => setShowDatePicker(true)}
+          onCountryPress={() => {
             openSheet('country');
             countrySheetRef.current?.open();
           }}
-          rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
-          containerStyle={styles.input}
-          error={formErrors.manufacturingCountry}
-        />
-
-        <Input
-          label="Batch number"
-          value={formData.batchNumber}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, batchNumber: text}));
-            clearFieldError('batchNumber');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.batchNumber}
-        />
-
-        <Input
-          label="Number of times product used"
-          value={formData.frequencyUsed}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, frequencyUsed: text}));
-            clearFieldError('frequencyUsed');
-          }}
-          keyboardType="numeric"
-          containerStyle={styles.input}
-          error={formErrors.frequencyUsed}
-        />
-
-        <Input
-          label="Quantity used"
-          value={formData.quantityUsed}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, quantityUsed: text}));
-            clearFieldError('quantityUsed');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.quantityUsed}
-        />
-
-        <View style={styles.checkboxRow}>
-          <Checkbox
-            value={formData.quantityUnit === 'tablet'}
-            onValueChange={val =>
-              val && setFormData(prev => ({...prev, quantityUnit: 'tablet'}))
-            }
-            label="Tablet - Piece"
-            labelStyle={styles.checkboxLabelInline}
-          />
-          <View style={{width: theme.spacing['4']}} />
-          <Checkbox
-            value={formData.quantityUnit === 'liquid'}
-            onValueChange={val =>
-              val && setFormData(prev => ({...prev, quantityUnit: 'liquid'}))
-            }
-            label="Liquid - ML"
-            labelStyle={styles.checkboxLabelInline}
-          />
-        </View>
-
-        <TouchableInput
-          label="How was the product administered?"
-          value={formData.administrationMethod ?? ''}
-          placeholder="How was the product administered?"
-          onPress={() => {
+          onAdminPress={() => {
             openSheet('admin');
             adminSheetRef.current?.open();
           }}
-          rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
-          containerStyle={styles.input}
-          error={formErrors.administrationMethod}
         />
 
-        <Input
-          label="Reason to use the product."
-          value={formData.reasonToUseProduct}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, reasonToUseProduct: text}));
-            clearFieldError('reasonToUseProduct');
+        <PetConditionFields
+          styles={styles}
+          formData={formData}
+          formErrors={formErrors}
+          setFormData={setFormData}
+          clearFieldError={clearFieldError}
+          onAddFile={() => {
+            clearFieldError('files');
+            openSheet('upload');
+            uploadSheetRef.current?.open();
           }}
-          multiline
-          containerStyle={styles.input}
-          error={formErrors.reasonToUseProduct}
+          onRemoveFile={handleRemoveFile}
         />
+      </AERLayout>
 
-        <Input
-          label="Pet condition before drug"
-          value={formData.petConditionBefore}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, petConditionBefore: text}));
-            clearFieldError('petConditionBefore');
-          }}
-          multiline
-          containerStyle={styles.input}
-          error={formErrors.petConditionBefore}
-        />
-
-        <Input
-          label="Pet condition after drug"
-          value={formData.petConditionAfter}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, petConditionAfter: text}));
-            clearFieldError('petConditionAfter');
-          }}
-          multiline
-          containerStyle={styles.input}
-          error={formErrors.petConditionAfter}
-        />
-
-        <View style={styles.uploadSection}>
-          <Text style={styles.uploadLabel}>
-            Please add image of the product used.
-          </Text>
-          <DocumentAttachmentsSection
-            files={formData.files}
-            onAddPress={() => {
-              clearFieldError('files');
-              openSheet('upload');
-              uploadSheetRef.current?.open();
-            }}
-            onRequestRemove={file => handleRemoveFile(file.id)}
-            emptyTitle="Upload image"
-            emptySubtitle={'Only PNG, JPEG, PDF\nmax size 5 MB'}
-            error={formErrors.files}
-          />
-        </View>
-
-        <TouchableInput
-          label="Event date"
-          value={formatDateForDisplay(formData.eventDate)}
-          onPress={() => setShowDatePicker(true)}
-          rightComponent={<Image source={Images.calendarIcon} style={common.calendarIcon} />}
-          containerStyle={styles.input}
-        />
-
-    </AERLayout>
-
-      <SimpleDatePicker
-        value={formData.eventDate}
-        onDateChange={date => {
-          setFormData(prev => ({...prev, eventDate: date}));
-          setShowDatePicker(false);
-        }}
-        show={showDatePicker}
-        onDismiss={() => setShowDatePicker(false)}
-        maximumDate={new Date()}
-        mode="date"
-      />
-
-      <CountryBottomSheet
-        ref={countrySheetRef}
-        countries={SUPPORTED_ADVERSE_EVENT_COUNTRIES}
-        selectedCountry={formData.manufacturingCountry as any}
-        onSave={country => {
-          setFormData(prev => ({...prev, manufacturingCountry: country}));
-          clearFieldError('manufacturingCountry');
-          closeSheet();
-        }}
-      />
-
-      <AdministrationMethodBottomSheet
-        ref={adminSheetRef}
-        selectedMethod={formData.administrationMethod}
-        onSave={method => {
-          setFormData(prev => ({...prev, administrationMethod: method}));
-          clearFieldError('administrationMethod');
-          closeSheet();
-        }}
-      />
-
-      <UploadDeleteSheets
+      <Step5Overlays
+        formData={formData}
+        today={today}
+        showDatePicker={showDatePicker}
+        setShowDatePicker={setShowDatePicker}
+        setFormData={setFormData}
+        clearFieldError={clearFieldError}
+        closeSheet={closeSheet}
+        countrySheetRef={countrySheetRef}
+        adminSheetRef={adminSheetRef}
         uploadSheetRef={uploadSheetRef}
         deleteSheetRef={deleteSheetRef}
-        files={formData.files}
-        fileToDelete={fileToDelete as any}
+        fileToDelete={fileToDelete}
         onTakePhoto={handleTakePhoto}
         onChooseGallery={handleChooseFromGallery}
         onUploadDrive={handleUploadFromDrive}
         onConfirmDelete={confirmDeleteFile}
-        closeSheet={closeSheet}
       />
     </>
   );
 };
 
+type Step5Styles = ReturnType<typeof createStyles>;
+type Step5CommonStyles = ReturnType<typeof createCommonFormStyles>;
+
+interface ProductDetailsFieldsProps {
+  styles: Step5Styles;
+  common: Step5CommonStyles;
+  formData: AdverseEventProductInfo;
+  formErrors: Step5FormErrors;
+  setFormData: React.Dispatch<React.SetStateAction<AdverseEventProductInfo>>;
+  clearFieldError: (field: keyof Step5FormErrors) => void;
+  onEventDatePress: () => void;
+  onCountryPress: () => void;
+  onAdminPress: () => void;
+}
+
+const ProductDetailsFields: React.FC<ProductDetailsFieldsProps> = ({
+  styles,
+  common,
+  formData,
+  formErrors,
+  setFormData,
+  clearFieldError,
+  onEventDatePress,
+  onCountryPress,
+  onAdminPress,
+}) => (
+  <>
+    <View style={styles.twoUpRow}>
+      <Input
+        label="Product name"
+        value={formData.productName}
+        onChangeText={text => {
+          setFormData(prev => ({...prev, productName: text}));
+          clearFieldError('productName');
+        }}
+        containerStyle={styles.fieldHalf}
+        error={formErrors.productName}
+      />
+      <Input
+        label="Brand name"
+        value={formData.brandName}
+        onChangeText={text => {
+          setFormData(prev => ({...prev, brandName: text}));
+          clearFieldError('brandName');
+        }}
+        containerStyle={styles.fieldHalf}
+        error={formErrors.brandName}
+      />
+    </View>
+
+    <View style={styles.twoUpRow}>
+      <Input
+        label="Batch number"
+        value={formData.batchNumber}
+        onChangeText={text => {
+          setFormData(prev => ({...prev, batchNumber: text}));
+          clearFieldError('batchNumber');
+        }}
+        containerStyle={styles.fieldHalf}
+        error={formErrors.batchNumber}
+      />
+      <TouchableInput
+        label="Event date"
+        value={formatDateForDisplay(formData.eventDate)}
+        onPress={onEventDatePress}
+        rightComponent={
+          <Image source={Images.calendarIcon} style={common.calendarIcon} />
+        }
+        containerStyle={styles.fieldHalf}
+      />
+    </View>
+
+    <TouchableInput
+      label="Manufacturing country"
+      value={formData.manufacturingCountry?.name ?? ''}
+      placeholder="Select country"
+      onPress={onCountryPress}
+      rightComponent={
+        <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
+      }
+      containerStyle={styles.input}
+      error={formErrors.manufacturingCountry}
+    />
+
+    <Input
+      label="Number of times product used"
+      value={formData.frequencyUsed}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, frequencyUsed: text}));
+        clearFieldError('frequencyUsed');
+      }}
+      keyboardType="numeric"
+      containerStyle={styles.input}
+      error={formErrors.frequencyUsed}
+    />
+
+    <Input
+      label="Quantity used"
+      value={formData.quantityUsed}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, quantityUsed: text}));
+        clearFieldError('quantityUsed');
+      }}
+      containerStyle={styles.input}
+      error={formErrors.quantityUsed}
+    />
+
+    <SegmentedControl
+      testID="quantity-unit"
+      options={QUANTITY_UNIT_OPTIONS}
+      value={formData.quantityUnit}
+      onChange={value =>
+        setFormData(prev => ({
+          ...prev,
+          quantityUnit: value as QuantityUnit,
+        }))
+      }
+      style={styles.segmented}
+    />
+
+    <TouchableInput
+      label="How was the product administered?"
+      value={formData.administrationMethod ?? ''}
+      placeholder="How was the product administered?"
+      onPress={onAdminPress}
+      rightComponent={
+        <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
+      }
+      containerStyle={styles.input}
+      error={formErrors.administrationMethod}
+    />
+  </>
+);
+
+interface PetConditionFieldsProps {
+  styles: Step5Styles;
+  formData: AdverseEventProductInfo;
+  formErrors: Step5FormErrors;
+  setFormData: React.Dispatch<React.SetStateAction<AdverseEventProductInfo>>;
+  clearFieldError: (field: keyof Step5FormErrors) => void;
+  onAddFile: () => void;
+  onRemoveFile: (fileId: string) => void;
+}
+
+const PetConditionFields: React.FC<PetConditionFieldsProps> = ({
+  styles,
+  formData,
+  formErrors,
+  setFormData,
+  clearFieldError,
+  onAddFile,
+  onRemoveFile,
+}) => (
+  <>
+    <Input
+      label="Reason to use the product."
+      value={formData.reasonToUseProduct}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, reasonToUseProduct: text}));
+        clearFieldError('reasonToUseProduct');
+      }}
+      multiline
+      containerStyle={styles.input}
+      error={formErrors.reasonToUseProduct}
+    />
+
+    <Input
+      label="Pet condition before drug"
+      value={formData.petConditionBefore}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, petConditionBefore: text}));
+        clearFieldError('petConditionBefore');
+      }}
+      multiline
+      containerStyle={styles.input}
+      error={formErrors.petConditionBefore}
+    />
+
+    <Input
+      label="Pet condition after drug"
+      value={formData.petConditionAfter}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, petConditionAfter: text}));
+        clearFieldError('petConditionAfter');
+      }}
+      multiline
+      containerStyle={styles.input}
+      error={formErrors.petConditionAfter}
+    />
+
+    <View style={styles.uploadSection}>
+      <Text style={styles.uploadLabel}>
+        Please add image of the product used.
+      </Text>
+      <DocumentAttachmentsSection
+        files={formData.files}
+        onAddPress={onAddFile}
+        onRequestRemove={file => onRemoveFile(file.id)}
+        emptyTitle="Upload image"
+        emptySubtitle={'Only PNG, JPEG, PDF · max size 5 MB'}
+        error={formErrors.files}
+      />
+    </View>
+  </>
+);
+
+interface Step5OverlaysProps {
+  formData: AdverseEventProductInfo;
+  today: Date;
+  showDatePicker: boolean;
+  setShowDatePicker: React.Dispatch<React.SetStateAction<boolean>>;
+  setFormData: React.Dispatch<React.SetStateAction<AdverseEventProductInfo>>;
+  clearFieldError: (field: keyof Step5FormErrors) => void;
+  closeSheet: () => void;
+  countrySheetRef: React.RefObject<CountryBottomSheetRef | null>;
+  adminSheetRef: React.RefObject<AdministrationMethodBottomSheetRef | null>;
+  uploadSheetRef: React.RefObject<UploadDocumentBottomSheetRef>;
+  deleteSheetRef: React.RefObject<DeleteDocumentBottomSheetRef>;
+  fileToDelete: string | null;
+  onTakePhoto: () => void;
+  onChooseGallery: () => void;
+  onUploadDrive: () => void;
+  onConfirmDelete: () => void;
+}
+
+const Step5Overlays: React.FC<Step5OverlaysProps> = ({
+  formData,
+  today,
+  showDatePicker,
+  setShowDatePicker,
+  setFormData,
+  clearFieldError,
+  closeSheet,
+  countrySheetRef,
+  adminSheetRef,
+  uploadSheetRef,
+  deleteSheetRef,
+  fileToDelete,
+  onTakePhoto,
+  onChooseGallery,
+  onUploadDrive,
+  onConfirmDelete,
+}) => (
+  <>
+    <SimpleDatePicker
+      value={formData.eventDate}
+      onDateChange={date => {
+        setFormData(prev => ({...prev, eventDate: date}));
+        setShowDatePicker(false);
+      }}
+      show={showDatePicker}
+      onDismiss={() => setShowDatePicker(false)}
+      maximumDate={today}
+      mode="date"
+    />
+
+    <CountryBottomSheet
+      ref={countrySheetRef}
+      countries={SUPPORTED_ADVERSE_EVENT_COUNTRIES}
+      selectedCountry={formData.manufacturingCountry as any}
+      onSave={country => {
+        setFormData(prev => ({...prev, manufacturingCountry: country}));
+        clearFieldError('manufacturingCountry');
+        closeSheet();
+      }}
+    />
+
+    <AdministrationMethodBottomSheet
+      ref={adminSheetRef}
+      selectedMethod={formData.administrationMethod}
+      onSave={method => {
+        setFormData(prev => ({...prev, administrationMethod: method}));
+        clearFieldError('administrationMethod');
+        closeSheet();
+      }}
+    />
+
+    <UploadDeleteSheets
+      uploadSheetRef={uploadSheetRef}
+      deleteSheetRef={deleteSheetRef}
+      files={formData.files}
+      fileToDelete={fileToDelete as any}
+      onTakePhoto={onTakePhoto}
+      onChooseGallery={onChooseGallery}
+      onUploadDrive={onUploadDrive}
+      onConfirmDelete={onConfirmDelete}
+      closeSheet={closeSheet}
+    />
+  </>
+);
+
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    // AER progress: five equal segments, all blue on the final step.
+    progressBar: {
+      flexDirection: 'row',
+      gap: theme.spacing['1.25'],
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['6'],
+    },
+    progressSegment: {
+      flex: 1,
+      height: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blue,
+    },
     sectionTitle: {
-      ...theme.typography.h6Clash,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitle,
+      fontSize: 26,
+      lineHeight: 30,
+      color: theme.colors.ink,
+      marginBottom: theme.spacing['5'],
+    },
+    twoUpRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: theme.spacing['3'],
       marginBottom: theme.spacing['4'],
+    },
+    fieldHalf: {
+      flex: 1,
     },
     input: {
       marginBottom: theme.spacing['4'],
     },
-    checkboxRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingLeft: 10,
-      marginBottom: theme.spacing['2'],
-      marginTop: theme.spacing['1'],
-    },
-    checkboxLabel: {
-      ...theme.typography.body,
-      color: theme.colors.secondary,
-    },
-    checkboxLabelInline: {
-      ...theme.typography.body,
-      color: theme.colors.secondary,
-      flex: 0,
+    segmented: {
+      marginBottom: theme.spacing['4'],
     },
     uploadSection: {
       marginBottom: theme.spacing['6'],
     },
     uploadLabel: {
-      // Satoshi 14 Bold, 120% line-height
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.secondary,
-      opacity: 1,
+      ...theme.typography.inputLabel,
+      color: theme.colors.inkBody,
       marginBottom: theme.spacing['3'],
-    },
-    uploadButton: {
-      borderWidth: 2,
-      borderColor: theme.colors.primary,
-      borderStyle: 'dashed',
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing['8'],
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    uploadIcon: {
-      width: 40,
-      height: 40,
-      resizeMode: 'contain',
-      marginBottom: theme.spacing['2'],
-      tintColor: theme.colors.primary,
-    },
-    uploadText: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.primary,
+      marginLeft: theme.spacing['1'],
     },
     // icon styles moved to shared createCommonFormStyles
   });

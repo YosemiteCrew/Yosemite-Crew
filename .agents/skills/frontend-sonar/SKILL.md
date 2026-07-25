@@ -34,10 +34,7 @@ pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
 
 ## Issue Tracker
 
-Resolved/open issues log: `docs/guide/sonar-tracker.md`
-Raw Sonar dump: `docs/guide/sonar.md`
-
-Update `sonar-tracker.md` after every fix.
+The SonarCloud frontend project is the source of truth for open issues and security hotspots — it is analyzed in CI (`.github/workflows/sonar-cloud-analysis.yml`). Fix findings locally before pushing (see the pre-push Sonar gate in `CLAUDE.md`); never let them first surface on the PR.
 
 ---
 
@@ -293,6 +290,38 @@ const buildItem = (s: Template, orgId: string): Service => ({
 });
 // then: .map((s) => buildItem(s, orgId))
 ```
+
+### Repeating Sonar Patterns From Recent Frontend Audits
+
+Prefer these fixes before inventing a local workaround:
+
+- Replace nested ternaries in JSX and prop values with a named helper or extracted statement.
+- Break functions down before they cross cognitive complexity 15; do not keep piling branches into the same handler.
+- Move deep callback logic out of `onChange`, `.map()`, and `setState` updaters into named helpers.
+- Fix negated guards and `else { if (...) }` chains by rewriting them as direct positive branches.
+- Use `Set` for membership checks, especially when the code only calls `.includes()`.
+- Replace bare `window` usage with `globalThis.window` and prefer `??` for optional-chain fallbacks.
+- Remove redundant assertions, duplicate imports, and dead imports in the same refactor.
+- Replace ARIA listbox/option shims with native controls when accessibility allows it.
+- Wrap inline text next to a JSX element in `{"..."}` to avoid ambiguous spacing warnings.
+- Delete empty spreads and other no-op expressions rather than leaving them in place.
+
+### Patterns From The Latest Sonar Batch (rows 145–166)
+
+- **`role="option"` on a custom rich-content button** (Sonar `S6819`: "Use `<option>` instead of the option role"). Native `<option>` cannot hold badges/check icons, so swap to a real toggle button:
+  - Multi-select: drop `role="option"` + `aria-selected`, use `aria-pressed={isSelected}` on the `<button>`.
+  - **Test fallout — always fix the matching test in the same change:** queries like `getByRole('option', { name })` no longer match. Use `getByRole('button', { name, pressed: true|false })`. Single-select dropdowns whose options became plain `<button>{label}</button>` use `getByRole('button', { name })` (no `pressed`).
+- **`Do not pass function X directly to .reduce(…)`** (`S7060`): wrap it — `items.reduce((acc, item) => fn(acc, item), [])`. But that wrapper can then trip the **nesting > 4** rule when it sits inside `useEffect → setTimeout → .then → reduce`. Fix by hoisting a module-level `mapXToY = (items) => items.reduce(...)` and calling it from a flat `.then`.
+- **Arrow function has too many parameters (max 7)** (`S107`): convert positional params to a single typed props object (`type FooArgs = {...}; const foo = ({ a, b, … }: FooArgs) => …`). Update the call site to pass one object literal; rename callback args to the new prop names there.
+- **Bug: "conditional returns the same value whether true or false"** (`S3923`): both ternary branches are identical (e.g. `isBatch ? errors?.[name] : errors?.[name]`). Collapse to the single expression — this is a real bug flag, not a smell.
+- **"Replace this union type with a type alias"** on an inline `Pick<T, 'a' | 'b' | …>` used as a param type: extract `type FooContext = Pick<T, …>` above the function and reference it.
+- **`[object Object]` stringification with empty-string semantics:** when guarding `String(value)` for `unknown`, preserve prior falsy behaviour. `if (value)` treated `''`/`0` as empty; a `typeof === 'string' | 'number'` guard does not — add `if (!text) return [];` (or equivalent) so empty input still yields the empty result the tests assert.
+- **Cognitive complexity in a component body driven by JSX:** extract the conditional JSX subtree into its own component (e.g. `MultiSelectTriggerContent`) and lift `className`/aria ternaries into a named `getXClassName(...)` helper. Extract keyboard/active-index logic into a custom hook (`useActiveOption`) that returns `{ activeIndex, handleKeyDown, … }`.
+- **Cognitive complexity in a Zustand store updater built from many `x && x.length > 0 ? x : enc.x` ternaries:** add a generic `preferNonEmpty(next, current)` helper and collapse each field to a single call. Note the inverted `documents` case (`=== undefined || length === 0 ? enc : patch`) is also just `preferNonEmpty`.
+
+### Gotcha: portal dropdowns don't render their option panel in jsdom
+
+`LabelDropdown`/`MultiSelectDropdown` render the option list through a portal gated on a `portalStyle` computed from `getBoundingClientRect()` in a layout effect — that stays `null` in jsdom, so **the options never mount**. Tests that need to pick an option must **mock the dropdown** to render options/placeholder inline (see `AppointmentDetailsSection.test.tsx` and `BookAppointment.test.tsx` mocks). Do not try to `findByRole` a real portal option in jsdom — it will time out. Also watch for placeholder renames flowing into these mocks (e.g. `Service` → `Services / Packages`).
 
 ---
 

@@ -84,7 +84,7 @@ This project uses AWS Amplify for its backend. Run a local sandbox environment t
     npx ampx sandbox
     ```
 
-2.  **Set the required secrets**. You must have a **verified sender identity in Amazon SES** (Simple Email Service) for passwordless OTP emails to work.
+2.  **Set the required secrets**. You must have a **verified sender identity in Amazon SES** (Simple Email Service) for passwordless OTP (one-time password) emails to work.
 
     ```sh
     # Replace YOUR_VERIFIED_EMAIL@example.com with your verified SES email address

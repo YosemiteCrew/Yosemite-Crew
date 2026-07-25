@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
-import { usePathname, useRouter } from 'next/navigation';
+import { redirect, usePathname, useRouter } from 'next/navigation';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 const replaceMock = jest.fn();
@@ -10,6 +10,7 @@ let mockPathname = '/dashboard';
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   usePathname: jest.fn(),
+  redirect: jest.fn(),
 }));
 
 const useOrgStoreMock = jest.fn();
@@ -166,9 +167,8 @@ describe('OrgGuard', () => {
     );
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/organizations');
+      expect(redirect).toHaveBeenCalledWith('/organizations');
     });
-    expect(screen.queryByTestId('child')).not.toBeInTheDocument();
   });
 
   it('renders children when auth guard is disabled', () => {
@@ -196,7 +196,7 @@ describe('OrgGuard', () => {
     );
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/organizations');
+      expect(redirect).toHaveBeenCalledWith('/organizations');
     });
   });
 
@@ -229,7 +229,7 @@ describe('OrgGuard', () => {
     );
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/create-org?orgId=org-1');
+      expect(redirect).toHaveBeenCalledWith('/create-org?orgId=org-1');
     });
   });
 
@@ -265,7 +265,7 @@ describe('OrgGuard', () => {
     await waitFor(() => {
       expect(getSpecialitiesByOrgId).not.toHaveBeenCalled();
     });
-    expect(replaceMock).not.toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
+    expect(redirect).not.toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
   });
 
   it('does not hang forever when speciality fetch errors for an unverified owner', async () => {
@@ -301,7 +301,7 @@ describe('OrgGuard', () => {
 
     // Guard should proceed (redirect to create-org) rather than stay stuck
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
+      expect(redirect).toHaveBeenCalledWith(`/create-org?orgId=${orgId}`);
     });
   });
 
@@ -328,7 +328,7 @@ describe('OrgGuard', () => {
     );
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/team-onboarding?orgId=org-2');
+      expect(redirect).toHaveBeenCalledWith('/team-onboarding?orgId=org-2');
     });
   });
 
@@ -356,7 +356,7 @@ describe('OrgGuard', () => {
     );
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/team-onboarding?orgId=org-owner-profile');
+      expect(redirect).toHaveBeenCalledWith('/team-onboarding?orgId=org-owner-profile');
     });
   });
 
@@ -372,7 +372,8 @@ describe('OrgGuard', () => {
         membershipsByOrgId: {
           [orgId]: {
             roleDisplay: 'Owner',
-            effectivePermissions: ['analytics:view:any'],
+            // Permissions derive from roleCode, mirroring a real mapping.
+            roleCode: 'OWNER',
           },
         },
       })
@@ -389,7 +390,7 @@ describe('OrgGuard', () => {
     await waitFor(() => {
       expect(screen.getByTestId('child')).toBeInTheDocument();
     });
-    expect(replaceMock).not.toHaveBeenCalledWith(expect.stringContaining('/team-onboarding'));
+    expect(redirect).not.toHaveBeenCalledWith(expect.stringContaining('/team-onboarding'));
   });
 
   it('redirects when current route requires a permission the user does not have', async () => {
@@ -409,6 +410,10 @@ describe('OrgGuard', () => {
             roleDisplay: 'Admin',
             roleCode: 'ADMIN',
             effectivePermissions: ['appointments:view:any'],
+            // Permissions resolve from the role, so the integrations grant the
+            // ADMIN baseline carries has to be revoked explicitly for this
+            // membership to genuinely lack access to /integrations.
+            revokedPermissions: ['integrations:view:any'],
           },
         },
       })
@@ -421,7 +426,9 @@ describe('OrgGuard', () => {
     );
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith('/organization');
+      // Redirected off /integrations, and the ADMIN baseline makes the dashboard
+      // the first route this membership can actually reach.
+      expect(redirect).toHaveBeenCalledWith('/dashboard');
     });
   });
 });

@@ -81,7 +81,13 @@ describe('DeleteProfileBottomSheet', () => {
     // Check primary button props
     const primaryButtonProps = mockChildSheet.mock.calls[0][0].primaryButton;
     expect(primaryButtonProps.label).toBe('Delete');
-    expect(primaryButtonProps.tintColor).toBe(mockTheme.colors.secondary);
+    expect(primaryButtonProps.tintColor).toBe(mockTheme.colors.danger);
+    expect(primaryButtonProps.forceBorder).toBeUndefined();
+
+    // destructive flag drives the warm-bone danger medallion in the child
+    expect(mockChildSheet).toHaveBeenCalledWith(
+      expect.objectContaining({destructive: true}),
+    );
 
     // Check secondary button props
     const secondaryButtonProps =

@@ -1,5 +1,4 @@
 import React, {
-  forwardRef,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -14,8 +13,9 @@ import {
   View,
   ViewStyle,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet, {
   type BottomSheetRef,
 } from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -27,6 +27,10 @@ export interface ConfirmActionBottomSheetRef {
   open: () => void;
   close: () => void;
 }
+
+const handleBackdropPress = () => {
+  Keyboard.dismiss();
+};
 
 interface ConfirmButtonConfig {
   label: string;
@@ -45,6 +49,8 @@ interface ConfirmActionBottomSheetProps {
   title: string;
   message?: string;
   messageAlign?: 'left' | 'center';
+  destructive?: boolean;
+  destructiveIcon?: string;
   primaryButton: ConfirmButtonConfig;
   secondaryButton?: ConfirmButtonConfig;
   children?: React.ReactNode;
@@ -62,238 +68,284 @@ interface ConfirmActionBottomSheetProps {
   backdropPressBehavior?: 'close' | 'none';
 }
 
-export const ConfirmActionBottomSheet = forwardRef<
-  ConfirmActionBottomSheetRef,
-  ConfirmActionBottomSheetProps
->(
-  (
-    {
-      title,
-      message,
-      messageAlign = 'center',
-      primaryButton,
-      secondaryButton,
-      children,
-      snapPoints = ['35%'],
-      initialIndex = -1,
-      containerStyle,
-      messageStyle,
-      buttonContainerStyle,
-      onSheetChange,
-      zIndex,
-      bottomInset,
-      enablePanDown = true,
-      enableHandlePanning = true,
-      showCloseButton = true,
-      backdropPressBehavior = 'close',
-    },
+export const ConfirmActionBottomSheet = ({
+  title,
+  message,
+  messageAlign = 'center',
+  destructive = false,
+  destructiveIcon = 'trash-outline',
+  primaryButton,
+  secondaryButton,
+  children,
+  snapPoints = ['35%'],
+  initialIndex = -1,
+  containerStyle,
+  messageStyle,
+  buttonContainerStyle,
+  onSheetChange,
+  zIndex,
+  bottomInset,
+  enablePanDown = true,
+  enableHandlePanning = true,
+  showCloseButton = true,
+  backdropPressBehavior = 'close',
+  ref,
+}: ConfirmActionBottomSheetProps & {
+  ref?: React.Ref<ConfirmActionBottomSheetRef>;
+}) => {
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Listen to keyboard events to adjust snap points
+  useEffect(() => {
+    const keyboardDidShow = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const keyboardDidHide = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShow.remove();
+      keyboardDidHide.remove();
+    };
+  }, []);
+
+  // Dynamic snap points based on keyboard visibility
+  const dynamicSnapPoints = useMemo(() => {
+    if (isKeyboardVisible) {
+      // When keyboard is open, expand to accommodate it
+      // Always provide 2 snap points for smooth animation
+      return ['93%', '95%'];
+    }
+    // Ensure we always have at least 2 snap points for proper animation
+    if (snapPoints.length === 1) {
+      const singlePoint = snapPoints[0];
+      return [singlePoint, singlePoint];
+    }
+    return snapPoints;
+  }, [isKeyboardVisible, snapPoints]);
+
+  useImperativeHandle(
     ref,
+    () => ({
+      open: () => {
+        const targetIndex = Math.max(0, snapPoints.length - 1);
+        bottomSheetRef.current?.snapToIndex(targetIndex);
+      },
+      close: () => {
+        Keyboard.dismiss();
+        bottomSheetRef.current?.close();
+      },
+    }),
+    [snapPoints],
+  );
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    bottomSheetRef.current?.close();
+  };
+
+  const buildButton = (
+    config: ConfirmButtonConfig,
+    defaults: {
+      tintColor: string;
+      textColor: string;
+      forceBorder?: boolean;
+      borderColor?: string;
+    },
   ) => {
-    const {theme} = useTheme();
-    const styles = useMemo(() => createStyles(theme), [theme]);
-    const bottomSheetRef = useRef<BottomSheetRef>(null);
-    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+    const textStyle = StyleSheet.flatten([
+      styles.buttonText,
+      {color: defaults.textColor},
+      config.textStyle,
+    ]) as TextStyle | undefined;
 
-    // Listen to keyboard events to adjust snap points
-    useEffect(() => {
-      const keyboardDidShow = Keyboard.addListener('keyboardDidShow', () => {
-        setIsKeyboardVisible(true);
-      });
-      const keyboardDidHide = Keyboard.addListener('keyboardDidHide', () => {
-        setIsKeyboardVisible(false);
-      });
+    const buttonStyle = StyleSheet.flatten([styles.button, config.style]) as
+      ViewStyle | undefined;
 
-      return () => {
-        keyboardDidShow.remove();
-        keyboardDidHide.remove();
-      };
-    }, []);
-
-    // Dynamic snap points based on keyboard visibility
-    const dynamicSnapPoints = useMemo(() => {
-      if (isKeyboardVisible) {
-        // When keyboard is open, expand to accommodate it
-        // Always provide 2 snap points for smooth animation
-        return ['93%', '95%'];
+    const handlePress = () => {
+      const result = config.onPress();
+      if (result instanceof Promise) {
+        result.catch(error => {
+          console.warn(
+            '[ConfirmActionBottomSheet] Button action rejected',
+            error,
+          );
+        });
       }
-      // Ensure we always have at least 2 snap points for proper animation
-      if (snapPoints.length === 1) {
-        const singlePoint = snapPoints[0];
-        return [singlePoint, singlePoint];
-      }
-      return snapPoints;
-    }, [isKeyboardVisible, snapPoints]);
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        open: () => {
-          const targetIndex = Math.max(0, snapPoints.length - 1);
-          bottomSheetRef.current?.snapToIndex(targetIndex);
-        },
-        close: () => {
-          Keyboard.dismiss();
-          bottomSheetRef.current?.close();
-        },
-      }),
-      [snapPoints],
-    );
-
-    const handleClose = () => {
-      Keyboard.dismiss();
-      bottomSheetRef.current?.close();
-    };
-
-    const handleBackdropPress = () => {
-      Keyboard.dismiss();
-    };
-
-    const renderButton = (
-      config: ConfirmButtonConfig,
-      defaults: {tintColor: string; textColor: string},
-    ) => {
-      const textStyle = StyleSheet.flatten([
-        styles.buttonText,
-        {color: defaults.textColor},
-        config.textStyle,
-      ]) as TextStyle | undefined;
-
-      const buttonStyle = StyleSheet.flatten([styles.button, config.style]) as
-        | ViewStyle
-        | undefined;
-
-      const handlePress = () => {
-        const result = config.onPress();
-        if (result instanceof Promise) {
-          result.catch(error => {
-            console.warn(
-              '[ConfirmActionBottomSheet] Button action rejected',
-              error,
-            );
-          });
-        }
-      };
-
-      return (
-        <LiquidGlassButton
-          title={config.label}
-          onPress={handlePress}
-          glassEffect="clear"
-          tintColor={config.tintColor ?? defaults.tintColor}
-          borderRadius="lg"
-          textStyle={textStyle}
-          style={buttonStyle}
-          disabled={config.disabled}
-          loading={config.loading}
-          forceBorder={config.forceBorder}
-          borderColor={config.borderColor}
-          shadowIntensity={config.shadowIntensity ?? 'light'}
-        />
-      );
     };
 
     return (
-      <CustomBottomSheet
-        ref={bottomSheetRef}
-        snapPoints={dynamicSnapPoints}
-        initialIndex={initialIndex}
-        zIndex={zIndex ?? 100}
-        onChange={index => {
-          if (index === -1) {
-            Keyboard.dismiss();
-            setIsKeyboardVisible(false);
-          }
-          onSheetChange?.(index);
-        }}
-        enablePanDownToClose={enablePanDown}
-        enableBackdrop={true}
-        enableHandlePanningGesture={enableHandlePanning}
-        enableContentPanningGesture={false}
-        backdropOpacity={0.5}
-        backdropAppearsOnIndex={0}
-        backdropDisappearsOnIndex={-1}
-        backdropPressBehavior={backdropPressBehavior}
-        onBackdropPress={handleBackdropPress}
-        backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.bottomSheetHandle}
-        bottomInset={bottomInset}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        contentType="view">
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={[styles.container, containerStyle]}>
+      <LiquidGlassButton
+        title={config.label}
+        onPress={handlePress}
+        glassEffect="clear"
+        tintColor={config.tintColor ?? defaults.tintColor}
+        borderRadius="button"
+        textStyle={textStyle}
+        style={buttonStyle}
+        disabled={config.disabled}
+        loading={config.loading}
+        forceBorder={config.forceBorder ?? defaults.forceBorder}
+        borderColor={config.borderColor ?? defaults.borderColor}
+        shadowIntensity={config.shadowIntensity ?? 'light'}
+      />
+    );
+  };
+
+  return (
+    <CustomBottomSheet
+      ref={bottomSheetRef}
+      snapPoints={dynamicSnapPoints}
+      initialIndex={initialIndex}
+      zIndex={zIndex ?? 100}
+      onChange={index => {
+        if (index === -1) {
+          Keyboard.dismiss();
+          setIsKeyboardVisible(false);
+        }
+        onSheetChange?.(index);
+      }}
+      behavior={{
+        panDownToClose: enablePanDown,
+        backdrop: true,
+        handlePanningGesture: enableHandlePanning,
+        contentPanningGesture: false,
+      }}
+      backdropOpacity={0.5}
+      backdropAppearsOnIndex={0}
+      backdropDisappearsOnIndex={-1}
+      backdropPressBehavior={backdropPressBehavior}
+      onBackdropPress={handleBackdropPress}
+      backgroundStyle={styles.bottomSheetBackground}
+      handleIndicatorStyle={styles.bottomSheetHandle}
+      bottomInset={bottomInset}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      contentType="view">
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
+        <View style={[styles.container, containerStyle]}>
+          {destructive ? (
+            <View style={styles.destructiveHeader}>
+              <View style={styles.medallion}>
+                <Ionicons
+                  name={destructiveIcon}
+                  size={24}
+                  color={theme.colors.danger}
+                />
+              </View>
+              <Text style={styles.destructiveTitle} numberOfLines={2}>
+                {title}
+              </Text>
+            </View>
+          ) : (
             <BottomSheetHeader
               title={title}
               onClose={handleClose}
               theme={theme}
               showCloseButton={showCloseButton}
             />
-            {message ? (
-              <Text
-                style={[
-                  styles.message,
-                  {textAlign: messageAlign},
-                  messageStyle,
-                ]}>
-                {message}
-              </Text>
-            ) : null}
+          )}
+          {message ? (
+            <Text
+              style={[styles.message, {textAlign: messageAlign}, messageStyle]}>
+              {message}
+            </Text>
+          ) : null}
 
-            {children}
+          {children}
 
-            <View style={[styles.buttonRow, buttonContainerStyle]}>
-              {secondaryButton
-                ? renderButton(secondaryButton, {
-                    tintColor: theme.colors.surface,
-                    textColor: theme.colors.secondary,
-                  })
-                : null}
-              {renderButton(primaryButton, {
-                tintColor: theme.colors.secondary,
-                textColor: theme.colors.white,
-              })}
-            </View>
+          <View style={[styles.buttonRow, buttonContainerStyle]}>
+            {secondaryButton
+              ? buildButton(secondaryButton, {
+                  tintColor: theme.colors.screen,
+                  textColor: theme.colors.inkBody,
+                  forceBorder: true,
+                  borderColor: theme.colors.divider,
+                })
+              : null}
+            {buildButton(
+              primaryButton,
+              destructive
+                ? {
+                    tintColor: theme.colors.danger,
+                    textColor: theme.colors.white,
+                  }
+                : {
+                    tintColor: theme.colors.cta,
+                    textColor: theme.colors.ctaText,
+                  },
+            )}
           </View>
-        </TouchableWithoutFeedback>
-      </CustomBottomSheet>
-    );
-  },
-);
+        </View>
+      </PressableOpacity>
+    </CustomBottomSheet>
+  );
+};
 
 ConfirmActionBottomSheet.displayName = 'ConfirmActionBottomSheet';
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     bottomSheetBackground: {
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: theme.spacing['6'],
-      borderTopRightRadius: theme.spacing['6'],
+      backgroundColor: theme.colors.screen,
+      borderTopLeftRadius: theme.borderRadius.sheet,
+      borderTopRightRadius: theme.borderRadius.sheet,
     },
     bottomSheetHandle: {
-      backgroundColor: theme.colors.borderMuted,
+      width: 40,
+      height: 4.5,
+      borderRadius: theme.borderRadius.pill,
+      backgroundColor: theme.colors.divider,
     },
     container: {
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3'],
       paddingHorizontal: theme.spacing['5'],
-      paddingBottom: theme.spacing['12'],
+      paddingBottom: theme.spacing['6'],
+    },
+    destructiveHeader: {
+      alignItems: 'center',
+      gap: theme.spacing['2.5'],
+      paddingTop: theme.spacing['2'],
+    },
+    medallion: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.dangerSurface,
+    },
+    destructiveTitle: {
+      ...theme.typography.paragraph18Bold,
+      fontSize: 19,
+      lineHeight: 24,
+      color: theme.colors.ink,
+      textAlign: 'center',
     },
     message: {
-      ...theme.typography.titleMedium,
-      paddingBottom: theme.spacing['5'],
-      color: theme.colors.secondary,
+      ...theme.typography.body14,
+      color: theme.colors.inkMuted,
     },
     buttonRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      gap: theme.spacing['3'],
+      gap: theme.spacing['2.5'],
     },
     button: {
       flex: 1,
+      minHeight: 54,
     },
     buttonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button,
       textAlign: 'center',
     },
   });

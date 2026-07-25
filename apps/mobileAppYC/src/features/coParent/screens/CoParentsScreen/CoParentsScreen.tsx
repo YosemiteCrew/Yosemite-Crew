@@ -1,12 +1,15 @@
-import React, {useEffect, useMemo} from 'react';
-import {View, StyleSheet, ScrollView, Image, Text, Alert} from 'react-native';
+import React, {useCallback, useEffect, useMemo} from 'react';
+import {View, StyleSheet, FlatList, Image, Text, Alert} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useFocusEffect} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
+import Icon from 'react-native-vector-icons/Ionicons';
 import type {AppDispatch, RootState} from '@/app/store';
+import type {Theme} from '@/theme';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
-import {GifLoader} from '@/shared/components/common';
+import {SkeletonList} from '@/shared/components/common';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Images} from '@/assets/images';
 import {CoParentCard} from '../../components/CoParentCard/CoParentCard';
 import {fetchCoParents} from '../../thunks';
@@ -50,6 +53,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   const canAddCoParent = (currentAccess?.role ?? '')
     .toUpperCase()
     .includes('PRIMARY');
+  const companionName = selectedCompanion?.name?.trim() || 'your companion';
 
   useEffect(() => {
     if (!selectedCompanionId && companions[0]?.id) {
@@ -58,7 +62,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   }, [companions, dispatch, selectedCompanionId]);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       if (!selectedCompanion?.id) {
         return;
       }
@@ -96,13 +100,48 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
     navigation.navigate('AddCoParent');
   };
 
-  const handleViewCoParent = (coParentId: string) => {
-    navigation.navigate('EditCoParent', {coParentId});
-  };
+  const handleViewCoParent = useCallback(
+    (coParentId: string) => {
+      navigation.navigate('EditCoParent', {coParentId});
+    },
+    [navigation],
+  );
 
-  const handleEditCoParent = (coParentId: string) => {
-    navigation.navigate('EditCoParent', {coParentId});
-  };
+  const handleEditCoParent = useCallback(
+    (coParentId: string) => {
+      navigation.navigate('EditCoParent', {coParentId});
+    },
+    [navigation],
+  );
+
+  const renderCoParent = useCallback(
+    (renderItemInfo: {
+      item: (typeof visibleCoParents)[number];
+      index: number;
+    }) => {
+      const {item: coParent, index} = renderItemInfo;
+      const isPrimaryEntry = (coParent.role ?? '')
+        .toUpperCase()
+        .includes('PRIMARY');
+      const targetId = coParent.parentId || coParent.id;
+
+      return (
+        <CoParentCard
+          coParent={coParent}
+          onPressView={
+            isPrimaryEntry ? undefined : () => handleViewCoParent(targetId)
+          }
+          onPressEdit={
+            isPrimaryEntry ? undefined : () => handleEditCoParent(targetId)
+          }
+          hideSwipeActions={isPrimaryEntry}
+          showEditAction={!isPrimaryEntry}
+          divider={index < visibleCoParents.length - 1}
+        />
+      );
+    },
+    [handleEditCoParent, handleViewCoParent, visibleCoParents.length],
+  );
 
   // Show empty state when no co-parents
   if (!loading && visibleCoParents.length === 0) {
@@ -158,40 +197,59 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
       {contentPaddingStyle => (
         <>
           {loading ? (
-            <View style={styles.centerContent}>
-              <GifLoader />
-            </View>
+            <SkeletonList
+              showHeader={false}
+              showFilters={false}
+              style={contentPaddingStyle}
+            />
           ) : (
-            <ScrollView
+            <FlatList
+              data={visibleCoParents}
+              keyExtractor={coParent => coParent.parentId || coParent.id}
+              renderItem={renderCoParent}
               style={styles.scrollView}
               contentContainerStyle={[styles.content, contentPaddingStyle]}
-              showsVerticalScrollIndicator={false}>
-              {visibleCoParents.map((coParent, index) => {
-                const isPrimaryEntry = (coParent.role ?? '')
-                  .toUpperCase()
-                  .includes('PRIMARY');
-                const targetId = coParent.parentId || coParent.id;
-                return (
-                  <CoParentCard
-                    key={targetId}
-                    coParent={coParent}
-                    onPressView={
-                      isPrimaryEntry
-                        ? undefined
-                        : () => handleViewCoParent(targetId)
-                    }
-                    onPressEdit={
-                      isPrimaryEntry
-                        ? undefined
-                        : () => handleEditCoParent(targetId)
-                    }
-                    hideSwipeActions={isPrimaryEntry}
-                    showEditAction={!isPrimaryEntry}
-                    divider={index < visibleCoParents.length - 1}
-                  />
-                );
-              })}
-            </ScrollView>
+              showsVerticalScrollIndicator={false}
+              ListHeaderComponent={
+                <Text style={styles.intro}>
+                  Everyone who cares for {companionName} sees the same record,
+                  the same reminders, the same vet thread.
+                </Text>
+              }
+              ListFooterComponent={
+                <View style={styles.footer}>
+                  {canAddCoParent && (
+                    <PressableOpacity
+                      activeOpacity={0.85}
+                      onPress={handleAdd}
+                      style={styles.inviteButton}
+                      accessibilityRole="button"
+                      accessibilityLabel="Invite a co-parent">
+                      <Icon
+                        name="add"
+                        size={17}
+                        color={theme.colors.blueText}
+                      />
+                      <Text style={styles.inviteButtonText}>
+                        Invite a co-parent
+                      </Text>
+                    </PressableOpacity>
+                  )}
+                  <View style={styles.infoBanner}>
+                    <Icon
+                      name="information-circle-outline"
+                      size={17}
+                      color={theme.colors.navActive}
+                      style={styles.infoBannerIcon}
+                    />
+                    <Text style={styles.infoBannerText}>
+                      Co-parents sign in with their own account. You choose what
+                      each person can see and do.
+                    </Text>
+                  </View>
+                </View>
+              }
+            />
           )}
         </>
       )}
@@ -199,7 +257,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -211,9 +269,48 @@ const createStyles = (theme: any) =>
     },
     content: {
       paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['6'],
       paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['6'],
+      gap: theme.spacing['3'],
+    },
+    intro: {
+      ...theme.typography.body14,
+      color: theme.colors.inkMuted,
+      marginBottom: theme.spacing['1'],
+    },
+    footer: {
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
+    },
+    inviteButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2'],
+      height: 50,
+      borderRadius: theme.borderRadius.field,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.divider,
+    },
+    inviteButtonText: {
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.blueText,
+    },
+    infoBanner: {
+      flexDirection: 'row',
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3.5'],
+      backgroundColor: theme.colors.blueSoft,
+      borderRadius: theme.borderRadius.field,
+    },
+    infoBannerIcon: {
+      marginTop: 1,
+    },
+    infoBannerText: {
+      ...theme.typography.body13,
+      flex: 1,
+      color: theme.colors.navActive,
     },
     selectorContainer: {
       paddingBottom: theme.spacing['4'],
@@ -231,8 +328,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['6'],
     },
     emptyTitle: {
-      ...theme.typography.businessSectionTitle20,
-      color: theme.colors.secondary,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
       marginBottom: theme.spacing['3'],
     },
@@ -240,11 +337,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.subtitleRegular14,
       color: theme.colors.secondary,
       textAlign: 'center',
-    },
-    centerContent: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
   });
 

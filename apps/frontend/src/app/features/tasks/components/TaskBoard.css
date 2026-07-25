@@ -1,0 +1,37 @@
+/* PIMS task board — native <progress> styled as the design's slim elapsed track.
+   The design draws a 5px pill filled from the left in --blue over a --band
+   groove, so the native bar and value are restyled per engine. Colours are
+   token-only so light and dark come for free. */
+
+.yc-task-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 5px;
+  border: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  /* Groove colour for engines that paint the element itself (and the
+     `color` fallback some renderers use for the value). */
+  background-color: var(--band);
+  color: var(--blue);
+}
+
+/* WebKit/Blink paints the groove on ::-webkit-progress-bar. */
+.yc-task-progress::-webkit-progress-bar {
+  background-color: var(--band);
+  border-radius: 9999px;
+}
+
+/* WebKit/Blink paints the fill on ::-webkit-progress-value. */
+.yc-task-progress::-webkit-progress-value {
+  background-color: var(--blue);
+  border-radius: 9999px;
+}
+
+/* Gecko paints the fill on ::-moz-progress-bar. */
+.yc-task-progress::-moz-progress-bar {
+  background-color: var(--blue);
+  border-radius: 9999px;
+}

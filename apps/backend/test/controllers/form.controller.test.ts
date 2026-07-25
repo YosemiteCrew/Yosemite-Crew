@@ -413,20 +413,30 @@ describe("FormController", () => {
   });
 
   describe("submitForm", () => {
-    it("should return 401 if AuthUser is not found in database", async () => {
+    it("should return 403 if AuthUser has no parent account", async () => {
       (
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue(null);
+      req.params.formId = "ced99b20-fde8-4122-bab9-a947ad562a36";
 
       await FormController.submitForm(req, res);
 
       expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
         "auth_user_123",
       );
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(FormService.submitFHIR).not.toHaveBeenCalled();
+    });
+
+    it("should return 401 when the session carries no user id", async () => {
+      req.userId = undefined;
+      req.headers = { "x-user-id": "spoofed" };
+
+      await FormController.submitForm(req, res);
+
+      // x-user-id is client-supplied and must not stand in for a session.
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({
-        message: "Unauthorized: User not found",
-      });
+      expect(AuthUserMobileService.getByProviderUserId).not.toHaveBeenCalled();
     });
 
     it("should return 201 on successful submission", async () => {
@@ -443,30 +453,83 @@ describe("FormController", () => {
 
       await FormController.submitForm(req, res);
 
-      expect(FormService.submitFHIR).toHaveBeenCalledWith({
+      expect(FormService.submitFHIR).toHaveBeenCalledWith(
+        {
+          resourceType: "QuestionnaireResponse",
+          status: "completed",
+          item: [],
+          questionnaire: "Questionnaire/ced99b20-fde8-4122-bab9-a947ad562a36",
+          extension: [
+            {
+              url: "https://yosemitecrew.com/fhir/StructureDefinition/form-response-parent",
+              valueString: "parent-1",
+            },
+            {
+              url: "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-by",
+              valueString: "parent-1",
+            },
+          ],
+        },
+        undefined,
+        "parent-1",
+        { parentId: "parent-1" },
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ id: "sub1" });
+    });
+
+    // The mobile route has no org context, so these three values are the only
+    // thing tying a submission to a person. Honouring client-supplied ones let a
+    // caller file a submission as somebody else, against somebody else's form.
+    it("overrides client-supplied parent, submittedBy and questionnaire", async () => {
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ id: "u1", parentId: "parent-1" });
+      req.params.formId = "real-form";
+      req.body = {
         resourceType: "QuestionnaireResponse",
         status: "completed",
         item: [],
-        questionnaire: "Questionnaire/ced99b20-fde8-4122-bab9-a947ad562a36",
+        questionnaire: "Questionnaire/victim-form",
         extension: [
           {
             url: "https://yosemitecrew.com/fhir/StructureDefinition/form-response-parent",
-            valueString: "parent-1",
+            valueString: "victim-parent",
           },
           {
             url: "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-by",
-            valueString: "parent-1",
+            valueString: "victim-parent",
           },
         ],
-      });
-      expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith({ id: "sub1" });
+      };
+      (FormService.submitFHIR as jest.Mock).mockResolvedValue({ id: "sub1" });
+
+      await FormController.submitForm(req, res);
+
+      const [payload, , submittedByOverride, actor] = (
+        FormService.submitFHIR as jest.Mock
+      ).mock.calls[0] as [
+        { questionnaire: string; extension: Array<{ valueString: string }> },
+        unknown,
+        string,
+        { parentId: string },
+      ];
+
+      expect(payload.questionnaire).toBe("Questionnaire/real-form");
+      expect(payload.extension.map((entry) => entry.valueString)).toEqual([
+        "parent-1",
+        "parent-1",
+      ]);
+      expect(payload.extension).toHaveLength(2);
+      expect(submittedByOverride).toBe("parent-1");
+      expect(actor).toEqual({ parentId: "parent-1" });
     });
 
     it("should handle FormServiceError and generic errors", async () => {
       (
         AuthUserMobileService.getByProviderUserId as jest.Mock
       ).mockResolvedValue({ id: "u1", parentId: "parent-1" });
+      req.params.formId = "ced99b20-fde8-4122-bab9-a947ad562a36";
 
       (FormService.submitFHIR as jest.Mock).mockRejectedValue(
         new FormServiceError("Error", 400),
@@ -483,18 +546,50 @@ describe("FormController", () => {
   });
 
   describe("submitFormFromPMS", () => {
-    it("should return 201 on successful submission", async () => {
+    it("should return 201 and stamp submittedBy from the verified token", async () => {
       req.body = { answers: {} };
+      req.organisationId = "org-1";
       (FormService.submitFHIR as jest.Mock).mockResolvedValue({ id: "sub1" });
 
       await FormController.submitFormFromPMS(req, res);
 
-      expect(FormService.submitFHIR).toHaveBeenCalledWith(req.body);
+      // submittedBy is derived from the authenticated token (3rd arg override),
+      // not the client body, so the signing guard can later confirm
+      // initiator === submitter. The 4th arg carries the RBAC-authorized org so
+      // the service cannot write into the template's org instead.
+      expect(FormService.submitFHIR).toHaveBeenCalledWith(
+        { answers: {} },
+        undefined,
+        "auth_user_123",
+        { organisationId: "org-1" },
+      );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "sub1" });
     });
 
+    it("should return 403 when no organisation context was resolved", async () => {
+      req.body = { answers: {} };
+      req.organisationId = undefined;
+
+      await FormController.submitFormFromPMS(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(FormService.submitFHIR).not.toHaveBeenCalled();
+    });
+
+    it("should return 401 when no authenticated user id is present", async () => {
+      req.userId = undefined;
+      req.headers = {};
+      req.body = { answers: {} };
+
+      await FormController.submitFormFromPMS(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(FormService.submitFHIR).not.toHaveBeenCalled();
+    });
+
     it("should handle FormServiceError and generic errors", async () => {
+      req.organisationId = "org-1";
       (FormService.submitFHIR as jest.Mock).mockRejectedValue(
         new FormServiceError("Error", 400),
       );
@@ -709,8 +804,9 @@ describe("FormController", () => {
       });
     });
 
-    it("should parse body values and call service", async () => {
+    it("should parse body values and call service with the authorised org (web)", async () => {
       req.params.appointmentId = "a1";
+      req.organisationId = "org-1";
       req.body = { serviceId: "s1", species: "CAT", isPMS: "true" };
       (FormService.getFormsForAppointment as jest.Mock).mockResolvedValue([]);
 
@@ -722,12 +818,25 @@ describe("FormController", () => {
         species: "CAT",
         isPMS: true,
         viewerParentId: undefined,
+        requesterOrgId: "org-1",
       });
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
+    it("should return 403 on the web route when org context is missing", async () => {
+      req.params.appointmentId = "a1";
+      req.body = { isPMS: "true" };
+
+      await FormController.getFormsForAppointment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: "Forbidden" });
+      expect(FormService.getFormsForAppointment).not.toHaveBeenCalled();
+    });
+
     it("should handle non-string / missing properties safely", async () => {
       req.params.appointmentId = "a1";
+      req.organisationId = "org-1";
       req.body = { serviceId: 123, isPMS: false }; // Non-strings
 
       await FormController.getFormsForAppointment(req, res);
@@ -738,6 +847,7 @@ describe("FormController", () => {
         species: undefined,
         isPMS: undefined,
         viewerParentId: undefined,
+        requesterOrgId: "org-1",
       });
     });
 
@@ -758,6 +868,7 @@ describe("FormController", () => {
         species: undefined,
         isPMS: undefined,
         viewerParentId: "parent-1",
+        requesterOrgId: undefined,
       });
     });
 
@@ -777,6 +888,7 @@ describe("FormController", () => {
 
     it("should handle FormServiceError and generic errors", async () => {
       req.params.appointmentId = "a1";
+      req.organisationId = "org-1";
 
       (FormService.getFormsForAppointment as jest.Mock).mockRejectedValue(
         new FormServiceError("Not found", 404),

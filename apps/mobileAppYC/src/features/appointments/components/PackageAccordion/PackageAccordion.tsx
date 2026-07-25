@@ -1,13 +1,11 @@
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Image,
-  Animated,
-  Platform,
-} from 'react-native';
+import {View, Text, Pressable, StyleSheet, Image, Platform} from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -23,14 +21,23 @@ interface PackageAccordionProps {
   title: string;
   icon?: any;
   packages: VetPackage[];
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 interface PackageItemProps {
   pkg: VetPackage;
   defaultExpanded?: boolean;
   compact?: boolean;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  specialtyName?: string;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 export const PackageItem: React.FC<PackageItemProps> = ({
@@ -38,6 +45,7 @@ export const PackageItem: React.FC<PackageItemProps> = ({
   onSelectPackage,
   defaultExpanded,
   compact = false,
+  specialtyName,
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(
@@ -45,24 +53,23 @@ export const PackageItem: React.FC<PackageItemProps> = ({
     [theme, compact],
   );
   const [expanded, setExpanded] = useState(Boolean(defaultExpanded));
-  const [animation] = useState(new Animated.Value(Number(defaultExpanded)));
+  const animation = useSharedValue(Number(defaultExpanded));
 
   const currencySymbol = resolveCurrencySymbol(pkg.currency ?? 'USD');
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-    Animated.timing(animation, {
-      toValue,
-      duration: compact ? 250 : 300,
-      useNativeDriver: false,
-    }).start();
+    animation.value = withTiming(toValue, {duration: compact ? 250 : 300});
     setExpanded(!expanded);
   };
 
-  const rotateInterpolate = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: `${interpolate(animation.value, [0, 1], [0, 180])}deg`,
+      },
+    ],
+  }));
 
   const formatPrice = (price: number) =>
     `${currencySymbol} ${price.toFixed(2)}`;
@@ -103,10 +110,7 @@ export const PackageItem: React.FC<PackageItemProps> = ({
         </View>
         <Animated.Image
           source={Images.downArrow}
-          style={[
-            styles.chevronIcon,
-            {transform: [{rotate: rotateInterpolate}]},
-          ]}
+          style={[styles.chevronIcon, chevronAnimatedStyle]}
         />
       </Pressable>
 
@@ -144,7 +148,9 @@ export const PackageItem: React.FC<PackageItemProps> = ({
 
           <LiquidGlassButton
             title="Select package"
-            onPress={() => onSelectPackage(pkg.id, pkg.name)}
+            onPress={() =>
+              onSelectPackage(pkg.id, pkg.name, specialtyName ?? pkg.specialty)
+            }
             height={theme.spacing['12']}
             borderRadius={theme.borderRadius.md}
             style={styles.selectButton}

@@ -1,4 +1,4 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
+import React, {useImperativeHandle, useRef} from 'react';
 import {
   GenericSelectBottomSheet,
   type SelectItem,
@@ -10,26 +10,27 @@ export interface OriginBottomSheetRef {
   close: () => void;
 }
 
-export const OriginBottomSheet = forwardRef<
-  OriginBottomSheetRef,
-  {
-    selected: CompanionOrigin | null;
-    onSave: (v: CompanionOrigin) => void;
-  }
->(({selected, onSave}, ref) => {
+const ORIGIN_ITEMS: SelectItem[] = [
+  {id: 'shop', label: 'Shop'},
+  {id: 'breeder', label: 'Breeder'},
+  {id: 'foster-shelter', label: 'Foster/ Shelter'},
+  {id: 'friends-family', label: 'Friends or family'},
+  {id: 'stray', label: 'Stray'},
+  {id: 'unknown', label: 'Unknown'},
+];
+
+export const OriginBottomSheet = ({
+  selected,
+  onSave,
+  ref,
+}: {
+  selected: CompanionOrigin | null;
+  onSave: (v: CompanionOrigin) => void;
+} & {ref?: React.Ref<OriginBottomSheetRef>}) => {
   const bottomSheetRef = useRef<any>(null);
 
-  const originItems: SelectItem[] = [
-    {id: 'shop', label: 'Shop'},
-    {id: 'breeder', label: 'Breeder'},
-    {id: 'foster-shelter', label: 'Foster/ Shelter'},
-    {id: 'friends-family', label: 'Friends or family'},
-    {id: 'stray', label: 'Stray'},
-    {id: 'unknown', label: 'Unknown'},
-  ];
-
   const selectedItem = selected
-    ? originItems.find(item => item.id === selected) || null
+    ? ORIGIN_ITEMS.find(item => item.id === selected) || null
     : null;
 
   useImperativeHandle(ref, () => ({
@@ -51,7 +52,7 @@ export const OriginBottomSheet = forwardRef<
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
       title="My pet comes from"
-      items={originItems}
+      items={ORIGIN_ITEMS}
       selectedItem={selectedItem}
       onSave={handleSave}
       hasSearch={false}
@@ -61,7 +62,7 @@ export const OriginBottomSheet = forwardRef<
       maxListHeight={300}
     />
   );
-});
+};
 
 OriginBottomSheet.displayName = 'OriginBottomSheet';
 

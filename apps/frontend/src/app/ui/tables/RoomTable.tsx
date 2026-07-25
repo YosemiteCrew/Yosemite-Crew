@@ -8,7 +8,7 @@ import { toTitle } from '@/app/lib/validators';
 import { NoDataMessage } from '@/app/ui/tables/common';
 
 import { joinNames } from '@/app/ui/tables/tableUtils';
-import { IoCreateOutline, IoEyeOutline } from 'react-icons/io5';
+import { IoEyeOutline } from 'react-icons/io5';
 
 import './DataTable.css';
 
@@ -32,7 +32,6 @@ type RoomTableProps = {
   filteredList: RoomManagementRoom[];
   setActive?: (room: RoomManagementRoom) => void;
   setView?: (open: boolean) => void;
-  onEdit?: (room: RoomManagementRoom) => void;
   onToggleAvailability?: (room: RoomManagementRoom, isAvailable: boolean) => void;
   canEditRoom?: boolean;
 };
@@ -58,23 +57,17 @@ const IconButton = ({
   label,
   onClick,
   children,
-  isPrimary = false,
 }: {
   label: string;
   onClick: () => void;
   children: React.ReactNode;
-  isPrimary?: boolean;
 }) => (
   <button
     type="button"
     aria-label={label}
     title={label}
     onClick={onClick}
-    className={`hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 shrink-0 rounded-full! border flex items-center justify-center cursor-pointer transition-colors ${
-      isPrimary
-        ? 'border-text-primary bg-text-primary text-white'
-        : 'border-text-primary bg-white text-text-primary hover:border-text-brand hover:text-text-brand'
-    }`}
+    className="size-[38px] shrink-0 rounded-full! border border-[var(--hairline)] bg-transparent text-[var(--ink-soft)] flex items-center justify-center cursor-pointer transition-colors hover:border-[var(--divider)] hover:text-[var(--ink)]"
   >
     {children}
   </button>
@@ -105,7 +98,7 @@ const AvailabilitySwitch = ({
   >
     <span
       aria-hidden="true"
-      className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+      className={`block h-4 w-4 rounded-full bg-neutral-0 shadow-sm transition-transform ${
         checked ? 'translate-x-6' : 'translate-x-0'
       }`}
     />
@@ -124,7 +117,6 @@ const RoomTable = ({
   filteredList,
   setActive,
   setView,
-  onEdit,
   onToggleAvailability,
   canEditRoom = false,
 }: RoomTableProps) => {
@@ -164,33 +156,33 @@ const RoomTable = ({
         ) : (
           <table className="w-full min-w-[980px] border-collapse">
             <thead>
-              <tr>
+              <tr className="bg-[var(--screen-2)]">
                 <th
-                  className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary"
+                  className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]"
                   aria-label="Row number"
                 ></th>
-                <th className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Room name
                 </th>
-                <th className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Code
                 </th>
-                <th className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Type
                 </th>
-                <th className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Speciality
                 </th>
-                <th className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Occupancy
                 </th>
-                <th className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Assigned Staff
                 </th>
-                <th className="px-4 py-3 text-left text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Availability
                 </th>
-                <th className="px-4 py-3 text-center text-body-4-emphasis text-text-secondary">
+                <th className="px-4 py-3 text-center text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
                   Action
                 </th>
               </tr>
@@ -202,7 +194,7 @@ const RoomTable = ({
                 return (
                   <tr
                     key={room.id || `${room.name}-${index}`}
-                    className="border-b border-card-border last:border-b-0"
+                    className="border-b border-[var(--hairline)] last:border-b-0"
                   >
                     <td className="px-4 py-4 align-middle">
                       <RoomCellText value={`${index + 1}.`} />
@@ -245,15 +237,9 @@ const RoomTable = ({
                         <IconButton
                           label={`View ${room.name}`}
                           onClick={() => handleViewRoom(room)}
-                          isPrimary
                         >
                           <IoEyeOutline size={16} aria-hidden="true" />
                         </IconButton>
-                        {canEditRoom && (
-                          <IconButton label={`Edit ${room.name}`} onClick={() => onEdit?.(room)}>
-                            <IoCreateOutline size={16} aria-hidden="true" />
-                          </IconButton>
-                        )}
                       </div>
                     </td>
                   </tr>

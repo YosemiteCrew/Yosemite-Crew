@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const withTaskOrgPermissions = jest.fn(() =>
   jest.fn((_req, _res, next) => next()),
@@ -40,8 +40,8 @@ const TaskTemplateController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -79,7 +79,7 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("task.router", () => {
-  it("protects task library write routes with authorizeCognito", () => {
+  it("protects task library write routes with requireWebAuth", () => {
     const createRoute = findRoute("/pms/library", "post");
     const updateRoute = findRoute("/pms/library/:libraryId", "put");
 
@@ -87,10 +87,10 @@ describe("task.router", () => {
     expect(updateRoute).toBeDefined();
 
     expect(createRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(updateRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
   });
 
@@ -109,31 +109,31 @@ describe("task.router", () => {
     const changeStatusRoute = findRoute("/pms/:taskId/status", "post");
 
     expect(createLibraryRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(createTemplateRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(createCustomRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(employeeListRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(companionListRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(getTaskRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(updateTaskRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(deleteTaskRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(changeStatusRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
 
     expect(withOrgPermissions).toHaveBeenCalled();

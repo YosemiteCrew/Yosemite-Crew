@@ -43,7 +43,7 @@ TRIGGER: when asked to review code, check a PR, or audit changes in any part of 
 
 - [ ] Business logic in service layer, not controller
 - [ ] All `req.body` inputs validated with Zod
-- [ ] No raw MongoDB queries outside model/service layer
+- [ ] No raw database queries outside model/service layer
 - [ ] Background work enqueued via BullMQ, not processed inline
 - [ ] Stripe webhook handlers verify signature
 

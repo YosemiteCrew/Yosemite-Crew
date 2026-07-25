@@ -1,5 +1,5 @@
 import React, {useMemo, useEffect, useRef} from 'react';
-import {ScrollView} from 'react-native';
+import {ScrollView, Text} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -183,7 +183,6 @@ export const AddTaskScreen: React.FC = () => {
     taskTypeSelection,
     isMedicationForm,
     isObservationalToolForm,
-    isSimpleForm,
     handleTaskTypeSelect,
     handleCompanionSelect,
     handleBack,
@@ -197,6 +196,16 @@ export const AddTaskScreen: React.FC = () => {
     openSheet,
     openTaskSheet,
   } = hookData;
+  const taskFormMode = useMemo(():
+    'medication' | 'observationalTool' | 'simple' => {
+    if (isMedicationForm) {
+      return 'medication';
+    }
+    if (isObservationalToolForm) {
+      return 'observationalTool';
+    }
+    return 'simple';
+  }, [isMedicationForm, isObservationalToolForm]);
 
   // Pre-fill form when reusing a task (only once)
   useEffect(() => {
@@ -354,6 +363,7 @@ export const AddTaskScreen: React.FC = () => {
                 resolvedContentPadding,
               ]}
               showsVerticalScrollIndicator={false}>
+              <Text style={styles.companionLabel}>Companion</Text>
               <CompanionSelector
                 companions={companions}
                 selectedCompanionId={selectedCompanionId}
@@ -369,14 +379,11 @@ export const AddTaskScreen: React.FC = () => {
                 errors={errors}
                 theme={theme}
                 updateField={updateField}
-                isMedicationForm={isMedicationForm}
-                isObservationalToolForm={isObservationalToolForm}
-                isSimpleForm={isSimpleForm}
+                taskFormMode={taskFormMode}
                 reminderOptions={REMINDER_OPTIONS}
                 styles={styles}
                 taskTypeSelection={taskTypeSelection}
-                showTaskTypeSelector
-                taskTypeSelectorProps={{
+                taskTypeSelector={{
                   onPress: () => {
                     openTaskSheet('task-type');
                     taskTypeSheetRef.current?.open();

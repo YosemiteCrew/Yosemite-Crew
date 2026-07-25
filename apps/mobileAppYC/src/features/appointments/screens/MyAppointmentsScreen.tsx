@@ -11,8 +11,10 @@ import {
   FilterPills,
   type FilterOption,
 } from '@/shared/components/common/FilterPills';
+import {SegmentedControl} from '@/shared/components/common/SegmentedControl/SegmentedControl';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import type {RootState, AppDispatch} from '@/app/store';
 import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
 import {setSelectedCompanion} from '@/features/companion';
@@ -36,7 +38,6 @@ import {handleChatActivation} from '@/features/appointments/utils/chatActivation
 import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/appointments/utils/businessCoordinates';
 import {usePermissions} from '@/shared/hooks/usePermissions';
 import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
-import {baseTileContainer, sharedTileStyles} from '@/shared/styles/tileStyles';
 import {useCheckInHandler} from '@/features/appointments/hooks/useCheckInHandler';
 import {useAppointmentDataMaps} from '@/features/appointments/hooks/useAppointmentDataMaps';
 import {useFetchPhotoFallbacks} from '@/features/appointments/hooks/useFetchPhotoFallbacks';
@@ -48,12 +49,29 @@ import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/ap
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter =
-  | 'all'
-  | 'hospital'
-  | 'groomer'
-  | 'breeder'
-  | 'pet_center'
-  | 'boarder';
+  'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
+
+const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
+  {id: 'all', label: 'All'},
+  {id: 'hospital', label: 'Hospital'},
+  {id: 'groomer', label: 'Groomer'},
+  {id: 'breeder', label: 'Breeder'},
+  {id: 'boarder', label: 'Boarder'},
+];
+
+type AppointmentView = 'upcoming' | 'past';
+
+const VIEW_OPTIONS = [
+  {label: 'Upcoming', value: 'upcoming'},
+  {label: 'Past', value: 'past'},
+];
+
+const keyExtractor = (item: Appointment) => item.id;
+
+const handleEndReached = () => {
+  // Placeholder for future pagination when backend is available
+  // console.log('Reached end of past appointments');
+};
 
 export const MyAppointmentsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -80,6 +98,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   );
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
+  const [view, setView] = React.useState<AppointmentView>('upcoming');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} =
     useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>(
@@ -94,6 +113,7 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const fetchAppointmentsOnce = React.useCallback(
     (companionId?: string | null) => {
+      /* istanbul ignore next -- fetchAppointmentsOnce is only ever called with a resolved companion id */
       if (!companionId) return;
       if (lastFetchedCompanionIdRef.current === companionId) return;
       lastFetchedCompanionIdRef.current = companionId;
@@ -157,14 +177,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     [filteredPast, filteredUpcoming],
   );
 
-  const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
-    {id: 'all', label: 'All'},
-    {id: 'hospital', label: 'Hospital'},
-    {id: 'groomer', label: 'Groomer'},
-    {id: 'breeder', label: 'Breeder'},
-    {id: 'boarder', label: 'Boarder'},
-  ];
-
   // Show permission toast when appointments access is denied
   React.useEffect(() => {
     if (selectedCompanionId && !canUseAppointments) {
@@ -183,6 +195,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   type EmployeeRecord = ReturnType<typeof employeeMap.get>;
   const getCoordinatesFromUtility = React.useCallback(
     (apt: AppointmentItem | null | undefined) => {
+      /* istanbul ignore next -- getCoordinatesFromUtility is only ever called with a real appointment */
       if (!apt) return {lat: null, lng: null};
       return getBusinessCoordinatesUtil(apt, businessMap);
     },
@@ -196,7 +209,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       petName,
     }: {
       appointment: AppointmentItem;
-      employee?: EmployeeRecord;
+      employee: EmployeeRecord;
       doctorName: string;
       petName?: string;
     }) => {
@@ -273,13 +286,37 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
-  const sections = React.useMemo(
-    () => [
-      {key: 'upcoming', title: 'Upcoming', data: filteredUpcoming},
-      {key: 'past', title: 'Past', data: filteredPast},
-    ],
-    [filteredUpcoming, filteredPast],
-  );
+  // The Upcoming/Past segmented control selects which set is shown; the
+  // category FilterPills still narrow within it. Both data sets stay available.
+  // Upcoming appointments are grouped into "This week" / "Later" (design).
+  const sections = React.useMemo(() => {
+    if (view === 'past') {
+      return [{key: 'past', title: 'Past', data: filteredPast}];
+    }
+    const weekAhead = new Date();
+    weekAhead.setDate(weekAhead.getDate() + 7);
+    const weekAheadTime = weekAhead.getTime();
+    const aptTime = (apt: (typeof filteredUpcoming)[number]) =>
+      new Date(apt.start ?? `${apt.date}T${apt.time ?? '00:00'}:00`).getTime();
+    // Appointments with an unparseable date default to "This week" so none drop.
+    const later = filteredUpcoming.filter(a => aptTime(a) > weekAheadTime);
+    const thisWeek = filteredUpcoming.filter(a => aptTime(a) <= weekAheadTime);
+    const groups: {
+      key: string;
+      title: string;
+      data: typeof filteredUpcoming;
+    }[] = [];
+    if (thisWeek.length) {
+      groups.push({key: 'thisWeek', title: 'This week', data: thisWeek});
+    }
+    if (later.length) {
+      groups.push({key: 'later', title: 'Later', data: later});
+    }
+    if (!groups.length) {
+      groups.push({key: 'upcoming', title: 'Upcoming', data: []});
+    }
+    return groups;
+  }, [view, filteredUpcoming, filteredPast]);
 
   const renderSectionHeader = ({
     section,
@@ -287,16 +324,18 @@ export const MyAppointmentsScreen: React.FC = () => {
     section: {key: string; title: string; data: typeof filteredUpcoming};
   }) => (
     <View style={styles.sectionHeaderWrapper}>
-      <Text style={styles.sectionTitle}>{section.title}</Text>
+      {section.data.length > 0 && (
+        <Text style={styles.groupTitle}>{section.title}</Text>
+      )}
       {section.data.length === 0 &&
-        (section.key === 'upcoming'
+        (section.key === 'past'
           ? renderEmptyCard(
-              'No upcoming appointments',
-              'Book a new appointment to see it here.',
-            )
-          : renderEmptyCard(
               'No past appointments',
               'Completed appointments will appear here.',
+            )
+          : renderEmptyCard(
+              'No upcoming appointments',
+              'Book a new appointment to see it here.',
             ))}
     </View>
   );
@@ -334,7 +373,7 @@ export const MyAppointmentsScreen: React.FC = () => {
     assignmentNote?: string;
     businessAddress: string;
     petName?: string;
-    emp?: EmployeeRecord;
+    emp: EmployeeRecord;
     needsPayment: boolean;
     isRequested: boolean;
     statusAllowsActions: boolean;
@@ -366,8 +405,8 @@ export const MyAppointmentsScreen: React.FC = () => {
             })
           }
           height={theme.spacing['12']}
-          borderRadius={theme.borderRadius.md}
-          tintColor={theme.colors.secondary}
+          borderRadius={theme.borderRadius.button}
+          tintColor={theme.colors.cta}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}
           style={styles.reviewButtonCard}
@@ -506,7 +545,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       checkInDisabled,
     } = cardData;
 
-    return section.key === 'upcoming' ? (
+    return section.key !== 'past' ? (
       renderUpcomingCard({
         item,
         cardTitle,
@@ -543,17 +582,10 @@ export const MyAppointmentsScreen: React.FC = () => {
         navigation={navigation}
         styles={styles}
         orgRating={orgRatings[item.businessId]}
-        secondaryColor={theme.colors.secondary}
+        secondaryColor={theme.colors.cta}
         theme={theme}
       />
     );
-  };
-
-  const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
-
-  const handleEndReached = () => {
-    // Placeholder for future pagination when backend is available
-    // console.log('Reached end of past appointments');
   };
 
   return (
@@ -562,11 +594,20 @@ export const MyAppointmentsScreen: React.FC = () => {
         <>
           <Header
             title="My Appointments"
+            variant="root"
             showBackButton={false}
             rightIcon={Images.addIconDark}
             onRightPress={handleAdd}
             glass={false}
           />
+          <View style={styles.segmentContainer}>
+            <SegmentedControl
+              testID="appt-view-toggle"
+              options={VIEW_OPTIONS}
+              value={view}
+              onChange={next => setView(next as AppointmentView)}
+            />
+          </View>
           <View style={styles.pillContainer}>
             <FilterPills<BusinessFilter>
               options={FILTER_OPTIONS}
@@ -622,7 +663,7 @@ type PastAppointmentCardProps = {
   styles: ReturnType<typeof createStyles>;
   orgRating?: OrgRatingState;
   secondaryColor: string;
-  theme: any;
+  theme: Theme;
 };
 
 const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
@@ -673,7 +714,7 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
             navigation.navigate('Review', {appointmentId: item.id})
           }
           height={theme.spacing['12']}
-          borderRadius={theme.borderRadius.md}
+          borderRadius={theme.borderRadius.button}
           tintColor={secondaryColor}
           shadowIntensity="medium"
           textStyle={styles.reviewButtonText}
@@ -725,12 +766,12 @@ const PastAppointmentCard: React.FC<PastAppointmentCardProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     sectionList: {flex: 1},
     container: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingTop: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['18'],
     },
     listHeader: {gap: theme.spacing['3'], marginBottom: theme.spacing['4']},
@@ -739,31 +780,35 @@ const createStyles = (theme: any) =>
     },
     sectionHeaderWrapper: {
       marginTop: theme.spacing['4'],
-      marginBottom: theme.spacing['2'],
-      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['3'],
+      gap: theme.spacing['3'],
     },
-    sectionTitle: {
-      ...theme.typography.sectionHeading,
-      color: theme.colors.secondary,
+    groupTitle: {
+      ...theme.typography.eyebrow,
+      color: theme.colors.inkFaint,
+    },
+    segmentContainer: {
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['2'],
     },
     pillContainer: {marginBottom: theme.spacing['3'], marginTop: 6},
     list: {gap: theme.spacing['4']},
-    cardWrapper: {marginBottom: theme.spacing['4']},
+    cardWrapper: {marginBottom: theme.spacing['3']},
     statusBadgePending: {
       alignSelf: 'flex-start',
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['2'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primaryTint,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.warningSurface,
     },
     statusBadgeText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.secondary,
+      ...theme.typography.labelXxsBold,
+      color: theme.colors.warning,
     },
     reviewButtonCard: {marginTop: theme.spacing['1']},
     reviewButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.white,
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.ctaText,
     },
     upcomingFooter: {
       gap: theme.spacing['2'],
@@ -773,7 +818,7 @@ const createStyles = (theme: any) =>
     },
     secondaryActionText: {
       ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      color: theme.colors.cta,
     },
     pastFooter: {
       gap: theme.spacing['3'],
@@ -791,11 +836,11 @@ const createStyles = (theme: any) =>
     },
     ratingValueText: {
       ...theme.typography.body14,
-      color: theme.colors.secondary,
+      color: theme.colors.inkBody,
     },
     ratingLoadingText: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
     },
     pastStatusWrapper: {
       flexDirection: 'row',
@@ -805,22 +850,38 @@ const createStyles = (theme: any) =>
       alignSelf: 'flex-start',
       paddingHorizontal: theme.spacing['2.5'],
       paddingVertical: 6,
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.success,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.successSurface,
     },
     pastStatusBadgeText: {
-      ...theme.typography.labelSmallBold,
-      color: theme.colors.secondary,
+      ...theme.typography.labelXxsBold,
+      color: theme.colors.success,
     },
     infoTile: {
-      ...baseTileContainer(theme),
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen,
       padding: theme.spacing['5'],
       gap: theme.spacing['2'],
       overflow: 'hidden',
     },
-    tileFallback: sharedTileStyles(theme).tileFallback,
-    tileTitle: sharedTileStyles(theme).tileTitle,
-    tileSubtitle: sharedTileStyles(theme).tileSubtitle,
+    tileFallback: {
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen,
+    },
+    tileTitle: {
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    tileSubtitle: {
+      ...theme.typography.body14,
+      color: theme.colors.inkMuted,
+      textAlign: 'center',
+    },
     bottomSpacer: {height: theme.spacing['16']},
   });
 

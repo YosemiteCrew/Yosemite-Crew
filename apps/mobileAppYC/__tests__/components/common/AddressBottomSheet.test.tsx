@@ -39,6 +39,17 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
+// 2b. Mock react-i18next with the real English defaults.
+const ADDRESS_BOTTOM_SHEET_TRANSLATIONS: Record<string, string> = {
+  'addressFields.bottomSheetTitle': 'Address',
+  'addressFields.close': 'Close',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => ADDRESS_BOTTOM_SHEET_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
 // 3. Mock Utils
 jest.mock('@/shared/utils/bottomSheetHelpers', () => ({
   createBottomSheetStyles: () => ({}),
@@ -59,11 +70,14 @@ jest.mock('@/shared/utils/bottomSheetHelpers', () => ({
 
 // Mock CustomBottomSheet
 // FIX: Renamed require('react') to ReactLib to avoid shadowing top-level React import
+let lastBottomSheetProps: any = null;
+
 jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   const ReactLib = require('react');
   const {View: RNView, Button: RNButton} = require('react-native'); // Require Button here
 
   return ReactLib.forwardRef((props: any, ref: any) => {
+    lastBottomSheetProps = props;
     ReactLib.useImperativeHandle(ref, () => ({
       open: jest.fn(),
       close: jest.fn(),
@@ -360,11 +374,106 @@ describe('AddressBottomSheet Component', () => {
     expect(mockClearSuggestions).toHaveBeenCalled();
     expect(mockResetError).toHaveBeenCalled();
 
-    // Also verify header close button works (same logic)
-    const {TouchableOpacity} = require('react-native');
-    const touchables = UNSAFE_getAllByType(TouchableOpacity);
-    const headerClose = touchables[0]; // First one is header close
+    // Also verify header close button works (same logic).
+    // The header close button and the keyboard-dismiss content wrapper both
+    // now render react-native's Pressable (via PressableOpacity), which is
+    // wrapped in React.memo, so we match against the memoized inner
+    // component. The wrapper's onPress is Keyboard.dismiss, so exclude it to
+    // isolate the actual header close button.
+    const {Pressable, Keyboard} = require('react-native');
+    const PressableType = (Pressable as any).type;
+    const touchables = UNSAFE_getAllByType(PressableType);
+    const headerClose = touchables.find(
+      (t: any) => t.props.onPress !== Keyboard.dismiss,
+    );
     fireEvent.press(headerClose);
     expect(mockClearSuggestions).toHaveBeenCalledTimes(2);
+  });
+
+  it('dismisses the keyboard when the sheet closes or animates', () => {
+    const {Keyboard} = require('react-native');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+
+    render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={initialAddress}
+        onSave={mockOnSave}
+      />,
+    );
+
+    dismissSpy.mockClear();
+    lastBottomSheetProps.onChange(-1);
+    expect(dismissSpy).toHaveBeenCalled();
+
+    dismissSpy.mockClear();
+    lastBottomSheetProps.onAnimate();
+    expect(dismissSpy).toHaveBeenCalled();
+
+    dismissSpy.mockRestore();
+  });
+
+  it('falls back to an empty query when the selected address has no addressLine', () => {
+    const addressWithoutLine = {
+      ...initialAddress,
+      addressLine: undefined as any,
+    };
+    const {getByTestId} = render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={addressWithoutLine}
+        onSave={mockOnSave}
+      />,
+    );
+
+    ref.current?.open();
+    expect(mockSetQuery).toHaveBeenCalledWith('', {suppressLookup: true});
+
+    mockSetQuery.mockClear();
+    fireEvent.press(getByTestId('btn-Cancel'));
+    expect(mockSetQuery).toHaveBeenCalledWith('', {suppressLookup: true});
+  });
+
+  it('falls back to the previous city when a selected suggestion has no city', async () => {
+    mockSelectSuggestion.mockResolvedValueOnce({
+      addressLine: 'New Line',
+      stateProvince: 'New State',
+      postalCode: '11111',
+      country: 'New Country',
+      // city intentionally omitted
+    });
+
+    const {getByTestId} = render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={initialAddress}
+        onSave={mockOnSave}
+      />,
+    );
+
+    await fireEvent.press(getByTestId('trigger-suggestion'));
+
+    await waitFor(() => {
+      fireEvent.press(getByTestId('btn-Save'));
+    });
+
+    expect(mockOnSave).toHaveBeenCalledWith(
+      expect.objectContaining({city: 'Old City'}),
+    );
+  });
+
+  it('uses the taller snap points when the keyboard is visible', () => {
+    const {useKeyboardVisible} = require('@/hooks');
+    (useKeyboardVisible as jest.Mock).mockReturnValueOnce(true);
+
+    render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={initialAddress}
+        onSave={mockOnSave}
+      />,
+    );
+
+    expect(lastBottomSheetProps.snapPoints).toEqual(['93%', '96%']);
   });
 });

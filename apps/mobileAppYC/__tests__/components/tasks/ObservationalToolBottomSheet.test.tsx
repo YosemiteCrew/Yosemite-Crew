@@ -7,10 +7,8 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 // FIX 1: Update component import path
-import {
-  ObservationalToolBottomSheet,
-  _resetToolsStoreForTesting,
-} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
+import {ObservationalToolBottomSheet} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
+import {_resetToolsStoreForTesting} from '@/features/tasks/components/ObservationalToolBottomSheet/observationalToolsStore';
 // FIX 2: Update helper import path
 // FIX 3: Update type import path
 import type {ObservationalToolBottomSheetRef} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
@@ -37,7 +35,7 @@ jest.mock('@/features/auth/sessionManager', () => ({
       idToken: 'mock-id-token',
       userId: 'mock-user-id',
       expiresAt: Date.now() + 3600000,
-      provider: 'amplify',
+      provider: 'supertokens',
     }),
   ),
   isTokenExpired: jest.fn(() => false),
@@ -77,6 +75,14 @@ const mockObservationTools = [
     name: 'Equine Grimace Scale',
     description: 'Pain assessment for horses',
     category: 'pain-assessment',
+    fields: [],
+    isActive: true,
+  },
+  {
+    id: 'body-condition-score-id',
+    name: 'Body Condition Score',
+    description: 'Species-agnostic body condition assessment',
+    category: 'general',
     fields: [],
     isActive: true,
   },
@@ -199,24 +205,77 @@ describe('ObservationalToolBottomSheet', () => {
   it('filters items for "cat" companion type', async () => {
     await renderComponent({companionType: 'cat'});
     // The component now uses API data, so it should display the tool name from API
-    expect(screen.getByText('Items: Feline Grimace Scale')).toBeTruthy();
+    expect(
+      screen.getByText('Items: Feline Grimace Scale, Body Condition Score'),
+    ).toBeTruthy();
   });
 
   it('filters items for "dog" companion type', async () => {
     await renderComponent({companionType: 'dog'});
     // The component now uses API data, so it should display the tool name from API
-    expect(screen.getByText('Items: Canine Acute Pain Scale')).toBeTruthy();
+    expect(
+      screen.getByText('Items: Canine Acute Pain Scale, Body Condition Score'),
+    ).toBeTruthy();
   });
 
   it('filters items for "horse" companion type', async () => {
     await renderComponent({companionType: 'horse'});
     // The component now uses API data, so it should display the tool name from API
-    expect(screen.getByText('Items: Equine Grimace Scale')).toBeTruthy();
+    expect(
+      screen.getByText('Items: Equine Grimace Scale, Body Condition Score'),
+    ).toBeTruthy();
   });
 
-  it('returns an empty list if companionType is unknown', async () => {
+  it('only includes species-agnostic tools for an unknown companionType', async () => {
     await renderComponent({companionType: 'lizard'});
-    expect(screen.getByText('Items:')).toBeTruthy();
+    expect(screen.getByText('Items: Body Condition Score')).toBeTruthy();
+  });
+
+  it('includes species-agnostic tools alongside species-specific ones', async () => {
+    await renderComponent({companionType: 'horse'});
+    expect(
+      screen.getByText('Items: Equine Grimace Scale, Body Condition Score'),
+    ).toBeTruthy();
+  });
+
+  it('falls back to the resolved label when the API tool has no name', async () => {
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.list.mockImplementationOnce(() =>
+      Promise.resolve([
+        {
+          id: 'unnamed-tool-id',
+          name: null,
+          description: 'Tool with no display name from the API',
+          category: 'general',
+          fields: [],
+          isActive: true,
+        },
+      ]),
+    );
+
+    await renderComponent({companionType: 'cat'});
+
+    expect(screen.getByText('Items: Label for unnamed-tool-id')).toBeTruthy();
+  });
+
+  it('warns and still resolves loading state when the tools API rejects', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.list.mockImplementationOnce(() =>
+      Promise.reject(new Error('Network down')),
+    );
+
+    await renderComponent({companionType: 'cat'});
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[ObservationalToolBottomSheet] Failed to fetch tools',
+      expect.any(Error),
+    );
+    consoleWarnSpy.mockRestore();
   });
 
   it('passes null as selectedItem when no tool is selected', async () => {

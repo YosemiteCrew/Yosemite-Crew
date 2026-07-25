@@ -3,7 +3,7 @@ import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { BillingSubscriptionInterval } from '@/app/features/billing/types/billing';
 import { getUpgradeLink } from '@/app/features/billing/services/billingService';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
 import { logger } from '@/app/lib/logger';
 
@@ -41,15 +41,7 @@ const Upgrade = () => {
         <Primary href="#" onClick={() => setSelectPopup(true)} text="Upgrade" />
       </div>
       <CenterModal showModal={selectPopup} setShowModal={setSelectPopup} onClose={handleCancel}>
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Select billing cycle</div>
-          </div>
-          <Close onClick={handleCancel} />
-        </div>
+        <ModalHeader title="Select billing cycle" onClose={handleCancel} />
         <div className="w-full flex items-center justify-between gap-2 flex-col">
           <div className="flex items-center gap-2">
             <button
@@ -72,7 +64,7 @@ const Upgrade = () => {
             <div className="text-caption-1 text-text-secondary">Price in EUR</div>
           </div>
         </div>
-        <div className="p-3 flex flex-col items-center justify-center gap-3 w-full rounded-2xl! border border-grey-light!">
+        <div className="p-3 flex flex-col items-center justify-center gap-3 w-full rounded-2xl! border border-card-border!">
           <div className={`text-body-4 text-text-primary`}>Business plan</div>
           <div className="flex gap-2 items-end">
             <p className={`text-display-1 text-text-primary`}>

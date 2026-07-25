@@ -22,11 +22,13 @@ runs:
       with:
         run_install: false
 
+    # No `cache: pnpm` here. setup-node's built-in cache and the explicit
+    # actions/cache block below both cache the pnpm store, so enabling both made
+    # every job save and restore the same directory twice.
     - name: Setup Node
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: ${{ inputs.node-version }}
-        cache: pnpm
 
     - name: Resolve pnpm store path
       id: store
@@ -34,7 +36,7 @@ runs:
       run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
     - name: Cache pnpm store
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ${{ steps.store.outputs.path }}
         key: pnpm-store-${{ runner.os }}-${{ inputs.node-version }}-${{ hashFiles('**/pnpm-lock.yaml') }}

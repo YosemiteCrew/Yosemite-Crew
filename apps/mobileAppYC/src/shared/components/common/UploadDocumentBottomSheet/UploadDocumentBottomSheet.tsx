@@ -1,11 +1,6 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import {Text, View, StyleSheet, TouchableOpacity, Image} from 'react-native';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
+import {Text, View, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet, {
   type BottomSheetRef,
 } from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -24,10 +19,14 @@ interface UploadDocumentBottomSheetProps {
   onUploadDrive: () => void;
 }
 
-export const UploadDocumentBottomSheet = forwardRef<
-  UploadDocumentBottomSheetRef,
-  UploadDocumentBottomSheetProps
->(({onTakePhoto, onChooseGallery, onUploadDrive}, ref) => {
+export const UploadDocumentBottomSheet = ({
+  onTakePhoto,
+  onChooseGallery,
+  onUploadDrive,
+  ref,
+}: UploadDocumentBottomSheetProps & {
+  ref?: React.Ref<UploadDocumentBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const closeButtonSize = theme.spacing['9'];
@@ -79,15 +78,17 @@ export const UploadDocumentBottomSheet = forwardRef<
       ref={bottomSheetRef}
       snapPoints={['35%']}
       initialIndex={-1}
-      enableDynamicSizing={false}
       onChange={index => {
         setIsSheetVisible(index !== -1);
       }}
       style={styles.bottomSheet}
-      enablePanDownToClose
-      enableBackdrop={isSheetVisible}
-      enableHandlePanningGesture
-      enableContentPanningGesture={false}
+      behavior={{
+        dynamicSizing: false,
+        panDownToClose: true,
+        backdrop: isSheetVisible,
+        handlePanningGesture: true,
+        contentPanningGesture: false,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
@@ -101,7 +102,8 @@ export const UploadDocumentBottomSheet = forwardRef<
           <LiquidGlassIconButton
             onPress={handleClose}
             size={closeButtonSize}
-            style={styles.closeButton}>
+            style={styles.closeButton}
+            accessibilityLabel="Close">
             <Image
               source={Images.crossIcon}
               style={styles.closeIcon}
@@ -112,23 +114,25 @@ export const UploadDocumentBottomSheet = forwardRef<
 
         <View style={styles.optionsList}>
           {uploadOptions.map((option, index) => (
-            <TouchableOpacity
+            <PressableOpacity
               key={option.label}
               style={[
                 styles.optionItem,
                 index === uploadOptions.length - 1 && styles.optionItemLast,
               ]}
               onPress={() => handleOptionPress(option.action)}
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}>
               <Text style={styles.optionText}>{option.label}</Text>
               <Image source={option.icon} style={styles.optionIcon} />
-            </TouchableOpacity>
+            </PressableOpacity>
           ))}
         </View>
       </View>
     </CustomBottomSheet>
   );
-});
+};
 
 UploadDocumentBottomSheet.displayName = 'UploadDocumentBottomSheet';
 

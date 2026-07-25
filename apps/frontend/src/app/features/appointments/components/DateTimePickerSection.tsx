@@ -11,7 +11,6 @@ type Option = { label: string; value: string };
 
 type DateInputProps = {
   selectedDate: Date;
-  hideDateSlotPicker: boolean;
 };
 
 type TimeInputProps = {
@@ -49,18 +48,20 @@ type DateTimePickerSectionProps = {
 
 const LoadingSkeleton = () => <div className="min-h-12 rounded-xl bg-neutral-100 animate-pulse" />;
 
-const DateInput = ({ selectedDate, hideDateSlotPicker }: DateInputProps) => (
+// The date is set through the Slotpicker above (or by the parent when the picker is
+// hidden), never by typing — so the field is display-only at every call site.
+const DateInput = ({ selectedDate }: DateInputProps) => (
   <FormInput
     intype="text"
     inname="date"
     value={getFormattedDate(selectedDate)}
-    readonly={hideDateSlotPicker}
-    tabIndex={hideDateSlotPicker ? -1 : undefined}
-    onFocus={hideDateSlotPicker ? (event) => event.currentTarget.blur() : undefined}
-    onClick={hideDateSlotPicker ? (event) => event.preventDefault() : undefined}
+    readonly
+    tabIndex={-1}
+    onFocus={(event) => event.currentTarget.blur()}
+    onClick={(event) => event.preventDefault()}
     onChange={() => {}}
     inlabel="Date"
-    className={`min-h-12! ${hideDateSlotPicker ? 'cursor-default' : ''}`}
+    className="cursor-default"
   />
 );
 
@@ -81,7 +82,7 @@ const TimeInput = ({ selectedSlot, slotError, isLoadingSlot }: TimeInputProps) =
       error={slotError}
       onChange={() => {}}
       inlabel="Time"
-      className="min-h-12! cursor-default"
+      className="cursor-default"
     />
   );
 };
@@ -138,7 +139,7 @@ const DateTimePickerSection = ({
     )}
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
-        <DateInput selectedDate={selectedDate} hideDateSlotPicker={hideDateSlotPicker} />
+        <DateInput selectedDate={selectedDate} />
         <TimeInput
           selectedSlot={selectedSlot}
           slotError={slotError}

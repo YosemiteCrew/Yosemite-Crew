@@ -1,30 +1,34 @@
-import React from "react";
-import { render, screen } from "@testing-library/react";
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-jest.mock("@/app/features/marketing/pages/LandingPage", () => ({
+jest.mock('@/app/features/marketing/site', () => ({
   __esModule: true,
-  default: () => <div data-testid="landingpage-mock">LandingPage Mock</div>,
+  MarketingShell: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="marketing-shell">{children}</div>
+  ),
 }));
 
-import Home, * as HomeModule from "@/app/(routes)/(public)/page";
+jest.mock('@/app/features/marketing/pages/Home/Home', () => ({
+  __esModule: true,
+  Home: () => <div data-testid="home-mock">Home Mock</div>,
+}));
 
-describe("Home page (root route)", () => {
-  test("renders LandingPage", () => {
+import Home, * as HomeModule from '@/app/(routes)/(public)/page';
+
+describe('Home page (root route)', () => {
+  test('renders the Home marketing page inside the shell', () => {
     render(<Home />);
-    expect(screen.getByTestId("landingpage-mock")).toBeInTheDocument();
+    expect(screen.getByTestId('marketing-shell')).toBeInTheDocument();
+    expect(screen.getByTestId('home-mock')).toBeInTheDocument();
   });
 
-  test("renders LandingPage as the only top-level child", () => {
-    const { container } = render(<Home />);
-    expect(container.children.length).toBe(1);
-    expect(container.firstChild).toHaveAttribute(
-      "data-testid",
-      "landingpage-mock"
-    );
+  test('exposes page metadata with the brand suffix', () => {
+    expect(HomeModule.metadata?.title).toContain('Yosemite Crew');
   });
 
-  test("default export is a function", () => {
-    expect(typeof Home).toBe("function");
-    expect(typeof HomeModule.default).toBe("function");
+  test('default export is a function', () => {
+    expect(typeof Home).toBe('function');
+    expect(typeof HomeModule.default).toBe('function');
   });
 });

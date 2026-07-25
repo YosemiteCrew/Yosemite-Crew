@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { LabResultController } from "src/controllers/web/lab-result.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/:provider/results",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabResultController.list(req, res),
@@ -15,7 +15,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/results/search",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabResultController.search(req, res),
@@ -25,7 +25,7 @@ router.get(
 // (combined "print all results" PDF) is matched before `/results/:resultId`.
 router.get(
   "/pms/organisation/:organisationId/:provider/results/pdf",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabResultController.getCombinedPdf(req, res),
@@ -33,7 +33,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/results/:resultId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabResultController.get(req, res),
@@ -41,7 +41,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/results/:resultId/pdf",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabResultController.getPdf(req, res),
@@ -49,7 +49,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/:provider/results/:resultId/notifications/pdf",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("labs:view:any"),
   (req, res) => LabResultController.getNotificationsPdf(req, res),

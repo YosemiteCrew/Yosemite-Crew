@@ -106,7 +106,7 @@ type CompanionProps = {
   onCompanionCreated?: (companion: StoredCompanion) => void;
 };
 
-const Companion = ({
+const useCompanionContent = ({
   setActiveLabel,
   formData,
   setFormData,
@@ -126,9 +126,14 @@ const Companion = ({
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.dateOfBirth ? new Date(formData.dateOfBirth) : null
-  );
+  const currentDate = formData.dateOfBirth ? new Date(formData.dateOfBirth) : null;
+  const setCurrentDate: React.Dispatch<React.SetStateAction<Date | null>> = (value) => {
+    setFormData((prev) => {
+      const prevDate = prev.dateOfBirth ? new Date(prev.dateOfBirth) : null;
+      const next = typeof value === 'function' ? value(prevDate) : value;
+      return { ...prev, dateOfBirth: next ?? new Date() };
+    });
+  };
   const [query, setQuery] = useState('');
   const { notify } = useNotify();
   const [results, setResults] = useState<StoredCompanion[]>([]);
@@ -165,13 +170,6 @@ const Companion = ({
       mounted = false;
     };
   }, [parentFormData.id]);
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      dateOfBirth: currentDate ?? new Date(),
-    }));
-  }, [currentDate, setFormData]);
 
   useEffect(() => {
     let mounted = true;
@@ -346,7 +344,6 @@ const Companion = ({
               inlabel="Name"
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               error={formDataErrors.name}
-              className="min-h-12!"
             />
             <div
               data-testid="companion-color-blood-group-row"
@@ -392,7 +389,6 @@ const Companion = ({
               currentDate={currentDate}
               setCurrentDate={setCurrentDate}
               type="input"
-              className="min-h-12!"
               containerClassName="w-full"
               placeholder="Date of birth"
               error={formDataErrors.dateOfBirth}
@@ -427,7 +423,6 @@ const Companion = ({
                     ageWhenNeutered: e.target.value.replaceAll('-', ''),
                   })
                 }
-                className="min-h-12!"
               />
             )}
             <div className={`grid gap-3 ${isFastTrack ? 'grid-cols-1' : 'grid-cols-2'}`}>
@@ -437,7 +432,6 @@ const Companion = ({
                 value={formData.colour || ''}
                 inlabel="Color (optional)"
                 onChange={(e) => setFormData({ ...formData, colour: e.target.value })}
-                className="min-h-12!"
               />
               {!isFastTrack && (
                 <LabelDropdown
@@ -461,7 +455,6 @@ const Companion = ({
                       currentWeight: toNonNegativeNumber(e.target.value),
                     })
                   }
-                  className="min-h-12!"
                 />
                 <LabelDropdown
                   placeholder="Country of origin (optional)"
@@ -482,7 +475,6 @@ const Companion = ({
                   value={formData.microchipNumber || ''}
                   inlabel="Microchip number (optional)"
                   onChange={(e) => setFormData({ ...formData, microchipNumber: e.target.value })}
-                  className="min-h-12!"
                 />
                 <FormInput
                   intype="text"
@@ -495,7 +487,6 @@ const Companion = ({
                       passportNumber: e.target.value.replaceAll(/[^0-9a-zA-Z-]/g, ''),
                     })
                   }
-                  className="min-h-12!"
                 />
                 <SelectLabel
                   title="Insurance"
@@ -532,7 +523,6 @@ const Companion = ({
                         })
                       }
                       error={formDataErrors.insuranceNumber}
-                      className="min-h-12!"
                     />
                     <FormInput
                       intype="text"
@@ -550,7 +540,6 @@ const Companion = ({
                         })
                       }
                       error={formDataErrors.insuranceNumber}
-                      className="min-h-12!"
                     />
                   </>
                 )}
@@ -574,5 +563,7 @@ const Companion = ({
     </div>
   );
 };
+
+const Companion = (props: CompanionProps) => useCompanionContent(props);
 
 export default Companion;

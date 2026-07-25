@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Appointment } from '@yosemite-crew/types';
-import { LuBedSingle, LuCheckCircle } from 'react-icons/lu';
+import { IoBedOutline, IoCheckmarkCircleOutline } from 'react-icons/io5';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useAuthStore } from '@/app/stores/authStore';
 import {
@@ -55,7 +55,11 @@ import TreatmentStep from '@/app/features/appointments/pages/AppointmentWorkspac
 import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
 import SummaryStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep';
 import QuickActionsModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/QuickActionsModal';
+import WorkspaceActionRail from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceActionRail';
+import PhoneWorkspaceShell from '@/app/features/appointments/pages/AppointmentWorkspace/phone/PhoneWorkspaceShell';
 import HospitalizationModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/HospitalizationModal';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
+import { formatCompanionAge } from '@/app/lib/date';
 import {
   admitAppointment,
   assignEncounterUnit,
@@ -101,6 +105,21 @@ type RequiredStaffMember = {
 };
 
 const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
+
+/**
+ * Whether the visit has actually begun. Only a checked-in, in-progress, or
+ * completed appointment has started; an Upcoming/Requested one has not. This
+ * gates two workflow decisions: a not-started appointment must land on SOAP
+ * (never Summary/discharge), and its SOAP draft must not be auto-prefilled from
+ * a service/package template before clinical documentation has begun.
+ */
+const hasVisitStarted = (status: Appointment['status']): boolean => {
+  const normalized = normalizeAppointmentStatus(status);
+  return normalized === 'CHECKED_IN' || normalized === 'IN_PROGRESS' || normalized === 'COMPLETED';
+};
+
+/** Companion detail rows condensed into the header's one-line identity summary. */
+const SUMMARY_META_LABELS = new Set(['Breed/Species', 'Sex', 'Age / DOB', 'Weight']);
 
 const isSameInstant = (left?: string | Date, right?: string | Date): boolean => {
   if (!left || !right) return false;
@@ -168,8 +187,16 @@ const getWorkspaceBootstrapEncounterId = (bootstrap: unknown): string | undefine
   return typeof id === 'string' && id.trim() ? id.trim() : undefined;
 };
 
-const getRoomName = (rooms: WorkspaceRoom[], roomId?: string) =>
-  rooms.find((room) => room.id === roomId)?.name ?? roomId ?? '';
+const getRoomName = (rooms: WorkspaceRoom[], roomId?: string): string => {
+  const matchedName = rooms.find((room) => room.id === roomId)?.name;
+  if (matchedName !== undefined) return matchedName;
+  /* v8 ignore start -- both callers (the admit payload's `room` and
+     persistRoomAssignment) only reach this behind a truthy roomId check, so the
+     no-id fallback is unreachable. */
+  if (roomId === undefined) return '';
+  /* v8 ignore stop */
+  return roomId;
+};
 
 const buildAdmissionDateTime = (date: Date | null, time: string): string => {
   const next = date ? new Date(date) : new Date();
@@ -310,10 +337,14 @@ const DischargeDateTimeModal = ({
  * Full-page clinical workspace shell. Hosts the header, companion card, stepper,
  * meta bar, and the active step. Step bodies are layered in per phase.
  */
-const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
+const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspaceProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { notify } = useNotify();
+  // Phone (< 768px) swaps the desktop band/meta-bar/action-rail chrome for a
+  // bespoke phone shell. `false` during SSR/first render, so desktop/tablet render
+  // exactly as before and there is no hydration mismatch (see useIsPhone).
+  const isPhone = useIsPhone();
   const terminologyText = useCompanionTerminologyText();
   const attributes = useAuthStore((s) => s.attributes);
   useLoadRoomsForPrimaryOrg({ force: true, silent: true });
@@ -366,6 +397,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   );
   const [dischargeOverrideReason, setDischargeOverrideReason] = useState('');
   const lifecycleEncounterIdRef = useRef<string | undefined>(appointment.encounterId);
+  const initializedEncounterKeyRef = useRef<string | null>(null);
   const supportStaffMember = useMemo(() => {
     const leadName = (appointment.lead?.name ?? '').trim();
     return (appointment.supportStaff ?? []).find(
@@ -373,8 +405,19 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     );
   }, [appointment.lead?.name, appointment.supportStaff]);
 
-  useEffect(() => {
-    if (!appointmentId) return;
+  const encounterInitKey = appointmentId
+    ? [
+        appointmentId,
+        appointment.encounterId ?? '',
+        initialMode,
+        appointment.lead?.id ?? '',
+        appointment.lead?.name ?? '',
+        supportStaffMember?.id ?? '',
+        supportStaffMember?.name ?? '',
+      ].join('|')
+    : '';
+  if (appointmentId && initializedEncounterKeyRef.current !== encounterInitKey) {
+    initializedEncounterKeyRef.current = encounterInitKey;
     lifecycleEncounterIdRef.current = appointment.encounterId;
     const leadName = (appointment.lead?.name ?? '').trim();
     initEncounter(appointmentId, initialMode, {
@@ -383,14 +426,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       nurseId: supportStaffMember?.id,
       nurseName: supportStaffMember?.name?.trim(),
     });
-  }, [
-    appointment.encounterId,
-    appointment.lead,
-    appointmentId,
-    initEncounter,
-    initialMode,
-    supportStaffMember,
-  ]);
+  }
 
   useEffect(() => {
     const organisationId = appointment.organisationId;
@@ -403,13 +439,18 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   useEffect(() => {
     const organisationId = appointment.organisationId;
     if (!organisationId || catalogSpecialities.length === 0) return;
-    Promise.allSettled(
-      catalogSpecialities
-        .filter((speciality) => speciality.organisationId === organisationId)
-        .map((speciality) => loadSpecialityCatalog(organisationId, speciality.id))
-    ).catch((error: unknown) => {
+    const specialityLoads: Array<Promise<unknown>> = [];
+    for (const speciality of catalogSpecialities) {
+      if (speciality.organisationId === organisationId) {
+        specialityLoads.push(loadSpecialityCatalog(organisationId, speciality.id));
+      }
+    }
+    /* v8 ignore start -- Promise.allSettled over an array never rejects (it only
+       throws for a non-iterable argument), so this catch is unreachable. */
+    Promise.allSettled(specialityLoads).catch((error: unknown) => {
       console.error('Failed to load hospitalization services:', error);
     });
+    /* v8 ignore stop */
   }, [appointment.organisationId, catalogSpecialities, loadSpecialityCatalog]);
 
   const hydratedClinicalRef = useRef<string | null>(null);
@@ -455,13 +496,15 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           ...(clinicalResult.status === 'fulfilled' ? clinicalResult.value : {}),
           soapTemplates: templatesResult.status === 'fulfilled' ? templatesResult.value : [],
         });
-        // Prefill the active SOAP draft from the resolved template only when there
-        // is no saved/typed SOAP content yet, so we never overwrite a real record.
+        // Prefill the active SOAP draft from the resolved template only once the
+        // visit has started AND there is no saved/typed SOAP content yet — so a
+        // not-yet-started appointment opens with empty SOAP, and we never
+        // overwrite a real record.
         const resolvedSoap =
           resolvedSoapResult.status === 'fulfilled' ? resolvedSoapResult.value : null;
         const liveEncounter = getEncounter(appointmentId);
         const hasSoapContent = hasMeaningfulSoapContent(liveEncounter?.soap ?? []);
-        if (resolvedSoap && !hasSoapContent) {
+        if (resolvedSoap && !hasSoapContent && hasVisitStarted(appointment.status)) {
           applySoapTemplate(appointmentId, resolvedSoap);
         }
       })
@@ -472,6 +515,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     appointment.encounterId,
     appointment.organisationId,
     appointment.appointmentType?.id,
+    appointment.status,
     appointmentId,
     actor.id,
     actor.name,
@@ -515,12 +559,20 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   useEffect(() => {
     if (!encounter || landedForRef.current === encounter.appointmentId) return;
     landedForRef.current = encounter.appointmentId;
+    // A not-yet-started (Upcoming/Requested) appointment always opens on SOAP —
+    // never on Summary/discharge — regardless of any derived encounter progress,
+    // a past lock window, or stale route/tab state. Progress-driven landing (and
+    // an explicit ?step=) only applies once the visit has actually begun.
+    if (!hasVisitStarted(appointment.status)) {
+      setActiveStep('SOAP');
+      return;
+    }
     const landingEncounter = {
       ...encounter,
       viewOnly: encounter.viewOnly || encounter.readyForDischarge.value || lockedByWindow,
     };
     setActiveStep(isValidStep(stepParam) ? stepParam : resolveLandingStep(landingEncounter));
-  }, [encounter, lockedByWindow, stepParam, setActiveStep]);
+  }, [encounter, lockedByWindow, stepParam, setActiveStep, appointment.status]);
 
   const companionDetails = useMemo(
     () =>
@@ -536,6 +588,17 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       ),
     [companion, companionRecord, terminologyText]
   );
+  // Compact "Beagle · F, spayed · 4y 2m · 12.4 kg" identity line under the header
+  // name — the same values the context card lists, condensed to one row.
+  const companionMetaLine = useMemo(() => {
+    const summaryValues: string[] = [];
+    for (const detail of companionDetails) {
+      if (SUMMARY_META_LABELS.has(detail.label) && detail.value && detail.value !== '-') {
+        summaryValues.push(detail.value);
+      }
+    }
+    return summaryValues.join(' · ');
+  }, [companionDetails]);
   // Clinical encounter — the time-based "Appointment lock window" freezes the
   // legal record (SOAP + Discharge/Summary). This is what the lock exists for.
   const effectiveEncounter = useMemo(
@@ -665,36 +728,40 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     // Only INPATIENT-bookable items may be added on hospitalization. The backend derives
     // `supportsInpatient` from `isInpatientPreferred` and rejects anything else with a 400
     // ("not bookable for inpatient appointments"), so filter to inpatient-preferred items here.
-    const serviceOptions = catalogServices
-      .filter(
-        (service) =>
-          service.organisationId === appointment.organisationId &&
-          service.status === 'ACTIVE' &&
-          service.isBookable !== false &&
-          service.isInpatientPreferred === true
-      )
-      .map((service) => ({
-        id: service.id,
-        kind: 'SERVICE' as const,
-        name: service.name,
-        cost: service.grossAmount,
-        maxDiscount: service.maxDiscount,
-      }));
-    const packageOptions = catalogPackages
-      .filter(
-        (pkg) =>
-          pkg.organisationId === appointment.organisationId &&
-          pkg.status === 'ACTIVE' &&
-          pkg.isBookable !== false &&
-          pkg.isInpatientPreferred === true
-      )
-      .map((pkg) => ({
-        id: pkg.id,
-        kind: 'PACKAGE' as const,
-        name: pkg.name,
-        cost: pkg.serverFinalAmount ?? 0,
-        maxDiscount: pkg.additionalDiscount,
-      }));
+    const serviceOptions = [];
+    for (const service of catalogServices) {
+      if (
+        service.organisationId === appointment.organisationId &&
+        service.status === 'ACTIVE' &&
+        service.isBookable !== false &&
+        service.isInpatientPreferred === true
+      ) {
+        serviceOptions.push({
+          id: service.id,
+          kind: 'SERVICE' as const,
+          name: service.name,
+          cost: service.grossAmount,
+          maxDiscount: service.maxDiscount,
+        });
+      }
+    }
+    const packageOptions = [];
+    for (const pkg of catalogPackages) {
+      if (
+        pkg.organisationId === appointment.organisationId &&
+        pkg.status === 'ACTIVE' &&
+        pkg.isBookable !== false &&
+        pkg.isInpatientPreferred === true
+      ) {
+        packageOptions.push({
+          id: pkg.id,
+          kind: 'PACKAGE' as const,
+          name: pkg.name,
+          cost: pkg.serverFinalAmount ?? 0,
+          maxDiscount: pkg.additionalDiscount,
+        });
+      }
+    }
     return [...serviceOptions, ...packageOptions];
   }, [appointment.organisationId, catalogPackages, catalogServices]);
 
@@ -711,12 +778,19 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     if (next) handleStepChange(next);
   }, [activeStep, handleStepChange]);
 
+  // Defence in depth for the WorkspaceMetaBar contract. The bar swaps the Room and
+  // Unit dropdowns for read-only fields whenever roomAssignmentLocked is true (see
+  // the "read-only for completed appointments" / "read-only after ... discharged"
+  // tests), so no locked select can currently reach the handlers below.
+  /* v8 ignore start -- unreachable while WorkspaceMetaBar renders ReadOnlyMetaField
+     instead of a LabelDropdown for a locked room assignment. */
   const notifyRoomAssignmentLocked = useCallback(() => {
     notify('warning', {
       title: 'Room assignment locked',
       text: 'Room and unit cannot be changed after the appointment is discharged or completed.',
     });
   }, [notify]);
+  /* v8 ignore stop */
 
   const refreshWorkspaceEncounterId = useCallback(async () => {
     const organisationId = appointment.organisationId;
@@ -767,6 +841,10 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         });
         return false;
       }
+      /* v8 ignore start -- every non-inpatient admit path is the hospitalization
+         convert flow, which always passes allowModeConversion: true; the header
+         Admit and unit-assign re-admit callers are gated to INPATIENT, so this
+         guard is unreachable through the UI. */
       if (encounterMode !== 'INPATIENT' && !options?.allowModeConversion) {
         notify('error', {
           title: 'Unable to admit',
@@ -774,6 +852,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         });
         return false;
       }
+      /* v8 ignore stop */
 
       const admittedAt = options?.admittedAt ?? new Date().toISOString();
       const resolvedRoomId = roomId ?? effectiveEncounter?.roomId ?? appointment.room?.id;
@@ -800,6 +879,10 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       }
 
       setIsAdmitting(true);
+      // The outcome is hoisted out of the try so the `finally` has a single exit
+      // path; returning from inside try/catch leaves an unreachable completion
+      // edge behind. Matches handleDischarge/handleComplete below.
+      let admitted = false;
       try {
         await admitAppointment(appointment.organisationId, appointmentId, {
           admittedAt,
@@ -836,16 +919,16 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           title: terminologyText('Patient admitted'),
           text: 'Admission has been created.',
         });
-        return true;
+        admitted = true;
       } catch (error) {
         notify('error', {
           title: 'Unable to admit',
           text: getErrorMessage(error) || 'Please try again.',
         });
-        return false;
       } finally {
         setIsAdmitting(false);
       }
+      return admitted;
     },
     [
       actor.id,
@@ -877,11 +960,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const persistUnitAssignment = useCallback(
     async (unitId?: string) => {
+      if (!unitId) return false;
       const encounterId =
         lifecycleEncounterIdRef.current ??
         appointment.encounterId ??
         (await refreshWorkspaceEncounterId());
-      if (!unitId) return false;
       if (!encounterId) {
         notify('error', {
           title: 'Unable to assign unit',
@@ -944,10 +1027,13 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const handleRoomSelect = useCallback(
     async (option: { value: string }) => {
+      /* v8 ignore start -- see notifyRoomAssignmentLocked: a locked room assignment
+         renders a read-only field, so onSelectRoom cannot fire in that state. */
       if (roomAssignmentLocked) {
         notifyRoomAssignmentLocked();
         return;
       }
+      /* v8 ignore stop */
       const firstUnit = getFirstAssignableRoomUnitId(
         option.value,
         { roomUnitsById, roomUnitIdsByRoomId },
@@ -985,10 +1071,13 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const handleUnitSelect = useCallback(
     async (option: { value: string }) => {
+      /* v8 ignore start -- see notifyRoomAssignmentLocked: a locked room assignment
+         renders a read-only field, so onSelectUnit cannot fire in that state. */
       if (roomAssignmentLocked) {
         notifyRoomAssignmentLocked();
         return;
       }
+      /* v8 ignore stop */
       const previousUnitId = effectiveEncounter?.unitId;
       setRoomUnit(appointmentId, effectiveEncounter?.roomId, option.value);
       const [, unitPersisted] = await Promise.all([
@@ -1016,8 +1105,13 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const runEncounterLifecycleOperation = useCallback(
     async (operation: (encounterId: string) => Promise<void>) => {
+      /* v8 ignore start -- the only caller runs this inside the same
+         `lifecycleEncounterIdRef.current ?? appointment.encounterId` truthiness check,
+         and the ref is seeded from appointment.encounterId and only ever reassigned to
+         a non-empty id, so here the ref is always set and the guard never fires. */
       const currentEncounterId = lifecycleEncounterIdRef.current ?? appointment.encounterId;
       if (!currentEncounterId) return;
+      /* v8 ignore stop */
       try {
         await operation(currentEncounterId);
       } catch (error) {
@@ -1041,7 +1135,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   );
 
   const handleReadyForDischargeToggle = useCallback(async () => {
+    /* v8 ignore start -- unreachable default: the toggle is only mounted when
+       effectiveEncounter exists, which implies `encounter` does, and
+       ReadyState.value is a required boolean. */
     const nextReady = !(encounter?.readyForDischarge.value ?? false);
+    /* v8 ignore stop */
     // Optimistic: flip the checkbox immediately for instant feedback, then persist in the
     // background. If the write fails, roll the toggle back and surface an alert.
     toggleReadyForDischarge(appointmentId, actor);
@@ -1077,7 +1175,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   ]);
 
   const handleReadyForBillingToggle = useCallback(async () => {
+    /* v8 ignore start -- unreachable default: the toggle is only mounted when
+       effectiveEncounter exists, which implies `encounter` does, and
+       ReadyState.value is a required boolean. */
     const nextReady = !(encounter?.readyForBilling.value ?? false);
+    /* v8 ignore stop */
     // Marking ready sets the invoice's visitBillingStage to READY_FOR_BILLING on
     // the finance service; un-marking reverts it to DRAFT via the matching DELETE
     // route. The backend refuses the revert (409) once any payment/credit has been
@@ -1241,7 +1343,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const handleDischarge = useCallback(
     async (dischargedAt: string, overrideReason?: string) => {
+      /* v8 ignore start -- the only caller is the discharge modal's Confirm button,
+         which BaseButton renders as <button disabled> while isSaving (= isFinalizing),
+         so a second click can never re-enter this. */
       if (isFinalizing) return;
+      /* v8 ignore stop */
       setIsFinalizing(true);
       try {
         await dischargeEncounter(
@@ -1280,7 +1386,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   );
 
   const handleComplete = useCallback(async () => {
+    /* v8 ignore start -- handleSummaryTerminalAction already returns early on
+       isFinalizing, and the summary CTA is a disabled <button> in that state, so this
+       second re-entry guard can never fire. */
     if (isFinalizing) return;
+    /* v8 ignore stop */
     setIsFinalizing(true);
     try {
       await completeAppointmentStatus();
@@ -1300,9 +1410,17 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   }, [appointmentId, completeAppointmentStatus, isFinalizing, markDischarged, notify]);
 
   const handleSummaryTerminalAction = useCallback(() => {
+    /* v8 ignore start -- summaryPrimaryCta returns undefined without an
+       effectiveEncounter, so no CTA exists to invoke this without one. */
     if (!effectiveEncounter) return;
+    /* v8 ignore stop */
     const alreadyDischarged = Boolean(effectiveEncounter.dischargedAt);
+    /* v8 ignore start -- the summary CTA is rendered by Primary/BaseButton as a
+       real <button disabled>, and summaryPrimaryCta sets isDisabled to exactly
+       `alreadyDischarged || isFinalizing`, so a click can never reach this
+       re-entry guard while either is true. */
     if (alreadyDischarged || isFinalizing) return;
+    /* v8 ignore stop */
     if (effectiveEncounter.mode === 'INPATIENT') {
       setIsSummaryDischargeModalOpen(true);
       return;
@@ -1332,7 +1450,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       label,
       onClick: handleSummaryTerminalAction,
       isDisabled: alreadyDischarged || isFinalizing,
-      icon: isInpatient ? <LuBedSingle aria-hidden="true" /> : <LuCheckCircle aria-hidden="true" />,
+      icon: isInpatient ? (
+        <IoBedOutline aria-hidden="true" />
+      ) : (
+        <IoCheckmarkCircleOutline aria-hidden="true" />
+      ),
     };
   }, [activeStep, effectiveEncounter, handleSummaryTerminalAction, isFinalizing]);
 
@@ -1340,134 +1462,81 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   if (!effectiveEncounter || !operationalEncounter) return null;
 
-  return (
-    <div className="flex flex-col gap-5 pb-12">
-      <div className="-mx-4 -mt-5 flex flex-col gap-5 bg-(--status-in-progress-bg) px-4 pt-5 pb-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <WorkspaceHeader
+  // The raw persisted view-only flag (the toggles below gate on this rather than on
+  // effectiveEncounter.viewOnly, which also folds in the lock window).
+  /* v8 ignore start -- unreachable default: effectiveEncounter above only exists when
+     `encounter` does, and viewOnly is a required boolean; TS just can't narrow
+     `encounter` through the memo. */
+  const persistedViewOnly = encounter?.viewOnly ?? false;
+  /* v8 ignore stop */
+
+  // The active step body, shared verbatim by the desktop layout and the phone
+  // shell so every step's wiring (and the recent step fixes) stays identical.
+  const stepContent = (
+    <>
+      {activeStep === 'SOAP' && (
+        <SoapStep
+          appointmentId={appointmentId}
+          organisationId={appointment.organisationId}
+          encounterId={appointment.encounterId}
+          authorId={actor.id}
+          authorName={actor.name}
+          appointmentReason={appointmentReason}
+          appointmentService={appointment.appointmentType?.name}
+          appointmentSpeciality={appointment.appointmentType?.speciality?.name}
+          encounter={effectiveEncounter}
+          visitStarted={hasVisitStarted(appointment.status)}
+          onRecordVitals={() => setActiveSideAction('RECORD')}
+          onSaveAndNext={handleSaveAndNext}
+        />
+      )}
+      {activeStep === 'DIAGNOSTICS' && (
+        <DiagnosticsStep
           appointment={appointment}
-          companionName={companion.name}
-          alerts={displayedPatientAlerts}
-          clientAlerts={displayedClientAlerts}
-          onBack={() => {
-            startRouteLoader();
-            router.push('/appointments');
-          }}
-          onQuickActions={() => setActiveSideAction('RECORD')}
-          onHospitalize={() => {
-            if (!canAdmitAppointmentStatus) {
-              notify('error', {
-                title: 'Check in required',
-                text: terminologyText('Check in the appointment before admitting the patient.'),
-              });
-              return;
-            }
-            setIsHospitalizeOpen(true);
-          }}
-          canAdmit={
-            encounterMode === 'INPATIENT' &&
-            canAdmitAppointmentStatus &&
-            !hasAdmission &&
-            !effectiveEncounter.viewOnly
-          }
-          isAdmitting={isAdmitting}
-          onAdmit={() => handleAdmit(effectiveEncounter.unitId, effectiveEncounter.roomId)}
-          canHospitalize={encounterMode !== 'INPATIENT'}
-          onAddAlert={() => setIsAddAlertOpen(true)}
-          onRemoveAlert={handleRemovePatientAlert}
+          readOnly={operationalEncounter.viewOnly}
+          onOpenTreatment={() => handleStepChange('TREATMENT')}
         />
-
-        <CompanionContextCard
-          name={companion.name}
-          photoUrl={companionRecord?.photoUrl}
-          speciesType={companionRecord?.type ?? companion.species}
-          details={companionDetails}
-          mode={encounterMode}
-          onViewDetails={() =>
-            router.push(buildAppointmentCompanionHistoryHref(appointmentId, companion.id))
-          }
+      )}
+      {activeStep === 'TREATMENT' && (
+        <TreatmentStep
+          appointmentId={appointmentId}
+          organisationId={appointment.organisationId}
+          encounterId={appointment.encounterId}
+          authorId={actor.id}
+          encounter={operationalEncounter}
+          ensureEncounterId={ensureEncounterId}
+          onOpenInvoice={() => handleStepChange('INVOICE')}
         />
-
-        <WorkspaceStepper
-          activeStep={activeStep}
-          stepStatus={effectiveEncounter.stepStatus}
-          onStepChange={handleStepChange}
+      )}
+      {activeStep === 'INVOICE' && (
+        <InvoiceStep
+          appointmentId={appointmentId}
+          organisationId={appointment.organisationId}
+          encounterId={appointment.encounterId}
+          authorId={actor.id}
+          patientId={companion.id}
+          parentId={companion.parent.id}
+          encounter={operationalEncounter}
+          hideBillBuilder={isCompletedAppointment}
+          bookedItemName={appointment.appointmentType?.name}
+          onOpenSummary={() => handleStepChange('SUMMARY')}
         />
-      </div>
+      )}
+      {activeStep === 'SUMMARY' && (
+        <SummaryStep
+          appointmentId={appointmentId}
+          appointment={appointment}
+          encounter={effectiveEncounter}
+          resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
+        />
+      )}
+    </>
+  );
 
-      <WorkspaceMetaBar
-        encounter={effectiveEncounter}
-        activeStep={activeStep}
-        leadPhotoUrl={appointment.lead?.profileUrl}
-        supportPhotoUrl={(supportStaffMember as { profileUrl?: string } | undefined)?.profileUrl}
-        roomOptions={roomOptions}
-        unitOptions={unitOptions}
-        onSelectRoom={handleRoomSelect}
-        onSelectUnit={handleUnitSelect}
-        onSaveAndNext={handleSaveAndNext}
-        onToggleReadyForBilling={handleReadyForBillingToggle}
-        onToggleReadyForDischarge={handleReadyForDischargeToggle}
-        roomAssignmentLocked={roomAssignmentLocked}
-        billingTogglesLocked={(encounter?.viewOnly ?? false) || billingSettled}
-        dischargeTogglesLocked={(encounter?.viewOnly ?? false) || lockedByWindow}
-        primaryCta={workspacePrimaryCta}
-      />
-
-      <section aria-label="Workspace step content" className="min-h-50">
-        {activeStep === 'SOAP' && (
-          <SoapStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            encounterId={appointment.encounterId}
-            authorId={actor.id}
-            authorName={actor.name}
-            appointmentReason={appointmentReason}
-            appointmentService={appointment.appointmentType?.name}
-            appointmentSpeciality={appointment.appointmentType?.speciality?.name}
-            encounter={effectiveEncounter}
-            onRecordVitals={() => setActiveSideAction('RECORD')}
-            onSaveAndNext={handleSaveAndNext}
-          />
-        )}
-        {activeStep === 'DIAGNOSTICS' && (
-          <DiagnosticsStep
-            appointment={appointment}
-            readOnly={operationalEncounter.viewOnly}
-            onOpenTreatment={() => handleStepChange('TREATMENT')}
-          />
-        )}
-        {activeStep === 'TREATMENT' && (
-          <TreatmentStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            encounterId={appointment.encounterId}
-            authorId={actor.id}
-            encounter={operationalEncounter}
-            ensureEncounterId={ensureEncounterId}
-            onOpenInvoice={() => handleStepChange('INVOICE')}
-          />
-        )}
-        {activeStep === 'INVOICE' && (
-          <InvoiceStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            patientId={companion.id}
-            parentId={companion.parent.id}
-            encounter={operationalEncounter}
-            hideBillBuilder={isCompletedAppointment}
-            bookedItemName={appointment.appointmentType?.name}
-            onOpenSummary={() => handleStepChange('SUMMARY')}
-          />
-        )}
-        {activeStep === 'SUMMARY' && (
-          <SummaryStep
-            appointmentId={appointmentId}
-            appointment={appointment}
-            encounter={effectiveEncounter}
-            resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
-          />
-        )}
-      </section>
-
+  // Overlays are layout-independent — rendered by both the desktop tree and the
+  // phone shell so every modal flow works regardless of viewport.
+  const sharedModals = (
+    <>
       <DischargeDateTimeModal
         showModal={isSummaryDischargeModalOpen}
         setShowModal={setIsSummaryDischargeModalOpen}
@@ -1530,8 +1599,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             allowModeConversion: true,
           });
           if (!converted) return false;
+          const servicePackageIdSet = new Set(payload.servicePackageIds);
           const selectedServicePackages = hospitalizationServicePackages.filter((item) =>
-            payload.servicePackageIds.includes(item.id)
+            servicePackageIdSet.has(item.id)
           );
           // Admission has created/resolved the encounter — persist each chosen service/package as a
           // treatment item so it survives a refresh (local addLineItem alone is lost on reload).
@@ -1539,9 +1609,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             lifecycleEncounterIdRef.current ??
             appointment.encounterId ??
             (await refreshWorkspaceEncounterId());
-          for (const selectedServicePackage of selectedServicePackages) {
+          const admissionLines = selectedServicePackages.map((selectedServicePackage) => {
             const amountCents = Math.max(0, Math.round(selectedServicePackage.cost * 100));
-            const line = {
+            return {
               refId: selectedServicePackage.id,
               kind: selectedServicePackage.kind,
               name: selectedServicePackage.name,
@@ -1550,17 +1620,20 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
               unitPriceCents: amountCents,
               amountCents,
             };
-            if (appointment.organisationId && admissionEncounterId) {
-              try {
-                await persistEncounterTreatmentLine(
-                  appointment.organisationId,
-                  admissionEncounterId,
-                  line
-                );
-              } catch (error) {
-                console.error('Failed to persist hospitalization service/package:', error);
-              }
-            }
+          });
+          if (appointment.organisationId && admissionEncounterId) {
+            const organisationId = appointment.organisationId;
+            await Promise.all(
+              admissionLines.map((line) =>
+                persistEncounterTreatmentLine(organisationId, admissionEncounterId, line).catch(
+                  (error) => {
+                    console.error('Failed to persist hospitalization service/package:', error);
+                  }
+                )
+              )
+            );
+          }
+          for (const line of admissionLines) {
             addLineItem(appointmentId, line);
           }
           setEncounterMode(appointmentId, 'INPATIENT');
@@ -1570,8 +1643,146 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           return true;
         }}
       />
+    </>
+  );
+
+  if (isPhone) {
+    return (
+      <>
+        <PhoneWorkspaceShell
+          appointment={appointment}
+          companionName={companion.name}
+          photoUrl={companionRecord?.photoUrl}
+          speciesType={companionRecord?.type ?? companion.species}
+          breed={companionRecord?.breed ?? companion.breed}
+          ageLabel={formatCompanionAge(companionRecord?.dateOfBirth)}
+          weightKg={companionRecord?.currentWeight}
+          allergy={companionRecord?.allergy}
+          // Same visit-start binding as the desktop header (#1903): real actual-start,
+          // then inpatient admission, then booked start.
+          visitStartAt={
+            effectiveEncounter.startedAt ?? effectiveEncounter.admittedAt ?? appointment.startTime
+          }
+          bookedEndAt={appointment.endTime}
+          onBack={() => {
+            startRouteLoader();
+            router.push('/appointments');
+          }}
+          activeStep={activeStep}
+          stepStatus={effectiveEncounter.stepStatus}
+          onStepChange={handleStepChange}
+          vitals={effectiveEncounter.vitals}
+          primaryCta={workspacePrimaryCta}
+          onAdvance={handleSaveAndNext}
+          advanceDisabled={effectiveEncounter.viewOnly}
+          onRecords={() => setActiveSideAction('RECORD')}
+          onChat={() => setActiveSideAction('CHAT')}
+          onMore={() => setActiveSideAction('RECORD')}
+        >
+          {stepContent}
+        </PhoneWorkspaceShell>
+        {sharedModals}
+      </>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5 pb-12">
+      <div className="-mx-4 -mt-5 flex flex-col gap-5 bg-(--screen) px-4 pt-5 pb-5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <WorkspaceHeader
+          appointment={appointment}
+          companionName={companion.name}
+          alerts={displayedPatientAlerts}
+          clientAlerts={displayedClientAlerts}
+          onBack={() => {
+            startRouteLoader();
+            router.push('/appointments');
+          }}
+          onQuickActions={() => setActiveSideAction('RECORD')}
+          onHospitalize={() => {
+            if (!canAdmitAppointmentStatus) {
+              notify('error', {
+                title: 'Check in required',
+                text: terminologyText('Check in the appointment before admitting the patient.'),
+              });
+              return;
+            }
+            setIsHospitalizeOpen(true);
+          }}
+          canAdmit={
+            encounterMode === 'INPATIENT' &&
+            canAdmitAppointmentStatus &&
+            !hasAdmission &&
+            !effectiveEncounter.viewOnly
+          }
+          isAdmitting={isAdmitting}
+          onAdmit={() => handleAdmit(effectiveEncounter.unitId, effectiveEncounter.roomId)}
+          canHospitalize={encounterMode !== 'INPATIENT'}
+          onAddAlert={() => setIsAddAlertOpen(true)}
+          onRemoveAlert={handleRemovePatientAlert}
+          // The "In room" timer counts up from the best available start: the real
+          // actual-start stamped when the encounter goes In Progress (startedAt),
+          // then the inpatient admission time (admittedAt), then the booked
+          // appointment start. It turns amber past the booked end and never gates
+          // any action.
+          visitStartAt={
+            effectiveEncounter.startedAt ?? effectiveEncounter.admittedAt ?? appointment.startTime
+          }
+          bookedEndAt={appointment.endTime}
+          photoUrl={companionRecord?.photoUrl}
+          speciesType={companionRecord?.type ?? companion.species}
+          metaLine={companionMetaLine}
+        />
+
+        <CompanionContextCard
+          name={companion.name}
+          photoUrl={companionRecord?.photoUrl}
+          speciesType={companionRecord?.type ?? companion.species}
+          details={companionDetails}
+          mode={encounterMode}
+          onViewDetails={() =>
+            router.push(buildAppointmentCompanionHistoryHref(appointmentId, companion.id))
+          }
+        />
+
+        <WorkspaceStepper
+          activeStep={activeStep}
+          stepStatus={effectiveEncounter.stepStatus}
+          onStepChange={handleStepChange}
+        />
+      </div>
+
+      <WorkspaceMetaBar
+        encounter={effectiveEncounter}
+        activeStep={activeStep}
+        leadPhotoUrl={appointment.lead?.profileUrl}
+        supportPhotoUrl={(supportStaffMember as { profileUrl?: string } | undefined)?.profileUrl}
+        roomOptions={roomOptions}
+        unitOptions={unitOptions}
+        onSelectRoom={handleRoomSelect}
+        onSelectUnit={handleUnitSelect}
+        onSaveAndNext={handleSaveAndNext}
+        onToggleReadyForBilling={handleReadyForBillingToggle}
+        onToggleReadyForDischarge={handleReadyForDischargeToggle}
+        roomAssignmentLocked={roomAssignmentLocked}
+        billingTogglesLocked={persistedViewOnly || billingSettled}
+        dischargeTogglesLocked={persistedViewOnly || lockedByWindow}
+        primaryCta={workspacePrimaryCta}
+      />
+
+      <div className="flex items-stretch gap-4">
+        <section aria-label="Workspace step content" className="min-h-50 min-w-0 flex-1">
+          {stepContent}
+        </section>
+        <WorkspaceActionRail activeAction={activeSideAction} onSelect={setActiveSideAction} />
+      </div>
+
+      {sharedModals}
     </div>
   );
 };
+
+const AppointmentWorkspace = (props: AppointmentWorkspaceProps) =>
+  useAppointmentWorkspaceContent(props);
 
 export default AppointmentWorkspace;

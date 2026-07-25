@@ -45,11 +45,34 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+const mockFetchDocuments = jest.fn((arg: any) => ({
+  type: 'documents/fetchDocuments',
+  payload: arg,
+}));
+const mockFetchTasksForCompanion = jest.fn((arg: any) => ({
+  type: 'tasks/fetchTasksForCompanion',
+  payload: arg,
+}));
+
+jest.mock('@/features/documents/documentSlice', () => ({
+  fetchDocuments: (...args: any[]) => mockFetchDocuments(...args),
+}));
+
+jest.mock('@/features/tasks', () => ({
+  fetchTasksForCompanion: (...args: any[]) =>
+    mockFetchTasksForCompanion(...args),
+}));
+
 // Mock Redux Store
-const createMockStore = () => {
+const createMockStore = (
+  companionState: any = {
+    companions: [{id: 'comp-1', name: 'Buddy'}],
+    selectedCompanionId: 'comp-1',
+  },
+) => {
   return configureStore({
     reducer: {
-      companion: (state = {companions: [{id: 'comp-1', name: 'Buddy'}], selectedCompanionId: 'comp-1'}) => state,
+      companion: (state = companionState) => state,
       documents: (state = {documents: []}) => state,
       tasks: (state = {items: []}) => state,
     },
@@ -334,6 +357,182 @@ describe('FloatingTabBar', () => {
       fireEvent.press(getByText('Bookings'));
 
       expect(props.navigation.navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Tab Data Refresh', () => {
+    beforeEach(() => {
+      (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
+    });
+
+    it('refreshes documents when the active tab is Documents', () => {
+      const route = {key: 'docs-key', name: 'Documents'};
+      const props: any = createProps(0, [route]);
+      const dispatchSpy = jest.spyOn(store, 'dispatch');
+
+      render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      expect(mockFetchDocuments).toHaveBeenCalledWith({companionId: 'comp-1'});
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({type: 'documents/fetchDocuments'}),
+      );
+      expect(mockFetchTasksForCompanion).not.toHaveBeenCalled();
+    });
+
+    it('refreshes tasks when the active tab is Tasks', () => {
+      const route = {key: 'tasks-key', name: 'Tasks'};
+      const props: any = createProps(0, [route]);
+
+      render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      expect(mockFetchTasksForCompanion).toHaveBeenCalledWith({
+        companionId: 'comp-1',
+      });
+      expect(mockFetchDocuments).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the first companion id when none is explicitly selected', () => {
+      store = createMockStore({
+        companions: [{id: 'comp-fallback', name: 'Fallback'}],
+        selectedCompanionId: null,
+      });
+      const route = {key: 'tasks-key', name: 'Tasks'};
+      const props: any = createProps(0, [route]);
+
+      render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      expect(mockFetchTasksForCompanion).toHaveBeenCalledWith({
+        companionId: 'comp-fallback',
+      });
+    });
+
+    it('does not refresh anything when there is no companion at all', () => {
+      store = createMockStore({companions: [], selectedCompanionId: null});
+      const route = {key: 'tasks-key', name: 'Tasks'};
+      const props: any = createProps(0, [route]);
+
+      render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      expect(mockFetchTasksForCompanion).not.toHaveBeenCalled();
+      expect(mockFetchDocuments).not.toHaveBeenCalled();
+    });
+
+    it('does not refresh tab data for tabs unrelated to documents/tasks', () => {
+      const props: any = createProps(0); // HomeStack, Appointments
+      render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      expect(mockFetchDocuments).not.toHaveBeenCalled();
+      expect(mockFetchTasksForCompanion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Sliding Pill Animation', () => {
+    beforeEach(() => {
+      (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
+    });
+
+    it('renders the animated pill glass once every tab has reported its layout, and re-animates on tab change', () => {
+      const props: any = createProps(0);
+      const {getAllByRole, queryAllByTestId, rerender} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      // Before layout is measured, only the bar itself renders a LiquidGlassView.
+      expect(queryAllByTestId('liquid-glass-view')).toHaveLength(1);
+
+      const tabs = getAllByRole('button');
+      fireEvent(tabs[0], 'layout', {
+        nativeEvent: {layout: {x: 0, width: 100}},
+      });
+      fireEvent(tabs[1], 'layout', {
+        nativeEvent: {layout: {x: 100, width: 100}},
+      });
+
+      // Once every tab has a measured layout, the sliding pill glass also renders.
+      expect(queryAllByTestId('liquid-glass-view')).toHaveLength(2);
+
+      // Re-render with a different active tab to exercise the "already
+      // initialized" spring-animation branch of the positioning effect.
+      const movedProps = {
+        ...props,
+        state: {...props.state, index: 1},
+      };
+      expect(() =>
+        rerender(
+          <Provider store={store}>
+            <FloatingTabBar {...movedProps} />
+          </Provider>,
+        ),
+      ).not.toThrow();
+    });
+
+    it('falls back to a width of 0 when the active tab has no recorded layout', () => {
+      const routes = [
+        {key: 'r0', name: 'HomeStack'},
+        {key: 'r1', name: 'Appointments'},
+        {key: 'r2', name: 'Documents'},
+      ];
+      const props: any = createProps(0, routes);
+      const {getAllByRole} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      const tabs = getAllByRole('button');
+      // Only report layouts for indices 1 and 2, leaving a hole at the
+      // currently-focused index 0 while still satisfying tabLayouts.length
+      // === routes.length.
+      fireEvent(tabs[1], 'layout', {
+        nativeEvent: {layout: {x: 100, width: 100}},
+      });
+      expect(() =>
+        fireEvent(tabs[2], 'layout', {
+          nativeEvent: {layout: {x: 200, width: 100}},
+        }),
+      ).not.toThrow();
+    });
+
+    it('renders a plain solid pill (no glass) on platforms without glass support', () => {
+      Platform.OS = 'android';
+      const props: any = createProps(0);
+      const {getAllByRole, queryAllByTestId} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      const tabs = getAllByRole('button');
+      fireEvent(tabs[0], 'layout', {
+        nativeEvent: {layout: {x: 0, width: 100}},
+      });
+      fireEvent(tabs[1], 'layout', {
+        nativeEvent: {layout: {x: 100, width: 100}},
+      });
+
+      expect(queryAllByTestId('liquid-glass-view')).toHaveLength(0);
     });
   });
 });

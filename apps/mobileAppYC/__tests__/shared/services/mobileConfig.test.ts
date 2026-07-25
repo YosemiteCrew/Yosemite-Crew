@@ -150,5 +150,123 @@ describe('mobileConfig Service', () => {
         timeout: 8000,
       });
     });
+
+    it('uses the local override URL when MOBILE_CONFIG_BEHAVIOR.overrides.mobileConfigUrl is set', async () => {
+      jest.resetModules();
+      jest.doMock('../../../src/config/variables', () => {
+        const actual = jest.requireActual('../../../src/config/variables');
+        return {
+          ...actual,
+          MOBILE_CONFIG_BEHAVIOR: {
+            ...actual.MOBILE_CONFIG_BEHAVIOR,
+            overrides: {
+              ...actual.MOBILE_CONFIG_BEHAVIOR.overrides,
+              mobileConfigUrl: 'https://override.example.com/mobile-config',
+            },
+          },
+        };
+      });
+
+      const {
+        fetchMobileConfig: fetchWithOverride,
+      } = require('../../../src/shared/services/mobileConfig');
+      const freshMockedAxios = require('axios') as jest.Mocked<typeof axios>;
+      freshMockedAxios.get.mockResolvedValueOnce({
+        data: mockConfig,
+        status: 200,
+      });
+
+      await fetchWithOverride();
+
+      expect(freshMockedAxios.get).toHaveBeenCalledWith(
+        'https://override.example.com/mobile-config',
+        {timeout: 8000},
+      );
+
+      jest.dontMock('../../../src/config/variables');
+      jest.resetModules();
+    });
+
+    it('uses the development API base URL when appEnv is not production', async () => {
+      jest.resetModules();
+      jest.doMock('../../../src/config/variables', () => {
+        const actual = jest.requireActual('../../../src/config/variables');
+        return {
+          ...actual,
+          MOBILE_CONFIG_BEHAVIOR: {
+            ...actual.MOBILE_CONFIG_BEHAVIOR,
+            overrides: {},
+          },
+          ENVIRONMENT_CONFIG: {
+            ...actual.ENVIRONMENT_CONFIG,
+            appEnv: 'development',
+          },
+        };
+      });
+
+      const {
+        fetchMobileConfig: fetchDevConfig,
+      } = require('../../../src/shared/services/mobileConfig');
+      const {
+        DEVELOPMENT_API_BASE_URL: devBaseUrl,
+        MOBILE_CONFIG_PATH: devConfigPath,
+      } = require('../../../src/config/variables');
+      const freshMockedAxios = require('axios') as jest.Mocked<typeof axios>;
+      freshMockedAxios.get.mockResolvedValueOnce({
+        data: mockConfig,
+        status: 200,
+      });
+
+      await fetchDevConfig();
+
+      expect(freshMockedAxios.get).toHaveBeenCalledWith(
+        `${devBaseUrl}${devConfigPath}`,
+        {timeout: 8000},
+      );
+
+      jest.dontMock('../../../src/config/variables');
+      jest.resetModules();
+    });
+
+    it('uses the production API base URL when appEnv is production', async () => {
+      jest.resetModules();
+      jest.doMock('../../../src/config/variables', () => {
+        const actual = jest.requireActual('../../../src/config/variables');
+        return {
+          ...actual,
+          MOBILE_CONFIG_BEHAVIOR: {
+            ...actual.MOBILE_CONFIG_BEHAVIOR,
+            overrides: {},
+          },
+          ENVIRONMENT_CONFIG: {
+            ...actual.ENVIRONMENT_CONFIG,
+            appEnv: 'production',
+          },
+        };
+      });
+
+      const {
+        fetchMobileConfig: fetchProdConfig,
+      } = require('../../../src/shared/services/mobileConfig');
+      const {
+        PRODUCTION_API_BASE_URL: prodBaseUrl,
+        MOBILE_CONFIG_PATH: prodConfigPath,
+      } = require('../../../src/config/variables');
+      const freshMockedAxios = require('axios') as jest.Mocked<typeof axios>;
+      freshMockedAxios.get.mockResolvedValueOnce({
+        data: mockConfig,
+        status: 200,
+      });
+
+      await fetchProdConfig();
+
+      expect(freshMockedAxios.get).toHaveBeenCalledWith(
+        `${prodBaseUrl}${prodConfigPath}`,
+        {timeout: 8000},
+      );
+
+      jest.dontMock('../../../src/config/variables');
+      jest.resetModules();
+    });
   });
 });

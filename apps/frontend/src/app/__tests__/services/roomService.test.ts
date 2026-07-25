@@ -3,7 +3,7 @@ import {
   createRoom,
   updateRoom,
 } from '@/app/features/organization/services/roomService';
-import { getData, postData, putData } from '@/app/services/axios';
+import { deleteData, getData, postData, putData } from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import {
@@ -21,6 +21,7 @@ jest.mock('@/app/services/axios');
 const mockedGetData = getData as jest.Mock;
 const mockedPostData = postData as jest.Mock;
 const mockedPutData = putData as jest.Mock;
+const mockedDeleteData = deleteData as jest.Mock;
 
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: { getState: jest.fn() },
@@ -215,6 +216,28 @@ describe('Room Service', () => {
       );
     });
 
+    it('carries the draft availability species onto the upserted room for non-unit rooms', async () => {
+      const mockDTO = { resourceType: 'Location' };
+      const mockResponseData = { resourceType: 'Location', id: 'new-2' };
+      const mockFinalRoom = { id: 'room-2', name: 'Puppy Ward', organisationId: 'org-123' };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPostData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+
+      await createRoom({
+        name: 'Puppy Ward',
+        type: 'EXAM_ROOM',
+        availability: { species: ['CANINE', 'FELINE'], totalUnits: 0 },
+      } as OrganisationRoom & { availability: { species: string[]; totalUnits: number } });
+
+      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          availability: expect.objectContaining({ species: ['CANINE', 'FELINE'] }),
+        })
+      );
+    });
+
     it('uses a provided custom room code as-is', async () => {
       const mockDTO = { resourceType: 'Location' };
       const mockResponseData = { resourceType: 'Location', id: 'new-1' };
@@ -338,6 +361,7 @@ describe('Room Service', () => {
       mockedToDTO.mockReturnValue(mockDTO);
       mockedPutData.mockResolvedValue({ data: mockResponseData });
       mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockResolvedValue({ data: [] });
 
       await updateRoom(mockUpdateInput);
 
@@ -358,6 +382,30 @@ describe('Room Service', () => {
       );
     });
 
+    it('carries the draft availability species onto the upserted room', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'raw-2' };
+      const mockResponseData = { resourceType: 'Location', id: 'raw-2' };
+      const mockFinalRoom = { id: 'room-1', name: 'Updated Room' };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockResolvedValue({ data: [] });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Updated Room',
+        type: 'EXAM_ROOM',
+        availability: { species: ['EQUINE'], totalUnits: 0 },
+      } as OrganisationRoom & { availability: { species: string[]; totalUnits: number } });
+
+      expect(mockRoomStoreUpsertRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          availability: expect.objectContaining({ species: ['EQUINE'] }),
+        })
+      );
+    });
+
     it('logs error and rethrows on failure', async () => {
       const error = new Error('Update Error');
       mockedToDTO.mockReturnValue({});
@@ -367,6 +415,296 @@ describe('Room Service', () => {
       await expect(updateRoom(mockUpdateInput)).rejects.toThrow('Update Error');
       expect(consoleSpy).toHaveBeenCalledWith('Failed to update room:', error);
       consoleSpy.mockRestore();
+    });
+
+    it('deactivates stale unit groups and their units when the room type no longer supports units', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Puppy Ward', type: 'SURGERY' };
+      const staleGroup = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Extra large',
+        unitCount: 5,
+        isActive: true,
+      };
+      const staleUnit = {
+        id: 'unit-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: 'POD-1',
+        displayName: 'Pod 1',
+        isActive: true,
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockImplementation((url: string) => {
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [staleGroup] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          return Promise.resolve({ data: [staleUnit] });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Puppy Ward',
+        type: 'SURGERY',
+        availability: { species: ['CANINE'], totalUnits: 0 },
+        units: [],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: [];
+      });
+
+      // Deactivated in place (not deleted) - a hard delete would cascade onto
+      // RoomUnitAssignment history and null out any admission's current unit.
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedDeleteData).not.toHaveBeenCalled();
+      expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalledWith('room-1', []);
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', []);
+    });
+
+    it('does not prune unit groups when a partial update omits units and availability', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Renamed Ward', type: 'INPATIENT' };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+
+      // A rename-only payload: no `units` key, no `availability` key at all -
+      // as distinct from an explicit empty list/zero total.
+      await updateRoom({
+        id: 'room-1',
+        name: 'Renamed Ward',
+        type: 'INPATIENT',
+      } as OrganisationRoom);
+
+      expect(mockedGetData).not.toHaveBeenCalledWith(
+        expect.stringContaining('/fhir/v1/room-unit-group')
+      );
+      expect(mockedPutData).not.toHaveBeenCalledWith(
+        expect.stringContaining('/fhir/v1/room-unit-group/'),
+        expect.anything()
+      );
+      // Leaves the client-side cache alone too - there's nothing to reconcile.
+      expect(mockSetRoomUnitGroupsForRoom).not.toHaveBeenCalled();
+      expect(mockSetRoomUnitsForRoom).not.toHaveBeenCalled();
+    });
+
+    it('still prunes active groups when a partial update changes the room to a non-unit type', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'SURGERY' };
+      const staleGroup = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Extra large',
+        unitCount: 5,
+        isActive: true,
+      };
+      const staleUnit = {
+        id: 'unit-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: 'POD-1',
+        displayName: 'Pod 1',
+        isActive: true,
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedPutData.mockResolvedValue({ data: mockResponseData });
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedGetData.mockImplementation((url: string) => {
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [staleGroup] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          return Promise.resolve({ data: [staleUnit] });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      // Only the type changes - no `units`/`availability` in the payload at
+      // all, unlike the full snapshot the room-edit UI always sends. The
+      // omission must not be read as "leave the unit config alone", since the
+      // room can no longer support one.
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'SURGERY',
+      } as OrganisationRoom);
+
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockSetRoomUnitGroupsForRoom).toHaveBeenCalledWith('room-1', []);
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', []);
+    });
+
+    it('reactivates an archived group and unit instead of creating duplicates with the same name/code', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockResponseData = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
+      const archivedGroup = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Large',
+        unitCount: 1,
+        isActive: false,
+      };
+      const archivedUnit = {
+        id: 'unit-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: 'POD-1',
+        displayName: 'Pod 1',
+        isActive: false,
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedPutData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedPostData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedGetData.mockImplementation((url: string) => {
+        if (url === '/fhir/v1/organisation-room/room-1') {
+          return Promise.resolve({ data: mockResponseData });
+        }
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [archivedGroup] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          // The active-only lookup (isActive=true) sees nothing; the
+          // unscoped lookup used for reactivation sees the archived row.
+          return Promise.resolve({
+            data: url.includes('isActive=true') ? [] : [archivedUnit],
+          });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 2 },
+        units: [{ id: 'unit-new', name: 'Pod', size: 'Large', count: 2 }],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      // Reactivated via PUT, reusing the archived rows' own ids - a fresh POST
+      // would collide on the roomId+name / roomId+code unique indexes.
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: true })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit/unit-1',
+        expect.objectContaining({ isActive: true })
+      );
+      expect(mockedPostData).not.toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group',
+        expect.anything()
+      );
+      // The second desired unit has no archived match, so it's still created fresh.
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit',
+        expect.objectContaining({ code: 'POD-2' })
+      );
+    });
+
+    it('reuses a group deactivated during the same save instead of creating a duplicate', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
+      // The pre-deactivation snapshot: still active when fetched, since
+      // pruning hasn't run yet at that point in the reconciliation.
+      const activeGroupSnapshot = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Large',
+        unitCount: 1,
+        isActive: true,
+      };
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedPutData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedPostData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedGetData.mockImplementation((url: string) => {
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [activeGroupSnapshot] });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      // The draft list no longer references group-1's real id (it was
+      // "removed") and instead has a brand-new draft also named "Pod" - all
+      // within the same save.
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 1 },
+        units: [{ id: 'unit-new', name: 'Pod', size: 'Large', count: 1 }],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      // Deactivated by pruning, then reactivated in the same pass by reusing
+      // its own id - never recreated fresh, which would collide on
+      // roomId+name.
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: false })
+      );
+      expect(mockedPutData).toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group/group-1',
+        expect.objectContaining({ isActive: true })
+      );
+      expect(mockedPostData).not.toHaveBeenCalledWith(
+        '/fhir/v1/room-unit-group',
+        expect.anything()
+      );
     });
   });
 });

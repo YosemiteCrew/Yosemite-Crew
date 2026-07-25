@@ -122,17 +122,36 @@ describe('IconInfoTile Component', () => {
   // 4. Styling Logic
   // ===========================================================================
 
+  it('applies iconTint as the icon container background color', () => {
+    const {UNSAFE_getAllByType} = render(
+      <IconInfoTile {...defaultProps} iconTint="#FFEEDD" />,
+    );
+
+    const {View} = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const tinted = views.find(view =>
+      [view.props.style]
+        .flat(Infinity)
+        .some((style: any) => style && style.backgroundColor === '#FFEEDD'),
+    );
+    expect(tinted).toBeTruthy();
+  });
+
   it('applies custom container styles', () => {
     const customStyle = {backgroundColor: 'red'};
     const {UNSAFE_getByType} = render(
       <IconInfoTile {...defaultProps} containerStyle={customStyle} />,
     );
 
-    const {TouchableOpacity} = require('react-native');
-    const touchable = UNSAFE_getByType(TouchableOpacity);
+    // The container now renders react-native's Pressable (via
+    // PressableOpacity), which is wrapped in React.memo, so match against
+    // the memoized inner component. Its style prop is a function of press
+    // state, so it must be invoked before flattening.
+    const {Pressable} = require('react-native');
+    const touchable = UNSAFE_getByType((Pressable as any).type);
 
     // Flatten styles to verify containment
-    const flattened = [touchable.props.style].flat();
+    const flattened = [touchable.props.style({pressed: false})].flat(Infinity);
     expect(flattened).toEqual(
       expect.arrayContaining([expect.objectContaining(customStyle)]),
     );

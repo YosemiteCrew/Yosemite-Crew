@@ -58,27 +58,27 @@ export const ALERT_PRIORITY_CONFIG: Record<
 > = {
   low: {
     label: 'Low',
-    bg: 'var(--color-neutral-100)',
-    text: 'var(--color-neutral-700)',
-    border: 'var(--color-neutral-300)',
+    bg: 'var(--inset)',
+    text: 'var(--ink-muted)',
+    border: 'var(--divider)',
   },
   medium: {
     label: 'Medium',
-    bg: 'var(--color-warning-100)',
-    text: 'var(--color-warning-700)',
-    border: 'var(--color-warning-300)',
+    bg: 'var(--warn-bg)',
+    text: 'var(--warn-text)',
+    border: 'var(--warn-border)',
   },
   high: {
     label: 'High',
-    bg: 'var(--color-danger-100)',
-    text: 'var(--color-danger-700)',
-    border: 'var(--color-danger-300)',
+    bg: 'var(--danger-bg)',
+    text: 'var(--danger-text)',
+    border: 'var(--danger-border)',
   },
   critical: {
     label: 'Critical',
-    bg: 'var(--color-neutral-900)',
-    text: 'var(--color-neutral-0)',
-    border: 'var(--color-neutral-900)',
+    bg: 'var(--cta)',
+    text: 'var(--cta-text)',
+    border: 'var(--cta)',
   },
 };
 

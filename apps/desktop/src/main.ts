@@ -28,7 +28,11 @@ import { registerIpc as registerIpcHandlers } from './core/ipc-handlers';
 import type { createTabManager } from './core/tab-manager';
 import type { createTabViewHost } from './ui/tab-view-host';
 import { createLogger, type DesktopLogger } from './utils/logger';
-import { createWindowStateStore, type WindowStateStore } from './core/window-state';
+import {
+  clampPositionToWorkArea,
+  createWindowStateStore,
+  type WindowStateStore,
+} from './core/window-state';
 import { checkForUpdatesManually } from './lifecycle/updater';
 import { createReloadGuard } from './core/reload-guard';
 import { aboutPanelOptions } from './ui/branding';
@@ -37,7 +41,11 @@ import {
   createKeyboardShortcutManager,
   type KeyboardShortcutManager,
 } from './ui/keyboard-shortcuts';
-import { idleLockMinutesFromEnv, shouldLockAfterIdle } from './lifecycle/idle-lock';
+import {
+  idleLockMinutesFromEnv,
+  resolveIdleLockMinutes,
+  shouldLockAfterIdle,
+} from './lifecycle/idle-lock';
 import {
   setupTray,
   setupTelemetry,
@@ -55,6 +63,7 @@ import {
 import { createRecentsStore, BUILTIN_ACTIONS, type RecentsStore } from './ui/command-palette';
 import { PAGE_ACTION_TRIGGERS, buildPageActionScript } from './ui/page-actions';
 import { createPinWindowManager, pinWindowBounds } from './ui/pin-window';
+import { createIdleLockOverlay } from './ui/idle-lock-overlay';
 import { createOfflineCache, type OfflineCache } from './sync/offline-cache';
 import { createNotificationManager, type NotificationManager } from './ui/notifications';
 import { createSyncDaemon, type SyncDaemon } from './sync/sync-daemon';
@@ -264,6 +273,7 @@ type DesktopPage =
   | 'command-palette'
   | 'tabbar'
   | 'whats-new'
+  | 'idle-lock'
   | 'vault';
 // Local pages are loaded via file:// (loadFile), which renders reliably in
 // packaged builds; a custom protocol proved flaky behind the security fuses.
@@ -272,6 +282,13 @@ const localPage = (page: DesktopPage): string => path.join(__dirname, 'pages', `
 // In tab mode, navigation/content targets the active tab's WebContents; before
 // tab mode (welcome/loading) it targets the base window contents.
 let tabChromeView: WebContentsView | null = null;
+// Layout hook registered by setupIdleLock so the layout pass can keep the lock
+// overlay full-window and topmost. Deliberately a callback, not the view: the
+// per-lock WebContentsView stays owned by the overlay's own closure.
+let relayoutLockOverlay: (() => void) | null = null;
+// Registered by setupIdleLock so the lock page's buttons reach the unlock
+// lifecycle that actually owns the lock. Null until an idle lock is armed.
+let requestIdleUnlock: ((mode: 'biometric' | 'password') => void) | null = null;
 let tabMode = false;
 let tabSearchOpen = false;
 
@@ -377,6 +394,10 @@ const layoutTabChrome = (): void => {
   layoutChromeStrip(b, isVertical);
   layoutContentPanes(b, isVertical);
   raiseTabChrome();
+  // Last: raiseTabChrome re-adds the chrome on every layout, so a resize while
+  // the biometric prompt is pending would otherwise leave a stale-sized overlay
+  // with the tab strip - and the newly exposed workspace - live on top of it.
+  relayoutLockOverlay?.();
 };
 
 // Switch the window into multi-tab mode: mount the tab-bar chrome view and the
@@ -646,6 +667,44 @@ const consumePendingDeepLink = (): void => {
   void activeContents()?.loadURL(href);
 };
 
+const vaultCompletedDownload = (item: Electron.DownloadItem): void => {
+  const vault = documentVault;
+  if (!vault) return;
+  const filename = item.getFilename();
+  // Vaulting reads the whole file into memory, which would spike or exhaust
+  // main-process memory on a multi-GB download, so skip very large files.
+  const MAX_VAULT_BYTES = 25 * 1024 * 1024;
+  if (item.getReceivedBytes() > MAX_VAULT_BYTES) {
+    logger.warn('download_vault_skipped_too_large', {
+      filename,
+      bytes: item.getReceivedBytes(),
+    });
+    return;
+  }
+  // getSavePath() is the absolute path Electron just wrote the completed download
+  // to; refuse any path-traversal sequence before reading the file back in.
+  const savePath = item.getSavePath();
+  if (savePath.includes('..')) {
+    logger.warn('download_vault_skipped_invalid_path', { filename });
+    return;
+  }
+  try {
+    const mimeType = item.getMimeType() || 'application/octet-stream';
+    const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
+    const saved = isText
+      ? vault.saveDocument(filename, fs.readFileSync(savePath, 'utf8'), mimeType)
+      : vault.saveDocumentBuffer(filename, fs.readFileSync(savePath), mimeType);
+    if ('error' in saved) {
+      // e.g. OS encryption unavailable — never vault PHI in cleartext.
+      logger.warn('download_vault_skipped', { filename, reason: saved.error });
+    } else {
+      logger.debug('download_vaulted', { filename });
+    }
+  } catch {
+    logger.warn('download_vault_failed', { filename });
+  }
+};
+
 const configureDownloads = (ses: Session): void => {
   if (downloadsConfigured) return;
   downloadsConfigured = true;
@@ -659,45 +718,9 @@ const configureDownloads = (ses: Session): void => {
       logger.info('download_finished', { filename: item.getFilename(), state });
       if (state === 'completed') {
         shell.showItemInFolder(item.getSavePath());
-        // Auto-save completed downloads into the document vault. Skip very large
-        // files — vaulting reads the whole file into memory, which would spike or
-        // exhaust main-process memory on a multi-GB download.
-        const MAX_VAULT_BYTES = 25 * 1024 * 1024;
-        if (documentVault && item.getReceivedBytes() > MAX_VAULT_BYTES) {
-          logger.warn('download_vault_skipped_too_large', {
-            filename: item.getFilename(),
-            bytes: item.getReceivedBytes(),
-          });
-        } else if (documentVault) {
-          try {
-            const mimeType = item.getMimeType() || 'application/octet-stream';
-            const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
-            const saved = isText
-              ? documentVault.saveDocument(
-                  item.getFilename(),
-                  fs.readFileSync(item.getSavePath(), 'utf8'),
-                  mimeType
-                )
-              : documentVault.saveDocumentBuffer(
-                  item.getFilename(),
-                  fs.readFileSync(item.getSavePath()),
-                  mimeType
-                );
-            if ('error' in saved) {
-              // e.g. OS encryption unavailable — never vault PHI in cleartext.
-              logger.warn('download_vault_skipped', {
-                filename: item.getFilename(),
-                reason: saved.error,
-              });
-            } else {
-              logger.debug('download_vaulted', { filename: item.getFilename() });
-            }
-          } catch {
-            logger.warn('download_vault_failed', {
-              filename: item.getFilename(),
-            });
-          }
-        }
+        // Auto-save completed downloads into the document vault (skips very large
+        // files and cleartext-only environments — see vaultCompletedDownload).
+        vaultCompletedDownload(item);
       } else if (state === 'interrupted') {
         dialog.showErrorBox('Download failed', `${item.getFilename()} could not be downloaded.`);
       }
@@ -1198,7 +1221,7 @@ const openCommandPalette = (): void => {
     alwaysOnTop: true,
     skipTaskbar: true,
     title: 'Command Palette',
-    backgroundColor: '#0b0d12',
+    backgroundColor: '#f7f3ec',
     show: false,
     webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
   });
@@ -1226,15 +1249,117 @@ const openCommandPalette = (): void => {
 // When biometric lock is available and enabled, locks biometric instead of
 // clearing the session — requiring Touch ID / Windows Hello to resume.
 const setupIdleLock = (ses: Session): void => {
-  // Prefer the persisted Preferences value (read live each tick so toggling
-  // "Idle auto-lock" applies without a restart); fall back to the env override.
-  const resolveIdleMinutes = (): number => {
-    const minutes = settingsStore?.load().idleLockMinutes;
-    return typeof minutes === 'number' && minutes > 0
-      ? minutes
-      : (idleLockMinutesFromEnv(process.env) ?? 0);
-  };
+  // Read the persisted Preferences value live each tick so toggling "Idle
+  // auto-lock" applies without a restart. The MDM-populated env value caps it.
+  const resolveIdleMinutes = (): number =>
+    resolveIdleLockMinutes(
+      settingsStore?.load().idleLockMinutes,
+      idleLockMinutesFromEnv(process.env)
+    );
   let locked = false;
+  // Guards against a second OS prompt when the page's button is pressed while
+  // the timer's attempt is still pending.
+  let unlockInFlight = false;
+
+  // In-app lock screen shown over the workspace while biometric unlock is
+  // pending, so patient data isn't visible behind the OS prompt. A full-window
+  // WebContentsView added last (top-most) covers the tab chrome and content.
+  let lockOverlayView: WebContentsView | null = null;
+
+  // Size the overlay to the window and re-add it so it sits above the chrome.
+  // Registered as the module-level layout hook while this lock is set up.
+  const layoutLockOverlay = (): void => {
+    const win = mainWindow;
+    const view = lockOverlayView;
+    if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
+    const b = win.getContentBounds();
+    view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+    win.contentView.removeChildView(view);
+    win.contentView.addChildView(view);
+  };
+  relayoutLockOverlay = layoutLockOverlay;
+
+  const lockOverlay = createIdleLockOverlay({
+    mount: () => {
+      const win = mainWindow;
+      if (!win || win.isDestroyed()) return;
+      const view = new WebContentsView({
+        webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
+      });
+      lockOverlayView = view;
+      win.contentView.addChildView(view);
+      // Sizes and raises it; every later layout pass does the same.
+      layoutLockOverlay();
+      applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
+      void view.webContents.loadFile(localPage('idle-lock'));
+    },
+    unmount: () => {
+      const view = lockOverlayView;
+      lockOverlayView = null;
+      if (!view) return;
+      const win = mainWindow;
+      if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
+      if (!view.webContents.isDestroyed()) view.webContents.close();
+    },
+  });
+
+  // Drop the session and return to the sign-in page. This is what "Use password
+  // instead" means here: the PIMS owns the password, so the fallback is to sign
+  // in again. Also where an unlock lands when biometrics are unavailable.
+  const signOutToStartUrl = (): void => {
+    void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
+      persistAuthHint(false);
+      loadStartUrl();
+    });
+  };
+
+  // Tell the lock page the prompt was refused so it can stop saying "Verifying".
+  // Success needs no message: the overlay is removed outright.
+  const notifyUnlockFailed = (): void => {
+    logger.warn('biometric_unlock_failed');
+    const view = lockOverlayView;
+    if (view && !view.webContents.isDestroyed()) view.webContents.send('yc:idle-unlock-failed');
+  };
+
+  // Sole owner of a biometric unlock attempt. The idle timer and the lock
+  // page's Touch ID button both route here, so only one OS prompt is ever in
+  // flight and only one place uncovers the workspace. A failed or cancelled
+  // prompt leaves the lock screen up rather than signing the user out, so the
+  // page's two buttons stay reachable.
+  const attemptBiometricUnlock = (): void => {
+    const bio = biometricLock;
+    if (!bio?.isAvailable() || unlockInFlight) return;
+    unlockInFlight = true;
+    void bio
+      .authenticate('Unlock Yosemite Crew PIMS')
+      .then((ok) => {
+        if (!ok) {
+          notifyUnlockFailed();
+          return;
+        }
+        locked = false;
+        lockOverlay.hide();
+        logger.info('biometric_unlock_success');
+      })
+      .catch(notifyUnlockFailed)
+      .finally(() => {
+        unlockInFlight = false;
+      });
+  };
+
+  requestIdleUnlock = (mode) => {
+    // Only meaningful while the lock screen is actually up.
+    if (!lockOverlay.isVisible()) return;
+    if (mode === 'password') {
+      locked = false;
+      lockOverlay.hide();
+      logger.info('idle_lock_password_fallback');
+      signOutToStartUrl();
+      return;
+    }
+    attemptBiometricUnlock();
+  };
+
   setInterval(() => {
     const idleMinutes = resolveIdleMinutes();
     if (!idleMinutes) return;
@@ -1247,26 +1372,15 @@ const setupIdleLock = (ses: Session): void => {
       const settings = settingsStore?.load();
       if (bio && bio.isAvailable() && settings?.biometricLockEnabled) {
         bio.lock();
+        lockOverlay.show();
         logger.info('biometric_lock_engaged');
-        void bio.authenticate('Unlock Yosemite Crew PIMS').then((ok) => {
-          if (ok) {
-            locked = false;
-            logger.info('biometric_unlock_success');
-          } else {
-            logger.warn('biometric_unlock_failed');
-            void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
-              persistAuthHint(false);
-              loadStartUrl();
-            });
-          }
-        });
+        attemptBiometricUnlock();
       } else {
-        void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
-          persistAuthHint(false);
-          loadStartUrl();
-        });
+        signOutToStartUrl();
       }
-    } else if (locked && idleMs < 1000) {
+      // Activity alone must not clear the lock while the lock screen is still
+      // up - only a real unlock does that.
+    } else if (locked && idleMs < 1000 && !lockOverlay.isVisible()) {
       locked = false;
     }
   }, 30_000);
@@ -1369,7 +1483,34 @@ const moveMainWindowBy = (dx: number, dy: number): void => {
   const win = mainWindow;
   if (!win || win.isDestroyed() || win.isMaximized() || win.isFullScreen()) return;
   const [x = 0, y = 0] = win.getPosition();
-  win.setPosition(Math.round(x + dx), Math.round(y + dy));
+  const [width = 0, height = 0] = win.getSize();
+  const next = clampPositionToWorkArea(
+    { x: Math.round(x + dx), y: Math.round(y + dy) },
+    { width, height },
+    screen.getAllDisplays()
+  );
+  win.setPosition(next.x, next.y);
+};
+
+// Caption-button controls for the frameless window (Windows/Linux). macOS keeps
+// its native traffic lights, so these are only surfaced by the tab bar there.
+const minimizeMainWindow = (): void => {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  win.minimize();
+};
+
+const toggleMaximizeMainWindow = (): void => {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  if (win.isMaximized()) win.unmaximize();
+  else win.maximize();
+};
+
+const closeMainWindow = (): void => {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  win.close();
 };
 
 // Auto-rollback: read the tracker left by the previous session. A non-zero
@@ -1485,6 +1626,54 @@ if (gotSingleInstanceLock) {
     focusMainWindow();
     const link = deepLinkFromArgv(argv);
     if (link) handleDeepLink(link);
+  });
+
+  const buildMainWindowOptions = (): Parameters<typeof createMainWindow>[0] => ({
+    config,
+    logger,
+    productName: PRODUCT_NAME,
+    brandPrefix: BRAND_PREFIX,
+    windowStateStore,
+    tabMode: () => tabMode,
+    attachedTabId: () => attachedTabId,
+    splitId: () => splitId,
+    tabOrientation: () => tabOrientation,
+    setTabSearch,
+    setSplitTab,
+    setTabOrientation,
+    activeContents,
+    enterTabMode,
+    layoutTabChrome,
+    loadStartUrl,
+    showOfflinePage,
+    consumePendingDeepLink,
+    trackAuthNavigation,
+    configureDownloads,
+    configureOfflineServe,
+    offlineCache: offlineCache,
+    settingsStore,
+    signedInBefore,
+    reloadGuard,
+    clearUnread,
+    openCommandPalette,
+    createSettingsWindow,
+    newTab,
+    closeActiveTab,
+    reopenClosedTab,
+    openTabSearch,
+    verifyAuditTrail: statusDlg.verifyAuditTrail,
+    exportCsDailyLog: statusDlg.exportCsDailyLog,
+    showDeaStatus: statusDlg.showDeaStatus,
+    generateDeaReportAction: statusDlg.generateDeaReportAction,
+    showPmpStatus: statusDlg.showPmpStatus,
+    openVaultWindow,
+    showVaultInfo: statusDlg.showVaultInfo,
+    backUpNow: statusDlg.backUpNow,
+    savePageAsPdf: statusDlg.savePageAsPdf,
+    openOnSecondScreen: statusDlg.openOnSecondScreen,
+    showPrintStatus: statusDlg.showPrintStatus,
+    startTelehealth,
+    exportDiagnostics: statusDlg.exportDiagnostics,
   });
 
   void app.whenReady().then(
@@ -1643,6 +1832,12 @@ if (gotSingleInstanceLock) {
         updateUnreadBadge,
         startTelehealth,
         moveWindowBy: moveMainWindowBy,
+        minimizeWindow: minimizeMainWindow,
+        toggleMaximizeWindow: toggleMaximizeMainWindow,
+        closeWindow: closeMainWindow,
+        // Late-bound: setupIdleLock runs after this registration and owns the
+        // lifecycle, so before a lock is armed there is nothing to unlock.
+        idleUnlock: (mode) => requestIdleUnlock?.(mode),
       });
       applyRollbackDecision();
       let pendingTabModeUrl: string | undefined;
@@ -1653,53 +1848,7 @@ if (gotSingleInstanceLock) {
         saveSession,
         coldStartWatchdog,
         enterTabModeUrl: pendingTabModeUrl,
-      } = await createMainWindow({
-        config,
-        logger,
-        productName: PRODUCT_NAME,
-        brandPrefix: BRAND_PREFIX,
-        windowStateStore,
-        tabMode: () => tabMode,
-        attachedTabId: () => attachedTabId,
-        splitId: () => splitId,
-        tabOrientation: () => tabOrientation,
-        setTabSearch,
-        setSplitTab,
-        setTabOrientation,
-        activeContents,
-        enterTabMode,
-        layoutTabChrome,
-        loadStartUrl,
-        showOfflinePage,
-        consumePendingDeepLink,
-        trackAuthNavigation,
-        configureDownloads,
-        configureOfflineServe,
-        offlineCache: offlineCache,
-        settingsStore,
-        signedInBefore,
-        reloadGuard,
-        clearUnread,
-        openCommandPalette,
-        createSettingsWindow,
-        newTab,
-        closeActiveTab,
-        reopenClosedTab,
-        openTabSearch,
-        verifyAuditTrail: statusDlg.verifyAuditTrail,
-        exportCsDailyLog: statusDlg.exportCsDailyLog,
-        showDeaStatus: statusDlg.showDeaStatus,
-        generateDeaReportAction: statusDlg.generateDeaReportAction,
-        showPmpStatus: statusDlg.showPmpStatus,
-        openVaultWindow,
-        showVaultInfo: statusDlg.showVaultInfo,
-        backUpNow: statusDlg.backUpNow,
-        savePageAsPdf: statusDlg.savePageAsPdf,
-        openOnSecondScreen: statusDlg.openOnSecondScreen,
-        showPrintStatus: statusDlg.showPrintStatus,
-        startTelehealth,
-        exportDiagnostics: statusDlg.exportDiagnostics,
-      }));
+      } = await createMainWindow(buildMainWindowOptions()));
       // enterTabMode reads the module window/tab globals assigned just above, so
       // it must run here (not inside createMainWindow) to actually take effect.
       if (pendingTabModeUrl) {
@@ -1842,53 +1991,7 @@ if (gotSingleInstanceLock) {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createMainWindow({
-        config,
-        logger,
-        productName: PRODUCT_NAME,
-        brandPrefix: BRAND_PREFIX,
-        windowStateStore,
-        tabMode: () => tabMode,
-        attachedTabId: () => attachedTabId,
-        splitId: () => splitId,
-        tabOrientation: () => tabOrientation,
-        setTabSearch,
-        setSplitTab,
-        setTabOrientation,
-        activeContents,
-        enterTabMode,
-        layoutTabChrome,
-        loadStartUrl,
-        showOfflinePage,
-        consumePendingDeepLink,
-        trackAuthNavigation,
-        configureDownloads,
-        configureOfflineServe,
-        offlineCache: offlineCache,
-        settingsStore,
-        signedInBefore,
-        reloadGuard,
-        clearUnread,
-        openCommandPalette,
-        createSettingsWindow,
-        newTab,
-        closeActiveTab,
-        reopenClosedTab,
-        openTabSearch,
-        verifyAuditTrail: statusDlg.verifyAuditTrail,
-        exportCsDailyLog: statusDlg.exportCsDailyLog,
-        showDeaStatus: statusDlg.showDeaStatus,
-        generateDeaReportAction: statusDlg.generateDeaReportAction,
-        showPmpStatus: statusDlg.showPmpStatus,
-        openVaultWindow,
-        showVaultInfo: statusDlg.showVaultInfo,
-        backUpNow: statusDlg.backUpNow,
-        savePageAsPdf: statusDlg.savePageAsPdf,
-        openOnSecondScreen: statusDlg.openOnSecondScreen,
-        showPrintStatus: statusDlg.showPrintStatus,
-        startTelehealth,
-        exportDiagnostics: statusDlg.exportDiagnostics,
-      }).then((output) => {
+      void createMainWindow(buildMainWindowOptions()).then((output) => {
         mainWindow = output.mainWindow;
         tabManager = output.tabManager;
         tabViewHost = output.tabViewHost;

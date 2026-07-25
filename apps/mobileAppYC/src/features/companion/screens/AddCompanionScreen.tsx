@@ -9,10 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  TouchableOpacity,
   BackHandler,
   type KeyboardTypeOptions,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useForm, Controller, type ControllerProps} from 'react-hook-form';
@@ -20,10 +20,8 @@ import {SafeArea, Input, Header} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {TileSelector} from '@/shared/components/common/TileSelector/TileSelector';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {
@@ -60,6 +58,7 @@ import type {AppDispatch} from '@/app/store';
 import {addCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 import {
   fetchBreedCodeEntries,
@@ -98,10 +97,12 @@ interface FormData {
 }
 
 const COMPANION_CATEGORIES = [
-  {value: 'cat', label: 'Cat'},
-  {value: 'dog', label: 'Dog'},
-  {value: 'horse', label: 'Horse'},
+  {value: 'dog', label: 'Dog', subtitle: 'Canine · all breeds'},
+  {value: 'cat', label: 'Cat', subtitle: 'Feline · all breeds'},
+  {value: 'horse', label: 'Horse', subtitle: 'Equine · all breeds'},
 ];
+
+const TOTAL_STEPS = 3;
 
 const CATEGORY_TO_SPECIES_QUERY: Record<CompanionCategory, string> = {
   dog: 'canine',
@@ -161,16 +162,16 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [speciesByCategory, setSpeciesByCategory] = useState<
+  const hasUnsavedChangesRef = useRef(false);
+  const speciesByCategoryRef = useRef<
     Partial<Record<CompanionCategory, SpeciesCodeEntry>>
   >({});
   const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
 
   // Track which bottom sheet is currently open
-  const [openBottomSheet, setOpenBottomSheet] = useState<
-    'breed' | 'bloodGroup' | 'country' | null
-  >(null);
+  const openBottomSheetRef = useRef<'breed' | 'bloodGroup' | 'country' | null>(
+    null,
+  );
 
   const {
     control,
@@ -178,6 +179,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     formState: {errors},
     trigger,
     setValue,
+    getValues,
     watch,
     setError,
     clearErrors,
@@ -221,7 +223,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     | 'insuranceCompany'
     | 'insurancePolicyNumber';
 
-  const renderTextField = <Field extends TextFieldKey>(
+  const buildTextField = <Field extends TextFieldKey>(
     field: Field,
     {
       label,
@@ -238,7 +240,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       keyboardType?: KeyboardTypeOptions;
       maxLength?: number;
       multiline?: boolean;
-      rules?: ControllerProps<FormData, Field>['rules'];
+      rules?: NonNullable<ControllerProps<FormData, Field>['rules']>;
       suffix?: string;
       dynamicSuffix?: (value: string) => string;
     },
@@ -261,7 +263,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
             value={textValue}
             onChangeText={text => {
               onChange(text);
-              setHasUnsavedChanges(true);
+              hasUnsavedChangesRef.current = true;
             }}
             placeholder={placeholder}
             keyboardType={keyboardType}
@@ -317,7 +319,14 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
             byCategory.horse = entry;
           }
         }
-        setSpeciesByCategory(byCategory);
+        speciesByCategoryRef.current = byCategory;
+
+        const selectedCategory = getValues('category');
+        if (selectedCategory) {
+          setValue('speciesCode', byCategory[selectedCategory]?.code ?? null, {
+            shouldValidate: false,
+          });
+        }
       } catch (error) {
         console.warn('[Companion] Unable to load species code entries', error);
       }
@@ -326,7 +335,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [getValues, setValue]);
 
   useEffect(() => {
     let mounted = true;
@@ -339,9 +348,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         return;
       }
 
-      setValue('speciesCode', speciesByCategory[category]?.code ?? null, {
-        shouldValidate: false,
-      });
+      setValue(
+        'speciesCode',
+        speciesByCategoryRef.current[category]?.code ?? null,
+        {
+          shouldValidate: false,
+        },
+      );
       setValue('breed', null, {shouldValidate: false});
       setValue('breedCode', null, {shouldValidate: false});
 
@@ -365,7 +378,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
             breedId: index + 1,
             breedName: entry.display,
             speciesCode:
-              entry.meta?.speciesCode ?? speciesByCategory[category]?.code,
+              entry.meta?.speciesCode ??
+              speciesByCategoryRef.current[category]?.code,
             breedCode: entry.code,
           }),
         );
@@ -379,7 +393,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     return () => {
       mounted = false;
     };
-  }, [category, setValue, speciesByCategory]);
+  }, [category, setValue]);
 
   // Handle Android back button
   useEffect(() => {
@@ -393,8 +407,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         }
 
         // If any bottom sheet is open, close it first
-        if (openBottomSheet) {
-          switch (openBottomSheet) {
+        if (openBottomSheetRef.current) {
+          switch (openBottomSheetRef.current) {
             case 'breed':
               breedSheetRef.current?.close();
               break;
@@ -405,7 +419,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
               countrySheetRef.current?.close();
               break;
           }
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
           return true; // Prevent default back action
         }
 
@@ -415,28 +429,28 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     );
 
     return () => backHandler.remove();
-  }, [showDatePicker, openBottomSheet]);
+  }, [showDatePicker]);
 
   const handleGoBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
-    } else if (hasUnsavedChanges) {
+    } else if (hasUnsavedChangesRef.current) {
       discardSheetRef.current?.open();
     } else {
       navigation.goBack();
     }
-  }, [currentStep, navigation, hasUnsavedChanges]);
+  }, [currentStep, navigation]);
 
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
       setValue('profileImage', imageUri, {shouldValidate: true});
-      setHasUnsavedChanges(true);
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
 
   const handleBreedPress = useCallback(() => {
-    setOpenBottomSheet('breed');
+    openBottomSheetRef.current = 'breed';
     breedSheetRef.current?.open();
   }, []);
 
@@ -449,34 +463,34 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       setValue(
         'speciesCode',
         selectedBreed?.speciesCode ??
-          speciesByCategory[category ?? 'dog']?.code ??
+          speciesByCategoryRef.current[category ?? 'dog']?.code ??
           null,
         {
           shouldValidate: false,
         },
       );
-      setOpenBottomSheet(null);
-      setHasUnsavedChanges(true);
+      openBottomSheetRef.current = null;
+      hasUnsavedChangesRef.current = true;
     },
-    [category, setValue, speciesByCategory],
+    [category, setValue],
   );
 
   const handleBloodGroupPress = useCallback(() => {
-    setOpenBottomSheet('bloodGroup');
+    openBottomSheetRef.current = 'bloodGroup';
     bloodGroupSheetRef.current?.open();
   }, []);
 
   const handleBloodGroupSave = useCallback(
     (selectedBloodGroup: string | null) => {
       setValue('bloodGroup', selectedBloodGroup, {shouldValidate: true});
-      setOpenBottomSheet(null);
-      setHasUnsavedChanges(true);
+      openBottomSheetRef.current = null;
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
 
   const handleCountryPress = useCallback(() => {
-    setOpenBottomSheet('country');
+    openBottomSheetRef.current = 'country';
     countrySheetRef.current?.open();
   }, []);
 
@@ -485,8 +499,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       setValue('countryOfOrigin', country?.name || null, {
         shouldValidate: true,
       });
-      setOpenBottomSheet(null);
-      setHasUnsavedChanges(true);
+      openBottomSheetRef.current = null;
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
@@ -499,7 +513,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     (date: Date) => {
       setValue('dateOfBirth', date, {shouldValidate: true});
       setShowDatePicker(false);
-      setHasUnsavedChanges(true);
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
@@ -578,7 +592,6 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
   const handleSave = handleSubmit(async data => {
     console.log('=== Form Submission Started ===');
-    console.log('Form Data:', JSON.stringify(data, null, 2));
 
     if (!user?.parentId) {
       setSubmissionError(
@@ -608,9 +621,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
     setSubmissionError('');
 
-    let weightInKg = data.currentWeight
+    const enteredWeight = data.currentWeight
       ? Number.parseFloat(data.currentWeight)
       : null;
+    const weightInKg =
+      enteredWeight === null || Number.isNaN(enteredWeight)
+        ? null
+        : convertWeight(enteredWeight, weightUnit, 'kg');
 
     const companionPayload = {
       category: data.category,
@@ -665,68 +682,112 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     }
   });
 
-  const renderStep1 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>
-        Select your companions to begin managing their health profile
-      </Text>
-
-      <View style={styles.categoryGrid}>
-        {COMPANION_CATEGORIES.map(cat => {
-          const isSelected = category === cat.value;
-          const imageSources: Record<string, any> = {
-            cat: Images.cat,
-            dog: Images.dog,
-            horse: Images.horse,
-          };
-
-          return (
-            <TouchableOpacity
-              key={cat.value}
-              style={[
-                styles.categoryCard,
-                isSelected && styles.categoryCardSelected,
-              ]}
-              onPress={() => {
-                setValue('category', cat.value as CompanionCategory, {
-                  shouldValidate: true,
-                });
-                clearErrors('category');
-                setHasUnsavedChanges(true);
-              }}
-              activeOpacity={0.8}>
-              <Image
-                source={imageSources[cat.value]}
-                style={styles.categoryIcon}
-              />
-              <Text
-                style={[
-                  styles.categoryLabel,
-                  isSelected && styles.categoryLabelSelected,
-                ]}>
-                {cat.label}
-              </Text>
-              {isSelected && <View style={styles.categoryUnderline} />}
-            </TouchableOpacity>
-          );
-        })}
+  const renderStepProgress = () => {
+    const segments = Array.from({length: TOTAL_STEPS}, (_, i) => ({
+      key: `progress-${i}`,
+      filled: i < currentStep,
+    }));
+    return (
+      <View style={styles.progressBar}>
+        {segments.map(segment => (
+          <View
+            key={segment.key}
+            style={[
+              styles.progressSegment,
+              segment.filled
+                ? styles.progressSegmentActive
+                : styles.progressSegmentIdle,
+            ]}
+          />
+        ))}
       </View>
+    );
+  };
 
-      {errors.category?.message && (
-        <Text style={styles.errorText}>{errors.category.message}</Text>
-      )}
-    </View>
-  );
+  const renderStep1 = () => {
+    const imageSources: Record<string, any> = {
+      cat: Images.cat,
+      dog: Images.dog,
+      horse: Images.horse,
+    };
+    const avatarStyles: Record<string, any> = {
+      dog: styles.speciesAvatarAmber,
+      cat: styles.speciesAvatarViolet,
+      horse: styles.speciesAvatarGreen,
+    };
+
+    return (
+      <View style={styles.stepContainer}>
+        {renderStepProgress()}
+
+        <View style={styles.introBlock}>
+          <Text style={styles.introTitle}>Who joins the family?</Text>
+          <Text style={styles.introSubtitle}>
+            Pick a species to start their record. You can add more companions
+            later.
+          </Text>
+        </View>
+
+        <View style={styles.speciesList}>
+          {COMPANION_CATEGORIES.map(cat => {
+            const isSelected = category === cat.value;
+
+            return (
+              <PressableOpacity
+                key={cat.value}
+                style={[
+                  styles.speciesCard,
+                  isSelected && styles.speciesCardSelected,
+                ]}
+                onPress={() => {
+                  setValue('category', cat.value as CompanionCategory, {
+                    shouldValidate: true,
+                  });
+                  clearErrors('category');
+                  hasUnsavedChangesRef.current = true;
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityState={{selected: isSelected}}
+                accessibilityLabel={`${cat.label}, ${cat.subtitle}`}>
+                <View style={[styles.speciesAvatar, avatarStyles[cat.value]]}>
+                  <Image
+                    source={imageSources[cat.value]}
+                    style={styles.speciesImage}
+                  />
+                </View>
+                <View style={styles.speciesTextBlock}>
+                  <Text style={styles.speciesName}>{cat.label}</Text>
+                  <Text style={styles.speciesSubtitle}>{cat.subtitle}</Text>
+                </View>
+                {isSelected && (
+                  <View style={styles.speciesCheck}>
+                    <Text style={styles.speciesCheckText}>✓</Text>
+                  </View>
+                )}
+              </PressableOpacity>
+            );
+          })}
+        </View>
+
+        {errors.category?.message && (
+          <Text style={styles.errorText}>{errors.category.message}</Text>
+        )}
+      </View>
+    );
+  };
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
+      {renderStepProgress()}
+
       <ProfileImagePicker
         imageUri={profileImage}
         onImageSelected={handleProfileImageChange}
       />
 
       <View style={styles.formSection}>
-        {renderTextField('name', {
+        {buildTextField('name', {
           label: 'Name',
           maxLength: 50,
           rules: {
@@ -795,7 +856,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('gender', value as CompanionGender, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}
@@ -805,19 +866,19 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           )}
         </View>
 
-        {renderTextField('currentWeight', {
+        {buildTextField('currentWeight', {
           label: 'Current weight (optional)',
           placeholder: weightUnit,
           keyboardType: 'decimal-pad',
           suffix: weightUnit,
         })}
 
-        {renderTextField('color', {
+        {buildTextField('color', {
           label: 'Colour (optional)',
           maxLength: 50,
         })}
 
-        {renderTextField('allergies', {
+        {buildTextField('allergies', {
           label: 'Allergies (optional)',
           maxLength: 200,
           multiline: true,
@@ -841,7 +902,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('neuteredStatus', value as NeuteredStatus, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}
@@ -854,7 +915,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         </View>
 
         {neuteredStatus === 'neutered' &&
-          renderTextField('ageWhenNeutered', {
+          buildTextField('ageWhenNeutered', {
             label: `Age when ${gender === 'female' ? 'spayed' : 'neutered'} (optional)`,
             placeholder: 'e.g., 1 Year',
             maxLength: 20,
@@ -884,6 +945,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
+      {renderStepProgress()}
+
       <ProfileImagePicker
         imageUri={profileImage}
         onImageSelected={handleProfileImageChange}
@@ -911,12 +974,12 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           )}
         />
 
-        {renderTextField('microchipNumber', {
+        {buildTextField('microchipNumber', {
           label: 'Microchip number (optional)',
           maxLength: 50,
         })}
 
-        {renderTextField('passportNumber', {
+        {buildTextField('passportNumber', {
           label: 'Passport number (optional)',
           maxLength: 50,
         })}
@@ -934,7 +997,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('insuredStatus', value as InsuredStatus, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}
@@ -946,12 +1009,12 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
         {insuredStatus === 'insured' && (
           <React.Fragment key="insurance-fields">
-            {renderTextField('insuranceCompany', {
+            {buildTextField('insuranceCompany', {
               label: 'Insurance company (optional)',
               maxLength: 100,
             })}
 
-            {renderTextField('insurancePolicyNumber', {
+            {buildTextField('insurancePolicyNumber', {
               label: 'Insurance policy number',
               placeholder: 'Insurance policy number',
               maxLength: 50,
@@ -994,7 +1057,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('origin', value as CompanionOrigin, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}
@@ -1172,47 +1235,104 @@ const createStyles = (theme: any) =>
     stepContainer: {
       flex: 1,
     },
-    stepTitle: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: theme.spacing['30'],
-      marginTop: theme.spacing['6'],
+    progressBar: {
+      flexDirection: 'row',
+      gap: theme.spacing['1.25'],
+      marginBottom: theme.spacing['5'],
+    },
+    progressSegment: {
+      flex: 1,
+      height: 4,
+      borderRadius: theme.borderRadius.full,
+    },
+    progressSegmentActive: {
+      backgroundColor: theme.colors.blue,
+    },
+    progressSegmentIdle: {
+      backgroundColor: theme.colors.inset,
+    },
+    introBlock: {
+      gap: theme.spacing['1.25'],
+      marginBottom: theme.spacing['6'],
+    },
+    introTitle: {
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
+    },
+    introSubtitle: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkMuted,
       lineHeight: 22,
     },
-    categoryGrid: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: theme.spacing['6'],
+    speciesList: {
+      gap: theme.spacing['3'],
       marginBottom: theme.spacing['4'],
     },
-    categoryCard: {
+    speciesCard: {
+      flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing['3'],
-      paddingVertical: theme.spacing['4'],
+      gap: theme.spacing['3.5'],
+      paddingVertical: theme.spacing['4.5'],
+      paddingHorizontal: theme.spacing['4'],
+      backgroundColor: theme.colors.screen,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.card,
     },
-    categoryCardSelected: {},
-    categoryIcon: {
-      width: 110,
-      height: 110,
-      objectFit: 'contain',
-      padding: theme.spacing['4'],
+    speciesCardSelected: {
+      borderWidth: 1.5,
+      borderColor: theme.colors.pink,
+      ...theme.shadows.companion,
     },
-    categoryLabel: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.text,
-      fontWeight: '500',
+    speciesAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.borderRadius.full,
+      overflow: 'hidden',
+      borderWidth: 2,
+      borderColor: theme.colors.screen,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    categoryLabelSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
+    speciesAvatarAmber: {
+      backgroundColor: theme.colors.avatarAmberBg,
     },
-    categoryUnderline: {
+    speciesAvatarViolet: {
+      backgroundColor: theme.colors.avatarVioletBg,
+    },
+    speciesAvatarGreen: {
+      backgroundColor: theme.colors.avatarGreenBg,
+    },
+    speciesImage: {
       width: '100%',
-      height: 3,
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.xs,
-      marginTop: theme.spacing['1'],
+      height: '100%',
+      objectFit: 'cover',
+    },
+    speciesTextBlock: {
+      flex: 1,
+    },
+    speciesName: {
+      ...theme.typography.bodyBold,
+      fontSize: 16.5,
+      color: theme.colors.ink,
+      letterSpacing: -0.3,
+    },
+    speciesSubtitle: {
+      ...theme.typography.body13,
+      color: theme.colors.inkFaint,
+      marginTop: 1,
+    },
+    speciesCheck: {
+      width: 24,
+      height: 24,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.pink,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    speciesCheckText: {
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.ink,
     },
     suffixText: {
       ...theme.typography.input,

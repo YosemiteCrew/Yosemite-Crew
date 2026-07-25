@@ -5,7 +5,11 @@ import {
   ProfileImagePicker,
   ProfileImagePickerRef,
 } from '../../../src/shared/components/common/ProfileImagePicker/ProfileImagePicker';
-import {Alert, Platform, Linking, Image, TouchableOpacity} from 'react-native';
+import {Alert, Platform, Linking, Image, Pressable} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
+// match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {check, request, RESULTS, PERMISSIONS} from 'react-native-permissions';
 import * as ImageUriUtils from '@/shared/utils/imageUri';
@@ -151,7 +155,7 @@ describe('ProfileImagePicker', () => {
       );
 
       // Trigger picker
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
 
       // Get Alert buttons
       const buttons = alertSpy.mock.calls[0][2]!;
@@ -178,7 +182,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
 
       const buttons = alertSpy.mock.calls[0][2]!;
       const chooseGallery = buttons.find(
@@ -200,7 +204,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
 
       const buttons = alertSpy.mock.calls[0][2]!;
       const chooseGallery = buttons.find(
@@ -222,7 +226,7 @@ describe('ProfileImagePicker', () => {
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
 
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
       )!;
@@ -244,7 +248,7 @@ describe('ProfileImagePicker', () => {
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
 
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const chooseGallery = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Choose from Gallery',
       )!;
@@ -265,7 +269,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
       )!;
@@ -283,7 +287,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
       )!;
@@ -300,7 +304,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
       )!;
@@ -323,12 +327,66 @@ describe('ProfileImagePicker', () => {
       expect(linkSpy).toHaveBeenCalled();
     });
 
+    it('handles RESULTS.BLOCKED for the photo library', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.BLOCKED);
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+      const chooseGallery = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Choose from Gallery',
+      )!;
+
+      alertSpy.mockClear();
+      await act(async () => await chooseGallery.onPress!());
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Permission Blocked',
+        expect.stringContaining('Photo library'),
+        expect.any(Array),
+      );
+    });
+
+    it('handles RESULTS.LIMITED as already granted', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.LIMITED);
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+      const takePhoto = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Take Photo',
+      )!;
+
+      await act(async () => await takePhoto.onPress!());
+
+      expect(request).not.toHaveBeenCalled();
+      expect(launchCamera).toHaveBeenCalled();
+    });
+
+    it('treats an unrecognized permission result as denied', async () => {
+      (check as jest.Mock).mockResolvedValue('some-unexpected-result');
+
+      const {UNSAFE_getByType} = render(
+        <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
+      );
+      fireEvent.press(UNSAFE_getByType(PressableType));
+      const takePhoto = alertSpy.mock.calls[0][2]!.find(
+        b => b.text === 'Take Photo',
+      )!;
+
+      await act(async () => await takePhoto.onPress!());
+
+      expect(launchCamera).not.toHaveBeenCalled();
+    });
+
     it('handles checking permission error', async () => {
       (check as jest.Mock).mockRejectedValue(new Error('Check failed'));
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
       )!;
@@ -351,7 +409,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
       )!;
@@ -384,7 +442,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
       )!;
@@ -423,6 +481,17 @@ describe('ProfileImagePicker', () => {
       expect(alertSpy).toHaveBeenCalledWith('Error', 'Bad things happened');
     });
 
+    it('falls back to a generic message when a generic error code has no errorMessage', async () => {
+      alertSpy.mockClear();
+      await runPickerFlow({
+        errorCode: 'other',
+      });
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Error',
+        'An error occurred while picking the image',
+      );
+    });
+
     it('handles success with valid URI', async () => {
       await runPickerFlow({
         assets: [{uri: 'new_image_uri', fileName: 'test.jpg'}],
@@ -434,6 +503,12 @@ describe('ProfileImagePicker', () => {
       alertSpy.mockClear();
       await runPickerFlow({assets: [{}]}); // Missing uri
       expect(alertSpy).toHaveBeenCalledWith('Error', 'Failed to get image URI');
+    });
+
+    it('does nothing when the response has no assets at all', async () => {
+      await runPickerFlow({});
+      expect(alertSpy).not.toHaveBeenCalledWith('Error', expect.any(String));
+      expect(mockOnImageSelected).not.toHaveBeenCalled();
     });
   });
 
@@ -447,7 +522,7 @@ describe('ProfileImagePicker', () => {
         />,
       );
 
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       expect(customOnPress).toHaveBeenCalled();
       expect(alertSpy).not.toHaveBeenCalled(); // Default logic skipped
     });
@@ -460,8 +535,18 @@ describe('ProfileImagePicker', () => {
         />,
       );
 
-      const touchable = UNSAFE_getByType(TouchableOpacity);
-      expect(touchable.props.activeOpacity).toBe(1);
+      const touchable = UNSAFE_getByType(PressableType);
+      // PressableOpacity consumes `activeOpacity` internally to compute the
+      // pressed style rather than forwarding it as a prop, so verify the
+      // resulting opacity-on-press is 1 (no dimming) instead of reading
+      // `activeOpacity` directly off the rendered node.
+      const pressedStyles = [touchable.props.style({pressed: true})].flat(
+        Infinity,
+      );
+      const opacityStyle = pressedStyles.find(
+        (s: any) => s && Object.prototype.hasOwnProperty.call(s, 'opacity'),
+      );
+      expect(opacityStyle?.opacity ?? 1).toBe(1);
       expect(touchable.props.onPress).toBeUndefined();
     });
 
@@ -469,7 +554,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
       const cancelBtn = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Cancel',
       )!;
@@ -506,7 +591,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
 
       const takePhoto = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Take Photo',
@@ -532,7 +617,7 @@ describe('ProfileImagePicker', () => {
       const {UNSAFE_getByType} = render(
         <ProfileImagePicker onImageSelected={mockOnImageSelected} />,
       );
-      fireEvent.press(UNSAFE_getByType(TouchableOpacity));
+      fireEvent.press(UNSAFE_getByType(PressableType));
 
       const chooseGallery = alertSpy.mock.calls[0][2]!.find(
         b => b.text === 'Choose from Gallery',

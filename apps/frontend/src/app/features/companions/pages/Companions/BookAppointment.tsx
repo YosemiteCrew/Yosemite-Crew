@@ -1,12 +1,13 @@
 import Modal from '@/app/ui/overlays/Modal';
 import React, { useEffect, useMemo } from 'react';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
-import { EMPTY_APPOINTMENT } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointment';
+import { EMPTY_APPOINTMENT } from '@/app/features/appointments/constants/emptyAppointment';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import AppointmentDetailsSection from '@/app/features/appointments/components/AppointmentDetailsSection';
 import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
 import BillableServicesSection from '@/app/features/appointments/components/BillableServicesSection';
@@ -90,7 +91,7 @@ const BookAppointment = ({ showModal, setShowModal, activeCompanion }: BookAppoi
       <div className="flex flex-col h-full gap-6">
         <ModalHeader title="Add appointment" onClose={() => setShowModal(false)} />
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto scrollbar-hidden">
+        <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto scrollbar-hidden">
           <div className="flex flex-col gap-6 w-full">
             {formData.companion.name && (
               <EditableAccordion
@@ -144,10 +145,12 @@ const BookAppointment = ({ showModal, setShowModal, activeCompanion }: BookAppoi
               onChange={(checked) => setFormData((prev) => ({ ...prev, isEmergency: checked }))}
             />
           </div>
-          <div className="flex flex-col items-end gap-2 w-full">
-            <BookingErrorMessage error={formDataErrors.booking} />
-            <Primary href="#" text="Book appointment" onClick={onSubmit} className="w-full" />
-          </div>
+        </div>
+        <div className="flex flex-col w-full">
+          <BookingErrorMessage error={formDataErrors.booking} />
+          <ModalFooter align="stretch">
+            <Primary href="#" text="Book appointment" onClick={onSubmit} />
+          </ModalFooter>
         </div>
       </div>
     </Modal>

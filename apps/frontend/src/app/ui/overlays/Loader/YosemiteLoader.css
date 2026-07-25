@@ -4,17 +4,16 @@
   justify-content: center;
   gap: 10px;
   font-family: var(--font-satoshi);
-  color: var(--color-text-primary, #1f2937);
+  color: var(--color-text-primary, #302f2e);
 }
 
 .yosemite-loader__spinner {
   display: inline-block;
   box-sizing: border-box;
-  border: 2px solid var(--color-card-border, #e5e7eb);
-  border-top-color: var(--color-text-brand, #2f6fed);
+  border: 2px solid var(--hairline, #e5dccf);
+  border-top-color: var(--blue, #257bed);
   border-radius: 9999px;
   animation: yosemite-loader-spin 0.7s linear infinite;
-  box-shadow: 0 0 0 1px rgba(47, 111, 237, 0.04);
 }
 
 .yosemite-loader__label {
@@ -29,7 +28,7 @@
 .yosemite-loader--fullscreen {
   position: fixed;
   inset: 0;
-  background: var(--color-bg, #ffffff);
+  background: var(--color-bg, var(--color-surface-card));
   z-index: 9999;
   width: 100%;
   height: 100%;
@@ -41,7 +40,7 @@
 .yosemite-loader--fullscreen-translucent {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.64);
+  background: var(--glass-93);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 9999;

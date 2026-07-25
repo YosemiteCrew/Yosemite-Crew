@@ -8,7 +8,11 @@ import {
   getWorkspaceTemplateById,
   getInpatientScheduleForEncounter,
   listDischargeSummaryTemplates,
+  listInpatientScheduleTemplates,
   listPrescriptionTemplatesForWorkspace,
+  listScheduleTaskTemplates,
+  resolveDischargeTemplate,
+  resolvePrescriptionTemplate,
   resolveScheduleTasksFromTemplate,
   listSoapTemplatesForWorkspace,
   listVitalsTemplates,
@@ -653,6 +657,23 @@ describe('workspaceTemplateService', () => {
       expect(extractFollowUpInDays(withFollowUp('soon') as never)).toBeUndefined();
       expect(extractFollowUpInDays({ sections: [] } as never)).toBeUndefined();
     });
+
+    it('accepts the largest in-range follow-up offset', () => {
+      expect(extractFollowUpInDays(withFollowUp(3650) as never)).toBe(3650);
+    });
+
+    // An unbounded offset pushes the computed date past the range Date can represent,
+    // so the consumer ends up calling toISOString() on an Invalid Date and throws.
+    it('rejects an out-of-range follow-up offset', () => {
+      expect(extractFollowUpInDays(withFollowUp(3651) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp(1e308) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp(Number.MAX_SAFE_INTEGER) as never)).toBeUndefined();
+      expect(extractFollowUpInDays(withFollowUp('1e308') as never)).toBeUndefined();
+    });
+
+    it('rejects a non-finite follow-up offset', () => {
+      expect(extractFollowUpInDays(withFollowUp(Infinity) as never)).toBeUndefined();
+    });
   });
 
   describe('schemaSnapshotToPrescriptionItems', () => {
@@ -711,6 +732,115 @@ describe('workspaceTemplateService', () => {
       };
       expect(schemaSnapshotToPrescriptionItems(snapshot as never)).toEqual([]);
       expect(schemaSnapshotToPrescriptionItems(undefined)).toEqual([]);
+    });
+  });
+
+  describe('schedule task template listing', () => {
+    it('lists published inpatient schedule templates', async () => {
+      getDataMock.mockResolvedValueOnce({ data: [{ id: 'tpl-inp' }] });
+
+      const templates = await listInpatientScheduleTemplates('org-1');
+
+      expect(getDataMock).toHaveBeenCalledWith(
+        expect.stringContaining('org-1'),
+        expect.objectContaining({ kind: 'INPATIENT_SCHEDULE', status: 'PUBLISHED' })
+      );
+      expect(templates).toEqual([{ id: 'tpl-inp' }]);
+    });
+
+    it('merges inpatient and task-assignment templates, tolerating one failing source', async () => {
+      getDataMock
+        .mockResolvedValueOnce({ data: [{ id: 'tpl-inp' }] })
+        .mockRejectedValueOnce(new Error('task templates down'));
+
+      const merged = await listScheduleTaskTemplates('org-1');
+      expect(merged).toEqual([{ id: 'tpl-inp' }]);
+
+      getDataMock
+        .mockRejectedValueOnce(new Error('inpatient down'))
+        .mockResolvedValueOnce({ data: [{ id: 'tpl-task' }] });
+
+      const mergedOther = await listScheduleTaskTemplates('org-1');
+      expect(mergedOther).toEqual([{ id: 'tpl-task' }]);
+    });
+  });
+
+  describe('context template resolution', () => {
+    const context = {
+      organisationId: 'org-1',
+      appointmentId: 'appt-1',
+      encounterId: 'enc-1',
+      companionId: 'comp-1',
+      species: 'Canine',
+      serviceId: 'svc-1',
+      packageId: 'pkg-1',
+      mode: 'INPATIENT',
+    } as never;
+
+    it('resolves the discharge template with the full context and null on failure', async () => {
+      getDataMock.mockResolvedValueOnce({ data: { templateId: 'tpl-dc', templateVersion: 2 } });
+
+      const resolved = await resolveDischargeTemplate(context);
+
+      expect(getDataMock).toHaveBeenCalledWith('/v1/templates/pms/resolve', {
+        organisationId: 'org-1',
+        kind: 'DISCHARGE_SUMMARY',
+        appointmentId: 'appt-1',
+        encounterId: 'enc-1',
+        companionId: 'comp-1',
+        species: 'Canine',
+        serviceId: 'svc-1',
+        packageId: 'pkg-1',
+        mode: 'INPATIENT',
+      });
+      expect(resolved).toEqual({ templateId: 'tpl-dc', templateVersion: 2 });
+
+      getDataMock.mockResolvedValueOnce({ data: undefined });
+      await expect(
+        resolveDischargeTemplate({ organisationId: 'org-1' } as never)
+      ).resolves.toBeNull();
+
+      getDataMock.mockRejectedValueOnce({ response: { status: 404 } });
+      await expect(resolveDischargeTemplate(context)).resolves.toBeNull();
+    });
+
+    it('resolves prescription template rows and returns [] when none is configured', async () => {
+      getDataMock.mockResolvedValueOnce({
+        data: {
+          schemaSnapshot: {
+            sections: [
+              {
+                id: 'medications',
+                title: 'Medications',
+                fields: [
+                  {
+                    key: 'medicationLine',
+                    label: 'Medication lines',
+                    type: 'medicationLine',
+                    defaultValue: [
+                      {
+                        medicineName: 'Carprofen',
+                        inventoryItemId: 'inv-1',
+                        qty: '14',
+                        prescriptionRequired: 'yes',
+                        priceCents: '1800',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      });
+
+      const rows = await resolvePrescriptionTemplate(context);
+      expect(rows).toEqual([
+        expect.objectContaining({ medicineName: 'Carprofen', inventoryItemId: 'inv-1' }),
+      ]);
+
+      getDataMock.mockRejectedValueOnce(new Error('nope'));
+      await expect(resolvePrescriptionTemplate(context)).resolves.toEqual([]);
     });
   });
 });

@@ -1,6 +1,11 @@
 import React from 'react';
 import {mockTheme} from '../../../setup/mockTheme';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  waitFor,
+  screen,
+} from '@testing-library/react-native';
 import {ExpensesMainScreen} from '@/features/expenses/screens/ExpensesMainScreen/ExpensesMainScreen';
 import {setSelectedCompanion} from '@/features/companion';
 import type {ExpensePaymentStatus} from '@/features/expenses';
@@ -15,6 +20,20 @@ import type {RootState} from '@/app/store';
 import type {AuthProvider, AuthStatus, User} from '@/features/auth';
 import type {Companion} from '@/features/companion';
 import type {ThemeState} from '@/features/theme';
+import {Pressable} from 'react-native';
+import {
+  hasInvoice,
+  isExpensePaid,
+  isExpensePaymentPending,
+} from '@/features/expenses/utils/status';
+import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
+
+const PressableType = (Pressable as any).type;
+const hasInvoiceMock = hasInvoice as unknown as jest.Mock;
+const isExpensePaidMock = isExpensePaid as unknown as jest.Mock;
+const isExpensePaymentPendingMock =
+  isExpensePaymentPending as unknown as jest.Mock;
+const useExpensePaymentMock = useExpensePayment as unknown as jest.Mock;
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -94,19 +113,22 @@ jest.mock('@/features/expenses/components', () => {
     ExpenseCard: (props: any) => (
       <RN.View data-testid="expense-card">
         <RN.TouchableOpacity testID="view-button" onPress={props.onPressView} />
-        {props.showEditAction && props.onPressEdit && (
+        {props.editAction === 'visible' && props.onPressEdit && (
           <RN.TouchableOpacity
             testID="edit-button"
             onPress={props.onPressEdit}
           />
         )}
-        {props.showPayButton && props.onPressPay && (
-          <RN.TouchableOpacity testID="pay-button" onPress={props.onPressPay} />
+        {props.payment?.status === 'unpaid' && props.payment.cta && (
+          <RN.TouchableOpacity
+            testID="pay-button"
+            onPress={props.payment.cta.onPress}
+          />
         )}
-        {props.isPaid && props.onTogglePaidStatus && (
+        {props.payment?.status === 'paid' && props.payment.onToggleStatus && (
           <RN.TouchableOpacity
             testID="toggle-paid-button"
-            onPress={props.onTogglePaidStatus}
+            onPress={props.payment.onToggleStatus}
           />
         )}
       </RN.View>
@@ -147,9 +169,11 @@ jest.mock('@/features/expenses/utils/status', () => ({
   isExpensePaymentPending: jest.fn(() => false),
 }));
 
+const mockOpenPaymentScreen = jest.fn();
+
 jest.mock('@/features/expenses/hooks/useExpensePayment', () => ({
   useExpensePayment: jest.fn(() => ({
-    openPaymentScreen: jest.fn(),
+    openPaymentScreen: mockOpenPaymentScreen,
     processingPayment: false,
   })),
 }));
@@ -408,12 +432,29 @@ describe('ExpensesMainScreen', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => false);
     selectRecentExternalExpensesMock.mockReturnValue(() => []);
     selectRecentInAppExpensesMock.mockReturnValue(() => []);
+
+    hasInvoiceMock.mockReturnValue(false);
+    isExpensePaidMock.mockReturnValue(false);
+    isExpensePaymentPendingMock.mockReturnValue(false);
+    useExpensePaymentMock.mockReturnValue({
+      openPaymentScreen: mockOpenPaymentScreen,
+      processingPayment: false,
+    });
   });
 
   it('should render nothing if no companions exist', () => {
     mockState.companion.companions = [];
     const {toJSON} = render(<ExpensesMainScreen />);
     expect(toJSON()).toBeNull();
+  });
+
+  it('should fall back to USD when the user has no currency set', () => {
+    mockState.auth.user = {...mockUser, currency: undefined as any};
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectExpenseSummaryByCompanionMock.mockReturnValue(() => null);
+    selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+
+    expect(() => render(<ExpensesMainScreen />)).not.toThrow();
   });
 
   it('should dispatch setSelectedCompanion if one is not selected', async () => {
@@ -436,18 +477,62 @@ describe('ExpensesMainScreen', () => {
 
   it('should render empty state if hydrated and no expenses exist', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => true);
-    const {getByText} = render(<ExpensesMainScreen />);
-    expect(getByText('Zero bucks spent!')).toBeTruthy();
+    const {getByText, getByTestId} = render(<ExpensesMainScreen />);
+    expect(getByTestId('expenses-empty')).toBeTruthy();
+    expect(getByText('No expenses yet')).toBeTruthy();
     expect(
-      getByText('It seems like you and your buddy are in saving mode!'),
+      getByText(
+        "Vet bills, food and insurance will add up here, so the year's spend is a number, not a shoebox.",
+      ),
     ).toBeTruthy();
   });
 
   it('should navigate to AddExpense from empty state button', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => true);
-    const {getByText} = render(<ExpensesMainScreen />);
-    fireEvent.press(getByText('Add expense')); // Use press
+    const {getByTestId} = render(<ExpensesMainScreen />);
+    fireEvent.press(getByTestId('expenses-empty-action'));
     expect(mockNavigate).toHaveBeenCalledWith('AddExpense');
+  });
+
+  it('should render the in-app empty section when only external expenses exist', () => {
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectRecentInAppExpensesMock.mockReturnValue(() => []);
+    selectRecentExternalExpensesMock.mockReturnValue(() => [
+      mockExternalExpense,
+    ]);
+
+    const {getByText, queryByText, getAllByTestId} = render(
+      <ExpensesMainScreen />,
+    );
+
+    // Not the full empty state, because there is at least one expense.
+    expect(queryByText('No expenses yet')).toBeNull();
+    // In-app section falls back to its inline empty message.
+    expect(getByText('No in-app expenses yet')).toBeTruthy();
+    // External section still renders its card (one view button).
+    expect(getAllByTestId('view-button').length).toBe(1);
+  });
+
+  it('should render the external empty section when only in-app expenses exist', () => {
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+    selectRecentExternalExpensesMock.mockReturnValue(() => []);
+
+    const {getByText, queryByText, getAllByTestId} = render(
+      <ExpensesMainScreen />,
+    );
+
+    expect(queryByText('No expenses yet')).toBeNull();
+    expect(getByText('No external expenses yet')).toBeTruthy();
+    expect(getAllByTestId('view-button').length).toBe(1);
+  });
+
+  it('should render the loading overlay while expenses are loading', () => {
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+    selectExpensesLoadingMock.mockReturnValue(true);
+
+    expect(() => render(<ExpensesMainScreen />)).not.toThrow();
   });
 
   it('should render expense cards when data is available', () => {
@@ -464,7 +549,7 @@ describe('ExpensesMainScreen', () => {
 
     const {getByText, queryByText} = render(<ExpensesMainScreen />);
 
-    expect(queryByText('Zero bucks spent!')).toBeNull();
+    expect(queryByText('No expenses yet')).toBeNull();
 
     expect(getByText('Recent in-app expenses')).toBeTruthy();
     expect(getByText('Recent external expenses')).toBeTruthy();
@@ -483,6 +568,13 @@ describe('ExpensesMainScreen', () => {
       const {getByTestId} = render(<ExpensesMainScreen />);
       fireEvent.press(getByTestId('back-button')); // Use press
       expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    it('should not navigate back when canGoBack is false', () => {
+      mockCanGoBack.mockReturnValueOnce(false);
+      const {getByTestId} = render(<ExpensesMainScreen />);
+      fireEvent.press(getByTestId('back-button'));
+      expect(mockGoBack).not.toHaveBeenCalled();
     });
 
     it('should navigate to AddExpense on header add press', () => {
@@ -540,6 +632,70 @@ describe('ExpensesMainScreen', () => {
       const {getByTestId} = render(<ExpensesMainScreen />);
       fireEvent.press(getByTestId('select-c2')); // Use press
       expect(mockDispatch).toHaveBeenCalledWith(setSelectedCompanion('c2'));
+    });
+
+    it('should navigate to in-app ExpensesList when the yearly spend card is pressed', () => {
+      render(<ExpensesMainScreen />);
+      const pressables = screen.UNSAFE_getAllByType(PressableType);
+      fireEvent.press(pressables[0]);
+      expect(mockNavigate).toHaveBeenCalledWith('ExpensesList', {
+        mode: 'inApp',
+      });
+    });
+
+    it('exposes a button role and label on the yearly spend card', () => {
+      const {getByLabelText} = render(<ExpensesMainScreen />);
+      const card = getByLabelText('View yearly spend summary');
+      expect(card.props.accessibilityRole).toBe('button');
+    });
+  });
+
+  describe('In-app expense payment status', () => {
+    beforeEach(() => {
+      selectHasHydratedCompanionMock.mockReturnValue(() => true);
+      selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+      selectRecentExternalExpensesMock.mockReturnValue(() => []);
+    });
+
+    it('marks the expense as paid and hides the pay button when isExpensePaid is true', () => {
+      isExpensePaidMock.mockReturnValue(true);
+      const {queryByTestId} = render(<ExpensesMainScreen />);
+      expect(queryByTestId('pay-button')).toBeNull();
+    });
+
+    it('shows a pay button and calls openPaymentScreen when unpaid, pending and not already processing', () => {
+      isExpensePaidMock.mockReturnValue(false);
+      isExpensePaymentPendingMock.mockReturnValue(true);
+      hasInvoiceMock.mockReturnValue(true);
+
+      const {getByTestId} = render(<ExpensesMainScreen />);
+      fireEvent.press(getByTestId('pay-button'));
+
+      expect(mockOpenPaymentScreen).toHaveBeenCalledWith(mockInAppExpense);
+    });
+
+    it('does not open the payment screen when a payment is already processing', () => {
+      isExpensePaidMock.mockReturnValue(false);
+      isExpensePaymentPendingMock.mockReturnValue(true);
+      hasInvoiceMock.mockReturnValue(true);
+      useExpensePaymentMock.mockReturnValue({
+        openPaymentScreen: mockOpenPaymentScreen,
+        processingPayment: true,
+      });
+
+      const {getByTestId} = render(<ExpensesMainScreen />);
+      fireEvent.press(getByTestId('pay-button'));
+
+      expect(mockOpenPaymentScreen).not.toHaveBeenCalled();
+    });
+
+    it('hides the pay button when pending but there is no invoice', () => {
+      isExpensePaidMock.mockReturnValue(false);
+      isExpensePaymentPendingMock.mockReturnValue(true);
+      hasInvoiceMock.mockReturnValue(false);
+
+      const {queryByTestId} = render(<ExpensesMainScreen />);
+      expect(queryByTestId('pay-button')).toBeNull();
     });
   });
 });

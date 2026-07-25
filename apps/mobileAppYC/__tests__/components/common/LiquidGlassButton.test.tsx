@@ -4,11 +4,22 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {themeReducer} from '@/features/theme';
-import {Text, TouchableOpacity, ActivityIndicator, Platform} from 'react-native';
+import {Text, Pressable, ActivityIndicator, Platform} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; findByType must match
+// against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 // Mock liquid glass
 jest.mock('@callstack/liquid-glass', () => ({
-  LiquidGlassView: ({children, style, interactive, effect, tintColor, colorScheme}: any) => {
+  LiquidGlassView: ({
+    children,
+    style,
+    interactive,
+    effect,
+    tintColor,
+    colorScheme,
+  }: any) => {
     const MockReact = require('react');
     const {View: MockView} = require('react-native');
     return MockReact.createElement(
@@ -21,7 +32,7 @@ jest.mock('@callstack/liquid-glass', () => ({
         'data-tint': tintColor,
         'data-scheme': colorScheme,
       },
-      children
+      children,
     );
   },
   isLiquidGlassSupported: true,
@@ -49,7 +60,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Press Me" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="Press Me" onPress={() => {}} />),
         );
       });
 
@@ -62,11 +73,11 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Click" onPress={onPress} />)
+          wrap(<LiquidGlassButton title="Click" onPress={onPress} />),
         );
       });
 
-      const touchable = tree.root.findByType(TouchableOpacity);
+      const touchable = tree.root.findByType(PressableType);
       TestRenderer.act(() => {
         touchable.props.onPress();
       });
@@ -79,11 +90,11 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Click" onPress={onPress} disabled />)
+          wrap(<LiquidGlassButton title="Click" onPress={onPress} disabled />),
         );
       });
 
-      const touchable = tree.root.findByType(TouchableOpacity);
+      const touchable = tree.root.findByType(PressableType);
       expect(touchable.props.disabled).toBe(true);
     });
 
@@ -92,12 +103,80 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Click" onPress={onPress} loading />)
+          wrap(<LiquidGlassButton title="Click" onPress={onPress} loading />),
         );
       });
 
-      const touchable = tree.root.findByType(TouchableOpacity);
+      const touchable = tree.root.findByType(PressableType);
       expect(touchable.props.disabled).toBe(true);
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('exposes button role and defaults the label to the title on the native glass branch', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Save" onPress={() => {}} />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityRole).toBe('button');
+      expect(touchable.props.accessibilityLabel).toBe('Save');
+      expect(touchable.props.accessibilityState).toEqual({
+        disabled: false,
+        busy: false,
+      });
+    });
+
+    it('lets an explicit accessibilityLabel override the visible title', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="Save"
+              onPress={() => {}}
+              accessibilityLabel="Save changes to your pet's profile"
+            />,
+          ),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityLabel).toBe(
+        "Save changes to your pet's profile",
+      );
+    });
+
+    it('marks disabled and busy state for screen readers while loading', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Submit" onPress={() => {}} loading />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityState).toEqual({
+        disabled: true,
+        busy: true,
+      });
+    });
+
+    it('exposes button role and label on the Android fallback branch', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Continue" onPress={() => {}} />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityRole).toBe('button');
+      expect(touchable.props.accessibilityLabel).toBe('Continue');
     });
   });
 
@@ -106,7 +185,9 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Small" onPress={() => {}} size="small" />)
+          wrap(
+            <LiquidGlassButton title="Small" onPress={() => {}} size="small" />,
+          ),
         );
       });
 
@@ -117,7 +198,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Medium" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="Medium" onPress={() => {}} />),
         );
       });
 
@@ -128,7 +209,9 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Large" onPress={() => {}} size="large" />)
+          wrap(
+            <LiquidGlassButton title="Large" onPress={() => {}} size="large" />,
+          ),
         );
       });
 
@@ -141,7 +224,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Submit" onPress={() => {}} loading />)
+          wrap(<LiquidGlassButton title="Submit" onPress={() => {}} loading />),
         );
       });
 
@@ -154,7 +237,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Submit" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="Submit" onPress={() => {}} />),
         );
       });
 
@@ -174,8 +257,8 @@ describe('LiquidGlassButton', () => {
               title="Back"
               onPress={() => {}}
               leftIcon={<LeftIcon />}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -193,8 +276,8 @@ describe('LiquidGlassButton', () => {
               title="Next"
               onPress={() => {}}
               rightIcon={<RightIcon />}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -214,8 +297,8 @@ describe('LiquidGlassButton', () => {
               onPress={() => {}}
               leftIcon={<LeftIcon />}
               rightIcon={<RightIcon />}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -229,7 +312,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton onPress={() => {}} leftIcon={<Icon />} />)
+          wrap(<LiquidGlassButton onPress={() => {}} leftIcon={<Icon />} />),
         );
       });
 
@@ -248,8 +331,8 @@ describe('LiquidGlassButton', () => {
             <LiquidGlassButton
               onPress={() => {}}
               customContent={<CustomContent />}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -268,8 +351,8 @@ describe('LiquidGlassButton', () => {
               title="Clear"
               onPress={() => {}}
               glassEffect="clear"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -285,8 +368,8 @@ describe('LiquidGlassButton', () => {
               title="Regular"
               onPress={() => {}}
               glassEffect="regular"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -302,8 +385,8 @@ describe('LiquidGlassButton', () => {
               title="None"
               onPress={() => {}}
               glassEffect="none"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -320,9 +403,9 @@ describe('LiquidGlassButton', () => {
             <LiquidGlassButton
               title="Tinted"
               onPress={() => {}}
-              tintColor='#F44336'
-            />
-          )
+              tintColor="#F44336"
+            />,
+          ),
         );
       });
 
@@ -338,8 +421,8 @@ describe('LiquidGlassButton', () => {
               title="White"
               onPress={() => {}}
               tintColor="#FFFFFF"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -355,8 +438,8 @@ describe('LiquidGlassButton', () => {
               title="Light"
               onPress={() => {}}
               tintColor="#F0F0F0"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -370,12 +453,8 @@ describe('LiquidGlassButton', () => {
       TestRenderer.act(() => {
         tree = TestRenderer.create(
           wrap(
-            <LiquidGlassButton
-              title="Wide"
-              onPress={() => {}}
-              width={200}
-            />
-          )
+            <LiquidGlassButton title="Wide" onPress={() => {}} width={200} />,
+          ),
         );
       });
 
@@ -387,12 +466,8 @@ describe('LiquidGlassButton', () => {
       TestRenderer.act(() => {
         tree = TestRenderer.create(
           wrap(
-            <LiquidGlassButton
-              title="Tall"
-              onPress={() => {}}
-              height={60}
-            />
-          )
+            <LiquidGlassButton title="Tall" onPress={() => {}} height={60} />,
+          ),
         );
       });
 
@@ -409,8 +484,8 @@ describe('LiquidGlassButton', () => {
               onPress={() => {}}
               minWidth={100}
               minHeight={50}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -422,12 +497,8 @@ describe('LiquidGlassButton', () => {
       TestRenderer.act(() => {
         tree = TestRenderer.create(
           wrap(
-            <LiquidGlassButton
-              title="Max"
-              onPress={() => {}}
-              maxWidth={300}
-            />
-          )
+            <LiquidGlassButton title="Max" onPress={() => {}} maxWidth={300} />,
+          ),
         );
       });
 
@@ -445,8 +516,8 @@ describe('LiquidGlassButton', () => {
               title="Rounded"
               onPress={() => {}}
               borderRadius={20}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -457,7 +528,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Default" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="Default" onPress={() => {}} />),
         );
       });
 
@@ -471,12 +542,8 @@ describe('LiquidGlassButton', () => {
       TestRenderer.act(() => {
         tree = TestRenderer.create(
           wrap(
-            <LiquidGlassButton
-              title="Border"
-              onPress={() => {}}
-              forceBorder
-            />
-          )
+            <LiquidGlassButton title="Border" onPress={() => {}} forceBorder />,
+          ),
         );
       });
 
@@ -492,8 +559,8 @@ describe('LiquidGlassButton', () => {
               title="Border"
               onPress={() => {}}
               borderColor="#00FF00"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -509,8 +576,8 @@ describe('LiquidGlassButton', () => {
               title="Shadow"
               onPress={() => {}}
               shadowIntensity="light"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -526,8 +593,8 @@ describe('LiquidGlassButton', () => {
               title="Shadow"
               onPress={() => {}}
               shadowIntensity="medium"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -543,8 +610,8 @@ describe('LiquidGlassButton', () => {
               title="Shadow"
               onPress={() => {}}
               shadowIntensity="strong"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -560,8 +627,8 @@ describe('LiquidGlassButton', () => {
               title="No Shadow"
               onPress={() => {}}
               shadowIntensity="none"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -574,7 +641,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Interactive" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="Interactive" onPress={() => {}} />),
         );
       });
 
@@ -590,8 +657,8 @@ describe('LiquidGlassButton', () => {
               title="Not Interactive"
               onPress={() => {}}
               interactive={false}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -609,8 +676,8 @@ describe('LiquidGlassButton', () => {
               title="Light"
               onPress={() => {}}
               colorScheme="light"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -626,8 +693,8 @@ describe('LiquidGlassButton', () => {
               title="Dark"
               onPress={() => {}}
               colorScheme="dark"
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -638,7 +705,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="System" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="System" onPress={() => {}} />),
         );
       });
 
@@ -652,7 +719,7 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="iOS" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="iOS" onPress={() => {}} />),
         );
       });
 
@@ -665,11 +732,11 @@ describe('LiquidGlassButton', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {
         tree = TestRenderer.create(
-          wrap(<LiquidGlassButton title="Android" onPress={() => {}} />)
+          wrap(<LiquidGlassButton title="Android" onPress={() => {}} />),
         );
       });
 
-      const touchable = tree.root.findByType(TouchableOpacity);
+      const touchable = tree.root.findByType(PressableType);
       expect(touchable).toBeTruthy();
     });
   });
@@ -685,8 +752,8 @@ describe('LiquidGlassButton', () => {
               title="Custom"
               onPress={() => {}}
               style={customStyle}
-            />
-          )
+            />,
+          ),
         );
       });
 
@@ -703,12 +770,210 @@ describe('LiquidGlassButton', () => {
               title="Custom Text"
               onPress={() => {}}
               textStyle={customTextStyle}
-            />
-          )
+            />,
+          ),
         );
       });
 
       expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Color Parsing', () => {
+    it('should treat an rgba color with non-numeric channels as not light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="BadRgba"
+              onPress={() => {}}
+              tintColor="rgba(x, 10, 20)"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should treat a non-hex, non-rgba named color as not light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="Navy"
+              onPress={() => {}}
+              tintColor="navy"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should treat a short hex color as not light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="ShortHex"
+              onPress={() => {}}
+              tintColor="#abc"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Border Radius Fallback', () => {
+    it('should resolve a known theme border radius key to its numeric value', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="KnownRadius"
+              onPress={() => {}}
+              borderRadius="lg"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should fall back to the theme button radius for an unknown string key', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="UnknownRadius"
+              onPress={() => {}}
+              borderRadius={'notARadiusKey' as never}
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Compact Sizing', () => {
+    it('should skip size padding when compact', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton title="Compact" onPress={() => {}} compact />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('System Color Scheme', () => {
+    it('should resolve the system color scheme to light', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="System"
+              onPress={() => {}}
+              colorScheme="system"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+  });
+
+  describe('Icon Without Title', () => {
+    it('should render a right icon with no title spacing when title is absent', () => {
+      const RightIcon = () => <Text>»</Text>;
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton onPress={() => {}} rightIcon={<RightIcon />} />,
+          ),
+        );
+      });
+
+      const texts = tree.root.findAllByType(Text);
+      expect(texts.some(t => t.props.children === '»')).toBe(true);
+    });
+  });
+
+  describe('Android Fallback Branches', () => {
+    it('should apply a custom border color on the Android fallback surface', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="AndroidBorder"
+              onPress={() => {}}
+              borderColor="#00FF00"
+            />,
+          ),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable).toBeTruthy();
+    });
+
+    it('should use the dark android glass tint for the dark color scheme', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="AndroidDark"
+              onPress={() => {}}
+              colorScheme="dark"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
+    it('should use white text for a dark tint on the Android fallback', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="AndroidTinted"
+              onPress={() => {}}
+              tintColor="#F44336"
+            />,
+          ),
+        );
+      });
+
+      const texts = tree.root.findAllByType(Text);
+      expect(texts.some(t => t.props.children === 'AndroidTinted')).toBe(true);
     });
   });
 });

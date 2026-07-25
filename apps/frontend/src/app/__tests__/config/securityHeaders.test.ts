@@ -26,9 +26,11 @@ const parseCspDirectives = (csp: string): Map<string, string> =>
 
 describe('security headers', () => {
   test('applies critical non-HSTS security headers to all routes in local/test mode', async () => {
+    expect(nextConfig.poweredByHeader).toBe(false);
+
     const routes = await nextConfig.headers?.();
     expect(routes).toBeDefined();
-    expect(routes).toHaveLength(1);
+    expect(routes).toHaveLength(2);
 
     const routeHeaders = routes?.[0];
     expect(routeHeaders?.source).toBe('/(.*)');
@@ -41,6 +43,22 @@ describe('security headers', () => {
     expect(findHeader(headers, 'Permissions-Policy')).toBe(
       'camera=(), microphone=(), geolocation=(self)'
     );
+  });
+
+  test('applies a strict, tightly scoped CSP to the static dev-docs surface', async () => {
+    const routes = await nextConfig.headers?.();
+    const devDocs = routes?.find((route) => route.source === '/dev-docs/:path*');
+    expect(devDocs).toBeDefined();
+
+    const csp = findHeader(devDocs?.headers as HeaderEntry[], 'Content-Security-Policy');
+    expect(csp).toBeDefined();
+
+    const directives = parseCspDirectives(csp as string);
+    expect(directives.get('default-src')).toBe("'self'");
+    expect(directives.get('script-src')).toBe("'self' https://cdn.redoc.ly");
+    expect(directives.get('object-src')).toBe("'none'");
+    expect(directives.get('base-uri')).toBe("'self'");
+    expect(directives.get('frame-ancestors')).toBe("'self'");
   });
 
   test('applies HSTS in production headers', () => {
@@ -85,8 +103,11 @@ describe('security headers', () => {
     expect(directives.get('connect-src')).toContain('https://connect-js.stripe.com');
     expect(directives.get('connect-src')).toContain('https://places.googleapis.com');
     expect(directives.get('connect-src')).toContain('https://raw.githubusercontent.com');
+    expect(directives.get('connect-src')).toContain('https://discord.com');
     expect(directives.get('connect-src')).toContain('http:');
     expect(directives.get('connect-src')).toContain('ws:');
+    expect(directives.get('media-src')).toContain("'self'");
+    expect(directives.get('media-src')).toContain('https://d2il6osz49gpup.cloudfront.net');
     expect(directives.get('img-src')).toContain('https://upload.wikimedia.org');
     expect(directives.get('img-src')).toContain('https://d2il6osz49gpup.cloudfront.net');
     expect(directives.get('img-src')).toContain('https://d2kyjiikho62xx.cloudfront.net');

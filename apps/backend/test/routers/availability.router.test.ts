@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn(
+const requireWebAuth = jest.fn(
   (_req: unknown, _res: unknown, next: (err?: unknown) => void) => next(),
 );
 
@@ -30,7 +30,7 @@ const AvailabilityController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -68,7 +68,7 @@ const findRoute = (path: string, method: "get" | "post" | "delete") => {
 
 describe("availability.router", () => {
   it("applies Cognito auth via router.use", () => {
-    expect(layers().some((layer) => layer.handle === authorizeCognito)).toBe(
+    expect(layers().some((layer) => layer.handle === requireWebAuth)).toBe(
       true,
     );
   });
@@ -81,8 +81,7 @@ describe("availability.router", () => {
     expect(route?.stack[2]?.handle).toEqual(expect.any(Function));
 
     const handler = route?.stack[2]?.handle as
-      | ((req: unknown, res: unknown) => unknown)
-      | undefined;
+      ((req: unknown, res: unknown) => unknown) | undefined;
     handler?.({} as any, {} as any);
     expect(
       AvailabilityController.getOrganisationBaseAvailability,

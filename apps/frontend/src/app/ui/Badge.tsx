@@ -1,30 +1,23 @@
-import type { HTMLAttributes } from 'react';
-import clsx from 'clsx';
+import type { ReactNode } from 'react';
+
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 export type BadgeProps = {
   tone?: 'neutral' | 'brand' | 'success' | 'warning' | 'danger';
   className?: string;
-} & HTMLAttributes<HTMLSpanElement>;
-
-const toneClassMap: Record<NonNullable<BadgeProps['tone']>, string> = {
-  neutral: 'bg-card-bg text-text-secondary',
-  brand: 'bg-[#006AE0] text-white',
-  success: 'bg-success-100 text-success-700',
-  warning: 'bg-warning-100 text-warning-700',
-  danger: 'bg-danger-100 text-danger-700',
+  children?: ReactNode;
 };
 
-const Badge = ({ tone = 'neutral', className, ...props }: BadgeProps) => {
-  return (
-    <span
-      className={clsx(
-        'inline-flex items-center gap-0.5 rounded-full px-4 py-2 text-[12px] font-bold leading-[1.2]',
-        toneClassMap[tone],
-        className
-      )}
-      {...props}
-    />
-  );
+const toneMap: Record<NonNullable<BadgeProps['tone']>, StatusTone> = {
+  neutral: 'neutral',
+  brand: 'accent',
+  success: 'success',
+  warning: 'warning',
+  danger: 'danger',
 };
+
+const Badge = ({ tone = 'neutral', className, children }: BadgeProps) => (
+  <StatusPill label={children} tone={toneMap[tone]} className={className} />
+);
 
 export default Badge;

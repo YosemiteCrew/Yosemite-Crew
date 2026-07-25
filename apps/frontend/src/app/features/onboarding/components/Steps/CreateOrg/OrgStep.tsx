@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
+import {
+  IoArrowForward,
+  IoBusinessOutline,
+  IoCutOutline,
+  IoHomeOutline,
+  IoPawOutline,
+} from 'react-icons/io5';
 
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import LogoUploader from '@/app/ui/widgets/UploadImage/LogoUploader';
-import { BusinessTypes } from '@/app/features/organization/types/org';
+import { BusinessType, BusinessTypes } from '@/app/features/organization/types/org';
 import { Organisation } from '@yosemite-crew/types';
 
 import './Step.css';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import {
-  CountryDialCodeOption,
   CountryDialCodeOptions,
   findPhoneData,
   getDigitsOnly,
@@ -38,6 +44,27 @@ type OrgStepProps = {
   setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
 };
 
+const TYPE_ICONS: Record<BusinessType, React.ReactNode> = {
+  HOSPITAL: <IoBusinessOutline size={14} aria-hidden="true" />,
+  BREEDER: <IoPawOutline size={14} aria-hidden="true" />,
+  BOARDER: <IoHomeOutline size={14} aria-hidden="true" />,
+  GROOMER: <IoCutOutline size={14} aria-hidden="true" />,
+};
+
+type CompanionTerminologyOverride = {
+  orgType: Organisation['type'] | undefined;
+  value: CompanionTerminologyOption;
+} | null;
+
+const resolveCompanionTerminology = (
+  override: CompanionTerminologyOverride,
+  orgType: Organisation['type'] | undefined
+) => {
+  const defaultTerminology = getCompanionTerminologyForOrg(undefined, orgType);
+  if (!override) return defaultTerminology;
+  return override.orgType === orgType ? override.value : defaultTerminology;
+};
+
 const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
@@ -47,24 +74,15 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
     taxId?: string;
     website?: string;
   }>({});
-  const [companionTerminology, setCompanionTerminology] = useState<CompanionTerminologyOption>(() =>
-    getCompanionTerminologyForOrg(undefined, formData.type)
+  const [companionTerminologyOverride, setCompanionTerminologyOverride] =
+    useState<CompanionTerminologyOverride>(null);
+  const companionTerminology = resolveCompanionTerminology(
+    companionTerminologyOverride,
+    formData.type
   );
-  const initialPhoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
-  const [selectedCountryCode, setSelectedCountryCode] = useState<CountryDialCodeOption>(
-    initialPhoneData.selectedCode
-  );
-  const [localPhoneNumber, setLocalPhoneNumber] = useState(initialPhoneData.localNumber);
-
-  useEffect(() => {
-    setCompanionTerminology(getCompanionTerminologyForOrg(undefined, formData.type));
-  }, [formData.type]);
-
-  useEffect(() => {
-    const nextPhoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
-    setSelectedCountryCode(nextPhoneData.selectedCode);
-    setLocalPhoneNumber(nextPhoneData.localNumber);
-  }, [formData.phoneNo, formData.address?.country]);
+  const phoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
+  const selectedCountryCode = phoneData.selectedCode;
+  const localPhoneNumber = phoneData.localNumber;
 
   useEffect(() => {
     if (!errors) {
@@ -90,7 +108,6 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
 
   const handlePhoneChange = (value: string) => {
     const sanitized = getDigitsOnly(value).slice(0, 15);
-    setLocalPhoneNumber(sanitized);
     setFormDataErrors((prev) => ({ ...prev, number: undefined }));
     setFormData((prev) => ({
       ...prev,
@@ -103,7 +120,6 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
     if (!selected) {
       return;
     }
-    setSelectedCountryCode(selected);
     setFormDataErrors((prev) => ({ ...prev, country: undefined, number: undefined }));
     setFormData((prev) => ({
       ...prev,
@@ -116,8 +132,8 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
   };
 
   return (
-    <div className="step-container">
-      <div className="flex flex-col gap-6">
+    <div className="onb-step">
+      <div className="onb-card">
         <LogoUploader
           title="Add logo (optional)"
           apiUrl="/fhir/v1/organization/logo/presigned-url"
@@ -127,7 +143,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
         />
 
         <div className="step-type">
-          <div className="step-type-title">Select your organisation type</div>
+          <div className="step-type-title">Type</div>
           <div className="step-type-options">
             {BusinessTypes.map((type) => (
               <button
@@ -138,6 +154,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
                 })}
                 onClick={() => setFormData({ ...formData, type: type })}
               >
+                {TYPE_ICONS[type]}
                 {type.charAt(0) + type.toLowerCase().slice(1)}
               </button>
             ))}
@@ -154,7 +171,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               intype="text"
               inname="name"
               value={formData.name}
-              inlabel="Organisation name"
+              inlabel="Organization name"
               onChange={(e: any) => {
                 setFormData({ ...formData, name: e.target.value });
                 setFormDataErrors((prev) => ({ ...prev, name: undefined }));
@@ -166,7 +183,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               intype="text"
               inname="website"
               value={formData.website || ''}
-              inlabel="Website"
+              inlabel="Website · optional"
               onChange={(e) => {
                 setFormData({ ...formData, website: e.target.value });
                 setFormDataErrors((prev) => ({ ...prev, website: undefined }));
@@ -207,7 +224,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               intype="text"
               inname="duns"
               value={formData.DUNSNumber || ''}
-              inlabel="DUNS number (optional)"
+              inlabel="DUNS number · optional"
               onChange={(e) => {
                 setFormData({ ...formData, DUNSNumber: e.target.value });
                 setFormDataErrors((prev) => ({ ...prev, dunsNumber: undefined }));
@@ -219,18 +236,27 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
             <LabelDropdown
               placeholder="What would you like to call pets?"
               onSelect={(option) =>
-                setCompanionTerminology(option.value as CompanionTerminologyOption)
+                setCompanionTerminologyOverride({
+                  orgType: formData.type,
+                  value: option.value as CompanionTerminologyOption,
+                })
               }
               defaultOption={companionTerminology}
               options={getCompanionTerminologyOptions()}
             />
           </div>
         </div>
-      </div>
 
-      <div className="step-buttons">
-        <Secondary href="/organizations" text="Back" style={{ width: '160px' }} />
-        <Primary href="#" text="Next" style={{ width: '160px' }} onClick={handleNext} />
+        <div className="onb-footer">
+          <Secondary href="/organizations" text="Back" />
+          <Primary
+            href="#"
+            text="Address"
+            icon={<IoArrowForward aria-hidden="true" />}
+            iconPosition="right"
+            onClick={handleNext}
+          />
+        </div>
       </div>
     </div>
   );

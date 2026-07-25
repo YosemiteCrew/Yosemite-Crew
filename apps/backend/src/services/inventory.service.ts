@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, @typescript-eslint/require-await, @typescript-eslint/no-duplicate-type-constituents */
 // src/services/inventory.service.ts
 import dayjs from "dayjs";
 import { prisma } from "src/config/prisma";
@@ -22,39 +21,16 @@ import {
 
 // Make sure this matches your schema's BusinessType
 export type BusinessType =
-  | "HOSPITAL"
-  | "GROOMING"
-  | "BOARDING"
-  | "BREEDING"
-  | "GENERAL";
+  "HOSPITAL" | "GROOMING" | "BOARDING" | "BREEDING" | "GENERAL";
 
 export type InventoryStatus = "ACTIVE" | "HIDDEN" | "DELETED";
 type InventoryStatusFilter =
-  | InventoryStatus
-  | { $in: InventoryStatus[] }
-  | { $ne: InventoryStatus };
+  InventoryStatus | { $in: InventoryStatus[] } | { $ne: InventoryStatus };
 
 export type StockHealthStatus =
-  | "HEALTHY"
-  | "LOW_STOCK"
-  | "EXPIRED"
-  | "EXPIRING_SOON";
+  "HEALTHY" | "LOW_STOCK" | "EXPIRED" | "EXPIRING_SOON";
 
-type FilterQuery<T> = Record<string, unknown>;
-
-const InventoryItemModel: any = {};
-const InventoryBatchModel: any = {};
-const InventoryVendorModel: any = {};
-const InventoryMetaFieldModel: any = {};
-const InventoryCategoryModel: any = {};
-const InventorySubcategoryModel: any = {};
-const StockMovementModel: any = {};
-const shouldDualWrite = false;
-const handleDualWriteError = (_scope: string, _err: unknown) => undefined;
-const syncInventoryItemToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryBatchToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryVendorToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryMetaFieldToPostgres = async (_doc: unknown) => undefined;
+type FilterQuery = Record<string, unknown>;
 
 const resolveUnitQuantity = (
   unitQuantity?: number | null,
@@ -72,12 +48,7 @@ const readPositiveNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-type InventoryItemMongo = PrismaInventoryItem;
-type InventoryBatchMongo = PrismaInventoryBatch;
 type InventoryVendorMongo = Prisma.InventoryVendorGetPayload<
-  Record<string, never>
->;
-type InventoryMetaFieldMongo = Prisma.InventoryMetaFieldGetPayload<
   Record<string, never>
 >;
 
@@ -314,10 +285,10 @@ const sortInventoryRows = <T extends InventorySortableRow>(
 // In Postgres read-mode we still return objects shaped like the legacy models.
 const toMongoId = (value: string) => value;
 
-type InventoryItemLike = (InventoryItemMongo | PrismaInventoryItem) & {
+type InventoryItemLike = PrismaInventoryItem & {
   _id: string;
 };
-type InventoryBatchLike = (InventoryBatchMongo | PrismaInventoryBatch) & {
+type InventoryBatchLike = PrismaInventoryBatch & {
   _id: string;
 };
 
@@ -509,10 +480,7 @@ const computeStockHealthStatus = (args: {
   return "HEALTHY";
 };
 
-const applyOptionalBusinessType = (
-  query: FilterQuery<InventoryItemMongo>,
-  value: unknown,
-) => {
+const applyOptionalBusinessType = (query: FilterQuery, value: unknown) => {
   if (value === undefined) return;
   const businessType = sanitizeBusinessType(value);
   if (!businessType) {
@@ -522,7 +490,7 @@ const applyOptionalBusinessType = (
 };
 
 const applyOptionalStringFilter = (
-  query: FilterQuery<InventoryItemMongo>,
+  query: FilterQuery,
   value: unknown,
   fieldName: "category" | "subCategory",
 ) => {
@@ -558,7 +526,7 @@ const resolveStatusFilter = (
 };
 
 const applySearchFilter = (
-  query: FilterQuery<InventoryItemMongo>,
+  query: FilterQuery,
   search: ListInventoryFilter["search"],
 ) => {
   if (!search) return;
@@ -611,10 +579,7 @@ const shouldIncludeItem = (args: {
 };
 
 export type InventoryTurnoverStatus =
-  | "EXCELLENT"
-  | "HEALTHY"
-  | "MODERATE"
-  | "LOW";
+  "EXCELLENT" | "HEALTHY" | "MODERATE" | "LOW";
 
 export interface InventoryTurnoverRow {
   itemId: string;
@@ -1058,6 +1023,34 @@ const createInventoryItemInPostgres = async (
   };
 };
 
+const planFifoConsumption = (
+  batches: ReadonlyArray<{ quantity?: number | null }>,
+  quantity: number,
+): Array<{ index: number; newQuantity: number }> => {
+  let remaining = quantity;
+  const plan: Array<{ index: number; newQuantity: number }> = [];
+
+  for (let index = 0; index < batches.length; index += 1) {
+    if (remaining <= 0) break;
+
+    const available = batches[index].quantity ?? 0;
+    if (available <= 0) continue;
+
+    const consumed = Math.min(available, remaining);
+    remaining -= consumed;
+    plan.push({ index, newQuantity: available - consumed });
+  }
+
+  if (remaining > 0) {
+    throw new InventoryServiceError(
+      "Failed to consume full requested quantity",
+      500,
+    );
+  }
+
+  return plan;
+};
+
 export const InventoryService = {
   // ─────────────────────────────────────────────
   // CREATE ITEM (optionally with initial batches)
@@ -1390,7 +1383,7 @@ export const InventoryService = {
       filter.organisationId,
       "organisationId",
     );
-    const query: FilterQuery<InventoryItemMongo> = {
+    const query: FilterQuery = {
       organisationId,
     };
     const expiringWithinDays = sanitizePositiveNumber(
@@ -1516,8 +1509,7 @@ export const InventoryService = {
       where.OR = (query.$or as Array<Record<string, unknown>>).map((entry) => {
         const key = Object.keys(entry)[0];
         const value = entry[key] as
-          | { $regex?: string; $options?: string }
-          | RegExp;
+          { $regex?: string; $options?: string } | RegExp;
         let pattern = "";
         if (value instanceof RegExp) {
           pattern = value.source;
@@ -1719,13 +1711,20 @@ export const InventoryService = {
   async addBatch(
     itemId: string,
     batchInput: InventoryBatchInput,
+    organisationId: string,
   ): Promise<InventoryBatchLike> {
     ensureObjectId(itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const item = await prisma.inventoryItem.findFirst({
-      where: { id: itemId },
+      where: { id: itemId, organisationId: safeOrganisationId },
     });
-    if (!item) throw new InventoryServiceError("Inventory item not found", 404);
+    if (!item) {
+      throw new InventoryServiceError("Inventory item not found", 404);
+    }
 
     const batch = await prisma.inventoryBatch.create({
       data: {
@@ -1759,11 +1758,16 @@ export const InventoryService = {
   async updateBatch(
     batchId: string,
     input: Partial<InventoryBatchInput>,
+    organisationId: string,
   ): Promise<InventoryBatchLike> {
     ensureObjectId(batchId, "batchId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const batch = await prisma.inventoryBatch.findFirst({
-      where: { id: batchId },
+      where: { id: batchId, organisationId: safeOrganisationId },
     });
     if (!batch) {
       throw new InventoryServiceError("Batch not found", 404);
@@ -1804,22 +1808,26 @@ export const InventoryService = {
     };
   },
 
-  async deleteBatch(batchId: string): Promise<void> {
+  async deleteBatch(batchId: string, organisationId: string): Promise<void> {
     ensureObjectId(batchId, "batchId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const batch = await prisma.inventoryBatch.findFirst({
-      where: { id: batchId },
+      where: { id: batchId, organisationId: safeOrganisationId },
     });
     if (!batch) return;
 
     await prisma.inventoryBatch.deleteMany({
-      where: { id: batchId },
+      where: { id: batchId, organisationId: safeOrganisationId },
     });
 
-    const { onHand } = await recomputeStockFromBatches(batch.itemId);
+    const { onHand, allocated } = await recomputeStockFromBatches(batch.itemId);
     await prisma.inventoryItem.updateMany({
       where: { id: batch.itemId },
-      data: { onHand },
+      data: { onHand, allocated },
     });
     return;
   },
@@ -1827,14 +1835,21 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   // STOCK CONSUMPTION (FIFO by expiry)
   // ─────────────────────────────────────────────
-  async consumeStock(input: ConsumeStockInput): Promise<InventoryItemLike> {
+  async consumeStock(
+    input: ConsumeStockInput,
+    organisationId: string,
+  ): Promise<InventoryItemLike> {
     const safeItemId = ensureObjectId(input.itemId, "itemId");
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     if (input.quantity <= 0) {
       throw new InventoryServiceError("quantity must be > 0", 400);
     }
 
     const item = await prisma.inventoryItem.findFirst({
-      where: { id: safeItemId },
+      where: { id: safeItemId, organisationId: safeOrganisationId },
     });
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
@@ -1844,31 +1859,22 @@ export const InventoryService = {
       throw new InventoryServiceError("Insufficient stock", 400);
     }
 
-    let remaining = input.quantity;
     const batches = await prisma.inventoryBatch.findMany({
       where: { itemId: safeItemId },
       orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
     });
 
-    for (const batch of batches) {
-      if (remaining <= 0) break;
-      const availableInBatch = batch.quantity ?? 0;
-      if (availableInBatch <= 0) continue;
-      const consume = Math.min(availableInBatch, remaining);
-      remaining -= consume;
+    const plan = planFifoConsumption(batches, input.quantity);
+    for (const { index, newQuantity } of plan) {
+      const batch = batches[index];
       await prisma.inventoryBatch.update({
         where: { id: batch.id },
-        data: { quantity: availableInBatch - consume },
+        data: { quantity: newQuantity },
       });
     }
 
-    if (remaining > 0) {
-      throw new InventoryServiceError(
-        "Failed to consume full requested quantity",
-        500,
-      );
-    }
-
+    // Reservations are tracked on the item (see allocateStock), not on batches,
+    // so consumption must not recompute `allocated` from the batch rows.
     const { onHand } = await recomputeStockFromBatches(safeItemId);
     const updated = await prisma.inventoryItem.update({
       where: { id: safeItemId },
@@ -1886,20 +1892,25 @@ export const InventoryService = {
   // ─────────────────────────────────────────────
   async bulkConsumeStock(
     input: BulkConsumeStockInput,
+    organisationId: string,
   ): Promise<InventoryItemLike[]> {
     if (!Array.isArray(input.items) || input.items.length === 0) {
       throw new InventoryServiceError("items must be a non-empty array", 400);
     }
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const results: InventoryItemLike[] = [];
     for (const itemInput of input.items) {
-      results.push(await this.consumeStock(itemInput));
+      results.push(await this.consumeStock(itemInput, safeOrganisationId));
     }
 
     return results;
   },
 
-  async getInventoryTurnoverByItem(params: {
+  getInventoryTurnoverByItem(params: {
     organisationId: string;
     from?: Date; // default: 12 months ago
     to?: Date; // default: now
@@ -1933,11 +1944,16 @@ export const InventoryAdjustmentService = {
     newOnHand: number;
     reason: string; // "MANUAL_ADJUSTMENT", etc.
     userId?: string;
+    organisationId: string;
   }): Promise<InventoryItemLike> {
     const safeItemId = ensureObjectId(input.itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      input.organisationId,
+      "organisationId",
+    );
 
     const item = await prisma.inventoryItem.findFirst({
-      where: { id: safeItemId },
+      where: { id: safeItemId, organisationId: safeOrganisationId },
     });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -2011,15 +2027,21 @@ export const InventoryAllocationService = {
     itemId,
     quantity,
     referenceId,
+    organisationId,
   }: {
     itemId: string;
     quantity: number;
     referenceId: string; // appointment ID, grooming ID, boarding ID
+    organisationId: string;
   }): Promise<InventoryItemLike> {
     ensureObjectId(itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const item = await prisma.inventoryItem.findFirst({
-      where: { id: itemId },
+      where: { id: itemId, organisationId: safeOrganisationId },
     });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -2049,15 +2071,21 @@ export const InventoryAllocationService = {
     itemId,
     quantity,
     referenceId,
+    organisationId,
   }: {
     itemId: string;
     quantity: number;
     referenceId: string;
+    organisationId: string;
   }): Promise<InventoryItemLike> {
     ensureObjectId(itemId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
     const item = await prisma.inventoryItem.findFirst({
-      where: { id: itemId },
+      where: { id: itemId, organisationId: safeOrganisationId },
     });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -2100,7 +2128,7 @@ export const InventoryVendorService = {
       "organisationId",
     );
 
-    return prisma.inventoryVendor.create({
+    const created = await prisma.inventoryVendor.create({
       data: {
         organisationId,
         name: input.name,
@@ -2112,15 +2140,27 @@ export const InventoryVendorService = {
         leadTimeDays: input.leadTimeDays ?? undefined,
         contactInfo: (input.contactInfo ?? undefined) as Prisma.InputJsonValue,
       },
-    }) as unknown as InventoryVendorDocument;
+    });
+    return created as unknown as InventoryVendorDocument;
   },
 
   async updateVendor(
     vendorId: string,
     updates: Partial<InventoryVendorDocument>,
+    organisationId: string,
   ) {
     ensureObjectId(vendorId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
 
+    const existing = await prisma.inventoryVendor.findFirst({
+      where: { id: vendorId, organisationId: safeOrganisationId },
+    });
+    if (!existing) {
+      throw new InventoryServiceError("Vendor not found", 404);
+    }
     const updated = await prisma.inventoryVendor.update({
       where: { id: vendorId },
       data: {
@@ -2138,7 +2178,7 @@ export const InventoryVendorService = {
     return updated as unknown as InventoryVendorDocument;
   },
 
-  async listVendors(organisationId: string) {
+  listVendors(organisationId: string) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",
@@ -2149,17 +2189,26 @@ export const InventoryVendorService = {
     });
   },
 
-  async getVendor(vendorId: string) {
+  getVendor(vendorId: string, organisationId: string) {
     ensureObjectId(vendorId);
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
     return prisma.inventoryVendor.findFirst({
-      where: { id: vendorId },
+      where: { id: vendorId, organisationId: safeOrganisationId },
     });
   },
 
-  async deleteVendor(vendorId: string) {
+  async deleteVendor(vendorId: string, organisationId: string) {
     ensureObjectId(vendorId);
-    await prisma.inventoryVendor.deleteMany({ where: { id: vendorId } });
-    return;
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    await prisma.inventoryVendor.deleteMany({
+      where: { id: vendorId, organisationId: safeOrganisationId },
+    });
   },
 };
 
@@ -2175,14 +2224,15 @@ export const InventoryMetaFieldService = {
       throw new InventoryServiceError("Invalid businessType", 400);
     }
 
-    return prisma.inventoryMetaField.create({
+    const created = await prisma.inventoryMetaField.create({
       data: {
         businessType,
         fieldKey: input.fieldKey,
         label: input.label,
         values: input.values ?? [],
       },
-    }) as unknown as InventoryMetaFieldDocument;
+    });
+    return created as unknown as InventoryMetaFieldDocument;
   },
 
   async updateField(
@@ -2209,7 +2259,7 @@ export const InventoryMetaFieldService = {
     return;
   },
 
-  async listFields(businessType: string) {
+  listFields(businessType: string) {
     const safeBusinessType = sanitizeBusinessType(businessType);
     if (!safeBusinessType) {
       throw new InventoryServiceError("Invalid businessType", 400);
@@ -2236,7 +2286,7 @@ export const InventoryAlertService = {
     });
   },
 
-  async getExpiringItems(organisationId: string, days = 7) {
+  getExpiringItems(organisationId: string, days = 7) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",

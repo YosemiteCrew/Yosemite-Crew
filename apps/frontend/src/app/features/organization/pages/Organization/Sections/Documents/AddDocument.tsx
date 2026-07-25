@@ -3,6 +3,8 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Modal from '@/app/ui/overlays/Modal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { OrganizationDocument, OrgDocumentCategory } from '@/app/features/documents/types/document';
 import React, { useState } from 'react';
 import { OrgDocumentCategoryOptions } from '@/app/features/organization/pages/Organization/types';
@@ -10,7 +12,6 @@ import { createDocument } from '@/app/features/documents/services/documentServic
 import DocUploader from '@/app/ui/widgets/UploadImage/DocUploader';
 import { useOrgStore } from '@/app/stores/orgStore';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { IoIosWarning } from 'react-icons/io';
 import { useNotify } from '@/app/hooks/useNotify';
 
@@ -70,19 +71,11 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
   }
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add document</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title="Add document" onClose={() => setShowModal(false)} />
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 scrollbar-hidden">
           <Accordion title="Add document" defaultOpen showEditIcon={false} isEditing={true}>
             <div className="flex flex-col gap-3">
               <FormInput
@@ -92,7 +85,6 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
                 inlabel="Document title"
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 error={formDataErrors.title}
-                className="min-h-12!"
               />
               <LabelDropdown
                 placeholder="Type"
@@ -136,13 +128,11 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
               </div>
             </div>
           </Accordion>
-          <Primary
-            href="#"
-            text="Save"
-            className="max-h-12! text-lg! tracking-[-0.36px]!"
-            onClick={handleSave}
-          />
         </div>
+
+        <ModalFooter align="stretch">
+          <Primary href="#" text="Save" onClick={handleSave} />
+        </ModalFooter>
       </div>
     </Modal>
   );

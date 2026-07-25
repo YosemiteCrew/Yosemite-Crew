@@ -10,11 +10,19 @@
  */
 
 import React, {useState, useEffect} from 'react';
-import {View, TouchableOpacity, StyleSheet, Text, ActivityIndicator} from 'react-native';
+import {View, StyleSheet, Text, ActivityIndicator} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Sound from 'react-native-nitro-sound';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
+
+const formatTime = (milliseconds: number) => {
+  const seconds = Math.floor(milliseconds / 1000);
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 interface VoiceMessagePlayerProps {
   audioUrl: string;
@@ -44,13 +52,6 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
     };
   }, [isPlaying]);
 
-  const formatTime = (milliseconds: number) => {
-    const seconds = Math.floor(milliseconds / 1000);
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const handlePlayPause = async () => {
     ReactNativeHapticFeedback.trigger('impactLight');
     setIsLoading(true);
@@ -64,7 +65,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
         // Play
         if (currentPosition === 0) {
           // Start from beginning
-          Sound.addPlayBackListener((e) => {
+          Sound.addPlayBackListener(e => {
             setCurrentPosition(e.currentPosition);
             setDuration(e.duration);
           });
@@ -108,16 +109,23 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
+      <PressableOpacity
         onPress={handlePlayPause}
         style={styles.playButton}
-        disabled={isLoading}>
+        disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+        accessibilityState={{disabled: isLoading}}>
         {isLoading ? (
-          <ActivityIndicator color={theme.colors.white} size="small" />
+          <ActivityIndicator color={theme.colors.ctaText} size="small" />
         ) : (
-          <Icon name={isPlaying ? 'pause' : 'play-arrow'} size={24} color={theme.colors.white} />
+          <Icon
+            name={isPlaying ? 'pause' : 'play-arrow'}
+            size={24}
+            color={theme.colors.ctaText}
+          />
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
 
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
@@ -129,9 +137,13 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       </View>
 
       {isPlaying && (
-        <TouchableOpacity onPress={handleStop} style={styles.stopButton}>
-          <Icon name="stop" size={20} color={theme.colors.error} />
-        </TouchableOpacity>
+        <PressableOpacity
+          onPress={handleStop}
+          style={styles.stopButton}
+          accessibilityRole="button"
+          accessibilityLabel="Stop">
+          <Icon name="stop" size={20} color={theme.colors.danger} />
+        </PressableOpacity>
       )}
     </View>
   );
@@ -143,15 +155,17 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       padding: theme.spacing['3'],
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       gap: theme.spacing['3'],
     },
     playButton: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.cta,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -161,23 +175,23 @@ const createStyles = (theme: any) =>
     },
     progressBar: {
       height: theme.spacing['1'],
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.hairline,
       borderRadius: theme.borderRadius.xs,
       overflow: 'hidden',
     },
     progressFill: {
       height: '100%',
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.blue,
     },
     timeText: {
       ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint2,
     },
     stopButton: {
       width: theme.spacing['8'],
       height: theme.spacing['8'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.errorSurface,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.dangerSurface,
       justifyContent: 'center',
       alignItems: 'center',
     },

@@ -1,16 +1,12 @@
 import { Request, Response } from "express";
 import logger from "../../utils/logger";
-import { Types } from "mongoose";
 import {
   CompanionOrganisationService,
   CompanionOrganisationServiceError,
 } from "../../services/companion-organisation.service";
 import { ParentService } from "src/services/parent.service";
-import OrganizationModel, {
-  type OrganizationMongo,
-} from "src/models/organization";
+import { type OrganizationMongo } from "src/models/organization";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 
@@ -180,14 +176,19 @@ export const CompanionOrganisationController = {
           .json({ message: "CompanionId and OrganisationId is required." });
       }
 
-      const organisation = isReadFromPostgres()
-        ? await prisma.organization.findFirst({ where: { id: organisationId } })
-        : await OrganizationModel.findById(organisationId);
+      const organisation = await prisma.organization.findFirst({
+        where: { id: organisationId },
+      });
       if (!organisation || !isOrganisationType(organisation.type)) {
         return res
           .status(404)
           .json({ message: "Organisation not found or invalid." });
       }
+
+      await CompanionOrganisationService.assertOrganisationMayLinkCompanion(
+        patientId,
+        organisationId,
+      );
 
       const link = await CompanionOrganisationService.linkByPmsUser({
         pmsUserId: pmsUser,
@@ -225,7 +226,7 @@ export const CompanionOrganisationController = {
       const { linkId } = req.params;
 
       const updatedLink = await CompanionOrganisationService.parentApproveLink(
-        new Types.ObjectId(resolveParentId(requestingParent)),
+        resolveParentId(requestingParent),
         linkId,
       );
 
@@ -294,7 +295,7 @@ export const CompanionOrganisationController = {
       const { linkId } = req.params;
 
       const updatedLink = await CompanionOrganisationService.parentRejectLink(
-        new Types.ObjectId(resolveParentId(requestingParent)),
+        resolveParentId(requestingParent),
         linkId,
       );
 
@@ -360,9 +361,19 @@ export const CompanionOrganisationController = {
 
   revokeLink: async (req: Request, res: Response) => {
     try {
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
+      if (!authUserId)
+        return res.status(401).json({ message: "User not authenticated" });
+
+      const parent = await ParentService.findByLinkedUserId(authUserId);
+      if (!parent) return res.status(401).json({ message: "Parent not found" });
+
       const { linkId } = req.params;
 
-      const updated = await CompanionOrganisationService.revokeLink(linkId);
+      const updated = await CompanionOrganisationService.revokeLink(
+        linkId,
+        resolveParentId(parent),
+      );
 
       return res.status(200).json(updated);
     } catch (error) {
@@ -409,6 +420,13 @@ export const CompanionOrganisationController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveAuthenticatedUserIdFromRequest(req);
+      if (!authUserId)
+        return res.status(401).json({ message: "User not authenticated" });
+
+      const parent = await ParentService.findByLinkedUserId(authUserId);
+      if (!parent) return res.status(401).json({ message: "Parent not found" });
+
       const { patientId } = req.params;
       const { type } = req.query;
 
@@ -426,6 +444,7 @@ export const CompanionOrganisationController = {
         await CompanionOrganisationService.getLinksForCompanionByOrganisationTye(
           patientId,
           type,
+          resolveParentId(parent),
         );
 
       return res.status(200).json(links);

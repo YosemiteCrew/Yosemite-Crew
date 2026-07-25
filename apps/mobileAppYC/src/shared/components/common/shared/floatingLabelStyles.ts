@@ -1,86 +1,26 @@
-import {Animated, Platform} from 'react-native';
+// Shared style helpers for the warm-bone text/touchable inputs: the field
+// container (border, radius, warm fieldBg) and the value text. The label now
+// sits statically above the field, so no animated floating-label helper remains.
+
+import {Platform} from 'react-native';
 import type {TextStyle} from 'react-native';
 import type {Theme} from '@/theme/themes';
 
-export interface FloatingLabelConfig {
-  animatedValue: Animated.Value;
-  theme: Theme;
-  hasValue: boolean;
-}
-
-export const getFloatingLabelAnimatedStyle = ({
-  animatedValue,
-  theme,
-}: Omit<FloatingLabelConfig, 'hasValue'>) => {
-  // Calculate exact positioning to match Input component
-  const placeholderLineHeight =
-    (theme.typography.input.lineHeight ?? theme.typography.input.fontSize) ?? 16;
-  const placeholderTop =
-    (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
-  const labelLineHeight =
-    (theme.typography.inputLabel.lineHeight ?? theme.typography.inputLabel.fontSize) ?? 12;
-  const floatingTop = -Math.round(labelLineHeight / 2) - 2;
-
-  const baseStyle: any = {
-    position: 'absolute' as const,
-    left: theme.spacing['5'],
-    fontFamily: theme.typography.input.fontFamily,
-    fontWeight: theme.typography.input.fontWeight,
-    fontSize: animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [theme.typography.input.fontSize ?? 16, theme.typography.inputLabel.fontSize ?? 12],
-    }),
-    top: animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [
-        placeholderTop,
-        floatingTop,
-      ],
-    }),
-    color: animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [
-        theme.colors.textSecondary,
-        theme.colors.textSecondary,
-      ],
-    }),
-    letterSpacing: theme.typography.inputLabel.letterSpacing,
-    backgroundColor: theme.colors.surface || theme.colors.background,
-    paddingHorizontal: animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, theme.spacing['1']],
-    }),
-    paddingVertical: animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [1, 0],
-    }),
-    zIndex: 1,
-    pointerEvents: 'none' as const,
-  };
-
-  if (Platform.OS === 'ios') {
-    return {
-      ...baseStyle,
-      includeFontPadding: false,
-      textAlignVertical: 'center' as const,
-    };
-  }
-
-  return baseStyle;
-};
-
 export const getInputContainerBaseStyle = (theme: Theme, error?: string) => ({
-  borderWidth: 1,
-  borderColor: error ? theme.colors.error : theme.colors.border,
-  borderRadius: theme.borderRadius.lg,
-  backgroundColor: theme.colors.surface,
+  borderWidth: 1.5,
+  borderColor: error ? theme.colors.error : theme.colors.hairline,
+  borderRadius: theme.borderRadius.field,
+  backgroundColor: theme.colors.fieldBg,
   paddingHorizontal: theme.spacing['5'],
   minHeight: theme.spacing['14'],
   position: 'relative' as const,
   justifyContent: 'center' as const,
 });
 
-export const getValueTextStyle = (theme: Theme, hasValue: boolean): TextStyle => ({
+export const getValueTextStyle = (
+  theme: Theme,
+  hasValue: boolean,
+): TextStyle => ({
   ...(hasValue ? theme.typography.inputFilled : theme.typography.input),
   color: hasValue ? theme.colors.text : theme.colors.textSecondary,
   fontSize: theme.typography.input.fontSize,

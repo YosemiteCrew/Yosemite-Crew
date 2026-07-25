@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import { Primary } from '@/app/ui/primitives/Buttons';
 import { useNotify } from '@/app/hooks/useNotify';
 import {
   MAX_LOCK_HOURS,
@@ -11,25 +10,34 @@ import {
 import { useAppointmentLockWindow } from '@/app/hooks/useAppointmentLockWindow';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { updateOrg } from '@/app/features/organization/services/orgService';
+import { PreferenceRow } from './PreferenceGroup';
+import '@/app/features/settings/styles/Settings.css';
 
 const HOURS_TO_MINUTES = 60;
 
+/**
+ * The design's compact hours stepper: a 34px `--field-bg` pill with a 1.5px hairline
+ * border, a 13px/700 tabular value and an inset "hours" suffix behind a hairline rule.
+ * The uppercase micro-label sits above it.
+ */
 const HoursField = ({
   id,
   label,
   value,
   onChange,
+  onCommit,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
+  onCommit: () => void;
 }) => (
-  <div className="flex flex-col gap-1">
-    <span id={`${id}-label`} className="text-caption-2 font-bold text-text-tertiary">
+  <span className="flex flex-col gap-1">
+    <label htmlFor={id} className="yc-settings-hours-label">
       {label}
-    </span>
-    <span className="flex items-stretch overflow-hidden rounded-2xl border border-input-border-default focus-within:border-input-border-active">
+    </label>
+    <span className="yc-settings-hours-field">
       <input
         id={id}
         type="number"
@@ -38,14 +46,15 @@ const HoursField = ({
         max={MAX_LOCK_HOURS}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-        className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-body-4 text-text-primary outline-none"
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+        className="yc-settings-hours-input"
       />
-      <span className="flex items-center bg-neutral-100 px-3 text-body-4 text-neutral-700">
-        hours
-      </span>
+      <span className="yc-settings-hours-suffix">hours</span>
     </span>
-  </div>
+  </span>
 );
 
 /**
@@ -86,15 +95,27 @@ const AppointmentLockWindowPreference = () => {
     setInpatient(String(saved.inpatientHours));
   }
 
-  const handleSave = () => {
+  // Auto-save model from the design: the fields commit as soon as they are left
+  // (blur or Enter) and the page header carries the single "Changes save
+  // automatically" indicator, so there is no per-preference Save button. Only
+  // failures surface a notification.
+  const commit = () => {
     const next = {
       outpatientHours: clampLockHours(Number(outpatient)),
       inpatientHours: clampLockHours(Number(inpatient)),
     };
-    const didSave = setSavedLockWindow(next);
     // Reflect the clamped values back into the inputs.
     setOutpatient(String(next.outpatientHours));
     setInpatient(String(next.inpatientHours));
+
+    if (
+      next.outpatientHours === saved.outpatientHours &&
+      next.inpatientHours === saved.inpatientHours
+    ) {
+      return;
+    }
+
+    const didSave = setSavedLockWindow(next);
 
     // Also persist to the org via the FHIR extension API (minutes). The deployed
     // fork backend does not yet handle these extensions, so this is best-effort:
@@ -110,47 +131,36 @@ const AppointmentLockWindowPreference = () => {
       });
     }
 
-    if (didSave) {
-      notify('success', {
-        title: 'Lock window updated',
-        text: 'Appointments will lock to read-only after the configured window.',
+    if (!didSave) {
+      notify('error', {
+        title: 'Unable to update lock window',
+        text: 'Please try again.',
       });
-      return;
     }
-    notify('error', {
-      title: 'Unable to update lock window',
-      text: 'Please try again.',
-    });
   };
 
   return (
-    <div className="border border-card-border rounded-2xl">
-      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">Appointment lock window</div>
-      </div>
-      <div className="flex flex-col gap-3 px-6! py-6!">
-        <p className="text-body-4 text-text-secondary">
-          How long after an appointment starts it stays editable before locking to read-only.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-          <HoursField
-            id="lock-window-outpatient"
-            label="Outpatient"
-            value={outpatient}
-            onChange={setOutpatient}
-          />
-          <HoursField
-            id="lock-window-inpatient"
-            label="Inpatient"
-            value={inpatient}
-            onChange={setInpatient}
-          />
-        </div>
-        <div className="w-full flex justify-end!">
-          <Primary href="#" text="Save lock window" onClick={handleSave} />
-        </div>
-      </div>
-    </div>
+    <PreferenceRow
+      label="Appointment lock window"
+      description="How long after an appointment starts it stays editable before locking to read-only."
+    >
+      <span className="flex flex-wrap justify-end gap-2">
+        <HoursField
+          id="lock-window-outpatient"
+          label="Outpatient"
+          value={outpatient}
+          onChange={setOutpatient}
+          onCommit={commit}
+        />
+        <HoursField
+          id="lock-window-inpatient"
+          label="Inpatient"
+          value={inpatient}
+          onChange={setInpatient}
+          onCommit={commit}
+        />
+      </span>
+    </PreferenceRow>
   );
 };
 

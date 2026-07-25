@@ -13,12 +13,14 @@ interface LegalContentRendererProps {
   sections: LegalSection[];
 }
 
-const renderSegments = (
+const buildSegments = (
   segments: TextSegment[] | undefined,
   styles: ReturnType<typeof createStyles>,
   isCenter = false,
 ) => {
   if (!Array.isArray(segments)) return null;
+
+  const segmentKeyCounts = new Map<string, number>();
 
   return (
     <Text
@@ -26,21 +28,29 @@ const renderSegments = (
         styles.paragraphText,
         isCenter ? styles.paragraphTextCenter : undefined,
       ]}>
-      {segments.map((segment, index) => (
-        <Text
-          key={`${segment.text}-${index}`}
-          style={[
-            segment.bold && styles.boldText,
-            segment.underline && styles.underlineText,
-          ]}>
-          {segment.text}
-        </Text>
-      ))}
+      {segments.map(segment => {
+        const fontStyle = segment.bold ? 'bold' : 'regular';
+        const textDecoration = segment.underline ? 'underlined' : 'plain';
+        const baseKey = `${segment.text}-${fontStyle}-${textDecoration}`;
+        const occurrence = segmentKeyCounts.get(baseKey) ?? 0;
+        segmentKeyCounts.set(baseKey, occurrence + 1);
+
+        return (
+          <Text
+            key={`${baseKey}-${occurrence}`}
+            style={[
+              segment.bold && styles.boldText,
+              segment.underline && styles.underlineText,
+            ]}>
+            {segment.text}
+          </Text>
+        );
+      })}
     </Text>
   );
 };
 
-const renderOrderedListItems = (
+const buildOrderedListItems = (
   items: OrderedListItem[] | undefined,
   styles: ReturnType<typeof createStyles>,
   isCenter = false,
@@ -57,7 +67,7 @@ const renderOrderedListItems = (
             {item.marker}
           </Text>
           <View style={styles.listContent}>
-            {renderSegments(item.segments, styles, isCenter)}
+            {buildSegments(item.segments, styles, isCenter)}
           </View>
         </View>
       ))}
@@ -65,29 +75,53 @@ const renderOrderedListItems = (
   );
 };
 
+const getBlockBaseKey = (block: LegalContentBlock): string => {
+  if (block.type === 'paragraph') {
+    const segmentKey = Array.isArray(block.segments)
+      ? block.segments
+          .map(
+            segment => `${segment.text}-${segment.bold}-${segment.underline}`,
+          )
+          .join('-')
+      : 'empty';
+    return `paragraph-${segmentKey}`;
+  }
+
+  if (block.type === 'ordered-list') {
+    const itemKey = Array.isArray(block.items)
+      ? block.items
+          .map(
+            item =>
+              `${item.marker}-${item.markerBold}-${(item.segments || [])
+                .map(segment => segment.text)
+                .join('-')}`,
+          )
+          .join('-')
+      : 'empty';
+    return `ordered-list-${itemKey}`;
+  }
+
+  return 'unknown-block';
+};
+
 const renderBlock = (
   block: LegalContentBlock,
   styles: ReturnType<typeof createStyles>,
+  key: string,
   isCenter = false,
 ) => {
   if (block.type === 'paragraph') {
-    const key = Array.isArray(block.segments)
-      ? block.segments.map(segment => segment.text).join('-')
-      : 'paragraph';
     return (
       <View key={key} style={styles.paragraph}>
-        {renderSegments(block.segments, styles, isCenter)}
+        {buildSegments(block.segments, styles, isCenter)}
       </View>
     );
   }
 
   if (block.type === 'ordered-list') {
-    const key = Array.isArray(block.items)
-      ? block.items.map(item => item.marker).join('-')
-      : 'ordered-list';
     return (
       <View key={key} style={styles.paragraph}>
-        {renderOrderedListItems(block.items, styles, isCenter)}
+        {buildOrderedListItems(block.items, styles, isCenter)}
       </View>
     );
   }
@@ -116,61 +150,64 @@ export const LegalContentRenderer: React.FC<LegalContentRendererProps> = ({
   return (
     <View style={styles.container}>
       {safeSections.length > 0 &&
-        safeSections
-          // filter out empty sections (no title and no non-empty blocks)
-          .filter(section => {
-            const hasTitle =
-              typeof section.title === 'string' &&
-              section.title.trim().length > 0;
-            const hasBlocks =
-              Array.isArray(section.blocks) &&
-              section.blocks.some(b => {
-                if (b.type === 'paragraph')
-                  return (
-                    Array.isArray(b.segments) &&
-                    b.segments.some(
-                      s =>
-                        typeof s.text === 'string' && s.text.trim().length > 0,
-                    )
-                  );
-                if (b.type === 'ordered-list')
-                  return Array.isArray(b.items) && b.items.length > 0;
-                return false;
-              });
-            return hasTitle || hasBlocks;
-          })
-          .map(section => {
-            const isCenter = section.align === 'center';
-            return (
-              <LiquidGlassCard
-                key={section.id}
-                glassEffect="regular"
-                interactive
-                style={[
-                  styles.sectionCard,
-                  isCenter && styles.sectionCardCenter,
-                ]}
-                fallbackStyle={styles.cardFallback}>
-                {section.title ? (
-                  <Text
-                    style={[
-                      styles.sectionTitle,
-                      isCenter && styles.sectionTitleCenter,
-                    ]}>
-                    {section.title}
-                  </Text>
-                ) : null}
-                <View style={styles.sectionContent}>
-                  {Array.isArray(section.blocks)
-                    ? section.blocks.flatMap(block => {
-                        const r = renderBlock(block, styles, isCenter);
-                        return r ? [r] : [];
-                      })
-                    : null}
-                </View>
-              </LiquidGlassCard>
-            );
-          })}
+        safeSections.flatMap(section => {
+          const hasTitle =
+            typeof section.title === 'string' &&
+            section.title.trim().length > 0;
+          const hasBlocks =
+            Array.isArray(section.blocks) &&
+            section.blocks.some(b => {
+              if (b.type === 'paragraph')
+                return (
+                  Array.isArray(b.segments) &&
+                  b.segments.some(
+                    s => typeof s.text === 'string' && s.text.trim().length > 0,
+                  )
+                );
+              if (b.type === 'ordered-list')
+                return Array.isArray(b.items) && b.items.length > 0;
+              return false;
+            });
+          if (!hasTitle && !hasBlocks) {
+            return [];
+          }
+          const isCenter = section.align === 'center';
+          const blockKeyCounts = new Map<string, number>();
+          return [
+            <LiquidGlassCard
+              key={section.id}
+              glassEffect="regular"
+              interactive
+              style={[styles.sectionCard, isCenter && styles.sectionCardCenter]}
+              fallbackStyle={styles.cardFallback}>
+              {section.title ? (
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    isCenter && styles.sectionTitleCenter,
+                  ]}>
+                  {section.title}
+                </Text>
+              ) : null}
+              <View style={styles.sectionContent}>
+                {Array.isArray(section.blocks)
+                  ? section.blocks.flatMap(block => {
+                      const baseKey = getBlockBaseKey(block);
+                      const occurrence = blockKeyCounts.get(baseKey) ?? 0;
+                      blockKeyCounts.set(baseKey, occurrence + 1);
+                      const r = renderBlock(
+                        block,
+                        styles,
+                        `${baseKey}-${occurrence}`,
+                        isCenter,
+                      );
+                      return r ? [r] : [];
+                    })
+                  : null}
+              </View>
+            </LiquidGlassCard>,
+          ];
+        })}
     </View>
   );
 };

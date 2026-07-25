@@ -1,13 +1,19 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
+import {Pressable} from 'react-native';
 import {mockTheme} from '../../../../setup/mockTheme';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
+// match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 import {SpecialtyAccordion} from '../../../../../src/features/appointments/components/SpecialtyAccordion/SpecialtyAccordion';
 import type {VetPackage} from '../../../../../src/features/appointments/types';
+import {useTheme} from '@/hooks';
 
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
 }));
 
 jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
@@ -20,11 +26,11 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => ({
-    LiquidGlassButton: ({title, onPress}: any) => {
+    LiquidGlassButton: ({title, onPress, textStyle}: any) => {
       const {TouchableOpacity, Text} = require('react-native');
       return (
         <TouchableOpacity testID="glass-button" onPress={onPress}>
-          <Text>{title}</Text>
+          <Text style={textStyle}>{title}</Text>
         </TouchableOpacity>
       );
     },
@@ -38,8 +44,9 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
+const mockResolveCurrencySymbol = jest.fn(() => '$');
 jest.mock('@/shared/utils/currency', () => ({
-  resolveCurrencySymbol: () => '$',
+  resolveCurrencySymbol: (...args: any[]) => mockResolveCurrencySymbol(...args),
 }));
 
 // --- Test Data ---
@@ -81,6 +88,36 @@ const mockPackageNoCurrency: VetPackage = {
 const onSelectService = jest.fn();
 const onSelectPackage = jest.fn();
 
+const mockServiceNoCurrency = {
+  id: 'svc-nc',
+  name: 'X-Ray',
+  basePrice: 45,
+};
+
+const specialtyWithServiceNoCurrency = [
+  {
+    name: 'General',
+    serviceCount: 1,
+    services: [mockServiceNoCurrency],
+    packages: [],
+  },
+];
+
+const mockServiceWithKinds = {
+  id: 'svc-kinds',
+  name: 'Surgery',
+  appointmentKinds: ['INPATIENT', 'CUSTOM_KIND'],
+};
+
+const specialtyWithKindBadges = [
+  {
+    name: 'General',
+    serviceCount: 1,
+    services: [mockServiceWithKinds],
+    packages: [],
+  },
+];
+
 const singleSpecialty = [
   {
     name: 'General',
@@ -113,6 +150,7 @@ const packagesOnlySpecialty = [
 describe('SpecialtyAccordion', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme, isDark: false});
   });
 
   describe('header rendering', () => {
@@ -126,6 +164,31 @@ describe('SpecialtyAccordion', () => {
         />,
       );
       expect(getByText('Specialties')).toBeTruthy();
+    });
+
+    it('resolves the currency symbol using USD when the service has no currency', () => {
+      render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={specialtyWithServiceNoCurrency}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(mockResolveCurrencySymbol).toHaveBeenCalledWith('USD');
+    });
+
+    it('renders an appointment-kind badge for each kind, using the label map and falling back to the raw kind', () => {
+      const {getByText} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={specialtyWithKindBadges}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getByText('Inpatient')).toBeTruthy();
+      expect(getByText('CUSTOM_KIND')).toBeTruthy();
     });
 
     it('renders icon when provided', () => {
@@ -230,6 +293,23 @@ describe('SpecialtyAccordion', () => {
   });
 
   describe('toggle expand/collapse', () => {
+    it('exposes a button role and expanded state on the specialty header', () => {
+      const {UNSAFE_getAllByType} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={singleSpecialty}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      const [header] = UNSAFE_getAllByType(PressableType);
+      expect(header.props.accessibilityRole).toBe('button');
+      expect(header.props.accessibilityState).toEqual({expanded: true});
+
+      fireEvent.press(header);
+      expect(header.props.accessibilityState).toEqual({expanded: false});
+    });
+
     it('pressing a collapsed specialty reveals its services', () => {
       const {getByText, queryByText} = render(
         <SpecialtyAccordion
@@ -353,6 +433,45 @@ describe('SpecialtyAccordion', () => {
       );
       fireEvent.press(getAllByText('Select service')[0]);
       expect(onSelectService).toHaveBeenCalledWith('svc-1', 'General');
+    });
+  });
+
+  describe('Select service button CTA color', () => {
+    it('applies the light-theme cta text color', () => {
+      const {getAllByText} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={singleSpecialty}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getAllByText('Select service')[0].props.style).toEqual(
+        expect.objectContaining({color: mockTheme.colors.ctaText}),
+      );
+    });
+
+    it('applies the dark-theme cta text color', () => {
+      const darkCtaText = '#201C18';
+      (useTheme as jest.Mock).mockReturnValue({
+        theme: {
+          ...mockTheme,
+          colors: {...mockTheme.colors, ctaText: darkCtaText},
+        },
+        isDark: true,
+      });
+
+      const {getAllByText} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={singleSpecialty}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getAllByText('Select service')[0].props.style).toEqual(
+        expect.objectContaining({color: darkCtaText}),
+      );
     });
   });
 
@@ -499,7 +618,11 @@ describe('SpecialtyAccordion', () => {
       );
       fireEvent.press(getByText('Canine Bundle'));
       fireEvent.press(getAllByText('Select package')[0]);
-      expect(onSelectPackage).toHaveBeenCalledWith('pkg-1', 'Canine Bundle');
+      expect(onSelectPackage).toHaveBeenCalledWith(
+        'pkg-1',
+        'Canine Bundle',
+        'Canine',
+      );
     });
 
     it('uses USD symbol fallback when package has no currency', () => {

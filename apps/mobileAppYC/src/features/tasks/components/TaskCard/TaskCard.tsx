@@ -1,16 +1,25 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Image, StyleSheet, Text, View} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCard/SwipeableActionCard';
-import {CardActionButton} from '@/shared/components/common/CardActionButton/CardActionButton';
-import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {AvatarGroup} from '@/shared/components/common/AvatarGroup/AvatarGroup';
 import {useTheme} from '@/hooks';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
-import type {TaskCategory, TaskStatus} from '@/features/tasks/types';
+import type {
+  TaskCategory,
+  TaskStatus,
+  HygieneTaskType,
+  DietaryTaskType,
+} from '@/features/tasks/types';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
-import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
+import {
+  resolveObservationalToolLabel,
+  resolveHygieneTaskTypeLabel,
+  resolveDietaryTaskTypeLabel,
+} from '@/features/tasks/utils/taskLabels';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
+import type {Theme} from '@/theme';
 
 const calculateNearestDosageTime = (
   dosages: Array<{time: string; dosage: string}>,
@@ -59,6 +68,135 @@ const calculateNearestDosageTime = (
   return earliestDosage.originalTime;
 };
 
+type TileVisual = {
+  icon: string;
+  bg: keyof Theme['colors'];
+  ink: keyof Theme['colors'];
+};
+
+// Warm-bone category tile: the leading 40x40 tinted tile's colour pair + glyph
+// come from the task category (and its sub-type for hygiene), mirroring the
+// avatar tint vocabulary used across the redesigned mobile surfaces.
+const resolveTileVisual = (
+  category: TaskCategory,
+  taskType: string | undefined,
+): TileVisual => {
+  if (category === 'health') {
+    if (taskType === 'take-observational-tool') {
+      return {
+        icon: 'pulse-outline',
+        bg: 'avatarVioletBg',
+        ink: 'avatarVioletInk',
+      };
+    }
+    return {icon: 'medkit-outline', bg: 'avatarAmberBg', ink: 'avatarAmberInk'};
+  }
+
+  if (category === 'hygiene') {
+    if (taskType === 'take-exercise') {
+      return {icon: 'walk-outline', bg: 'avatarGreenBg', ink: 'avatarGreenInk'};
+    }
+    return {icon: 'sparkles-outline', bg: 'pinkGlow', ink: 'pink'};
+  }
+
+  if (category === 'dietary') {
+    return {
+      icon: 'nutrition-outline',
+      bg: 'avatarGreenBg',
+      ink: 'avatarGreenInk',
+    };
+  }
+
+  if (category === 'custom') {
+    return {
+      icon: 'create-outline',
+      bg: 'avatarVioletBg',
+      ink: 'avatarVioletInk',
+    };
+  }
+
+  return {icon: 'checkbox-outline', bg: 'blueSoft', ink: 'blueText'};
+};
+
+type TaskCardAvatar = {uri?: string; placeholder?: string; role: string};
+
+// Task-type label for the middle meta segment. Kept at module scope so the
+// TaskCard component stays within the cognitive-complexity budget.
+const resolveTaskTypeLabel = (
+  category: TaskCategory,
+  taskType: string | undefined,
+  resolvedOtLabel: string | null,
+  subcategoryLabel: string | undefined,
+): string | null => {
+  if (category === 'health') {
+    if (taskType === 'give-medication') return 'Give medication';
+    if (taskType === 'take-observational-tool') {
+      return resolvedOtLabel ?? 'Observational tool';
+    }
+    if (taskType === 'vaccination') return 'Vaccination';
+  }
+  if (category === 'hygiene' && taskType) {
+    return resolveHygieneTaskTypeLabel(taskType as HygieneTaskType);
+  }
+  if (category === 'dietary' && taskType) {
+    return resolveDietaryTaskTypeLabel(taskType as DietaryTaskType);
+  }
+  return subcategoryLabel ?? null;
+};
+
+// Trailing context segment (done-time / dosage / companion / date). Kept at
+// module scope so the TaskCard component stays within the complexity budget.
+const resolveContextLabel = (
+  isCompleted: boolean,
+  formattedTime: string | null,
+  isMedicationTask: boolean,
+  formattedNearestDosage: string | null,
+  companionName: string,
+  formattedDate: string,
+): string | null => {
+  if (isCompleted) {
+    return formattedTime ? `done ${formattedTime}` : 'done';
+  }
+  if (isMedicationTask && formattedNearestDosage) {
+    return formattedNearestDosage;
+  }
+  if (formattedTime) return formattedTime;
+  if (companionName) return companionName;
+  return formattedDate;
+};
+
+// Companion + optional assignee avatars (image or initial placeholder). Kept at
+// module scope so the TaskCard component stays within the complexity budget.
+const buildTaskCardAvatars = (
+  companionAvatar: string | undefined,
+  companionName: string,
+  assignedToName: string | undefined,
+  assignedToAvatar: string | undefined,
+): TaskCardAvatar[] => {
+  const avatars: TaskCardAvatar[] = [];
+  const companionAvatarUri = normalizeImageUri(companionAvatar ?? undefined);
+  if (companionAvatarUri) {
+    avatars.push({uri: companionAvatarUri, role: 'companion'});
+  } else {
+    avatars.push({
+      placeholder: companionName.charAt(0).toUpperCase(),
+      role: 'companion',
+    });
+  }
+  if (assignedToName) {
+    const assignedAvatarUri = normalizeImageUri(assignedToAvatar ?? undefined);
+    if (assignedAvatarUri) {
+      avatars.push({uri: assignedAvatarUri, role: 'assignee'});
+    } else {
+      avatars.push({
+        placeholder: assignedToName.charAt(0).toUpperCase(),
+        role: 'assignee',
+      });
+    }
+  }
+  return avatars;
+};
+
 export interface TaskCardProps {
   title: string;
   categoryLabel: string;
@@ -85,8 +223,8 @@ export interface TaskCardProps {
 
 export const TaskCard: React.FC<TaskCardProps> = ({
   title,
-  categoryLabel: _categoryLabel,
-  subcategoryLabel: _subcategoryLabel,
+  categoryLabel,
+  subcategoryLabel,
   date,
   time,
   companionName,
@@ -100,8 +238,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onPressTakeObservationalTool,
   showEditAction = true,
   showCompleteButton = false,
-  completeButtonVariant = 'liquid-glass',
-  completeButtonLabel = 'Complete',
+  completeButtonVariant: _completeButtonVariant = 'liquid-glass',
+  completeButtonLabel = 'Mark complete',
   hideSwipeActions = false,
   category,
   details,
@@ -214,8 +352,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   }, [nearestDosageTime]);
 
   const isCompleted = String(status).toUpperCase() === 'COMPLETED';
-  const isPending = String(status).toUpperCase() === 'PENDING';
-  const isCancelled = String(status).toUpperCase() === 'CANCELLED';
   const isObservationalToolTask =
     category === 'health' && details?.taskType === 'take-observational-tool';
   const handleCompletePress =
@@ -223,234 +359,379 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       ? onPressTakeObservationalTool
       : onPressComplete;
 
-  const renderTaskDetails = () => {
-    if (!details) return null;
+  // Leading tinted tile (colour pair + glyph) driven by the task category.
+  const tileVisual = useMemo(
+    () => resolveTileVisual(category, details?.taskType),
+    [category, details?.taskType],
+  );
 
-    if (category === 'health' && details.taskType === 'give-medication') {
-      return (
-        <View style={styles.detailsSection}>
-          <Text style={styles.detailLabel}>
-            💊 {details.medicineName} ({details.medicineType})
-          </Text>
-          {details.dosages && details.dosages.length > 0 && (
-            <Text style={styles.detailSmall}>
-              Doses: {details.dosages.map((d: any) => d.label).join(', ')}
-            </Text>
-          )}
-        </View>
-      );
-    }
+  // Task-type label for the middle segment of the meta line.
+  const typeLabel = useMemo(
+    () =>
+      resolveTaskTypeLabel(
+        category,
+        details?.taskType,
+        resolvedOtLabel,
+        subcategoryLabel,
+      ),
+    [category, details?.taskType, resolvedOtLabel, subcategoryLabel],
+  );
 
-    if (
-      category === 'health' &&
-      details.taskType === 'take-observational-tool'
-    ) {
-      return (
-        <View style={styles.detailsSection}>
-          <Text style={styles.detailLabel}>
-            📋 Tool: {resolvedOtLabel ?? 'Observational tool'}
-          </Text>
-        </View>
-      );
-    }
+  // Trailing context segment: done-time when finished, dosage/task time when
+  // scheduled, otherwise the companion the task belongs to.
+  const contextLabel = useMemo(
+    () =>
+      resolveContextLabel(
+        isCompleted,
+        formattedTime,
+        isMedicationTask,
+        formattedNearestDosage,
+        companionName,
+        formattedDate,
+      ),
+    [
+      isCompleted,
+      formattedTime,
+      isMedicationTask,
+      formattedNearestDosage,
+      companionName,
+      formattedDate,
+    ],
+  );
 
-    if (
-      (category === 'hygiene' || category === 'dietary') &&
-      details.description
-    ) {
-      return (
-        <View style={styles.detailsSection}>
-          <Text style={styles.detailSmall} numberOfLines={1}>
-            {details.description}
-          </Text>
-        </View>
-      );
-    }
+  const metaLine = [categoryLabel, typeLabel, contextLabel]
+    .filter(Boolean)
+    .join(' · ');
 
-    return null;
-  };
+  const avatars = buildTaskCardAvatars(
+    companionAvatar,
+    companionName,
+    assignedToName,
+    assignedToAvatar,
+  );
 
-  const avatars = [];
-  const companionAvatarUri = normalizeImageUri(companionAvatar ?? undefined);
-  if (companionAvatarUri) {
-    avatars.push({uri: companionAvatarUri});
-  } else {
-    // Show placeholder with companion name initial
-    avatars.push({placeholder: companionName.charAt(0).toUpperCase()});
-  }
-  if (assignedToName) {
-    const assignedAvatarUri = normalizeImageUri(assignedToAvatar ?? undefined);
-    if (assignedAvatarUri) {
-      avatars.push({uri: assignedAvatarUri});
-    } else {
-      // Show placeholder with assigned user name initial
-      avatars.push({placeholder: assignedToName.charAt(0).toUpperCase()});
-    }
-  }
+  const showTakePill =
+    isObservationalToolTask &&
+    showCompleteButton &&
+    !isCompleted &&
+    Boolean(handleCompletePress);
+  const showActionRow =
+    showCompleteButton &&
+    !isCompleted &&
+    !isObservationalToolTask &&
+    Boolean(handleCompletePress);
 
   return (
     <SwipeableActionCard
-      cardStyle={cardStyles.card}
-      fallbackStyle={cardStyles.fallback}
+      cardStyle={[cardStyles.card, isCompleted && styles.completedCard]}
+      fallbackStyle={[cardStyles.fallback, isCompleted && styles.completedCard]}
       onPressView={onPressView}
       onPressEdit={onPressEdit}
       showEditAction={showEditAction && !isCompleted}
       hideSwipeActions={hideSwipeActions}>
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
-        style={styles.innerContent}>
+        style={styles.innerContent}
+        accessibilityRole={onPressView ? 'button' : undefined}
+        accessibilityLabel={title}>
         <View style={styles.infoRow}>
-          {avatars.length > 0 && (
-            <AvatarGroup
-              avatars={avatars}
-              size={theme.spacing['14']}
-              overlap={-theme.spacing['2.5']}
-              direction="column"
-            />
-          )}
+          <TaskCardTile tileVisual={tileVisual} theme={theme} styles={styles} />
 
           <View style={styles.textContent}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
-              {companionName}
+            <Text
+              style={[styles.title, isCompleted && styles.titleCompleted]}
+              numberOfLines={1}
+              ellipsizeMode="tail">
+              {title}
             </Text>
-            <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
-              {formattedDate}
-              {isMedicationTask &&
-                formattedNearestDosage &&
-                ` - ${formattedNearestDosage}`}
-              {!isMedicationTask && formattedTime && ` - ${formattedTime}`}
-            </Text>
-            {renderTaskDetails()}
+            {metaLine.length > 0 && (
+              <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
+                {metaLine}
+              </Text>
+            )}
           </View>
 
-          <View style={styles.statusColumn}>
-            {isCompleted && (
-              <View style={styles.completedBadge}>
-                <Text style={styles.completedText}>Completed</Text>
-              </View>
-            )}
-            {isPending && (
-              <View style={styles.pendingBadge}>
-                <Text style={styles.pendingText}>Pending</Text>
-              </View>
-            )}
-            {isCancelled && (
-              <View style={styles.cancelledBadge}>
-                <Text style={styles.cancelledText}>Cancelled</Text>
-              </View>
-            )}
+          <View style={styles.trailing}>
+            <TaskCardTrailing
+              isCompleted={isCompleted}
+              showTakePill={showTakePill}
+              avatars={avatars}
+              handleCompletePress={handleCompletePress}
+              theme={theme}
+              styles={styles}
+            />
           </View>
         </View>
 
-        {showCompleteButton && !isCompleted && handleCompletePress && (
-          <>
-            {completeButtonVariant === 'liquid-glass' ? (
-              <LiquidGlassButton
-                title={completeButtonLabel}
-                onPress={handleCompletePress}
-                tintColor={theme.colors.secondary}
-                shadowIntensity="medium"
-                height={theme.spacing['12']}
-                textStyle={styles.liquidGlassButtonText}
-                borderRadius={theme.borderRadius.md}
-                style={styles.liquidGlassButton}
-              />
-            ) : (
-              <CardActionButton
-                label={completeButtonLabel}
-                onPress={handleCompletePress}
-                variant={completeButtonVariant}
-              />
-            )}
-          </>
+        {showActionRow && handleCompletePress && (
+          <TaskCardActionRow
+            handleCompletePress={handleCompletePress}
+            completeButtonLabel={completeButtonLabel}
+            showEditAction={showEditAction}
+            onPressEdit={onPressEdit}
+            theme={theme}
+            styles={styles}
+          />
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
     </SwipeableActionCard>
   );
 };
+
+type TaskCardStyles = ReturnType<typeof createStyles>;
+
+interface TaskCardTileProps {
+  tileVisual: TileVisual;
+  theme: Theme;
+  styles: TaskCardStyles;
+}
+
+// Leading 40x40 tinted category tile (colour pair + glyph).
+const TaskCardTile: React.FC<TaskCardTileProps> = ({
+  tileVisual,
+  theme,
+  styles,
+}) => (
+  <View
+    style={[styles.iconTile, {backgroundColor: theme.colors[tileVisual.bg]}]}>
+    <Ionicons
+      name={tileVisual.icon}
+      size={18}
+      color={theme.colors[tileVisual.ink]}
+    />
+  </View>
+);
+
+interface TaskCardTrailingProps {
+  isCompleted: boolean;
+  showTakePill: boolean;
+  avatars: TaskCardAvatar[];
+  handleCompletePress?: () => void;
+  theme: Theme;
+  styles: TaskCardStyles;
+}
+
+// Trailing slot: completed check-circle, "Take" pill, or the avatar stack.
+const TaskCardTrailing: React.FC<TaskCardTrailingProps> = ({
+  isCompleted,
+  showTakePill,
+  avatars,
+  handleCompletePress,
+  theme,
+  styles,
+}) => {
+  if (isCompleted) {
+    return (
+      <View style={styles.checkCircle}>
+        <Ionicons name="checkmark" size={14} color={theme.colors.white} />
+      </View>
+    );
+  }
+  if (showTakePill) {
+    return (
+      <PressableOpacity
+        activeOpacity={0.85}
+        onPress={handleCompletePress}
+        style={styles.takePill}
+        accessibilityRole="button"
+        accessibilityLabel="Take">
+        <Text style={styles.takePillText}>Take</Text>
+      </PressableOpacity>
+    );
+  }
+  if (avatars.length > 0) {
+    return (
+      <View style={styles.avatarStack}>
+        {avatars.map((avatar, index) => {
+          const overlapStyle = index === 0 ? null : styles.avatarOverlap;
+          if (avatar.uri) {
+            return (
+              <Image
+                key={avatar.role}
+                source={{uri: avatar.uri}}
+                style={[styles.avatarImage, overlapStyle]}
+              />
+            );
+          }
+          return (
+            <View
+              key={avatar.role}
+              style={[styles.avatarPlaceholder, overlapStyle]}>
+              <Text style={styles.avatarInitial}>{avatar.placeholder}</Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+  return null;
+};
+
+interface TaskCardActionRowProps {
+  handleCompletePress: () => void;
+  completeButtonLabel: string;
+  showEditAction: boolean;
+  onPressEdit?: () => void;
+  theme: Theme;
+  styles: TaskCardStyles;
+}
+
+// Bottom action row: the "Mark complete" cta pill and optional edit ellipsis.
+const TaskCardActionRow: React.FC<TaskCardActionRowProps> = ({
+  handleCompletePress,
+  completeButtonLabel,
+  showEditAction,
+  onPressEdit,
+  theme,
+  styles,
+}) => (
+  <View style={styles.actionRow}>
+    <PressableOpacity
+      activeOpacity={0.85}
+      onPress={handleCompletePress}
+      style={styles.completePill}
+      accessibilityRole="button"
+      accessibilityLabel={completeButtonLabel}>
+      <Ionicons name="checkmark" size={15} color={theme.colors.ctaText} />
+      <Text style={styles.completePillText}>{completeButtonLabel}</Text>
+    </PressableOpacity>
+    {showEditAction && onPressEdit && (
+      <PressableOpacity
+        activeOpacity={0.85}
+        onPress={onPressEdit}
+        style={styles.ellipsisButton}
+        accessibilityRole="button"
+        accessibilityLabel="More options">
+        <Ionicons
+          name="ellipsis-horizontal"
+          size={16}
+          color={theme.colors.inkBody}
+        />
+      </PressableOpacity>
+    )}
+  </View>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
     innerContent: {
       width: '100%',
     },
+    completedCard: {
+      opacity: 0.6,
+      ...theme.shadows.none,
+    },
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['3'],
     },
+    iconTile: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     textContent: {
       flex: 1,
-      gap: theme.spacing['1'],
+      gap: 2,
     },
     title: {
-      ...theme.typography.h6Clash,
-      color: theme.colors.secondary,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
+      fontSize: 14.5,
+      fontWeight: '700',
+      color: theme.colors.inkBody,
+    },
+    titleCompleted: {
+      textDecorationLine: 'line-through',
     },
     meta: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      fontSize: 12.5,
+      color: theme.colors.inkFaint,
     },
-    statusColumn: {
+    trailing: {
       alignItems: 'flex-end',
       justifyContent: 'center',
-      minWidth: theme.spacing['18'],
     },
-    completedBadge: {
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['1'],
+    checkCircle: {
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.successSurface,
+      backgroundColor: theme.colors.success,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    completedText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.success,
-    },
-    pendingBadge: {
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['1'],
+    takePill: {
+      paddingHorizontal: theme.spacing['3.5'],
+      paddingVertical: theme.spacing['2'],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.warningSurface,
+      backgroundColor: theme.colors.blueSoft,
     },
-    pendingText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.warning,
+    takePillText: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: theme.colors.navActive,
     },
-    cancelledBadge: {
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['1'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.errorSurface,
+    avatarStack: {
+      alignItems: 'center',
     },
-    cancelledText: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.error,
+    avatarImage: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: theme.colors.screen,
+      resizeMode: 'cover',
     },
-    detailsSection: {
-      marginTop: theme.spacing['2'],
-      paddingTop: theme.spacing['2'],
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.borderMuted,
-      gap: theme.spacing['1'],
+    avatarPlaceholder: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: theme.colors.screen,
+      backgroundColor: theme.colors.avatarVioletBg,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    detailLabel: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.secondary,
+    avatarOverlap: {
+      marginTop: -theme.spacing['2'],
     },
-    detailSmall: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+    avatarInitial: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.avatarVioletInk,
     },
-    liquidGlassButton: {
-      marginTop: theme.spacing['4'],
+    actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+      marginTop: theme.spacing['3'],
     },
-    liquidGlassButtonText: {
-      ...theme.typography.button,
-      color: theme.colors.white,
+    completePill: {
+      flex: 1,
+      height: theme.spacing['10'],
+      borderRadius: 12,
+      backgroundColor: theme.colors.cta,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2'],
+    },
+    completePillText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.colors.ctaText,
+    },
+    ellipsisButton: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: 12,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   });
 

@@ -78,7 +78,7 @@ describe('OrgStep', () => {
 
     render(<OrgStep nextStep={nextStep} formData={baseFormData} setFormData={setFormData} />);
 
-    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Address'));
 
     expect(screen.getByText('Organisation name is required')).toBeInTheDocument();
     expect(screen.getByText('Enter a valid phone number')).toBeInTheDocument();
@@ -104,7 +104,7 @@ describe('OrgStep', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Address'));
 
     expect(setFormData).toHaveBeenCalledWith(
       expect.objectContaining({

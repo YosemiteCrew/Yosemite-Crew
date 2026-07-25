@@ -20,6 +20,21 @@ export type AppUpdatePrompt = {
 const OPTIONAL_PROMPT_DEFAULT_HOURS = 24;
 const IOS_APP_STORE_URL_PREFIX = 'itms-apps://itunes.apple.com/app/id';
 
+// storeUrl can come straight from the remotely-fetched MobileConfig, so it
+// must be checked against a fixed allowlist before ever being handed to
+// Linking.openURL - otherwise a compromised/misconfigured config endpoint
+// could make the app open an arbitrary URL.
+const TRUSTED_STORE_URL_PATTERNS = [
+  /^https:\/\/apps\.apple\.com\//i,
+  /^https:\/\/itunes\.apple\.com\//i,
+  /^itms-apps:\/\/itunes\.apple\.com\//i,
+  /^https:\/\/play\.google\.com\/store\/apps\//i,
+  /^market:\/\/details\?/i,
+];
+
+export const isTrustedStoreUrl = (url: string): boolean =>
+  TRUSTED_STORE_URL_PATTERNS.some(pattern => pattern.test(url));
+
 const toBoolean = (value: unknown): boolean => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
@@ -115,9 +130,7 @@ export const evaluateAppUpdatePrompt = (
   if (!appUpdate) return null;
 
   let platformPolicy:
-    | typeof appUpdate.ios
-    | typeof appUpdate.android
-    | undefined;
+    typeof appUpdate.ios | typeof appUpdate.android | undefined;
   if (Platform.OS === 'ios') {
     platformPolicy = appUpdate.ios;
   } else if (Platform.OS === 'android') {
@@ -175,6 +188,12 @@ export const evaluateAppUpdatePrompt = (
   }
 
   const storeUrl = resolveStoreUrl(appUpdate, bundleId);
+  // A forced update is only emitted as 'required' when there is a store URL to
+  // send the user to. The required sheet is non-dismissible (no close button,
+  // pan, or backdrop dismiss) and its action only opens the store, so a
+  // 'required' prompt without a storeUrl (e.g. an iOS config missing both
+  // storeUrl and appStoreId) would trap the user in the app with no way to
+  // update or leave. Degrade to a dismissible 'optional' prompt in that case.
   const kind: AppUpdatePrompt['kind'] =
     mustUpdate && storeUrl ? 'required' : 'optional';
 

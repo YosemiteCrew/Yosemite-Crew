@@ -1,6 +1,26 @@
 import type { NextConfig } from 'next';
 import { securityHeaders } from './src/securityHeaders';
 
+// Static HTML under /public (e.g. /dev-docs/openapi-ui.html) is skipped by the
+// edge middleware, which only applies the nonce CSP to app document routes.
+// Without this, those pages ship with no Content-Security-Policy and any
+// third-party script they load (Redoc's CDN bundle) runs as first-party
+// JavaScript with access to same-origin localStorage tokens. Restore a strict,
+// tightly allow-listed CSP for the docs surface here.
+const DEV_DOCS_CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://cdn.redoc.ly",
+  "worker-src 'self' blob:",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: https://cdn.redoc.ly",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'self'",
+  "form-action 'self'",
+].join('; ');
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -14,6 +34,17 @@ const nextConfig: NextConfig = {
       },
       { protocol: 'https', hostname: 'cdn.yc.dev' },
       { protocol: 'https', hostname: 'laika.aitemsolutions.com' },
+      // Sub-processor logos on the Trust Center. next/image throws for a host it
+      // does not know, which takes the page down rather than dropping an image.
+      // These should be served from our own CDN so the page makes no
+      // third-party request; the path is pinned until those assets exist.
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
+        pathname: '/wikipedia/commons/**',
+      },
+      // Live contributor + commit avatars on the public Insights page.
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
     ],
   },
   outputFileTracingExcludes: {
@@ -24,11 +55,17 @@ const nextConfig: NextConfig = {
     serverSourceMaps: false,
   },
   productionBrowserSourceMaps: false,
+  // Do not advertise the framework/version in responses (X-Powered-By).
+  poweredByHeader: false,
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: securityHeaders,
+      },
+      {
+        source: '/dev-docs/:path*',
+        headers: [...securityHeaders, { key: 'Content-Security-Policy', value: DEV_DOCS_CSP }],
       },
     ];
   },

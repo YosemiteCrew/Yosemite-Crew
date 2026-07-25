@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { OrganizationDocumentController } from "src/controllers/web/organisation-document.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
@@ -12,7 +12,7 @@ const router = Router();
 // Upload document file
 router.post(
   "/pms/:orgId/documents/upload",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   OrganizationDocumentController.uploadFile,
@@ -21,7 +21,7 @@ router.post(
 // Create document record
 router.post(
   "/pms/:orgId/documents",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   OrganizationDocumentController.create,
@@ -30,7 +30,7 @@ router.post(
 // Update document metadata
 router.patch(
   "/pms/:orgId/documents/:documentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   OrganizationDocumentController.update,
@@ -39,7 +39,7 @@ router.patch(
 // Delete document
 router.delete(
   "/pms/:orgId/documents/:documentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   OrganizationDocumentController.remove,
@@ -48,7 +48,7 @@ router.delete(
 // List documents for organisation
 router.get(
   "/pms/:orgId/documents",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:view:any"),
   OrganizationDocumentController.list,
@@ -57,7 +57,7 @@ router.get(
 // Get document by id
 router.get(
   "/pms/:orgId/documents/:documentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:view:any"),
   OrganizationDocumentController.getById,
@@ -66,7 +66,7 @@ router.get(
 // Upsert policy documents
 router.post(
   "/pms/:orgId/documents/policy",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   OrganizationDocumentController.upsertPolicy,
@@ -78,7 +78,7 @@ router.post(
 
 router.get(
   "/mobile/:orgId/documents",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   OrganizationDocumentController.listPublic,
 );
 

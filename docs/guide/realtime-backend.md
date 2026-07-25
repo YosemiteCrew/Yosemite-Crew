@@ -1,6 +1,12 @@
-# Real-Time Sync — Backend Implementation Guide
+# Real-Time Sync - Backend Implementation Guide
 
-> **Stack:** Redis Pub/Sub as event bus · Socket.IO for browser push · Firebase FCM for mobile (already live)
+> Status: not implemented as of 2026-07. No Socket.IO/EventBus code exists in the tree and the listed dependencies are not installed. The Cognito JWT handshake described below must be re-targeted at SuperTokens session verification (see `docs/plans/supertokens-migration.md`) before building.
+>
+> **Tenant isolation:** org rooms carry one organisation's appointments, tasks and invoices. Authenticating the socket establishes identity only - every `join:org` must additionally be authorised against the user's organisation membership, or any logged-in user can subscribe to any org. See the `join:org` handler in `src/realtime/socket.ts` below.
+
+This is the backend half of the real-time sync feature: when any staff member changes an appointment, task, or invoice, every other open browser in the same organisation (org) updates within a couple of hundred milliseconds, with no page reload or polling. This guide covers the server side (event bus + WebSocket push); its companion [realtime-frontend.md](realtime-frontend.md) covers the browser side. The two share one event contract, so read them together. FCM below is Firebase Cloud Messaging, the mobile push service.
+
+> **Stack:** Redis Pub/Sub as event bus · Socket.IO for browser push · Firebase Cloud Messaging (FCM) for mobile (already live)
 >
 > **Assigned to:** Backend Engineer
 > **Dependencies already installed:** `ioredis`, `@socket.io/redis-adapter`
@@ -25,17 +31,17 @@ Any mutation (appointment, task, invoice, team...)
          │                             ├── Staff B browser updates store
          │                             └── Staff C browser updates store
          │
-         └──► FCM NotificationService (already exists — mobile push)
+         └──► FCM NotificationService (already exists - mobile push)
 ```
 
 **Why Redis as the bus, not direct Socket.IO emit?**
-When scaled to multiple backend instances behind a load balancer, each instance only knows its own Socket.IO connections. Redis pub/sub broadcasts to all instances simultaneously — the `@socket.io/redis-adapter` handles this automatically. Without it, Staff B on Instance 2 never hears events from Instance 1.
+When scaled to multiple backend instances behind a load balancer, each instance only knows its own Socket.IO connections. Redis pub/sub broadcasts to all instances simultaneously - the `@socket.io/redis-adapter` handles this automatically. Without it, Staff B on Instance 2 never hears events from Instance 1.
 
 ---
 
 ## Files to Create
 
-### 1. `src/types/realtime.ts` — Shared event contract
+### 1. `src/types/realtime.ts` - Shared event contract
 
 > **Important:** Also add this type to `packages/types/src/realtime.ts` so the frontend can import it from `@yosemite-crew/types` instead of duplicating it.
 
@@ -64,14 +70,14 @@ export interface OrgEvent {
 
 ---
 
-### 2. `src/services/eventBus.service.ts` — Redis pub/sub publisher
+### 2. `src/services/eventBus.service.ts` - Redis pub/sub publisher
 
 ```typescript
 import Redis from 'ioredis';
 import { OrgEvent } from 'src/types/realtime';
 import logger from 'src/utils/logger';
 
-// Separate publisher client — a Redis client in subscribe mode cannot
+// Separate publisher client - a Redis client in subscribe mode cannot
 // send other commands (ioredis rule). Keep this client publish-only.
 let publisher: Redis | null = null;
 
@@ -103,13 +109,13 @@ export const EventBus = {
 
 **Key rules:**
 
-- `publish()` must never throw — a Redis failure must not fail the HTTP response
+- `publish()` must never throw - a Redis failure must not fail the HTTP response
 - This is a separate Redis client from the BullMQ connection and the Socket.IO adapter clients (ioredis clients are not reusable across subscribe/publish modes)
 - `lazyConnect: true` prevents startup failure if Redis is briefly unavailable
 
 ---
 
-### 3. `src/realtime/socket.ts` — Socket.IO server with Redis adapter + Cognito auth
+### 3. `src/realtime/socket.ts` - Socket.IO server with Redis adapter + Cognito auth
 
 ```typescript
 import { Server as HttpServer } from 'http';
@@ -120,6 +126,7 @@ import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import logger from 'src/utils/logger';
 import { OrgEvent } from 'src/types/realtime';
+import { UserOrganizationService } from 'src/services/user-organization.service';
 
 const { COGNITO_REGION, COGNITO_USER_POOL_ID, FRONTEND_URL } = process.env;
 
@@ -161,7 +168,7 @@ export function attachSocketIO(httpServer: HttpServer): SocketIOServer {
     transports: ['websocket', 'polling'],
   });
 
-  // Redis adapter — makes pub/sub work across multiple backend instances
+  // Redis adapter - makes pub/sub work across multiple backend instances
   const pubClient = new Redis({
     host: process.env.REDIS_HOST ?? '127.0.0.1',
     port: Number(process.env.REDIS_PORT ?? 6379),
@@ -170,7 +177,7 @@ export function attachSocketIO(httpServer: HttpServer): SocketIOServer {
   const subClient = pubClient.duplicate();
   io.adapter(createAdapter(pubClient, subClient));
 
-  // Auth middleware — validates Cognito JWT on every Socket.IO connection
+  // Auth middleware - validates Cognito JWT on every Socket.IO connection
   io.use(async (socket: Socket, next) => {
     try {
       const token = socket.handshake.auth?.token as string | undefined;
@@ -186,13 +193,31 @@ export function attachSocketIO(httpServer: HttpServer): SocketIOServer {
   io.on('connection', (socket: Socket) => {
     logger.info(`Socket connected: ${socket.id} user: ${socket.data.userId}`);
 
-    // Client sends the orgId it wants to listen to
-    socket.on('join:org', (orgId: string) => {
+    // The client asks for an org, it does not get to assert one. Authenticating
+    // the socket only proves *who* the user is - it says nothing about which
+    // orgs they belong to, so every join MUST be authorised against the user's
+    // membership. Without this check any logged-in user could join
+    // `org:<any-id>` and receive another organisation's appointments, tasks and
+    // invoices.
+    socket.on('join:org', async (orgId: string) => {
       if (typeof orgId !== 'string' || !orgId) return;
+
+      // Resolves both bare and "Organization/<id>" references internally.
+      const mapping = await UserOrganizationService.getMappingByUserAndOrganization(
+        socket.data.userId,
+        orgId.replace(/^Organization\//, '')
+      );
+      if (!mapping) {
+        logger.warn(`Socket ${socket.id} user ${socket.data.userId} denied join for org:${orgId}`);
+        socket.emit('join:denied', { orgId });
+        return;
+      }
+
       socket.join(`org:${orgId}`);
       logger.info(`Socket ${socket.id} joined room org:${orgId}`);
     });
 
+    // Leaving needs no check: a socket can only ever leave its own rooms.
     socket.on('leave:org', (orgId: string) => {
       socket.leave(`org:${orgId}`);
     });
@@ -229,16 +254,16 @@ export function attachSocketIO(httpServer: HttpServer): SocketIOServer {
 
 **Key design decisions:**
 
-- JWT verified on WebSocket handshake — same Cognito auth as HTTP, no new auth surface
-- Room pattern `org:{orgId}` — staff only receive events for their org; admins with access to multiple orgs can join multiple rooms
-- Pattern subscribe `org:*:events` — one subscriber handles all orgs, no per-org subscription management needed
+- JWT verified on WebSocket handshake - same Cognito auth as HTTP, no new auth surface
+- Room pattern `org:{orgId}` - staff only receive events for their org; admins with access to multiple orgs can join multiple rooms
+- Pattern subscribe `org:*:events` - one subscriber handles all orgs, no per-org subscription management needed
 - The Redis subscriber is separate from the adapter clients (ioredis subscribed clients are read-only)
 
 ---
 
 ## Files to Modify
 
-### 4. `src/main.ts` — Attach Socket.IO to the HTTP server
+### 4. `src/main.ts` - Attach Socket.IO to the HTTP server
 
 Replace `app.listen()` with an explicit HTTP server so Socket.IO shares port 3000:
 
@@ -279,7 +304,7 @@ void startServer();
 
 ---
 
-### 5. `src/app.ts` — Update CORS to allow production frontend
+### 5. `src/app.ts` - Update CORS to allow production frontend
 
 Replace the existing cors block:
 
@@ -308,7 +333,7 @@ app.use(
 
 ---
 
-### 6. `src/services/appointment.service.ts` — Publish events after every mutation
+### 6. `src/services/appointment.service.ts` - Publish events after every mutation
 
 Import `EventBus` at the top:
 
@@ -372,7 +397,7 @@ Add to `.env` and all deployment configs (ECS task definition, K8s secret, etc.)
 
 ```env
 FRONTEND_URL=https://app.yosemitecrew.com   # Production frontend origin for CORS
-# Redis vars already exist for BullMQ — reuse them:
+# Redis vars already exist for BullMQ - reuse them:
 # REDIS_HOST=...
 # REDIS_PORT=...
 # REDIS_PASSWORD=...
@@ -403,7 +428,7 @@ redis-cli PSUBSCRIBE "org:*:events"
 | Scenario                     | Behaviour                                                                                                      |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Single instance              | Works as-is                                                                                                    |
-| Multiple instances (ECS/K8s) | Redis adapter fans out to all instances automatically — no sticky sessions needed                              |
+| Multiple instances (ECS/K8s) | Redis adapter fans out to all instances automatically - no sticky sessions needed                              |
 | Redis failure                | `EventBus.publish()` catches and logs, mutation succeeds, clients get slightly stale data until Redis recovers |
 | Redis recovery               | Pub/sub resumes automatically via ioredis reconnection                                                         |
 | 1000+ concurrent users       | Socket.IO rooms are memory-efficient; Redis handles the fan-out load                                           |

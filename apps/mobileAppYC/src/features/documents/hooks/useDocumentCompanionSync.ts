@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect as useReactEffect} from 'react';
 import type {AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
 import {fetchDocuments} from '@/features/documents/documentSlice';
@@ -14,13 +14,13 @@ export const useDocumentCompanionSync = ({
   selectedCompanionId,
   dispatch,
 }: UseDocumentCompanionSyncParams) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (companions.length > 0 && selectedCompanionId === null) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionId, dispatch]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (selectedCompanionId) {
       dispatch(fetchDocuments({companionId: selectedCompanionId}));
     }

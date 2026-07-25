@@ -7,5 +7,9 @@ type PaymentStatusLayoutProps = Readonly<{
 }>;
 
 export default function PaymentStatusLayout({ children }: PaymentStatusLayoutProps) {
-  return <>{children}</>;
+  return (
+    <main id="main-content" tabIndex={-1}>
+      {children}
+    </main>
+  );
 }

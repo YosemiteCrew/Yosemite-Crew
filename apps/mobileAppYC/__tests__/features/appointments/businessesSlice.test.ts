@@ -2,6 +2,7 @@ import businessesReducer, {
   fetchBusinesses,
   fetchServiceSlots,
   resetBusinessesState,
+  upsertBusiness,
 } from '../../../src/features/appointments/businessesSlice';
 import {appointmentApi} from '../../../src/features/appointments/services/appointmentsService';
 import * as sessionManager from '../../../src/features/auth/sessionManager';
@@ -11,6 +12,7 @@ import {
   fetchGooglePlacesImage,
 } from '../../../src/features/linkedBusinesses';
 import * as photoUtils from '../../../src/features/appointments/utils/photoUtils';
+import LocationService from '../../../src/shared/services/LocationService';
 
 // --- Mocks ---
 jest.mock(
@@ -40,6 +42,16 @@ jest.mock('../../../src/features/linkedBusinesses', () => ({
 
 jest.mock('../../../src/features/appointments/utils/photoUtils', () => ({
   isDummyPhoto: jest.fn(),
+}));
+
+jest.mock('../../../src/shared/services/LocationService', () => ({
+  __esModule: true,
+  default: {
+    getCurrentPosition: jest.fn().mockResolvedValue({
+      latitude: 10,
+      longitude: 20,
+    }),
+  },
 }));
 
 describe('businessesSlice', () => {
@@ -84,6 +96,31 @@ describe('businessesSlice', () => {
     );
   });
 
+  it('should add a new business via upsertBusiness when no matching id exists', () => {
+    const newBusiness = {id: 'biz-1', name: 'New Clinic'} as any;
+    const nextState = businessesReducer(
+      mockInitialState,
+      upsertBusiness(newBusiness),
+    );
+    expect(nextState.businesses).toEqual([newBusiness]);
+  });
+
+  it('should merge fields into an existing business via upsertBusiness when the id matches', () => {
+    const existingState = {
+      ...mockInitialState,
+      businesses: [
+        {id: 'biz-1', name: 'Old Name', category: 'hospital'},
+      ] as any,
+    };
+    const nextState = businessesReducer(
+      existingState,
+      upsertBusiness({id: 'biz-1', name: 'Updated Name'} as any),
+    );
+    expect(nextState.businesses).toEqual([
+      {id: 'biz-1', name: 'Updated Name', category: 'hospital'},
+    ]);
+  });
+
   // ===========================================================================
   // 2. Async Thunk: fetchBusinesses
   // ===========================================================================
@@ -125,6 +162,24 @@ describe('businessesSlice', () => {
       );
     });
 
+    it('treats a missing expiresAt as never-expiring (defaults to undefined)', async () => {
+      (sessionManager.getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        accessToken: 'valid-token',
+        // No expiresAt field at all.
+      });
+      (sessionManager.isTokenExpired as jest.Mock).mockReturnValue(false);
+      (appointmentApi.fetchNearbyBusinesses as jest.Mock).mockResolvedValue(
+        mockNearbyResponse,
+      );
+
+      await store.dispatch(fetchBusinesses({lat: 10, lng: 10}));
+
+      expect(sessionManager.isTokenExpired).toHaveBeenCalledWith(undefined);
+      expect(appointmentApi.fetchNearbyBusinesses).toHaveBeenCalledWith(
+        expect.objectContaining({accessToken: 'valid-token'}),
+      );
+    });
+
     it('should handle searchBusinessesByService when serviceName provided', async () => {
       // No token scenario (null token)
       (sessionManager.getFreshStoredTokens as jest.Mock).mockResolvedValue(
@@ -151,6 +206,27 @@ describe('businessesSlice', () => {
       expect(state.businesses[0].name).toBe('Search Vet');
       expect(appointmentApi.searchBusinessesByService).toHaveBeenCalledWith(
         expect.objectContaining({serviceName: 'Grooming'}),
+      );
+    });
+
+    it('skips live location lookup when requested by caller', async () => {
+      (sessionManager.getFreshStoredTokens as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (appointmentApi.fetchNearbyBusinesses as jest.Mock).mockResolvedValue(
+        mockNearbyResponse,
+      );
+
+      await store.dispatch(fetchBusinesses({skipLocationLookup: true}));
+
+      expect(LocationService.getCurrentPosition).not.toHaveBeenCalled();
+      expect(appointmentApi.fetchNearbyBusinesses).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lat: undefined,
+          lng: undefined,
+          page: 1,
+          limit: 10,
+        }),
       );
     });
 
@@ -207,6 +283,14 @@ describe('businessesSlice', () => {
       await store.dispatch(fetchBusinesses(undefined));
       const state = store.getState().businesses;
       expect(state.error).toBe('Failed to fetch businesses');
+    });
+
+    it('falls back to the default error message when the rejected action has no payload', () => {
+      const nextState = businessesReducer(mockInitialState, {
+        type: fetchBusinesses.rejected.type,
+        payload: undefined,
+      });
+      expect(nextState.error).toBe('Failed to fetch businesses');
     });
 
     it('should treat expired token as null', async () => {
@@ -353,6 +437,22 @@ describe('businessesSlice', () => {
       expect(slots[0].startTime).toBe(''); // fallback in normalize: startLocal ?? ''
     });
 
+    it('parses a time via the ISO fallback when the fast numeric split fails', async () => {
+      // "10:00Z" fails the numeric-split path (Number('00Z') is NaN), but
+      // `new Date('2023-10-10T10:00Z')` is valid ISO-8601 and parses fine,
+      // exercising the fallback's success branch (as opposed to its null
+      // branch, already covered by the invalid-date-format tests).
+      const windows = [{startTime: '10:00Z', endTime: '11:00Z'}];
+      (appointmentApi.fetchBookableSlots as jest.Mock).mockResolvedValue({
+        date: '2023-10-10',
+        windows,
+      });
+      await store.dispatch(fetchServiceSlots(mockArgs));
+      const slots =
+        store.getState().businesses.availability[0].slotsByDate['2023-10-10'];
+      expect(slots[0].startTimeLocal).toBeTruthy();
+    });
+
     it('should handle end fallback to startTime', async () => {
       // logic: const endLocal = ... ?? window.endTime ?? window.startTime;
       const windows = [{startTime: '10:00'}]; // No endTime
@@ -441,6 +541,21 @@ describe('businessesSlice', () => {
 
       const nextState = businessesReducer(initialState, action);
       expect(nextState.businesses[0].photo).toBe('valid.jpg');
+    });
+
+    it('should leave state unchanged when no business matches the placeId', () => {
+      const initialState = {
+        ...mockInitialState,
+        businesses: [{id: 'b1', googlePlacesId: 'gp1'} as any],
+      };
+
+      const action = {
+        type: fetchBusinessDetails.fulfilled.type,
+        payload: {placeId: 'gp-unmatched', photoUrl: 'new.jpg'},
+      };
+
+      const nextState = businessesReducer(initialState, action);
+      expect(nextState).toEqual(initialState);
     });
   });
 

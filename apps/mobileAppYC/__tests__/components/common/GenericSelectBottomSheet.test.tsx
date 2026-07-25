@@ -1,11 +1,6 @@
 import React from 'react';
 import {mockTheme} from '../../setup/mockTheme';
-import {
-  render,
-  fireEvent,
-  screen,
-  act,
-} from '@testing-library/react-native';
+import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {
   GenericSelectBottomSheet,
   type GenericSelectBottomSheetRef,
@@ -18,16 +13,21 @@ import {View, Text} from 'react-native';
 // --- Mocks ---
 
 // 1. Mock useTheme and useKeyboardVisible
+let mockKeyboardVisible = false;
+let mockSearchIcon: any = null;
+let mockBottomSheetProps: any = null;
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
-  useKeyboardVisible: () => false,
+  useKeyboardVisible: () => mockKeyboardVisible,
 }));
 
 // 2. Mock Images
 jest.mock('@/assets/images', () => ({
   Images: {
-    searchIcon: null, // Set to null to cover the 'else' branch
+    get searchIcon() {
+      return mockSearchIcon;
+    },
   },
 }));
 
@@ -67,12 +67,13 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   return {
     __esModule: true,
     default: ReactActual.forwardRef((props: any, ref: any) => {
+      mockBottomSheetProps = props;
       ReactActual.useImperativeHandle(ref, () => ({
         snapToIndex: mockSnapToIndex,
         close: mockClose,
       }));
       mockSheetOnChange = props.onChange;
-      if (!props.enableBackdrop) {
+      if (!props.behavior?.backdrop) {
         return null;
       }
       return <RNView testID="mock-sheet-content">{props.children}</RNView>;
@@ -84,10 +85,8 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => {
-    const {
-      TouchableOpacity: RNTouchableOpacity,
-      Text: RNText,
-    } = jest.requireActual('react-native');
+    const {TouchableOpacity: RNTouchableOpacity, Text: RNText} =
+      jest.requireActual('react-native');
     return {
       __esModule: true,
       default: (props: any) => (
@@ -135,6 +134,9 @@ describe('GenericSelectBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockKeyboardVisible = false;
+    mockSearchIcon = null;
+    mockBottomSheetProps = null;
     ref = React.createRef<GenericSelectBottomSheetRef | null>();
   });
 
@@ -182,6 +184,39 @@ describe('GenericSelectBottomSheet', () => {
     act(() => mockSheetOnChange(-1));
     expect(onSheetChange).toHaveBeenCalledWith(-1);
     expect(screen.queryByTestId('mock-sheet-content')).toBeNull();
+  });
+
+  it('dismisses the keyboard from backdrop press and animate handlers', () => {
+    const {Keyboard} = require('react-native');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+
+    render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
+    openSheet();
+
+    act(() => {
+      mockBottomSheetProps.onBackdropPress();
+      mockBottomSheetProps.onAnimate();
+    });
+
+    expect(dismissSpy).toHaveBeenCalled();
+  });
+
+  it('uses expanded snap points and keeps keyboard open while keyboard is visible', () => {
+    const {Keyboard} = require('react-native');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    mockKeyboardVisible = true;
+
+    render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
+    openSheet();
+
+    expect(mockBottomSheetProps.snapPoints).toEqual(['95%', '95%']);
+    dismissSpy.mockClear();
+
+    act(() => {
+      mockBottomSheetProps.onAnimate();
+    });
+
+    expect(dismissSpy).not.toHaveBeenCalled();
   });
 
   it('resets tempItem and search on open', () => {
@@ -347,6 +382,13 @@ describe('GenericSelectBottomSheet', () => {
       expect(screen.queryByText('Item Three')).toBeNull();
     });
 
+    it('passes the search icon when one is configured', () => {
+      mockSearchIcon = {uri: 'search-icon'};
+      render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
+      openSheet();
+      expect(screen.getByPlaceholderText('Search')).toBeTruthy();
+    });
+
     it('shows empty message when filter has no results', () => {
       render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
       openSheet();
@@ -362,6 +404,20 @@ describe('GenericSelectBottomSheet', () => {
       );
       openSheet();
       expect(screen.getByText(defaultProps.emptyMessage)).toBeTruthy();
+    });
+
+    it('uses the default empty message when none is provided', () => {
+      render(
+        <GenericSelectBottomSheet
+          title={defaultProps.title}
+          selectedItem={defaultProps.selectedItem}
+          onSave={defaultProps.onSave}
+          items={[]}
+          ref={ref}
+        />,
+      );
+      openSheet();
+      expect(screen.getByText('No items available')).toBeTruthy();
     });
 
     it('renders customContent', () => {
@@ -422,6 +478,47 @@ describe('GenericSelectBottomSheet', () => {
       act(() => fireEvent.press(customItemText.parent!.parent!));
 
       expect(onItemSelect).toHaveBeenCalledWith(mockItems[1]);
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('exposes the selected state on default-rendered items for screen readers', () => {
+      render(
+        <GenericSelectBottomSheet
+          {...defaultProps}
+          selectedItem={mockItems[1]}
+          ref={ref}
+        />,
+      );
+      openSheet();
+
+      const selected = screen.getByLabelText('Item Two');
+      expect(selected.props.accessibilityRole).toBe('radio');
+      expect(selected.props.accessibilityState).toEqual({selected: true});
+
+      const unselected = screen.getByLabelText('Item One');
+      expect(unselected.props.accessibilityRole).toBe('radio');
+      expect(unselected.props.accessibilityState).toEqual({selected: false});
+    });
+
+    it('exposes the selected state on custom-rendered items for screen readers', () => {
+      const renderItem = (item: SelectItem) => (
+        <Text>Custom: {item.label}</Text>
+      );
+
+      render(
+        <GenericSelectBottomSheet
+          {...defaultProps}
+          renderItem={renderItem}
+          selectedItem={mockItems[0]}
+          ref={ref}
+        />,
+      );
+      openSheet();
+
+      const selected = screen.getByLabelText('Item One');
+      expect(selected.props.accessibilityRole).toBe('radio');
+      expect(selected.props.accessibilityState).toEqual({selected: true});
     });
   });
 });

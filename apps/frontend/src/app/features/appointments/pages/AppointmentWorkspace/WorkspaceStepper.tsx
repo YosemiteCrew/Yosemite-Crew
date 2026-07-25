@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaCheck } from 'react-icons/fa6';
+import { IoCheckmarkOutline } from 'react-icons/io5';
 import {
   WORKSPACE_STEPS,
   WORKSPACE_STEP_LABELS,
@@ -14,29 +14,35 @@ type WorkspaceStepperProps = {
 };
 
 /**
- * Marker = 16px outer ring + 8px solid centre dot. Active = brand blue, completed
- * shows a check, every other step is neutral-700 (matches the figma stepper where
- * all non-active markers are dark-filled rather than light/idle).
+ * Marker = 16px circle. Completed (non-active) steps are fully filled with the
+ * CTA ink and carry a centred white check; the active step keeps the ring with a
+ * blue centre dot, and idle steps show a muted `--ink-6b` dot.
  */
 const StepMarker = ({ isActive, status }: { isActive: boolean; status: StepStatus }) => {
   const isCompleted = status === 'COMPLETED';
-  const accent = isActive ? 'border-text-brand' : 'border-neutral-700';
-  const fill = isActive ? 'bg-text-brand' : 'bg-neutral-700';
+
+  if (isCompleted && !isActive) {
+    return (
+      <span
+        aria-hidden="true"
+        className="flex size-4 shrink-0 items-center justify-center rounded-full transition-colors duration-150"
+        style={{ background: 'var(--cta)', color: 'var(--cta-text)' }}
+      >
+        <IoCheckmarkOutline size={10} />
+      </span>
+    );
+  }
 
   return (
     <span
       aria-hidden="true"
-      className={`flex size-4 shrink-0 items-center justify-center rounded-full border bg-neutral-0 transition-colors duration-150 ${accent}`}
+      className="flex size-4 shrink-0 items-center justify-center rounded-full border bg-neutral-0 transition-colors duration-150"
+      style={{ borderColor: isActive ? 'var(--blue-text)' : 'var(--ink-6b)' }}
     >
-      {isCompleted && !isActive ? (
-        <span
-          className={`flex size-2 items-center justify-center rounded-full text-neutral-0 ${fill}`}
-        >
-          <FaCheck size={6} />
-        </span>
-      ) : (
-        <span className={`size-2 rounded-full transition-colors duration-150 ${fill}`} />
-      )}
+      <span
+        className="size-2 rounded-full transition-colors duration-150"
+        style={{ background: isActive ? 'var(--blue-text)' : 'var(--ink-6b)' }}
+      />
     </span>
   );
 };
@@ -48,6 +54,10 @@ const WorkspaceStepper = ({ activeStep, stepStatus, onStepChange }: WorkspaceSte
       const isActive = step === activeStep;
       const status = stepStatus[step];
       const isLast = index === WORKSPACE_STEPS.length - 1;
+      // Between two finished steps the design draws a solid rule; the dashed
+      // gradient is reserved for the path that is still ahead of the visit.
+      const nextStatus = isLast ? undefined : stepStatus[WORKSPACE_STEPS[index + 1]];
+      const isConnectorSolid = status === 'COMPLETED' && nextStatus === 'COMPLETED';
       return (
         <li key={step} className="flex flex-1 items-center last:flex-none">
           <button
@@ -58,7 +68,8 @@ const WorkspaceStepper = ({ activeStep, stepStatus, onStepChange }: WorkspaceSte
           >
             <StepMarker isActive={isActive} status={status} />
             <span
-              className={`text-[14px] leading-[120%] ${isActive ? 'font-bold text-text-brand' : 'font-medium text-neutral-900'}`}
+              className={`text-[13px] leading-[120%] ${isActive ? 'font-bold' : 'font-medium'}`}
+              style={{ color: isActive ? 'var(--blue-text)' : 'var(--ink-body)' }}
             >
               {WORKSPACE_STEP_LABELS[step]}
             </span>
@@ -67,10 +78,14 @@ const WorkspaceStepper = ({ activeStep, stepStatus, onStepChange }: WorkspaceSte
             <span
               aria-hidden="true"
               className="mx-2 mb-5.5 h-px flex-1 self-center"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(to right, var(--color-neutral-500) 0 8px, transparent 8px 16px)',
-              }}
+              style={
+                isConnectorSolid
+                  ? { background: 'var(--divider)' }
+                  : {
+                      backgroundImage:
+                        'repeating-linear-gradient(to right, var(--divider) 0 8px, transparent 8px 16px)',
+                    }
+              }
             />
           )}
         </li>

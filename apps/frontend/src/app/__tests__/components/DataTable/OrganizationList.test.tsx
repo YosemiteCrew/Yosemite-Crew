@@ -2,39 +2,22 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import OrganizationList from '@/app/ui/tables/OrganizationList';
-import { getOrganizationStatusStyle } from '@/app/ui/tables/tableUtils';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useRouter } from 'next/navigation';
+import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
+import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { OrgWithMembership } from '@/app/features/organization/types/org';
 
-// --- Mocks ---
-
-// Mock Router
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
 
-// Mock Store
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
 
-jest.mock('@/app/lib/defaultOpenScreen', () => ({
-  resolveDefaultOpenScreenRoute: jest.fn(() => '/appointments'),
-}));
-
 jest.mock('@/app/lib/postAuthRedirect', () => ({
-  resolveOrgScopedRedirect: jest.fn(({ orgId }: { orgId: string }) =>
-    orgId === 'org-1'
-      ? Promise.resolve('/appointments')
-      : Promise.resolve(`/create-org?orgId=${orgId}`)
-  ),
-}));
-
-jest.mock('@/app/stores/fullscreenLoaderStore', () => ({
-  useFullscreenLoaderStore: {
-    getState: jest.fn(() => ({ show: jest.fn(), hide: jest.fn() })),
-  },
+  resolveOrgScopedRedirect: jest.fn(),
 }));
 
 jest.mock('@/app/lib/routeLoader', () => ({
@@ -42,59 +25,35 @@ jest.mock('@/app/lib/routeLoader', () => ({
   stopRouteLoader: jest.fn(),
 }));
 
-// Mock GenericTable to test render props in columns
-jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
-  return ({ data, columns }: any) => (
-    <div data-testid="generic-table">
-      {data.map((item: any, i: number) => (
-        <div key={i + 'org-key'} data-testid={`row-${i}`}>
-          {columns.map((col: any) => (
-            <div key={col.key} data-testid={`cell-${col.key}`}>
-              {col.render ? col.render(item) : item[col.key]}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-});
-
-// Fixed: Use absolute path alias to resolve OrgCard mock correctly
-jest.mock('@/app/ui/cards/OrgCard/OrgCard', () => {
-  return ({ org, handleOrgClick }: any) => (
-    <div data-testid={`org-card-${org.org.name}`}>
-      <button onClick={() => handleOrgClick(org)}>Select Card</button>
-    </div>
-  );
-});
-
-// --- Test Data ---
-
-const mockVerifiedOrg: OrgWithMembership = {
-  org: {
-    _id: 'org-1',
-    name: 'Verified Corp',
-    type: 'Medical',
-    isVerified: true,
+const mockShow = jest.fn();
+const mockHide = jest.fn();
+jest.mock('@/app/stores/fullscreenLoaderStore', () => ({
+  useFullscreenLoaderStore: {
+    getState: jest.fn(() => ({ show: mockShow, hide: mockHide })),
   },
-  membership: {
-    roleDisplay: 'Owner',
-  },
+}));
+
+// Mock OrgCard to expose the org name and a click affordance
+jest.mock('@/app/ui/cards/OrgCard/OrgCard', () => ({
+  __esModule: true,
+  default: ({ org, handleOrgClick }: any) => (
+    <button data-testid={`org-card-${org.org.name}`} onClick={() => handleOrgClick(org)}>
+      {org.org.name}
+    </button>
+  ),
+}));
+
+const verifiedOrg: OrgWithMembership = {
+  org: { _id: 'org-1', name: 'Verified Corp', type: 'HOSPITAL', isVerified: true },
+  membership: { roleDisplay: 'Owner' },
 } as unknown as OrgWithMembership;
 
-const mockUnverifiedOrg: OrgWithMembership = {
-  org: {
-    // Missing _id to test fallback logic: `org.org._id?.toString() || org.org.name`
-    name: 'Pending Inc',
-    type: 'Clinic',
-    isVerified: false,
-  },
-  membership: {
-    roleDisplay: 'Staff',
-  },
+const noIdOrg: OrgWithMembership = {
+  org: { name: 'Pending Inc', type: 'GROOMER', isVerified: false },
+  membership: { roleDisplay: 'Staff' },
 } as unknown as OrgWithMembership;
 
-describe('OrganizationList Component', () => {
+describe('OrganizationList', () => {
   const mockSetPrimaryOrg = jest.fn();
   const mockPush = jest.fn();
 
@@ -106,103 +65,47 @@ describe('OrganizationList Component', () => {
     (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
   });
 
-  // --- 1. Helper Function Tests ---
-
-  describe('getStatusStyle', () => {
-    it("returns correct style for 'Active'", () => {
-      const style = getOrganizationStatusStyle('Active');
-      expect(style).toEqual({
-        color: 'var(--color-success-400)',
-        backgroundColor: 'var(--color-success-100)',
-      });
-    });
-
-    it("returns correct style for 'active' (case insensitive)", () => {
-      const style = getOrganizationStatusStyle('active');
-      expect(style).toEqual({
-        color: 'var(--color-success-400)',
-        backgroundColor: 'var(--color-success-100)',
-      });
-    });
-
-    it("returns correct style for 'Pending'", () => {
-      const style = getOrganizationStatusStyle('Pending');
-      expect(style).toEqual({
-        color: 'var(--color-warning-600)',
-        backgroundColor: '#FEF3E9',
-      });
-    });
-
-    it('returns default style for unknown status', () => {
-      const style = getOrganizationStatusStyle('Unknown');
-      expect(style).toEqual({
-        color: 'var(--color-neutral-0)',
-        backgroundColor: 'var(--color-badge-blue-bg)',
-      });
-    });
+  it('renders nothing when there are no organizations', () => {
+    const { container } = render(<OrganizationList orgs={[]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  // --- 2. Rendering Tests ---
-
-  it('renders the table rows with correct data', () => {
-    render(<OrganizationList orgs={[mockVerifiedOrg, mockUnverifiedOrg]} />);
-
-    // Row 1 (Verified)
-    expect(screen.getByText('Verified Corp')).toBeInTheDocument();
-    expect(screen.getByText('Medical')).toBeInTheDocument();
-    expect(screen.getByText('Owner')).toBeInTheDocument();
-
-    // Status Logic for Verified: isVerified ? "Active" : "Pending"
-    expect(screen.getByText('Active')).toBeInTheDocument();
-    const activeBadge = screen.getByText('Active').closest('div');
-    expect(activeBadge).toHaveStyle('background-color: var(--color-success-100)');
-
-    // Row 2 (Unverified)
-    expect(screen.getByText('Pending Inc')).toBeInTheDocument();
-    expect(screen.getByText('Clinic')).toBeInTheDocument();
-    expect(screen.getByText('Staff')).toBeInTheDocument();
-
-    // Status Logic for Unverified
-    expect(screen.getByText('Pending')).toBeInTheDocument();
-    const pendingBadge = screen.getByText('Pending').closest('div');
-    expect(pendingBadge).toHaveStyle('background-color: #FEF3E9');
-  });
-
-  it('renders mobile cards', () => {
-    render(<OrganizationList orgs={[mockVerifiedOrg]} />);
+  it('renders a card for each organization', () => {
+    render(<OrganizationList orgs={[verifiedOrg, noIdOrg]} />);
     expect(screen.getByTestId('org-card-Verified Corp')).toBeInTheDocument();
+    expect(screen.getByTestId('org-card-Pending Inc')).toBeInTheDocument();
   });
 
-  // --- 3. Interaction Tests ---
+  it('sets the primary org and navigates to the resolved route on click', async () => {
+    (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/appointments');
+    render(<OrganizationList orgs={[verifiedOrg]} />);
 
-  it('navigates to resolved default route when clicking a verified org (Table)', async () => {
-    render(<OrganizationList orgs={[mockVerifiedOrg]} />);
-
-    const nameButton = screen.getByText('Verified Corp');
-    fireEvent.click(nameButton);
+    fireEvent.click(screen.getByTestId('org-card-Verified Corp'));
 
     expect(mockSetPrimaryOrg).toHaveBeenCalledWith('org-1');
+    expect(mockShow).toHaveBeenCalledWith('org-switch');
+    expect(startRouteLoader).toHaveBeenCalled();
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments'));
   });
 
-  it('navigates to create-org when clicking an unverified org (Table)', async () => {
-    render(<OrganizationList orgs={[mockUnverifiedOrg]} />);
+  it('falls back to the org name as id when _id is missing', async () => {
+    (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/create-org');
+    render(<OrganizationList orgs={[noIdOrg]} />);
 
-    const nameButton = screen.getByText('Pending Inc');
-    fireEvent.click(nameButton);
+    fireEvent.click(screen.getByTestId('org-card-Pending Inc'));
 
-    // Should use fallback 'name' as ID since _id is missing
     expect(mockSetPrimaryOrg).toHaveBeenCalledWith('Pending Inc');
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/create-org?orgId=Pending Inc'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/create-org'));
   });
 
-  it('navigates correctly when clicking a mobile card', async () => {
-    render(<OrganizationList orgs={[mockVerifiedOrg]} />);
+  it('hides the loader and stops the route loader when redirect resolution fails', async () => {
+    (resolveOrgScopedRedirect as jest.Mock).mockRejectedValue(new Error('boom'));
+    render(<OrganizationList orgs={[verifiedOrg]} />);
 
-    const cardButton = screen.getByText('Select Card');
-    fireEvent.click(cardButton);
+    fireEvent.click(screen.getByTestId('org-card-Verified Corp'));
 
-    expect(mockSetPrimaryOrg).toHaveBeenCalledWith('org-1');
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments'));
+    await waitFor(() => expect(mockHide).toHaveBeenCalledWith('org-switch'));
+    expect(stopRouteLoader).toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

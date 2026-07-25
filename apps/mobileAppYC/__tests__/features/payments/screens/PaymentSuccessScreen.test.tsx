@@ -7,6 +7,9 @@ import {useSelector} from 'react-redux';
 // ✅ FIX 2: Remove unused 'useNavigation' (keep useRoute if used in tests, or mocks)
 import {useRoute} from '@react-navigation/native';
 import {setSelectedCompanion} from '@/features/companion';
+import {markInAppExpenseStatus} from '@/features/expenses';
+import {fetchInvoiceForAppointment} from '@/features/appointments/appointmentsSlice';
+import {Linking} from 'react-native';
 // --- Mocks ---
 
 const mockDispatch = jest.fn();
@@ -35,16 +38,23 @@ jest.mock('@/features/companion', () => ({
   setSelectedCompanion: jest.fn(id => ({type: 'SET_COMPANION', payload: id})),
 }));
 
-// 4. Mock Theme & Assets
-jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+jest.mock('@/features/expenses', () => ({
+  markInAppExpenseStatus: jest.fn(payload => ({
+    type: 'MARK_EXPENSE_STATUS',
+    payload,
+  })),
 }));
 
-jest.mock('@/assets/images', () => ({
-  Images: {
-    successPayment: {uri: 'success-img'},
-    downloadInvoice: {uri: 'download-icon'},
-  },
+jest.mock('@/features/appointments/appointmentsSlice', () => ({
+  fetchInvoiceForAppointment: jest.fn(payload => ({
+    type: 'FETCH_INVOICE',
+    payload,
+  })),
+}));
+
+// 4. Mock Theme
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 // 5. Mock Components to avoid hoisting issues
@@ -82,6 +92,37 @@ const mockState = {
     items: [
       {id: 'apt-1', companionId: 'comp-1'},
       {id: 'apt-2', companionId: null}, // For null branch testing
+      {
+        id: 'apt-start',
+        companionId: 'comp-1',
+        start: '2025-08-15T10:30:00Z',
+      },
+      {
+        id: 'apt-date-time',
+        companionId: 'comp-1',
+        date: '2025-08-15',
+        time: '10:30',
+      },
+      {
+        // Invalid `start` (NaN) and no date/time -> appointmentDateTime null
+        id: 'apt-bad-start',
+        companionId: 'comp-1',
+        start: 'not-a-real-date',
+      },
+      {
+        // Full-length time string (length !== 5) -> ternary false branch
+        id: 'apt-time-long',
+        companionId: 'comp-1',
+        date: '2025-08-15',
+        time: '10:30:00',
+      },
+      {
+        // Valid-length time but unparseable date -> second NaN guard false branch
+        id: 'apt-bad-dt',
+        companionId: 'comp-1',
+        date: 'not-a-date',
+        time: '10:30',
+      },
     ],
     invoices: [
       {
@@ -121,9 +162,9 @@ describe('PaymentSuccessScreen', () => {
     it('renders the success message and invoice details correctly', () => {
       render(<PaymentSuccessScreen />);
 
-      expect(screen.getByText('Thank you')).toBeTruthy();
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
       expect(
-        screen.getByText('You have Successfully made Payment'),
+        screen.getByText("Here's a summary of your invoice."),
       ).toBeTruthy();
       expect(screen.getByText('BDY024474')).toBeTruthy(); // Invoice number
       // Date format may vary, just check for month/day/year
@@ -223,6 +264,169 @@ describe('PaymentSuccessScreen', () => {
 
       // No tab navigation -> should not navigate
       expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('formats the appointment date/time from a valid "start" field', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-start'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.queryByText(/Aug.*2025/)).toBeTruthy();
+    });
+
+    it('formats the appointment date/time by combining "date" and "time" fields', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-date-time'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.queryByText(/Aug.*2025/)).toBeTruthy();
+    });
+
+    it('dispatches markInAppExpenseStatus and navigates to Expenses when expenseId is present', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-1', expenseId: 'exp-1'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(markInAppExpenseStatus).toHaveBeenCalledWith({
+        expenseId: 'exp-1',
+        status: 'PAID',
+      });
+
+      mockDispatch.mockClear();
+      fireEvent.press(screen.getByTestId('dashboard-btn'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {
+        screen: 'ExpensesStack',
+        params: {screen: 'ExpensesMain'},
+      });
+    });
+
+    it('opens the invoice URL when the view invoice link is pressed', () => {
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(undefined as any);
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-1'},
+      });
+
+      render(<PaymentSuccessScreen />);
+      const receiptButton = screen.getByLabelText('View receipt');
+      expect(receiptButton.props.accessibilityRole).toBe('button');
+      expect(receiptButton.props.accessibilityState).toEqual({
+        disabled: false,
+      });
+      fireEvent.press(receiptButton);
+
+      expect(openURLSpy).toHaveBeenCalledWith(
+        'https://example.com/invoice.pdf',
+      );
+      openURLSpy.mockRestore();
+    });
+
+    it('logs a warning when opening the invoice URL fails', async () => {
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockRejectedValue(new Error('cannot open'));
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-1'},
+      });
+
+      render(<PaymentSuccessScreen />);
+      fireEvent.press(screen.getByText('View receipt'));
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[PaymentSuccess] Failed to open invoice URL',
+        expect.any(Error),
+      );
+      openURLSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    // Branch (line 86 false): no appointmentId -> effect skips fetching
+    it('does not fetch the invoice when no appointmentId is provided', () => {
+      (useRoute as jest.Mock).mockReturnValue({params: {}});
+
+      render(<PaymentSuccessScreen />);
+
+      expect(fetchInvoiceForAppointment).not.toHaveBeenCalled();
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
+    });
+
+    // Branch (line 53 false): invalid "start" and no date/time -> null date
+    it('shows placeholder dates when "start" is invalid and no date/time exists', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-bad-start'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
+      // Invoice number/date/id + appointment date/time all fall back to '—'
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    });
+
+    // Branch (line 59 false): time length !== 5 -> used as-is, no ':00' appended
+    it('formats the appointment date from a full-length time string', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-time-long'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.queryByText(/Aug.*2025/)).toBeTruthy();
+    });
+
+    // Branch (line 61 false): combined date/time is unparseable -> null date
+    it('shows placeholder dates when the combined date/time is invalid', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-bad-dt'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    });
+
+    // Branch (line 114 true / stmt 115): guard returns early when no receipt URL.
+    // The button is disabled in this state, so fireEvent.press cannot reach the
+    // handler; invoke the receipt button's onPress prop directly to drive the guard.
+    it('does not attempt to open a URL when no receipt is available', () => {
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(undefined as any);
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-2'}, // no invoice -> receiptUrl is null
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.getByText('Receipt unavailable')).toBeTruthy();
+      const disabledButton = screen.getByLabelText('Receipt unavailable');
+      expect(disabledButton.props.accessibilityState).toEqual({
+        disabled: true,
+      });
+
+      let node: any = screen.getByText('Receipt unavailable');
+      while (node && typeof node.props?.onPress !== 'function') {
+        node = node.parent;
+      }
+      expect(node).toBeTruthy();
+      node.props.onPress();
+
+      expect(openURLSpy).not.toHaveBeenCalled();
+      openURLSpy.mockRestore();
     });
   });
 });

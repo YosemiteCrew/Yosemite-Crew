@@ -1,21 +1,26 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect as useReactEffect} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Image,
-  TouchableOpacity,
-  StyleSheet as RNStyleSheet,
   BackHandler,
   Alert,
   ToastAndroid,
   Platform,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {IconTile} from '@/shared/components/common/IconTile/IconTile';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
+import {
+  NavigationProp,
+  useFocusEffect,
+  CommonActions,
+} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
 import {Images} from '@/assets/images';
@@ -24,12 +29,8 @@ import {
   type TaskStackParamList,
   type TabParamList,
 } from '@/navigation/types';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {
-  createGlassCardStyles,
-  createScreenContainerStyles,
-} from '@/shared/utils/screenStyles';
+import {createScreenContainerStyles} from '@/shared/utils/screenStyles';
 import {createCenteredStyle} from '@/shared/utils/commonHelpers';
 import DeleteProfileBottomSheet, {
   type DeleteProfileBottomSheetRef,
@@ -41,14 +42,13 @@ import {
   selectCompanions,
   selectCompanionLoading,
 } from '@/features/companion/selectors';
-import {deleteCompanion, updateCompanionProfile} from '@/features/companion/thunks';
+import {
+  deleteCompanion,
+  updateCompanionProfile,
+} from '@/features/companion/thunks';
 import {setSelectedCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import type {Companion} from '@/features/companion/types';
-import {selectAuthUser} from '@/features/auth/selectors';
-import {selectLinkedBusinesses} from '@/features/linkedBusinesses/selectors';
-import {selectTasksByCompanion} from '@/features/tasks/selectors';
-import {selectExpenseSummaryByCompanion} from '@/features/expenses';
 import {selectCoParents} from '@/features/coParent/selectors';
 
 // Profile Image Picker
@@ -58,10 +58,58 @@ import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImag
 type ProfileSection = {
   id: string;
   title: string;
-  status: 'Complete' | 'Pending';
 };
 
-const SECTION_TEMPLATES: Omit<ProfileSection, 'status'>[] = [
+// Per-tile visual language taken from the "Companion profile hub" handoff:
+// an Ionicon glyph on a tinted rounded-square, cycling the warm-bone accent
+// surfaces (blue / violet / amber / green / pink) exactly as the design does.
+type SectionVisual = {
+  icon: string;
+  bg: keyof Theme['colors'];
+  ink: keyof Theme['colors'];
+};
+
+const SECTION_VISUALS: Record<string, SectionVisual> = {
+  overview: {icon: 'reader-outline', bg: 'blueSoft', ink: 'blueText'},
+  parent: {
+    icon: 'person-outline',
+    bg: 'avatarVioletBg',
+    ink: 'avatarVioletInk',
+  },
+  documents: {
+    icon: 'folder-open-outline',
+    bg: 'avatarAmberBg',
+    ink: 'avatarAmberInk',
+  },
+  hospital: {icon: 'business-outline', bg: 'blueSoft', ink: 'blueText'},
+  boarder: {icon: 'bed-outline', bg: 'avatarGreenBg', ink: 'avatarGreenInk'},
+  breeder: {
+    icon: 'ribbon-outline',
+    bg: 'avatarVioletBg',
+    ink: 'avatarVioletInk',
+  },
+  groomer: {icon: 'cut-outline', bg: 'pinkGlow', ink: 'pink'},
+  expense: {icon: 'wallet-outline', bg: 'avatarGreenBg', ink: 'avatarGreenInk'},
+  health_tasks: {icon: 'medkit-outline', bg: 'blueSoft', ink: 'blueText'},
+  hygiene_tasks: {
+    icon: 'sparkles-outline',
+    bg: 'avatarVioletBg',
+    ink: 'avatarVioletInk',
+  },
+  dietary_plan: {
+    icon: 'nutrition-outline',
+    bg: 'avatarAmberBg',
+    ink: 'avatarAmberInk',
+  },
+  custom_tasks: {
+    icon: 'checkbox-outline',
+    bg: 'avatarGreenBg',
+    ink: 'avatarGreenInk',
+  },
+  co_parent: {icon: 'people-outline', bg: 'pinkGlow', ink: 'pink'},
+};
+
+const SECTION_TEMPLATES: ProfileSection[] = [
   {id: 'overview', title: 'Overview'},
   {id: 'parent', title: 'Parent'},
   {id: 'documents', title: 'Documents'},
@@ -69,12 +117,12 @@ const SECTION_TEMPLATES: Omit<ProfileSection, 'status'>[] = [
   {id: 'boarder', title: 'Boarder'},
   {id: 'breeder', title: 'Breeder'},
   {id: 'groomer', title: 'Groomer'},
-  {id: 'expense', title: 'Expense'},
+  {id: 'expense', title: 'Expenses'},
   {id: 'health_tasks', title: 'Health tasks'},
   {id: 'hygiene_tasks', title: 'Hygiene tasks'},
-  {id: 'dietary_plan', title: 'Dietary plan tasks'},
+  {id: 'dietary_plan', title: 'Dietary plans'},
   {id: 'custom_tasks', title: 'Custom tasks'},
-  {id: 'co_parent', title: 'Co-Parent (Optional)'},
+  {id: 'co_parent', title: 'Co-parents'},
 ];
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ProfileOverview'>;
@@ -84,17 +132,27 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
-  const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
-  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
-  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const isDeleteSheetOpenRef = React.useRef(false);
+  const accessMap = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? {},
+  );
+  const defaultAccess = useSelector(
+    (state: RootState) => state.coParent?.defaultAccess ?? null,
+  );
+  const globalRole = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedRole,
+  );
   const accessForCompanion = companionId
-    ? accessMap[companionId] ?? defaultAccess
+    ? (accessMap[companionId] ?? defaultAccess)
     : defaultAccess;
-  const isPrimaryParent = (accessForCompanion?.role ?? globalRole ?? '').toUpperCase().includes('PRIMARY');
+  const isPrimaryParent = (accessForCompanion?.role ?? globalRole ?? '')
+    .toUpperCase()
+    .includes('PRIMARY');
 
   // Profile image picker ref
-  const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
+  const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(
+    null,
+  );
 
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
@@ -108,98 +166,26 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [allCompanions, companionId],
   );
 
-  // Get data for status calculations
-  const authUser = useSelector(selectAuthUser);
-  const linkedBusinesses = useSelector(selectLinkedBusinesses);
-  const documents = useSelector((state: RootState) => state.documents?.documents ?? []);
-  const tasksSelector = React.useMemo(() => selectTasksByCompanion(companionId), [companionId]);
-  const tasks = useSelector(tasksSelector);
-  const expenseSummarySelector = React.useMemo(
-    () => selectExpenseSummaryByCompanion(companionId),
-    [companionId],
-  );
-  const expenseSummary = useSelector(expenseSummarySelector);
   const coParents = useSelector(selectCoParents);
 
-  // Helper functions to calculate individual section statuses
-  const isParentComplete = React.useCallback((parentUser: typeof authUser): boolean => {
-    if (!parentUser) return false;
-    const hasBasicInfo = !!(parentUser.firstName && parentUser.email);
-    const hasAddress = !!(
-      parentUser.address?.addressLine ||
-      parentUser.address?.city ||
-      parentUser.address?.stateProvince ||
-      parentUser.address?.postalCode ||
-      parentUser.address?.country
-    );
-    const filledFields = [hasAddress, !!parentUser.phone, !!parentUser.dateOfBirth, !!parentUser.currency].filter(Boolean).length;
-    return hasBasicInfo && filledFields >= 2;
-  }, []);
+  // Small stacked avatars shown on the Co-parents tile (design shows up to two).
+  // Derived defensively from the already-selected co-parent list.
+  const coParentAvatars = React.useMemo(
+    () =>
+      (coParents ?? []).slice(0, 2).map((cp, index) => {
+        const initials =
+          `${cp?.firstName?.charAt(0) ?? ''}${cp?.lastName?.charAt(0) ?? ''}`.toUpperCase() ||
+          (cp?.email?.charAt(0)?.toUpperCase() ?? '?');
+        return {key: cp?.id ?? `co-parent-${index}`, initials, index};
+      }),
+    [coParents],
+  );
 
-  const isBusinessCategoryComplete = React.useCallback((category: string): boolean => {
-    return linkedBusinesses.some(b => b.companionId === companionId && b.category === category);
-  }, [linkedBusinesses, companionId]);
-
-  const isTaskCategoryComplete = React.useCallback((sectionId: string): boolean => {
-    const categoryMap: Record<string, string> = {
-      health_tasks: 'health',
-      hygiene_tasks: 'hygiene',
-      dietary_plan: 'dietary',
-      custom_tasks: 'custom',
-    };
-    const category = categoryMap[sectionId];
-    return tasks.some(task => task.category === category);
-  }, [tasks]);
-
-  const isCoParentComplete = React.useCallback((): boolean => {
-    const userEmail = authUser?.email?.toLowerCase().trim();
-    return coParents.some(cp => {
-      const cpEmail = cp.email?.toLowerCase().trim();
-      return cpEmail && userEmail && cpEmail !== userEmail;
-    });
-  }, [coParents, authUser]);
-
-  // Calculate section statuses dynamically
-  const sections: ProfileSection[] = React.useMemo(() => {
-    const calculateStatus = (sectionId: string): 'Complete' | 'Pending' => {
-      switch (sectionId) {
-        case 'overview':
-          return 'Complete';
-
-        case 'parent':
-          return isParentComplete(authUser) ? 'Complete' : 'Pending';
-
-        case 'documents':
-          return documents.some(doc => doc.companionId === companionId) ? 'Complete' : 'Pending';
-
-        case 'hospital':
-        case 'boarder':
-        case 'breeder':
-        case 'groomer':
-          return isBusinessCategoryComplete(sectionId) ? 'Complete' : 'Pending';
-
-        case 'expense':
-          return expenseSummary && expenseSummary.total > 0 ? 'Complete' : 'Pending';
-
-        case 'health_tasks':
-        case 'hygiene_tasks':
-        case 'dietary_plan':
-        case 'custom_tasks':
-          return isTaskCategoryComplete(sectionId) ? 'Complete' : 'Pending';
-
-        case 'co_parent':
-          return isCoParentComplete() ? 'Complete' : 'Pending';
-
-        default:
-          return 'Pending';
-      }
-    };
-
-    return SECTION_TEMPLATES.map(template => ({
-      ...template,
-      status: calculateStatus(template.id),
-    }));
-  }, [authUser, documents, companionId, expenseSummary, isParentComplete, isBusinessCategoryComplete, isTaskCategoryComplete, isCoParentComplete]);
+  // The profile hub is a flat grid of tinted icon tiles (Overview, Parent,
+  // Documents, …, Co-parents). The warm-bone design intentionally carries no
+  // per-tile completion affordance, so the tiles render straight from the
+  // static template list.
+  const sections = SECTION_TEMPLATES;
 
   const showPermissionToast = React.useCallback((label: string) => {
     const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
@@ -211,7 +197,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }, []);
 
   const canAccessFeature = React.useCallback(
-    (permission: keyof NonNullable<typeof accessForCompanion>['permissions']) => {
+    (
+      permission: keyof NonNullable<typeof accessForCompanion>['permissions'],
+    ) => {
       if (isPrimaryParent) {
         return true;
       }
@@ -224,7 +212,10 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   );
 
   const guardFeature = React.useCallback(
-    (permission: keyof NonNullable<typeof accessForCompanion>['permissions'], label: string) => {
+    (
+      permission: keyof NonNullable<typeof accessForCompanion>['permissions'],
+      label: string,
+    ) => {
       if (!canAccessFeature(permission)) {
         showPermissionToast(label);
         return false;
@@ -234,7 +225,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [canAccessFeature, showPermissionToast],
   );
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (companionId) {
       dispatch(setSelectedCompanion(companionId));
     }
@@ -243,7 +234,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   // When returning to this screen, reset the Tasks tab stack to its root
   useFocusEffect(
     React.useCallback(() => {
-      const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+      const tabNavigation =
+        navigation.getParent<NavigationProp<TabParamList>>();
       try {
         const tabState = tabNavigation?.getState();
         const tasksRoute: any = tabState?.routes?.find(r => r.name === 'Tasks');
@@ -263,7 +255,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         // no-op: if state isn't available yet, nothing to reset
       }
       return undefined;
-    }, [navigation])
+    }, [navigation]),
   );
 
   // Helper to show error alerts
@@ -296,10 +288,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
         console.log('[ProfileOverview] Profile image updated successfully');
       } catch (error) {
-        console.error('[ProfileOverview] Failed to update profile image:', error);
+        console.error(
+          '[ProfileOverview] Failed to update profile image:',
+          error,
+        );
         showErrorAlert(
           'Image Update Failed',
-          'Failed to update profile image. Please try again.'
+          'Failed to update profile image. Please try again.',
         );
       }
     },
@@ -311,8 +306,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     category: TaskStackParamList['TasksList']['category'],
   ) => {
     dispatch(setSelectedCompanion(companionId));
-    const tabNavigation =
-      navigation.getParent<NavigationProp<TabParamList>>();
+    const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
     tabNavigation?.navigate('Tasks', {
       screen: 'TasksList',
       params: {category},
@@ -346,7 +340,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           return;
         }
         dispatch(setSelectedCompanion(companionId));
-        navigation.getParent()?.navigate('Documents', {screen: 'DocumentsMain'});
+        navigation
+          .getParent()
+          ?.navigate('Documents', {screen: 'DocumentsMain'});
         break;
       }
       case 'hospital':
@@ -398,6 +394,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       case 'co_parent':
         navigation.navigate('CoParents');
         break;
+      /* istanbul ignore next -- unreachable: every rendered section id has an explicit case */
       default:
         break;
     }
@@ -410,21 +407,24 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   // Handle Android back button for delete bottom sheet
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isDeleteSheetOpen) {
-        deleteSheetRef.current?.close();
-        setIsDeleteSheetOpen(false);
-        return true;
-      }
-      return false;
-    });
+  useReactEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (isDeleteSheetOpenRef.current) {
+          deleteSheetRef.current?.close();
+          isDeleteSheetOpenRef.current = false;
+          return true;
+        }
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
-  }, [isDeleteSheetOpen]);
+  }, []);
 
   const handleDeletePress = React.useCallback(() => {
-    setIsDeleteSheetOpen(true);
+    isDeleteSheetOpenRef.current = true;
     deleteSheetRef.current?.open();
   }, []);
 
@@ -439,26 +439,29 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
       if (deleteCompanion.fulfilled.match(resultAction)) {
         console.log('[ProfileOverview] Companion deleted successfully');
-        setIsDeleteSheetOpen(false);
+        isDeleteSheetOpenRef.current = false;
         navigation.goBack();
       } else {
-        console.error('[ProfileOverview] Failed to delete companion:', resultAction.payload);
+        console.error(
+          '[ProfileOverview] Failed to delete companion:',
+          resultAction.payload,
+        );
         showErrorAlert(
           'Delete Failed',
-          'Failed to delete companion profile. Please try again.'
+          'Failed to delete companion profile. Please try again.',
         );
       }
     } catch (error) {
       console.error('[ProfileOverview] Error deleting companion:', error);
       showErrorAlert(
         'Delete Failed',
-        'An error occurred while deleting the companion profile.'
+        'An error occurred while deleting the companion profile.',
       );
     }
   }, [companion?.id, dispatch, navigation, parentId, showErrorAlert]);
 
   const handleDeleteCancel = React.useCallback(() => {
-    setIsDeleteSheetOpen(false);
+    isDeleteSheetOpenRef.current = false;
   }, []);
 
   if (!companion) {
@@ -495,55 +498,81 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           <ScrollView
             contentContainerStyle={[styles.content, contentPaddingStyle]}
             showsVerticalScrollIndicator={false}>
-        <CompanionProfileHeader
-          name={companion.name}
-          breedName={companion.breed?.breedName}
-          profileImage={companion.profileImage ?? undefined}
-          pickerRef={profileImagePickerRef}
-          onImageSelected={handleProfileImageChange}
-        />
+            <CompanionProfileHeader
+              name={companion.name}
+              breedName={companion.breed?.breedName}
+              profileImage={companion.profileImage ?? undefined}
+              pickerRef={profileImagePickerRef}
+              onImageSelected={handleProfileImageChange}
+            />
 
-        {/* Only menu list inside glass card */}
-      <View style={styles.glassShadowWrapper}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          tintColor={theme.colors.white}
-          style={styles.glassContainer}
-          fallbackStyle={styles.glassFallback}>
-          <View style={styles.listContainer}>
-            {sections.map((item, index) => (
-              <TouchableOpacity key={item.id} style={styles.row} activeOpacity={0.7}    onPress={() => handleSectionPress(item.id)}>
-                <Text style={styles.rowTitle}>{item.title}</Text>
-                <View style={styles.rowRight}>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      item.status === 'Complete'
-                        ? styles.completeBadge
-                        : styles.pendingBadge,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.statusText,
-                        item.status === 'Complete'
-                          ? styles.completeText
-                          : styles.pendingText,
-                      ]}>
-                      {item.status}
+            {/* Two-column grid of tinted icon tiles (Companion profile hub) */}
+            <View style={styles.grid}>
+              {sections.map(item => {
+                const visual = SECTION_VISUALS[item.id];
+                const isCoParent = item.id === 'co_parent';
+                return (
+                  <PressableOpacity
+                    key={item.id}
+                    style={[styles.tile, isCoParent && styles.tileWide]}
+                    activeOpacity={0.7}
+                    onPress={() => handleSectionPress(item.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.title}>
+                    <IconTile
+                      size={38}
+                      style={styles.tileIcon}
+                      backgroundColor={theme.colors[visual.bg]}
+                      iconNode={
+                        <Ionicons
+                          name={visual.icon}
+                          size={18}
+                          color={theme.colors[visual.ink]}
+                        />
+                      }
+                    />
+                    <Text style={styles.tileLabel} numberOfLines={1}>
+                      {item.title}
                     </Text>
-                  </View>
-                  <Image source={Images.rightArrow} style={styles.rightArrow} />
-                </View>
-                {/* Add separator except for last item */}
-                {index !== sections.length - 1 && (
-                  <View style={styles.separator} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-          </LiquidGlassCard>
-        </View>
+                    {isCoParent && (
+                      <>
+                        {coParentAvatars.length > 0 && (
+                          <View style={styles.coParentAvatars}>
+                            {coParentAvatars.map(avatar => (
+                              <View
+                                key={avatar.key}
+                                style={[
+                                  styles.coParentAvatar,
+                                  avatar.index % 2 === 0
+                                    ? styles.coParentAvatarViolet
+                                    : styles.coParentAvatarGreen,
+                                  avatar.index > 0 &&
+                                    styles.coParentAvatarStack,
+                                ]}>
+                                <Text
+                                  style={[
+                                    styles.coParentInitials,
+                                    avatar.index % 2 === 0
+                                      ? styles.coParentInitialsViolet
+                                      : styles.coParentInitialsGreen,
+                                  ]}>
+                                  {avatar.initials}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                        <Ionicons
+                          name="chevron-forward"
+                          size={15}
+                          color={theme.colors.inkFaint2}
+                        />
+                      </>
+                    )}
+                  </PressableOpacity>
+                );
+              })}
+            </View>
           </ScrollView>
         )}
       </LiquidGlassHeaderScreen>
@@ -558,84 +587,77 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     ...createScreenContainerStyles(theme),
     ...createCenteredStyle(theme),
     emptyStateText: {
       ...theme.typography.body,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     content: {
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['10'],
     },
-    ...createGlassCardStyles(theme),
-    listContainer: {
-      gap: theme.spacing['1'],
-    },
-    row: {
+    grid: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['3'],
+      flexWrap: 'wrap',
+      gap: theme.spacing['2.5'],
+      marginTop: theme.spacing['1'],
     },
-    rowTitle: {
-      fontFamily: theme.typography.body.fontFamily,
-      fontSize: 17,
-      lineHeight: 22,
-      fontWeight: '400',
-      color: theme.colors.secondary,
-      flex: 1,
-    },
-    rowRight: {
+    tile: {
+      flexBasis: '47%',
+      flexGrow: 1,
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing['3'],
-    },
-    separator: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      borderBottomWidth: RNStyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-    },
-    statusBadge: {
-      width: 110,
-      height: 40,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 16,
-      justifyContent: 'center',
       alignItems: 'center',
       gap: theme.spacing['2.5'],
-      backgroundColor: theme.colors.success50 ?? theme.colors.successSurface,
+      padding: theme.spacing['3.5'],
+      backgroundColor: theme.colors.screen,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.cardSmall,
     },
-    pendingBadge: {
-      backgroundColor: theme.colors.warningSurface ?? theme.colors.warning + '20',
+    tileWide: {
+      flexBasis: '100%',
     },
-    completeBadge: {
-      backgroundColor: theme.colors.success50 ?? theme.colors.successSurface,
+    tileIcon: {
+      borderRadius: theme.spacing['3'],
     },
-    statusText: {
-      fontFamily: theme.typography.body12.fontFamily,
-      fontSize: 13,
-      lineHeight: 20,
-      fontWeight: '500',
-      textAlign: 'center',
-      color: theme.colors.success300 ?? theme.colors.success,
+    tileLabel: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.inkBody,
+      flex: 1,
     },
-    pendingText: {
-      color: theme.colors.warning,
+    coParentAvatars: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
-    completeText: {
-      color: theme.colors.success,
+    coParentAvatar: {
+      width: theme.spacing['7'],
+      height: theme.spacing['7'],
+      borderRadius: theme.borderRadius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: theme.colors.screen,
     },
-    rightArrow: {
-      width: theme.spacing['4'],
-      height: theme.spacing['4'],
-      resizeMode: 'contain',
+    coParentAvatarStack: {
+      marginLeft: -theme.spacing['2'],
+    },
+    coParentAvatarViolet: {
+      backgroundColor: theme.colors.avatarVioletBg,
+    },
+    coParentAvatarGreen: {
+      backgroundColor: theme.colors.avatarGreenBg,
+    },
+    coParentInitials: {
+      ...theme.typography.captionBold,
+      fontSize: 10.5,
+    },
+    coParentInitialsViolet: {
+      color: theme.colors.avatarVioletInk,
+    },
+    coParentInitialsGreen: {
+      color: theme.colors.avatarGreenInk,
     },
   });

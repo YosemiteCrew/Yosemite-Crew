@@ -4,16 +4,16 @@ Current test version: **0.1.0-beta.1** (`apps/desktop/package.json`).
 
 This produces installable builds for testers on **macOS** and **Windows**.
 These test builds are **unsigned / not notarized** unless signing secrets are
-configured — testers must do a one-time "open anyway" (see below).
+configured - testers must do a one-time "open anyway" (see below).
 
 ---
 
 ## Recommended: build both platforms via GitHub Actions (hosted)
 
 The `.github/workflows/desktop-release.yml` workflow builds macOS **and**
-Windows on their native runners and uploads artifacts (+ the electron-updater
-feed files) to a GitHub Release. This is the only reliable way to produce a
-real Windows installer.
+Windows on their native runners and uploads artifacts. For tag pushes
+(`desktop-v*`) it publishes the signed installers to a GitHub Release. For
+manual runs it creates a draft GitHub Release with the same assets.
 
 ```sh
 # from repo root, on a branch the workflow can see
@@ -23,16 +23,16 @@ git push origin desktop-v0.1.0-beta.1
 ```
 
 The workflow runs `lint → type-check → test → security:pressure`, then
-`electron-builder --mac --win --publish always`, creating a **draft** GitHub
-Release with:
+`electron-builder --mac --win --publish always` on tag pushes, creating a
+GitHub Release with:
 
 - macOS: `Yosemite Crew PIMS-0.1.0-beta.1-mac-arm64.dmg` + `.zip`
 - Windows: `Yosemite Crew PIMS-0.1.0-beta.1-win-x64-setup.exe` (NSIS) + portable `.exe`
 - `latest-mac.yml` / `latest.yml` (auto-update feeds)
 
-Review the draft Release, mark it **Pre-release**, and share the download links
-with testers. Signing/notarization happen automatically **if** these repo
-secrets are set (unset = unsigned build, still works for testers):
+For manual runs, review the draft Release and share the download links with
+testers. Signing/notarization happen automatically **if** these repo secrets
+are set (unset = unsigned build, still works for testers):
 `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`,
 `APPLE_TEAM_ID`, `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`.
 
@@ -40,7 +40,7 @@ secrets are set (unset = unsigned build, still works for testers):
 
 ## Local: build the macOS installer now (for quick tester hand-off)
 
-Double-click **`build-release-mac.command`** (in `apps/desktop/`), or:
+From the monorepo root:
 
 ```sh
 pnpm --dir apps/desktop run desktop:dist:mac
@@ -51,7 +51,7 @@ Output in `apps/desktop/dist/`:
 - `Yosemite Crew PIMS-0.1.0-beta.1-mac-arm64.dmg` ← share this
 - `Yosemite Crew PIMS-0.1.0-beta.1-mac-arm64.zip`
 
-> Windows cannot be reliably cross-built from macOS — use the GitHub Actions
+> Windows cannot be reliably cross-built from macOS - use the GitHub Actions
 > path above for the Windows installer.
 
 ---
@@ -64,7 +64,7 @@ Output in `apps/desktop/dist/`:
 2. First launch: right-click the app → **Open** → **Open** (bypasses Gatekeeper
    for the unsigned beta). After that it opens normally.
 3. Approve the keychain prompt(s) on first launch (cookie + audit-log encryption)
-   — click **Always Allow**.
+   - click **Always Allow**.
 
 **Windows (unsigned beta):**
 
@@ -93,6 +93,6 @@ Diagnostics` bundle if something breaks.
 - [ ] `version` bumped (`0.1.0-beta.1`) and committed.
 - [ ] Gate green: `pnpm --dir apps/desktop run type-check && lint && test && security:pressure`.
 - [ ] App launches from a clean `dist/` build; welcome + sign-in + tabs work.
-- [ ] Tag pushed (`desktop-v0.1.0-beta.1`) → Actions build succeeds → draft Release.
+- [ ] Tag pushed (`desktop-v0.1.0-beta.1`) → Actions build succeeds → GitHub Release.
 - [ ] Release marked **Pre-release**; install instructions shared with testers.
 - [ ] (Optional) signing secrets configured to avoid the "open anyway" step.

@@ -3,11 +3,12 @@ import {render, fireEvent} from '@testing-library/react-native';
 import {mockTheme} from '../../../../setup/mockTheme';
 import {PackageAccordion} from '../../../../../src/features/appointments/components/PackageAccordion/PackageAccordion';
 import type {VetPackage} from '../../../../../src/features/appointments/types';
+import {useTheme} from '@/hooks';
 
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
 }));
 
 jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
@@ -20,11 +21,13 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => ({
-    LiquidGlassButton: ({title, onPress}: any) => {
+    LiquidGlassButton: ({title, onPress, textStyle}: any) => {
       const {TouchableOpacity, Text} = require('react-native');
       return (
         <TouchableOpacity testID="select-package-btn" onPress={onPress}>
-          <Text>{title}</Text>
+          <Text testID="select-package-btn-text" style={textStyle}>
+            {title}
+          </Text>
         </TouchableOpacity>
       );
     },
@@ -85,6 +88,7 @@ const onSelectPackage = jest.fn();
 describe('PackageAccordion', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme, isDark: false});
   });
 
   it('renders nothing when packages array is empty', () => {
@@ -142,6 +146,23 @@ describe('PackageAccordion', () => {
       />,
     );
     expect(getAllByText('$ 3400.00').length).toBeGreaterThan(0);
+  });
+
+  it('applies the pressed header style while the header is being pressed', () => {
+    const {UNSAFE_root} = render(
+      <PackageAccordion
+        title="Packages"
+        packages={[mockPackageWithItems]}
+        onSelectPackage={onSelectPackage}
+      />,
+    );
+    const header = UNSAFE_root.find(
+      (node: any) => typeof node.props.style === 'function',
+    );
+    const flattened = [header.props.style({pressed: true})].flat(Infinity);
+    expect(flattened.some((style: any) => style && style.opacity === 0.7)).toBe(
+      true,
+    );
   });
 
   describe('default expanded state', () => {
@@ -308,7 +329,66 @@ describe('PackageAccordion', () => {
       expect(onSelectPackage).toHaveBeenCalledWith(
         'pkg-001',
         'Canine Radiographic Assessment',
+        undefined,
       );
+    });
+  });
+
+  describe('Select package button CTA color', () => {
+    it('applies the light-theme cta text color', () => {
+      const {getByTestId} = render(
+        <PackageAccordion
+          title="Packages"
+          packages={[mockPackageWithItems]}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getByTestId('select-package-btn-text').props.style).toEqual(
+        expect.objectContaining({color: mockTheme.colors.ctaText}),
+      );
+    });
+
+    it('applies the dark-theme cta text color', () => {
+      const darkCtaText = '#201C18';
+      (useTheme as jest.Mock).mockReturnValue({
+        theme: {
+          ...mockTheme,
+          colors: {...mockTheme.colors, ctaText: darkCtaText},
+        },
+        isDark: true,
+      });
+
+      const {getByTestId} = render(
+        <PackageAccordion
+          title="Packages"
+          packages={[mockPackageWithItems]}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getByTestId('select-package-btn-text').props.style).toEqual(
+        expect.objectContaining({color: darkCtaText}),
+      );
+    });
+  });
+
+  describe('Appointment kind badges', () => {
+    it('shows the known label for a recognized kind and falls back to the raw value for an unrecognized one', () => {
+      const packageWithKinds: VetPackage = {
+        ...mockPackageWithItems,
+        id: 'pkg-kinds',
+        appointmentKinds: ['INPATIENT', 'SURGERY'] as any,
+      };
+
+      const {getByText} = render(
+        <PackageAccordion
+          title="Packages"
+          packages={[packageWithKinds]}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+
+      expect(getByText('Inpatient')).toBeTruthy();
+      expect(getByText('SURGERY')).toBeTruthy();
     });
   });
 });

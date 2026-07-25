@@ -4,7 +4,11 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Input} from '@/shared/components/common/Input/Input';
 import {themeReducer} from '@/features/theme';
-import {TextInput, Text, TouchableOpacity, View} from 'react-native';
+import {TextInput, Text, Pressable, View, Keyboard} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; findByType/findAllByType
+// must match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 describe('Input', () => {
   const createTestStore = () => {
@@ -54,9 +58,7 @@ describe('Input', () => {
     const onChangeText = jest.fn();
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        wrap(<Input onChangeText={onChangeText} />)
-      );
+      tree = TestRenderer.create(wrap(<Input onChangeText={onChangeText} />));
     });
 
     const textInput = tree.root.findByType(TextInput);
@@ -97,17 +99,54 @@ describe('Input', () => {
     expect(onBlur).toHaveBeenCalled();
   });
 
+  it('should call onSubmitEditing and dismiss the keyboard for a single-line input', () => {
+    const onSubmitEditing = jest.fn();
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation();
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        wrap(<Input onSubmitEditing={onSubmitEditing} />),
+      );
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    const event = {nativeEvent: {text: 'done'}};
+    TestRenderer.act(() => {
+      textInput.props.onSubmitEditing(event);
+    });
+
+    expect(onSubmitEditing).toHaveBeenCalledWith(event);
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
+  });
+
+  it('should not dismiss the keyboard on submit for a multiline input', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation();
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input multiline />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    TestRenderer.act(() => {
+      textInput.props.onSubmitEditing({nativeEvent: {text: 'line'}});
+    });
+
+    expect(dismissSpy).not.toHaveBeenCalled();
+    dismissSpy.mockRestore();
+  });
+
   it('should render error message when error prop is provided', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input error="This field is required" />)
+        wrap(<Input error="This field is required" />),
       );
     });
 
     const texts = tree.root.findAllByType(Text);
     const hasError = texts.some(
-      text => text.props.children === 'This field is required'
+      text => text.props.children === 'This field is required',
     );
     expect(hasError).toBe(true);
   });
@@ -140,11 +179,11 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />)
+        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />),
       );
     });
 
-    const touchables = tree.root.findAllByType(TouchableOpacity);
+    const touchables = tree.root.findAllByType(PressableType);
     expect(touchables.length).toBeGreaterThan(0);
   });
 
@@ -154,11 +193,11 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />)
+        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />),
       );
     });
 
-    const touchable = tree.root.findByType(TouchableOpacity);
+    const touchable = tree.root.findByType(PressableType);
     TestRenderer.act(() => {
       touchable.props.onPress();
     });
@@ -181,9 +220,7 @@ describe('Input', () => {
     const customStyle = {marginTop: 20};
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        wrap(<Input containerStyle={customStyle} />)
-      );
+      tree = TestRenderer.create(wrap(<Input containerStyle={customStyle} />));
     });
 
     const views = tree.root.findAllByType(View);
@@ -192,7 +229,7 @@ describe('Input', () => {
         view.props.style &&
         (Array.isArray(view.props.style)
           ? view.props.style.some((s: any) => s && s.marginTop === 20)
-          : view.props.style.marginTop === 20)
+          : view.props.style.marginTop === 20),
     );
     expect(hasCustomStyle).toBe(true);
   });
@@ -208,9 +245,7 @@ describe('Input', () => {
     const styleArray = Array.isArray(textInput.props.style)
       ? textInput.props.style
       : [textInput.props.style];
-    const hasCustomStyle = styleArray.some(
-      (s: any) => s && s.fontSize === 18
-    );
+    const hasCustomStyle = styleArray.some((s: any) => s && s.fontSize === 18);
     expect(hasCustomStyle).toBe(true);
   });
 
@@ -224,8 +259,8 @@ describe('Input', () => {
             keyboardType="email-address"
             autoCapitalize="none"
             secureTextEntry
-          />
-        )
+          />,
+        ),
       );
     });
 
@@ -306,12 +341,59 @@ describe('Input', () => {
     expect(textInput.props.value).toBe('updated value');
   });
 
+  it('should not recompute hasValue when the value prop changes but stays non-empty', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input value="abc" />));
+    });
+
+    TestRenderer.act(() => {
+      tree.update(wrap(<Input value="xyz" />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    expect(textInput.props.value).toBe('xyz');
+  });
+
+  it('should default the keyboard appearance to dark when the system color scheme is dark', () => {
+    const ReactNative = require('react-native');
+    const colorSchemeSpy = jest
+      .spyOn(ReactNative, 'useColorScheme')
+      .mockReturnValue('dark');
+
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    expect(textInput.props.keyboardAppearance).toBe('dark');
+
+    colorSchemeSpy.mockRestore();
+  });
+
+  it('should render with lineHeight preserved on Android', () => {
+    const {Platform} = require('react-native');
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input value="abc" />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    expect(textInput).toBeTruthy();
+
+    Platform.OS = originalOS;
+  });
+
   it('should apply custom labelStyle', () => {
     const customStyle = {color: 'red'};
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input label="Test" labelStyle={customStyle} />)
+        wrap(<Input label="Test" labelStyle={customStyle} />),
       );
     });
 
@@ -323,14 +405,12 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input error="Error" errorStyle={customStyle} />)
+        wrap(<Input error="Error" errorStyle={customStyle} />),
       );
     });
 
     const texts = tree.root.findAllByType(Text);
-    const errorText = texts.find(
-      text => text.props.children === 'Error'
-    );
+    const errorText = texts.find(text => text.props.children === 'Error');
     expect(errorText).toBeTruthy();
   });
 
