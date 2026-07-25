@@ -5,6 +5,15 @@ import { FinanceEventService } from "../../src/services/finance/events";
 import { StripeController } from "../../src/controllers/web/stripe.controller";
 import { InvoiceService } from "../../src/services/invoice.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
+import {
+  FinanceDiscountSettingsError,
+  FinanceDiscountSettingsService,
+} from "../../src/services/finance/discount-settings";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "../../src/services/appointment.prisma.service";
+import { StripeService } from "../../src/services/stripe.service";
 import { Request, Response } from "express";
 
 jest.mock("../../src/services/finance/payment", () => ({
@@ -13,6 +22,13 @@ jest.mock("../../src/services/finance/payment", () => ({
     createPaymentIntentForInvoice: jest.fn(),
     recordInvoicePayment: jest.fn(),
     refundPaymentById: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/stripe.service", () => ({
+  __esModule: true,
+  StripeService: {
+    retrievePaymentIntent: jest.fn(),
   },
 }));
 
@@ -41,6 +57,15 @@ jest.mock("../../src/services/invoice.service", () => ({
     markAppointmentReadyForBilling: jest.fn(),
     reverseAppointmentReadyForBilling: jest.fn(),
   },
+  InvoiceServiceError: class InvoiceServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode = 400,
+    ) {
+      super(message);
+      this.name = "InvoiceServiceError";
+    }
+  },
 }));
 
 jest.mock("../../src/services/finance/subscription", () => ({
@@ -67,6 +92,40 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
   },
 }));
 
+jest.mock("../../src/services/finance/discount-settings", () => ({
+  __esModule: true,
+  FinanceDiscountSettingsError: class FinanceDiscountSettingsError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "FinanceDiscountSettingsError";
+    }
+  },
+  FinanceDiscountSettingsService: {
+    getForOrganisation: jest.fn(),
+    updateForOrganisation: jest.fn(),
+    getMaxOverallDiscountPercent: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/appointment.prisma.service", () => ({
+  __esModule: true,
+  AppointmentPrismaService: {
+    getById: jest.fn(),
+  },
+  AppointmentPrismaServiceError: class AppointmentPrismaServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode = 400,
+    ) {
+      super(message);
+      this.name = "AppointmentPrismaServiceError";
+    }
+  },
+}));
+
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
   default: {
@@ -77,6 +136,139 @@ jest.mock("src/utils/logger", () => ({
 describe("FinanceController", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  describe("discount settings", () => {
+    const buildRes = () =>
+      ({
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      }) as unknown as Response;
+
+    it("returns the organisation's configured cap", async () => {
+      (
+        FinanceDiscountSettingsService.getForOrganisation as jest.Mock
+      ).mockResolvedValueOnce({
+        organisationId: "org_1",
+        maxOverallDiscountPercent: 20,
+      });
+
+      const req = { params: { organisationId: "org_1" } } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.getDiscountSettings(req, res);
+
+      expect(
+        FinanceDiscountSettingsService.getForOrganisation,
+      ).toHaveBeenCalledWith("org_1");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        data: { organisationId: "org_1", maxOverallDiscountPercent: 20 },
+        meta: null,
+        error: null,
+      });
+    });
+
+    it("surfaces a 404 when the organisation does not exist", async () => {
+      (
+        FinanceDiscountSettingsService.getForOrganisation as jest.Mock
+      ).mockRejectedValueOnce(
+        new FinanceDiscountSettingsError("Organisation not found.", 404),
+      );
+
+      const req = { params: { organisationId: "org_x" } } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.getDiscountSettings(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Organisation not found.",
+      });
+    });
+
+    it.each([0, 50, 100])("accepts an in-range cap of %s", async (percent) => {
+      (
+        FinanceDiscountSettingsService.updateForOrganisation as jest.Mock
+      ).mockResolvedValueOnce({
+        organisationId: "org_1",
+        maxOverallDiscountPercent: percent,
+      });
+
+      const req = {
+        params: { organisationId: "org_1" },
+        body: { maxOverallDiscountPercent: percent },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(
+        FinanceDiscountSettingsService.updateForOrganisation,
+      ).toHaveBeenCalledWith("org_1", { maxOverallDiscountPercent: percent });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("accepts null to clear the cap", async () => {
+      (
+        FinanceDiscountSettingsService.updateForOrganisation as jest.Mock
+      ).mockResolvedValueOnce({
+        organisationId: "org_1",
+        maxOverallDiscountPercent: null,
+      });
+
+      const req = {
+        params: { organisationId: "org_1" },
+        body: { maxOverallDiscountPercent: null },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(
+        FinanceDiscountSettingsService.updateForOrganisation,
+      ).toHaveBeenCalledWith("org_1", { maxOverallDiscountPercent: null });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it.each([
+      ["above the range", 101],
+      ["below the range", -1],
+      ["a non-numeric string", "50"],
+      ["a boolean", true],
+      ["NaN", Number.NaN],
+    ])("rejects %s", async (_label, value) => {
+      const req = {
+        params: { organisationId: "org_1" },
+        body: { maxOverallDiscountPercent: value },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid request body",
+      });
+      expect(
+        FinanceDiscountSettingsService.updateForOrganisation,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rejects a missing organisation id", async () => {
+      const req = {
+        params: {},
+        body: { maxOverallDiscountPercent: 10 },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Organisation Id is required",
+      });
+    });
   });
 
   it("creates a provider-aware payment session for Stripe", async () => {
@@ -136,8 +328,13 @@ describe("FinanceController", () => {
       currency: "usd",
     });
 
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce({ parentId: "parent_1" });
+
     const req = {
       params: { invoiceId: "inv_1" },
+      userId: "mobile_user_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -148,10 +345,14 @@ describe("FinanceController", () => {
 
     expect(
       FinancePaymentService.createPaymentIntentForInvoice,
-    ).toHaveBeenCalledWith("inv_1", {
-      collectionMode: "DEPOSIT_THEN_SETTLE",
-      settlementChannel: "DEPOSIT",
-    });
+    ).toHaveBeenCalledWith(
+      "inv_1",
+      { parentId: "parent_1" },
+      {
+        collectionMode: "DEPOSIT_THEN_SETTLE",
+        settlementChannel: "DEPOSIT",
+      },
+    );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
       data: {
@@ -225,6 +426,7 @@ describe("FinanceController", () => {
 
     const req = {
       params: { appointmentId: "appt_1" },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -233,10 +435,10 @@ describe("FinanceController", () => {
 
     await FinanceController.listInvoicesForAppointment(req, res);
 
-    expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith(
-      "appt_1",
-      undefined,
-    );
+    expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith("appt_1", {
+      organisationId: "org_1",
+      parentId: null,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       data: [{ id: "inv_1" }],
@@ -290,7 +492,7 @@ describe("FinanceController", () => {
 
     await FinanceController.listInvoicesForParent(req, res);
 
-    expect(InvoiceService.listForParent).toHaveBeenCalledWith("parent_1");
+    expect(InvoiceService.listForParent).toHaveBeenCalledWith("parent_1", null);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       data: [{ id: "inv_parent" }],
@@ -384,10 +586,9 @@ describe("FinanceController", () => {
 
     await FinanceController.listInvoices(req, res);
 
-    expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith(
-      "appt_1",
-      "org_1",
-    );
+    expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith("appt_1", {
+      organisationId: "org_1",
+    });
     expect(InvoiceService.listForOrganisation).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -404,6 +605,7 @@ describe("FinanceController", () => {
 
     const req = {
       params: { organisationId: "org_1" },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -472,6 +674,12 @@ describe("FinanceController", () => {
   });
 
   it("bootstraps an appointment invoice for mobile seed flows", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce({ parentId: "parent_1" });
+    (AppointmentPrismaService.getById as jest.Mock).mockResolvedValueOnce({
+      id: "appt_1",
+    });
     (InvoiceService.bootstrapForAppointment as jest.Mock).mockResolvedValueOnce(
       {
         id: "inv_seed",
@@ -480,6 +688,7 @@ describe("FinanceController", () => {
 
     const req = {
       params: { appointmentId: "appt_1" },
+      userId: "mobile_user_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -488,6 +697,9 @@ describe("FinanceController", () => {
 
     await FinanceController.bootstrapInvoiceForAppointment(req, res);
 
+    expect(AppointmentPrismaService.getById).toHaveBeenCalledWith("appt_1", {
+      parentId: "parent_1",
+    });
     expect(InvoiceService.bootstrapForAppointment).toHaveBeenCalledWith(
       "appt_1",
     );
@@ -497,6 +709,50 @@ describe("FinanceController", () => {
       meta: null,
       error: null,
     });
+  });
+
+  it("does not seed an invoice for an appointment the mobile caller is not linked to", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce({ parentId: "parent_1" });
+    (AppointmentPrismaService.getById as jest.Mock).mockRejectedValueOnce(
+      new AppointmentPrismaServiceError("Appointment not found", 404),
+    );
+
+    const req = {
+      params: { appointmentId: "appt_of_another_parent" },
+      userId: "mobile_user_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.bootstrapInvoiceForAppointment(req, res);
+
+    expect(InvoiceService.bootstrapForAppointment).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("refuses to seed an invoice when the caller resolves to no parent", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce(null);
+
+    const req = {
+      params: { appointmentId: "appt_1" },
+      userId: "mobile_user_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.bootstrapInvoiceForAppointment(req, res);
+
+    expect(AppointmentPrismaService.getById).not.toHaveBeenCalled();
+    expect(InvoiceService.bootstrapForAppointment).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it("finalizes invoice tax snapshots", async () => {
@@ -695,6 +951,7 @@ describe("FinanceController", () => {
 
     expect(InvoiceService.markAppointmentReadyForBilling).toHaveBeenCalledWith(
       "appt_1",
+      { organisationId: "org_1", actorUserId: undefined },
     );
     expect(FinanceEventService.recordEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -728,7 +985,10 @@ describe("FinanceController", () => {
 
     expect(
       InvoiceService.reverseAppointmentReadyForBilling,
-    ).toHaveBeenCalledWith("appt_1");
+    ).toHaveBeenCalledWith("appt_1", {
+      organisationId: "org_1",
+      actorUserId: undefined,
+    });
     expect(FinanceEventService.recordEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         organisationId: "org_1",
@@ -770,6 +1030,7 @@ describe("FinanceController", () => {
         appointmentId: "appt_1",
         metadata: { reason: "done" },
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -780,6 +1041,7 @@ describe("FinanceController", () => {
 
     expect(InvoiceService.markAppointmentReadyForBilling).toHaveBeenCalledWith(
       "appt_1",
+      { organisationId: "org_1" },
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(
@@ -887,6 +1149,7 @@ describe("FinanceController", () => {
     const req = {
       params: { invoiceId: "inv_void" },
       body: { reason: "entered in error" },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -932,6 +1195,7 @@ describe("FinanceController", () => {
           },
         ],
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -950,8 +1214,127 @@ describe("FinanceController", () => {
           total: 20,
         },
       ],
-      undefined,
+      "org_1",
     );
     expect(res.status).toHaveBeenCalledWith(201);
+  });
+  it("refuses a mobile payment session when the session is not linked to a parent", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce(null);
+
+    const req = {
+      params: { invoiceId: "inv_1" },
+      userId: "mobile_user_unlinked",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createMobileInvoicePaymentSession(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(
+      FinancePaymentService.createPaymentIntentForInvoice,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("passes the caller's own parent id when creating a mobile payment session", async () => {
+    // The invoice id is caller-controlled, so the parent binding is what stops a
+    // mobile user paying against (and reading the secret of) another parent's invoice.
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce({ parentId: "parent_self" });
+    (
+      FinancePaymentService.createPaymentIntentForInvoice as jest.Mock
+    ).mockResolvedValueOnce({ paymentIntentId: "pi_1" });
+
+    const req = {
+      params: { invoiceId: "inv_of_another_parent" },
+      userId: "mobile_user_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createMobileInvoicePaymentSession(req, res);
+
+    expect(
+      FinancePaymentService.createPaymentIntentForInvoice,
+    ).toHaveBeenCalledWith(
+      "inv_of_another_parent",
+      { parentId: "parent_self" },
+      expect.anything(),
+    );
+  });
+
+  it("scopes a mobile payment-intent read to the caller's parent", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce({ parentId: "parent_self" });
+    (StripeService.retrievePaymentIntent as jest.Mock).mockResolvedValueOnce({
+      id: "pi_1",
+    });
+
+    const req = {
+      params: { paymentIntentId: "pi_1" },
+      userId: "mobile_user_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.retrievePaymentIntent(req, res);
+
+    expect(StripeService.retrievePaymentIntent).toHaveBeenCalledWith("pi_1", {
+      organisationId: null,
+      parentId: "parent_self",
+    });
+  });
+
+  it("refuses a mobile invoice read when the session is not linked to a parent", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce(null);
+
+    const req = {
+      params: { invoiceId: "inv_1" },
+      userId: "mobile_user_unlinked",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.getInvoiceById(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(InvoiceService.getById).not.toHaveBeenCalled();
+  });
+
+  it("rejects a visit milestone whose body organisation is not the authorized one", async () => {
+    const req = {
+      params: { visitId: "visit_1" },
+      body: {
+        milestone: "READY_FOR_BILLING",
+        organisationId: "org_victim",
+        appointmentId: "appt_1",
+      },
+      organisationId: "org_attacker",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.recordVisitMilestone(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(
+      InvoiceService.markAppointmentReadyForBilling,
+    ).not.toHaveBeenCalled();
   });
 });

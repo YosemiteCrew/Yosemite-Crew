@@ -4,10 +4,8 @@ import {Provider} from 'react-redux';
 
 import {store} from '@/app/store';
 
-import {
-  AppNavigator,
-  _resetOnboardingStoreForTesting,
-} from '@/navigation/AppNavigator';
+import {AppNavigator} from '@/navigation/AppNavigator';
+import {_resetOnboardingStoreForTesting} from '@/navigation/onboardingStore';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DeviceEventEmitter} from 'react-native';
@@ -251,7 +249,7 @@ describe('AppNavigator integration', () => {
       userId: 'pending-user',
       email: 'pending@example.com',
       profileToken: 'pending-token',
-      tokens: {idToken: 'id', accessToken: 'access', provider: 'amplify'},
+      tokens: {idToken: 'id', accessToken: 'access', provider: 'supertokens'},
       initialAttributes: {},
     };
 

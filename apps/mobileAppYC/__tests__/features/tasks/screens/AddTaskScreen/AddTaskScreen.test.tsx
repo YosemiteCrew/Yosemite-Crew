@@ -190,11 +190,12 @@ jest.mock(
 jest.mock('../../../../../src/features/tasks/components/form', () => {
   const {View, Text, TouchableOpacity} = require('react-native');
   return {
-    TaskFormContent: ({taskTypeSelectorProps}: any) => (
+    TaskFormContent: ({taskTypeSelector, taskFormMode}: any) => (
       <View testID="task-form-content">
-        <Text>{taskTypeSelectorProps?.value}</Text>
+        <Text>{taskTypeSelector?.value}</Text>
+        <Text testID="task-form-mode">{taskFormMode}</Text>
         <TouchableOpacity
-          onPress={taskTypeSelectorProps?.onPress}
+          onPress={taskTypeSelector?.onPress}
           testID="selector-trigger">
           <Text>Open Selector</Text>
         </TouchableOpacity>
@@ -212,7 +213,13 @@ jest.mock('../../../../../src/features/tasks/components/form', () => {
         </TouchableOpacity>
       </View>
     ),
-    TaskFormSheets: () => <View testID="task-form-sheets" />,
+    TaskFormSheets: ({onDiscard}: any) => (
+      <View testID="task-form-sheets">
+        <TouchableOpacity testID="discard-button" onPress={onDiscard}>
+          <Text>Discard</Text>
+        </TouchableOpacity>
+      </View>
+    ),
   };
 });
 
@@ -522,6 +529,85 @@ describe('AddTaskScreen', () => {
         expect.any(Error),
       );
     });
+
+    it('ignores a second save press while a save is already in progress', async () => {
+      const validateFormMock = jest.fn().mockReturnValue(true);
+      let resolveAdd: (value: unknown) => void = () => {};
+      const pendingAdd = new Promise(resolve => {
+        resolveAdd = resolve;
+      });
+      // First press hangs on the addTask unwrap so isSavingRef stays true
+      mockUnwrap.mockReturnValue(pendingAdd);
+      mockAddTask.mockReturnValue({
+        unwrap: mockUnwrap,
+        type: 'tasks/addTask',
+      });
+
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        formData: {
+          ...defaultHookData.formData,
+          attachments: [],
+          syncWithCalendar: false,
+        },
+        validateForm: validateFormMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      const saveBtn = screen.getByTestId('save-button');
+      await act(async () => {
+        fireEvent.press(saveBtn); // starts save, suspends on addTask
+        fireEvent.press(saveBtn); // re-entrant press hits the isSavingRef guard
+      });
+
+      // Guard short-circuits before validateForm/addTask run a second time
+      expect(validateFormMock).toHaveBeenCalledTimes(1);
+      expect(mockAddTask).toHaveBeenCalledTimes(1);
+
+      // Let the first save finish so the ref is released
+      await act(async () => {
+        resolveAdd({
+          id: 'new-task-id',
+          date: '2026-04-10',
+          syncWithCalendar: false,
+        });
+      });
+    });
+  });
+
+  describe('Task form mode selection', () => {
+    it('resolves medication mode when isMedicationForm is true', () => {
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        isMedicationForm: true,
+        isObservationalToolForm: false,
+      });
+      render(<AddTaskScreen />);
+      expect(screen.getByTestId('task-form-mode').props.children).toBe(
+        'medication',
+      );
+    });
+
+    it('resolves observationalTool mode when isObservationalToolForm is true', () => {
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        isMedicationForm: false,
+        isObservationalToolForm: true,
+      });
+      render(<AddTaskScreen />);
+      expect(screen.getByTestId('task-form-mode').props.children).toBe(
+        'observationalTool',
+      );
+    });
+  });
+
+  describe('Discard sheet action', () => {
+    it('navigates back when the discard action is triggered', () => {
+      render(<AddTaskScreen />);
+      fireEvent.press(screen.getByTestId('discard-button'));
+      expect(mockGoBack).toHaveBeenCalled();
+    });
   });
 
   describe('Interactions', () => {
@@ -668,6 +754,53 @@ describe('AddTaskScreen', () => {
         expect.any(Date),
       );
     });
+
+    it('prefills medication fields with fallbacks when values are empty/absent', () => {
+      const updateFieldMock = jest.fn();
+      const handleTaskTypeSelectMock = jest.fn();
+      mockRouteParams = {reuseTaskId: 'task-meds-empty'};
+      (selectTaskById as jest.Mock).mockImplementation(
+        (taskId: string) => () =>
+          taskId === 'task-meds-empty'
+            ? {
+                id: 'task-meds-empty',
+                companionId: 'c1',
+                category: 'health',
+                subcategory: 'none',
+                title: 'Empty meds',
+                frequency: 'daily',
+                additionalNote: '',
+                assignedTo: null,
+                attachments: [],
+                details: {
+                  // taskType present but no chronicConditionType (br 133 false)
+                  taskType: 'give-medication',
+                  // falsy medicineName/medicineType exercise `|| ''` and `|| null`
+                  medicineName: '',
+                  medicineType: null,
+                  // no dosages key (br 102 left-false)
+                  // no description key (br 106 left-false)
+                },
+              }
+            : null,
+      );
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        updateField: updateFieldMock,
+        handleTaskTypeSelect: handleTaskTypeSelectMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      expect(updateFieldMock).toHaveBeenCalledWith('medicineName', '');
+      expect(updateFieldMock).toHaveBeenCalledWith('medicineType', null);
+      // dosages/description absent → those updateField calls never fire
+      expect(updateFieldMock).not.toHaveBeenCalledWith(
+        'dosages',
+        expect.anything(),
+      );
+      expect(handleTaskTypeSelectMock).toHaveBeenCalled();
+    });
   });
 
   describe('Calendar sync on save', () => {
@@ -795,6 +928,42 @@ describe('AddTaskScreen', () => {
 
       expect(mockUploadDocumentFiles).toHaveBeenCalledWith(
         expect.objectContaining({companionId: 'c1'}),
+      );
+    });
+
+    it('falls back to Companion name and undefined provider when both are missing', async () => {
+      const calendarMock = jest.requireMock(
+        '@/features/tasks/services/calendarSyncService',
+      );
+      calendarMock.createCalendarEventForTask.mockResolvedValue('event-xyz');
+
+      const validateFormMock = jest.fn().mockReturnValue(true);
+      (useAddTaskScreen as jest.Mock).mockReturnValue({
+        ...defaultHookData,
+        // selectedCompanionId 'c1' is not in companions → find() returns undefined
+        companions: [{id: 'other', name: 'Not Selected'}],
+        selectedCompanionId: 'c1',
+        formData: {
+          ...defaultHookData.formData,
+          syncWithCalendar: true,
+          // calendarProvider intentionally omitted → falsy → `|| undefined`
+          attachments: [],
+        },
+        validateForm: validateFormMock,
+      });
+
+      render(<AddTaskScreen />);
+
+      const saveBtn = screen.getByTestId('save-button');
+      await act(async () => {
+        fireEvent.press(saveBtn);
+      });
+
+      // companion?.name falsy → 'Companion'; formData.calendarProvider falsy → undefined
+      expect(calendarMock.createCalendarEventForTask).toHaveBeenCalledWith(
+        expect.objectContaining({calendarProvider: undefined}),
+        'Companion',
+        'Test User',
       );
     });
   });

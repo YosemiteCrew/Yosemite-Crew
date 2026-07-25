@@ -1,8 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import BuilderWrapper, {
-  StructureLockContext,
-} from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import BuilderWrapper from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 import { FormField } from '@/app/features/forms/types/forms';
 
 // --- Mocks ---
@@ -120,5 +119,133 @@ describe('BuilderWrapper Component', () => {
     expect(screen.getByTitle('Move down')).toBeInTheDocument();
     // up + down + delete
     expect(screen.getAllByRole('button')).toHaveLength(3);
+  });
+
+  it('runs the full drag lifecycle and builds a drag preview when draggable and unlocked', () => {
+    const field: FormField = { ...mockFieldBase, type: 'input' } as FormField;
+    const onDragStart = jest.fn();
+    const onDragOver = jest.fn();
+    const onDrop = jest.fn();
+    const onDragEnd = jest.fn();
+
+    render(
+      <BuilderWrapper
+        field={field}
+        onDelete={mockOnDelete}
+        draggable
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+      >
+        <div>Child Content</div>
+      </BuilderWrapper>
+    );
+
+    const section = screen.getByLabelText('Input field');
+    const dataTransfer = { setData: jest.fn(), setDragImage: jest.fn() };
+
+    // canDrag is true (draggable && unlocked) so the wrapper wires its own handlers:
+    // dragStart clones the row into an off-screen preview + forwards onDragStart.
+    fireEvent.dragStart(section, { dataTransfer, clientX: 10, clientY: 12 });
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(dataTransfer.setDragImage).toHaveBeenCalled();
+
+    fireEvent.dragOver(section, { dataTransfer });
+    expect(onDragOver).toHaveBeenCalledTimes(1);
+
+    fireEvent.drop(section, { dataTransfer });
+    expect(onDrop).toHaveBeenCalledTimes(1);
+
+    // dragEnd cleans up the live preview node and forwards onDragEnd.
+    fireEvent.dragEnd(section, { dataTransfer });
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('early-returns from drag start with no handler and cleans up when no preview exists', () => {
+    const field: FormField = { ...mockFieldBase, type: 'input' } as FormField;
+
+    // draggable + unlocked wires the handlers, but no onDragStart/onDragEnd are supplied.
+    render(
+      <BuilderWrapper field={field} onDelete={mockOnDelete} draggable>
+        <div>Child Content</div>
+      </BuilderWrapper>
+    );
+
+    const section = screen.getByLabelText('Input field');
+    const dataTransfer = { setData: jest.fn(), setDragImage: jest.fn() };
+
+    // handleDragStart bails at `if (!onDragStart) return` before building a preview.
+    fireEvent.dragStart(section, { dataTransfer });
+    expect(dataTransfer.setDragImage).not.toHaveBeenCalled();
+
+    // handleDragEndInternal cleans up with a null preview ref and skips the optional onDragEnd.
+    fireEvent.dragEnd(section, { dataTransfer });
+    expect(screen.getByText('Child Content')).toBeInTheDocument();
+  });
+
+  it('keeps the delete control for content items even when the structure is locked', () => {
+    const field: FormField = { ...mockFieldBase, type: 'group' } as FormField;
+
+    render(
+      <StructureLockContext.Provider value={true}>
+        <BuilderWrapper
+          field={field}
+          onDelete={mockOnDelete}
+          onMoveUp={jest.fn()}
+          onMoveDown={jest.fn()}
+          canMoveUp
+          canMoveDown
+          contentDeletable
+        >
+          <div>Child Content</div>
+        </BuilderWrapper>
+      </StructureLockContext.Provider>
+    );
+
+    // (!structureLocked || contentDeletable) is true → delete stays; move stays hidden (locked).
+    const deleteButton = screen.getByRole('button');
+    fireEvent.click(deleteButton);
+    expect(mockOnDelete).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTitle('Move up')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Move down')).not.toBeInTheDocument();
+  });
+
+  it('disables move controls at the list boundaries', () => {
+    const field: FormField = { ...mockFieldBase, type: 'input' } as FormField;
+
+    render(
+      <StructureLockContext.Provider value={false}>
+        <BuilderWrapper
+          field={field}
+          onDelete={mockOnDelete}
+          onMoveUp={jest.fn()}
+          onMoveDown={jest.fn()}
+          canMoveUp={false}
+          canMoveDown={false}
+        >
+          <div />
+        </BuilderWrapper>
+      </StructureLockContext.Provider>
+    );
+
+    expect(screen.getByTitle('Move up')).toBeDisabled();
+    expect(screen.getByTitle('Move down')).toBeDisabled();
+  });
+
+  it('renders the compact, dragging variant', () => {
+    const field: FormField = { ...mockFieldBase, type: 'input' } as FormField;
+
+    render(
+      <BuilderWrapper field={field} onDelete={mockOnDelete} draggable compact isDragging>
+        <div>Child Content</div>
+      </BuilderWrapper>
+    );
+
+    const section = screen.getByLabelText('Input field');
+    // compact base radius + the isDragging override are both applied.
+    expect(section.className).toContain('rounded-[14px]');
+    expect(section.className).toContain('rounded-[18px]');
+    expect(screen.getByText('Child Content')).toBeInTheDocument();
   });
 });

@@ -5,13 +5,11 @@ import {
   EmergencyBottomSheetRef,
 } from '../../../../src/features/home/components/EmergencyBottomSheet';
 import {useSelector} from 'react-redux';
-import {TouchableOpacity} from 'react-native';
 import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
 // 1. Mock Hooks
-
 
 jest.mock('../../../../src/hooks', () => ({
   useTheme: () => ({theme: mockTheme}),
@@ -122,6 +120,24 @@ describe('EmergencyBottomSheet', () => {
     expect(getByText('Adverse event\nreporting')).toBeTruthy();
   });
 
+  it('exposes a button role and label on each emergency option', () => {
+    mockSelectLinkedHospitalsForCompanion.mockReturnValue([
+      {id: 'h1', name: 'Vet Clinic'},
+    ]);
+
+    const ref = React.createRef<EmergencyBottomSheetRef>();
+    const {getByLabelText} = render(
+      <EmergencyBottomSheet ref={ref} companionId="c1" />,
+    );
+
+    act(() => {
+      ref.current?.open();
+    });
+
+    const callVetOption = getByLabelText('Call vet/ Practice');
+    expect(callVetOption.props.accessibilityRole).toBe('button');
+  });
+
   it('handles null companionId gracefully', () => {
     mockSelectLinkedHospitalsForCompanion.mockReturnValue([]);
     const ref = React.createRef<EmergencyBottomSheetRef>();
@@ -172,7 +188,11 @@ describe('EmergencyBottomSheet', () => {
       <EmergencyBottomSheet ref={ref} companionId="c1" />,
     );
 
-    const touchables = UNSAFE_getAllByType(TouchableOpacity);
+    // The close button now renders react-native's Pressable (via
+    // PressableOpacity), which is wrapped in React.memo, so match against
+    // the memoized inner component.
+    const {Pressable} = require('react-native');
+    const touchables = UNSAFE_getAllByType((Pressable as any).type);
 
     // The close button is rendered first in the view hierarchy (z-index 10)
     if (touchables.length > 0) {

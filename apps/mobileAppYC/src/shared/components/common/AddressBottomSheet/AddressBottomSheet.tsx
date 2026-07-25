@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {
   Image,
   ScrollView,
@@ -12,8 +6,9 @@ import {
   Text,
   View,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
+import {useTranslation} from 'react-i18next';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
@@ -43,11 +38,13 @@ export interface AddressBottomSheetProps {
   onSave: (address: Address) => void;
 }
 
-export const AddressBottomSheet = forwardRef<
-  AddressBottomSheetRef,
-  AddressBottomSheetProps
->(({selectedAddress, onSave}, ref) => {
+export const AddressBottomSheet = ({
+  selectedAddress,
+  onSave,
+  ref,
+}: AddressBottomSheetProps & {ref?: React.Ref<AddressBottomSheetRef>}) => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const closeButtonSize = theme.spacing['9'];
   const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -130,7 +127,7 @@ export const AddressBottomSheet = forwardRef<
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={isKeyboardVisible ? ['93%', '96%'] : ['60%', '80%']}
+      snapPoints={isKeyboardVisible ? ['93%', '96%'] : ['72%', '85%']}
       initialIndex={-1}
       onChange={index => {
         setIsSheetVisible(index !== -1);
@@ -141,12 +138,14 @@ export const AddressBottomSheet = forwardRef<
       onAnimate={() => {
         Keyboard.dismiss();
       }}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      enableContentPanningGesture={false}
-      enableHandlePanningGesture
-      enableOverDrag
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        dynamicSizing: false,
+        contentPanningGesture: false,
+        handlePanningGesture: true,
+        overDrag: true,
+        backdrop: isSheetVisible,
+      }}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
@@ -157,14 +156,20 @@ export const AddressBottomSheet = forwardRef<
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Address</Text>
+            <Text style={styles.title}>
+              {t('addressFields.bottomSheetTitle')}
+            </Text>
             <LiquidGlassIconButton
               onPress={handleCancel}
               size={closeButtonSize}
-              style={styles.closeButton}>
+              style={styles.closeButton}
+              accessibilityLabel={t('addressFields.close')}>
               <Image
                 source={Images.crossIcon}
                 style={styles.closeIcon}
@@ -196,10 +201,10 @@ export const AddressBottomSheet = forwardRef<
             cancelTintColor={theme.colors.surface}
           />
         </View>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </CustomBottomSheet>
   );
-});
+};
 
 AddressBottomSheet.displayName = 'AddressBottomSheet';
 

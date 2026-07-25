@@ -1,8 +1,10 @@
 # Backend Support Chat Engineering Guide
 
+> Status: not started as of this revision. A search of `apps/backend/src` finds no `SUPPORT` chat session type, no `supportScope`, and none of the support service methods described below; `apps/backend/src/routers/chat.router.ts` has no support routes. Treat this as a planned build on top of the existing chat stack. Note: the Prisma schema referenced below actually lives at `packages/database/prisma/schema.prisma`, not under `apps/backend/prisma`.
+
 ## Objective
 
-Enable a reusable Stream Chat based support flow where PMS users and mobile users can message Superadmin support, while preserving organization context in every support conversation.
+Enable a reusable Stream Chat based support flow where PMS (Practice Information Management System, the staff-facing clinic web app) users and mobile users can message Superadmin support, while preserving organization context in every support conversation.
 
 This guide is implementation-facing and assumes existing chat flows already exist for:
 
@@ -46,7 +48,7 @@ Key rule:
 - Existing controller is `apps/backend/src/controllers/app/chat.controller.ts`.
 - Existing session persistence exists in both:
 - Mongo model: `apps/backend/src/models/chatSession.ts`
-- Prisma model: `apps/backend/prisma/schema.prisma`
+- Prisma model: `packages/database/prisma/schema.prisma`
 
 ## Production-Grade Reuse Strategy (Backend)
 
@@ -115,7 +117,7 @@ Required update in current backend:
 
 ### 1. Prisma enum and model updates
 
-Update `apps/backend/prisma/schema.prisma`.
+Update `packages/database/prisma/schema.prisma`.
 
 Add enum value:
 
@@ -132,7 +134,7 @@ Add fields in `model ChatSession`:
 - `supportLifecycleStatus String?` with values `OPEN | RESOLVED | CLOSED` for support sessions.
 - `resolvedAt DateTime?`
 - `resolvedBy String?`
-- `firstResponseAt DateTime?` (optional but recommended for SLA metrics)
+- `firstResponseAt DateTime?` (optional but recommended for SLA (service-level agreement) response-time metrics)
 
 Add indexes:
 
@@ -564,7 +566,7 @@ Send emails for support chat lifecycle events:
 - Organization name (for org support)
 - Ticket/session id
 - Current lifecycle status (`OPEN`/`RESOLVED`/`CLOSED`)
-- Deep link CTA to open relevant chat destination
+- Deep link CTA (call to action) to open relevant chat destination
 
 ### Template work in this phase
 

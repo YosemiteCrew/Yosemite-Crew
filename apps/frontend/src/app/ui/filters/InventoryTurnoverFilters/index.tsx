@@ -1,10 +1,9 @@
 'use client';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import { InventoryTurnoverItem } from '@/app/features/inventory/pages/Inventory/types';
 
 const STATUS_OPTIONS = [
   {
@@ -74,18 +73,21 @@ const getTurnoverStatusButtonStyle = (
 };
 
 type InventoryTurnoverFiltersProps = {
-  list: InventoryTurnoverItem[];
-  setFilteredList: (items: InventoryTurnoverItem[]) => void;
+  filters: InventoryTurnoverFilterState;
+  setFilters: React.Dispatch<React.SetStateAction<InventoryTurnoverFilterState>>;
   categories?: string[];
 };
 
+export type InventoryTurnoverFilterState = {
+  status: string;
+  category: string;
+};
+
 const InventoryTurnoverFilters = ({
-  list,
-  setFilteredList,
+  filters,
+  setFilters,
   categories = DEFAULT_CATEGORIES,
 }: InventoryTurnoverFiltersProps) => {
-  const [activeStatus, setActiveStatus] = useState('ALL');
-  const [activeCategory, setActiveCategory] = useState('all');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const isMounted = typeof document !== 'undefined';
@@ -102,26 +104,15 @@ const InventoryTurnoverFilters = ({
   );
 
   const effectiveCategory =
-    activeCategory !== 'all' && !categories.includes(activeCategory) ? 'all' : activeCategory;
+    filters.category !== 'all' && !categories.includes(filters.category) ? 'all' : filters.category;
 
-  useEffect(() => {
-    if (effectiveCategory !== activeCategory) setActiveCategory(effectiveCategory);
-  }, [activeCategory, effectiveCategory]);
+  const setActiveStatus = (status: string) => {
+    setFilters((current) => ({ ...current, status }));
+  };
 
-  const filteredList = useMemo(() => {
-    return list.filter((item) => {
-      const categoryMatch =
-        effectiveCategory === 'all' ||
-        (item.category || '').toLowerCase() === effectiveCategory.toLowerCase();
-      const statusMatch =
-        activeStatus === 'ALL' || (item.status || '').toUpperCase() === activeStatus;
-      return categoryMatch && statusMatch;
-    });
-  }, [effectiveCategory, activeStatus, list]);
-
-  useEffect(() => {
-    setFilteredList(filteredList);
-  }, [filteredList, setFilteredList]);
+  const setActiveCategory = (category: string) => {
+    setFilters((current) => ({ ...current, category }));
+  };
 
   const positionPanel = useCallback(() => {
     if (!triggerRef.current) return;
@@ -158,7 +149,7 @@ const InventoryTurnoverFilters = ({
     };
   }, [dropdownOpen]);
 
-  const selectedStatus = STATUS_OPTIONS.find((o) => o.key === activeStatus) ?? STATUS_OPTIONS[0];
+  const selectedStatus = STATUS_OPTIONS.find((o) => o.key === filters.status) ?? STATUS_OPTIONS[0];
 
   return (
     <div className="w-full flex items-start justify-between flex-wrap gap-x-6 gap-y-3">
@@ -167,11 +158,11 @@ const InventoryTurnoverFilters = ({
           ref={triggerRef}
           type="button"
           onClick={() => setDropdownOpen((v) => !v)}
-          className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between min-w-30"
+          className="flex h-10 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-[13px] justify-between min-w-30"
           style={getTurnoverStatusButtonStyle(selectedStatus)}
         >
           <span>{selectedStatus.key === 'ALL' ? 'Status' : selectedStatus.name}</span>
-          <FaCaretDown
+          <IoCaretDown
             size={14}
             className={clsx('shrink-0 transition-transform', dropdownOpen && 'rotate-180')}
           />
@@ -182,11 +173,11 @@ const InventoryTurnoverFilters = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="yc-glass-overlay rounded-2xl overflow-hidden"
               style={dropdownStyle}
             >
               {STATUS_OPTIONS.map((option) => {
-                const isSelected = option.key === activeStatus;
+                const isSelected = option.key === filters.status;
                 const dropdownTextColor =
                   option.key === 'ALL' ? 'var(--color-text-primary)' : option.text;
                 return (
@@ -198,12 +189,12 @@ const InventoryTurnoverFilters = ({
                       setDropdownOpen(false);
                     }}
                     className={clsx(
-                      'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
+                      'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
                       isSelected && option.key !== 'ALL' ? 'font-medium' : 'hover:bg-card-hover'
                     )}
                   >
                     <span
-                      className="inline-block size-3 rounded-full shrink-0"
+                      className="inline-block size-2 rounded-full shrink-0"
                       style={{
                         backgroundColor: option.border,
                         borderWidth: '1px',
@@ -214,7 +205,7 @@ const InventoryTurnoverFilters = ({
                     <span style={{ color: dropdownTextColor }}>{option.name}</span>
                     {isSelected && (
                       <span
-                        className="ml-auto text-sm font-semibold"
+                        className="ml-auto text-[12px] font-semibold"
                         style={{ color: dropdownTextColor }}
                       >
                         ✓
@@ -232,7 +223,7 @@ const InventoryTurnoverFilters = ({
         <LabelDropdown
           placeholder="Category"
           options={categoryOptions}
-          defaultOption={activeCategory}
+          defaultOption={effectiveCategory}
           onSelect={(option) => setActiveCategory(option.value)}
         />
       </div>

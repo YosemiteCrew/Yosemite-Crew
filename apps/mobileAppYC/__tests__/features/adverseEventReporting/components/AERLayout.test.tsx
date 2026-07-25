@@ -166,4 +166,45 @@ describe('AERLayout', () => {
     expect(getByText('Disabled')).toBeTruthy();
     expect(getByText('CustomStyle')).toBeTruthy();
   });
+
+  // --- 5. Segmented Progress Bar (currentStep + totalSteps) ---
+  it('renders the segmented progress bar and counter, taking precedence over stepLabel', () => {
+    // currentStep=2, totalSteps=4 -> indices 0,1 active, indices 2,3 inactive,
+    // exercising BOTH the active and inactive segment style branches.
+    const {getByText, queryByText} = render(
+      <AERLayout currentStep={2} totalSteps={4} stepLabel="Step 2 of 4">
+        <ChildComponent />
+      </AERLayout>,
+    );
+
+    // Progress counter "N/M" renders instead of the plain step label
+    expect(getByText('2/4')).toBeTruthy();
+    expect(queryByText('Step 2 of 4')).toBeNull();
+    expect(getByText('Child Content')).toBeTruthy();
+  });
+
+  it('renders an all-inactive progress bar when currentStep is 0', () => {
+    // currentStep=0 -> no segment satisfies index < 0, so every segment is
+    // inactive (drives only the inactive branch across all segments).
+    const {getByText} = render(
+      <AERLayout currentStep={0} totalSteps={3}>
+        <ChildComponent />
+      </AERLayout>,
+    );
+
+    expect(getByText('0/3')).toBeTruthy();
+  });
+
+  it('falls back to the plain step label when currentStep is set but totalSteps is missing', () => {
+    // currentStep != null is true but totalSteps is falsy -> the && short-circuits
+    // to the label branch, covering the right-hand operand's falsy path.
+    const {getByText, queryByText} = render(
+      <AERLayout currentStep={2} stepLabel="Step 2 of 4">
+        <ChildComponent />
+      </AERLayout>,
+    );
+
+    expect(getByText('Step 2 of 4')).toBeTruthy();
+    expect(queryByText('2/4')).toBeNull();
+  });
 });

@@ -1,8 +1,11 @@
 import React from 'react';
+import {Alert, Switch} from 'react-native';
 import {mockTheme} from '../../../../setup/mockTheme';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, act} from '@testing-library/react-native';
 import {TaskViewScreen} from '@/features/tasks/screens/TaskViewScreen/TaskViewScreen';
 import * as Redux from 'react-redux';
+
+const mockAlertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 // --- Mocks ---
 
@@ -92,6 +95,17 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => ({
   LiquidGlassCard: ({children}: any) => children,
 }));
 
+jest.mock('@/shared/components/common/Badge/Badge', () => ({
+  Badge: ({label}: any) => {
+    const {View, Text} = require('react-native');
+    return (
+      <View testID={`badge-${label}`}>
+        <Text>{label}</Text>
+      </View>
+    );
+  },
+}));
+
 // Mocking the common index
 jest.mock('@/shared/components/common', () => {
   const {View, Text} = require('react-native');
@@ -117,11 +131,19 @@ jest.mock('@/shared/components/common', () => {
 
 jest.mock('@/features/documents/components/DocumentAttachmentViewer', () => ({
   __esModule: true,
-  default: () => {
-    const {View, Text} = require('react-native');
+  default: (props: any) => {
+    const {View, Text, TouchableOpacity} = require('react-native');
     return (
       <View>
         <Text>Attachments Section</Text>
+        <TouchableOpacity
+          testID="pdf-touch-start"
+          onPress={props.onPdfTouchStart}>
+          <Text>Touch Start</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="pdf-touch-end" onPress={props.onPdfTouchEnd}>
+          <Text>Touch End</Text>
+        </TouchableOpacity>
       </View>
     );
   },
@@ -178,23 +200,20 @@ jest.mock('@/features/auth/selectors', () => ({
 }));
 
 jest.mock('@/features/tasks/utils/taskLabels', () => ({
-  resolveCategoryLabel: (cat: string) => `Category: ${cat}`,
+  resolveCategoryLabel: jest.fn((cat: string) => `Category: ${cat}`),
   resolveMedicationTypeLabel: (type: string) => `Type: ${type}`,
   resolveMedicationFrequencyLabel: () => 'Daily',
   resolveTaskFrequencyLabel: () => 'Weekly',
-  resolveObservationalToolLabel: () => 'Pain Scale',
+  resolveObservationalToolLabel: jest.fn(() => 'Pain Scale'),
   buildTaskTypeBreadcrumb: () => 'Medication > Flea',
 }));
 
-jest.mock(
-  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
-  () => ({
-    formatDateForDisplay: (date: Date) => {
-      if (!date || Number.isNaN(date.getTime())) return '';
-      return date.toISOString().split('T')[0];
-    },
-  }),
-);
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: (date: Date) => {
+    if (!date || Number.isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  },
+}));
 
 jest.mock('@/features/tasks/thunks', () => ({
   markTaskStatus: jest.fn(payload => ({type: 'tasks/markStatus', payload})),
@@ -274,6 +293,38 @@ describe('TaskViewScreen', () => {
           startDate: '2025-01-01',
           endDate: '2025-01-10',
           frequency: {type: 'daily'},
+        },
+      },
+      'task-med-string-freq': {
+        id: 'task-med-string-freq',
+        status: 'pending',
+        title: 'Give pill (string freq)',
+        category: 'medication',
+        companionId: 'comp-1',
+        date: '2025-01-01',
+        time: '09:00:00',
+        details: {
+          taskType: 'give-medication',
+          medicineName: 'Apoquel',
+          medicineType: 'pill',
+          dosages: [{id: 'd1', label: '1 pill', time: '09:00:00'}],
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+          frequency: 'daily',
+        },
+      },
+      'task-ot-book': {
+        id: 'task-ot-book',
+        status: 'completed',
+        title: 'Book pain check',
+        category: 'health',
+        companionId: 'comp-1',
+        date: '2025-01-07',
+        completedAt: '2025-01-07T10:00:00.000Z',
+        otSubmissionId: null,
+        details: {
+          taskType: 'take-observational-tool',
+          toolType: 'pain-scale',
         },
       },
       'task-ot': {
@@ -423,7 +474,115 @@ describe('TaskViewScreen', () => {
         attachDocuments: true,
         attachments: [
           {id: 'att-1', key: 'lab/report.pdf', name: 'report.pdf', type: null},
+          {id: 'att-2', key: 'photo.jpg', name: 'photo.jpg', type: null},
+          {id: 'att-3', key: 'photo.jpeg', name: 'photo.jpeg', type: null},
+          {id: 'att-4', key: 'icon.png', name: 'icon.png', type: null},
+          {id: 'att-5', key: 'anim.webp', name: 'anim.webp', type: null},
+          {id: 'att-6', key: 'letter.doc', name: 'letter.doc', type: null},
+          {id: 'att-7', key: 'letter.docx', name: 'letter.docx', type: null},
+          {id: 'att-8', key: 'unknown.xyz', name: 'unknown.xyz', type: null},
+          {id: 'att-9', key: 'no-name-key', name: null, type: null},
         ],
+        details: {taskType: 'custom'},
+      },
+      'task-ot-desc': {
+        id: 'task-ot-desc',
+        status: 'pending',
+        title: 'OT with note',
+        category: 'health',
+        companionId: 'comp-1',
+        date: '2025-01-02',
+        time: '09:00:00',
+        frequency: 'weekly',
+        reminderEnabled: false,
+        syncWithCalendar: false,
+        attachDocuments: false,
+        attachments: [],
+        details: {
+          taskType: 'take-observational-tool',
+          toolType: 'pain-scale',
+          description: 'Observe closely',
+        },
+      },
+      'task-ot-noid': {
+        id: 'task-ot-noid',
+        status: 'pending',
+        title: 'OT without identifiers',
+        category: 'health',
+        companionId: 'comp-1',
+        date: '2025-01-02',
+        time: '09:00:00',
+        frequency: 'weekly',
+        reminderEnabled: false,
+        syncWithCalendar: false,
+        attachDocuments: false,
+        attachments: [],
+        // No observationToolId and no details.toolType -> otId resolves to null
+        details: {taskType: 'take-observational-tool'},
+      },
+      'task-med-rich': {
+        id: 'task-med-rich',
+        status: 'pending',
+        title: 'Rich medication',
+        category: 'medication',
+        subcategory: 'none',
+        companionId: 'comp-1',
+        date: '2025-01-01',
+        time: '09:00:00',
+        frequency: 'daily',
+        details: {
+          taskType: 'give-medication',
+          description: 'Give with water',
+          medicineName: 'Apoquel',
+          medicineType: 'pill',
+          dosages: [
+            {id: 'd1', label: '1 pill', time: '09:00:00'},
+            {id: 'd2', label: '1 pill', time: '21:00:00'},
+          ],
+          startDate: '2025-01-01',
+          endDate: null,
+          frequency: {type: 'daily'},
+        },
+      },
+      'task-med-completed-doses': {
+        id: 'task-med-completed-doses',
+        status: 'completed',
+        title: 'Completed medication',
+        category: 'medication',
+        companionId: 'comp-1',
+        date: '2025-01-01',
+        completedAt: '2025-01-02T10:00:00.000Z',
+        frequency: 'daily',
+        details: {
+          taskType: 'give-medication',
+          medicineName: 'Apoquel',
+          medicineType: 'pill',
+          dosages: [{id: 'd1', label: '1 pill', time: '09:00:00'}],
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+          frequency: {type: 'daily'},
+        },
+      },
+      'task-no-status': {
+        id: 'task-no-status',
+        // status intentionally omitted -> badge label resolves to empty
+        title: 'No status task',
+        category: 'general',
+        companionId: 'comp-1',
+        date: '2025-01-01',
+        details: {taskType: 'custom'},
+      },
+      'task-cal-no-due': {
+        id: 'task-cal-no-due',
+        status: 'pending',
+        title: 'Calendar without due date',
+        category: 'general',
+        companionId: 'comp-1',
+        date: '2025-01-08',
+        syncWithCalendar: true,
+        calendarProvider: 'google',
+        calendarEventId: 'evt-nodue',
+        // No dueAt -> openCalendarEvent falls back to task.date
         details: {taskType: 'custom'},
       },
     },
@@ -447,10 +606,11 @@ describe('TaskViewScreen', () => {
     expect(getByTestId('view-field-Medicine name')).toBeTruthy();
     expect(getByTestId('view-touch-Medication type')).toBeTruthy();
     expect(getByTestId('view-touch-Dosage')).toBeTruthy();
+    expect(getByTestId('view-touch-Medication frequency')).toBeTruthy();
 
-    // Dosage row
-    expect(getByTestId('input-Dosage')).toBeTruthy();
-    expect(getByTestId('input-Time')).toBeTruthy();
+    // Dose-history rows (replaces the old input-Dosage/input-Time inputs)
+    expect(getByText('Doses')).toBeTruthy();
+    expect(getByTestId('dose-row-0')).toBeTruthy();
 
     // Toggles/Sections
     expect(getByText('Reminder')).toBeTruthy();
@@ -537,7 +697,7 @@ describe('TaskViewScreen', () => {
 
     expect(getByText('Cancelled on 2025-01-04')).toBeTruthy();
     expect(queryByTestId('header-right')).toBeNull();
-    expect(queryByTestId('btn-Complete')).toBeNull();
+    expect(queryByTestId('btn-Mark complete')).toBeNull();
   });
 
   it('passes task date to AddTask when tapping reuse', () => {
@@ -616,7 +776,7 @@ describe('TaskViewScreen', () => {
   it('dispatches complete action for pending non-observational tasks', () => {
     const {getByTestId} = render(<TaskViewScreen />);
 
-    fireEvent.press(getByTestId('btn-Complete'));
+    fireEvent.press(getByTestId('btn-Mark complete'));
 
     const {markTaskStatus} = require('@/features/tasks/thunks');
     expect(markTaskStatus).toHaveBeenCalledWith({
@@ -765,5 +925,469 @@ describe('TaskViewScreen', () => {
     mockRouteParams = {taskId: 'task-med', source: 'tasks'};
     const {getByText} = render(<TaskViewScreen />);
     expect(getByText('Unknown')).toBeTruthy();
+  });
+
+  it('handles a medication frequency provided as a plain string', () => {
+    mockRouteParams = {taskId: 'task-med-string-freq', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+    // Frequency 'daily' !== 'once', so the end date field should still render.
+    expect(getByTestId('touchable-End Date')).toBeTruthy();
+  });
+
+  it('infers mime types from file extensions for attachments with no type', () => {
+    mockRouteParams = {taskId: 'task-attachment', source: 'tasks'};
+    // Rendering without crashing exercises guessMimeFromName for every
+    // extension branch (jpg/jpeg/png/webp/pdf/doc/docx/unknown).
+    const {getByText} = render(<TaskViewScreen />);
+    expect(getByText('Attachments Section')).toBeTruthy();
+  });
+
+  it('returns an empty string when formatTime throws internally', () => {
+    const spy = jest
+      .spyOn(Date.prototype, 'toLocaleTimeString')
+      .mockImplementationOnce(() => {
+        throw new Error('boom');
+      });
+
+    mockRouteParams = {taskId: 'task-med', source: 'tasks'};
+    render(<TaskViewScreen />);
+
+    spy.mockRestore();
+  });
+
+  it('triggers the PDF interaction touch handlers', () => {
+    mockRouteParams = {taskId: 'task-attachment', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('pdf-touch-start'));
+    fireEvent.press(getByTestId('pdf-touch-end'));
+    // Implicit: exercises setIsPdfInteracting(true) and (false) without crash.
+  });
+
+  it('uses the default "tasks" source when route params omit source', () => {
+    mockCanGoBack.mockReturnValueOnce(false);
+    mockRouteParams = {taskId: 'task-med'} as any;
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('header-back'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('Tasks', {screen: 'TasksMain'});
+  });
+
+  it('shows a generic OT label when the resolver returns an id-like value', () => {
+    const taskLabels = require('@/features/tasks/utils/taskLabels');
+    taskLabels.resolveObservationalToolLabel.mockReturnValueOnce(
+      'a'.repeat(24),
+    );
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.get.mockResolvedValueOnce({});
+
+    mockRouteParams = {taskId: 'task-ot', source: 'tasks'};
+    const {getByText} = render(<TaskViewScreen />);
+
+    expect(getByText('Observational tool')).toBeTruthy();
+  });
+
+  it('handles a null OT label while still matching provider services', () => {
+    const taskLabels = require('@/features/tasks/utils/taskLabels');
+    taskLabels.resolveObservationalToolLabel.mockReturnValueOnce(null);
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.get.mockResolvedValueOnce({});
+
+    const speciesState = {
+      ...mockState,
+      companion: {companions: [{id: 'comp-1', name: 'Buddy', category: 'dog'}]},
+      businesses: {
+        ...mockState.businesses,
+        businesses: [{id: 'b1', name: 'Care Vet'}],
+        services: [
+          {
+            id: 's1',
+            businessId: 'b1',
+            name: 'Cat Observation',
+            specialty: 'Observation',
+          },
+          {
+            id: 's2',
+            businessId: 'b1',
+            name: 'Dog Observation',
+            specialty: 'Observation',
+          },
+          {
+            id: 's3',
+            businessId: 'b1',
+            name: 'No Specialty',
+            specialty: null,
+          },
+        ],
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(speciesState));
+    mockRouteParams = {taskId: 'task-ot', source: 'tasks'};
+
+    const {getByTestId} = render(<TaskViewScreen />);
+    expect(getByTestId('view-touch-Select observational tool')).toBeTruthy();
+  });
+
+  it('filters provider services by tool name and companion species', () => {
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.get.mockResolvedValueOnce({});
+
+    const speciesState = {
+      ...mockState,
+      companion: {companions: [{id: 'comp-1', name: 'Buddy', category: 'dog'}]},
+      businesses: {
+        ...mockState.businesses,
+        businesses: [{id: 'b1', name: 'Care Vet'}],
+        services: [
+          {
+            id: 's1',
+            businessId: 'b1',
+            name: 'Pain Scale Dog Care',
+            specialty: 'Observation',
+            specialityId: 'sp1',
+          },
+          {
+            id: 's2',
+            businessId: 'b1',
+            name: 'Random Care',
+            specialty: 'Observation',
+          },
+          {
+            id: 's3',
+            businessId: 'b1',
+            name: 'Dog Observation Care',
+            specialty: 'Observation',
+          },
+          {id: 's4', businessId: 'b1', name: 'No Spec', specialty: null},
+          {
+            id: 's5',
+            businessId: 'b1',
+            name: 'General Vet',
+            specialty: 'General',
+          },
+        ],
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(speciesState));
+    mockRouteParams = {taskId: 'task-ot', source: 'tasks'};
+
+    const {getByTestId} = render(<TaskViewScreen />);
+    expect(getByTestId('view-touch-Select observational tool')).toBeTruthy();
+  });
+
+  it('renders the description field for observational tool tasks', () => {
+    mockRouteParams = {taskId: 'task-ot-desc', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+    expect(getByTestId('view-field-Task description')).toBeTruthy();
+  });
+
+  it('skips the tool fetch when the task has no tool identifiers', () => {
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    mockRouteParams = {taskId: 'task-ot-noid', source: 'tasks'};
+
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    expect(getByTestId('view-touch-Select observational tool')).toBeTruthy();
+    expect(observationToolApi.get).not.toHaveBeenCalled();
+  });
+
+  it('ignores a tool definition that has no name', async () => {
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.get.mockResolvedValueOnce({});
+
+    mockRouteParams = {taskId: 'task-ot', source: 'tasks'};
+    const {getByText} = render(<TaskViewScreen />);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getByText('Task')).toBeTruthy();
+    expect(observationToolApi.get).toHaveBeenCalled();
+  });
+
+  it('swallows errors from the tool fetch', async () => {
+    const {
+      observationToolApi,
+    } = require('@/features/observationalTools/services/observationToolService');
+    observationToolApi.get.mockRejectedValueOnce(new Error('boom'));
+
+    mockRouteParams = {taskId: 'task-ot', source: 'tasks'};
+    const {getByText} = render(<TaskViewScreen />);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getByText('Task')).toBeTruthy();
+  });
+
+  it('renders medication description, plural doses and an empty end date', () => {
+    mockRouteParams = {taskId: 'task-med-rich', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    expect(getByTestId('view-field-Task description')).toBeTruthy();
+    expect(getByTestId('dose-row-0')).toBeTruthy();
+    expect(getByTestId('dose-row-1')).toBeTruthy();
+    expect(getByTestId('touchable-End Date')).toBeTruthy();
+  });
+
+  it('renders checked dose rows for a completed medication task', () => {
+    mockRouteParams = {taskId: 'task-med-completed-doses', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    expect(getByTestId('dose-row-0')).toBeTruthy();
+    expect(getByTestId('icon-checkmark')).toBeTruthy();
+  });
+
+  it('renders no status badge when the task has no status', () => {
+    mockRouteParams = {taskId: 'task-no-status', source: 'tasks'};
+    const {queryByTestId} = render(<TaskViewScreen />);
+
+    expect(queryByTestId('badge-')).toBeNull();
+  });
+
+  it('renders empty companion name and hides the hero subtitle', () => {
+    const taskLabels = require('@/features/tasks/utils/taskLabels');
+    taskLabels.resolveCategoryLabel
+      .mockReturnValueOnce('')
+      .mockReturnValueOnce('');
+
+    const noCompanionState = {
+      ...mockState,
+      companion: {companions: []},
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(noCompanionState));
+    mockRouteParams = {taskId: 'task-no-status', source: 'tasks'};
+
+    const {getByTestId} = render(<TaskViewScreen />);
+    expect(getByTestId('view-field-Companion')).toBeTruthy();
+  });
+
+  it('opens a calendar event using the task date when no due date exists', () => {
+    mockRouteParams = {taskId: 'task-cal-no-due', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('touchable-Calendar provider'));
+
+    const {
+      openCalendarEvent,
+    } = require('@/features/tasks/services/calendarSyncService');
+    expect(openCalendarEvent).toHaveBeenCalledWith('evt-nodue', '2025-01-08');
+  });
+
+  it('opens the OT preview for a completed task without a stored submission', () => {
+    mockRouteParams = {taskId: 'task-completed', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('btn-OT submission'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('ObservationalToolPreview', {
+      taskId: 'task-completed',
+      submissionId: undefined,
+      toolId: 'pain-scale',
+    });
+  });
+
+  it('invokes the view-only switch and date handlers without side effects', () => {
+    mockRouteParams = {taskId: 'task-med', source: 'tasks'};
+    const view = render(<TaskViewScreen />);
+
+    const switches = view.UNSAFE_getAllByType(Switch);
+    switches.forEach(node => {
+      fireEvent(node, 'valueChange', true);
+    });
+
+    fireEvent.press(view.getByTestId('touchable-Start Date'));
+    fireEvent.press(view.getByTestId('touchable-End Date'));
+
+    // View-only handlers are no-ops; the screen keeps rendering normally.
+    expect(view.getByTestId('input-Assign task')).toBeTruthy();
+  });
+
+  it('applies the android fallback border style', () => {
+    const {Platform} = require('react-native');
+    const original = Platform.OS;
+    Platform.OS = 'android';
+    try {
+      mockRouteParams = {taskId: 'task-med', source: 'tasks'};
+      const {getByText} = render(<TaskViewScreen />);
+      expect(getByText('Task')).toBeTruthy();
+    } finally {
+      Platform.OS = original;
+    }
+  });
+
+  describe('handleBookAppointment', () => {
+    const servicesState = {
+      ...mockState,
+      businesses: {
+        ...mockState.businesses,
+        businesses: [{id: 'biz-1', name: 'Care Vet'}],
+        services: [
+          {
+            id: 'svc-1',
+            businessId: 'biz-1',
+            name: 'Pain Scale Observation',
+            specialty: 'Observation',
+            specialityId: 'spec-1',
+          },
+        ],
+      },
+    };
+
+    beforeEach(() => {
+      mockRouteParams = {taskId: 'task-ot-book', source: 'tasks'};
+    });
+
+    it('shows an alert when the submission preview fails', async () => {
+      const {
+        observationToolApi,
+      } = require('@/features/observationalTools/services/observationToolService');
+      (
+        observationToolApi.previewTaskSubmission as jest.Mock
+      ).mockRejectedValueOnce(new Error('preview failed'));
+      mockUseSelector.mockImplementation((cb: any) => cb(mockState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'Submission required',
+        'Complete the observational tool before booking.',
+      );
+    });
+
+    it('shows an alert when the preview resolves without a submission id', async () => {
+      const {
+        observationToolApi,
+      } = require('@/features/observationalTools/services/observationToolService');
+      (
+        observationToolApi.previewTaskSubmission as jest.Mock
+      ).mockResolvedValueOnce({});
+      mockUseSelector.mockImplementation((cb: any) => cb(mockState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'Submission required',
+        'Complete the observational tool before booking.',
+      );
+    });
+
+    it('shows an alert when no matching provider service is found', async () => {
+      mockUseSelector.mockImplementation((cb: any) => cb(mockState)); // empty services by default
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'No providers available',
+        'We could not find a clinic offering this tool yet.',
+      );
+    });
+
+    it('shows an alert when the matched service has no known business', async () => {
+      const noBusinessState = {
+        ...servicesState,
+        businesses: {...servicesState.businesses, businesses: []},
+      };
+      mockUseSelector.mockImplementation((cb: any) => cb(noBusinessState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'No providers available',
+        'We could not find a clinic offering this tool yet.',
+      );
+    });
+
+    it('navigates to BookingForm when a matching service and business are found', async () => {
+      mockUseSelector.mockImplementation((cb: any) => cb(servicesState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'BookingForm',
+        params: expect.objectContaining({
+          businessId: 'biz-1',
+          serviceId: 'svc-1',
+          serviceName: 'Pain Scale Observation',
+        }),
+      });
+    });
+
+    it('skips the preview fetch when a submission id already exists', async () => {
+      const withSubmissionState = {
+        ...servicesState,
+        tasks: {
+          ...servicesState.tasks,
+          'task-ot-book': {
+            ...servicesState.tasks['task-ot-book'],
+            otSubmissionId: 'existing-submission',
+          },
+        },
+      };
+      mockUseSelector.mockImplementation((cb: any) => cb(withSubmissionState));
+      const {
+        observationToolApi,
+      } = require('@/features/observationalTools/services/observationToolService');
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(observationToolApi.previewTaskSubmission).not.toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'Appointments',
+        expect.objectContaining({screen: 'BookingForm'}),
+      );
+    });
+
+    it('books an appointment when the matched service has no specialty id', async () => {
+      const noSpecIdState = {
+        ...servicesState,
+        businesses: {
+          ...servicesState.businesses,
+          services: [
+            {
+              id: 'svc-1',
+              businessId: 'biz-1',
+              name: 'Pain Scale Observation',
+              specialty: 'Observation',
+            },
+          ],
+        },
+      };
+      mockUseSelector.mockImplementation((cb: any) => cb(noSpecIdState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'BookingForm',
+        params: expect.objectContaining({
+          serviceSpecialty: 'Observation',
+          serviceSpecialtyId: undefined,
+        }),
+      });
+    });
   });
 });

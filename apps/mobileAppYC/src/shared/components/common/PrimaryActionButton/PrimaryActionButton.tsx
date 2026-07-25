@@ -1,7 +1,15 @@
-import React, { useMemo } from 'react';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import { useTheme } from '@/hooks';
-import { StyleSheet, StyleProp, TextStyle, ViewStyle } from 'react-native';
+import React, {useMemo} from 'react';
+import {
+  StyleSheet,
+  StyleProp,
+  TextStyle,
+  ViewStyle,
+  Text,
+  ActivityIndicator,
+} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 
 export interface PrimaryActionButtonProps {
   title: string;
@@ -12,6 +20,11 @@ export interface PrimaryActionButtonProps {
   loading?: boolean;
 }
 
+/**
+ * The primary call-to-action: a full-width, flat espresso button (warm-bone
+ * design system) — height 56, radius 18, `cta` fill, `cta` shadow lift, no
+ * border. Not a glass surface; the design uses solid CTAs.
+ */
 export const PrimaryActionButton: React.FC<PrimaryActionButtonProps> = ({
   title,
   onPress,
@@ -20,42 +33,47 @@ export const PrimaryActionButton: React.FC<PrimaryActionButtonProps> = ({
   textStyle,
   loading,
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const isDisabled = disabled || loading;
 
   return (
-    <LiquidGlassButton
-      title={title}
+    <PressableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{disabled: !!isDisabled, busy: !!loading}}
       onPress={onPress}
-      disabled={disabled}
-      glassEffect="clear"
-      interactive
-      borderRadius="lg"
-      forceBorder
-      borderColor={theme.colors.borderMuted}
-      height={56}
-      loading={loading}
-      style={[styles.button, style]}
-      textStyle={[styles.buttonText, textStyle]}
-      tintColor={theme.colors.secondary}
-      shadowIntensity="medium"
-    />
+      disabled={isDisabled}
+      style={[styles.button, isDisabled && styles.buttonDisabled, style]}>
+      {loading ? (
+        <ActivityIndicator color={theme.colors.ctaText} />
+      ) : (
+        <Text style={[styles.buttonText, textStyle]} numberOfLines={1}>
+          {title}
+        </Text>
+      )}
+    </PressableOpacity>
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     button: {
       width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      ...theme.shadows.sm,
+      height: 56,
+      borderRadius: theme.borderRadius.button,
+      backgroundColor: theme.colors.cta,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...theme.shadows.cta,
+    },
+    buttonDisabled: {
+      backgroundColor: theme.colors.divider,
+      boxShadow: 'none',
     },
     buttonText: {
       ...theme.typography.cta,
-      color: theme.colors.background,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
   });

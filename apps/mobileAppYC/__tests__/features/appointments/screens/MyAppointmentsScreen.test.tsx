@@ -1,4 +1,5 @@
 import React from 'react';
+import {SectionList} from 'react-native';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
@@ -15,9 +16,13 @@ import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
 // ----------------------------------------------------------------------
 // 1. Mocks: Navigation & Core
 // ----------------------------------------------------------------------
+let lastFocusEffectCleanup: (() => void) | undefined;
+
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
-  useFocusEffect: jest.fn(cb => cb()),
+  useFocusEffect: jest.fn(cb => {
+    lastFocusEffectCleanup = cb();
+  }),
 }));
 
 // Suppress specific warnings for native modules
@@ -41,11 +46,13 @@ jest.mock('@/shared/hooks/useAutoSelectCompanion', () => ({
   useAutoSelectCompanion: jest.fn(),
 }));
 
+const mockRequestBusinessPhoto = jest.fn();
+const mockHandleAvatarError = jest.fn();
 jest.mock('@/features/appointments/hooks/useBusinessPhotoFallback', () => ({
   useBusinessPhotoFallback: () => ({
     businessFallbacks: {},
-    requestBusinessPhoto: jest.fn(),
-    handleAvatarError: jest.fn(),
+    requestBusinessPhoto: mockRequestBusinessPhoto,
+    handleAvatarError: mockHandleAvatarError,
   }),
 }));
 
@@ -96,12 +103,21 @@ jest.mock('@/features/appointments/utils/appointmentCardData', () => ({
     const needsPayment =
       isApt2 || ['NO_PAYMENT', 'AWAITING_PAYMENT'].includes(item.status);
 
-    // FIX S3358: Removed nested ternary
-    let checkInLabel = 'Check in';
-    if (item.status === 'CHECKED_IN') {
-      checkInLabel = 'Checked in';
-    } else if (item.status === 'IN_PROGRESS') {
-      checkInLabel = 'In progress';
+    // Leave checkInLabel empty so the screen's own resolvedCheckInLabel
+    // fallback (isInProgress / isCheckedIn / default) computes the text,
+    // exercising that branch instead of always trusting the card data.
+    const checkInLabel = item.checkInLabelOverride ?? '';
+
+    // 'biz-nodir' resolves to neither a place id nor an address so the
+    // Get Directions handler falls through to its final no-op branch.
+    let mockBusinessAddress = '123 St';
+    let mockGooglePlacesId: string | null = 'gp-1';
+    if (item.businessId === 'biz-2') {
+      mockBusinessAddress = '456 Rd';
+      mockGooglePlacesId = null;
+    } else if (item.businessId === 'biz-nodir') {
+      mockBusinessAddress = '';
+      mockGooglePlacesId = null;
     }
 
     return {
@@ -109,8 +125,8 @@ jest.mock('@/features/appointments/utils/appointmentCardData', () => ({
       cardSubtitle: 'General',
       businessName:
         item.businessId === 'biz-2' ? 'Grooming Salon' : 'Vet Clinic',
-      businessAddress: item.businessId === 'biz-2' ? '456 Rd' : '123 St',
-      googlePlacesId: item.businessId === 'biz-2' ? null : 'gp-1',
+      businessAddress: mockBusinessAddress,
+      googlePlacesId: mockGooglePlacesId,
 
       needsPayment,
       isPaymentFailed,
@@ -183,25 +199,43 @@ jest.mock('@/shared/components/common/AppointmentCard/AppointmentCard', () => {
   return {
     AppointmentCard: ({
       onChat,
+      onChatBlocked,
       onCheckIn,
       onGetDirections,
+      onAvatarError,
+      onViewDetails,
+      onPress,
       doctorName,
       hospital,
       footer,
       checkInLabel,
+      checkInDisabled,
     }: any) => (
       <View testID={`card-${doctorName}`}>
         <Text>{doctorName}</Text>
         <Text>{hospital}</Text>
         <Text testID="lbl-checkin-status">{checkInLabel}</Text>
+        <Text testID="lbl-checkin-disabled">{String(checkInDisabled)}</Text>
         <TouchableOpacity onPress={onChat} testID="btn-chat">
           <Text>Chat</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onChatBlocked} testID="btn-chat-blocked">
+          <Text>ChatBlocked</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onCheckIn} testID="btn-checkin">
           <Text>CheckIn</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onGetDirections} testID="btn-directions">
           <Text>Directions</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onAvatarError} testID="btn-avatar-error">
+          <Text>AvatarError</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onViewDetails} testID="btn-view-details">
+          <Text>ViewDetails</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onPress} testID="btn-card-press">
+          <Text>Press</Text>
         </TouchableOpacity>
         {footer}
       </View>
@@ -231,8 +265,18 @@ jest.mock(
 jest.mock(
   '@/shared/components/common/CompanionSelector/CompanionSelector',
   () => {
-    const {View} = require('react-native');
-    return {CompanionSelector: () => <View />};
+    const {View, TouchableOpacity, Text} = require('react-native');
+    return {
+      CompanionSelector: ({onSelect}: any) => (
+        <View>
+          <TouchableOpacity
+            testID="btn-select-companion"
+            onPress={() => onSelect('c2')}>
+            <Text>SelectCompanion</Text>
+          </TouchableOpacity>
+        </View>
+      ),
+    };
   },
 );
 
@@ -327,6 +371,8 @@ describe('MyAppointmentsScreen', () => {
 
     // Clear the mock worker
     mockFetchOrgWorker.mockClear();
+    mockRequestBusinessPhoto.mockClear();
+    mockHandleAvatarError.mockClear();
 
     store = mockStore({
       // Provide name to prevent charAt crash
@@ -347,6 +393,14 @@ describe('MyAppointmentsScreen', () => {
         <MyAppointmentsScreen />
       </Provider>,
     );
+  };
+
+  // The screen defaults to the Upcoming view; past appointments are shown
+  // after toggling the Upcoming/Past segmented control.
+  const switchToPast = () => {
+    act(() => {
+      fireEvent.press(screen.getByTestId('appt-view-toggle-past'));
+    });
   };
 
   it('renders correctly and fetches appointments on mount', () => {
@@ -446,6 +500,7 @@ describe('MyAppointmentsScreen', () => {
   describe('Past Appointments', () => {
     it('navigates to Review on press after state update', async () => {
       renderScreen();
+      switchToPast();
 
       // Trigger state update using helper to avoid nesting error S2004
       simulateOrgRatingUpdate({loading: false, isRated: false, rating: null});
@@ -460,11 +515,22 @@ describe('MyAppointmentsScreen', () => {
 
     it('shows rating score if already rated', async () => {
       renderScreen();
+      switchToPast();
 
       // Trigger state update using helper to avoid nesting error S2004
       simulateOrgRatingUpdate({loading: false, isRated: true, rating: 5});
 
       const ratingText = await screen.findByText('5/5');
+      expect(ratingText).toBeTruthy();
+    });
+
+    it('shows a "-" placeholder when rated but no numeric rating is available', async () => {
+      renderScreen();
+      switchToPast();
+
+      simulateOrgRatingUpdate({loading: false, isRated: true, rating: null});
+
+      const ratingText = await screen.findByText('-/5');
       expect(ratingText).toBeTruthy();
     });
 
@@ -489,6 +555,7 @@ describe('MyAppointmentsScreen', () => {
       });
 
       renderScreen();
+      switchToPast();
 
       // NO_PAYMENT results in 'Payment pending'
       expect(screen.getAllByText('Payment pending').length).toBeGreaterThan(0);
@@ -523,6 +590,510 @@ describe('MyAppointmentsScreen', () => {
       );
 
       expect(setSelectedCompanion).toHaveBeenCalledWith('c99');
+    });
+
+    it('dispatches setSelectedCompanion when a companion is selected from the header', () => {
+      renderScreen();
+      fireEvent.press(screen.getByTestId('btn-select-companion'));
+      expect(setSelectedCompanion).toHaveBeenCalledWith('c2');
+    });
+
+    it('filters upcoming and past cards by the selected business category', () => {
+      renderScreen();
+
+      fireEvent.press(screen.getByText('Hospital'));
+      expect(screen.getAllByText('Vet Clinic').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Grooming Salon')).toBeNull();
+
+      fireEvent.press(screen.getByText('Groomer'));
+      expect(screen.getByText('Grooming Salon')).toBeTruthy();
+      expect(screen.queryByText('Vet Clinic')).toBeNull();
+    });
+
+    it('opens the chat channel once handleChatActivation invokes onOpenChat', () => {
+      renderScreen();
+      const chatBtns = screen.getAllByTestId('btn-chat');
+      fireEvent.press(chatBtns[0]);
+
+      expect(handleChatActivation).toHaveBeenCalled();
+      const {onOpenChat} = (handleChatActivation as jest.Mock).mock.calls[0][0];
+
+      act(() => {
+        onOpenChat();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'ChatChannel',
+        expect.objectContaining({doctorName: 'Dr. Test', petName: 'Buddy'}),
+      );
+    });
+
+    it('normalizes a short (HH:mm) appointment time before opening chat', () => {
+      renderScreen();
+      const chatBtns = screen.getAllByTestId('btn-chat');
+      // index 0 is apt-2 (time: '09:00', a 5-char HH:mm string)
+      fireEvent.press(chatBtns[0]);
+      const {onOpenChat} = (handleChatActivation as jest.Mock).mock.calls[0][0];
+
+      act(() => {
+        onOpenChat();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'ChatChannel',
+        expect.objectContaining({appointmentTime: '2023-12-24T09:00:00Z'}),
+      );
+    });
+
+    it('keeps a full appointment time unchanged before opening chat', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [
+            {
+              id: 'u-fulltime',
+              businessId: 'biz-1',
+              date: '2999-12-25',
+              time: '10:00:30',
+              start: '2999-12-25T10:00:30Z',
+              status: 'CONFIRMED',
+              companionId: 'c1',
+            },
+          ],
+          pastOverride: [],
+        },
+      });
+      renderScreen();
+      fireEvent.press(screen.getByTestId('btn-chat'));
+      const {onOpenChat} = (handleChatActivation as jest.Mock).mock.calls[0][0];
+
+      act(() => {
+        onOpenChat();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'ChatChannel',
+        expect.objectContaining({appointmentTime: '2999-12-25T10:00:30Z'}),
+      );
+    });
+
+    it('blocks chat and shows a toast via onChatBlocked', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-chat-blocked')[0]);
+      expect(showPermissionDeniedToast).toHaveBeenCalledWith('chat with vet');
+    });
+
+    it('marks a companion as checking in via onCheckingInChange, disabling further presses', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+
+      const [{onCheckingInChange}] = mockHandleCheckIn.mock.calls[0];
+      act(() => {
+        onCheckingInChange('apt-2', true);
+      });
+
+      expect(
+        screen.getAllByTestId('lbl-checkin-disabled')[0].props.children,
+      ).toBe('true');
+
+      mockHandleCheckIn.mockClear();
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+      expect(mockHandleCheckIn).not.toHaveBeenCalled();
+    });
+
+    it('shows the requested status badge for a REQUESTED appointment', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [
+            {
+              id: 'apt-req',
+              businessId: 'biz-1',
+              date: '2023-12-25',
+              time: '10:00',
+              status: 'REQUESTED',
+              companionId: 'c1',
+            },
+          ],
+          pastOverride: [],
+        },
+      });
+
+      renderScreen();
+      expect(screen.getByText('Requested')).toBeTruthy();
+    });
+
+    it('navigates to ViewAppointment from onViewDetails and onPress (upcoming card)', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-view-details')[0]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-2',
+      });
+
+      mockNavigate.mockClear();
+      fireEvent.press(screen.getAllByTestId('btn-card-press')[0]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-2',
+      });
+    });
+
+    it('navigates to ViewAppointment from onViewDetails and onPress (past card)', () => {
+      renderScreen();
+      switchToPast();
+      const viewDetailsBtns = screen.getAllByTestId('btn-view-details');
+      fireEvent.press(viewDetailsBtns[viewDetailsBtns.length - 1]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-past-1',
+      });
+
+      mockNavigate.mockClear();
+      const cardPressBtns = screen.getAllByTestId('btn-card-press');
+      fireEvent.press(cardPressBtns[cardPressBtns.length - 1]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-past-1',
+      });
+    });
+
+    it('shows a permission toast when check-in is denied', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+
+      const [{onPermissionDenied}] = mockHandleCheckIn.mock.calls[0];
+      act(() => {
+        onPermissionDenied();
+      });
+
+      expect(showPermissionDeniedToast).toHaveBeenCalledWith('appointments');
+    });
+
+    it('clears the last-fetched companion ref when the screen loses focus', () => {
+      renderScreen();
+      expect(() => lastFocusEffectCleanup?.()).not.toThrow();
+    });
+
+    it('reports avatar load errors for both upcoming and past cards', () => {
+      renderScreen();
+      const avatarErrorBtns = screen.getAllByTestId('btn-avatar-error');
+      expect(() =>
+        avatarErrorBtns.forEach(btn => fireEvent.press(btn)),
+      ).not.toThrow();
+      expect(mockHandleAvatarError).toHaveBeenCalledWith('gp-1', 'biz-1');
+    });
+  });
+
+  describe('Warm-bone branch coverage', () => {
+    const buildStore = (
+      companions: any[],
+      selectedCompanionId: any,
+      upcomingOverride: any,
+      pastOverride: any,
+    ) =>
+      mockStore({
+        companion: {companions, selectedCompanionId},
+        appointments: {upcomingOverride, pastOverride},
+      });
+
+    it('invokes the SectionList onEndReached pagination placeholder without side effects', () => {
+      renderScreen();
+      const list = screen.UNSAFE_getByType(SectionList);
+      expect(() => act(() => list.props.onEndReached())).not.toThrow();
+    });
+
+    it('auto-selects the first companion via _id when id is absent', () => {
+      store = buildStore([{_id: 'cid', name: 'NoId'}], null, [], []);
+      renderScreen();
+      expect(setSelectedCompanion).toHaveBeenCalledWith('cid');
+    });
+
+    it('auto-selects the first companion via identifier value when id and _id are absent', () => {
+      store = buildStore(
+        [{identifier: [{value: 'ident'}], name: 'IdentOnly'}],
+        null,
+        [],
+        [],
+      );
+      renderScreen();
+      expect(setSelectedCompanion).toHaveBeenCalledWith('ident');
+    });
+
+    it('does not auto-select a companion when the companion list is empty', () => {
+      store = buildStore([], null, [], []);
+      renderScreen();
+      expect(setSelectedCompanion).not.toHaveBeenCalled();
+    });
+
+    it('does not auto-select a companion when the first companion has no id fields', () => {
+      store = buildStore([{name: 'Ghost'}], null, [], []);
+      renderScreen();
+      expect(setSelectedCompanion).not.toHaveBeenCalled();
+    });
+
+    it('sorts upcoming appointments using start and time fallbacks', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-start',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            start: '2023-12-25T10:00:00Z',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-notime',
+            businessId: 'biz-1',
+            date: '2023-12-24',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-plain',
+            businessId: 'biz-1',
+            date: '2023-12-26',
+            time: '09:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getAllByTestId('card-Dr. Test').length).toBe(3);
+    });
+
+    it('sorts when the compared prior appointment has no time', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-no-b-time',
+            businessId: 'biz-1',
+            date: '2999-12-24',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-with-time',
+            businessId: 'biz-1',
+            date: '2999-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getAllByTestId('card-Dr. Test')).toHaveLength(2);
+    });
+
+    it('splits far-future upcoming appointments into a Later group', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-soon',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-later',
+            businessId: 'biz-1',
+            date: '2999-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByText('This week')).toBeTruthy();
+      expect(screen.getByText('Later')).toBeTruthy();
+    });
+
+    it('renders an empty state card when there are no past appointments', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [],
+      );
+      renderScreen();
+      switchToPast();
+      expect(screen.getByText('No past appointments')).toBeTruthy();
+      expect(
+        screen.getByText('Completed appointments will appear here.'),
+      ).toBeTruthy();
+    });
+
+    it('renders an empty state card when there are no upcoming appointments', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByText('No upcoming appointments')).toBeTruthy();
+      expect(
+        screen.getByText('Book a new appointment to see it here.'),
+      ).toBeTruthy();
+    });
+
+    it('does nothing for Get Directions when there is no place id or address', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-nodir',
+            businessId: 'biz-nodir',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      fireEvent.press(screen.getByTestId('btn-directions'));
+      expect(openMapsToPlaceId).not.toHaveBeenCalled();
+      expect(openMapsToAddress).not.toHaveBeenCalled();
+    });
+
+    it('resolves the "In progress" check-in label for an in-progress appointment', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-inprog',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'IN_PROGRESS',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByTestId('lbl-checkin-status').props.children).toBe(
+        'In progress',
+      );
+    });
+
+    it('resolves the default check-in label for a confirmed appointment', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-confirmed',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByTestId('lbl-checkin-status').props.children).toBe(
+        'Check in',
+      );
+    });
+
+    it('uses the check-in label supplied by card data when present', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-custom-label',
+            businessId: 'biz-1',
+            date: '2999-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+            checkInLabelOverride: 'Ready now',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByTestId('lbl-checkin-status').props.children).toBe(
+        'Ready now',
+      );
+    });
+
+    it('reports avatar load errors for past cards', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [
+          {
+            id: 'p-avatar',
+            businessId: 'biz-1',
+            date: '2023-01-01',
+            status: 'COMPLETED',
+            companionId: 'c1',
+          },
+        ],
+      );
+      renderScreen();
+      switchToPast();
+
+      fireEvent.press(screen.getByTestId('btn-avatar-error'));
+
+      expect(mockHandleAvatarError).toHaveBeenCalledWith('gp-1', 'biz-1');
+    });
+
+    it('navigates to ViewAppointment from the past card view-details and press handlers', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [
+          {
+            id: 'p-detail',
+            businessId: 'biz-1',
+            date: '2023-01-01',
+            status: 'COMPLETED',
+            companionId: 'c1',
+          },
+        ],
+      );
+      renderScreen();
+      switchToPast();
+      fireEvent.press(screen.getByTestId('btn-view-details'));
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'p-detail',
+      });
+
+      mockNavigate.mockClear();
+      fireEvent.press(screen.getByTestId('btn-card-press'));
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'p-detail',
+      });
     });
   });
 });

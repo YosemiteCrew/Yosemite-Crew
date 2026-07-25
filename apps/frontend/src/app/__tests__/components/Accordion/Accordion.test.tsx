@@ -59,4 +59,188 @@ describe('<Accordion />', () => {
     expect(onEditClick).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('accordion-content')).toBeInTheDocument();
   });
+
+  test.each([['Enter'], [' ']])(
+    'pressing "%s" on the edit button opens the accordion and calls onEditClick',
+    (key) => {
+      const onEditClick = jest.fn();
+      render(
+        <Accordion title="Edit me" onEditClick={onEditClick}>
+          <div data-testid="accordion-content">Editable</div>
+        </Accordion>
+      );
+
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Edit Edit me' }), { key });
+
+      expect(onEditClick).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('accordion-content')).toBeInTheDocument();
+    }
+  );
+
+  test('ignores other keys on the edit button', () => {
+    const onEditClick = jest.fn();
+    render(
+      <Accordion title="Edit me" onEditClick={onEditClick}>
+        <div data-testid="accordion-content">Editable</div>
+      </Accordion>
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Edit Edit me' }), { key: 'Escape' });
+
+    expect(onEditClick).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('accordion-content')).not.toBeInTheDocument();
+  });
+
+  test('keyboard edit works when no onEditClick handler is supplied', () => {
+    render(
+      <Accordion title="Edit me">
+        <div data-testid="accordion-content">Editable</div>
+      </Accordion>
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Edit Edit me' }), { key: 'Enter' });
+
+    expect(screen.getByTestId('accordion-content')).toBeInTheDocument();
+  });
+
+  test('clicking the delete button calls onDeleteClick without toggling', () => {
+    const onDeleteClick = jest.fn();
+    render(
+      <Accordion title="Delete me" showDeleteIcon onDeleteClick={onDeleteClick}>
+        <div data-testid="accordion-content">Deletable</div>
+      </Accordion>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Delete me' }));
+
+    expect(onDeleteClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('accordion-content')).not.toBeInTheDocument();
+  });
+
+  test.each([['Enter'], [' ']])('pressing "%s" on the delete button calls onDeleteClick', (key) => {
+    const onDeleteClick = jest.fn();
+    render(
+      <Accordion title="Delete me" showDeleteIcon onDeleteClick={onDeleteClick}>
+        <div>Deletable</div>
+      </Accordion>
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Delete Delete me' }), { key });
+
+    expect(onDeleteClick).toHaveBeenCalledTimes(1);
+  });
+
+  test('ignores other keys on the delete button', () => {
+    const onDeleteClick = jest.fn();
+    render(
+      <Accordion title="Delete me" showDeleteIcon onDeleteClick={onDeleteClick}>
+        <div>Deletable</div>
+      </Accordion>
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Delete Delete me' }), { key: 'Escape' });
+
+    expect(onDeleteClick).not.toHaveBeenCalled();
+  });
+
+  test('delete button is safe to activate without an onDeleteClick handler', () => {
+    render(
+      <Accordion title="Delete me" showDeleteIcon>
+        <div>Deletable</div>
+      </Accordion>
+    );
+
+    const deleteButton = screen.getByRole('button', { name: 'Delete Delete me' });
+    expect(() => {
+      fireEvent.click(deleteButton);
+      fireEvent.keyDown(deleteButton, { key: 'Enter' });
+    }).not.toThrow();
+  });
+
+  test('hides edit and delete icons while editing', () => {
+    render(
+      <Accordion title="Busy" showDeleteIcon isEditing>
+        <div>Content</div>
+      </Accordion>
+    );
+
+    expect(screen.queryByRole('button', { name: 'Edit Busy' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete Busy' })).not.toBeInTheDocument();
+  });
+
+  test('notifies onOpenChange in uncontrolled mode', () => {
+    const onOpenChange = jest.fn();
+    render(
+      <Accordion title="Notify" onOpenChange={onOpenChange}>
+        <div data-testid="accordion-content">Content</div>
+      </Accordion>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notify' }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+    expect(screen.getByTestId('accordion-content')).toBeInTheDocument();
+  });
+
+  test('respects the controlled open prop and does not manage its own state', () => {
+    const onOpenChange = jest.fn();
+    const { rerender } = render(
+      <Accordion title="Controlled" open={false} onOpenChange={onOpenChange}>
+        <div data-testid="accordion-content">Content</div>
+      </Accordion>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Controlled' }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+    // Still closed: the parent owns the state.
+    expect(screen.queryByTestId('accordion-content')).not.toBeInTheDocument();
+
+    rerender(
+      <Accordion title="Controlled" open onOpenChange={onOpenChange}>
+        <div data-testid="accordion-content">Content</div>
+      </Accordion>
+    );
+    expect(screen.getByTestId('accordion-content')).toBeInTheDocument();
+  });
+
+  test('renders no content panel when children is an empty array', () => {
+    const { container } = render(
+      <Accordion title="Empty" defaultOpen>
+        {[]}
+      </Accordion>
+    );
+
+    expect(container.querySelector('.rounded-b-2xl')).not.toBeInTheDocument();
+  });
+
+  test('renders no content panel when there are no children', () => {
+    const { container } = render(<Accordion title="Childless" defaultOpen />);
+
+    expect(container.querySelector('.rounded-b-2xl')).not.toBeInTheDocument();
+  });
+
+  test('renders a content panel for a non-empty array of children', () => {
+    render(
+      <Accordion title="Many" defaultOpen>
+        <div data-testid="first">One</div>
+        <div data-testid="second">Two</div>
+      </Accordion>
+    );
+
+    expect(screen.getByTestId('first')).toBeInTheDocument();
+    expect(screen.getByTestId('second')).toBeInTheDocument();
+  });
+
+  test('applies a custom title class', () => {
+    render(<Accordion title="Styled" titleClassName="text-body-9" />);
+
+    expect(screen.getByText('Styled')).toHaveClass('text-body-9');
+  });
+
+  test('renders a right element', () => {
+    render(<Accordion title="With right" rightElement={<span data-testid="right">R</span>} />);
+
+    expect(screen.getByTestId('right')).toBeInTheDocument();
+  });
 });

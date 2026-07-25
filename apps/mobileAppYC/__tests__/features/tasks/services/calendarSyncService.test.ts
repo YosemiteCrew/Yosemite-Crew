@@ -4,8 +4,8 @@ import {
   openCalendarEvent,
 } from '../../../../src/features/tasks/services/calendarSyncService';
 import RNCalendarEvents from 'react-native-calendar-events';
-import { Alert, Linking, Platform } from 'react-native';
-import type { Task } from '../../../../src/features/tasks/types';
+import {Alert, Linking, Platform} from 'react-native';
+import type {Task} from '../../../../src/features/tasks/types';
 
 // --- Mocks ---
 
@@ -44,7 +44,9 @@ describe('calendarSyncService', () => {
     jest.clearAllMocks();
     Platform.OS = 'ios';
     // Default to authorized for most tests
-    (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue('authorized');
+    (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+      'authorized',
+    );
     (RNCalendarEvents.saveEvent as jest.Mock).mockResolvedValue('evt-1');
   });
 
@@ -53,8 +55,12 @@ describe('calendarSyncService', () => {
   // =========================================================================
   describe('Permission Handling', () => {
     it('returns null and alerts if permission denied initially and after request', async () => {
-      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue('denied');
-      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue('denied');
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
+      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
 
       const result = await createCalendarEventForTask(baseTask);
 
@@ -62,12 +68,14 @@ describe('calendarSyncService', () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'Calendar permission needed',
         expect.stringContaining('Enable calendar access'),
-        expect.any(Array)
+        expect.any(Array),
       );
     });
 
     it('proceeds if permission is authorized initially', async () => {
-      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue('authorized');
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+        'authorized',
+      );
 
       const result = await createCalendarEventForTask(baseTask);
       expect(result).toBe('evt-1');
@@ -75,11 +83,39 @@ describe('calendarSyncService', () => {
     });
 
     it('proceeds if permission is authorized after request', async () => {
-      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue('undetermined');
-      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue('authorized');
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+        'undetermined',
+      );
+      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue(
+        'authorized',
+      );
 
       const result = await createCalendarEventForTask(baseTask);
       expect(result).toBe('evt-1');
+    });
+
+    it('opens device settings when the "Open settings" alert button is pressed', async () => {
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
+      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
+      const openSettingsSpy = jest
+        .spyOn(Linking, 'openSettings')
+        .mockImplementation(() => {});
+
+      await createCalendarEventForTask(baseTask);
+
+      const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
+      const buttons = alertCall[2];
+      const openSettingsButton = buttons.find(
+        (b: any) => b.text === 'Open settings',
+      );
+      openSettingsButton.onPress();
+
+      expect(openSettingsSpy).toHaveBeenCalled();
+      openSettingsSpy.mockRestore();
     });
 
     it('handles missing RNCalendarEvents library gracefully', async () => {
@@ -90,18 +126,25 @@ describe('calendarSyncService', () => {
       const result = await createCalendarEventForTask(baseTask);
 
       expect(result).toBeNull();
-      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('unavailable or not linked'));
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('unavailable or not linked'),
+      );
 
       // Restore
       (RNCalendarEvents as any).checkPermissions = originalCheck;
     });
 
     it('handles permission check error', async () => {
-      (RNCalendarEvents.checkPermissions as jest.Mock).mockRejectedValue(new Error('Native Error'));
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockRejectedValue(
+        new Error('Native Error'),
+      );
 
       const result = await createCalendarEventForTask(baseTask);
       expect(result).toBeNull();
-      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Permission check failed'), expect.anything());
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Permission check failed'),
+        expect.anything(),
+      );
     });
   });
 
@@ -117,45 +160,74 @@ describe('calendarSyncService', () => {
         expect.objectContaining({
           startDate: expect.stringContaining('2025-01-01'),
           notes: expect.stringContaining('Companion: Buddy'),
-          alarms: [{ date: -15 }],
-        })
+          alarms: [{date: -15}],
+        }),
       );
     });
 
     it('uses default date if task date/time missing', async () => {
-      const noDateTask = { ...baseTask, date: undefined, time: undefined, dueAt: undefined };
+      const noDateTask = {
+        ...baseTask,
+        date: undefined,
+        time: undefined,
+        dueAt: undefined,
+      };
       await createCalendarEventForTask(noDateTask as any);
       expect(RNCalendarEvents.saveEvent).toHaveBeenCalled();
     });
 
-    it('uses date + default time (09:00) if time missing', async () => {
-       const dateOnlyTask = { ...baseTask, date: '2025-01-01', time: undefined };
-       await createCalendarEventForTask(dateOnlyTask as any);
+    it('does not add default alarms for a simple event with no reminder offset or options', async () => {
+      const noAlarmsTask = {
+        ...baseTask,
+        reminderOffsetMinutes: undefined,
+        reminderOptions: undefined,
+      };
+      await createCalendarEventForTask(noAlarmsTask as any);
 
-       expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
-           expect.anything(),
-           expect.objectContaining({
-               startDate: expect.stringContaining('2025-01-01'),
-           })
-       );
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({alarms: undefined}),
+      );
+    });
+
+    it('uses date + default time (09:00) if time missing', async () => {
+      const dateOnlyTask = {...baseTask, date: '2025-01-01', time: undefined};
+      await createCalendarEventForTask(dateOnlyTask as any);
+
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          startDate: expect.stringContaining('2025-01-01'),
+        }),
+      );
     });
 
     it('handles recurrence: daily', async () => {
-      const recurringTask = { ...baseTask, frequency: 'daily' } as any;
+      const recurringTask = {...baseTask, frequency: 'daily'} as any;
       await createCalendarEventForTask(recurringTask);
 
       expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ recurrence: 'daily' })
+        expect.objectContaining({recurrence: 'daily'}),
+      );
+    });
+
+    it('handles recurrence: monthly', async () => {
+      const recurringTask = {...baseTask, frequency: 'monthly'} as any;
+      await createCalendarEventForTask(recurringTask);
+
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({recurrence: 'monthly'}),
       );
     });
 
     it('handles recurrence with end date (recurrenceRule)', async () => {
       // Cast as any because 'details' partial match
       const endDateTask = {
-         ...baseTask,
-         frequency: 'weekly',
-         details: { endDate: '2025-12-31' }
+        ...baseTask,
+        frequency: 'weekly',
+        details: {endDate: '2025-12-31'},
       } as any;
 
       await createCalendarEventForTask(endDateTask);
@@ -168,7 +240,7 @@ describe('calendarSyncService', () => {
             interval: 1,
             endDate: '2025-12-31',
           },
-        })
+        }),
       );
     });
 
@@ -187,7 +259,8 @@ describe('calendarSyncService', () => {
 
       await createCalendarEventForTask(complexTask);
 
-      const callArgs = (RNCalendarEvents.saveEvent as jest.Mock).mock.calls[0][1];
+      const callArgs = (RNCalendarEvents.saveEvent as jest.Mock).mock
+        .calls[0][1];
       const notes = callArgs.notes;
 
       expect(notes).toContain('📝 Take pills');
@@ -199,17 +272,110 @@ describe('calendarSyncService', () => {
     });
 
     it('handles saveEvent failure', async () => {
-      (RNCalendarEvents.saveEvent as jest.Mock).mockRejectedValue(new Error('Calendar Full'));
+      (RNCalendarEvents.saveEvent as jest.Mock).mockRejectedValue(
+        new Error('Calendar Full'),
+      );
 
       const result = await createCalendarEventForTask(baseTask);
       expect(result).toBeNull();
-      expect(Alert.alert).toHaveBeenCalledWith('Calendar', expect.stringContaining('Unable to add'));
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Calendar',
+        expect.stringContaining('Unable to add'),
+      );
+    });
+
+    it('uses reminder options, default event title, and null event id for a simple event', async () => {
+      (RNCalendarEvents.saveEvent as jest.Mock).mockResolvedValue(null);
+      const noTitleTask = {
+        ...baseTask,
+        title: '',
+        reminderOffsetMinutes: undefined,
+        reminderOptions: {method: 'alert'},
+      };
+
+      const result = await createCalendarEventForTask(noTitleTask as any);
+
+      expect(result).toBeNull();
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        'Yosemite Crew Task',
+        expect.objectContaining({alarms: [{date: -15}]}),
+      );
+    });
+
+    it('includes medication notes without medicine type for simple medication details', async () => {
+      const medicationTask = {
+        ...baseTask,
+        details: {
+          medicineName: 'Aspirin',
+        },
+      } as any;
+
+      await createCalendarEventForTask(medicationTask);
+
+      const notes = (RNCalendarEvents.saveEvent as jest.Mock).mock.calls[0][1]
+        .notes;
+      expect(notes).toContain('Medicine: Aspirin');
+      expect(notes).not.toContain('Type:');
     });
   });
 
   // =========================================================================
   // 3. Medication Dosage Events (Loop Logic)
   // =========================================================================
+  describe('calendar id resolution', () => {
+    it('passes a real device calendar id through as calendarId', async () => {
+      await createCalendarEventForTask({
+        ...baseTask,
+        calendarProvider: 'cal-1',
+      });
+
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({calendarId: 'cal-1'}),
+      );
+    });
+
+    it.each(['google', 'icloud'])(
+      'omits calendarId for the legacy provider name %s',
+      async provider => {
+        await createCalendarEventForTask({
+          ...baseTask,
+          calendarProvider: provider,
+        });
+
+        const [, options] = (RNCalendarEvents.saveEvent as jest.Mock).mock
+          .calls[0];
+        expect(options).not.toHaveProperty('calendarId');
+      },
+    );
+
+    it('omits calendarId for a legacy provider name on dosage events', async () => {
+      await createCalendarEventForTask({
+        ...baseTask,
+        calendarProvider: 'google',
+        details: {
+          medicineName: 'Advil',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any);
+
+      const [, options] = (RNCalendarEvents.saveEvent as jest.Mock).mock
+        .calls[0];
+      expect(options).not.toHaveProperty('calendarId');
+    });
+
+    it('omits calendarId when no provider is set', async () => {
+      await createCalendarEventForTask({
+        ...baseTask,
+        calendarProvider: undefined,
+      });
+
+      const [, options] = (RNCalendarEvents.saveEvent as jest.Mock).mock
+        .calls[0];
+      expect(options).not.toHaveProperty('calendarId');
+    });
+  });
+
   describe('createDosageCalendarEvents', () => {
     it('creates multiple events for medication dosages', async () => {
       // Cast as any to bypass TaskSpecificDetails union
@@ -218,8 +384,8 @@ describe('calendarSyncService', () => {
         details: {
           medicineName: 'Advil',
           dosages: [
-            { id: 'd1', label: 'Morning', time: '08:00' },
-            { id: 'd2', label: 'Evening', time: '20:00' },
+            {id: 'd1', label: 'Morning', time: '08:00'},
+            {id: 'd2', label: 'Evening', time: '20:00'},
           ],
         },
       } as any;
@@ -235,66 +401,241 @@ describe('calendarSyncService', () => {
       expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
         'Test Task - Morning',
         expect.objectContaining({
-            startDate: expect.any(String),
-            notes: expect.stringContaining('Dosage: Morning')
-        })
+          startDate: expect.any(String),
+          notes: expect.stringContaining('Dosage: Morning'),
+        }),
       );
 
       expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
         'Test Task - Evening',
         expect.objectContaining({
-            startDate: expect.any(String),
-        })
+          startDate: expect.any(String),
+        }),
       );
 
       expect(result).toBe('evt-1,evt-2');
     });
 
     it('skips invalid dosage times', async () => {
-       const invalidTask = {
-           ...baseTask,
-           details: {
-               medicineName: 'Drug',
-               dosages: [{ id: 'd1', label: 'Bad', time: 'invalid-time' }]
-           }
-       } as any;
+      const invalidTask = {
+        ...baseTask,
+        details: {
+          medicineName: 'Drug',
+          dosages: [{id: 'd1', label: 'Bad', time: 'invalid-time'}],
+        },
+      } as any;
 
-       const result = await createCalendarEventForTask(invalidTask);
+      const result = await createCalendarEventForTask(invalidTask);
 
-       expect(RNCalendarEvents.saveEvent).not.toHaveBeenCalled();
-       expect(result).toBeNull();
-       expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Invalid dosage time'), 'invalid-time');
+      expect(RNCalendarEvents.saveEvent).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid dosage time'),
+        'invalid-time',
+      );
+    });
+
+    it('parses an ISO datetime dosage time', async () => {
+      const isoTask = {
+        ...baseTask,
+        details: {
+          medicineName: 'Drug',
+          dosages: [
+            {id: 'd1', label: 'Morning', time: '2025-01-01T08:30:00.000Z'},
+          ],
+        },
+      } as any;
+
+      const result = await createCalendarEventForTask(isoTask);
+
+      expect(result).toBe('evt-1');
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalled();
+    });
+
+    it('treats a non-numeric colon-separated dosage time as invalid', async () => {
+      const badTask = {
+        ...baseTask,
+        details: {
+          medicineName: 'Drug',
+          dosages: [{id: 'd1', label: 'Bad', time: 'ab:cd'}],
+        },
+      } as any;
+
+      const result = await createCalendarEventForTask(badTask);
+
+      expect(result).toBeNull();
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid dosage time'),
+        'ab:cd',
+      );
+    });
+
+    it('treats a non-string dosage time as invalid (parse exception)', async () => {
+      const crashTask = {
+        ...baseTask,
+        details: {
+          medicineName: 'Drug',
+          dosages: [{id: 'd1', label: 'Bad', time: 12345 as any}],
+        },
+      } as any;
+
+      const result = await createCalendarEventForTask(crashTask);
+
+      expect(result).toBeNull();
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid dosage time'),
+        12345,
+      );
+    });
+
+    it('includes description, note, medicine type, companion, and assignee in dosage event notes', async () => {
+      const richDosageTask = {
+        ...baseTask,
+        description: 'Take with water',
+        additionalNote: 'Do not skip',
+        details: {
+          medicineName: 'Advil',
+          medicineType: 'Tablet',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any;
+
+      await createCalendarEventForTask(richDosageTask, 'Buddy', 'Dr. Smith');
+
+      const notes = (RNCalendarEvents.saveEvent as jest.Mock).mock.calls[0][1]
+        .notes;
+      expect(notes).toContain('📝 Take with water');
+      expect(notes).toContain('💡 Note: Do not skip');
+      expect(notes).toContain('Type: Tablet');
+      expect(notes).toContain('👤 Companion: Buddy');
+      expect(notes).toContain('👥 Assigned to: Dr. Smith');
+    });
+
+    it('does not add default alarms when there is no reminder offset or reminder options', async () => {
+      const noAlarmsTask = {
+        ...baseTask,
+        reminderOffsetMinutes: undefined,
+        reminderOptions: undefined,
+        details: {
+          medicineName: 'M',
+          dosages: [{id: '1', label: 'L', time: '10:00'}],
+        },
+      } as any;
+
+      await createCalendarEventForTask(noAlarmsTask);
+
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({alarms: undefined}),
+      );
     });
 
     it('handles error during dosage creation loop', async () => {
-        (RNCalendarEvents.saveEvent as jest.Mock).mockRejectedValue(new Error('Fail'));
+      (RNCalendarEvents.saveEvent as jest.Mock).mockRejectedValue(
+        new Error('Fail'),
+      );
 
-        const result = await createCalendarEventForTask({
-            ...baseTask,
-            details: {
-              medicineName: 'Advil',
-              dosages: [{ id: 'd1', label: 'Morning', time: '08:00' }],
-            },
-        } as any);
+      const result = await createCalendarEventForTask({
+        ...baseTask,
+        details: {
+          medicineName: 'Advil',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any);
 
-        expect(result).toBeNull();
-        expect(Alert.alert).toHaveBeenCalledWith('Calendar', expect.stringContaining('Unable to add medication'));
+      expect(result).toBeNull();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Calendar',
+        expect.stringContaining('Unable to add medication'),
+      );
+    });
+
+    it('removes already-created sibling events when one dosage fails', async () => {
+      (RNCalendarEvents.saveEvent as jest.Mock)
+        .mockResolvedValueOnce('evt-1')
+        .mockRejectedValueOnce(new Error('Fail'))
+        .mockResolvedValueOnce('evt-3');
+
+      const result = await createCalendarEventForTask({
+        ...baseTask,
+        details: {
+          medicineName: 'Advil',
+          dosages: [
+            {id: 'd1', label: 'Morning', time: '08:00'},
+            {id: 'd2', label: 'Noon', time: '12:00'},
+            {id: 'd3', label: 'Evening', time: '20:00'},
+          ],
+        },
+      } as any);
+
+      expect(result).toBeNull();
+      // The task records no ids, so anything left behind could never be removed.
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledWith('evt-1');
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledWith('evt-3');
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledTimes(2);
     });
 
     it('sets default alarms if reminderOffset is missing', async () => {
-        const noReminderTask = {
-            ...baseTask,
-            reminderOffsetMinutes: undefined,
-            reminderOptions: { method: 'alert', time: 10 },
-            details: { medicineName: 'M', dosages: [{id:'1', label:'L', time:'10:00'}] }
-        } as any;
+      const noReminderTask = {
+        ...baseTask,
+        reminderOffsetMinutes: undefined,
+        reminderOptions: {method: 'alert', time: 10},
+        details: {
+          medicineName: 'M',
+          dosages: [{id: '1', label: 'L', time: '10:00'}],
+        },
+      } as any;
 
-        await createCalendarEventForTask(noReminderTask);
+      await createCalendarEventForTask(noReminderTask);
 
-        expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({ alarms: [{ date: -15 }] })
-        );
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({alarms: [{date: -15}]}),
+      );
+    });
+
+    it('creates a dosage event without medication notes when medicineName is absent', async () => {
+      const dosageTask = {
+        ...baseTask,
+        details: {
+          medicineName: '',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any;
+
+      await createCalendarEventForTask(dosageTask);
+
+      const notes = (RNCalendarEvents.saveEvent as jest.Mock).mock.calls[0][1]
+        .notes;
+      expect(notes).not.toContain('MEDICATION');
+    });
+
+    it('uses current date, recurrence, recurrenceRule, and null event id path for dosage events', async () => {
+      const dosageTask = {
+        ...baseTask,
+        date: undefined,
+        frequency: 'daily',
+        details: {
+          medicineName: 'Advil',
+          endDate: '2025-12-31',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any;
+      (RNCalendarEvents.saveEvent as jest.Mock).mockResolvedValue(null);
+
+      const result = await createCalendarEventForTask(dosageTask);
+
+      expect(result).toBeNull();
+      expect(RNCalendarEvents.saveEvent).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          recurrence: 'daily',
+          recurrenceRule: expect.objectContaining({
+            frequency: 'daily',
+            endDate: '2025-12-31',
+          }),
+        }),
+      );
     });
   });
 
@@ -312,14 +653,25 @@ describe('calendarSyncService', () => {
       expect(RNCalendarEvents.removeEvent).toHaveBeenCalledTimes(3);
     });
 
+    it('ignores empty comma-separated event ids', async () => {
+      await removeCalendarEvents('evt-1,,   ,evt-2');
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledTimes(2);
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledWith('evt-1');
+      expect(RNCalendarEvents.removeEvent).toHaveBeenCalledWith('evt-2');
+    });
+
     it('does nothing if id string is empty', async () => {
       await removeCalendarEvents(null);
       expect(RNCalendarEvents.removeEvent).not.toHaveBeenCalled();
     });
 
     it('aborts if permission denied', async () => {
-      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue('denied');
-      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue('denied');
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
+      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
 
       await removeCalendarEvents('evt-1');
       expect(RNCalendarEvents.removeEvent).not.toHaveBeenCalled();
@@ -327,20 +679,26 @@ describe('calendarSyncService', () => {
 
     it('continues removing if one fails', async () => {
       (RNCalendarEvents.removeEvent as jest.Mock)
-          .mockResolvedValueOnce(true)
-          .mockRejectedValueOnce(new Error('Not found'))
-          .mockResolvedValueOnce(true);
+        .mockResolvedValueOnce(true)
+        .mockRejectedValueOnce(new Error('Not found'))
+        .mockResolvedValueOnce(true);
 
       await removeCalendarEvents('1,2,3');
       expect(RNCalendarEvents.removeEvent).toHaveBeenCalledTimes(3);
-      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to remove event'), '2', expect.anything());
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to remove event'),
+        '2',
+        expect.anything(),
+      );
     });
 
     it('handles catastrophic failure in removal function', async () => {
-       // Force a crash inside the function logic by making split fail or permission check crash
-       (RNCalendarEvents.checkPermissions as jest.Mock).mockRejectedValue(new Error('Crash'));
+      // Force a crash inside the function logic by making split fail or permission check crash
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockRejectedValue(
+        new Error('Crash'),
+      );
 
-       await removeCalendarEvents('1');
+      await removeCalendarEvents('1');
     });
   });
 
@@ -351,23 +709,44 @@ describe('calendarSyncService', () => {
     it('opens iOS calendar URL with event time', async () => {
       Platform.OS = 'ios';
       const mockDate = new Date('2025-01-01T10:00:00Z');
-      (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue({ startDate: mockDate.toISOString() });
+      (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue({
+        startDate: mockDate.toISOString(),
+      });
 
       await openCalendarEvent('evt-1');
 
       const expectedSeconds = Math.floor(mockDate.getTime() / 1000);
-      expect(Linking.openURL).toHaveBeenCalledWith(`calshow:${expectedSeconds}`);
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        `calshow:${expectedSeconds}`,
+      );
+    });
+
+    it('opens calendar URL when event includes calendar metadata', async () => {
+      Platform.OS = 'ios';
+      const mockDate = new Date('2025-01-01T10:00:00Z');
+      (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue({
+        calendar: {id: 'cal-1'},
+        startDate: mockDate.toISOString(),
+      });
+
+      await openCalendarEvent('evt-1');
+
+      expect(Linking.openURL).toHaveBeenCalled();
     });
 
     it('opens Android calendar URL with event time', async () => {
       Platform.OS = 'android';
       const mockDate = new Date('2025-01-01T10:00:00Z');
-      (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue({ startDate: mockDate.toISOString() });
+      (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue({
+        startDate: mockDate.toISOString(),
+      });
 
       await openCalendarEvent('evt-1');
 
       const expectedMs = mockDate.getTime();
-      expect(Linking.openURL).toHaveBeenCalledWith(`content://com.android.calendar/time/${expectedMs}`);
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        `content://com.android.calendar/time/${expectedMs}`,
+      );
     });
 
     it('uses fallback date if event not found', async () => {
@@ -378,30 +757,57 @@ describe('calendarSyncService', () => {
       await openCalendarEvent('evt-1', fallback);
 
       const expectedSeconds = Math.floor(fallback.getTime() / 1000);
-      expect(Linking.openURL).toHaveBeenCalledWith(`calshow:${expectedSeconds}`);
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        `calshow:${expectedSeconds}`,
+      );
+    });
+
+    it('uses the current time when the event is not found and no fallback date is given', async () => {
+      Platform.OS = 'ios';
+      (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue(null);
+
+      await openCalendarEvent('evt-1');
+
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        expect.stringMatching(/^calshow:\d+$/),
+      );
     });
 
     it('alerts if permission denied', async () => {
-       (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue('denied');
-       (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue('denied');
+      (RNCalendarEvents.checkPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
+      (RNCalendarEvents.requestPermissions as jest.Mock).mockResolvedValue(
+        'denied',
+      );
 
-       await openCalendarEvent('1');
-       expect(Linking.openURL).not.toHaveBeenCalled();
+      await openCalendarEvent('1');
+      expect(Linking.openURL).not.toHaveBeenCalled();
     });
 
     it('alerts if URL not supported', async () => {
-       (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
-       (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue({ startDate: new Date().toISOString() });
+      (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
+      (RNCalendarEvents.findEventById as jest.Mock).mockResolvedValue({
+        startDate: new Date().toISOString(),
+      });
 
-       await openCalendarEvent('1');
-       expect(Linking.openURL).not.toHaveBeenCalled();
-       expect(Alert.alert).toHaveBeenCalledWith('Calendar', expect.stringContaining('Please open your calendar app'));
+      await openCalendarEvent('1');
+      expect(Linking.openURL).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Calendar',
+        expect.stringContaining('Please open your calendar app'),
+      );
     });
 
     it('handles errors during open', async () => {
-       (RNCalendarEvents.findEventById as jest.Mock).mockRejectedValue(new Error('Read Fail'));
-       await openCalendarEvent('1');
-       expect(Alert.alert).toHaveBeenCalledWith('Calendar', expect.stringContaining('Please open your calendar app'));
+      (RNCalendarEvents.findEventById as jest.Mock).mockRejectedValue(
+        new Error('Read Fail'),
+      );
+      await openCalendarEvent('1');
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Calendar',
+        expect.stringContaining('Please open your calendar app'),
+      );
     });
   });
 });

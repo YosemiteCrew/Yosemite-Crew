@@ -59,15 +59,18 @@ const mockActions = {
   setSelectedCompanion: jest.fn(id => ({type: 'SET_COMPANION', payload: id})),
 };
 
-jest.mock('../../../../../src/features/coParent', () => ({
+jest.mock('../../../../../src/features/coParent/thunks', () => ({
   updateCoParentPermissions: (...args: any) =>
     mockActions.updateCoParentPermissions(...args),
-  selectCoParentLoading: (state: any) => state.coParent?.loading,
   deleteCoParent: (...args: any) => mockActions.deleteCoParent(...args),
   fetchCoParents: (...args: any) => mockActions.fetchCoParents(...args),
   promoteCoParentToPrimary: (...args: any) =>
     mockActions.promoteCoParentToPrimary(...args),
   fetchParentAccess: (...args: any) => mockActions.fetchParentAccess(...args),
+}));
+
+jest.mock('../../../../../src/features/coParent/selectors', () => ({
+  selectCoParentLoading: (state: any) => state.coParent?.loading,
 }));
 
 jest.mock('@/features/companion', () => ({
@@ -281,6 +284,19 @@ describe('EditCoParentScreen', () => {
     expect(getByTestId('header-delete-btn')).toBeTruthy();
   });
 
+  it('wires the main header back action', () => {
+    const {getByTestId} = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    fireEvent.press(getByTestId('header-back-btn'));
+
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+
   it('renders loading state', () => {
     mockState.coParent.loading = true;
     mockState.coParent.coParents = [];
@@ -292,6 +308,31 @@ describe('EditCoParentScreen', () => {
       />,
     );
     // Should render ActivityIndicator (not mocked but common component mocked structure might not show it)
+  });
+
+  it('wires loading and unavailable headers back', () => {
+    mockState.coParent.loading = true;
+    mockState.coParent.coParents = [];
+
+    const loading = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+    fireEvent.press(loading.getByTestId('header-back-btn'));
+    expect(mockGoBack).toHaveBeenCalled();
+
+    loading.unmount();
+    mockState.coParent.loading = false;
+    const unavailable = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+    fireEvent.press(unavailable.getByTestId('header-back-btn'));
+    expect(mockGoBack).toHaveBeenCalledTimes(2);
   });
 
   it('renders error state if co-parent not found and not loading', () => {
@@ -426,6 +467,49 @@ describe('EditCoParentScreen', () => {
     expect(mockReset).toHaveBeenCalled();
   });
 
+  it('ignores a second ownership transfer confirmation while one is already in flight', async () => {
+    let resolveUnwrap: () => void = () => {};
+    mockActions.promoteCoParentToPrimary.mockImplementation(() => {
+      const p: any = new Promise(resolve => {
+        resolveUnwrap = resolve;
+      });
+      p.unwrap = jest.fn(() => p);
+      return p;
+    });
+
+    const {getAllByRole} = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    const switches = getAllByRole('switch');
+    fireEvent(switches[0], 'valueChange', true);
+    // @ts-ignore
+    const firstConfirm = Alert.alert.mock.calls[0][2][1].onPress;
+
+    // Start the transfer without awaiting completion, leaving isPromoting true.
+    act(() => {
+      firstConfirm();
+    });
+
+    // Re-open the dialog; this closure now sees isPromoting === true.
+    fireEvent(switches[0], 'valueChange', true);
+    // @ts-ignore
+    const secondConfirm = Alert.alert.mock.calls[1][2][1].onPress;
+    await act(async () => {
+      await secondConfirm();
+    });
+
+    expect(mockActions.promoteCoParentToPrimary).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveUnwrap();
+      await Promise.resolve();
+    });
+  });
+
   it('handles Ownership Transfer where companion refresh fails', async () => {
     // Mock promote success
     mockActions.promoteCoParentToPrimary.mockImplementation(() => {
@@ -544,6 +628,36 @@ describe('EditCoParentScreen', () => {
     );
   });
 
+  it('handles ownership transfer with missing target id', async () => {
+    mockUseRoute.mockReturnValue({params: {coParentId: ''}});
+    mockState.coParent.coParents = [
+      {
+        ...mockCoParent,
+        id: '',
+        parentId: undefined,
+      },
+    ];
+
+    const {getAllByRole} = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: ''}} as any}
+      />,
+    );
+
+    fireEvent(getAllByRole('switch')[0], 'valueChange', true);
+    // @ts-ignore
+    const confirmAction = Alert.alert.mock.calls[0][2][1].onPress;
+    await act(async () => {
+      await confirmAction();
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Error',
+      'Unable to determine co-parent details. Please try again.',
+    );
+  });
+
   it('handles Save Permissions success', async () => {
     const {getByTestId} = render(
       <EditCoParentScreen
@@ -632,6 +746,110 @@ describe('EditCoParentScreen', () => {
       ),
     ).toBeTruthy();
     expect(queryByTestId('save-btn')).toBeNull();
+  });
+
+  it('ignores non-primary permission toggles and blocks primary transfer', () => {
+    mockState.coParent.accessByCompanionId['comp-1'] = {role: 'CO_PARENT'};
+    mockState.coParent.lastFetchedRole = 'CO_PARENT';
+
+    const {getAllByRole} = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    const switches = getAllByRole('switch');
+    fireEvent(switches[1], 'valueChange', true);
+    fireEvent(switches[0], 'valueChange', true);
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Not allowed',
+      'Only the primary parent can transfer ownership.',
+    );
+  });
+
+  it('renders profile fallbacks and companion selector fallbacks', () => {
+    mockState.coParent.coParents = [
+      {
+        ...mockCoParent,
+        firstName: '',
+        lastName: '',
+        email: '',
+        phoneNumber: '',
+        profilePicture: '',
+        companionId: undefined,
+      },
+    ];
+    mockState.companion.selectedCompanionId = undefined;
+    mockState.companion.companions = [
+      {id: 'comp-2', name: 'Luna', profileImage: undefined},
+    ];
+    mockState.coParent.accessByCompanionId = {};
+    mockState.coParent.defaultAccess = {role: 'PRIMARY'};
+    mockState.coParent.lastFetchedRole = undefined;
+
+    const {getByText, queryByText, getByTestId} = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    expect(getByText('Co-parent')).toBeTruthy();
+    expect(getByText('Email not available yet')).toBeTruthy();
+    expect(queryByText('1234567890')).toBeNull();
+    fireEvent.press(getByTestId('select-companion-comp-2'));
+  });
+
+  it('syncs selected companion and permissions when co-parent data changes', () => {
+    mockState.coParent.coParents = [
+      {
+        ...mockCoParent,
+        companionId: undefined,
+        permissions: undefined,
+      },
+    ];
+    mockState.companion.selectedCompanionId = undefined;
+    mockState.companion.companions = [];
+
+    const screen = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    mockState.coParent.coParents = [
+      {
+        ...mockCoParent,
+        companionId: 'comp-2',
+        permissions: {...mockCoParent.permissions, expenses: true},
+      },
+    ];
+    mockState.companion.companions = [{id: 'comp-2', name: 'Luna'}];
+    screen.rerender(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    expect(screen.getByTestId('select-companion-comp-2')).toBeTruthy();
+  });
+
+  it('uses save loading title and handles delete cancel', () => {
+    mockState.coParent.loading = true;
+
+    const {getByText, getByTestId} = render(
+      <EditCoParentScreen
+        navigation={mockNavigation}
+        route={{params: {coParentId: 'cp-1'}} as any}
+      />,
+    );
+
+    expect(getByText('Loading...')).toBeTruthy();
+    fireEvent.press(getByTestId('cancel-delete-btn'));
   });
 
   it('redirects if Primary Parent tries to edit their own permissions', () => {

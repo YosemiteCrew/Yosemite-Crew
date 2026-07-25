@@ -1,25 +1,25 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
-import {ExpenseCard} from '@/features/expenses/components';
+import {
+  ExpenseCard,
+  type ExpenseCardPayment,
+} from '@/features/expenses/components';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {setSelectedCompanion} from '@/features/companion';
 import {fetchExpensesForCompanion} from '@/features/expenses';
+import type {Expense} from '@/features/expenses';
 import {
   selectExpenseSummaryByCompanion,
   selectExpensesLoading,
@@ -31,7 +31,6 @@ import type {AppDispatch, RootState} from '@/app/store';
 import type {ExpenseStackParamList} from '@/navigation/types';
 import {
   resolveCategoryLabel,
-  resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
@@ -113,6 +112,30 @@ export const ExpensesMainScreen: React.FC = () => {
     );
   }, [externalCount, inAppCount, hasHydrated]);
 
+  const getInAppExpensePayment = React.useCallback(
+    (expense: Expense): ExpenseCardPayment | undefined => {
+      if (isExpensePaid(expense)) {
+        return {status: 'paid'};
+      }
+
+      if (!isExpensePaymentPending(expense) || !hasInvoice(expense)) {
+        return undefined;
+      }
+
+      return {
+        status: 'unpaid',
+        cta: {
+          onPress: () => {
+            if (!processingPayment) {
+              openPaymentScreen(expense);
+            }
+          },
+        },
+      };
+    },
+    [openPaymentScreen, processingPayment],
+  );
+
   if (companions.length === 0) {
     return null;
   }
@@ -162,19 +185,23 @@ export const ExpensesMainScreen: React.FC = () => {
             <ScrollView
               contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
-              <Image
-                source={Images.emptyExpenseIllustration}
-                style={styles.emptyIllustration}
+              <EmptyState
+                testID="expenses-empty"
+                icon={
+                  <Ionicons
+                    name="wallet-outline"
+                    size={42}
+                    color={theme.colors.blueText}
+                  />
+                }
+                title="No expenses yet"
+                description="Vet bills, food and insurance will add up here, so the year's spend is a number, not a shoebox."
+                actionLabel="Add first expense"
+                actionIcon={
+                  <Ionicons name="add" size={18} color={theme.colors.ctaText} />
+                }
+                onAction={handleAddExpense}
               />
-              <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
-              <Text style={styles.emptySubtitle}>
-                It seems like you and your buddy are in saving mode!
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={handleAddExpense}>
-                <Text style={styles.emptyButtonText}>Add expense</Text>
-              </TouchableOpacity>
             </ScrollView>
           ) : (
             <ScrollView
@@ -193,9 +220,11 @@ export const ExpensesMainScreen: React.FC = () => {
                 permissionLabel="expenses"
               />
 
-              <TouchableOpacity
+              <PressableOpacity
                 onPress={() => handleViewMore('inApp')}
-                activeOpacity={0.85}>
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="View yearly spend summary">
                 <YearlySpendCard
                   amount={yearlyTotal}
                   currencyCode={summaryCurrency}
@@ -203,7 +232,7 @@ export const ExpensesMainScreen: React.FC = () => {
                   label="Yearly spend summary"
                   disableSwipe={true}
                 />
-              </TouchableOpacity>
+              </PressableOpacity>
 
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Recent in-app expenses</Text>
@@ -218,29 +247,13 @@ export const ExpensesMainScreen: React.FC = () => {
                       key={expense.id}
                       title={expense.title}
                       categoryLabel={resolveCategoryLabel(expense.category)}
-                      subcategoryLabel={resolveSubcategoryLabel(
-                        expense.category,
-                        expense.subcategory,
-                      )}
                       visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
                       date={expense.date}
                       amount={expense.amount}
                       currencyCode={expense.currencyCode}
                       onPressView={() => handleViewExpense(expense.id)}
-                      showEditAction={false}
-                      showPayButton={
-                        isExpensePaymentPending(expense) && hasInvoice(expense)
-                      }
-                      isPaid={isExpensePaid(expense)}
-                      onPressPay={
-                        isExpensePaymentPending(expense) && hasInvoice(expense)
-                          ? () => {
-                              if (!processingPayment) {
-                                openPaymentScreen(expense);
-                              }
-                            }
-                          : undefined
-                      }
+                      editAction="hidden"
+                      payment={getInAppExpensePayment(expense)}
                     />
                   ))}
                 </View>
@@ -267,19 +280,14 @@ export const ExpensesMainScreen: React.FC = () => {
                       key={expense.id}
                       title={expense.title}
                       categoryLabel={resolveCategoryLabel(expense.category)}
-                      subcategoryLabel={resolveSubcategoryLabel(
-                        expense.category,
-                        expense.subcategory,
-                      )}
                       visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
                       date={expense.date}
                       amount={expense.amount}
                       currencyCode={expense.currencyCode}
                       onPressView={() => handleViewExpense(expense.id)}
                       onPressEdit={() => handleEditExpense(expense.id)}
-                      showEditAction
-                      showPayButton={false}
-                      isPaid
+                      editAction="visible"
+                      payment={{status: 'paid'}}
                     />
                   ))}
                 </View>
@@ -322,8 +330,8 @@ const createStyles = (theme: any) =>
       justifyContent: 'space-between',
     },
     sectionTitle: {
-      ...theme.typography.sectionHeading,
-      color: theme.colors.secondary,
+      ...theme.typography.eyebrow,
+      color: theme.colors.inkFaint,
     },
     cardsContainer: {
       gap: theme.spacing['3'],
@@ -333,50 +341,21 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: theme.spacing['6'],
       paddingVertical: theme.spacing['10'],
-      gap: theme.spacing['3'],
-    },
-    emptyIllustration: {
-      width: 220,
-      height: 220,
-      resizeMode: 'contain',
-    },
-    emptyTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-      marginBottom: theme.spacing['3'],
-    },
-    emptySubtitle: {
-      ...theme.typography.paragraph,
-      color: theme.colors.secondary,
-      textAlign: 'center',
-      marginBottom: theme.spacing['6'],
-    },
-    emptyButton: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingVertical: theme.spacing['3'],
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.xl,
-    },
-    emptyButtonText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.white,
     },
     emptySection: {
       paddingVertical: theme.spacing['6'],
       paddingHorizontal: theme.spacing['4'],
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.cardSmall,
+      backgroundColor: theme.colors.screen2,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.hairline,
     },
     emptySectionText: {
       ...theme.typography.paragraph,
-      color: theme.colors.secondary,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
     },
     loadingOverlay: {

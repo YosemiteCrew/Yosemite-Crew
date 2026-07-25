@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import React, {useImperativeHandle, useRef} from 'react';
+import {
+  ConfirmActionBottomSheet,
+  ConfirmActionBottomSheetRef,
+} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 
 export interface DiscardChangesBottomSheetRef {
   open: () => void;
@@ -12,10 +15,14 @@ interface DiscardChangesBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-export const DiscardChangesBottomSheet = forwardRef<
-  DiscardChangesBottomSheetRef,
-  DiscardChangesBottomSheetProps
->(({onDiscard, onKeepEditing, onSheetChange}, ref) => {
+export const DiscardChangesBottomSheet = ({
+  onDiscard,
+  onKeepEditing,
+  onSheetChange,
+  ref,
+}: DiscardChangesBottomSheetProps & {
+  ref?: React.Ref<DiscardChangesBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
   useImperativeHandle(ref, () => ({
@@ -36,6 +43,8 @@ export const DiscardChangesBottomSheet = forwardRef<
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
+      destructive
+      destructiveIcon="arrow-undo-outline"
       title="Discard changes?"
       message="You have unsaved changes. Are you sure you want to discard them?"
       primaryButton={{
@@ -50,6 +59,6 @@ export const DiscardChangesBottomSheet = forwardRef<
       snapPoints={['35%']}
     />
   );
-});
+};
 
 export default DiscardChangesBottomSheet;

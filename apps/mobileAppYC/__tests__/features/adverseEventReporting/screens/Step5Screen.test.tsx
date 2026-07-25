@@ -6,6 +6,7 @@ import {useAdverseEventReport} from '../../../../src/features/adverseEventReport
 // Import hooks from the root or wherever they are defined
 import {useFormBottomSheets, useTheme} from '../../../../src/hooks';
 import {useFileOperations} from '../../../../src/shared/hooks/useFileOperations';
+import {createMockUseTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
 
@@ -72,7 +73,7 @@ jest.mock(
     const React = require('react');
     const {TouchableOpacity, Text} = require('react-native');
     return {
-      CountryBottomSheet: React.forwardRef(({onSave}: any, ref: any) => {
+      CountryBottomSheet: ({onSave, ref}: any) => {
         React.useImperativeHandle(ref, () => ({
           open: () => {},
           close: () => {},
@@ -84,7 +85,7 @@ jest.mock(
             <Text>Save Country</Text>
           </TouchableOpacity>
         );
-      }),
+      },
     };
   },
 );
@@ -96,40 +97,46 @@ jest.mock(
     const React = require('react');
     const {TouchableOpacity, Text} = require('react-native');
     return {
-      AdministrationMethodBottomSheet: React.forwardRef(
-        ({onSave}: any, ref: any) => {
-          React.useImperativeHandle(ref, () => ({
-            open: () => {},
-            close: () => {},
-          }));
-          return (
-            // FIX: Passing a string 'Oral' instead of object prevents crash in TouchableInput
-            <TouchableOpacity
-              testID="admin-sheet-save"
-              onPress={() => onSave('Oral')}>
-              <Text>Save Admin</Text>
-            </TouchableOpacity>
-          );
-        },
-      ),
+      AdministrationMethodBottomSheet: ({onSave, ref}: any) => {
+        React.useImperativeHandle(ref, () => ({
+          open: () => {},
+          close: () => {},
+        }));
+        return (
+          // FIX: Passing a string 'Oral' instead of object prevents crash in TouchableInput
+          <TouchableOpacity
+            testID="admin-sheet-save"
+            onPress={() => onSave('Oral')}>
+            <Text>Save Admin</Text>
+          </TouchableOpacity>
+        );
+      },
     };
   },
 );
 
-jest.mock('../../../../src/shared/components/common/Checkbox/Checkbox', () => {
-  const {TouchableOpacity, Text} = require('react-native');
-  return {
-    Checkbox: ({value, onValueChange, label}: any) => (
-      <TouchableOpacity
-        testID={`checkbox-${label}`}
-        onPress={() => onValueChange(!value)}>
-        <Text>
-          {label} {value ? 'Checked' : 'Unchecked'}
-        </Text>
-      </TouchableOpacity>
-    ),
-  };
-});
+jest.mock(
+  '../../../../src/shared/components/common/SegmentedControl/SegmentedControl',
+  () => {
+    const {View, TouchableOpacity, Text} = require('react-native');
+    return {
+      SegmentedControl: ({options, value, onChange, testID}: any) => (
+        <View testID={testID}>
+          {options.map((option: any) => (
+            <TouchableOpacity
+              key={option.value}
+              testID={`${testID}-${option.value}`}
+              onPress={() => onChange(option.value)}>
+              <Text>
+                {option.label} {option.value === value ? 'Selected' : ''}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ),
+    };
+  },
+);
 
 jest.mock('../../../../src/shared/components/common', () => {
   const {View, Text, TextInput} = require('react-native');
@@ -231,20 +238,8 @@ describe('Step5Screen', () => {
     jest.clearAllMocks();
     capturedSetFiles = () => {};
 
-    // 1. Fix useTheme mock
-    (useTheme as jest.Mock).mockReturnValue({
-      theme: {
-        colors: {secondary: 'black', primary: 'blue'},
-        typography: {
-          h6Clash: {},
-          body: {},
-          subtitleBold14: {},
-          labelMdBold: {},
-        },
-        spacing: {1: 4, 2: 8, 3: 12, 4: 16, 6: 24, 8: 32},
-        borderRadius: {lg: 16},
-      },
-    });
+    // 1. Use the shared complete warm-bone theme so styling never crashes
+    (useTheme as jest.Mock).mockReturnValue(createMockUseTheme());
 
     // 2. Fix useFormBottomSheets mock
     (useFormBottomSheets as jest.Mock).mockReturnValue({
@@ -285,7 +280,7 @@ describe('Step5Screen', () => {
 
   it('initializes with empty form data when draft is empty', () => {
     const {getByText} = setup();
-    expect(getByText('Product Information')).toBeTruthy();
+    expect(getByText('The product and what happened')).toBeTruthy();
   });
 
   it('validates all required fields and shows errors on submit', () => {
@@ -424,11 +419,13 @@ describe('Step5Screen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('ThankYou');
   });
 
-  it('handles unit checkboxes', () => {
+  it('handles quantity unit selection via the segmented control', () => {
     const {getByTestId} = setup();
 
-    fireEvent.press(getByTestId('checkbox-Liquid - ML'));
-    fireEvent.press(getByTestId('checkbox-Tablet - Piece'));
+    expect(getByTestId('quantity-unit')).toBeTruthy();
+
+    fireEvent.press(getByTestId('quantity-unit-liquid'));
+    fireEvent.press(getByTestId('quantity-unit-tablet'));
   });
 
   it('handles date picker interaction', () => {
@@ -461,7 +458,7 @@ describe('Step5Screen', () => {
       setProductInfo: mockSetProductInfo,
     });
     const {getByText} = setup();
-    expect(getByText('Product Information')).toBeTruthy();
+    expect(getByText('The product and what happened')).toBeTruthy();
   });
 
   it('findSupportedCountry returns null if no match found (Branch Coverage)', () => {
@@ -474,6 +471,6 @@ describe('Step5Screen', () => {
       setProductInfo: mockSetProductInfo,
     });
     const {getByText} = setup();
-    expect(getByText('Product Information')).toBeTruthy();
+    expect(getByText('The product and what happened')).toBeTruthy();
   });
 });

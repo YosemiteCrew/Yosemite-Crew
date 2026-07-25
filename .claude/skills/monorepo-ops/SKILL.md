@@ -17,14 +17,19 @@ TRIGGER: tasks spanning multiple apps, dependency changes, turbo commands, pnpm 
 
 ```
 apps/
-  frontend/       @yosemite-crew/frontend
-  backend/        @yosemite-crew/backend
+  frontend/       frontend
+  backend/        backend
+  desktop/        @yosemite-crew/desktop
   mobileAppYC/    mobileAppYC
-  dev-docs/       @yosemite-crew/dev-docs
+  dev-docs/       dev-docs
 packages/
-  types/          @yosemite-crew/types
-  fhirtypes/      @yosemite-crew/fhirtypes
+  auth/           @yosemite-crew/auth
+  database/       @yosemite-crew/database
+  design-tokens/  @yosemite-crew/design-tokens
   fhir/           @yosemite-crew/fhir
+  fhirtypes/      @yosemite-crew/fhirtypes
+  lib/            @yosemite-crew/lib
+  types/          @yosemite-crew/types
 ```
 
 Tooling: **pnpm workspaces** + **Turbo**. Package manager: `pnpm@8.15.6`.
@@ -87,6 +92,8 @@ pnpm add -D -w <package>
 ---
 
 ## Shared Packages
+
+Two packages deserve special care: `@yosemite-crew/database` holds the Prisma schema, migrations, and generated client (the schema source of truth), and `@yosemite-crew/auth` holds the SuperTokens session helpers used by the backend.
 
 When changing `packages/types` or `packages/fhirtypes`:
 

@@ -8,6 +8,16 @@ import {
   buildTemplatePayload,
   mapFormToUI,
   mapTemplateToUI,
+  buildFHIRPayload,
+  mapQuestionnaireToUI,
+  questionnaireToForm,
+  shouldUseTemplateApi,
+  formatDateLabel,
+  formatTimeLabel,
+  templateStatusToLabel,
+  templateKindToCategory,
+  categoryToTemplateKind,
+  getCategoryTemplate,
 } from '@/app/lib/forms';
 import type { FormField, FormsProps } from '@/app/features/forms/types/forms';
 
@@ -598,7 +608,25 @@ describe('buildTemplatePayload appliesTo linking', () => {
     expect(payload.kind).toBe('TASK_ASSIGNMENT');
   });
 
-  it('serializes YC default templates as library-owned without an organisation binding', () => {
+  it.each([
+    ['YC_LIBRARY' as const, 'ORG_TEMPLATE'],
+    ['ORG_TEMPLATE' as const, 'ORG_TEMPLATE'],
+    ['USER_TEMPLATE' as const, 'USER_TEMPLATE'],
+    [undefined, 'ORG_TEMPLATE'],
+  ])(
+    'maps templateSource %s to ownership %s and always binds the organisation',
+    (templateSource, expected) => {
+      const payload = buildTemplatePayload(form({ category: 'SOAP', templateSource }), 'org-1');
+
+      expect(payload.ownership).toBe(expected);
+      expect(payload.organisationId).toBe('org-1');
+    }
+  );
+
+  // The YC library is global, seeded out of band, and the API rejects a
+  // YC_LIBRARY write with 403. A library template used as a starting point is
+  // saved into the caller's own organisation instead.
+  it('serializes a YC library starting point as an organisation template', () => {
     const payload = buildTemplatePayload(
       form({
         category: 'Prescription',
@@ -608,8 +636,8 @@ describe('buildTemplatePayload appliesTo linking', () => {
       'org-1'
     );
 
-    expect(payload.ownership).toBe('YC_LIBRARY');
-    expect(payload.organisationId).toBeUndefined();
+    expect(payload.ownership).toBe('ORG_TEMPLATE');
+    expect(payload.organisationId).toBe('org-1');
     expect(payload.kind).toBe('PRESCRIPTION');
     expect((payload.rules as { requiredSigner?: string }).requiredSigner).toBe('');
   });
@@ -1044,5 +1072,498 @@ describe('mapTemplateToUI ownership fallback', () => {
     } as any);
 
     expect(mapped.services).toEqual(['svc-1', 'pkg-1']);
+  });
+
+  it('dedupes identical service and package ids from the appliesTo fallback', () => {
+    // buildTemplatePayload writes the same linked-id list into both serviceIds and
+    // packageIds, so a real reload sees each id twice; the read must return it once
+    // (otherwise the count compounds on every edit).
+    const mapped = mapTemplateToUI({
+      id: 'tpl-dupe',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'SOAP_NOTE',
+      name: 'SOAP',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {
+        appliesTo: {
+          serviceIds: ['svc-1', 'svc-2'],
+          packageIds: ['svc-1', 'svc-2'],
+        },
+      },
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    expect(mapped.services).toEqual(['svc-1', 'svc-2']);
+  });
+});
+
+describe('mapTemplateToUI category resolution', () => {
+  const template = (overrides: Record<string, unknown>) =>
+    ({
+      id: 'tpl-cat',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'FORM',
+      name: 'X',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {},
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      ...overrides,
+    }) as any;
+
+  it('prefers the persisted granular category from rules.category over the coarse kind', () => {
+    // kind FORM would otherwise collapse to "Custom".
+    expect(mapTemplateToUI(template({ rules: { category: 'SOAP' } })).category).toBe('SOAP');
+    expect(
+      mapTemplateToUI(template({ rules: { category: 'Groomer - Grooming Prep' } })).category
+    ).toBe('Groomer - Grooming Prep');
+  });
+
+  it('falls back to the kind-derived category when rules.category is missing or invalid', () => {
+    expect(mapTemplateToUI(template({ kind: 'VITAL_RECORD', rules: {} })).category).toBe('Vitals');
+    expect(mapTemplateToUI(template({ rules: { category: 'not-a-category' } })).category).toBe(
+      'Custom'
+    );
+  });
+});
+
+describe('template custom field placeholder round-trip', () => {
+  it('restores an authored placeholder after save -> reload', () => {
+    const form = {
+      name: 'Custom form',
+      description: '',
+      category: 'Custom',
+      usage: 'Internal',
+      requiredSigner: '',
+      updatedBy: 'u1',
+      lastUpdated: '',
+      species: ['Canine'],
+      services: [],
+      status: 'Draft',
+      schema: [
+        { id: 'note', type: 'input', label: 'Note', placeholder: 'Enter a note' },
+        { id: 'plain', type: 'input', label: 'Plain' },
+      ],
+    } as unknown as FormsProps;
+
+    const schemaSnapshot = buildTemplateSchemaSnapshot(form, 'FORM');
+
+    const reloaded = mapTemplateToUI({
+      id: 'tpl-ph',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      ownership: 'ORG_TEMPLATE',
+      kind: 'FORM',
+      name: 'Custom form',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: { category: 'Custom' },
+      latestVersion: 1,
+      publishedVersion: 1,
+      versions: [{ version: 1, schemaSnapshot }],
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as any);
+
+    // Reloaded custom fields live inside a section group, so flatten before lookup.
+    const flatten = (fields: FormField[]): FormField[] =>
+      fields.flatMap((field) => (field.type === 'group' ? flatten(field.fields ?? []) : [field]));
+    const allFields = flatten(reloaded.schema);
+    const withPlaceholder = allFields.find((field) => field.id === 'note');
+    const withoutPlaceholder = allFields.find((field) => field.id === 'plain');
+    expect(withPlaceholder?.placeholder).toBe('Enter a note');
+    expect(withoutPlaceholder?.placeholder).toBeUndefined();
+  });
+});
+
+describe('label helpers and category maps', () => {
+  it('formats date and time labels without throwing on undefined', () => {
+    expect(typeof formatDateLabel(new Date('2026-01-05T10:30:00.000Z'))).toBe('string');
+    expect(formatDateLabel(undefined)).toBe('');
+    expect(typeof formatTimeLabel(new Date('2026-01-05T10:30:00.000Z'))).toBe('string');
+    expect(formatTimeLabel(undefined)).toBe('');
+  });
+
+  it('falls back to Draft/draft for unknown status values', () => {
+    expect(statusToLabel('bogus' as never)).toBe('Draft');
+    expect(labelToStatus('Bogus' as never)).toBe('draft');
+    expect(templateStatusToLabel(undefined)).toBe('Draft');
+    expect(templateStatusToLabel('PUBLISHED')).toBe('Published');
+    expect(templateStatusToLabel('BOGUS' as never)).toBe('Draft');
+  });
+
+  it('maps template kinds and categories in both directions', () => {
+    expect(templateKindToCategory(undefined)).toBe('Custom');
+    expect(templateKindToCategory('VITAL_RECORD')).toBe('Vitals');
+    expect(templateKindToCategory('BOGUS' as never)).toBe('Custom');
+    expect(categoryToTemplateKind('Vitals')).toBe('VITAL_RECORD');
+    expect(categoryToTemplateKind('Inpatient Schedule')).toBe('INPATIENT_SCHEDULE');
+    expect(categoryToTemplateKind('Consent form')).toBe('CONSENT');
+    expect(categoryToTemplateKind('Prescription Template' as never)).toBe('PRESCRIPTION');
+    expect(categoryToTemplateKind('Unknown' as never)).toBeNull();
+  });
+
+  it('returns an empty template for unknown categories', () => {
+    expect(getCategoryTemplate('Unknown' as never)).toEqual([]);
+  });
+
+  it('decides template-API usage from category or explicit backing', () => {
+    expect(shouldUseTemplateApi({ category: 'SOAP' as never, isTemplateBacked: false })).toBe(true);
+    expect(shouldUseTemplateApi({ category: 'Unknown' as never, isTemplateBacked: true })).toBe(
+      true
+    );
+    expect(shouldUseTemplateApi({ category: 'Unknown' as never, isTemplateBacked: false })).toBe(
+      false
+    );
+  });
+});
+
+describe('buildFHIRPayload and questionnaire round-trip', () => {
+  const roundTripForm: FormsProps = {
+    name: 'Round trip',
+    description: 'RT form',
+    category: 'Custom',
+    usage: 'Internal & External',
+    requiredSigner: '',
+    updatedBy: 'user-1',
+    lastUpdated: '',
+    schema: [{ id: 'q1', type: 'input', label: 'Question 1' }] as unknown as FormField[],
+    services: ['svc-1'],
+    species: ['Canine'],
+    status: 'Published',
+  };
+
+  it('serializes a form to a DTO and maps it back to UI shape', () => {
+    const dto = buildFHIRPayload({ form: roundTripForm, orgId: 'org-1', userId: 'user-9' });
+    expect(dto).toBeTruthy();
+
+    const form = questionnaireToForm(dto as never);
+    expect(form.name).toBe('Round trip');
+
+    const ui = mapQuestionnaireToUI(dto as never);
+    expect(ui.name).toBe('Round trip');
+    expect(ui.status).toBe('Published');
+    expect(ui.schema.map((f) => f.id)).toEqual(['q1']);
+  });
+
+  it('falls back to the category template when the form has no schema', () => {
+    const dto = buildFHIRPayload({
+      form: { ...roundTripForm, schema: [], category: 'Consent form', usage: undefined as never },
+      orgId: 'org-1',
+      userId: 'user-9',
+    });
+    const ui = mapQuestionnaireToUI(dto as never);
+    expect(ui.schema.length).toBeGreaterThan(0);
+  });
+
+  it('keeps the schema empty when fallbackToTemplate is disabled', () => {
+    const dto = buildFHIRPayload({
+      form: { ...roundTripForm, schema: [] },
+      orgId: 'org-1',
+      userId: 'user-9',
+      fallbackToTemplate: false,
+    });
+    const ui = mapQuestionnaireToUI(dto as never);
+    expect(ui.schema).toEqual([]);
+  });
+});
+
+describe('template source and date fallbacks', () => {
+  const template = (overrides: Record<string, unknown>) =>
+    ({
+      id: 'tpl-x',
+      organisationId: 'org-1',
+      ownerUserId: null,
+      kind: 'FORM',
+      name: 'X',
+      description: null,
+      status: 'DRAFT',
+      scope: 'ORGANISATION',
+      rules: {},
+      latestVersion: 1,
+      publishedVersion: null,
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      ...overrides,
+    }) as never;
+
+  it('falls back to ORG_TEMPLATE for clinical kinds without a source', () => {
+    expect(mapTemplateToUI(template({ kind: 'SOAP_NOTE' })).templateSource).toBe('ORG_TEMPLATE');
+    expect(mapTemplateToUI(template({ kind: 'VITAL_RECORD' })).templateSource).toBe('ORG_TEMPLATE');
+    expect(mapTemplateToUI(template({ kind: 'FORM' })).templateSource).toBeUndefined();
+  });
+
+  it('prefers catalogItemIds over appliesTo links', () => {
+    expect(
+      mapTemplateToUI(
+        template({
+          catalogItemIds: ['ci-1'],
+          rules: { appliesTo: { serviceIds: ['svc-1'] } },
+        })
+      ).services
+    ).toEqual(['ci-1']);
+  });
+
+  it('tolerates invalid and numeric timestamps', () => {
+    const invalid = mapTemplateToUI(template({ createdAt: 'not-a-date', updatedAt: 'also-bad' }));
+    expect(invalid.lastUpdated).toBeTruthy();
+
+    const numeric = mapTemplateToUI(
+      template({ createdAt: 1735689600000, updatedAt: 1735689600000 })
+    );
+    expect(numeric.lastUpdated).toBeTruthy();
+  });
+});
+
+describe('task block serialization edge cases', () => {
+  const taskForm = (blockFields: FormField[]): FormsProps => ({
+    name: 'Tasks',
+    category: 'Task Template',
+    usage: 'Internal',
+    updatedBy: 'u1',
+    lastUpdated: '',
+    schema: [
+      {
+        id: 'task_blocks',
+        type: 'group',
+        label: 'Schedule tasks',
+        meta: { taskGroup: true },
+        fields: [
+          {
+            id: 'task-1',
+            type: 'group',
+            label: 'Fallback name',
+            meta: { taskBlock: true },
+            fields: blockFields,
+          },
+        ] as unknown as FormField[],
+      },
+    ] as unknown as FormField[],
+  });
+
+  const readBlocks = (form: FormsProps): Array<Record<string, unknown>> => {
+    const snapshot = buildTemplateSchemaSnapshot(form, 'TASK_ASSIGNMENT');
+    const schedule = snapshot.sections.find((section) => section.id === 'schedule');
+    const taskBlocks = schedule?.fields.find((field) => field.key === 'taskBlocks');
+    return (taskBlocks?.defaultValue ?? []) as Array<Record<string, unknown>>;
+  };
+
+  it('reads authored values from placeholders when defaults are empty', () => {
+    const blocks = readBlocks(
+      taskForm([
+        {
+          id: 'task-1_name',
+          type: 'input',
+          label: 'Task title',
+          placeholder: 'Feed the patient',
+          defaultValue: '',
+          meta: { taskBlockKey: 'name' },
+        },
+      ] as unknown as FormField[])
+    );
+    expect(blocks[0].name).toBe('Feed the patient');
+  });
+
+  it('coerces dayOffset and invalid durations, ignoring unknown keys and object values', () => {
+    const blocks = readBlocks(
+      taskForm([
+        {
+          id: 'task-1_dayOffset',
+          type: 'number',
+          label: 'Day offset',
+          defaultValue: '2',
+          meta: { taskBlockKey: 'dayOffset' },
+        },
+        {
+          id: 'task-1_durationDays',
+          type: 'number',
+          label: 'Duration',
+          defaultValue: 'abc',
+          meta: { taskBlockKey: 'durationDays' },
+        },
+        {
+          id: 'task-1_timeOfDay',
+          type: 'input',
+          label: 'Time',
+          defaultValue: '14:30',
+          meta: { taskBlockKey: 'timeOfDay' },
+        },
+        {
+          id: 'task-1_unknown',
+          type: 'input',
+          label: 'Unknown',
+          defaultValue: 'x',
+          meta: { taskBlockKey: 'somethingElse' },
+        },
+        {
+          id: 'task-1_reminder',
+          type: 'dropdown',
+          label: 'Reminder',
+          defaultValue: { odd: 'object' },
+          meta: { taskBlockKey: 'reminderOffsetMinutes' },
+        },
+        {
+          id: 'task-1_nokey',
+          type: 'input',
+          label: 'No key',
+          defaultValue: 'ignored',
+        },
+      ] as unknown as FormField[])
+    );
+
+    expect(blocks[0].dayOffset).toBe(2);
+    expect(blocks[0].durationDays).toBe(0);
+    expect(blocks[0].timeOfDay).toBe('14:30');
+    expect(blocks[0]).not.toHaveProperty('somethingElse');
+    expect(blocks[0].reminderOffsetMinutes).toBeUndefined();
+    expect(blocks[0].name).toBe('Fallback name');
+  });
+
+  it('drops task blocks whose name is blank', () => {
+    const blocks = readBlocks(
+      taskForm([
+        {
+          id: 'task-1_name',
+          type: 'input',
+          label: 'Task title',
+          defaultValue: '   ',
+          meta: { taskBlockKey: 'name' },
+        },
+      ] as unknown as FormField[])
+    );
+    // a blank explicit name overrides the group-label fallback, so the block is dropped
+    expect(blocks).toHaveLength(0);
+  });
+});
+
+describe('medication row field mapping edge cases', () => {
+  const prescriptionForm = (fields: FormField[]): FormsProps => ({
+    name: 'Rx',
+    category: 'Prescription',
+    usage: 'Internal',
+    updatedBy: 'u1',
+    lastUpdated: '',
+    schema: [
+      {
+        id: 'medications',
+        type: 'group',
+        label: 'Medications',
+        meta: { medicationGroup: true },
+        fields: [
+          {
+            id: 'inv-2_group',
+            type: 'group',
+            label: 'Meloxicam',
+            meta: { medicineId: 'inv-2' },
+            fields,
+          },
+        ] as unknown as FormField[],
+      },
+    ] as unknown as FormField[],
+  });
+
+  const firstRow = (form: FormsProps): Record<string, unknown> => {
+    const snapshot = buildTemplateSchemaSnapshot(form, 'PRESCRIPTION');
+    const medications = snapshot.sections.find((section) => section.id === 'medications');
+    const line = medications?.fields.find((field) => field.key === 'medicationLine') as {
+      defaultValue?: Array<Record<string, unknown>>;
+    };
+    return line.defaultValue?.[0] ?? {};
+  };
+
+  it('maps id-suffix fields when prescriptionField meta is absent', () => {
+    const row = firstRow(
+      prescriptionForm([
+        { id: 'inv-2_name', type: 'input', label: 'Name', defaultValue: 'Meloxicam' },
+        { id: 'inv-2_price', type: 'number', label: 'Price', defaultValue: 12 },
+        { id: 'inv-2_priceCents', type: 'number', label: 'Price cents', defaultValue: 1200 },
+        { id: 'inv-2_brand', type: 'input', label: 'Brand', defaultValue: 'Metacam' },
+        { id: 'inv-2_mystery', type: 'input', label: 'Mystery', defaultValue: 'x' },
+      ] as unknown as FormField[])
+    );
+
+    expect(row.medicineName).toBe('Meloxicam');
+    expect(row.price).toBe(12);
+    expect(row.priceCents).toBe(1200);
+    expect(row.brand).toBe('Metacam');
+    expect(row.inventoryItemId).toBe('inv-2');
+  });
+
+  it('reads boolean and placeholder-backed values and skips empty fields', () => {
+    const row = firstRow(
+      prescriptionForm([
+        {
+          id: 'inv-2_controlled',
+          type: 'input',
+          label: 'Controlled',
+          defaultValue: true,
+          meta: { prescriptionField: 'controlledSubstance' },
+        },
+        {
+          id: 'inv-2_route',
+          type: 'input',
+          label: 'Route',
+          placeholder: 'Oral',
+          meta: { prescriptionField: 'route' },
+        },
+        { id: 'inv-2_empty', type: 'input', label: 'Empty', defaultValue: '' },
+      ] as unknown as FormField[])
+    );
+
+    expect(row.controlledSubstance).toBe(true);
+    expect(row.route).toBe('Oral');
+    expect(row.medicineName).toBe('Meloxicam');
+  });
+});
+
+describe('mapFormToUI service and usage normalization', () => {
+  const base = {
+    _id: 'form-2',
+    orgId: 'org-1',
+    name: 'Form',
+    description: '',
+    category: 'Custom',
+    status: 'draft',
+    schema: [],
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
+
+  it('normalizes a scalar serviceId into a list and legacy usage labels', () => {
+    const mapped = mapFormToUI({
+      ...base,
+      serviceId: 'svc-1',
+      visibilityType: 'Internal_External',
+    } as never);
+    expect(mapped.services).toEqual(['svc-1']);
+    expect(mapped.usage).toBe('Internal & External');
+  });
+
+  it('keeps array serviceIds and defaults usage to Internal', () => {
+    const mapped = mapFormToUI({ ...base, serviceId: ['svc-1', 'svc-2'] } as never);
+    expect(mapped.services).toEqual(['svc-1', 'svc-2']);
+    expect(mapped.usage).toBe('Internal');
   });
 });

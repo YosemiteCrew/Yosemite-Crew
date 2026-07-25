@@ -48,3 +48,70 @@
   width: 100%;
   border-radius: 8px;
 }
+
+/* Organization picker row - see "PIMS - Onboarding & Auth" / Organization picker. */
+.org-picker-card {
+  padding: 16px 20px;
+  border-radius: 18px;
+  border: 1px solid var(--hairline);
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
+  transition: border-color 0.2s ease;
+}
+
+.org-picker-card:hover {
+  border-color: var(--blue);
+}
+
+/* The org the user is currently working in reads as the selected card. */
+.org-picker-card--current {
+  border: 1.5px solid var(--blue);
+  box-shadow:
+    0 0 0 3px var(--glow-b10),
+    0 8px 22px var(--sh08);
+}
+
+.org-picker-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.org-picker-avatar--blue {
+  background: var(--blue-soft);
+  color: var(--blue-text);
+}
+
+.org-picker-avatar--green {
+  background: var(--avatar-green-bg);
+  color: var(--avatar-green-ink);
+}
+
+.org-picker-avatar--amber {
+  background: var(--avatar-amber-bg);
+  color: var(--avatar-amber-ink);
+}
+
+.org-picker-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Element + class so the status tokens win over the Badge tone utilities. */
+span.org-picker-badge-verified {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border: 1px solid var(--status-completed-border);
+}
+
+.org-picker-arrow {
+  color: var(--ink-faint);
+}
+
+.org-picker-arrow--current {
+  color: var(--blue-text);
+}

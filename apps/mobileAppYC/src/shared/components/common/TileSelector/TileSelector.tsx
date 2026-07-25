@@ -1,13 +1,7 @@
 // src/components/common/TileSelector/TileSelector.tsx
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ViewStyle,
-  TextStyle,
-} from 'react-native';
+import {View, Text, StyleSheet, ViewStyle, TextStyle} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
 export interface TileSelectorOption {
@@ -44,7 +38,7 @@ export const TileSelector: React.FC<TileSelectorProps> = ({
       {options.map(option => {
         const isSelected = selectedValue === option.value;
         return (
-          <TouchableOpacity
+          <PressableOpacity
             key={option.value}
             style={[
               styles.tile,
@@ -53,7 +47,10 @@ export const TileSelector: React.FC<TileSelectorProps> = ({
               isSelected && selectedTileStyle,
             ]}
             onPress={() => onSelect(option.value)}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+            accessibilityRole="radio"
+            accessibilityState={{selected: isSelected}}
+            accessibilityLabel={option.label}>
             <Text
               style={[
                 styles.label,
@@ -63,7 +60,7 @@ export const TileSelector: React.FC<TileSelectorProps> = ({
               ]}>
               {option.label}
             </Text>
-          </TouchableOpacity>
+          </PressableOpacity>
         );
       })}
     </View>

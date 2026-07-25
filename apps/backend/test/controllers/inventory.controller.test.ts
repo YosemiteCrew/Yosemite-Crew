@@ -15,9 +15,13 @@ import {
   InventoryAlertService,
   InventoryServiceError,
 } from "../../src/services/inventory.service";
-import { generatePresignedUrl } from "../../src/middlewares/upload";
+import {
+  IMAGE_ONLY_MIME_TYPES,
+  generatePresignedUrl,
+} from "../../src/middlewares/upload";
 
 jest.mock("../../src/middlewares/upload", () => ({
+  ...jest.requireActual("../../src/middlewares/upload"),
   generatePresignedUrl: jest.fn(),
 }));
 
@@ -177,6 +181,7 @@ describe("Inventory Controllers", () => {
           "image/png",
           "inventory",
           "org1",
+          IMAGE_ONLY_MIME_TYPES,
         );
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({
@@ -198,6 +203,21 @@ describe("Inventory Controllers", () => {
           message: "MIME type is required in the request body.",
         });
       });
+
+      it.each(["text/html", "application/javascript", "image/svg+xml"])(
+        "rejects the disallowed mimeType %s",
+        async (mimeType) => {
+          req = mockRequest({
+            params: { organisationId: "org1" },
+            body: { mimeType },
+          });
+
+          await InventoryController.getItemImageUploadUrl(req as any, res);
+
+          expect(res.status).toHaveBeenCalledWith(400);
+          expect(generatePresignedUrl).not.toHaveBeenCalled();
+        },
+      );
     });
 
     describe("createItem", () => {

@@ -24,6 +24,8 @@ interface UsePlacesBusinessSearchParams {
     selection: ResolvedBusinessSelection,
   ) => void | Promise<void>;
   onError?: (error: unknown) => void;
+  location?: {latitude: number; longitude: number} | null;
+  useStoredLocation?: boolean;
   minCharacters?: number;
   debounceMs?: number;
 }
@@ -35,6 +37,8 @@ export const usePlacesBusinessSearch = ({
   onSelectPms,
   onSelectNonPms,
   onError,
+  location = null,
+  useStoredLocation = true,
   minCharacters = 3,
   debounceMs = 800,
 }: UsePlacesBusinessSearchParams) => {
@@ -44,9 +48,12 @@ export const usePlacesBusinessSearch = ({
     [],
   );
   const [searching, setSearching] = useState(false);
-  const userLocation = useLocationStore();
-  const userLocationRef = useRef(userLocation);
-  userLocationRef.current = userLocation;
+  const shouldUseStoredLocation =
+    useStoredLocation && searchQuery.length >= minCharacters;
+  const storedLocation = useLocationStore(shouldUseStoredLocation);
+  const searchLocation = useStoredLocation ? storedLocation : location;
+  const userLocationRef = useRef(searchLocation);
+  userLocationRef.current = searchLocation;
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSearchQueryRef = useRef('');
 

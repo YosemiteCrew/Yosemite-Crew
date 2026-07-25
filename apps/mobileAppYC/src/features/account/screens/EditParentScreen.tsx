@@ -6,9 +6,9 @@ import {
   ScrollView,
   StyleSheet,
   BackHandler,
-  TouchableOpacity,
   Image,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {Images} from '@/assets/images';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -19,17 +19,14 @@ import type {AppDispatch} from '@/app/store';
 
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
 import {createGlassCardStyles} from '@/shared/utils/screenStyles';
-import {Separator, RowButton} from '@/shared/components/common/FormRowComponents';
+import {Separator} from '@/shared/components/common/Separator';
+import {RowButton} from '@/shared/components/common/RowButton';
 
-import {
-  selectAuthUser,
-  selectAuthIsLoading,
-} from '@/features/auth/selectors';
+import {selectAuthUser, selectAuthIsLoading} from '@/features/auth/selectors';
 
 import type {HomeStackParamList} from '@/navigation/types';
 
@@ -52,10 +49,8 @@ import {
 } from '@/shared/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet';
 
 // Date picker (reuse same component & formatter)
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 
 // Profile Image Picker Header
 import {UserProfileHeader} from '@/features/account/components/UserProfileHeader';
@@ -64,7 +59,10 @@ import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImag
 // Types
 import type {User} from '@/features/auth/types';
 import {updateUserProfile} from '@/features/auth';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import {
   updateParentProfile,
   type ParentProfileUpsertPayload,
@@ -86,6 +84,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const today = useMemo(() => new Date(), []);
   const dispatch = useDispatch<AppDispatch>();
 
   const user = useSelector(selectAuthUser);
@@ -93,7 +92,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   // Local UI state
   const [showDobPicker, setShowDobPicker] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const accessTokenRef = useRef<string | null>(null);
 
   // Bottom sheet refs
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
@@ -104,7 +103,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Track which bottom sheet is open
-  const [openBottomSheet, setOpenBottomSheet] = useState<'currency' | 'address' | 'phone' | null>(null);
+  const openBottomSheetRef = useRef<'currency' | 'address' | 'phone' | null>(
+    null,
+  );
 
   // Helpers
   const goBack = useCallback(() => {
@@ -120,9 +121,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         if (mounted) {
           const nextToken =
             tokens && !isTokenExpired(tokens.expiresAt ?? undefined)
-              ? tokens.accessToken ?? null
+              ? (tokens.accessToken ?? null)
               : null;
-          setAccessToken(nextToken);
+          accessTokenRef.current = nextToken;
         }
       })
       .catch(error => {
@@ -136,13 +137,17 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   const syncParentProfile = useCallback(
     async (nextUser: User) => {
-      if (!accessToken) {
-        console.warn('[EditParent] No access token available; skipping remote sync.');
+      if (!accessTokenRef.current) {
+        console.warn(
+          '[EditParent] No access token available; skipping remote sync.',
+        );
         return;
       }
 
       if (!nextUser.parentId) {
-        console.warn('[EditParent] Missing parent identifier; skipping remote sync.');
+        console.warn(
+          '[EditParent] Missing parent identifier; skipping remote sync.',
+        );
         return;
       }
 
@@ -157,7 +162,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
         if (photoPayload.localFile) {
           const presigned = await requestParentProfileUploadUrl({
-            accessToken,
+            accessToken: accessTokenRef.current,
             mimeType: photoPayload.localFile.mimeType,
           });
 
@@ -199,7 +204,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           existingPhotoUrl,
         };
 
-        const summary = await updateParentProfile(payload, accessToken);
+        const summary = await updateParentProfile(
+          payload,
+          accessTokenRef.current,
+        );
 
         const remotePatch: Partial<User> = {};
         if (summary.profileImageUrl) {
@@ -232,11 +240,12 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         console.error('[EditParent] Failed to sync parent profile', error);
       }
     },
-    [accessToken, dispatch],
+    [dispatch],
   );
 
   const applyPatch = useCallback(
     (patch: Partial<User>) => {
+      /* istanbul ignore next -- defensive: applyPatch only fires from handlers rendered when safeUser exists */
       if (!safeUser) {
         return;
       }
@@ -260,10 +269,11 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   // Parse phone number to separate dial code and local number
   const parsedPhone = useMemo(() => {
-    if (!safeUser.phone) return { dialCode: '+1', localNumber: '' };
+    if (!safeUser?.phone) return {dialCode: '+1', localNumber: ''};
     const rawPhone = safeUser.phone.replaceAll(/[^0-9+]/g, '');
     const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
-    let resolvedCountry = COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
+    let resolvedCountry =
+      COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
     if (normalizedPhoneDigits) {
       const match = COUNTRIES.find(country => {
         const dialCodeDigits = country.dial_code.replaceAll('+', '');
@@ -279,47 +289,50 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         )
       : normalizedPhoneDigits;
     const localPhoneNumber = localPhoneRaw.slice(-12); // Support up to 12-digit phone numbers
-    return { dialCode: resolvedCountry.dial_code, localNumber: localPhoneNumber };
-  }, [safeUser.phone]);
+    return {dialCode: resolvedCountry.dial_code, localNumber: localPhoneNumber};
+  }, [safeUser?.phone]);
 
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
-      applyPatch({ profilePicture: imageUri || undefined });
+      applyPatch({profilePicture: imageUri || undefined});
     },
     [applyPatch],
   );
 
   // Handle Android back button for bottom sheets and date picker
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      // Close date picker first if open
-      if (showDobPicker) {
-        setShowDobPicker(false);
-        return true;
-      }
-
-      // Close bottom sheet first if open
-      if (openBottomSheet) {
-        switch (openBottomSheet) {
-          case 'currency':
-            currencySheetRef.current?.close();
-            break;
-          case 'address':
-            addressSheetRef.current?.close();
-            break;
-          case 'phone':
-            phoneSheetRef.current?.close();
-            break;
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        // Close date picker first if open
+        if (showDobPicker) {
+          setShowDobPicker(false);
+          return true;
         }
-        setOpenBottomSheet(null);
-        return true;
-      }
 
-      return false;
-    });
+        // Close bottom sheet first if open
+        if (openBottomSheetRef.current) {
+          switch (openBottomSheetRef.current) {
+            case 'currency':
+              currencySheetRef.current?.close();
+              break;
+            case 'address':
+              addressSheetRef.current?.close();
+              break;
+            case 'phone':
+              phoneSheetRef.current?.close();
+              break;
+          }
+          openBottomSheetRef.current = null;
+          return true;
+        }
+
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
-  }, [showDobPicker, openBottomSheet]);
+  }, [showDobPicker]);
 
   if (!safeUser) {
     return (
@@ -339,7 +352,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   return (
     <>
       <LiquidGlassHeaderScreen
-        header={<Header title="Parent" showBackButton onBack={goBack} glass={false} />}
+        header={
+          <Header title="Parent" showBackButton onBack={goBack} glass={false} />
+        }
         cardGap={theme.spacing['3']}
         contentPadding={theme.spacing['1']}>
         {contentPaddingStyle => (
@@ -357,15 +372,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
               showCameraButton
             />
 
-            {/* Card with rows */}
-            <View style={styles.glassShadowWrapper}>
-              <LiquidGlassCard
-                glassEffect="clear"
-                interactive
-                tintColor={theme.colors.white}
-                style={styles.glassContainer}
-                fallbackStyle={styles.glassFallback}>
-                <View style={styles.listContainer}>
+            {/* Card with rows - flat warm-bone screen2 field-list card */}
+            <View style={styles.card}>
+              <View style={styles.listContainer}>
                 {/* First Name – Inline */}
                 <InlineEditRow
                   label="First name"
@@ -387,9 +396,13 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                 {/* Phone – Bottom sheet */}
                 <RowButton
                   label="Phone"
-                  value={safeUser.phone ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}` : ''}
+                  value={
+                    safeUser.phone
+                      ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}`
+                      : ''
+                  }
                   onPress={() => {
-                    setOpenBottomSheet('phone');
+                    openBottomSheetRef.current = 'phone';
                     phoneSheetRef.current?.open();
                   }}
                 />
@@ -405,9 +418,11 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                     ellipsizeMode="tail">
                     {safeUser.email ?? '—'}
                   </Text>
-                  <TouchableOpacity
+                  <PressableOpacity
                     style={styles.copyIconButton}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copy email"
                     onPress={() => {
                       const email = safeUser.email?.trim();
                       if (!email) {
@@ -417,7 +432,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                       Alert.alert('Copied', 'Email Id copied to clipboard');
                     }}>
                     <Image source={Images.copyIcon} style={styles.copyIcon} />
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 </View>
 
                 <Separator />
@@ -440,7 +455,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                   label="Currency"
                   value={safeUser.currency ?? 'USD'}
                   onPress={() => {
-                    setOpenBottomSheet('currency');
+                    openBottomSheetRef.current = 'currency';
                     currencySheetRef.current?.open();
                   }}
                 />
@@ -452,7 +467,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                   label="Address"
                   value={safeUser.address?.addressLine ?? ''}
                   onPress={() => {
-                    setOpenBottomSheet('address');
+                    openBottomSheetRef.current = 'address';
                     addressSheetRef.current?.open();
                   }}
                   key="address"
@@ -464,7 +479,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                   label="State/Province"
                   value={safeUser.address?.stateProvince ?? ''}
                   onPress={() => {
-                    setOpenBottomSheet('address');
+                    openBottomSheetRef.current = 'address';
                     addressSheetRef.current?.open();
                   }}
                   key="stateProvince"
@@ -476,7 +491,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                   label="City"
                   value={safeUser.address?.city ?? ''}
                   onPress={() => {
-                    setOpenBottomSheet('address');
+                    openBottomSheetRef.current = 'address';
                     addressSheetRef.current?.open();
                   }}
                   key="city"
@@ -488,7 +503,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                   label="Postal Code"
                   value={safeUser.address?.postalCode ?? ''}
                   onPress={() => {
-                    setOpenBottomSheet('address');
+                    openBottomSheetRef.current = 'address';
                     addressSheetRef.current?.open();
                   }}
                   key="postalCode"
@@ -500,13 +515,12 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                   label="Country"
                   value={safeUser.address?.country ?? ''}
                   onPress={() => {
-                    setOpenBottomSheet('address');
+                    openBottomSheetRef.current = 'address';
                     addressSheetRef.current?.open();
                   }}
                   key="country"
                 />
-                </View>
-              </LiquidGlassCard>
+              </View>
             </View>
 
             <SimpleDatePicker
@@ -514,12 +528,16 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                 safeUser.dateOfBirth ? new Date(safeUser.dateOfBirth) : null
               }
               onDateChange={date => {
-                applyPatch({dateOfBirth: date ? date.toISOString().split('T')[0] : undefined});
+                applyPatch({
+                  dateOfBirth: date
+                    ? date.toISOString().split('T')[0]
+                    : undefined,
+                });
                 setShowDobPicker(false);
               }}
               show={showDobPicker}
               onDismiss={() => setShowDobPicker(false)}
-              maximumDate={new Date()}
+              maximumDate={today}
               mode="date"
             />
           </ScrollView>
@@ -532,27 +550,34 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         selectedCurrency={safeUser.currency ?? 'USD'}
         onSave={(currency: string) => {
           applyPatch({currency});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
       <AddressBottomSheet
         ref={addressSheetRef}
         selectedAddress={safeUser.address ?? {}}
-        onSave={(address) => {
+        onSave={address => {
           applyPatch({address});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
       <CountryMobileBottomSheet
         ref={phoneSheetRef}
         countries={COUNTRIES}
-        selectedCountry={COUNTRIES.find(country => country.dial_code === parsedPhone.dialCode) ?? COUNTRIES.find((c: any) => c.code === 'US') ?? COUNTRIES[0]}
+        selectedCountry={
+          /* istanbul ignore next -- defensive: parsedPhone.dialCode always maps to a COUNTRIES entry */
+          COUNTRIES.find(
+            country => country.dial_code === parsedPhone.dialCode,
+          ) ??
+          COUNTRIES.find((c: any) => c.code === 'US') ??
+          COUNTRIES[0]
+        }
         mobileNumber={parsedPhone.localNumber}
         onSave={(country, phone) => {
           applyPatch({phone: `${country.dial_code}${phone}`});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
     </>
@@ -563,6 +588,18 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
     ...createGlassCardStyles(theme),
+    // Flat warm-bone "screen2" field-list card (brief: screen-2 bg, radius 20,
+    // hairline row dividers, no glass) - mirrors the Companion overview screen.
+    card: {
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      paddingHorizontal: theme.spacing['1'],
+      paddingVertical: theme.spacing['1'],
+      marginTop: theme.spacing['4.5'],
+    },
+    listContainer: {
+      gap: 0,
+    },
     readOnlyEmailRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -576,7 +613,7 @@ const createStyles = (theme: any) =>
     },
     rowButtonValue: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.secondary,
+      color: theme.colors.inkMuted,
       marginRight: theme.spacing['2'],
       flexShrink: 1,
       flex: 1,

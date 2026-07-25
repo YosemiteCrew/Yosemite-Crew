@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import AppointmentCard from '@/app/ui/cards/AppointmentCard';
@@ -8,6 +8,11 @@ import { Appointment } from '@yosemite-crew/types';
 
 jest.mock('@/app/ui/tables/Appointments', () => ({
   getStatusStyle: jest.fn(() => ({ backgroundColor: 'pink', color: 'white' })),
+}));
+
+const mockRejectAppointment = jest.fn();
+jest.mock('@/app/features/appointments/services/appointmentService', () => ({
+  rejectAppointment: (...args: any[]) => mockRejectAppointment(...args),
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -166,5 +171,34 @@ describe('AppointmentCard', () => {
       expect.objectContaining({ status: 'NO_PAYMENT' })
     );
     expect(screen.queryByTitle('View')).not.toBeInTheDocument();
+  });
+
+  it('declines a requested appointment and logs instead of crashing on failure', async () => {
+    const error = new Error('Cannot reject appointment: appointment ID missing.');
+    mockRejectAppointment.mockRejectedValueOnce(error);
+    // jest.setup turns an unhandled console.error into a failure, so take it over.
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <AppointmentCard
+        appointment={{ ...appointment, status: 'NO_PAYMENT' }}
+        handleViewAppointment={handleViewAppointment}
+        handleWorkspaceAppointment={handleWorkspaceAppointment}
+        getSoapViewIntent={getSoapViewIntent}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        handleChangeStatusAppointment={handleChangeStatusAppointment}
+        canEditAppointments
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button')[1]);
+    expect(mockRejectAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'NO_PAYMENT' })
+    );
+    // The rejection is caught, so it never becomes an unhandled rejection.
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to decline appointment request:', error);
+    });
+    consoleSpy.mockRestore();
   });
 });

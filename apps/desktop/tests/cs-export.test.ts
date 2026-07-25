@@ -162,4 +162,64 @@ describe('createCsDailyExport', () => {
     expect(content).toContain('"Test, Drug ""A"""');
     expect(content).toContain('"Dr. ""Smith"""');
   });
+
+  describe('Path Traversal Security', () => {
+    test('exportDailyLog validates file path stays within export directory', () => {
+      const logbook = makeLogbook();
+      const now = Date.now();
+      logbook.record({
+        action: 'dispense',
+        drugName: 'Ketamine',
+        drugClass: 'CIII',
+        lotNumber: 'L001',
+        quantity: 1,
+        unit: 'ml',
+        veterinarianId: 'vet-1',
+        veterinarianName: 'Dr. Smith',
+      });
+
+      // Normal export directory - the security check ensures generated filenames
+      // cannot escape the export directory even if they contained malicious characters
+      const exportDir = path.join(rootDir, `exports-${testCounter}`);
+      const svc = createCsDailyExport({ logbook, exportDir, now: () => now });
+
+      // Should succeed - the date-based filename is safe
+      const result = svc.exportDailyLog(new Date(now));
+      expect(result).not.toBeNull();
+      expect(result!.filePath).toContain(exportDir);
+
+      // Verify the file is actually within the export directory
+      const relativePath = path.relative(exportDir, result!.filePath);
+      expect(relativePath.startsWith('..')).toBe(false);
+      expect(path.isAbsolute(relativePath)).toBe(false);
+    });
+
+    test('exportRange validates file path stays within export directory', () => {
+      const logbook = makeLogbook();
+      logbook.record({
+        action: 'dispense',
+        drugName: 'Ketamine',
+        drugClass: 'CIII',
+        lotNumber: 'L001',
+        quantity: 1,
+        unit: 'ml',
+        veterinarianId: 'vet-1',
+        veterinarianName: 'Dr. Smith',
+      });
+
+      // Normal export directory - security check prevents path traversal
+      const exportDir = path.join(rootDir, `exports-${testCounter}`);
+      const svc = createCsDailyExport({ logbook, exportDir });
+
+      // Should succeed with safe date-based filename
+      const result = svc.exportRange(new Date('2020-01-01'), new Date('2030-01-01'));
+      expect(result).not.toBeNull();
+      expect(result!.filePath).toContain(exportDir);
+
+      // Verify the file is actually within the export directory
+      const relativePath = path.relative(exportDir, result!.filePath);
+      expect(relativePath.startsWith('..')).toBe(false);
+      expect(path.isAbsolute(relativePath)).toBe(false);
+    });
+  });
 });

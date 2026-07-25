@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { IoCloseSharp } from 'react-icons/io5';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@iconify/react/dist/iconify.js';
@@ -32,9 +32,56 @@ const formatStars = (n: number) =>
     maximumFractionDigits: 1,
   }).format(n);
 
+type StarsStore = {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => number | null;
+  getServerSnapshot: () => number | null;
+  publish: (value: number) => void;
+};
+
+// The star count lives in an external store rather than component state so the
+// cached value is available on the very first client render (no mount effect,
+// no extra render) while the server snapshot stays null — localStorage is
+// client-only, and `useSyncExternalStore` keeps hydration consistent for us.
+const createStarsStore = (o: string, r: string): StarsStore => {
+  const listeners = new Set<() => void>();
+  // The snapshot is memoised (read from cache exactly once, as the previous
+  // mount effect did) so getSnapshot stays stable across renders.
+  let snapshot: number | null = null;
+  let snapshotRead = false;
+
+  return {
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => {
+      if (!snapshotRead) {
+        snapshot = readCache(o, r);
+        snapshotRead = true;
+      }
+      return snapshot;
+    },
+    getServerSnapshot: () => null,
+    publish: (value) => {
+      snapshot = value;
+      snapshotRead = true;
+      writeCache(o, r, value);
+      for (const listener of listeners) listener();
+    },
+  };
+};
+
 const Github = () => {
   const [isOpen, setIsOpen] = useState(true);
-  const [stars, setStars] = useState<number | null>(null);
+  const [starsStore] = useState(() => createStarsStore(owner, repo));
+  const stars = useSyncExternalStore(
+    starsStore.subscribe,
+    starsStore.getSnapshot,
+    starsStore.getServerSnapshot
+  );
   const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
 
@@ -44,8 +91,6 @@ const Github = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const cached = readCache(owner, repo);
-    if (cached !== null) setStars(cached);
 
     async function loadStars() {
       setError(null);
@@ -73,15 +118,28 @@ const Github = () => {
 
         if (!Number.isFinite(count)) throw new Error('Bad star count');
 
-        if (!cancelled) {
-          setStars(count);
-          writeCache(owner, repo, count);
-        }
+        if (!cancelled) starsStore.publish(count);
       } catch {
         if (!cancelled) setError('—');
       }
     }
-    loadStars();
+    // Defer the third-party GitHub API call off the critical load path. Firing it
+    // synchronously on mount keeps the network busy and prevents `networkidle` from
+    // settling (which flakes the Playwright a11y run); the star count is non-essential
+    // chrome, so let the page reach idle first, then fetch.
+    const idleWindow = globalThis.window as
+      | (Window & {
+          requestIdleCallback?: (cb: () => void) => number;
+          cancelIdleCallback?: (handle: number) => void;
+        })
+      | undefined;
+    let idleHandle: number | undefined;
+    let idleTimeout: ReturnType<typeof setTimeout> | undefined;
+    if (idleWindow?.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(() => loadStars());
+    } else {
+      idleTimeout = setTimeout(loadStars, 1000);
+    }
 
     // optional: refresh every 15 minutes while banner is mounted
     const id = setInterval(loadStars, 15 * 60 * 1000);
@@ -89,8 +147,10 @@ const Github = () => {
     return () => {
       cancelled = true;
       clearInterval(id);
+      if (idleHandle !== undefined) idleWindow?.cancelIdleCallback?.(idleHandle);
+      if (idleTimeout !== undefined) clearTimeout(idleTimeout);
     };
-  }, []);
+  }, [starsStore]);
 
   if (!isOpen) return null;
 

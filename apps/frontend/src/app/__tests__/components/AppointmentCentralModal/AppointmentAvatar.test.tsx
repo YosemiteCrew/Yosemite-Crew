@@ -3,10 +3,7 @@ import { render, screen } from '@testing-library/react';
 import AppointmentAvatar from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar';
 
 jest.mock('next/image', () => {
-  const MockImage = ({ src, alt }: { src: string; alt: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} />
-  );
+  const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
   MockImage.displayName = 'Image';
   return MockImage;
 });

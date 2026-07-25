@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {MedicationType} from '@/features/tasks/types';
 import {resolveMedicationTypeLabel} from '@/features/tasks/utils/taskLabels';
 
@@ -26,23 +29,31 @@ const medicationTypes: MedicationType[] = [
   'sprinkle-capsules',
 ];
 
-export const MedicationTypeBottomSheet = forwardRef<
-  MedicationTypeBottomSheetRef,
-  MedicationTypeBottomSheetProps
->(({selectedType, onSelect, onSheetChange}, ref) => {
+export const MedicationTypeBottomSheet = ({
+  selectedType,
+  onSelect,
+  onSheetChange,
+  ref,
+}: MedicationTypeBottomSheetProps & {
+  ref?: React.Ref<MedicationTypeBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<any>(null);
 
-  const medicationItems: SelectItem[] = useMemo(() =>
-    medicationTypes.map(type => ({
-      id: type,
-      label: resolveMedicationTypeLabel(type),
-    })), []
+  const medicationItems: SelectItem[] = useMemo(
+    () =>
+      medicationTypes.map(type => ({
+        id: type,
+        label: resolveMedicationTypeLabel(type),
+      })),
+    [],
   );
 
-  const selectedItem = selectedType ? {
-    id: selectedType,
-    label: resolveMedicationTypeLabel(selectedType),
-  } : null;
+  const selectedItem = selectedType
+    ? {
+        id: selectedType,
+        label: resolveMedicationTypeLabel(selectedType),
+      }
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -73,7 +84,7 @@ export const MedicationTypeBottomSheet = forwardRef<
       onSheetChange={onSheetChange}
     />
   );
-});
+};
 
 MedicationTypeBottomSheet.displayName = 'MedicationTypeBottomSheet';
 

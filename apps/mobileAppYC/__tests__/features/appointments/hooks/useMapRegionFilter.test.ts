@@ -193,6 +193,24 @@ describe('useMapRegionFilter', () => {
       expect(result.current).toHaveLength(1);
     });
 
+    it('does not match when specialties are missing', () => {
+      const clinic = makeClinic({
+        name: 'Pacific Animal Center',
+        address: undefined,
+        specialties: undefined,
+      });
+      const {result} = renderHook(() =>
+        useMapRegionFilter({
+          businesses: [clinic],
+          region: null,
+          searchQuery: 'cardio',
+          category: undefined,
+          openNow: false,
+        }),
+      );
+      expect(result.current).toHaveLength(0);
+    });
+
     it('ignores queries shorter than 2 characters', () => {
       const clinics = [
         makeClinic({id: 'a', name: 'Alpha'}),
@@ -268,5 +286,37 @@ describe('useMapRegionFilter', () => {
       }),
     );
     expect(result.current).toHaveLength(0);
+  });
+
+  describe('open now filtering', () => {
+    it('keeps businesses whose hours start with open', () => {
+      const clinics = [
+        makeClinic({id: 'open', openHours: 'Open until 6 PM'}),
+        makeClinic({id: 'closed', openHours: 'Closed'}),
+      ];
+      const {result} = renderHook(() =>
+        useMapRegionFilter({
+          businesses: clinics,
+          region: null,
+          searchQuery: '',
+          category: undefined,
+          openNow: true,
+        }),
+      );
+      expect(result.current.map(c => c.id)).toEqual(['open']);
+    });
+
+    it('excludes businesses without hours when open-now is required', () => {
+      const {result} = renderHook(() =>
+        useMapRegionFilter({
+          businesses: [makeClinic({openHours: undefined})],
+          region: null,
+          searchQuery: '',
+          category: undefined,
+          openNow: true,
+        }),
+      );
+      expect(result.current).toHaveLength(0);
+    });
   });
 });

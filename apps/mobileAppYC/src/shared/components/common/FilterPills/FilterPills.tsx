@@ -1,6 +1,8 @@
 import React, {useRef, useEffect} from 'react';
-import {ScrollView, TouchableOpacity, Text, View, StyleSheet} from 'react-native';
+import {ScrollView, Text, View, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 
 export interface FilterOption<T> {
   readonly id: T;
@@ -23,7 +25,7 @@ export function FilterPills<T>({
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const scrollRef = useRef<ScrollView | null>(null);
-  const pillRefs = useRef<Map<string, View>>(new Map());
+  const pillRefs = useLazyRef(() => new Map<string, View>());
 
   useEffect(() => {
     const selectedKey = String(selected ?? 'default');
@@ -31,13 +33,13 @@ export function FilterPills<T>({
     if (pillView && scrollRef.current) {
       pillView.measureLayout(
         scrollRef.current as any,
-        (x) => {
+        x => {
           scrollRef.current?.scrollTo({x: x - 20, animated: true});
         },
         () => {},
       );
     }
-  }, [selected]);
+  }, [pillRefs, selected]);
 
   return (
     <ScrollView
@@ -45,26 +47,32 @@ export function FilterPills<T>({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={[styles.pillsContent, containerStyle]}>
-      {options.map(option => {
-        const isActive = option.id === selected;
-        const key = String(option.id ?? 'default');
-        return (
-          <TouchableOpacity
-            key={key}
-            ref={node => {
-              if (node) {
-                pillRefs.current.set(key, node);
-              }
-            }}
-            style={[styles.pill, isActive && styles.pillActive]}
-            activeOpacity={0.8}
-            onPress={() => onSelect(option.id)}>
-            <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      <View style={styles.pillsRow}>
+        {options.map(option => {
+          const isActive = option.id === selected;
+          const key = String(option.id ?? 'default');
+          return (
+            <PressableOpacity
+              key={key}
+              ref={node => {
+                if (node) {
+                  pillRefs.current.set(key, node);
+                }
+              }}
+              style={[styles.pill, isActive && styles.pillActive]}
+              activeOpacity={0.8}
+              onPress={() => onSelect(option.id)}
+              accessibilityRole="radio"
+              accessibilityState={{selected: isActive}}
+              accessibilityLabel={option.label}>
+              <Text
+                style={[styles.pillText, isActive && styles.pillTextActive]}>
+                {option.label}
+              </Text>
+            </PressableOpacity>
+          );
+        })}
+      </View>
     </ScrollView>
   );
 }
@@ -72,31 +80,34 @@ export function FilterPills<T>({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     pillsContent: {
-      gap: theme.spacing['2'],
       paddingRight: theme.spacing['2'],
       paddingHorizontal: theme.spacing['6'],
+    },
+    pillsRow: {
+      flexDirection: 'row',
+      gap: theme.spacing['2'],
     },
     pill: {
       minWidth: 80,
       height: 40,
       paddingHorizontal: theme.spacing['4'],
       paddingVertical: theme.spacing['1.25'],
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.pill,
       borderWidth: 1,
-      borderColor: theme.colors.text,
-      backgroundColor: theme.colors.white,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
       justifyContent: 'center',
       alignItems: 'center',
     },
     pillActive: {
-      backgroundColor: theme.colors.lightBlueBackground,
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.cta,
+      borderColor: theme.colors.cta,
     },
     pillText: {
       ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
     },
     pillTextActive: {
-      color: theme.colors.primary,
+      color: theme.colors.ctaText,
     },
   });

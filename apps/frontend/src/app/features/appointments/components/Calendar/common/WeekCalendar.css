@@ -1,0 +1,63 @@
+/* PIMS week grid sizing.
+   "Time grids do not shrink, so each size gets its own shape. The tablet keeps
+   a real week." — the tablet band therefore renders the same seven-day grid as
+   desktop, but sized to fit the viewport instead of scrolling sideways.
+
+   Every value below is driven by custom properties so the desktop shape (the
+   signed-off 1440 frame) stays byte-identical to what it was before: 64px
+   gutters, 140px/96px minimum day columns, max-content tracks. Only the
+   768–1279 band overrides them. */
+
+.yc-week-grid {
+  /* Time gutter. 64px on desktop, per the planner frame's `64px repeat(n, 1fr)`. */
+  --yc-week-gutter: 64px;
+  /* Minimum width of a single day column before the track starts scrolling. */
+  --yc-week-day-min: 140px;
+}
+
+.yc-week-grid[data-zoom-mode='out'] {
+  --yc-week-day-min: 96px;
+}
+
+/* Horizontal tracks size to their content (so the week scrolls inside the
+   calendar's own container rather than the page) at every width except tablet. */
+.yc-week-grid__track {
+  min-width: max-content;
+}
+
+/* Two-column shell: time gutter | day columns. The week grid in the design has no
+   arrow columns at all — prev/next live in the header toolbar's date-nav pill. */
+.yc-week-grid__shell {
+  display: grid;
+  grid-template-columns: var(--yc-week-gutter) minmax(0, 1fr);
+}
+
+/* ------------------------------------------------------- tablet: 768–1279 */
+
+@media (min-width: 768px) and (max-width: 1279.98px) {
+  .yc-week-grid {
+    /* 44px gutter, per the tablet week-grid frame. */
+    --yc-week-gutter: 44px;
+    /* No minimum: seven equal 1fr columns that divide the available width. */
+    --yc-week-day-min: 0px;
+  }
+
+  /* Let the tracks collapse to the container so all seven days fit without a
+     sideways scroll. */
+  .yc-week-grid__track {
+    min-width: 0;
+  }
+
+  /* The hour gutter drops from 64px to 44px, so the labels take the frame's
+     9.5px tabular type and tuck to a 6px right inset (the tablet frame's
+     `right: 6px`) instead of the desktop frame's 10px. */
+  .yc-week-grid .yc-week-grid__hour-label {
+    font-size: 9.5px;
+    line-height: 1;
+  }
+
+  .yc-week-grid .yc-week-grid__hour-label span {
+    right: 6px;
+    font-size: 9.5px;
+  }
+}

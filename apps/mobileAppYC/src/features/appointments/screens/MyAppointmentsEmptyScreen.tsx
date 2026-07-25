@@ -1,14 +1,20 @@
 import React from 'react';
-import {View, Image, Text, StyleSheet} from 'react-native';
+import {View, Image, StyleSheet} from 'react-native';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {Header} from '@/shared/components/common/Header/Header';
+import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import {Images} from '@/assets/images';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {useDispatch, useSelector} from 'react-redux';
-import {selectCompanions, selectSelectedCompanionId, setSelectedCompanion} from '@/features/companion';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+  setSelectedCompanion,
+} from '@/features/companion';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import type {AppDispatch} from '@/app/store';
 
@@ -21,6 +27,7 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const companions = useSelector(selectCompanions);
   const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const hasCompanions = companions.length > 0;
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
@@ -29,9 +36,10 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
       header={
         <Header
           title="My Appointments"
+          variant="root"
           showBackButton={false}
-          rightIcon={companions.length > 0 ? Images.addIconDark : undefined}
-          onRightPress={companions.length > 0 ? handleAdd : undefined}
+          rightIcon={hasCompanions ? Images.addIconDark : undefined}
+          onRightPress={hasCompanions ? handleAdd : undefined}
           glass={false}
         />
       }
@@ -41,7 +49,7 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
       showBottomFade={false}>
       {contentPaddingStyle => (
         <View style={[styles.container, contentPaddingStyle]}>
-          {companions.length > 0 && (
+          {hasCompanions && (
             <View style={styles.selectorWrapper}>
               <CompanionSelector
                 companions={companions}
@@ -54,28 +62,36 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
               />
             </View>
           )}
-          <View style={styles.contentContainer}>
-            <Image source={Images.emptyAppointments || Images.emptyTasksIllustration} style={styles.emptyImage} />
-            <Text style={styles.title}>We've dug and dug… but no appointments found.</Text>
-            <Text style={styles.subtitle}>
-              We'll save your appointment history here once you start seeing your vet.
-            </Text>
-          </View>
+          <EmptyState
+            style={styles.emptyState}
+            icon={
+              <Image source={Images.calendarIcon} style={styles.ringIcon} />
+            }
+            title="No visits booked yet"
+            description="Your upcoming veterinary visits will appear here once scheduled."
+            actionLabel={hasCompanions ? 'Book an appointment' : undefined}
+            actionIcon={
+              hasCompanions ? (
+                <Image source={Images.addIconWhite} style={styles.ctaIcon} />
+              ) : undefined
+            }
+            onAction={hasCompanions ? handleAdd : undefined}
+          />
         </View>
       )}
     </LiquidGlassHeaderScreen>
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     selectorWrapper: {
       paddingHorizontal: theme.spacing['4'],
@@ -85,29 +101,21 @@ const createStyles = (theme: any) =>
     selectorContainer: {
       marginBottom: theme.spacing['2'],
     },
-    contentContainer: {
+    emptyState: {
       flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
       paddingBottom: theme.spacing['52'],
-      paddingHorizontal: theme.spacing['6'],
     },
-    emptyImage: {
-      width: theme.spacing['56'],
-      height: theme.spacing['56'],
+    ringIcon: {
+      width: 44,
+      height: 44,
       resizeMode: 'contain',
-      marginBottom: theme.spacing['6'],
+      tintColor: theme.colors.blueText,
     },
-    title: {
-      ...theme.typography.businessSectionTitle20,
-      color: theme.colors.text,
-      marginBottom: theme.spacing['3'],
-      textAlign: 'center',
-    },
-    subtitle: {
-      ...theme.typography.subtitleRegular14,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
+    ctaIcon: {
+      width: 18,
+      height: 18,
+      resizeMode: 'contain',
+      tintColor: theme.colors.ctaText,
     },
   });
 

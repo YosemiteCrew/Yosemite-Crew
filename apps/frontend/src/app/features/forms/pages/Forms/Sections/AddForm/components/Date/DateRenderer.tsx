@@ -1,9 +1,9 @@
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { FormField } from "@/app/features/forms/types/forms";
-import React from "react";
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { FormField } from '@/app/features/forms/types/forms';
+import React from 'react';
 
 const DateRenderer: React.FC<{
-  field: FormField & { type: "date" };
+  field: FormField & { type: 'date' };
   value: string;
   onChange: (v: string) => void;
   readOnly?: boolean;
@@ -13,9 +13,8 @@ const DateRenderer: React.FC<{
       intype="date"
       inname={field.id}
       value={value}
-      inlabel={field.label || "Date"}
+      inlabel={field.label || 'Date'}
       onChange={(e) => onChange(e.target.value)}
-      className="min-h-12!"
       readonly={readOnly}
       onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
         if (readOnly) e.target.blur();

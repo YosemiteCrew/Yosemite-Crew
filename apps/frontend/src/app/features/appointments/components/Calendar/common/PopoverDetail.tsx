@@ -16,11 +16,13 @@ const PopoverDetail = ({
   scrollValue = false,
 }: PopoverDetailProps) => (
   <div className="min-w-0">
-    <div className="text-yc-12-b-neutral">{label}</div>
-    <div className={`mt-1 min-w-0 ${emphasized ? 'text-yc-16-b-primary' : 'text-yc-16-r-neutral'}`}>
+    <div className="text-[11px] font-semibold text-[var(--ink-faint)]">{label}</div>
+    <div
+      className={`mt-1 min-w-0 text-[13.5px] ${emphasized ? 'font-bold text-[var(--ink)]' : 'text-[var(--ink-body)]'}`}
+    >
       <span className="relative block min-w-0 overflow-visible">
         {icon ? (
-          <span className="pointer-events-none absolute -left-5 top-1/2 -translate-y-1/2 text-neutral-900">
+          <span className="pointer-events-none absolute -left-5 top-1/2 -translate-y-1/2 text-[var(--ink-faint)]">
             {icon}
           </span>
         ) : null}

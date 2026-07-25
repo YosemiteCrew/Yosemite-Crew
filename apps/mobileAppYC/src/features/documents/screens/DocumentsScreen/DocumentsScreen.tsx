@@ -19,15 +19,26 @@ import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {useDocumentCompanionSync} from '@/features/documents/hooks/useDocumentCompanionSync';
 import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
 
-type DocumentsNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
+type DocumentsNavigationProp =
+  NativeStackNavigationProp<DocumentStackParamList>;
 
 export const DocumentsScreen: React.FC = () => {
-  const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
+  const {theme, dispatch, companions, selectedCompanionId} =
+    useCompanionFormScreen();
   const navigation = useNavigation<DocumentsNavigationProp>();
   const styles = useCommonScreenStyles(theme, themeArg => ({
     contentContainer: {
       paddingHorizontal: themeArg.spacing['6'],
       paddingBottom: themeArg.spacing['32'],
+    },
+    sectionTitle: {
+      ...themeArg.typography.eyebrow,
+      color: themeArg.colors.inkFaint,
+      marginBottom: themeArg.spacing['3'],
+    },
+    categoryTile: {
+      width: '100%' as const,
+      marginBottom: themeArg.spacing['3'],
     },
   }));
   useDocumentCompanionSync({companions, selectedCompanionId, dispatch});
@@ -35,7 +46,9 @@ export const DocumentsScreen: React.FC = () => {
     useDocumentNavigation(navigation);
 
   // Get documents from Redux
-  const documents = useSelector((state: RootState) => state.documents.documents);
+  const documents = useSelector(
+    (state: RootState) => state.documents.documents,
+  );
 
   // Filter documents by selected companion
   const filteredDocuments = useMemo(() => {
@@ -48,7 +61,10 @@ export const DocumentsScreen: React.FC = () => {
   // Get recent documents (latest 1)
   const recentDocuments = useMemo(() => {
     return [...filteredDocuments]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
       .slice(0, 1);
   }, [filteredDocuments]);
 
@@ -122,10 +138,18 @@ export const DocumentsScreen: React.FC = () => {
                 key={category.id}
                 icon={category.icon}
                 title={category.label}
-                subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
+                subtitle={category.description ?? ''}
+                count={category.fileCount}
                 isSynced={category.isSynced}
                 onPress={() => handleCategoryPress(category.id)}
                 containerStyle={styles.categoryTile}
+                iconTint={
+                  category.iconTint
+                    ? theme.colors[
+                        category.iconTint as keyof typeof theme.colors
+                      ]
+                    : undefined
+                }
               />
             ))}
           </View>

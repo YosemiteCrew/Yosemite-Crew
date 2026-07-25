@@ -11,6 +11,15 @@ import {
   buildInventoryPayload,
   defaultFilters,
   displayStatusLabel,
+  getAvailableStock,
+  getGrossProfitPerUnit,
+  getMarginPercent,
+  getMarkupPercent,
+  getStockValue,
+  formatCurrencyValue,
+  formatPercentValue,
+  getDerivedStockHealth,
+  effectiveStockHealthKey,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { BusinessType } from '@/app/features/organization/types/org';
 import {
@@ -183,9 +192,9 @@ describe('Inventory Utils', () => {
       });
       // expired / out of stock
       expect(getStatusBadgeStyle('Expired')).toEqual({
-        color: 'var(--color-danger-600)',
-        backgroundColor: 'var(--color-danger-100)',
-        borderColor: 'var(--color-danger-400)',
+        color: 'var(--danger-text)',
+        backgroundColor: 'var(--danger-bg)',
+        borderColor: 'var(--danger-border)',
       });
       expect(getStatusBadgeStyle('Out of Stock')).toEqual({
         color: 'var(--color-pill-neutral-text)',
@@ -912,6 +921,37 @@ describe('Inventory Utils', () => {
     });
   });
 
+  describe('effectiveStockHealthKey', () => {
+    it('uses the explicit stockHealth when the item carries one', () => {
+      const item = { status: 'ACTIVE', stockHealth: 'LOW_STOCK', basicInfo: {} } as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('LOW_STOCK');
+    });
+
+    it('derives EXPIRED from a past batch when stockHealth is absent', () => {
+      const item = {
+        status: 'ACTIVE',
+        basicInfo: {},
+        batch: { expiryDate: '2020-01-01' },
+        stock: { current: 5 },
+      } as unknown as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('EXPIRED');
+    });
+
+    it('derives LOW_STOCK from the reorder level when stockHealth is absent', () => {
+      const item = {
+        status: 'ACTIVE',
+        basicInfo: {},
+        stock: { current: 2, reorderLevel: 5 },
+      } as unknown as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('LOW_STOCK');
+    });
+
+    it('returns an empty key when there is nothing to classify', () => {
+      const item = { basicInfo: {} } as InventoryItem;
+      expect(effectiveStockHealthKey(item)).toBe('');
+    });
+  });
+
   // --------------------------------------------------------------------------
   // 8. Default Filters (Constants)
   // --------------------------------------------------------------------------
@@ -927,5 +967,87 @@ describe('Inventory Utils', () => {
       visibility: 'ACTIVE',
       search: '',
     });
+  });
+});
+
+describe('inventory metric helpers', () => {
+  const metricItem = (overrides: Partial<InventoryItem> = {}): InventoryItem =>
+    ({
+      basicInfo: { name: 'Amoxicillin', status: 'ACTIVE' },
+      classification: {},
+      pricing: { selling: 20, purchaseCost: 8 },
+      stock: { current: 50, allocated: 10, reorderLevel: 5, maxStock: 100 },
+      batch: {},
+      status: 'ACTIVE',
+      ...overrides,
+    }) as unknown as InventoryItem;
+
+  it('computes available stock and returns undefined without an on-hand count', () => {
+    expect(getAvailableStock(metricItem())).toBe(40);
+    expect(getAvailableStock(metricItem({ stock: { allocated: 5 } } as never))).toBeUndefined();
+    // Missing allocated defaults to 0.
+    expect(getAvailableStock(metricItem({ stock: { current: 7 } } as never))).toBe(7);
+  });
+
+  it('computes profit, margin, and markup with divide-by-zero guards', () => {
+    expect(getGrossProfitPerUnit(metricItem())).toBe(12);
+    expect(getGrossProfitPerUnit(metricItem({ pricing: {} } as never))).toBeUndefined();
+
+    expect(getMarginPercent(metricItem())).toBe(60);
+    expect(
+      getMarginPercent(metricItem({ pricing: { selling: 0, purchaseCost: 8 } } as never))
+    ).toBeUndefined();
+
+    expect(getMarkupPercent(metricItem())).toBe(150);
+    expect(
+      getMarkupPercent(metricItem({ pricing: { selling: 20, purchaseCost: 0 } } as never))
+    ).toBeUndefined();
+  });
+
+  it('computes stock value from on-hand and unit cost', () => {
+    expect(getStockValue(metricItem())).toBe(400);
+    expect(getStockValue(metricItem({ pricing: { selling: 20 } } as never))).toBeUndefined();
+  });
+
+  it('formats currency values with USD fallback for unknown codes', () => {
+    expect(formatCurrencyValue(1200)).toBe('$1,200');
+    expect(formatCurrencyValue(19.5, 'EUR')).toBe('€19.50');
+    expect(formatCurrencyValue(10, 'NOT_A_CODE')).toBe('$10');
+    expect(formatCurrencyValue(undefined)).toBe('—');
+  });
+
+  it('formats percent values and dashes for non-finite input', () => {
+    expect(formatPercentValue(12.345)).toBe('12.35%');
+    expect(formatPercentValue(Number.NaN)).toBe('—');
+    expect(formatPercentValue(undefined)).toBe('—');
+  });
+
+  it('derives stock health across every state', () => {
+    expect(getDerivedStockHealth(metricItem())).toEqual({ key: 'IN_STOCK', label: 'In stock' });
+    expect(getDerivedStockHealth(metricItem({ status: 'HIDDEN' } as never)).label).toBe('Hidden');
+    expect(
+      getDerivedStockHealth(metricItem({ batch: { expiryDate: '2020-01-01' } } as never))
+    ).toEqual({ key: 'EXPIRED', label: 'Expired' });
+    expect(
+      getDerivedStockHealth(metricItem({ stock: { current: 5, allocated: 5 } } as never))
+    ).toEqual({ key: 'OUT_OF_STOCK', label: 'Out of stock' });
+    expect(
+      getDerivedStockHealth(
+        metricItem({ stock: { current: 6, allocated: 2, reorderLevel: 5 } } as never)
+      )
+    ).toEqual({ key: 'LOW_STOCK', label: 'Low stock' });
+    expect(
+      getDerivedStockHealth(
+        metricItem({
+          stock: { current: 150, allocated: 0, reorderLevel: 5, maxStock: 100 },
+        } as never)
+      )
+    ).toEqual({ key: 'OVERSTOCKED', label: 'Overstocked' });
+  });
+
+  it('normalizes NaN and non-primitive values in toStringSafe', () => {
+    expect(toStringSafe(Number.NaN)).toBe('');
+    expect(toStringSafe({})).toBe('');
+    expect(toStringSafe(true)).toBe('true');
   });
 });

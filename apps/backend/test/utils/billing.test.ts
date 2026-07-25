@@ -3,13 +3,6 @@ import {
   getOrgBillingCurrency,
 } from "../../src/utils/billing";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import OrganizationModel from "src/models/organization";
-import { OrgBilling } from "src/models/organization.billing";
-
-jest.mock("src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(),
-}));
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -17,20 +10,6 @@ jest.mock("src/config/prisma", () => ({
     organizationAddress: { findUnique: jest.fn() },
   },
 }));
-
-jest.mock("src/models/organization", () => ({
-  __esModule: true,
-  default: { findById: jest.fn() },
-}));
-
-jest.mock("src/models/organization.billing", () => ({
-  __esModule: true,
-  OrgBilling: { findOne: jest.fn() },
-}));
-
-const mockSelectChain = (result: unknown) => ({
-  select: jest.fn().mockResolvedValue(result),
-});
 
 describe("currencyForCountry", () => {
   it("maps known countries to their ISO-4217 currency (lowercased)", () => {
@@ -65,10 +44,9 @@ describe("currencyForCountry", () => {
   });
 });
 
-describe("getOrgBillingCurrency (Postgres read path)", () => {
+describe("getOrgBillingCurrency", () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    (isReadFromPostgres as jest.Mock).mockReturnValue(true);
   });
 
   it("returns usd for a missing org id without hitting the database", async () => {
@@ -117,47 +95,6 @@ describe("getOrgBillingCurrency (Postgres read path)", () => {
     );
     (prisma.organizationAddress.findUnique as jest.Mock).mockResolvedValue(
       null,
-    );
-
-    await expect(getOrgBillingCurrency("org_1")).resolves.toBe("usd");
-  });
-});
-
-describe("getOrgBillingCurrency (Mongo read path)", () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-    (isReadFromPostgres as jest.Mock).mockReturnValue(false);
-  });
-
-  it("prefers the OrgBilling currency over the country fallback", async () => {
-    (OrgBilling.findOne as jest.Mock).mockResolvedValue({ currency: "aud" });
-
-    await expect(getOrgBillingCurrency("org_1")).resolves.toBe("aud");
-    expect(OrganizationModel.findById).not.toHaveBeenCalled();
-  });
-
-  it("falls back to the org country currency when no billing doc exists", async () => {
-    (OrgBilling.findOne as jest.Mock).mockResolvedValue(null);
-    (OrganizationModel.findById as jest.Mock).mockReturnValue(
-      mockSelectChain({ address: { country: "GB" } }),
-    );
-
-    await expect(getOrgBillingCurrency("org_1")).resolves.toBe("gbp");
-  });
-
-  it("defaults to usd when the org country is unknown", async () => {
-    (OrgBilling.findOne as jest.Mock).mockResolvedValue(null);
-    (OrganizationModel.findById as jest.Mock).mockReturnValue(
-      mockSelectChain({ address: { country: "ZZ" } }),
-    );
-
-    await expect(getOrgBillingCurrency("org_1")).resolves.toBe("usd");
-  });
-
-  it("defaults to usd when the org has no address", async () => {
-    (OrgBilling.findOne as jest.Mock).mockResolvedValue(null);
-    (OrganizationModel.findById as jest.Mock).mockReturnValue(
-      mockSelectChain(null),
     );
 
     await expect(getOrgBillingCurrency("org_1")).resolves.toBe("usd");

@@ -1,19 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  LuArrowRight,
-  LuBanknote,
-  LuCheck,
-  LuCreditCard,
-  LuDownload,
-  LuEye,
-  LuEyeOff,
-  LuShare,
-  LuUpload,
-} from 'react-icons/lu';
+  IoArrowForwardOutline,
+  IoCashOutline,
+  IoCheckmarkOutline,
+  IoCloudUploadOutline,
+  IoDownloadOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoShareOutline,
+} from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
 import PackageBreakdownTooltip from '@/app/features/appointments/pages/AppointmentWorkspace/components/PackageBreakdownTooltip';
+import PaymentLinkStatus from '@/app/features/appointments/pages/AppointmentWorkspace/components/PaymentLinkStatus';
+import {
+  derivePaymentLinkStatus,
+  findPaymentLinkInvoice,
+  type PaymentLinkStatus as PaymentLinkStatusModel,
+} from '@/app/features/appointments/lib/paymentLinkStatus';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
@@ -21,13 +26,10 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type {
   AppointmentEncounter,
-  BillableKind,
   InvoiceLineItem,
   InvoiceStatus,
-  LineItem,
   PastInvoice,
   PaymentMethod,
-  PrescriptionItem,
 } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
@@ -35,34 +37,39 @@ import {
   addLineItemsToAppointments,
   createFinanceInvoice,
   finalizeFinanceInvoice,
+  getFinanceInvoiceById,
   getPaymentLink,
-  loadAppointmentBilling,
   recordManualInvoicePayment,
   sendInvoiceToClient,
   findOpenAppointmentInvoice,
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
-import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import { useOrganisationDiscountCap } from '@/app/features/finance/hooks/useOrganisationDiscountCap';
+import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import {
-  computePackageBreakdownItem,
-  computePackageTotals,
-} from '@/app/features/organization/services/catalogCalculations';
-import type {
-  PackageBreakdownItem,
-  PackageRevamp,
-  ServiceRevamp,
-} from '@/app/features/organization/types/revamp';
-import { useInventoryStore } from '@/app/stores/inventoryStore';
-import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
-import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
-import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
-import { inventoryToPrescriptionItem } from '@/app/features/appointments/lib/inventoryPrescription';
+  deletePrescriptionArtifact,
+  savePrescriptionArtifact,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { useNotify } from '@/app/hooks/useNotify';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { buildBillableItems, getInvoiceErrorMessage, normalizeLineName } from './invoiceStepUtils';
+import {
+  type PaymentProgressState,
+  computeIncompleteMedicationNames,
+  enrichInvoiceLineItems,
+  isInvoiceSettled,
+  useAutoSeedBillLines,
+  useInvoiceBillingHydration,
+  useInvoiceCatalogAndInventory,
+  usePackageBreakdownHydration,
+  usePaymentProgress,
+} from './invoiceStepHooks';
 
 type InvoiceStepProps = {
   appointmentId: string;
   organisationId?: string;
+  encounterId?: string;
+  authorId?: string;
   patientId?: string;
   parentId?: string;
   encounter: AppointmentEncounter;
@@ -90,24 +97,7 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   DEPOSIT: 'Paid from Deposit',
 };
 
-export type BillableCandidate = Omit<InvoiceLineItem, 'id'> & {
-  kind: BillableKind;
-  // Present when this candidate is a dispensable drug; used to backfill a linked
-  // prescription row when the item is billed without one (the bill/prescription
-  // interlink), so clinical details can't be skipped before finalizing.
-  prescription?: Omit<PrescriptionItem, 'id'>;
-};
-
 const DEFAULT_CURRENCY = 'USD';
-const PAYMENT_POLL_INTERVAL_MS = 3000;
-const PAYMENT_POLL_TIMEOUT_MS = 120000;
-
-type PaymentProgressState = {
-  invoiceId: string;
-  checkoutUrl?: string;
-  startedAt: number;
-  status: 'checking' | 'confirmed' | 'delayed';
-};
 
 type PersistInvoiceFn = (options?: { finalize?: boolean }) => Promise<{ id?: string } | undefined>;
 
@@ -339,320 +329,6 @@ const toFinanceLineItems = (items: InvoiceLineItem[]) =>
     total: centsToMajor(item.amountCents),
   }));
 
-const toInvoiceCandidate = (
-  name: string,
-  amountCents: number,
-  kind: BillableKind
-): BillableCandidate => ({
-  name,
-  unitPriceCents: amountCents,
-  qty: 1,
-  grossCents: amountCents,
-  discountCents: 0,
-  amountCents,
-  kind,
-});
-
-const discountCentsFromPercent = (grossCents: number, percent: number): number =>
-  Math.min(grossCents, Math.round((grossCents * percent) / 100));
-
-const normalizeLineName = (value: string): string => value.trim().toLowerCase();
-
-// Lossless map of a saved Service/Package treatment row into a Total Bill line —
-// preserves unit price AND quantity (unlike toInvoiceCandidate, which collapses to
-// qty 1 / unitPrice=amountCents and would misprice any qty>1 line).
-const serviceLineItemToInvoiceLine = (
-  item: LineItem,
-  catalogServices: ServiceRevamp[],
-  catalogPackages: PackageRevamp[]
-): Omit<InvoiceLineItem, 'id'> => {
-  const catalogService = catalogServices.find((service) => service.id === item.refId);
-  const catalogPackage = catalogPackages.find((pkg) => pkg.id === item.refId);
-  if (catalogPackage) {
-    const { additionalDiscountAmt, afterItemDiscounts } = computePackageTotals(catalogPackage);
-    const unitPriceCents = moneyToCents(afterItemDiscounts);
-    const grossCents = unitPriceCents * item.qty;
-    const defaultDiscountPercent = catalogPackage.additionalDiscount ?? 0;
-    const discountCents = discountCentsFromPercent(grossCents, defaultDiscountPercent);
-    return {
-      name: item.name,
-      unitPriceCents,
-      qty: item.qty,
-      grossCents,
-      discountCents,
-      amountCents: grossCents - discountCents,
-      packageDefaultDiscountPercent: defaultDiscountPercent,
-      packageDefaultDiscountCents:
-        item.qty === 1 ? moneyToCents(additionalDiscountAmt) : discountCents,
-      maxDiscountPercent: defaultDiscountPercent,
-      maxDiscountCents: discountCents,
-      breakdown: item.breakdown,
-    };
-  }
-  if (catalogService) {
-    const unitPriceCents = moneyToCents(catalogService.grossAmount);
-    const grossCents = unitPriceCents * item.qty;
-    const defaultDiscountPercent = catalogService.defaultDiscount ?? 0;
-    const maxDiscountPercent = catalogService.maxDiscount ?? 0;
-    const discountCents = discountCentsFromPercent(grossCents, defaultDiscountPercent);
-    return {
-      name: item.name,
-      unitPriceCents,
-      qty: item.qty,
-      grossCents,
-      discountCents,
-      amountCents: grossCents - discountCents,
-      maxDiscountPercent,
-      maxDiscountCents: discountCentsFromPercent(grossCents, maxDiscountPercent),
-      breakdown: item.breakdown,
-    };
-  }
-  const grossCents = Math.max(0, item.unitPriceCents * item.qty);
-  const defaultDiscountPercent = item.defaultDiscountPercent ?? 0;
-  const maxDiscountPercent = item.maxDiscountPercent ?? 0;
-  const discountCents = discountCentsFromPercent(grossCents, defaultDiscountPercent);
-  return {
-    name: item.name,
-    unitPriceCents: item.unitPriceCents,
-    qty: item.qty,
-    grossCents,
-    discountCents,
-    amountCents: grossCents - discountCents,
-    packageDefaultDiscountPercent:
-      item.kind === 'PACKAGE' ? item.defaultDiscountPercent : undefined,
-    packageDefaultDiscountCents: item.kind === 'PACKAGE' ? discountCents : undefined,
-    maxDiscountPercent,
-    maxDiscountCents: discountCentsFromPercent(grossCents, maxDiscountPercent),
-    breakdown: item.breakdown,
-  };
-};
-
-// Map an in-house prescription row into a Total Bill line (priced per line).
-const prescriptionToInvoiceLine = (rx: PrescriptionItem): Omit<InvoiceLineItem, 'id'> => {
-  const amountCents = Math.max(0, rx.priceCents ?? 0);
-  return {
-    name: rx.medicineName,
-    unitPriceCents: amountCents,
-    qty: 1,
-    grossCents: amountCents,
-    discountCents: 0,
-    amountCents,
-    // Link back to the source prescription so removing this bill line deletes it end-to-end.
-    sourcePrescriptionId: rx.id,
-    sourceInventoryItemId: rx.inventoryItemId,
-  };
-};
-
-const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
-
-const breakdownToInvoiceBreakdown = (item: PackageBreakdownItem) => {
-  const { gross, discountAmt, net } = computePackageBreakdownItem(item);
-  return {
-    id: item.id,
-    name: item.name,
-    qty: item.quantity,
-    instructions: item.type,
-    unitPriceCents: moneyToCents(item.unitPrice),
-    grossCents: moneyToCents(gross),
-    discountPercent: item.discount,
-    discountCents: moneyToCents(discountAmt),
-    amountCents: moneyToCents(net),
-  };
-};
-
-/**
- * Build a candidate that surfaces the catalog discount on the line: gross is the
- * full price, the default-discount % is applied as the starting line discount, and
- * the max-discount % becomes the editable ceiling so a manual edit can't exceed it.
- */
-const toDiscountedCandidate = (
-  name: string,
-  grossDollars: number,
-  defaultDiscountPercent: number,
-  maxDiscountPercent: number,
-  kind: BillableKind,
-  breakdown?: InvoiceLineItem['breakdown']
-): BillableCandidate => {
-  const grossCents = moneyToCents(grossDollars);
-  const discountCents = Math.min(
-    grossCents,
-    Math.round((grossCents * defaultDiscountPercent) / 100)
-  );
-  const maxDiscountCents = Math.min(
-    grossCents,
-    Math.round((grossCents * maxDiscountPercent) / 100)
-  );
-  return {
-    name,
-    unitPriceCents: grossCents,
-    qty: 1,
-    grossCents,
-    discountCents,
-    amountCents: grossCents - discountCents,
-    maxDiscountPercent,
-    maxDiscountCents,
-    breakdown,
-    kind,
-  };
-};
-
-const serviceToInvoiceCandidate = (service: ServiceRevamp) =>
-  toDiscountedCandidate(
-    service.name,
-    service.grossAmount,
-    service.defaultDiscount ?? 0,
-    service.maxDiscount ?? 0,
-    'BILLING_ONLY'
-  );
-
-const packageToInvoiceCandidate = (pkg: PackageRevamp) => {
-  const { additionalDiscountAmt, afterItemDiscounts } = computePackageTotals(pkg);
-  const candidate = toDiscountedCandidate(
-    pkg.name,
-    afterItemDiscounts,
-    pkg.additionalDiscount ?? 0,
-    pkg.additionalDiscount ?? 0,
-    'PACKAGE_COMPONENT',
-    pkg.breakdown.map(breakdownToInvoiceBreakdown)
-  );
-  return {
-    ...candidate,
-    packageDefaultDiscountPercent: pkg.additionalDiscount ?? 0,
-    packageDefaultDiscountCents: moneyToCents(additionalDiscountAmt),
-  };
-};
-
-const findCatalogPackageForLine = (
-  line: InvoiceLineItem,
-  catalogPackages: PackageRevamp[],
-  organisationId?: string
-): PackageRevamp | undefined => {
-  const lineName = normalizeLineName(line.name);
-  if (!lineName) return undefined;
-  return catalogPackages.find(
-    (pkg) => pkg.organisationId === organisationId && normalizeLineName(pkg.name) === lineName
-  );
-};
-
-const packageInvoicePatch = (pkg: PackageRevamp): Partial<InvoiceLineItem> => {
-  return {
-    breakdown: pkg.breakdown.map(breakdownToInvoiceBreakdown),
-  };
-};
-
-const uniqueByName = (
-  items: BillableCandidate[],
-  excludedNames: Set<string>
-): BillableCandidate[] => {
-  const seen = new Set(excludedNames);
-  return items.filter((item) => {
-    const key = item.name.trim().toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-/**
- * Treat an inventory item as a dispensable drug when it is explicitly typed as a
- * Drug, carries a controlled-substance schedule, or is marked prescription-
- * required. Relying on `itemType` alone misses drugs whose type field was never
- * set, so we also accept the drug-only schedule/prescription attributes.
- */
-const isDispensableDrug = (item: InventoryItem): boolean => {
-  const info = item.basicInfo;
-  if (info.itemType?.trim().toLowerCase() === 'drug') return true;
-  if (info.drugSchedule?.trim()) return true;
-  const requiresRx = info.prescriptionRequired?.trim().toLowerCase();
-  return requiresRx === 'yes' || requiresRx === 'true' || requiresRx === 'required';
-};
-
-const inventoryToInvoiceCandidate = (item: InventoryItem): BillableCandidate => {
-  const sellingDollars = Number(item.pricing?.selling ?? 0);
-  const candidate = toInvoiceCandidate(
-    item.basicInfo.name,
-    moneyToCents(sellingDollars),
-    'INVENTORY'
-  );
-  // Drug stock billed here should also exist as a prescription so the Treatment
-  // step and the bill stay in sync; carry the prescription payload so the add
-  // handler can backfill one when none exists yet.
-  if (isDispensableDrug(item)) {
-    return { ...candidate, prescription: inventoryToPrescriptionItem(item) };
-  }
-  return candidate;
-};
-
-export const buildBillableItems = (
-  encounter: AppointmentEncounter,
-  catalogServices: ServiceRevamp[],
-  catalogPackages: PackageRevamp[],
-  inventoryItems: InventoryItem[],
-  organisationId?: string
-): BillableCandidate[] => {
-  const existingNames = new Set(
-    encounter.invoiceLineItems.map((item) => item.name.trim().toLowerCase())
-  );
-  const serviceItems = encounter.services
-    .filter((item) => !item.billed && item.amountCents > 0)
-    .filter((item) => !existingNames.has(item.name.trim().toLowerCase()))
-    .map((item) => toInvoiceCandidate(item.name, item.amountCents, 'EXISTING_TREATMENT'));
-  // In-house medications prescribed this visit. Their price comes from the linked
-  // inventory item; when it is missing we still surface them at 0 so they can be
-  // added and priced inline rather than silently dropped from the bill.
-  const prescriptionItems = encounter.prescription
-    .filter((item) => !item.billed && item.fulfillment === 'IN_HOUSE')
-    .filter((item) => !existingNames.has(item.medicineName.trim().toLowerCase()))
-    .map((item) =>
-      toInvoiceCandidate(
-        item.medicineName,
-        Math.max(0, item.priceCents ?? 0),
-        'IN_HOUSE_PRESCRIPTION'
-      )
-    );
-  const catalogItems = organisationId
-    ? [
-        ...catalogServices
-          .filter(
-            (service) => service.organisationId === organisationId && service.status === 'ACTIVE'
-          )
-          .map(serviceToInvoiceCandidate),
-        ...catalogPackages
-          .filter((pkg) => pkg.organisationId === organisationId && pkg.status === 'ACTIVE')
-          .map(packageToInvoiceCandidate),
-      ]
-    : [];
-  // Inventory/stock items (drugs, consumables) so they can be charged directly.
-  const inventoryCandidates = inventoryItems
-    .filter((item) => item.basicInfo?.name && item.status !== 'HIDDEN')
-    .filter((item) => !existingNames.has(item.basicInfo.name.trim().toLowerCase()))
-    .map(inventoryToInvoiceCandidate);
-  const visitItems = uniqueByName(
-    [...serviceItems, ...prescriptionItems, ...inventoryCandidates],
-    new Set()
-  );
-  return uniqueByName([...visitItems, ...catalogItems], existingNames);
-};
-
-/**
- * Names that must not be auto-seeded onto the editable bill because they are already
- * represented there — either on the current builder or on an OPEN (unpaid/partial)
- * invoice, which hydrateInvoiceBilling seeds straight into the builder. Paid invoices
- * are handled separately (settledLineNames) and excluded here so their lines don't
- * block a legitimate re-bill.
- */
-export const collectSeededBillNames = (
-  builderNames: string[],
-  pastInvoices: PastInvoice[]
-): Set<string> => {
-  const names = new Set(builderNames.map((name) => normalizeLineName(name)));
-  for (const invoice of pastInvoices) {
-    if (invoice.status === 'PAID_FULL') continue;
-    for (const item of invoice.items) names.add(normalizeLineName(item.name));
-  }
-  return names;
-};
-
 const computeInvoiceTotalCents = (encounter: AppointmentEncounter): number => {
   const subtotalCents = encounter.invoiceLineItems.reduce((sum, item) => sum + item.grossCents, 0);
   const lineDiscountCents = encounter.invoiceLineItems.reduce(
@@ -684,19 +360,13 @@ const getDepositModalActionLabel = (saving: boolean, method: PaymentMethod): str
   return method === 'ONLINE' ? 'Generate link' : 'Collect deposit';
 };
 
-const StatusPill = ({ status }: { status: InvoiceStatus }) => (
+export const StatusPill = ({ status }: { status: InvoiceStatus }) => (
   <span
     className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
   >
     {STATUS_LABELS[status]}
   </span>
 );
-
-const isInvoiceSettled = (invoice: PastInvoice | undefined): boolean =>
-  Boolean(invoice && (invoice.status === 'PAID_FULL' || invoice.outstandingCents <= 0));
-
-const findInvoiceById = (invoices: PastInvoice[], invoiceId: string): PastInvoice | undefined =>
-  invoices.find((invoice) => invoice.id === invoiceId);
 
 const getPaymentProgressDescription = (status: PaymentProgressState['status']): string => {
   if (status === 'checking') {
@@ -708,7 +378,7 @@ const getPaymentProgressDescription = (status: PaymentProgressState['status']): 
   return 'We have not received the final payment confirmation yet. You can keep checking or continue editing and this page will refresh again when you return.';
 };
 
-const PaymentProgressOverlay = ({
+export const PaymentProgressOverlay = ({
   state,
   onCheckAgain,
   onAbort,
@@ -724,18 +394,18 @@ const PaymentProgressOverlay = ({
   const isConfirmed = state.status === 'confirmed';
   return (
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-neutral-900/48 px-4">
-      <section
-        role="alertdialog"
+      <dialog
+        open
         aria-modal="true"
         aria-labelledby="payment-progress-title"
         aria-describedby="payment-progress-description"
-        className="flex w-full max-w-115 flex-col items-center gap-4 rounded-3xl border border-card-border bg-white p-6 text-center shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
+        className="flex w-full max-w-115 flex-col items-center gap-4 rounded-3xl border border-card-border bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
       >
         {isChecking ? (
           <YosemiteLoader size={64} testId="invoice-payment-progress-loader" />
         ) : (
           <span className="flex size-14 items-center justify-center rounded-full bg-success-100 text-success-600">
-            <LuCheck size={26} aria-hidden="true" />
+            <IoCheckmarkOutline size={26} aria-hidden="true" />
           </span>
         )}
         <div className="flex flex-col gap-2">
@@ -751,7 +421,7 @@ const PaymentProgressOverlay = ({
             href={state.checkoutUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="max-w-full break-all text-body-4 text-text-brand underline"
+            className="max-w-full break-all text-body-4 text-blue-text underline"
           >
             Reopen Stripe checkout
           </a>
@@ -771,18 +441,18 @@ const PaymentProgressOverlay = ({
             <Primary text="Check again" onClick={onCheckAgain} />
           </div>
         )}
-      </section>
+      </dialog>
     </div>
   );
 };
 
 /** Green confirmation badge in the breakdown footer; copy reflects the scenario. */
-const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
+export const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
   const label = invoice.paidFromDeposit ? 'Withdrawn from Deposit' : 'Invoice Paid';
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-[#15803D] px-3 py-1 text-caption-1 font-medium text-neutral-0">
+    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-success-600 px-3 py-1 text-caption-1 font-medium text-white">
       {label}
-      <LuCheck aria-hidden="true" />
+      <IoCheckmarkOutline aria-hidden="true" />
     </span>
   );
 };
@@ -790,7 +460,13 @@ const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
 const ROW_GRID =
   'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_repeat(5,minmax(0,1fr))] sm:items-center';
 
-const InvoiceBreakdown = ({ invoice, currency }: { invoice: PastInvoice; currency: string }) => (
+export const InvoiceBreakdown = ({
+  invoice,
+  currency,
+}: {
+  invoice: PastInvoice;
+  currency: string;
+}) => (
   <SectionContainer title="Breakdown" nested className="bg-neutral-0">
     <div className="flex flex-col gap-2">
       <div
@@ -824,7 +500,12 @@ const InvoiceBreakdown = ({ invoice, currency }: { invoice: PastInvoice; currenc
       </ul>
       <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-card-border pt-3">
         <span className="text-text-secondary">Total</span>
-        <span className="text-yc-20-b-primary">{formatCents(invoice.totalCents, currency)}</span>
+        <span
+          className="text-[26px] font-bold tracking-[-0.03em] tabular-nums"
+          style={{ color: 'var(--ink)' }}
+        >
+          {formatCents(invoice.totalCents, currency)}
+        </span>
         {isInvoiceSettled(invoice) && <SettledBadge invoice={invoice} />}
       </div>
       {invoice.payments && invoice.payments.length > 0 && (
@@ -874,7 +555,7 @@ const INVOICE_COLS =
   'sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_132px]';
 const INVOICE_ROW_GRID = `grid gap-3 ${INVOICE_COLS} sm:items-center`;
 
-const InvoiceHeadings = () => (
+export const InvoiceHeadings = () => (
   <div
     // Match the row's p-4 + 1px border so the column origins line up exactly.
     className={`${INVOICE_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
@@ -888,7 +569,7 @@ const InvoiceHeadings = () => (
   </div>
 );
 
-const InvoiceRow = ({
+export const InvoiceRow = ({
   invoice,
   index,
   expanded,
@@ -928,21 +609,27 @@ const InvoiceRow = ({
         </div>
         <div className="flex justify-end gap-2">
           <CircleIconButton
-            icon={expanded ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}
+            icon={
+              expanded ? (
+                <IoEyeOffOutline aria-hidden="true" />
+              ) : (
+                <IoEyeOutline aria-hidden="true" />
+              )
+            }
             label={expanded ? `Hide invoice ${invoice.id}` : `View invoice ${invoice.id}`}
             variant="dark"
             onClick={() => onToggle(invoice.id)}
           />
           {settled && (
             <CircleIconButton
-              icon={<LuDownload aria-hidden="true" />}
+              icon={<IoDownloadOutline aria-hidden="true" />}
               label={`Download invoice ${invoice.id}`}
               onClick={() => onDownload(invoice)}
             />
           )}
           {settled && !readOnly && (
             <CircleIconButton
-              icon={<LuShare aria-hidden="true" />}
+              icon={<IoShareOutline aria-hidden="true" />}
               label={`Share invoice ${invoice.id}`}
               onClick={() => onShare(invoice)}
             />
@@ -963,9 +650,9 @@ const InvoiceRow = ({
             )}
           </span>
           {invoice.paymentMethod && (
-            <span className="inline-flex items-center gap-2 rounded-3xl bg-[#15803D] px-4 py-2 text-body-4 font-medium text-neutral-0">
+            <span className="inline-flex items-center gap-2 rounded-3xl bg-success-600 px-4 py-2 text-body-4 font-medium text-white">
               {PAYMENT_LABELS[invoice.paymentMethod]}
-              <LuCheck aria-hidden="true" />
+              <IoCheckmarkOutline aria-hidden="true" />
             </span>
           )}
         </div>
@@ -974,7 +661,7 @@ const InvoiceRow = ({
   );
 };
 
-const InvoicesSection = ({
+export const InvoicesSection = ({
   invoices,
   readOnly,
   currency,
@@ -992,11 +679,7 @@ const InvoicesSection = ({
   const handleToggle = (id: string) => setExpandedId((current) => (current === id ? null : id));
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Invoices"
-      className="flex flex-col gap-5"
-    >
+    <SectionContainer title="Invoices" className="flex flex-col gap-5">
       {invoices.length === 0 ? (
         <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
           No invoices recorded yet.
@@ -1025,71 +708,114 @@ const InvoicesSection = ({
   );
 };
 
+const PAYMENT_METHOD_LABELS = {
+  ONLINE: 'Online',
+  CASH: 'Cash',
+  DEPOSIT: 'Deposit',
+} as const;
+
 /** Payment actions below the Total Bill (Collect Deposit / Collect Cash / Pay Online). */
-const PaymentActions = ({
+export const PaymentActions = ({
   isInpatient,
   depositDisabled,
   paymentDisabled,
   paymentDisabledReason,
+  dueCents,
+  currency,
   onCollect,
   onSendToClient,
+  paymentLinkStatus = null,
 }: {
   isInpatient: boolean;
   depositDisabled: boolean;
   paymentDisabled: boolean;
   paymentDisabledReason?: string;
+  dueCents: number;
+  currency: string;
   onCollect: (method: PaymentMethod) => void;
   onSendToClient: () => void;
+  /** Real payment-link state for this appointment's invoice; null hides the line. */
+  paymentLinkStatus?: PaymentLinkStatusModel | null;
 }) => {
-  const paymentButtons = (
-    <span className="inline-flex flex-wrap items-center gap-3">
-      {isInpatient && (
-        <Secondary
-          text="Send to Client"
-          icon={<LuUpload aria-hidden="true" />}
-          iconPosition="right"
-          onClick={onSendToClient}
-          isDisabled={paymentDisabled}
-        />
-      )}
-      <Secondary
-        text="Collect Cash"
-        icon={<LuBanknote aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('CASH')}
-        isDisabled={paymentDisabled}
-      />
-      <Primary
-        text="Pay Online"
-        icon={<LuBanknote aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('ONLINE')}
-        isDisabled={paymentDisabled}
-      />
-    </span>
+  // Online/Cash/Deposit is a single method choice + one "Collect" action (design's
+  // payment-method card). Send-to-Client remains a distinct action with its own gating.
+  const [method, setMethod] = useState<'ONLINE' | 'CASH' | 'DEPOSIT'>('ONLINE');
+  const isDeposit = method === 'DEPOSIT';
+  const collectDisabled = isDeposit ? depositDisabled : paymentDisabled;
+  const collectButton = (
+    <button
+      type="button"
+      onClick={() => onCollect(method)}
+      disabled={collectDisabled}
+      className="flex h-11 w-full items-center justify-center gap-2 rounded-full text-[14px] font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+      style={{ background: 'var(--blue)', boxShadow: '0 10px 26px var(--glow-b26)' }}
+    >
+      {`Collect ${formatMoney(dueCents / 100, currency)}`}
+      <IoCashOutline aria-hidden="true" />
+    </button>
   );
-  const paymentControls = paymentDisabledReason ? (
-    <GlassTooltip content={paymentDisabledReason} side="top" maxWidth={320}>
-      <span className="inline-flex">{paymentButtons}</span>
-    </GlassTooltip>
-  ) : (
-    paymentButtons
-  );
+  const disabledReason = isDeposit ? undefined : paymentDisabledReason;
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <Secondary
-        text="Collect Deposit"
-        icon={<LuCreditCard aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('DEPOSIT')}
-        isDisabled={depositDisabled}
-      />
-      {paymentControls}
-    </div>
+    <section
+      aria-label="Payment method"
+      className="flex flex-col gap-3 rounded-[14px] border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+    >
+      <span
+        className="text-[14px] font-bold leading-[130%] tracking-[-0.01em]"
+        style={{ color: 'var(--ink)' }}
+      >
+        Payment method
+      </span>
+      <div
+        className="flex gap-1 rounded-xl border p-[3px]"
+        style={{ background: 'var(--band)', borderColor: 'var(--hairline)' }}
+      >
+        {(['ONLINE', 'CASH', 'DEPOSIT'] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={method === option}
+            disabled={option === 'DEPOSIT' && depositDisabled}
+            onClick={() => setMethod(option)}
+            className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            style={
+              method === option
+                ? {
+                    background: 'var(--screen)',
+                    color: 'var(--ink)',
+                    boxShadow: '0 1px 3px var(--sh08)',
+                  }
+                : { color: 'var(--ink-muted)' }
+            }
+          >
+            {PAYMENT_METHOD_LABELS[option]}
+          </button>
+        ))}
+      </div>
+      {disabledReason ? (
+        <GlassTooltip content={disabledReason} side="top" maxWidth={320}>
+          <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
+        </GlassTooltip>
+      ) : (
+        <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
+      )}
+      <PaymentLinkStatus status={paymentLinkStatus} />
+      {isInpatient && (
+        <div className="flex flex-wrap gap-2 border-t border-card-border pt-3">
+          <Secondary
+            text="Send to Client"
+            icon={<IoCloudUploadOutline aria-hidden="true" />}
+            iconPosition="right"
+            onClick={onSendToClient}
+            isDisabled={paymentDisabled}
+          />
+        </div>
+      )}
+    </section>
   );
 };
 
-const DepositModal = ({
+export const DepositModal = ({
   open,
   saving,
   generatedLink,
@@ -1145,7 +871,7 @@ const DepositModal = ({
               onClick={() => setMethod(option)}
               className={`rounded-2xl border px-4 py-3 text-body-4 ${
                 method === option
-                  ? 'border-primary-500 bg-primary-100 text-text-brand'
+                  ? 'border-primary-500 bg-primary-100 text-blue-text'
                   : 'border-card-border text-text-primary'
               }`}
             >
@@ -1171,7 +897,7 @@ const DepositModal = ({
           />
         </label>
         {generatedLink && (
-          <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
+          <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-blue-text">
             <span>Payment link generated:</span>
             <a
               href={generatedLink}
@@ -1196,9 +922,11 @@ const DepositModal = ({
   );
 };
 
-const InvoiceStep = ({
+const useInvoiceStepContent = ({
   appointmentId,
   organisationId,
+  encounterId,
+  authorId,
   patientId,
   parentId,
   encounter,
@@ -1217,22 +945,23 @@ const InvoiceStep = ({
   const removePrescription = useAppointmentWorkspaceStore((s) => s.removePrescription);
   const recordInvoicePayment = useAppointmentWorkspaceStore((s) => s.recordInvoicePayment);
   const recordDepositCollection = useAppointmentWorkspaceStore((s) => s.recordDepositCollection);
-  const hydrateInvoiceBilling = useAppointmentWorkspaceStore((s) => s.hydrateInvoiceBilling);
   const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
   const catalogServices = useRevampCatalogStore((s) => s.services);
   const catalogPackages = useRevampCatalogStore((s) => s.packages);
-  const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
-  const hydratePackageDetail = useRevampCatalogStore((s) => s.hydratePackageDetail);
-  const itemIdsByOrgId = useInventoryStore((s) => s.itemIdsByOrgId);
-  const inventoryById = useInventoryStore((s) => s.itemsById);
-  const setInventoryForOrg = useInventoryStore((s) => s.setInventoryForOrg);
+  // Subscribed (not read via getState) so the status line under Collect updates as
+  // soon as generating a link upserts the invoice back into the store.
+  const invoicesById = useInvoiceStore((s) => s.invoicesById);
+  const paymentLinkStatus = useMemo(
+    () =>
+      derivePaymentLinkStatus(findPaymentLinkInvoice(Object.values(invoicesById), appointmentId)),
+    [invoicesById, appointmentId]
+  );
   const [confirmation, setConfirmation] = useState<string | null>(null);
   // A generated payment link shown under the confirmation; rendered as a wrapping
   // anchor so a long Stripe URL never overflows the container width.
   const [confirmationLink, setConfirmationLink] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [paymentProgress, setPaymentProgress] = useState<PaymentProgressState | null>(null);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [depositPaymentLink, setDepositPaymentLink] = useState<string | null>(null);
   const { notify } = useNotify();
@@ -1263,35 +992,17 @@ const InvoiceStep = ({
   const currency = encounter.currency || catalogCurrency?.toUpperCase() || DEFAULT_CURRENCY;
   const financeCurrency = currency.toLowerCase();
 
-  // Clinical safety: an in-house medication on the bill must have its
-  // prescription details (dose, route, frequency, duration) filled before the
-  // invoice can be finalized. Flag the billed meds that are still incomplete.
-  const billItemNames = useMemo(
-    () => new Set(encounter.invoiceLineItems.map((item) => item.name.trim().toLowerCase())),
-    [encounter.invoiceLineItems]
+  const incompleteMedicationNames = useMemo(
+    () => computeIncompleteMedicationNames(encounter),
+    [encounter]
   );
-  const incompleteMedicationNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const rx of encounter.prescription) {
-      if (rx.fulfillment !== 'IN_HOUSE') continue;
-      if (!billItemNames.has(rx.medicineName.trim().toLowerCase())) continue;
-      const hasDose = Boolean((rx.strength ?? rx.dosage)?.trim());
-      const complete = Boolean(
-        hasDose && rx.route?.trim() && rx.frequency?.trim() && rx.durationDays?.trim()
-      );
-      if (!complete) names.add(rx.medicineName.trim().toLowerCase());
-    }
-    return names;
-  }, [encounter.prescription, billItemNames]);
   const hasIncompleteMedications = incompleteMedicationNames.size > 0;
-  const inventoryIds = useMemo(
-    () => (organisationId ? (itemIdsByOrgId[organisationId] ?? []) : []),
-    [itemIdsByOrgId, organisationId]
-  );
-  const inventoryItems = useMemo(
-    () => inventoryIds.map((id) => inventoryById[id]).filter(Boolean),
-    [inventoryById, inventoryIds]
-  );
+  const { inventoryItems } = useInvoiceCatalogAndInventory(organisationId);
+  // The organisation's overall-discount cap. Null while loading, on failure, and
+  // when none is configured — all three mean "don't constrain the input", which is
+  // exactly today's behaviour. The finance API rejects an over-cap discount with a
+  // 409 regardless, and that message surfaces through `errorMessage` below.
+  const { maxOverallDiscountPercent } = useOrganisationDiscountCap(organisationId);
   const billableItems = useMemo(
     () =>
       buildBillableItems(
@@ -1304,339 +1015,54 @@ const InvoiceStep = ({
     [catalogPackages, catalogServices, encounter, inventoryItems, organisationId]
   );
 
-  // Discount lookup by line name from the org catalog. Lines prefilled from the backend
-  // (encounter.invoiceLineItems) don't carry their max-discount ceiling — the backend persists
-  // only price — so we recover it here from the catalog (services + packages), keyed by name.
-  const discountByName = useMemo(() => {
-    const map = new Map<
-      string,
-      Pick<InvoiceLineItem, 'maxDiscountPercent' | 'packageDefaultDiscountPercent'>
-    >();
-    if (!organisationId) return map;
-    catalogServices
-      .filter((service) => service.organisationId === organisationId)
-      .forEach((service) => {
-        map.set(normalizeLineName(service.name), {
-          maxDiscountPercent: service.maxDiscount ?? 0,
-        });
-      });
-    catalogPackages
-      .filter((pkg) => pkg.organisationId === organisationId)
-      .forEach((pkg) => {
-        map.set(normalizeLineName(pkg.name), {
-          maxDiscountPercent: pkg.additionalDiscount ?? 0,
-          packageDefaultDiscountPercent: pkg.additionalDiscount ?? 0,
-        });
-      });
-    return map;
-  }, [catalogPackages, catalogServices, organisationId]);
-
   // Bill lines enriched with: (1) their max-discount ceiling — a line that lost it on a backend
   // prefill recovers the percent (and cents) from the catalog by name (saved values win); and
   // (2) a `removable` flag — the appointment's booked service/consultation can't be removed.
   const bookedLineKey = bookedItemName ? normalizeLineName(bookedItemName) : undefined;
   const enrichedInvoiceLineItems = useMemo(
     () =>
-      encounter.invoiceLineItems.map((line) => {
-        const removable = bookedLineKey ? normalizeLineName(line.name) !== bookedLineKey : true;
-        const hasMax = line.maxDiscountPercent != null || line.maxDiscountCents != null;
-        if (hasMax) return { ...line, removable };
-        const fallback = discountByName.get(normalizeLineName(line.name));
-        if (fallback?.maxDiscountPercent == null) return { ...line, removable };
-        return {
-          ...line,
-          removable,
-          maxDiscountPercent: fallback.maxDiscountPercent,
-          maxDiscountCents: discountCentsFromPercent(line.grossCents, fallback.maxDiscountPercent),
-          packageDefaultDiscountPercent:
-            line.packageDefaultDiscountPercent ?? fallback.packageDefaultDiscountPercent,
-        };
-      }),
-    [bookedLineKey, discountByName, encounter.invoiceLineItems]
+      enrichInvoiceLineItems(
+        encounter,
+        catalogServices,
+        catalogPackages,
+        organisationId,
+        bookedLineKey
+      ),
+    [bookedLineKey, catalogPackages, catalogServices, encounter, organisationId]
   );
 
-  // Server-authoritative anti-double-bill guard. The per-item `billed` flag is derived
-  // from the treatment item's `billingStatus`, which the backend can reset after a
-  // re-hydrate (bootstrap) or which conflates "on an invoice" with "paid" — so a line
-  // already settled on a paid invoice could otherwise re-seed onto the bill and be
-  // charged twice. Any line name appearing on a SETTLED (paid / zero-outstanding) past
-  // invoice is treated as final and never re-added to the editable bill, regardless of
-  // the `billed` flag. See backend handoff (finance double-bill).
-  const settledLineNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const invoice of encounter.pastInvoices) {
-      if (!isInvoiceSettled(invoice)) continue;
-      for (const item of invoice.items) names.add(normalizeLineName(item.name));
-    }
-    return names;
-  }, [encounter.pastInvoices]);
-
-  // Saved (persisted) Service/Package + in-house prescription lines for this visit
-  // that are not yet billed, mapped into Total Bill lines. These are auto-added to
-  // the bill (below) so a clinician doesn't have to re-add each saved item by search.
-  // Catalog/inventory candidates stay opt-in (search only). Lines already settled on
-  // a paid invoice are excluded so they can't be re-billed.
-  const autoSeedCandidates = useMemo<Omit<InvoiceLineItem, 'id'>[]>(
-    () => [
-      ...encounter.services
-        .filter((item) => !item.billed && item.amountCents > 0)
-        .filter((item) => !settledLineNames.has(normalizeLineName(item.name)))
-        .map((item) => serviceLineItemToInvoiceLine(item, catalogServices, catalogPackages)),
-      ...encounter.prescription
-        .filter(
-          (item) => !item.billed && item.fulfillment === 'IN_HOUSE' && (item.priceCents ?? 0) > 0
-        )
-        .filter((item) => !settledLineNames.has(normalizeLineName(item.medicineName)))
-        .map(prescriptionToInvoiceLine),
-    ],
-    [catalogPackages, catalogServices, encounter.services, encounter.prescription, settledLineNames]
+  const { billingHydrated, reloadBilling } = useInvoiceBillingHydration(
+    organisationId,
+    appointmentId
   );
 
-  // Load the org catalog so saved service/package lines can recover their max-discount ceiling
-  // (and unit price) when the user lands on Invoice directly without passing through Treatment.
-  useEffect(() => {
-    if (!organisationId || catalogServices.length > 0 || catalogPackages.length > 0) return;
-    loadOrganisationCatalog(organisationId).catch((error) => {
-      console.error('Failed to load invoice catalog:', error);
-    });
-  }, [organisationId, catalogServices.length, catalogPackages.length, loadOrganisationCatalog]);
-
-  // Load inventory so drugs/consumables are searchable in the bill builder.
-  useEffect(() => {
-    if (!organisationId || inventoryIds.length > 0) return undefined;
-    let active = true;
-    fetchInventoryItems(organisationId)
-      .then((items) => {
-        if (active) setInventoryForOrg(organisationId, items.map(mapApiItemToInventoryItem));
-      })
-      .catch((error) => console.error('Failed to load invoice inventory:', error));
-    return () => {
-      active = false;
-    };
-  }, [inventoryIds.length, organisationId, setInventoryForOrg]);
-
-  // Hydrate existing invoices + deposit for this appointment from finance — exactly
-  // once per appointment. Hydration mutates the store, which re-renders this step
-  // with a fresh `encounter` prop; without this guard the load would re-fire in a
-  // loop and hammer the finance API.
-  // True once finance hydration has run, so the saved-treatment auto-seed (below)
-  // waits for any open server-invoice lines to be seeded first and dedupes against them.
-  const [billingHydrated, setBillingHydrated] = useState(false);
-  const billingLoadedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!organisationId || !appointmentId) return undefined;
-    const loadKey = `${organisationId}:${appointmentId}`;
-    if (billingLoadedRef.current === loadKey) return undefined;
-    billingLoadedRef.current = loadKey;
-    loadAppointmentBilling(organisationId, appointmentId)
-      .then((billing) => {
-        // Always apply to the store — it's mount-independent (Zustand), so a
-        // transient unmount/remount between request and response must not drop the
-        // result. Skipping on unmount previously left pastInvoices empty with the
-        // load guard still set, so the invoices never appeared.
-        hydrateInvoiceBilling(appointmentId, {
-          pastInvoices: billing.pastInvoices,
-          depositCents: billing.depositCents,
-          currency: billing.currency,
-        });
-        setBillingHydrated(true);
-      })
-      .catch((error) => {
-        // Allow a later retry if the load failed.
-        if (billingLoadedRef.current === loadKey) billingLoadedRef.current = null;
-        console.error('Failed to load appointment billing:', error);
-      });
-    return undefined;
-  }, [appointmentId, hydrateInvoiceBilling, organisationId]);
-
-  // Refetch the appointment's finance state (invoices, deposit, currency) from
-  // the backend so the bill, payment status, and deposit summary reflect server
-  // truth after a payment action rather than only the optimistic store write.
-  const reloadBilling = useCallback(async () => {
-    if (!organisationId || !appointmentId) return undefined;
-    try {
-      const billing = await loadAppointmentBilling(organisationId, appointmentId);
-      hydrateInvoiceBilling(appointmentId, {
-        pastInvoices: billing.pastInvoices,
-        depositCents: billing.depositCents,
-        currency: billing.currency,
-      });
-      return billing;
-    } catch (error) {
-      console.error('Failed to refresh appointment billing:', error);
-      return undefined;
-    }
-  }, [appointmentId, hydrateInvoiceBilling, organisationId]);
-
-  // Auto-add saved treatment items (services/packages + in-house prescriptions) to
-  // the editable Total Bill once finance hydration has run, so a clinician doesn't
-  // have to re-add each saved item by search. Each name seeds at most once per mount
-  // (so a manually removed line doesn't snap back), lines already on the bill are
-  // skipped, and billed/paid items are excluded upstream by the !billed filter.
-  const seededBillNamesRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!canBuildBill || !billingHydrated) return;
-    // Names already represented on the bill: the current builder plus any OPEN invoice
-    // (hydrateInvoiceBilling seeds those into the builder). The booked service in
-    // particular is persisted onto that invoice AND exists as a treatment row here; its
-    // invoice line name and treatment name can differ, so anchoring the booked service by
-    // its dedicated key stops the second copy from seeding. `taken` is mutated in-loop so
-    // two candidates that normalize to the same name can't both seed.
-    const taken = collectSeededBillNames(
-      encounter.invoiceLineItems.map((item) => item.name),
-      encounter.pastInvoices
-    );
-    // A booked line already on any open invoice blocks re-seeding it under a mismatched name.
-    const bookedAlreadyOnBill =
-      bookedLineKey !== undefined && taken.size > 0 && encounter.pastInvoices.length > 0;
-    autoSeedCandidates.forEach((line) => {
-      const key = normalizeLineName(line.name);
-      if (!key || seededBillNamesRef.current.has(key)) return;
-      seededBillNamesRef.current.add(key);
-      const isBookedDuplicate = key === bookedLineKey && bookedAlreadyOnBill;
-      if (taken.has(key) || isBookedDuplicate) return;
-      taken.add(key);
-      addInvoiceLineItem(appointmentId, line);
-    });
-  }, [
-    addInvoiceLineItem,
+  const { getSeededBillNames } = useAutoSeedBillLines({
     appointmentId,
-    autoSeedCandidates,
+    encounter,
+    canBuildBill,
     billingHydrated,
     bookedLineKey,
-    canBuildBill,
-    encounter.invoiceLineItems,
-    encounter.pastInvoices,
-  ]);
+  });
 
-  useEffect(() => {
-    if (!organisationId) return;
-    const invoiceHistoryItems = encounter.pastInvoices.flatMap((invoice) => invoice.items);
-    const packageIdsNeedingDetail = [...encounter.invoiceLineItems, ...invoiceHistoryItems]
-      .filter((line) => !line.breakdown?.length)
-      .map((line) => findCatalogPackageForLine(line, catalogPackages, organisationId))
-      .filter((pkg): pkg is PackageRevamp => pkg?.breakdown.length === 0)
-      .map((pkg) => pkg.id);
-    if (packageIdsNeedingDetail.length === 0) return;
-    Promise.all([...new Set(packageIdsNeedingDetail)].map((id) => hydratePackageDetail(id))).catch(
-      (error) => {
-        console.error('Failed to hydrate invoice package breakdown:', error);
-      }
-    );
-  }, [
-    catalogPackages,
-    encounter.invoiceLineItems,
-    encounter.pastInvoices,
-    hydratePackageDetail,
-    organisationId,
-  ]);
-
-  useEffect(() => {
-    if (!organisationId || encounter.invoiceLineItems.length === 0) return;
-    encounter.invoiceLineItems.forEach((line) => {
-      if (line.breakdown && line.breakdown.length > 0) return;
-      const pkg = findCatalogPackageForLine(line, catalogPackages, organisationId);
-      if (!pkg || pkg.breakdown.length === 0) return;
-      updateInvoiceLineItem(appointmentId, line.id, packageInvoicePatch(pkg));
-    });
-  }, [
+  const { displayInvoices } = usePackageBreakdownHydration({
     appointmentId,
-    catalogPackages,
-    encounter.invoiceLineItems,
     organisationId,
-    updateInvoiceLineItem,
-  ]);
+    encounter,
+  });
 
-  const displayInvoices = useMemo(
-    () =>
-      encounter.pastInvoices.map((invoice) => ({
-        ...invoice,
-        items: invoice.items.map((line) => {
-          if (line.breakdown && line.breakdown.length > 0) return line;
-          if (!organisationId) return line;
-          const pkg = findCatalogPackageForLine(line, catalogPackages, organisationId);
-          if (!pkg || pkg.breakdown.length === 0) return line;
-          return { ...line, ...packageInvoicePatch(pkg) };
-        }),
-      })),
-    [catalogPackages, encounter.pastInvoices, organisationId]
-  );
-
-  const refreshPaymentProgress = useCallback(
-    async (invoiceId?: string) => {
-      const targetInvoiceId = invoiceId ?? paymentProgress?.invoiceId;
-      if (!targetInvoiceId) return;
-      const billing = await reloadBilling();
-      if (!billing) return;
-      if (isInvoiceSettled(findInvoiceById(billing.pastInvoices, targetInvoiceId))) {
-        // Online payment settled: clear the editable draft bill and mark the paid
-        // treatment/prescription rows billed — the manual (cash/deposit) paths do this
-        // via recordInvoicePayment, but the online poll only reloads pastInvoices, so
-        // without this the paid line items linger in the Total Bill after the client
-        // pays. recordInvoicePayment no-ops once invoiceLineItems is empty, so the
-        // repeated poll → confirm transition stays idempotent.
-        recordInvoicePayment(appointmentId, {
-          method: 'ONLINE',
-          byName: encounter.leadName ?? 'Front desk',
-        });
-        setPaymentProgress((current) =>
-          current?.invoiceId === targetInvoiceId ? { ...current, status: 'confirmed' } : current
-        );
-        setConfirmationLink(null);
-        setConfirmation('Online payment confirmed');
-      }
-    },
-    [
-      appointmentId,
-      encounter.leadName,
-      paymentProgress?.invoiceId,
-      recordInvoicePayment,
-      reloadBilling,
-    ]
-  );
-
-  const startPaymentProgress = useCallback(
-    (invoiceId: string, checkoutUrl?: string) => {
-      setPaymentProgress({
-        invoiceId,
-        checkoutUrl,
-        startedAt: Date.now(),
-        status: 'checking',
-      });
-      void refreshPaymentProgress(invoiceId);
-    },
-    [refreshPaymentProgress]
-  );
-
-  useEffect(() => {
-    if (paymentProgress?.status !== 'checking') return undefined;
-
-    const poll = () => {
-      if (Date.now() - paymentProgress.startedAt > PAYMENT_POLL_TIMEOUT_MS) {
-        setPaymentProgress((current) => {
-          if (current?.invoiceId !== paymentProgress.invoiceId) return current;
-          return { ...current, status: 'delayed' };
-        });
-        return;
-      }
-      void refreshPaymentProgress(paymentProgress.invoiceId);
-    };
-
-    const intervalId = globalThis.window.setInterval(poll, PAYMENT_POLL_INTERVAL_MS);
-    const handleFocus = () => poll();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') poll();
-    };
-
-    globalThis.window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      globalThis.window.clearInterval(intervalId);
-      globalThis.window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [paymentProgress, refreshPaymentProgress]);
+  const {
+    paymentProgress,
+    startPaymentProgress,
+    handlePaymentCheckAgain,
+    handleContinueAfterPaymentDelay,
+    handleAbortPaymentProgress,
+  } = usePaymentProgress({
+    appointmentId,
+    encounterLeadName: encounter.leadName,
+    reloadBilling,
+    setConfirmation,
+    setConfirmationLink,
+  });
 
   // The id of an open (still-outstanding) invoice already loaded from the finance
   // service into the workspace encounter. The deposit-id fallback in hydration uses
@@ -1655,14 +1081,19 @@ const InvoiceStep = ({
     const lineItems = toFinanceLineItems(encounter.invoiceLineItems);
     // Prefer an existing OPEN invoice for this appointment and append new lines to
     // it (web /lines). When none exists, create one via the web POST /invoices —
-    // never the mobile /seed route, which requires a mobile Cognito token on web
+    // never the mobile /seed route, which requires a mobile session on web
     // and 401s (logging the user out).
     const storeInvoiceId = findOpenAppointmentInvoice(organisationId, appointmentId)?.id;
     // Fall back to the server-loaded billing state: loadAppointmentBilling hydrates
     // open invoices into the workspace encounter but not into useInvoiceStore (the
     // only place findOpenAppointmentInvoice reads). Without this fallback an existing
     // open invoice is missed and a duplicate is created with the same bill lines.
-    const openInvoiceId = storeInvoiceId ?? findServerOpenInvoiceId();
+    const serverInvoiceId = storeInvoiceId ? undefined : findServerOpenInvoiceId();
+    // addLineItemsToAppointments re-resolves the invoice through useInvoiceStore and seeds a
+    // new one via the mobile-auth-only /seed route when the store has no match. Hydrating the
+    // store over the web invoice route first keeps that reuse on a PMS-authorised endpoint.
+    if (serverInvoiceId) await getFinanceInvoiceById(serverInvoiceId);
+    const openInvoiceId = storeInvoiceId ?? serverInvoiceId;
     let invoice: { id?: string } | undefined = openInvoiceId ? { id: openInvoiceId } : undefined;
     if (invoice?.id) {
       await addLineItemsToAppointments(lineItems, appointmentId, currency);
@@ -1675,6 +1106,16 @@ const InvoiceStep = ({
         organisationId,
         paymentCollectionMethod: 'PAYMENT_LINK',
         items: lineItems,
+        // Send the overall discount so it reaches the ledger. Without it the invoice
+        // totals the full (line-discounted) amount while runManualCollection collects
+        // computeInvoiceTotalCents (which DOES subtract the overall discount), leaving
+        // the difference as a receivable that can never be settled. undefined at 0,
+        // which JSON drops from the request body, so an undiscounted invoice keeps a
+        // null discount type/value exactly as before.
+        invoiceDiscount:
+          encounter.overallDiscountPercent > 0
+            ? { type: 'PERCENTAGE' as const, value: encounter.overallDiscountPercent }
+            : undefined,
       });
     }
     if (invoice?.id && finalize) {
@@ -1695,6 +1136,7 @@ const InvoiceStep = ({
       return;
     }
     if (!hasItems) return;
+    /* v8 ignore start -- the Collect button is disabled whenever the visit is not ready for billing (paymentDisabled), so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (!isReadyForBilling && (method === 'CASH' || method === 'ONLINE')) {
       notify('warning', {
         title: 'Mark ready for billing first',
@@ -1702,6 +1144,7 @@ const InvoiceStep = ({
       });
       return;
     }
+    /* v8 ignore stop */
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
@@ -1723,10 +1166,13 @@ const InvoiceStep = ({
           reloadBilling,
           recordInvoicePayment,
         });
+        // Only a manual collection is settled here and now. The ONLINE path has merely
+        // opened Stripe checkout, so it keeps runOnlineCollection's link message —
+        // payment progress reports settlement once Stripe confirms it.
+        setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
       }
-      setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to process payment.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to process payment.'));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1788,13 +1234,14 @@ const InvoiceStep = ({
       setIsDepositModalOpen(false);
       await reloadBilling();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to collect deposit.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to collect deposit.'));
     } finally {
       setIsProcessingPayment(false);
     }
   };
 
   const handleSendToClient = async () => {
+    /* v8 ignore start -- the Send to Client button is disabled whenever the visit is not ready for billing (paymentDisabled), so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (!hasItems || !isReadyForBilling) {
       notify('warning', {
         title: 'Mark ready for billing first',
@@ -1802,6 +1249,7 @@ const InvoiceStep = ({
       });
       return;
     }
+    /* v8 ignore stop */
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
@@ -1824,26 +1272,10 @@ const InvoiceStep = ({
       setConfirmation(confirmationMessage);
       await reloadBilling();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to send invoice to client.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to send invoice to client.'));
     } finally {
       setIsProcessingPayment(false);
     }
-  };
-
-  const handlePaymentCheckAgain = () => {
-    setPaymentProgress((current) =>
-      current ? { ...current, startedAt: Date.now(), status: 'checking' } : current
-    );
-    void refreshPaymentProgress();
-  };
-
-  const handleContinueAfterPaymentDelay = () => {
-    setPaymentProgress(null);
-    void reloadBilling();
-  };
-
-  const handleAbortPaymentProgress = () => {
-    setPaymentProgress(null);
   };
 
   const handleDownloadInvoice = (invoice: PastInvoice) => {
@@ -1899,18 +1331,22 @@ const InvoiceStep = ({
   };
 
   const handleFinishInvoice = () => {
+    /* v8 ignore start -- the Summary button is disabled whenever there are incomplete medications, so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (hasIncompleteMedications) {
       setErrorMessage(
         'Fill information in previous step for prescribed medications before finalizing.'
       );
       return;
     }
+    /* v8 ignore stop */
     setStepStatus(appointmentId, 'INVOICE', 'COMPLETED');
     onOpenSummary();
   };
 
-  const handleAddItem = (item: Omit<InvoiceLineItem, 'id'>) => {
-    addInvoiceLineItem(appointmentId, item);
+  const handleAddItem = async (item: Omit<InvoiceLineItem, 'id'>) => {
+    // The store returns the id it assigned this line so a later save can link it
+    // back to its prescription (see below).
+    const addedLineId = addInvoiceLineItem(appointmentId, item);
 
     // Interlink: when a billed item is a dispensable drug and no prescription row
     // exists for it yet, create a linked one so it shows in the Treatment step.
@@ -1926,8 +1362,35 @@ const InvoiceStep = ({
     const alreadyPrescribed = encounter.prescription.some(
       (rx) => rx.medicineName.trim().toLowerCase() === targetName
     );
-    if (!alreadyPrescribed) {
+    // Only org-scoped inventory candidates carry a prescription payload, so organisationId
+    // is always set by the time one is found.
+    if (alreadyPrescribed || !organisationId) return;
+    // Treatment already ran its save pass by the time the bill is built, so a row
+    // backfilled here has no later persist step to ride along with — save it now and
+    // seed the store with the backend id so finalize and delete target the real artifact.
+    try {
+      const saved = await savePrescriptionArtifact(
+        { organisationId, appointmentId, encounterId, authorId },
+        prescription
+      );
+      const savedPrescriptionId = (saved as { id?: string } | undefined)?.id;
+      addPrescription(appointmentId, prescription, savedPrescriptionId);
+      // Link the bill line to the saved prescription so removing the line also
+      // deletes the persisted draft — handleRemoveBillLine keys off
+      // sourcePrescriptionId, so without this the draft orphans and re-seeds on
+      // the next refresh.
+      if (savedPrescriptionId && addedLineId) {
+        updateInvoiceLineItem(appointmentId, addedLineId, {
+          sourcePrescriptionId: savedPrescriptionId,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save prescription from invoice:', error);
       addPrescription(appointmentId, prescription);
+      notify('error', {
+        title: 'Couldn’t save the linked prescription',
+        text: 'The change wasn’t saved. Please try again.',
+      });
     }
   };
 
@@ -1942,7 +1405,7 @@ const InvoiceStep = ({
       if (!prescriptionId || !organisationId) return;
       // Drop the source prescription locally and remember the dismissal so auto-seed doesn't
       // re-add it this session.
-      if (line?.name) seededBillNamesRef.current.add(line.name.trim().toLowerCase());
+      if (line?.name) getSeededBillNames().add(line.name.trim().toLowerCase());
       removePrescription(appointmentId, prescriptionId);
       const isPersisted = !prescriptionId.startsWith('local-');
       if (!isPersisted) return;
@@ -1963,6 +1426,7 @@ const InvoiceStep = ({
     [
       appointmentId,
       encounter.invoiceLineItems,
+      getSeededBillNames,
       notify,
       organisationId,
       removeInvoiceLineItem,
@@ -1970,59 +1434,73 @@ const InvoiceStep = ({
     ]
   );
 
+  const invoiceTotalCents = computeInvoiceTotalCents(encounter);
+  const dueCents = encounter.withdrawDeposit
+    ? Math.max(0, invoiceTotalCents - encounter.depositCents)
+    : invoiceTotalCents;
+
   return (
     <div className="flex flex-col gap-5">
       {/* The bill builder + payment controls only show while the encounter is
           editable. A completed appointment shows finalized invoices only. */}
       {canBuildBill && (
-        <>
-          <TotalBillContainer
-            items={enrichedInvoiceLineItems}
-            billableItems={billableItems}
-            incompleteItemNames={incompleteMedicationNames}
-            currency={currency}
-            depositCents={encounter.depositCents}
-            withdrawDeposit={encounter.withdrawDeposit}
-            overallDiscountPercent={encounter.overallDiscountPercent}
-            taxPercent={encounter.taxPercent}
-            onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
-            onChangeOverallDiscount={(percent) => setOverallDiscountPercent(appointmentId, percent)}
-            onAddItem={handleAddItem}
-            onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
-            onRemoveItem={(id) => void handleRemoveBillLine(id)}
-          />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="min-w-0 flex-1">
+            <TotalBillContainer
+              items={enrichedInvoiceLineItems}
+              billableItems={billableItems}
+              incompleteItemNames={incompleteMedicationNames}
+              currency={currency}
+              depositCents={encounter.depositCents}
+              withdrawDeposit={encounter.withdrawDeposit}
+              overallDiscountPercent={encounter.overallDiscountPercent}
+              maxOverallDiscountPercent={maxOverallDiscountPercent}
+              taxPercent={encounter.taxPercent}
+              onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
+              onChangeOverallDiscount={(percent) =>
+                setOverallDiscountPercent(appointmentId, percent)
+              }
+              onAddItem={(item) => void handleAddItem(item)}
+              onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
+              onRemoveItem={(id) => void handleRemoveBillLine(id)}
+            />
+          </div>
+          <aside className="flex w-full flex-col gap-3 lg:w-[340px] lg:shrink-0">
+            <PaymentActions
+              isInpatient={isInpatient}
+              depositDisabled={isProcessingPayment}
+              paymentDisabled={isProcessingPayment || !hasItems || !isReadyForBilling}
+              paymentDisabledReason={paymentDisabledReason}
+              dueCents={dueCents}
+              currency={currency}
+              onCollect={handleCollect}
+              onSendToClient={handleSendToClient}
+              paymentLinkStatus={paymentLinkStatus}
+            />
 
-          <PaymentActions
-            isInpatient={isInpatient}
-            depositDisabled={isProcessingPayment}
-            paymentDisabled={isProcessingPayment || !hasItems || !isReadyForBilling}
-            paymentDisabledReason={paymentDisabledReason}
-            onCollect={handleCollect}
-            onSendToClient={handleSendToClient}
-          />
+            {errorMessage && (
+              <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
+                {errorMessage}
+              </p>
+            )}
 
-          {errorMessage && (
-            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
-              {errorMessage}
-            </p>
-          )}
-
-          {confirmation && (
-            <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
-              <span>{confirmation}</span>
-              {confirmationLink && (
-                <a
-                  href={confirmationLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full break-all underline"
-                >
-                  {confirmationLink}
-                </a>
-              )}
-            </output>
-          )}
-        </>
+            {confirmation && (
+              <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-blue-text">
+                <span>{confirmation}</span>
+                {confirmationLink && (
+                  <a
+                    href={confirmationLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full break-all underline"
+                  >
+                    {confirmationLink}
+                  </a>
+                )}
+              </output>
+            )}
+          </aside>
+        </div>
       )}
 
       <DepositModal
@@ -2057,7 +1535,7 @@ const InvoiceStep = ({
           )}
           <Primary
             text="Summary"
-            icon={<LuArrowRight aria-hidden="true" />}
+            icon={<IoArrowForwardOutline aria-hidden="true" />}
             iconPosition="right"
             onClick={handleFinishInvoice}
             isDisabled={hasIncompleteMedications}
@@ -2067,5 +1545,7 @@ const InvoiceStep = ({
     </div>
   );
 };
+
+const InvoiceStep = (props: InvoiceStepProps) => useInvoiceStepContent(props);
 
 export default InvoiceStep;

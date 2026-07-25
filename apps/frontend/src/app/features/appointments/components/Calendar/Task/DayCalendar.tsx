@@ -112,7 +112,7 @@ const DayCalendar = ({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-2 border-b border-grey-light">
+      <div className="flex items-center justify-between p-2 border-b border-card-border">
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
           <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
@@ -158,7 +158,7 @@ const DayCalendar = ({
                     handleViewTask={handleViewTask}
                     handleChangeStatusTask={handleChangeStatusTask}
                     handleRescheduleTask={handleRescheduleTask}
-                    canEditTasks={canEditTasks}
+                    permissions={{ canEditTasks }}
                     zoomMode={zoomMode}
                     dayIndex={0}
                     length={0}
@@ -175,9 +175,11 @@ const DayCalendar = ({
                     onDragHoverTarget={onDragHoverTarget}
                     dropAvailabilityIntervals={getDropAvailabilityIntervals?.(date) ?? []}
                     draggedTaskDurationMinutes={draggedTaskDurationMinutes}
-                    showGridLines
-                    slotOffsetMinutes={slotOffsetMinutes}
-                    isLastVisibleHour={hour === lastVisibleHour}
+                    layout={{
+                      showGridLines: true,
+                      slotOffsetMinutes,
+                      isLastVisibleHour: hour === lastVisibleHour,
+                    }}
                     resolveDisplayName={resolveDisplayName}
                   />
                 </div>

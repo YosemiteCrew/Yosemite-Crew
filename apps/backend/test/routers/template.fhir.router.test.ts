@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -30,7 +30,7 @@ const TemplateFhirController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -80,18 +80,37 @@ describe("template.fhir.router", () => {
     ).toBeDefined();
   });
 
+  const usesOrgPermissions = (handles: unknown[]) =>
+    withOrgPermissions.mock.results.some((result) =>
+      handles.includes(result.value),
+    );
+
+  const usesRequirePermission = (handles: unknown[]) =>
+    requirePermission.mock.results.some((result) =>
+      handles.includes(result.value),
+    );
+
   it("protects FHIR template routes with the expected middleware", () => {
     const route = findRoute(
       "/questionnaire/organisation/:organisationId",
       "get",
     );
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
-    );
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      withOrgPermissions.mock.results[0].value,
-    );
+    const handles = route?.stack.map((layer) => layer.handle) ?? [];
+    expect(handles).toContain(requireWebAuth);
+    expect(usesOrgPermissions(handles)).toBe(true);
     expect(requirePermission).toHaveBeenCalledWith(["forms:view:any"]);
     expect(requirePermission).toHaveBeenCalledWith(["tasks:view:any"]);
   });
+
+  it.each([["/questionnaire/library"], ["/plan-definition/library"]])(
+    "gates the %s listing on org membership and a permission",
+    (path) => {
+      const handles =
+        findRoute(path, "get")?.stack.map((layer) => layer.handle) ?? [];
+
+      expect(handles).toContain(requireWebAuth);
+      expect(usesOrgPermissions(handles)).toBe(true);
+      expect(usesRequirePermission(handles)).toBe(true);
+    },
+  );
 });

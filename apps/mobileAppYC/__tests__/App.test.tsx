@@ -4,7 +4,14 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import {Amplify} from 'aws-amplify';
+import SuperTokens from 'supertokens-react-native';
+
+jest.mock('@aws-amplify/react-native', () => ({}), {virtual: true});
+
+jest.mock('@react-native-masked-view/masked-view', () => ({
+  __esModule: true,
+  default: 'MaskedView',
+}));
 
 jest.mock('@stripe/stripe-react-native', () => ({
   StripeProvider: ({children}: {children: React.ReactNode}) => <>{children}</>,
@@ -52,10 +59,19 @@ jest.mock('../src/navigation', () => ({
   AppNavigator: () => null,
 }));
 
-// Spy must be set up before App module is required (module-level Amplify.configure call)
-const mockAmplifyConfigure = jest
-  .spyOn(Amplify, 'configure')
-  .mockImplementation(() => {});
+jest.mock('@/shared/services/mobileConfig', () => {
+  const actual = jest.requireActual('@/shared/services/mobileConfig');
+  return {
+    ...actual,
+    fetchMobileConfig: jest.fn().mockResolvedValue({
+      env: 'production',
+      enablePayments: false,
+    }),
+  };
+});
+
+// SuperTokens.init runs at module scope in App.tsx (globally mocked in jest.setup)
+const mockSuperTokensInit = SuperTokens.init as jest.Mock;
 
 const App = require('../App').default;
 
@@ -73,7 +89,6 @@ afterAll(() => {
   } else {
     delete (globalThis as any).document;
   }
-  mockAmplifyConfigure.mockRestore();
 });
 
 test('renders correctly', async () => {
@@ -82,23 +97,99 @@ test('renders correctly', async () => {
   });
 });
 
-test('configures Amplify with an auth pool on startup', () => {
-  expect(mockAmplifyConfigure).toHaveBeenCalledTimes(1);
-  const configArg = mockAmplifyConfigure.mock.calls[0][0] as any;
-  expect(configArg).toHaveProperty('auth.user_pool_id');
-  expect(configArg).toHaveProperty('auth.user_pool_client_id');
-  expect(configArg).toHaveProperty('auth.identity_pool_id');
+test('initializes SuperTokens against the FDI base path on startup', () => {
+  expect(mockSuperTokensInit).toHaveBeenCalledTimes(1);
+  const configArg = mockSuperTokensInit.mock.calls[0][0] as any;
+  expect(configArg).toMatchObject({
+    apiBasePath: '/auth',
+    tokenTransferMethod: 'header',
+  });
+  expect(typeof configArg.apiDomain).toBe('string');
+  expect(configArg.apiDomain.length).toBeGreaterThan(0);
 });
 
-test('selects dev pool when useDevApi is true', () => {
-  const devOutputs = require('../devamplify_outputs.json');
-  const prodOutputs = require('../prodamplify_outputs.json');
-  const {MOBILE_CONFIG_BEHAVIOR} = require('@/config/variables');
-  const configArg = mockAmplifyConfigure.mock.calls[0][0];
+test('selects the API domain matching the runtime environment', () => {
+  const {
+    MOBILE_CONFIG_BEHAVIOR,
+    DEVELOPMENT_API_BASE_URL,
+    PRODUCTION_API_BASE_URL,
+  } = require('@/config/variables');
+  const configArg = mockSuperTokensInit.mock.calls[0][0] as any;
 
-  if (MOBILE_CONFIG_BEHAVIOR.useDevApi) {
-    expect(configArg).toEqual(devOutputs);
-  } else {
-    expect(configArg).toEqual(prodOutputs);
-  }
+  const expectedDomain =
+    MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl ??
+    (MOBILE_CONFIG_BEHAVIOR.useDevApi
+      ? DEVELOPMENT_API_BASE_URL
+      : PRODUCTION_API_BASE_URL);
+  expect(configArg.apiDomain).toBe(expectedDomain);
+});
+
+describe('review login flag resolution', () => {
+  const {fetchMobileConfig} = require('@/shared/services/mobileConfig');
+  const {AUTH_FEATURE_FLAGS} = require('@/config/variables');
+
+  const renderApp = async () => {
+    let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(<App />);
+    });
+    await ReactTestRenderer.act(async () => {});
+    await ReactTestRenderer.act(async () => {
+      tree?.unmount();
+    });
+  };
+
+  afterEach(() => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = false;
+  });
+
+  it('forces review login off in a production env even when config enables it', async () => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = true;
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'production',
+      enablePayments: false,
+      enableReviewLogin: true,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
+  });
+
+  it('forces review login off in a production env when config omits the flag', async () => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = true;
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'prod',
+      enablePayments: false,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
+  });
+
+  it('honors the config flag outside a production env', async () => {
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'staging',
+      enablePayments: false,
+      enableReviewLogin: true,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(true);
+  });
+
+  it('disables review login outside a production env when config turns it off', async () => {
+    AUTH_FEATURE_FLAGS.enableReviewLogin = true;
+    (fetchMobileConfig as jest.Mock).mockResolvedValueOnce({
+      env: 'dev',
+      enablePayments: false,
+      enableReviewLogin: false,
+    });
+
+    await renderApp();
+
+    expect(AUTH_FEATURE_FLAGS.enableReviewLogin).toBe(false);
+  });
 });

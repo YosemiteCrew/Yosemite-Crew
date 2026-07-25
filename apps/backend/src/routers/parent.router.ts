@@ -1,28 +1,24 @@
 import { Router } from "express";
 import { ParentController } from "../controllers/app/parent.controller";
-import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { CompanionController } from "src/controllers/app/companion.controller";
 
 const router = Router();
 
 // Routes for Mobile
-router.post("/", authorizeCognitoMobile, ParentController.createParentMobile);
-router.get("/:id", authorizeCognitoMobile, ParentController.getParentMobile);
-router.put("/:id", authorizeCognitoMobile, ParentController.updateParentMobile);
-router.delete(
-  "/:id",
-  authorizeCognitoMobile,
-  ParentController.deleteParentMobile,
-);
+router.post("/", requireMobileAuth, ParentController.createParentMobile);
+router.get("/:id", requireMobileAuth, ParentController.getParentMobile);
+router.put("/:id", requireMobileAuth, ParentController.updateParentMobile);
+router.delete("/:id", requireMobileAuth, ParentController.deleteParentMobile);
 router.post(
   "/profile/presigned",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   ParentController.getProfileUploadUrl,
 );
 router.get(
   "/:parentId/companions",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionController.getCompanionsByParentId,
 );
 
@@ -32,19 +28,19 @@ router.get(
 // always sends the x-org-id header, so withOrgPermissions resolves the acting organisation.
 router.post(
   "/pms/parents",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
   ParentController.createParentPMS,
 );
-router.get("/pms/parents/:id", authorizeCognito, ParentController.getParentPMS);
+router.get("/pms/parents/:id", requireWebAuth, ParentController.getParentPMS);
 router.put(
   "/pms/parents/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
   ParentController.updateParentPMS,
 );
-router.get("/pms/search", authorizeCognito, ParentController.searchByName);
+router.get("/pms/search", requireWebAuth, ParentController.searchByName);
 
 export default router;

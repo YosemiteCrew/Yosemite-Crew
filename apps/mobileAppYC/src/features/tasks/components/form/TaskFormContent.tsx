@@ -1,6 +1,6 @@
 import React from 'react';
-import {View, Text, Switch, Image} from 'react-native';
-import {TouchableInput} from '@/shared/components/common';
+import {View, Text, Image} from 'react-native';
+import {Toggle, TouchableInput} from '@/shared/components/common';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {
   MedicationFormSection,
@@ -12,25 +12,34 @@ import {
 } from '@/features/tasks/screens/AddTaskScreen/components';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
-import type {TaskTypeSelection, ReminderOption, TaskFormData, TaskFormErrors} from '@/features/tasks/types';
+import type {
+  TaskTypeSelection,
+  ReminderOption,
+  TaskFormData,
+  TaskFormErrors,
+} from '@/features/tasks/types';
+
+export type TaskFormMode = 'medication' | 'observationalTool' | 'simple';
+
+interface TaskTypeSelectorConfig {
+  onPress: () => void;
+  value?: string;
+  error?: string;
+}
 
 interface TaskFormContentProps {
   formData: TaskFormData;
   errors: TaskFormErrors;
   theme: any;
-  updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
-  isMedicationForm: boolean;
-  isObservationalToolForm: boolean;
-  isSimpleForm: boolean;
+  updateField: <K extends keyof TaskFormData>(
+    field: K,
+    value: TaskFormData[K],
+  ) => void;
+  taskFormMode: TaskFormMode;
   reminderOptions: ReminderOption[];
   styles: any;
   taskTypeSelection?: TaskTypeSelection | null;
-  showTaskTypeSelector?: boolean;
-  taskTypeSelectorProps?: {
-    onPress: () => void;
-    value?: string;
-    error?: string;
-  };
+  taskTypeSelector?: TaskTypeSelectorConfig;
   sheetHandlers: {
     onOpenMedicationTypeSheet: () => void;
     onOpenDosageSheet: () => void;
@@ -56,57 +65,66 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
   errors,
   theme,
   updateField,
-  isMedicationForm,
-  isObservationalToolForm,
-  isSimpleForm,
+  taskFormMode,
   reminderOptions,
   styles,
   taskTypeSelection,
-  showTaskTypeSelector,
-  taskTypeSelectorProps,
+  taskTypeSelector,
   sheetHandlers,
   fileHandlers,
   fileError,
 }) => {
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
+  const formIsVisible = taskTypeSelection || !taskTypeSelector;
 
   return (
     <>
-      {showTaskTypeSelector && taskTypeSelectorProps && (
+      {taskTypeSelector && (
         <View style={styles.fieldGroup}>
           <TouchableInput
             label={taskTypeSelection ? 'Task type' : undefined}
             placeholder="Task Type"
-            value={taskTypeSelectorProps.value}
-            onPress={taskTypeSelectorProps.onPress}
-            rightComponent={<Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />}
-            error={taskTypeSelectorProps.error}
+            value={taskTypeSelector.value}
+            onPress={taskTypeSelector.onPress}
+            rightComponent={
+              <Image
+                source={Images.dropdownIcon}
+                style={iconStyles.dropdownIcon}
+              />
+            }
+            error={taskTypeSelector.error}
           />
         </View>
       )}
 
-      {(taskTypeSelection || !showTaskTypeSelector) && (
+      {formIsVisible && (
         <>
-          {isMedicationForm && (
+          {taskFormMode === 'medication' && (
             <MedicationFormSection
               formData={formData}
               errors={errors}
               updateField={updateField}
-              onOpenMedicationTypeSheet={sheetHandlers.onOpenMedicationTypeSheet}
+              onOpenMedicationTypeSheet={
+                sheetHandlers.onOpenMedicationTypeSheet
+              }
               onOpenDosageSheet={sheetHandlers.onOpenDosageSheet}
-              onOpenMedicationFrequencySheet={sheetHandlers.onOpenMedicationFrequencySheet}
+              onOpenMedicationFrequencySheet={
+                sheetHandlers.onOpenMedicationFrequencySheet
+              }
               onOpenStartDatePicker={sheetHandlers.onOpenStartDatePicker}
               onOpenEndDatePicker={sheetHandlers.onOpenEndDatePicker}
               theme={theme}
             />
           )}
 
-          {isObservationalToolForm && (
+          {taskFormMode === 'observationalTool' && (
             <ObservationalToolFormSection
               formData={formData}
               errors={errors}
               updateField={updateField}
-              onOpenObservationalToolSheet={sheetHandlers.onOpenObservationalToolSheet}
+              onOpenObservationalToolSheet={
+                sheetHandlers.onOpenObservationalToolSheet
+              }
               onOpenDatePicker={sheetHandlers.onOpenDatePicker}
               onOpenTimePicker={sheetHandlers.onOpenTimePicker}
               onOpenTaskFrequencySheet={sheetHandlers.onOpenTaskFrequencySheet}
@@ -114,7 +132,7 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
             />
           )}
 
-          {isSimpleForm && (
+          {taskFormMode === 'simple' && (
             <SimpleTaskFormSection
               formData={formData}
               errors={errors}
@@ -147,15 +165,15 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
             updateField={updateField}
             onOpenCalendarSyncSheet={sheetHandlers.onOpenCalendarSyncSheet}
             theme={theme}
+            error={errors.calendarProvider}
           />
 
           <View style={styles.toggleSection}>
             <Text style={styles.toggleLabel}>Attach document</Text>
-            <Switch
+            <Toggle
               value={formData.attachDocuments}
               onValueChange={value => updateField('attachDocuments', value)}
-              trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
-              thumbColor={theme.colors.white}
+              accessibilityLabel="Attach document"
             />
           </View>
 

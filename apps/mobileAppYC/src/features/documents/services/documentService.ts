@@ -524,14 +524,8 @@ const extractDocumentsCollection = (payload: any): any[] => {
     return candidate.data;
   }
 
-  if (Array.isArray(payload)) {
-    return payload;
-  }
   if (Array.isArray(payload?.documents)) {
     return payload.documents;
-  }
-  if (Array.isArray(payload?.data)) {
-    return payload.data;
   }
   if (Array.isArray(payload?.results)) {
     return payload.results;
@@ -660,12 +654,16 @@ export const documentApi = {
     appointmentId?: string;
     accessToken: string;
   }): Promise<Document> {
-    const attachments = files
-      .filter(file => file.key)
-      .map(file => ({
-        mimeType: file.type ?? 'application/octet-stream',
-        key: file.key as string,
-      }));
+    const attachments = files.flatMap(file =>
+      file.key
+        ? [
+            {
+              mimeType: file.type ?? 'application/octet-stream',
+              key: file.key as string,
+            },
+          ]
+        : [],
+    );
 
     if (!attachments.length) {
       throw new Error('Please upload at least one document.');
@@ -730,12 +728,16 @@ export const documentApi = {
     files?: DocumentFile[];
     accessToken: string;
   }): Promise<Document> {
-    const attachments = (files ?? [])
-      .filter(file => file.key)
-      .map(file => ({
-        mimeType: file.type ?? 'application/octet-stream',
-        key: file.key as string,
-      }));
+    const attachments = (files ?? []).flatMap(file =>
+      file.key
+        ? [
+            {
+              mimeType: file.type ?? 'application/octet-stream',
+              key: file.key as string,
+            },
+          ]
+        : [],
+    );
 
     const payload: Record<string, any> = {
       title,

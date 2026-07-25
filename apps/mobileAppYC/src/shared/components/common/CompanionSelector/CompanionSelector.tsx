@@ -2,19 +2,19 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Image,
   StyleSheet,
   ScrollView,
-  Animated,
   Alert,
   Platform,
   ToastAndroid,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import type {RootState} from '@/app/store';
 import type {CoParentPermissions} from '@/features/coParent';
 
@@ -56,31 +56,43 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
 }: CompanionSelectorProps<T>) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
+  const [failedImages, setFailedImages] = React.useState<
+    Record<string, boolean>
+  >({});
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? {},
   );
-  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
-  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const defaultAccess = useSelector(
+    (state: RootState) => state.coParent?.defaultAccess ?? null,
+  );
+  const globalRole = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedRole,
+  );
   const globalPermissions = useSelector(
     (state: RootState) => state.coParent?.lastFetchedPermissions,
   );
-  const originalOrderRef = React.useRef<Map<string, number>>(new Map());
+  const originalOrderRef = useLazyRef(() => new Map<string, number>());
   React.useEffect(() => {
     const map = new Map<string, number>();
     companions.forEach((companion, index) => {
-      const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+      const companionId =
+        companion.id ??
+        (companion as any)._id ??
+        (companion as any).companionId;
       if (companionId) {
         map.set(companionId, index);
       }
     });
     originalOrderRef.current = map;
-  }, [companions]);
+  }, [companions, originalOrderRef]);
 
   const resolveRolePriority = React.useCallback(
     (companion: T) => {
       const companionId =
-        companion.id ?? (companion as any)._id ?? (companion as any).companionId ?? '';
+        companion.id ??
+        (companion as any)._id ??
+        (companion as any).companionId ??
+        '';
       const access = accessMap?.[companionId] ?? defaultAccess ?? null;
       const role = (access?.role ?? globalRole ?? '').toUpperCase();
       if (role.includes('PRIMARY')) {
@@ -111,7 +123,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
       const indexB = originalOrderRef.current.get(idB) ?? 0;
       return indexA - indexB;
     });
-  }, [companions, resolveRolePriority]);
+  }, [companions, originalOrderRef, resolveRolePriority]);
 
   const handleImageError = React.useCallback((id: string) => {
     setFailedImages(prev => {
@@ -122,22 +134,21 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     });
   }, []);
 
-  const showPermissionToast = React.useCallback(
-    (label?: string) => {
-      const message = label
-        ? `You don't have access to ${label}. Ask the primary parent to enable it.`
-        : "You don't have access to this companion. Ask the primary parent to enable it.";
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(message, ToastAndroid.SHORT);
-      } else {
-        Alert.alert('Permission needed', message);
-      }
-    },
-    [],
-  );
+  const showPermissionToast = React.useCallback((label?: string) => {
+    const message = label
+      ? `You don't have access to ${label}. Ask the primary parent to enable it.`
+      : "You don't have access to this companion. Ask the primary parent to enable it.";
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
 
-  const renderCompanionBadge = (companion: T) => {
-    const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+  const renderCompanionBadge = (companion: T, index: number) => {
+    const companionId =
+      companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+    const companionKey = companionId ?? `companion-${index}`;
     const isSelected = selectedCompanionId === companionId;
     let badgeText: string | undefined;
     if (getBadgeText) {
@@ -148,8 +159,8 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     const avatarUri = normalizeImageUri(companion.profileImage ?? null);
 
     return (
-      <TouchableOpacity
-        key={companionId}
+      <PressableOpacity
+        key={companionKey}
         style={styles.companionTouchable}
         activeOpacity={0.88}
         onPress={() => {
@@ -162,8 +173,12 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
             const role = (access?.role ?? globalRole ?? '').toUpperCase();
             const isPrimary = role.includes('PRIMARY');
             const permissions =
-              access?.permissions ?? globalPermissions ?? defaultAccess?.permissions;
-            const hasPermission = isPrimary || (permissions ? Boolean(permissions[requiredPermission]) : false);
+              access?.permissions ??
+              globalPermissions ??
+              defaultAccess?.permissions;
+            const hasPermission =
+              isPrimary ||
+              (permissions ? Boolean(permissions[requiredPermission]) : false);
             if (!hasPermission) {
               showPermissionToast(permissionLabel ?? requiredPermission);
               return;
@@ -171,13 +186,21 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
           }
 
           onSelect(companionId);
-        }}>
-        <View style={styles.companionItem}>
-          <Animated.View
+        }}
+        accessibilityRole="radio"
+        accessibilityState={{selected: isSelected}}
+        accessibilityLabel={
+          badgeText ? `${companion.name}, ${badgeText}` : companion.name
+        }>
+        <View
+          style={[
+            styles.companionItem,
+            isSelected && styles.companionItemSelected,
+          ]}>
+          <View
             style={[
               styles.companionAvatarRing,
               isSelected && styles.companionAvatarRingSelected,
-              isSelected && {transform: [{scale: 1.08}]},
             ]}>
             {avatarUri && companionId && !failedImages[companionId] ? (
               <Image
@@ -192,7 +215,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
                 </Text>
               </View>
             )}
-          </Animated.View>
+          </View>
 
           <Text
             style={styles.companionName}
@@ -200,18 +223,14 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
             ellipsizeMode="tail">
             {companion.name}
           </Text>
-          {badgeText && (
-            <Text style={styles.companionMeta}>
-              {badgeText}
-            </Text>
-          )}
+          {badgeText && <Text style={styles.companionMeta}>{badgeText}</Text>}
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   };
 
   const renderAddCompanionBadge = () => (
-    <TouchableOpacity
+    <PressableOpacity
       key="add-companion"
       style={styles.companionTouchable}
       activeOpacity={0.85}
@@ -222,16 +241,20 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
         </View>
         <Text style={styles.addCompanionLabel}>Add companion</Text>
       </View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.companionRow, containerStyle]}>
-      {sortedCompanions.map(renderCompanionBadge)}
-      {showAddButton && onAddCompanion && renderAddCompanionBadge()}
+      contentContainerStyle={containerStyle}>
+      <View style={styles.companionRow}>
+        {sortedCompanions.map((companion, index) =>
+          renderCompanionBadge(companion, index),
+        )}
+        {showAddButton && onAddCompanion && renderAddCompanionBadge()}
+      </View>
     </ScrollView>
   );
 };
@@ -248,33 +271,46 @@ const createStyles = (theme: any) =>
     },
     companionItem: {
       alignItems: 'center',
-      gap: theme.spacing['2.5'],
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['2'],
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1.5,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
     },
+    // Pink = companion moment: the selected tile gets a pink border + soft glow.
+    companionItemSelected: {
+      borderColor: theme.colors.pink,
+      backgroundColor: theme.colors.screen,
+      ...theme.shadows.companion,
+    },
+    // Selected companion = a pink ring encircling the round avatar (the design's
+    // signature "encircle" selection). The reserved 2.5px border keeps layout
+    // stable and turns pink only when selected, with a small gap to the avatar.
     companionAvatarRing: {
-      width: 64,
-      height: 64,
+      width: 60,
+      height: 60,
       borderRadius: theme.borderRadius.full,
-      borderWidth: 2,
-      borderColor: theme.colors.primaryTint,
       alignItems: 'center',
       justifyContent: 'center',
-      overflow: 'hidden',
-      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 2.5,
+      borderColor: theme.colors.transparent,
     },
     companionAvatarRingSelected: {
-      borderColor: theme.colors.primary,
+      borderColor: theme.colors.pink,
     },
     companionAvatar: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       resizeMode: 'cover',
     },
     companionAvatarPlaceholder: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.blueSoft,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -295,19 +331,22 @@ const createStyles = (theme: any) =>
     },
     addCompanionItem: {
       alignItems: 'center',
-      gap: theme.spacing['2.5'],
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['2'],
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.screen2,
     },
     addCompanionCircle: {
-      width: 64,
-      height: 64,
-      marginBottom: theme.spacing['2.5'],
+      width: 56,
+      height: 56,
       borderRadius: theme.borderRadius.full,
-      borderWidth: 2,
-      borderStyle: 'dashed',
-      borderColor: theme.colors.primaryTintStrong,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primarySurface,
+      backgroundColor: theme.colors.screen,
     },
     addCompanionIcon: {
       width: 28,

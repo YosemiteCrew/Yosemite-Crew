@@ -4,8 +4,22 @@ import { InvoiceService } from "src/services/invoice.service";
 import logger from "src/utils/logger";
 
 // --- Global Mocks Setup (Inline definitions to prevent TDZ issues) ---
+jest.mock("src/services/authUserMobile.service", () => ({
+  __esModule: true,
+  AuthUserMobileService: { getByProviderUserId: jest.fn() },
+}));
+
 jest.mock("src/services/invoice.service", () => ({
   __esModule: true,
+  InvoiceServiceError: class InvoiceServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "InvoiceServiceError";
+    }
+  },
   InvoiceService: {
     getByAppointmentId: jest.fn(),
     getById: jest.fn(),
@@ -36,7 +50,8 @@ describe("InvoiceController", () => {
 
     mockRequest = {
       params: {},
-    };
+      organisationId: "org_1",
+    } as Partial<Request>;
 
     mockResponse = {
       status: responseStatus,
@@ -59,7 +74,7 @@ describe("InvoiceController", () => {
 
       expect(InvoiceService.getByAppointmentId).toHaveBeenCalledWith(
         "app_123",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(responseStatus).toHaveBeenCalledWith(200);
       expect(responseJson).toHaveBeenCalledWith({
@@ -101,7 +116,10 @@ describe("InvoiceController", () => {
         mockResponse as Response,
       );
 
-      expect(InvoiceService.getById).toHaveBeenCalledWith("inv_123");
+      expect(InvoiceService.getById).toHaveBeenCalledWith("inv_123", {
+        organisationId: "org_1",
+        parentId: null,
+      });
       expect(responseStatus).toHaveBeenCalledWith(200);
       expect(responseJson).toHaveBeenCalledWith({
         data: mockInvoice,
@@ -119,7 +137,10 @@ describe("InvoiceController", () => {
         mockResponse as Response,
       );
 
-      expect(InvoiceService.getById).toHaveBeenCalledWith("inv_123");
+      expect(InvoiceService.getById).toHaveBeenCalledWith("inv_123", {
+        organisationId: "org_1",
+        parentId: null,
+      });
       expect(responseStatus).toHaveBeenCalledWith(404);
       expect(responseJson).toHaveBeenCalledWith({
         message: "Invoice not found",
@@ -162,7 +183,7 @@ describe("InvoiceController", () => {
 
       expect(InvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(responseStatus).toHaveBeenCalledWith(200);
       expect(responseJson).toHaveBeenCalledWith({
@@ -185,7 +206,7 @@ describe("InvoiceController", () => {
 
       expect(InvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(responseStatus).toHaveBeenCalledWith(404);
       expect(responseJson).toHaveBeenCalledWith({

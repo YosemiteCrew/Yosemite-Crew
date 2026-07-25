@@ -30,7 +30,7 @@ import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {AppointmentFormScreen} from '../../../../src/features/forms/screens/AppointmentFormScreen';
 import {useDispatch, useSelector} from 'react-redux';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
-import {Alert, Linking} from 'react-native';
+import {Alert, Linking, Platform} from 'react-native';
 import * as FormActions from '../../../../src/features/forms';
 import * as dateHelpers from '../../../../src/shared/utils/dateHelpers';
 
@@ -49,38 +49,14 @@ jest.mock('@react-navigation/native', () => ({
   useIsFocused: jest.fn(),
 }));
 
-jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        cardBackground: 'gray',
-        text: 'black',
-        textSecondary: 'gray',
-        primary: 'blue',
-        primaryTint: 'lightblue',
-        border: 'black',
-        borderMuted: 'lightgray',
-        error: 'red',
-        successSurface: 'lightgreen',
-        success: 'green',
-        secondary: 'purple',
-        white: 'white',
-      },
-      spacing: {'1': 4, '2': 8, '3': 12, '4': 16, '18': 72},
-      borderRadius: {md: 8, lg: 12},
-      typography: {
-        titleLarge: {fontSize: 20},
-        body14: {fontSize: 14},
-        labelSmall: {fontSize: 12},
-        button: {fontSize: 16},
-        titleSmall: {fontSize: 14},
-        bodyMedium: {fontSize: 14},
-        body12: {fontSize: 12},
-      },
-    },
-  }),
-}));
+// Use the shared, complete warm-bone theme mock so createStyles() never hits an
+// undefined token (screen2/inkFaint/blueSoft/cta/borderRadius.button/...).
+jest.mock('../../../../src/hooks', () => {
+  const {createMockTheme} = require('../../../setup/mockTheme');
+  return {
+    useTheme: () => ({theme: createMockTheme()}),
+  };
+});
 
 jest.mock('../../../../src/features/forms', () => ({
   selectFormsForAppointment: jest.fn(),
@@ -132,7 +108,10 @@ jest.mock('../../../../src/shared/components/common/Checkbox/Checkbox', () => ({
   Checkbox: ({label, value, onValueChange}: any) => {
     const {View, Text} = require('react-native');
     return (
-      <View testID={`checkbox-${label}`} value={value}>
+      <View
+        testID={`checkbox-${label}`}
+        value={value}
+        onValueChange={onValueChange}>
         <Text onPress={() => onValueChange(!value)}>
           {value ? 'Checked' : 'Unchecked'}
         </Text>
@@ -220,11 +199,19 @@ describe('AppointmentFormScreen — final coverage push', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    Object.defineProperty(Platform, 'OS', {
+      value: 'ios',
+      configurable: true,
+    });
 
     (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
     (useNavigation as jest.Mock).mockReturnValue({
       navigate: mockNavigate,
       goBack: mockGoBack,
+      addListener: jest.fn(() => jest.fn()),
+      dispatch: jest.fn(),
     });
     (useRoute as jest.Mock).mockReturnValue({params: defaultRouteParams});
     (useIsFocused as jest.Mock).mockReturnValue(true);
@@ -1096,6 +1083,798 @@ describe('AppointmentFormScreen — final coverage push', () => {
     });
   });
 
+  describe('additional uncovered screen states and submit branches', () => {
+    const promiseWithUnwrap = (value: any, reject = false) => ({
+      unwrap: () => (reject ? Promise.reject(value) : Promise.resolve(value)),
+      catch: jest.fn(),
+    });
+
+    it('renders loading and unavailable states and wires header back', () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
+      (FormActions.selectFormsLoading as jest.Mock).mockReturnValue(true);
+
+      const loading = render(<AppointmentFormScreen />);
+      expect(loading.getByTestId('mock-LiquidGlassHeaderScreen')).toBeTruthy();
+      fireEvent(loading.getByTestId('header-back'), 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalled();
+
+      loading.unmount();
+      (FormActions.selectFormsLoading as jest.Mock).mockReturnValue(false);
+      const unavailable = render(<AppointmentFormScreen />);
+      expect(
+        unavailable.getByText('Form is not available right now.'),
+      ).toBeTruthy();
+      fireEvent(unavailable.getByTestId('header-back'), 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalledTimes(2);
+    });
+
+    it('wires the main form header back action', () => {
+      const {getByTestId} = render(<AppointmentFormScreen />);
+
+      // The rebuilt header renders a real PressableOpacity (Pressable), which
+      // exposes onPress rather than onTouchEnd — fire a press, not a touch.
+      fireEvent.press(getByTestId('header-back'));
+
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    it('stretches the keyboard-dismiss wrapper to fill the screen so the form body is not collapsed behind the header', () => {
+      const {getByTestId} = render(<AppointmentFormScreen />);
+
+      const wrapper = getByTestId('dismiss-keyboard-wrapper');
+      const flattenedStyle = [wrapper.props.style].flat(Infinity);
+      const hasFlex = flattenedStyle.some((style: any) => style?.flex === 1);
+      expect(hasFlex).toBe(true);
+    });
+
+    it('fetches forms when focused, appointment exists, and entry is missing', async () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
+
+      render(<AppointmentFormScreen />);
+      await act(async () => {});
+
+      expect(FormActions.fetchAppointmentForms).toHaveBeenCalledWith({
+        appointmentId: 'appt-1',
+        serviceId: 'svc-1',
+        organisationId: 'biz-1',
+        species: 'Cat',
+      });
+    });
+
+    it('does not fetch forms when screen is not focused', async () => {
+      (useIsFocused as jest.Mock).mockReturnValue(false);
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
+
+      render(<AppointmentFormScreen />);
+      await act(async () => {});
+
+      expect(FormActions.fetchAppointmentForms).not.toHaveBeenCalled();
+    });
+
+    it('submits when schema is absent and reports submit failures', async () => {
+      const entry = {
+        ...baseFormEntry,
+        form: {...baseFormEntry.form, schema: undefined},
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch.mockReturnValueOnce(
+        promiseWithUnwrap(new Error('Submit failed'), true),
+      );
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Submit failed',
+          'Submit failed',
+        );
+      });
+    });
+
+    it('validates nested group, signature, boolean, and checkbox fields', async () => {
+      const schema = [
+        {
+          id: 'group',
+          type: 'group',
+          label: 'Group',
+          fields: [
+            {id: 'nested', type: 'input', label: 'Nested', required: true},
+            {id: 'sig', type: 'signature', label: 'Signature', required: true},
+            {id: 'ok', type: 'boolean', label: 'Okay', required: true},
+            {
+              id: 'checks',
+              type: 'checkbox',
+              label: 'Checks',
+              required: true,
+              options: [{value: 'yes', label: 'Yes'}],
+            },
+          ],
+        },
+      ];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+      expect(getByTestId('error-Nested')).toBeTruthy();
+      expect(
+        getByText('Signature will be captured during the signing process'),
+      ).toBeTruthy();
+
+      fireEvent.changeText(getByTestId('input-Nested'), 'Filled');
+      fireEvent(getByTestId('checkbox-Okay'), 'valueChange', true);
+      fireEvent(getByTestId('checkbox-Yes'), 'valueChange', true);
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      await waitFor(() =>
+        expect(FormActions.submitAppointmentForm).toHaveBeenCalled(),
+      );
+    });
+
+    it('treats groups without child arrays as valid', async () => {
+      const entry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [{id: 'group', type: 'group', label: 'Group'}],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      await waitFor(() =>
+        expect(FormActions.submitAppointmentForm).toHaveBeenCalled(),
+      );
+    });
+
+    it('handles submit-and-sign success, missing signing URL, and signing failure', async () => {
+      const entry = {
+        ...baseFormEntry,
+        signingRequired: true,
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch
+        .mockReturnValueOnce(promiseWithUnwrap({submission: {_id: 'sub-1'}}))
+        .mockReturnValueOnce(promiseWithUnwrap({signingUrl: 'https://sign'}));
+
+      const first = render(<AppointmentFormScreen />);
+      fireEvent.changeText(first.getByTestId('input-Name'), 'Jane');
+      fireEvent(first.getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('FormSigning', {
+          appointmentId: 'appt-1',
+          submissionId: 'sub-1',
+          signingUrl: 'https://sign',
+          formTitle: 'Test Form',
+        });
+      });
+
+      first.unmount();
+      mockNavigate.mockClear();
+      mockDispatch
+        .mockReturnValueOnce(promiseWithUnwrap({submission: {_id: 'sub-2'}}))
+        .mockReturnValueOnce(promiseWithUnwrap({}));
+      const second = render(<AppointmentFormScreen />);
+      fireEvent.changeText(second.getByTestId('input-Name'), 'Jane');
+      fireEvent(second.getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+      await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+
+      second.unmount();
+      mockDispatch
+        .mockReturnValueOnce(promiseWithUnwrap({submission: {_id: 'sub-3'}}))
+        .mockReturnValueOnce(promiseWithUnwrap('No signing', true));
+      const third = render(<AppointmentFormScreen />);
+      fireEvent.changeText(third.getByTestId('input-Name'), 'Jane');
+      fireEvent(third.getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Signing not started',
+          'No signing',
+        );
+      });
+    });
+
+    it('starts signing from read-only mode and handles no link, errors, and pdf failures', async () => {
+      const entry = {
+        ...baseFormEntry,
+        signingRequired: true,
+        status: 'pending',
+        submission: {
+          _id: 'sub-1',
+          answers: {f1: 'Read only'},
+          signing: {pdf: {url: 'https://pdf'}},
+        },
+      };
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, mode: 'view', allowSign: true},
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      mockDispatch.mockReturnValueOnce(promiseWithUnwrap({}));
+      const first = render(<AppointmentFormScreen />);
+      fireEvent(first.getByTestId('btn-View & Sign'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Signing started',
+          'Signing link is not available yet. Please check again shortly from the appointment.',
+        );
+      });
+
+      first.unmount();
+      mockDispatch.mockReturnValueOnce(
+        promiseWithUnwrap(new Error('Signing exploded'), true),
+      );
+      const second = render(<AppointmentFormScreen />);
+      fireEvent(second.getByTestId('btn-View & Sign'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Signing failed',
+          'Signing exploded',
+        );
+      });
+
+      second.unmount();
+      const openSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockRejectedValueOnce(new Error('nope'));
+      const signedEntry = {
+        ...entry,
+        status: 'signed',
+        signingRequired: false,
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        signedEntry,
+      ]);
+      const third = render(<AppointmentFormScreen />);
+      fireEvent(third.getByTestId('btn-View & Download'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(openSpy).toHaveBeenCalledWith('https://pdf');
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Unable to open PDF',
+          'Please try again in a moment.',
+        );
+      });
+    });
+
+    it('navigates from read-only signing and ignores missing submission ids', async () => {
+      const entry = {
+        ...baseFormEntry,
+        signingRequired: true,
+        status: 'pending',
+        submission: {
+          _id: 'sub-nav',
+          answers: {f1: 'Ready'},
+        },
+      };
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, mode: 'view', allowSign: true},
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch.mockReturnValueOnce(
+        promiseWithUnwrap({signingUrl: 'https://sign-readonly'}),
+      );
+
+      const first = render(<AppointmentFormScreen />);
+      fireEvent(first.getByTestId('btn-View & Sign'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('FormSigning', {
+          appointmentId: 'appt-1',
+          submissionId: 'sub-nav',
+          signingUrl: 'https://sign-readonly',
+          formTitle: 'Test Form',
+        });
+      });
+
+      first.unmount();
+      mockDispatch.mockClear();
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {
+          ...entry,
+          submission: {answers: {f1: 'Waiting'}},
+        },
+      ]);
+      const second = render(<AppointmentFormScreen />);
+      fireEvent(second.getByTestId('btn-View & Sign'), 'onTouchEnd');
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    it('renders read-only display conversions and hides signed date/signature fields', () => {
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        submission: {
+          _id: 's1',
+          answers: {
+            boolYes: true,
+            boolNo: false,
+            list: ['a', 'b'],
+            urlObj: {url: 'https://file'},
+            obj: {value: 1},
+            emptyCheck: null,
+          },
+        },
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {id: 'boolYes', type: 'boolean', label: 'Bool Yes'},
+            {id: 'boolNo', type: 'boolean', label: 'Bool No'},
+            {id: 'list', type: 'input', label: 'List'},
+            {id: 'urlObj', type: 'input', label: 'Url Obj'},
+            {id: 'obj', type: 'input', label: 'Obj'},
+            {
+              id: 'emptyCheck',
+              type: 'checkbox',
+              label: 'Empty Check',
+              options: [{display: 'Display Only'}],
+            },
+            {id: 'signedDate', type: 'date', label: 'Signed Date'},
+            {id: 'sig', type: 'signature', label: 'Signature'},
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, queryByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Bool Yes').props.value).toBe('Yes');
+      expect(getByTestId('input-Bool No').props.value).toBe('No');
+      expect(getByTestId('input-List').props.value).toBe('a, b');
+      expect(getByTestId('input-Url Obj').props.value).toBe('https://file');
+      expect(getByTestId('input-Obj').props.value).toBe('{"value":1}');
+      expect(getByTestId('checkbox-Display Only')).toBeTruthy();
+      expect(queryByTestId('input-Signed Date')).toBeNull();
+      expect(queryByTestId('input-Signature')).toBeNull();
+    });
+
+    it('covers display and option fallback branches', () => {
+      const entry = {
+        ...baseFormEntry,
+        status: 'completed',
+        submission: {
+          _id: 's1',
+          answers: {
+            notes: 'Long note',
+            emptyList: [],
+            displayCheck: false,
+            valueCheck: false,
+            fallbackCheck: false,
+            arrayCheck: ['selected'],
+            labelFallback: false,
+            badDate: 'not-a-date',
+          },
+        },
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {id: 'notes', type: 'textarea', label: 'Notes'},
+            {id: 'emptyList', type: 'input', label: 'Empty List'},
+            {
+              id: 'displayCheck',
+              type: 'checkbox',
+              label: 'Display Check',
+              options: [{display: 'Display Branch'}],
+            },
+            {
+              id: 'valueCheck',
+              type: 'checkbox',
+              label: 'Value Check',
+              options: [{value: 'value-branch'}],
+            },
+            {
+              id: 'fallbackCheck',
+              type: 'checkbox',
+              label: 'Fallback Check',
+              options: [{}],
+            },
+            {
+              id: 'arrayCheck',
+              type: 'checkbox',
+              label: 'Array Check',
+              options: [{label: 'Selected'}],
+            },
+            {
+              id: 'labelFallback',
+              type: 'checkbox',
+              label: 'Label Fallback',
+            },
+            {id: 'badDate', type: 'date', label: 'Bad Date'},
+          ],
+        },
+      };
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, mode: 'view'},
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+
+      expect(getByTestId('input-Notes').props.value).toBe('Long note');
+      expect(getByTestId('input-Empty List').props.value).toBe('—');
+      expect(getByTestId('checkbox-Display Branch')).toBeTruthy();
+      expect(getByTestId('checkbox-value-branch')).toBeTruthy();
+      expect(getByTestId('checkbox-Label Fallback')).toBeTruthy();
+      expect(getByTestId('checkbox-Selected').props.value).toBe(true);
+      expect(getByTestId('input-Bad Date').props.value).toBe('—');
+    });
+
+    it('covers editable branch defaults and validation errors', () => {
+      Object.defineProperty(Platform, 'OS', {
+        value: 'android',
+        configurable: true,
+      });
+      const entry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {
+              id: 'choice',
+              type: 'dropdown',
+              label: 'Choice',
+              required: true,
+              options: [{display: 'Display choice'}, {value: 'raw-choice'}],
+            },
+            {
+              id: 'multi',
+              type: 'checkbox',
+              label: 'Multi',
+              required: true,
+              options: [{display: 'Display multi'}, {value: 'raw-multi'}],
+            },
+            {id: 'ok', type: 'boolean', label: 'Okay', required: true},
+            {id: 'when', type: 'date', label: 'When', required: true},
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+      expect(getByText('Display choice')).toBeTruthy();
+      expect(getByText('raw-choice')).toBeTruthy();
+      expect(getByTestId('checkbox-Display multi')).toBeTruthy();
+      expect(getByTestId('checkbox-raw-multi')).toBeTruthy();
+
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      expect(getByText('Required')).toBeTruthy();
+    });
+
+    it('renders validation errors for boolean and checkbox fields', () => {
+      const booleanEntry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [{id: 'ok', type: 'boolean', label: 'Okay', required: true}],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        booleanEntry,
+      ]);
+
+      const booleanRender = render(<AppointmentFormScreen />);
+      fireEvent(booleanRender.getByTestId('btn-Submit'), 'onTouchEnd');
+      expect(booleanRender.getByText('Required')).toBeTruthy();
+
+      booleanRender.unmount();
+      const checkboxEntry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {
+              id: 'multi',
+              type: 'checkbox',
+              label: 'Multi',
+              required: true,
+              options: [{label: 'One'}],
+            },
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        checkboxEntry,
+      ]);
+
+      const checkboxRender = render(<AppointmentFormScreen />);
+      fireEvent(checkboxRender.getByTestId('btn-Submit'), 'onTouchEnd');
+
+      expect(checkboxRender.getByText('Required')).toBeTruthy();
+    });
+
+    it('renders empty option lists and owner prefill fallback defaults', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: {}},
+          appointments: {items: [mockAppointment]},
+          companion: {companions: []},
+        }),
+      );
+      const entry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {id: 'ownerName', type: 'input', label: 'Owner'},
+            {id: 'choice', type: 'dropdown', label: 'Choice'},
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+
+      expect(getByTestId('input-Owner').props.value).toBe('');
+      expect(getByText('Choice')).toBeTruthy();
+    });
+
+    it('covers prefill and submit fallback defaults', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: {email: 'fallback@example.com'}},
+          appointments: {
+            items: [
+              {
+                ...mockAppointment,
+                serviceId: undefined,
+                businessId: undefined,
+                species: undefined,
+                companionId: undefined,
+              },
+            ],
+          },
+          companion: {companions: []},
+        }),
+      );
+      const entry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [{id: 'ownerName', type: 'input', label: 'Owner'}],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch.mockReturnValueOnce(promiseWithUnwrap({submission: {}}));
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      await act(async () => {});
+      expect(FormActions.fetchAppointmentForms).not.toHaveBeenCalled();
+      expect(getByTestId('input-Owner').props.value).toBe(
+        'fallback@example.com',
+      );
+
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+      await waitFor(() =>
+        expect(FormActions.submitAppointmentForm).toHaveBeenCalledWith(
+          expect.objectContaining({companionId: null}),
+        ),
+      );
+    });
+
+    it('covers fetch and signing fallback messages', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: {}},
+          appointments: {
+            items: [
+              {
+                ...mockAppointment,
+                serviceId: undefined,
+                businessId: undefined,
+                species: undefined,
+              },
+            ],
+          },
+          companion: {companions: []},
+        }),
+      );
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
+
+      render(<AppointmentFormScreen />);
+      await act(async () => {});
+
+      expect(FormActions.fetchAppointmentForms).toHaveBeenCalledWith({
+        appointmentId: 'appt-1',
+        serviceId: null,
+        organisationId: null,
+        species: null,
+      });
+
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: mockUser},
+          appointments: {items: [mockAppointment]},
+          companion: {companions: [mockCompanion]},
+        }),
+      );
+      const entry = {
+        ...baseFormEntry,
+        signingRequired: true,
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch
+        .mockReturnValueOnce(promiseWithUnwrap({submission: {_id: 'sub-fail'}}))
+        .mockReturnValueOnce(promiseWithUnwrap({}, true));
+
+      const submitted = render(<AppointmentFormScreen />);
+      fireEvent.changeText(submitted.getByTestId('input-Name'), 'Jane');
+      fireEvent(submitted.getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Signing not started',
+          'Unable to start signing.',
+        );
+      });
+
+      submitted.unmount();
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, mode: 'view', allowSign: true},
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {
+          ...entry,
+          status: 'pending',
+          submission: {_id: 'sub-start', answers: {f1: 'Ready'}},
+        },
+      ]);
+      mockDispatch.mockReturnValueOnce(promiseWithUnwrap({}, true));
+      const signing = render(<AppointmentFormScreen />);
+      fireEvent(signing.getByTestId('btn-View & Sign'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Signing failed',
+          'Unable to start signing. Please try again.',
+        );
+      });
+
+      signing.unmount();
+      mockDispatch.mockReturnValueOnce(promiseWithUnwrap('No route', true));
+      const stringSigning = render(<AppointmentFormScreen />);
+      fireEvent(stringSigning.getByTestId('btn-View & Sign'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith('Signing failed', 'No route');
+      });
+    });
+
+    it('covers submit string and fallback failure messages plus fetch catch', async () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([]);
+      const catchMock = jest.fn(callback => callback());
+      mockDispatch.mockReturnValueOnce({catch: catchMock});
+
+      render(<AppointmentFormScreen />);
+      await act(async () => {});
+      expect(catchMock).toHaveBeenCalled();
+
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        baseFormEntry,
+      ]);
+      mockDispatch.mockReturnValueOnce(
+        promiseWithUnwrap('String submit', true),
+      );
+      const first = render(<AppointmentFormScreen />);
+      fireEvent.changeText(first.getByTestId('input-Name'), 'Jane');
+      fireEvent(first.getByTestId('btn-Submit'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Submit failed',
+          'String submit',
+        );
+      });
+
+      first.unmount();
+      mockDispatch.mockReturnValueOnce(promiseWithUnwrap({}, true));
+      const second = render(<AppointmentFormScreen />);
+      fireEvent.changeText(second.getByTestId('input-Name'), 'Jane');
+      fireEvent(second.getByTestId('btn-Submit'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Submit failed',
+          'Unable to submit form. Please try again.',
+        );
+      });
+    });
+
+    it('renders unchecked read-only checkbox for unsigned submissions with empty values', () => {
+      const entry = {
+        ...baseFormEntry,
+        status: 'completed',
+        submission: {
+          _id: 's1',
+          answers: {emptyCheck: ''},
+        },
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {
+              id: 'emptyCheck',
+              type: 'checkbox',
+              label: 'Empty Check',
+              options: [{label: 'Optional'}],
+            },
+          ],
+        },
+      };
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, mode: 'view'},
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+
+      const checkbox = getByTestId('checkbox-Optional');
+      expect(checkbox.props.value).toBe(false);
+      fireEvent(checkbox, 'valueChange', true);
+    });
+
+    it('prefills locked placeholders and cleans pet wording', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, allowSign: true},
+      });
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: mockUser},
+          appointments: {items: [mockAppointment]},
+          companion: {companions: []},
+        }),
+      );
+      const entry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {
+              id: 'placeholderField',
+              type: 'input',
+              label: 'Pet placeholder',
+              placeholder: 'Pet name',
+            },
+            {id: 'unknown', type: 'unknown', label: 'Unknown'},
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId, queryByText} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Companion placeholder').props.value).toBe(
+        'companion name',
+      );
+      expect(queryByText('Unknown')).toBeNull();
+    });
+  });
+
   // -------------------------------------------------------------------------
   // canStartSigning: signingRequired=false → no "View & Sign" button
   // -------------------------------------------------------------------------
@@ -1145,6 +1924,280 @@ describe('AppointmentFormScreen — final coverage push', () => {
 
       const {getByTestId} = render(<AppointmentFormScreen />);
       expect(getByTestId('input-container-Notes')).toBeTruthy();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // richtext field type — must render (previously fell through to null while
+  // still counting toward the progress percentage, making it unreachable)
+  // -------------------------------------------------------------------------
+
+  describe('richtext field type', () => {
+    it('renders a richtext field as a multiline Input in edit mode', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-container-Story')).toBeTruthy();
+    });
+
+    it('renders a filled richtext field as a read-only multiline Input', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: 'Once upon a time'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe('Once upon a time');
+    });
+
+    it('counts a filled richtext field toward form progress', () => {
+      const schema = [
+        {id: 'story', type: 'richtext', label: 'Story'},
+        {id: 'notes', type: 'textarea', label: 'Notes'},
+      ];
+      const entry = {
+        ...baseFormEntry,
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: 'Once upon a time'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByText} = render(<AppointmentFormScreen />);
+      expect(getByText('50%')).toBeTruthy();
+    });
+
+    it('strips HTML tags and decodes entities for display instead of showing raw markup', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {
+            story: '<p>Patient is stable &amp; resting</p><p>Second line</p>',
+          },
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe(
+        'Patient is stable & resting\nSecond line',
+      );
+    });
+
+    it('re-wraps edited plain text into <p> HTML so the stored answer stays valid HTML', async () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      mockDispatch.mockImplementation(() => {
+        const p = Promise.resolve({});
+        (p as any).unwrap = () => Promise.resolve({});
+        return p;
+      });
+
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Story'), 'Line one\nLine two');
+      fireEvent(getByText('Submit'), 'onTouchEnd');
+
+      await waitFor(() =>
+        expect(FormActions.submitAppointmentForm).toHaveBeenCalledWith(
+          expect.objectContaining({
+            answers: expect.objectContaining({
+              story: '<p>Line one</p><p>Line two</p>',
+            }),
+          }),
+        ),
+      );
+    });
+
+    it('preserves a trailing newline typed with Return as a separate keystroke before the next character', async () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      mockDispatch.mockImplementation(() => {
+        const p = Promise.resolve({});
+        (p as any).unwrap = () => Promise.resolve({});
+        return p;
+      });
+
+      const {getByTestId, getByText} = render(<AppointmentFormScreen />);
+
+      // Press Return at the end of "Hello" — RN fires onChangeText with the
+      // trailing newline already appended.
+      fireEvent.changeText(getByTestId('input-Story'), 'Hello\n');
+      // The controlled value must keep the trailing newline instead of a
+      // stripHtmlToPlainText(...).trim() round-trip eating it.
+      expect(getByTestId('input-Story').props.value).toBe('Hello\n');
+
+      // Typing the next line's first character is a separate onChangeText
+      // call that must build on top of the preserved newline, not "Hello".
+      fireEvent.changeText(getByTestId('input-Story'), 'Hello\nWorld');
+      expect(getByTestId('input-Story').props.value).toBe('Hello\nWorld');
+
+      fireEvent(getByText('Submit'), 'onTouchEnd');
+
+      await waitFor(() =>
+        expect(FormActions.submitAppointmentForm).toHaveBeenCalledWith(
+          expect.objectContaining({
+            answers: expect.objectContaining({
+              story: '<p>Hello</p><p>World</p>',
+            }),
+          }),
+        ),
+      );
+    });
+
+    it('omits the placeholder for a locked richtext field in signing mode', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, allowSign: true},
+      });
+
+      const schema = [
+        {
+          id: 'story',
+          type: 'richtext',
+          label: 'Story',
+          placeholder: 'Describe the visit',
+        },
+      ];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.placeholder).toBeUndefined();
+      expect(getByTestId('input-Story').props.editable).toBe(false);
+    });
+
+    it('displays a dash when a richtext value strips down to nothing', () => {
+      const schema = [{id: 'story', type: 'richtext', label: 'Story'}];
+      const entry = {
+        ...baseFormEntry,
+        status: 'signed',
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: '<p></p>'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe('—');
+    });
+
+    it('prefills an empty richtext field from the schema meta.defaultValue', () => {
+      const schema = [
+        {
+          id: 'story',
+          type: 'richtext',
+          label: 'Story',
+          meta: {defaultValue: '<p>Default boilerplate</p>'},
+        },
+      ];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      expect(getByTestId('input-Story').props.value).toBe(
+        'Default boilerplate',
+      );
+    });
+
+    it('rejects a required richtext field whose stored answer is a blank paragraph', () => {
+      const schema = [
+        {id: 'story', type: 'richtext', label: 'Story', required: true},
+      ];
+      const entry = {
+        ...baseFormEntry,
+        form: {...baseFormEntry.form, schema},
+        // Legacy/pre-fix data (or a value produced before the blank-guard):
+        // HTML with no real content, which is a non-empty string.
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: '<p></p>'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      expect(getByTestId('error-Story')).toBeTruthy();
+    });
+
+    it('does not count a blank-paragraph richtext answer toward form progress', () => {
+      const schema = [
+        {id: 'story', type: 'richtext', label: 'Story'},
+        {id: 'notes', type: 'textarea', label: 'Notes'},
+      ];
+      const entry = {
+        ...baseFormEntry,
+        form: {...baseFormEntry.form, schema},
+        submission: {
+          ...baseFormEntry.submission,
+          answers: {story: '<p></p>', notes: 'Filled'},
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByText} = render(<AppointmentFormScreen />);
+      // Only "notes" counts as filled: 1 of 2 fields = 50%, not 100%.
+      expect(getByText('50%')).toBeTruthy();
+    });
+
+    it('clearing a required richtext field to blank keeps it invalid on the next submit', async () => {
+      const schema = [
+        {id: 'story', type: 'richtext', label: 'Story', required: true},
+      ];
+      const entry = {...baseFormEntry, form: {...baseFormEntry.form, schema}};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Story'), '   \n  ');
+      fireEvent(getByTestId('btn-Submit'), 'onTouchEnd');
+
+      expect(getByTestId('error-Story')).toBeTruthy();
+      expect(FormActions.submitAppointmentForm).not.toHaveBeenCalled();
     });
   });
 
@@ -1232,6 +2285,165 @@ describe('AppointmentFormScreen — final coverage push', () => {
       const {getByTestId} = render(<AppointmentFormScreen />);
       const btn = getByTestId('btn-View & Sign');
       expect(btn.props.onTouchEnd).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Remaining branch coverage after the warm-bone rebuild
+  // -------------------------------------------------------------------------
+
+  describe('remaining warm-bone branch coverage', () => {
+    const resolvedUnwrap = (value: any) => ({
+      unwrap: () => Promise.resolve(value),
+      catch: jest.fn(),
+    });
+
+    it('invokes goBack from the footer Back button', () => {
+      const {getByText} = render(<AppointmentFormScreen />);
+
+      fireEvent.press(getByText('Back'));
+
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    it('renders the header subtitle with organisation, date and companion', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+        selector({
+          auth: {user: mockUser},
+          appointments: {
+            items: [
+              {
+                ...mockAppointment,
+                date: '2024-08-15',
+                organisationName: 'Happy Vets',
+              },
+            ],
+          },
+          companion: {companions: [mockCompanion]},
+        }),
+      );
+
+      const {getByText} = render(<AppointmentFormScreen />);
+      // headerSubtitle takes the `appointment?.date ? getDisplayDate(...)` branch
+      expect(getByText(/Happy Vets/)).toBeTruthy();
+    });
+
+    it('prefills a locked field from its text property when no placeholder exists', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...defaultRouteParams, allowSign: true},
+      });
+      const entry = {
+        ...baseFormEntry,
+        form: {
+          ...baseFormEntry.form,
+          schema: [
+            {id: 'info', type: 'input', label: 'Info', text: 'Reserved'},
+          ],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      // placeholder undefined → falls back to `field.text` in the lock-prefill path
+      expect(getByTestId('input-Info').props.value).toBe('Reserved');
+    });
+
+    it('goes back when signing is required but the submission id is missing', async () => {
+      const entry = {...baseFormEntry, signingRequired: true};
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+      mockDispatch.mockReturnValueOnce(resolvedUnwrap({}));
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent(getByTestId('btn-Submit & Continue'), 'onTouchEnd');
+
+      await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(FormActions.startFormSigning).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Signing not started',
+        expect.stringContaining('could not start the signing process'),
+      );
+    });
+
+    it('warns before discarding unsaved answers and lets the user keep editing or discard', () => {
+      const listeners: Record<string, (e: any) => void> = {};
+      const mockAddListener = jest.fn((event: string, cb: any) => {
+        listeners[event] = cb;
+        return jest.fn();
+      });
+      const mockDispatchNav = jest.fn();
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: mockNavigate,
+        goBack: mockGoBack,
+        addListener: mockAddListener,
+        dispatch: mockDispatchNav,
+      });
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Name'), 'new value');
+
+      const preventDefault = jest.fn();
+      const action = {type: 'GO_BACK'};
+      listeners.beforeRemove({preventDefault, data: {action}});
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Discard changes?',
+        expect.stringContaining('have not been saved yet'),
+        expect.any(Array),
+      );
+
+      const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2];
+      const discardButton = alertButtons.find(
+        (btn: any) => btn.text === 'Discard',
+      );
+      discardButton.onPress();
+      expect(mockDispatchNav).toHaveBeenCalledWith(action);
+    });
+
+    it('does not prompt on back navigation when there are no unsaved changes', () => {
+      const listeners: Record<string, (e: any) => void> = {};
+      const mockAddListener = jest.fn((event: string, cb: any) => {
+        listeners[event] = cb;
+        return jest.fn();
+      });
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: mockNavigate,
+        goBack: mockGoBack,
+        addListener: mockAddListener,
+        dispatch: jest.fn(),
+      });
+
+      render(<AppointmentFormScreen />);
+
+      const preventDefault = jest.fn();
+      listeners.beforeRemove({preventDefault, data: {action: {}}});
+
+      expect(preventDefault).not.toHaveBeenCalled();
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it('JSON-stringifies an object value whose url is empty in read-only mode', () => {
+      const entry = {
+        ...baseFormEntry,
+        status: 'completed',
+        submission: {_id: 's1', answers: {u: {url: ''}}},
+        form: {
+          ...baseFormEntry.form,
+          schema: [{id: 'u', type: 'input', label: 'Doc'}],
+        },
+      };
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        entry,
+      ]);
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      // 'url' in value is true but value.url is falsy → JSON.stringify fallback
+      expect(getByTestId('input-Doc').props.value).toBe('{"url":""}');
     });
   });
 });

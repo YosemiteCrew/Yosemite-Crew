@@ -13,8 +13,10 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp, NavigationProp} from '@react-navigation/native';
 import {useSelector, useDispatch} from 'react-redux';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import type {AppDispatch, RootState} from '@/app/store';
 import {Input, TouchableInput} from '@/shared/components/common';
+import {Badge} from '@/shared/components/common/Badge/Badge';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -38,7 +40,7 @@ import {
   resolveObservationalToolLabel,
   buildTaskTypeBreadcrumb,
 } from '@/features/tasks/utils/taskLabels';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import type {
   MedicationTaskDetails,
   ObservationalToolTaskDetails,
@@ -53,6 +55,46 @@ import type {VetService} from '@/features/appointments/types';
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TaskView'>;
 type Route = RouteProp<TaskStackParamList, 'TaskView'>;
 
+const formatTime = (timeStr?: string) => {
+  if (!timeStr) return '';
+  try {
+    // Handle HH:mm:ss format (time string)
+    if (timeStr.includes(':')) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return '';
+
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+
+    // Fallback for ISO date strings
+    const date = new Date(timeStr);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return '';
+  }
+};
+
+const getReminderLabel = (reminderOption: string | null | undefined) => {
+  if (!reminderOption) return '';
+  return reminderOption;
+};
+
+const getCalendarProviderLabel = (provider: string | null | undefined) => {
+  if (!provider) return '';
+  return provider === 'google' ? 'Google Calendar' : 'iCloud Calendar';
+};
+
 export const TaskViewScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
@@ -60,6 +102,7 @@ export const TaskViewScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const iconStyles = useMemo(() => createIconStyles(theme), [theme]);
+  const [isPdfInteracting, setIsPdfInteracting] = React.useState(false);
 
   const {taskId, source = 'tasks'} = route.params;
   const task = useSelector((state: RootState) => selectTaskById(taskId)(state));
@@ -341,36 +384,6 @@ export const TaskViewScreen: React.FC = () => {
     tabNav?.navigate('Tasks', {screen: 'TasksMain'});
   };
 
-  const formatTime = (timeStr?: string) => {
-    if (!timeStr) return '';
-    try {
-      // Handle HH:mm:ss format (time string)
-      if (timeStr.includes(':')) {
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        if (Number.isNaN(hours) || Number.isNaN(minutes)) return '';
-
-        const date = new Date();
-        date.setHours(hours, minutes, 0, 0);
-        return date.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        });
-      }
-
-      // Fallback for ISO date strings
-      const date = new Date(timeStr);
-      if (Number.isNaN(date.getTime())) return '';
-      return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return '';
-    }
-  };
-
   // Get task type breadcrumb
   const getTaskTypeBreadcrumb = () => {
     if (isMedication) {
@@ -396,16 +409,6 @@ export const TaskViewScreen: React.FC = () => {
     }
   };
 
-  const getReminderLabel = (reminderOption: string | null | undefined) => {
-    if (!reminderOption) return '';
-    return reminderOption;
-  };
-
-  const getCalendarProviderLabel = (provider: string | null | undefined) => {
-    if (!provider) return '';
-    return provider === 'google' ? 'Google Calendar' : 'iCloud Calendar';
-  };
-
   const getAssignedToName = () => {
     if (!task.assignedTo) return '';
     const selfId = currentUser?.parentId ?? currentUser?.id;
@@ -414,6 +417,40 @@ export const TaskViewScreen: React.FC = () => {
     }
     return 'Unknown';
   };
+
+  const heroVisual = (() => {
+    if (isMedication) {
+      return {
+        bg: theme.colors.avatarAmberBg,
+        ink: theme.colors.avatarAmberInk,
+        icon: 'medkit-outline',
+      };
+    }
+    if (isObservationalTool) {
+      return {
+        bg: theme.colors.avatarVioletBg,
+        ink: theme.colors.avatarVioletInk,
+        icon: 'pulse-outline',
+      };
+    }
+    return {
+      bg: theme.colors.avatarGreenBg,
+      ink: theme.colors.avatarGreenInk,
+      icon: 'checkbox-outline',
+    };
+  })();
+
+  const heroSubtitle = [getTaskTypeBreadcrumb(), companion?.name]
+    .filter(Boolean)
+    .join('  ·  ');
+
+  let badgeStatus: 'completed' | 'cancelled' | 'pending' = 'pending';
+  if (isCompleted) {
+    badgeStatus = 'completed';
+  } else if (isCancelled) {
+    badgeStatus = 'cancelled';
+  }
+  const badgeLabel = String(task.status ?? '').toUpperCase();
 
   return (
     <LiquidGlassHeaderScreen
@@ -432,6 +469,8 @@ export const TaskViewScreen: React.FC = () => {
       {contentPaddingStyle => (
         <ScrollView
           style={styles.container}
+          nestedScrollEnabled
+          scrollEnabled={!isPdfInteracting}
           contentContainerStyle={[
             styles.contentContainer,
             contentPaddingStyle,
@@ -445,6 +484,35 @@ export const TaskViewScreen: React.FC = () => {
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
+          {/* Hero */}
+          <View style={styles.hero}>
+            <View style={[styles.heroTile, {backgroundColor: heroVisual.bg}]}>
+              <Ionicons
+                name={heroVisual.icon}
+                size={25}
+                color={heroVisual.ink}
+              />
+            </View>
+            <View style={styles.heroText}>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {task.title}
+              </Text>
+              {heroSubtitle ? (
+                <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Status */}
+          {badgeLabel ? (
+            <Badge
+              status={badgeStatus}
+              label={badgeLabel}
+              size="sm"
+              style={styles.statusBadge}
+            />
+          ) : null}
+
           {isObservationalTool && !isCancelled && (
             <LiquidGlassCard
               glassEffect="clear"
@@ -513,119 +581,93 @@ export const TaskViewScreen: React.FC = () => {
             </LiquidGlassCard>
           )}
 
-          {/* Companion */}
-          <ViewField
-            label="Companion"
-            value={companion?.name || ''}
-            fieldGroupStyle={styles.fieldGroup}
-          />
-
-          {/* Task Type */}
-          <ViewTouchField
-            label="Task type"
-            value={getTaskTypeBreadcrumb()}
-            icon={Images.dropdownIcon}
-            iconStyle={iconStyles.dropdownIcon}
-            fieldGroupStyle={styles.fieldGroup}
-          />
+          {/* Overview */}
+          <View style={styles.detailCard}>
+            <ViewField label="Companion" value={companion?.name || ''} first />
+            <ViewTouchField label="Task type" value={getTaskTypeBreadcrumb()} />
+          </View>
 
           {/* Medication Task Form */}
           {isMedication && (
             <>
-              {/* Task Name */}
-              <ViewField
-                label="Task name"
-                value={task.title}
-                fieldGroupStyle={styles.fieldGroup}
-              />
+              <View style={styles.detailCard}>
+                {/* Task Name */}
+                <ViewField label="Task name" value={task.title} first />
 
-              {taskDescription ? (
+                {taskDescription ? (
+                  <ViewField
+                    label="Task description"
+                    value={taskDescription}
+                    multiline
+                  />
+                ) : null}
+
+                {/* Medicine Name */}
                 <ViewField
-                  label="Task description"
-                  value={taskDescription}
-                  fieldGroupStyle={styles.fieldGroup}
+                  label="Medicine name"
+                  value={(task.details as MedicationTaskDetails).medicineName}
                 />
-              ) : null}
 
-              {/* Medicine Name */}
-              <ViewField
-                label="Medicine name"
-                value={(task.details as MedicationTaskDetails).medicineName}
-                fieldGroupStyle={styles.fieldGroup}
-              />
+                {/* Medication Type */}
+                <ViewTouchField
+                  label="Medication type"
+                  value={resolveMedicationTypeLabel(
+                    (task.details as MedicationTaskDetails).medicineType,
+                  )}
+                />
 
-              {/* Medication Type */}
-              <ViewTouchField
-                label="Medication type"
-                value={resolveMedicationTypeLabel(
-                  (task.details as MedicationTaskDetails).medicineType,
-                )}
-                icon={Images.dropdownIcon}
-                iconStyle={iconStyles.dropdownIcon}
-                fieldGroupStyle={styles.fieldGroup}
-              />
+                {/* Dosage */}
+                <ViewTouchField
+                  label="Dosage"
+                  value={`${(task.details as MedicationTaskDetails).dosages.length} dosage${
+                    (task.details as MedicationTaskDetails).dosages.length > 1
+                      ? 's'
+                      : ''
+                  }`}
+                />
 
-              {/* Dosage */}
-              <ViewTouchField
-                label="Dosage"
-                value={`${(task.details as MedicationTaskDetails).dosages.length} dosage${
-                  (task.details as MedicationTaskDetails).dosages.length > 1
-                    ? 's'
-                    : ''
-                }`}
-                icon={Images.dropdownIcon}
-                iconStyle={iconStyles.dropdownIcon}
-                fieldGroupStyle={styles.fieldGroup}
-              />
+                {/* Medication Frequency */}
+                <ViewTouchField
+                  label="Medication frequency"
+                  value={resolveMedicationFrequencyLabel(
+                    (task.details as MedicationTaskDetails).frequency,
+                  )}
+                />
+              </View>
 
-              {/* Display Dosage Details */}
+              {/* Dose schedule */}
               {(task.details as MedicationTaskDetails).dosages.length > 0 && (
-                <View style={styles.dosageDisplayContainer}>
+                <View style={styles.doseSection}>
+                  <Text style={styles.doseHeading}>Doses</Text>
                   {(task.details as MedicationTaskDetails).dosages.map(
-                    dosage => (
-                      <View key={dosage.id} style={styles.dosageDisplayRow}>
-                        <View style={styles.dosageDisplayField}>
-                          <Input
-                            label="Dosage"
-                            value={dosage.label}
-                            editable={false}
-                          />
+                    (dosage, index) => (
+                      <View
+                        key={dosage.id}
+                        style={styles.doseRow}
+                        testID={`dose-row-${index}`}>
+                        <View
+                          style={
+                            isCompleted
+                              ? styles.doseCheckDone
+                              : styles.doseCheckEmpty
+                          }>
+                          {isCompleted ? (
+                            <Ionicons
+                              name="checkmark"
+                              size={14}
+                              color={theme.colors.white}
+                            />
+                          ) : null}
                         </View>
-                        <View style={styles.dosageDisplayField}>
-                          <Input
-                            label="Time"
-                            value={formatTime(dosage.time)}
-                            editable={false}
-                            icon={
-                              <Image
-                                source={Images.clockIcon}
-                                style={iconStyles.clockIcon}
-                              />
-                            }
-                          />
-                        </View>
+                        <Text style={styles.doseLabel}>{dosage.label}</Text>
+                        <Text style={styles.doseMeta}>
+                          {formatTime(dosage.time)}
+                        </Text>
                       </View>
                     ),
                   )}
                 </View>
               )}
-
-              {/* Medication Frequency */}
-              <View style={styles.fieldGroup}>
-                <TouchableInput
-                  label="Medication frequency"
-                  value={resolveMedicationFrequencyLabel(
-                    (task.details as MedicationTaskDetails).frequency,
-                  )}
-                  onPress={() => {}} // View only
-                  rightComponent={
-                    <Image
-                      source={Images.dropdownIcon}
-                      style={iconStyles.dropdownIcon}
-                    />
-                  }
-                />
-              </View>
 
               {/* Start and End Date */}
               <View style={styles.dateTimeRow}>
@@ -686,19 +728,15 @@ export const TaskViewScreen: React.FC = () => {
 
           {/* Observational Tool Task Form */}
           {isObservationalTool && (
-            <>
+            <View style={styles.detailCard}>
               {/* Task Name */}
-              <ViewField
-                label="Task name"
-                value={task.title}
-                fieldGroupStyle={styles.fieldGroup}
-              />
+              <ViewField label="Task name" value={task.title} first />
 
               {taskDescription ? (
                 <ViewField
                   label="Task description"
                   value={taskDescription}
-                  fieldGroupStyle={styles.fieldGroup}
+                  multiline
                 />
               ) : null}
 
@@ -706,56 +744,33 @@ export const TaskViewScreen: React.FC = () => {
               <ViewTouchField
                 label="Select observational tool"
                 value={otLabel}
-                icon={Images.dropdownIcon}
-                iconStyle={iconStyles.dropdownIcon}
-                fieldGroupStyle={styles.fieldGroup}
               />
 
               {/* Date */}
               <ViewTouchField
                 label="Date"
                 value={formatDateForDisplay(new Date(task.date))}
-                icon={Images.calendarIcon}
-                iconStyle={iconStyles.calendarIcon}
-                fieldGroupStyle={styles.fieldGroup}
               />
 
               {/* Time */}
-              <ViewTouchField
-                label="Time"
-                value={formatTime(task.time)}
-                icon={Images.clockIcon}
-                iconStyle={iconStyles.clockIcon}
-                fieldGroupStyle={styles.fieldGroup}
-              />
+              <ViewTouchField label="Time" value={formatTime(task.time)} />
 
               {/* Task Frequency */}
               <ViewTouchField
                 label="Task frequency"
                 value={resolveTaskFrequencyLabel(task.frequency)}
-                icon={Images.dropdownIcon}
-                iconStyle={iconStyles.dropdownIcon}
-                fieldGroupStyle={styles.fieldGroup}
               />
 
               {/* Assign Task */}
-              <ViewField
-                label="Assign task"
-                value={getAssignedToName()}
-                fieldGroupStyle={styles.fieldGroup}
-              />
-            </>
+              <ViewField label="Assign task" value={getAssignedToName()} />
+            </View>
           )}
 
           {/* Simple Task Form (Custom, Hygiene, Dietary) */}
           {!isMedication && !isObservationalTool && (
-            <>
+            <View style={styles.detailCard}>
               {/* Task Name */}
-              <ViewField
-                label="Task name"
-                value={task.title}
-                fieldGroupStyle={styles.fieldGroup}
-              />
+              <ViewField label="Task name" value={task.title} first />
 
               {/* Task Description */}
               {taskDescription ? (
@@ -763,9 +778,6 @@ export const TaskViewScreen: React.FC = () => {
                   label="Task description"
                   value={taskDescription}
                   multiline
-                  numberOfLines={3}
-                  textAreaStyle={styles.textArea}
-                  fieldGroupStyle={styles.fieldGroup}
                 />
               ) : null}
 
@@ -775,28 +787,17 @@ export const TaskViewScreen: React.FC = () => {
                 dateValue={formatDateForDisplay(new Date(task.date))}
                 timeLabel="Time"
                 timeValue={formatTime(task.time)}
-                dateTimeRowStyle={styles.dateTimeRow}
-                dateTimeFieldStyle={styles.dateTimeField}
-                calendarIconStyle={iconStyles.calendarIcon}
-                clockIconStyle={iconStyles.clockIcon}
               />
 
               {/* Task Frequency */}
               <ViewTouchField
                 label="Task frequency"
                 value={resolveTaskFrequencyLabel(task.frequency)}
-                icon={Images.dropdownIcon}
-                iconStyle={iconStyles.dropdownIcon}
-                fieldGroupStyle={styles.fieldGroup}
               />
 
               {/* Assign Task */}
-              <ViewField
-                label="Assign task"
-                value={getAssignedToName()}
-                fieldGroupStyle={styles.fieldGroup}
-              />
-            </>
+              <ViewField label="Assign task" value={getAssignedToName()} />
+            </View>
           )}
 
           {/* Reminder Section */}
@@ -887,6 +888,8 @@ export const TaskViewScreen: React.FC = () => {
                 attachments={preparedAttachments as any}
                 documentTitle={task.title}
                 companionName={companion?.name}
+                onPdfTouchStart={() => setIsPdfInteracting(true)}
+                onPdfTouchEnd={() => setIsPdfInteracting(false)}
               />
             </View>
           )}
@@ -909,11 +912,18 @@ export const TaskViewScreen: React.FC = () => {
           {!isObservationalTool && isPending && !isCancelled && (
             <View style={styles.completeButtonContainer}>
               <LiquidGlassButton
-                title="Complete"
+                title="Mark complete"
                 onPress={handleCompleteTask}
                 glassEffect="clear"
-                borderRadius="lg"
-                tintColor={theme.colors.secondary}
+                borderRadius="button"
+                tintColor={theme.colors.cta}
+                leftIcon={
+                  <Ionicons
+                    name="checkmark"
+                    size={18}
+                    color={theme.colors.ctaText}
+                  />
+                }
                 style={styles.completeButton}
                 textStyle={styles.completeButtonText}
               />
@@ -998,10 +1008,112 @@ const createStyles = (theme: any) => {
     },
     otCtaButtonText: {
       ...theme.typography.buttonH6Clash19,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
     ...formStyles,
+    // Hero
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3.5'],
+      marginBottom: theme.spacing['4'],
+    },
+    heroTile: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.borderRadius.cardSmall,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroText: {
+      flex: 1,
+    },
+    heroTitle: {
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
+    },
+    heroSubtitle: {
+      ...theme.typography.body13,
+      color: theme.colors.inkFaint,
+      marginTop: theme.spacing['1'],
+    },
+    statusBadge: {
+      marginBottom: theme.spacing['5'],
+    },
+    // Detail group card (hairline-divided label/value rows)
+    detailCard: {
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.cardSmall,
+      paddingHorizontal: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
+    },
+    // Dose schedule
+    doseSection: {
+      marginBottom: theme.spacing['4'],
+    },
+    doseHeading: {
+      ...theme.typography.labelMdBold,
+      color: theme.colors.ink,
+      marginBottom: theme.spacing['3'],
+    },
+    doseRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      backgroundColor: theme.colors.screen,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.field,
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3.5'],
+      marginBottom: theme.spacing['2'],
+    },
+    doseCheckDone: {
+      width: 24,
+      height: 24,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.success,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    doseCheckEmpty: {
+      width: 24,
+      height: 24,
+      borderRadius: theme.borderRadius.full,
+      borderWidth: 2,
+      borderColor: theme.colors.divider,
+    },
+    doseLabel: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.inkBody,
+      flex: 1,
+    },
+    doseMeta: {
+      ...theme.typography.body13,
+      color: theme.colors.inkFaint,
+      fontVariant: ['tabular-nums'],
+    },
+    // Toggle rows (warm-bone overrides of the shared form styles)
+    toggleSection: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: theme.spacing['2'],
+      marginBottom: theme.spacing['2'],
+    },
+    toggleLabel: {
+      ...theme.typography.label,
+      color: theme.colors.inkBody,
+    },
+    reminderPillSelected: {
+      backgroundColor: theme.colors.blueSoft,
+      borderColor: theme.colors.blue,
+    },
+    reminderPillTextSelected: {
+      color: theme.colors.navActive,
+      fontWeight: '700',
+    },
     // Input and Label styles - matching DocumentForm
     input: {
       marginBottom: theme.spacing['4'],
@@ -1033,17 +1145,6 @@ const createStyles = (theme: any) => {
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
-    },
-    dosageDisplayContainer: {
-      gap: theme.spacing['3'],
-      marginBottom: theme.spacing['4'],
-    },
-    dosageDisplayRow: {
-      flexDirection: 'row',
-      gap: theme.spacing['3'],
-    },
-    dosageDisplayField: {
-      flex: 1,
     },
     completedBadge: {
       backgroundColor: theme.colors.successSurface,
@@ -1078,7 +1179,7 @@ const createStyles = (theme: any) => {
     },
     completeButtonText: {
       ...theme.typography.buttonH6Clash19,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
     reuseButtonContainer: {
@@ -1091,7 +1192,7 @@ const createStyles = (theme: any) => {
     },
     reuseButtonText: {
       ...theme.typography.buttonH6Clash19,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
     errorContainer: {

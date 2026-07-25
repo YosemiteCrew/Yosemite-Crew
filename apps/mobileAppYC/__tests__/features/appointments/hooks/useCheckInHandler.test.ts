@@ -192,6 +192,26 @@ describe('useCheckInHandler', () => {
         'You can check in starting 12 minutes before your appointment at 10:00 AM.',
       );
     });
+
+    it('should use singular "minute" when the buffer is exactly 1', async () => {
+      (checkInUtils.getCheckInConstants as jest.Mock).mockReturnValue({
+        CHECKIN_BUFFER_MINUTES: 1,
+        CHECKIN_RADIUS_METERS: 200,
+      });
+      (checkInUtils.isWithinCheckInWindow as jest.Mock).mockReturnValue(false);
+      (checkInUtils.formatCheckInTime as jest.Mock).mockReturnValue('10:00 AM');
+
+      const {result} = renderHook(() => useCheckInHandler());
+
+      await act(async () => {
+        await result.current.handleCheckIn(mockConfig);
+      });
+
+      expect(mockAlert).toHaveBeenCalledWith(
+        'Too early to check in',
+        'You can check in starting 1 minute before your appointment at 10:00 AM.',
+      );
+    });
   });
 
   describe('location validation', () => {

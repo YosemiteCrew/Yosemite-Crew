@@ -61,6 +61,20 @@ jest.mock(
         >
           Autofill
         </button>
+        <button
+          type="button"
+          data-testid={`autofill-no-country-${inlabel}`}
+          onClick={() =>
+            onAddressSelect?.({
+              addressLine: '2 NoCountry Ave',
+              city: 'NC City',
+              state: 'NC State',
+              postalCode: '11111',
+            })
+          }
+        >
+          Autofill without country
+        </button>
       </div>
     )
 );
@@ -254,5 +268,126 @@ describe('AddressStep Component', () => {
 
     fireEvent.click(screen.getByTestId('back-button'));
     expect(mockPrevStep).toHaveBeenCalled();
+  });
+
+  it('applies errors passed via the errors prop', () => {
+    render(
+      <AddressStep
+        errors={{ city: 'City is required', postalCode: 'Postal code is required' }}
+        nextStep={mockNextStep}
+        prevStep={mockPrevStep}
+        formData={emptyFormData}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    expect(screen.getByTestId('error-City')).toHaveTextContent('City is required');
+    expect(screen.getByTestId('error-Postal code')).toHaveTextContent('Postal code is required');
+  });
+
+  it('updates city, state, and postal code fields on change', () => {
+    render(
+      <AddressStep
+        nextStep={mockNextStep}
+        prevStep={mockPrevStep}
+        formData={emptyFormData}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId('input-City'), { target: { value: 'Metropolis' } });
+    expect(mockSetFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ address: expect.objectContaining({ city: 'Metropolis' }) })
+    );
+
+    fireEvent.change(screen.getByTestId('input-State/Province'), { target: { value: 'NY' } });
+    expect(mockSetFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ address: expect.objectContaining({ state: 'NY' }) })
+    );
+
+    fireEvent.change(screen.getByTestId('input-Postal code'), { target: { value: '10001' } });
+    expect(mockSetFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ address: expect.objectContaining({ postalCode: '10001' }) })
+    );
+  });
+
+  it('updates the check-in radius field and coerces empty numeric input to 0', () => {
+    render(
+      <AddressStep
+        nextStep={mockNextStep}
+        prevStep={mockPrevStep}
+        formData={emptyFormData}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId('input-Check-in radius (meters)'), {
+      target: { value: '500' },
+    });
+    expect(mockSetFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentCheckInRadiusMeters: 500 })
+    );
+
+    fireEvent.change(screen.getByTestId('input-Check-in opens (minutes before appointment)'), {
+      target: { value: '' },
+    });
+    expect(mockSetFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentCheckInBufferMinutes: 0 })
+    );
+
+    fireEvent.change(screen.getByTestId('input-Check-in radius (meters)'), {
+      target: { value: '' },
+    });
+    expect(mockSetFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentCheckInRadiusMeters: 0 })
+    );
+  });
+
+  it('defaults the check-in values when they are absent from formData', () => {
+    const formDataWithoutCheckIn = {
+      address: { addressLine: '', city: '', state: '', postalCode: '' },
+    } as unknown as Organisation;
+
+    render(
+      <AddressStep
+        nextStep={mockNextStep}
+        prevStep={mockPrevStep}
+        formData={formDataWithoutCheckIn}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    expect(
+      (screen.getByTestId('input-Check-in opens (minutes before appointment)') as HTMLInputElement)
+        .value
+    ).toBe('5');
+    expect((screen.getByTestId('input-Check-in radius (meters)') as HTMLInputElement).value).toBe(
+      '200'
+    );
+  });
+
+  it('autofills without a country when the selected place has none', () => {
+    render(
+      <AddressStep
+        nextStep={mockNextStep}
+        prevStep={mockPrevStep}
+        formData={emptyFormData}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('autofill-no-country-Address line'));
+
+    const updateFn = mockSetFormData.mock.calls[0][0];
+    const newState = updateFn(emptyFormData);
+    expect(newState.address).toEqual(
+      expect.objectContaining({
+        addressLine: '2 NoCountry Ave',
+        city: 'NC City',
+        state: 'NC State',
+        postalCode: '11111',
+      })
+    );
+    expect(newState.address.country).toBeUndefined();
   });
 });

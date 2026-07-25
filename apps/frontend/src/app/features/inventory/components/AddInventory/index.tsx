@@ -5,7 +5,7 @@ import { calculateBatchTotals } from '@/app/features/inventory/pages/Inventory/u
 import { BusinessType } from '@/app/features/organization/types/org';
 import FormSection from '@/app/features/inventory/components/AddInventory/FormSection';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 
 const labels: { key: InventorySectionKey; name: string }[] = [
@@ -54,7 +54,9 @@ const emptyInventoryItem: InventoryItem = {
     unitofMeasure: '',
     species: [],
     administration: '',
-    itemType: 'Drug',
+    // Left unset so buildInventoryPayload can fall back to basicInfo.itemType and so
+    // business types with no itemType control never ship an unchosen MEDICAL default.
+    itemType: undefined,
     drugSchedule: '',
     storageCondition: '',
     controlledSubstance: 'false',
@@ -141,6 +143,15 @@ const nonDrugClassificationDefaults = {
   reportableToGovernment: 'false',
 };
 
+// FormSection hides drug-only fields across three sections; each hidden value must also be
+// cleared here, or a value entered while the item was still a Drug stays in the payload.
+const clearDrugOnlyFields = (prev: InventoryItem): InventoryItem => ({
+  ...prev,
+  stock: { ...prev.stock, withdrawlPeriod: '' },
+  batch: { ...prev.batch, tracking: undefined },
+  batches: prev.batches?.map((batch) => ({ ...batch, tracking: undefined })),
+});
+
 type AddInventoryProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -150,7 +161,7 @@ type AddInventoryProps = {
   organisationId?: string;
 };
 
-const AddInventory = ({
+const useAddInventoryContent = ({
   showModal,
   setShowModal,
   businessType,
@@ -193,14 +204,18 @@ const AddInventory = ({
     }
 
     if (section === 'classification') {
-      setFormData((prev) => ({
-        ...prev,
-        classification: {
-          ...prev.classification,
-          ...patch,
-          ...(patch.itemType === 'Non-drug' ? nonDrugClassificationDefaults : {}),
-        },
-      }));
+      setFormData((prev) => {
+        const isNonDrug = patch.itemType === 'Non-drug';
+        const base = isNonDrug ? clearDrugOnlyFields(prev) : prev;
+        return {
+          ...base,
+          classification: {
+            ...base.classification,
+            ...patch,
+            ...(isNonDrug ? nonDrugClassificationDefaults : {}),
+          },
+        };
+      });
       return;
     }
 
@@ -455,14 +470,9 @@ const AddInventory = ({
   }
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <div className="flex items-center justify-between border-b border-card-border pb-4">
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="text-body-1 text-text-primary">Add item</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title="Add product" onClose={() => setShowModal(false)} />
 
         <Labels
           labels={labels}
@@ -500,13 +510,13 @@ const AddInventory = ({
                     style={{
                       backgroundColor:
                         formData.basicInfo.visibleInInventory === false
-                          ? 'var(--color-neutral-300)'
-                          : 'var(--color-blue-sky)',
+                          ? 'var(--divider)'
+                          : 'var(--blue)',
                     }}
                   >
                     <span
                       aria-hidden="true"
-                      className={`block size-6 rounded-full bg-white shadow-sm transition-transform ${
+                      className={`block size-6 rounded-full bg-[var(--screen)] shadow-sm transition-transform ${
                         formData.basicInfo.visibleInInventory === false
                           ? 'translate-x-0'
                           : 'translate-x-6'
@@ -582,5 +592,7 @@ const AddInventory = ({
     </Modal>
   );
 };
+
+const AddInventory = (props: AddInventoryProps) => useAddInventoryContent(props);
 
 export default AddInventory;

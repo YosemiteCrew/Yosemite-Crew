@@ -8,12 +8,14 @@ export interface PlaceSuggestion {
   secondaryText?: string;
 }
 
+export interface PlaceLocation {
+  latitude: number;
+  longitude: number;
+}
+
 export interface FetchPlaceSuggestionsParams {
   query: string;
-  location?: {
-    latitude: number;
-    longitude: number;
-  } | null;
+  location?: PlaceLocation | null;
 }
 
 export interface PlaceDetails {
@@ -83,7 +85,9 @@ const fetchPlacePayload = async (placeId: string, fields: string[]) => {
 
   if (!response.ok) {
     const message = await response.text().catch(() => '');
-    throw new Error(message || 'Failed to fetch place details from Google Places.');
+    throw new Error(
+      message || 'Failed to fetch place details from Google Places.',
+    );
   }
 
   const payload = await response.json().catch(() => ({}));
@@ -105,7 +109,8 @@ const normalizeSuggestion = (raw: any): PlaceSuggestion | null => {
   const structuredFormat = placePrediction?.structuredFormat;
   const primaryText: string | undefined =
     structuredFormat?.mainText?.text ?? placePrediction?.text?.text;
-  const secondaryText: string | undefined = structuredFormat?.secondaryText?.text;
+  const secondaryText: string | undefined =
+    structuredFormat?.secondaryText?.text;
 
   return {
     placeId,
@@ -115,8 +120,9 @@ const normalizeSuggestion = (raw: any): PlaceSuggestion | null => {
 };
 
 const findAddressComponent = (components: any[], type: string) =>
-  components.find((component: any) =>
-    Array.isArray(component?.types) && component.types.includes(type),
+  components.find(
+    (component: any) =>
+      Array.isArray(component?.types) && component.types.includes(type),
   );
 
 export const fetchPlaceSuggestions = async ({
@@ -130,33 +136,36 @@ export const fetchPlaceSuggestions = async ({
     return [];
   }
 
-  const response = await fetch(`${GOOGLE_PLACES_BASE_URL}/places:autocomplete`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': buildFieldMask([
-        'suggestions.placePrediction.placeId',
-        'suggestions.placePrediction.text',
-        'suggestions.placePrediction.structuredFormat',
-      ]),
-    },
-    body: JSON.stringify({
-      input: trimmedQuery,
-      includedPrimaryTypes: ['street_address', 'premise', 'route'],
-      locationBias: location
-        ? {
-            circle: {
-              center: {
-                latitude: location.latitude,
-                longitude: location.longitude,
+  const response = await fetch(
+    `${GOOGLE_PLACES_BASE_URL}/places:autocomplete`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': buildFieldMask([
+          'suggestions.placePrediction.placeId',
+          'suggestions.placePrediction.text',
+          'suggestions.placePrediction.structuredFormat',
+        ]),
+      },
+      body: JSON.stringify({
+        input: trimmedQuery,
+        includedPrimaryTypes: ['street_address', 'premise', 'route'],
+        locationBias: location
+          ? {
+              circle: {
+                center: {
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                },
+                radius: 3000,
               },
-              radius: 3000,
-            },
-          }
-        : undefined,
-    }),
-  });
+            }
+          : undefined,
+      }),
+    },
+  );
 
   if (!response.ok) {
     const message = await response.text().catch(() => '');
@@ -175,7 +184,9 @@ export const fetchPlaceSuggestions = async ({
     .filter((item): item is PlaceSuggestion => Boolean(item?.primaryText));
 };
 
-export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> => {
+export const fetchPlaceDetails = async (
+  placeId: string,
+): Promise<PlaceDetails> => {
   const {payload} = await fetchPlacePayload(placeId, [
     'formattedAddress',
     'addressComponents',
@@ -188,16 +199,28 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
     : [];
 
   const formattedAddress: string | undefined = payload?.formattedAddress;
-  const streetNumber = findAddressComponent(addressComponents, 'street_number')?.longText;
+  const streetNumber = findAddressComponent(
+    addressComponents,
+    'street_number',
+  )?.longText;
   const route = findAddressComponent(addressComponents, 'route')?.longText;
-  const subpremise = findAddressComponent(addressComponents, 'subpremise')?.longText;
+  const subpremise = findAddressComponent(
+    addressComponents,
+    'subpremise',
+  )?.longText;
   const locality =
     findAddressComponent(addressComponents, 'locality')?.longText ??
     findAddressComponent(addressComponents, 'postal_town')?.longText ??
     findAddressComponent(addressComponents, 'sublocality')?.longText;
-  const stateProvince = findAddressComponent(addressComponents, 'administrative_area_level_1')?.shortText ??
-    findAddressComponent(addressComponents, 'administrative_area_level_1')?.longText;
-  const postalCode = findAddressComponent(addressComponents, 'postal_code')?.longText;
+  const stateProvince =
+    findAddressComponent(addressComponents, 'administrative_area_level_1')
+      ?.shortText ??
+    findAddressComponent(addressComponents, 'administrative_area_level_1')
+      ?.longText;
+  const postalCode = findAddressComponent(
+    addressComponents,
+    'postal_code',
+  )?.longText;
   const country = findAddressComponent(addressComponents, 'country')?.longText;
 
   const addressLineParts = [
@@ -224,7 +247,9 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetails> 
  * Fetch detailed business information for linked businesses
  * Includes photo, phone number, and website from Google Places
  */
-export const fetchBusinessPlaceDetails = async (placeId: string): Promise<PlaceDetails> => {
+export const fetchBusinessPlaceDetails = async (
+  placeId: string,
+): Promise<PlaceDetails> => {
   const {payload, apiKey} = await fetchPlacePayload(placeId, [
     'photos',
     'nationalPhoneNumber',
@@ -241,7 +266,8 @@ export const fetchBusinessPlaceDetails = async (placeId: string): Promise<PlaceD
   const photoUrl = buildPhotoUrl(photoName, apiKey);
 
   // Get phone number and website
-  const phoneNumber = payload?.nationalPhoneNumber || payload?.internationalPhoneNumber;
+  const phoneNumber =
+    payload?.nationalPhoneNumber || payload?.internationalPhoneNumber;
   const website = payload?.websiteUri;
 
   // Get latitude and longitude from location
@@ -313,7 +339,9 @@ export const fetchBusinessesBySearch = async ({
   }
 
   const payload = await response.json().catch(() => ({}));
-  const places = Array.isArray(payload?.places) ? (payload.places as any[]) : [];
+  const places = Array.isArray(payload?.places)
+    ? (payload.places as any[])
+    : [];
 
   return places.map((place: any) => ({
     id: place.id,

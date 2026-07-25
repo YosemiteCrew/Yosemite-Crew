@@ -136,6 +136,8 @@
 		<string>Satoshi-Regular.otf</string>
 		<string>SFProText-semibold.ttf</string>
 		<string>SFProText-regular.ttf</string>
+		<string>Ionicons.ttf</string>
+		<string>MaterialIcons.ttf</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

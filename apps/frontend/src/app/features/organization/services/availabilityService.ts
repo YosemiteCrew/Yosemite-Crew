@@ -155,14 +155,15 @@ export const createOveride = async (override: ApiOverrides) => {
 export const deleteOveride = async (override: ApiOverrides) => {
   const { removeOverride } = useAvailabilityStore.getState();
   try {
-    if (!override._id || !override.dayOfWeek || !override.organisationId) {
+    const weekStart = new Date(override.weekStartDate);
+    if (!override._id || !override.organisationId || Number.isNaN(weekStart.getTime())) {
       throw new Error('Cannot delete overides.');
     }
     await deleteData(
       '/fhir/v1/availability/' +
         override.organisationId +
         '/weekly?weekStartDate=' +
-        override.dayOfWeek
+        weekStart.toISOString().split('T')[0]
     );
     removeOverride(override._id);
   } catch (err: unknown) {

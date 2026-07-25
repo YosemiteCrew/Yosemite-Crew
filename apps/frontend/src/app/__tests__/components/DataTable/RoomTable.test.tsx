@@ -137,6 +137,19 @@ describe('RoomTable Component', () => {
     expect(mockSetView).toHaveBeenCalledWith(true);
   });
 
+  it('does not render an Edit action button in Desktop View, even when canEditRoom is true', () => {
+    render(
+      <RoomTable
+        filteredList={[mockRooms[0]]}
+        setActive={mockSetActive}
+        setView={mockSetView}
+        canEditRoom
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /edit exam room 1/i })).not.toBeInTheDocument();
+  });
+
   // --- 3. Mobile View (Mocked Card) ---
 
   it('renders RoomCard components with correct lookup maps (Mobile View)', () => {
@@ -175,6 +188,8 @@ describe('RoomTable Component', () => {
     expect(messages.length).toBeGreaterThanOrEqual(1);
   });
 
+  // Regression: the card wrapper rendered a bare `xl:hidden` (min-width:1280)
+  // alongside a `.table-list`, which DataTable.css hides at max-width:1280.
   it('handles empty hooks gracefully (empty mappings)', () => {
     // FIX: Return empty arrays instead of undefined to prevent crash in 'joinNames'
     mockUseTeam.mockReturnValue([]);

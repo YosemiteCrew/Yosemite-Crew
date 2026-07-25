@@ -33,6 +33,15 @@ jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
+const TASKS_TRANSLATIONS: Record<string, string> = {
+  'tasks.addTaskAccessibilityLabel': 'Add task',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => TASKS_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
 jest.mock('@/features/tasks/utils/taskLabels', () => ({
   resolveCategoryLabel: (cat: string) => cat.toUpperCase(),
 }));
@@ -70,6 +79,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
     const statusUpper = String(task.status).toUpperCase();
     const isPending = statusUpper === 'PENDING';
     const isCompleted = statusUpper === 'COMPLETED';
+    const isCancelled = statusUpper === 'CANCELLED';
     const assignedToData =
       task.assignedTo === authUser?.id
         ? {
@@ -84,6 +94,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
     return {
       isPending,
       isCompleted,
+      isCancelled,
       assignedToData,
       isObservationalToolTask,
     };
@@ -123,7 +134,13 @@ jest.mock('@/shared/components/common', () => ({
 }));
 
 jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => {
+  Header: ({
+    title,
+    onBack,
+    rightIcon,
+    onRightPress,
+    rightAccessibilityLabel,
+  }: any) => {
     const {TouchableOpacity, Text, View} = require('react-native');
     return (
       <View>
@@ -131,6 +148,14 @@ jest.mock('@/shared/components/common/Header/Header', () => ({
         <TouchableOpacity testID="header-back-btn" onPress={onBack}>
           <Text>Back</Text>
         </TouchableOpacity>
+        {rightIcon && (
+          <TouchableOpacity
+            testID="header-add-btn"
+            accessibilityLabel={rightAccessibilityLabel}
+            onPress={onRightPress}>
+            <Text>Add</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   },
@@ -210,6 +235,7 @@ jest.mock('@/features/tasks/components', () => ({
     showEditAction,
     showCompleteButton,
     assignedToName,
+    subcategoryLabel,
   }: any) => {
     const {View, Text, TouchableOpacity} = require('react-native');
     return (
@@ -217,6 +243,9 @@ jest.mock('@/features/tasks/components', () => ({
         <Text>{title}</Text>
         {assignedToName && (
           <Text testID={`assigned-${title}`}>{assignedToName}</Text>
+        )}
+        {subcategoryLabel && (
+          <Text testID={`subcategory-${title}`}>{subcategoryLabel}</Text>
         )}
         <TouchableOpacity testID={`view-${title}`} onPress={onPressView}>
           <Text>View</Text>
@@ -335,6 +364,41 @@ describe('TasksListScreen', () => {
     expect(mockGoBack).toHaveBeenCalled();
   });
 
+  it('supplies a rightIcon so the header renders the add button', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    expect(getByTestId('header-add-btn')).toBeTruthy();
+  });
+
+  it('hides the header add button when the user has no companions, since AddTask cannot be submitted without one', () => {
+    const stateWithNoCompanions = {
+      ...mockState,
+      companion: {
+        ...mockState.companion,
+        companions: [],
+        selectedCompanionId: null,
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithNoCompanions));
+
+    const {queryByTestId} = render(<TasksListScreen />);
+    expect(queryByTestId('header-add-btn')).toBeNull();
+  });
+
+  it('navigates to AddTask with the selected date prefilled when the header add button is pressed', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    fireEvent.press(getByTestId('header-add-btn'));
+    expect(mockNavigate).toHaveBeenCalledWith('AddTask', {
+      prefillDate: '2025-12-31',
+    });
+  });
+
+  it('labels the header add button with its actual action for screen readers', () => {
+    const {getByTestId} = render(<TasksListScreen />);
+    expect(getByTestId('header-add-btn').props.accessibilityLabel).toBe(
+      'Add task',
+    );
+  });
+
   it('handles companion selection', () => {
     const {getByTestId} = render(<TasksListScreen />);
     fireEvent.press(getByTestId('select-companion-c2'));
@@ -370,6 +434,53 @@ describe('TasksListScreen', () => {
     // renderTask returns null.
     const {queryByText} = render(<TasksListScreen />);
     expect(queryByText('Missing Companion Task')).toBeNull();
+  });
+
+  it('passes the subcategory label through when the task has one', () => {
+    const stateWithSubcategory = {
+      ...mockState,
+      mockTasks: [
+        {
+          ...mockState.mockTasks[0],
+          subcategory: 'Vaccination',
+        },
+      ],
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithSubcategory));
+
+    const {getByTestId} = render(<TasksListScreen />);
+    expect(getByTestId('subcategory-Regular Task').props.children).toBe(
+      'Vaccination',
+    );
+  });
+
+  it('defaults companion avatar to undefined when the companion has no profile image', () => {
+    const stateWithNoAvatar = {
+      ...mockState,
+      companion: {
+        ...mockState.companion,
+        companions: [
+          {id: 'c1', name: 'Buddy', profileImage: null},
+          {id: 'c2', name: 'Lucy', profileImage: 'img2'},
+        ],
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithNoAvatar));
+
+    expect(() => render(<TasksListScreen />)).not.toThrow();
+  });
+
+  it('builds a fallback list key when no companion is selected', () => {
+    const stateWithNoSelection = {
+      ...mockState,
+      companion: {
+        ...mockState.companion,
+        selectedCompanionId: null,
+      },
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(stateWithNoSelection));
+
+    expect(() => render(<TasksListScreen />)).not.toThrow();
   });
 
   it('handles tasks assigned to other users (coverage for assignedToData)', () => {
@@ -462,5 +573,23 @@ describe('TasksListScreen', () => {
     const {queryByTestId} = render(<TasksListScreen />);
 
     expect(queryByTestId('start-ot-Regular Task')).toBeNull();
+  });
+
+  it('does not show edit action for a cancelled task', () => {
+    const cancelledState = {
+      ...mockState,
+      mockTasks: [
+        {
+          ...mockState.mockTasks[0],
+          title: 'Cancelled Task',
+          status: 'cancelled',
+        },
+      ],
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(cancelledState));
+
+    const {queryByTestId} = render(<TasksListScreen />);
+
+    expect(queryByTestId('edit-Cancelled Task')).toBeNull();
   });
 });

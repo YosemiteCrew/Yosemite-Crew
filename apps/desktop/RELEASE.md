@@ -62,6 +62,7 @@ updatable.
 ## Coordinated / joint releases
 
 The release workflow also supports a manual (`workflow_dispatch`) run that
-produces the signed installers as CI build artifacts **without** creating a
-public GitHub Release. Use this when the desktop app ships alongside other
-products and the public release needs to be timed together.
+produces signed installers as CI build artifacts and creates a **draft GitHub
+Release** with the same files. This is the right path when you want downloadable
+links without relying on the Actions artifact UI. If the repository is private,
+the download page can still require GitHub authentication.

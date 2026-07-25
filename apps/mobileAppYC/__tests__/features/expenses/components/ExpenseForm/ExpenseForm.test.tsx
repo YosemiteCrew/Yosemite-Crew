@@ -54,7 +54,9 @@ jest.mock('@/hooks', () => {
             return;
           }
           mockConfirmDeleteFile(fileToDelete);
-          config?.setFiles?.((config?.files ?? []).filter((f: any) => f.id !== fileToDelete));
+          config?.setFiles?.(
+            (config?.files ?? []).filter((f: any) => f.id !== fileToDelete),
+          );
           fileToDelete = null;
           config?.closeSheet?.();
         },
@@ -84,19 +86,22 @@ jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveVisitTypeLabel: (val: string | null) => (val ? `Label:${val}` : ''),
 }));
 
-jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => ({
-  CompanionSelector: jest.fn(props => {
-    const {View: MockView} = require('react-native');
-    const handleSelect = (id: string | null) => props.onSelect(id);
-    return (
-      <MockView
-        {...props}
-        testID="mock-CompanionSelector"
-        onSelect={handleSelect}
-      />
-    );
+jest.mock(
+  '@/shared/components/common/CompanionSelector/CompanionSelector',
+  () => ({
+    CompanionSelector: jest.fn(props => {
+      const {View: MockView} = require('react-native');
+      const handleSelect = (id: string | null) => props.onSelect(id);
+      return (
+        <MockView
+          {...props}
+          testID="mock-CompanionSelector"
+          onSelect={handleSelect}
+        />
+      );
+    }),
   }),
-}));
+);
 jest.mock('@/shared/components/common/Input/Input', () => ({
   Input: jest.fn(props => {
     const {View: MockView} = require('react-native');
@@ -121,11 +126,16 @@ jest.mock(
     return <MockView {...props} testID="mock-LiquidGlassButton" />;
   },
 );
-jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  SimpleDatePicker: jest.fn(props => {
-    const {View: MockView} = require('react-native');
-    return <MockView {...props} testID="mock-SimpleDatePicker" />;
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => ({
+    SimpleDatePicker: jest.fn(props => {
+      const {View: MockView} = require('react-native');
+      return <MockView {...props} testID="mock-SimpleDatePicker" />;
+    }),
   }),
+);
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
   formatDateForDisplay: (date: Date) => date.toISOString().split('T')[0],
 }));
 jest.mock('@/features/documents/components/DocumentAttachmentsSection', () => ({
@@ -141,16 +151,21 @@ const mockOpenVisitTypeSheet = jest.fn();
 const mockOpenUploadSheet = jest.fn();
 const mockOpenDeleteSheet = jest.fn();
 
-jest.mock('@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet', () => {
-  const MockReact = require('react');
-  const {View: MockView} = require('react-native');
-  return {
-    CategoryBottomSheet: MockReact.forwardRef((props: any, ref: any) => {
-      MockReact.useImperativeHandle(ref, () => ({open: mockOpenCategorySheet}));
-      return <MockView {...props} testID="mock-CategoryBottomSheet" />;
-    }),
-  };
-});
+jest.mock(
+  '@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet',
+  () => {
+    const MockReact = require('react');
+    const {View: MockView} = require('react-native');
+    return {
+      CategoryBottomSheet: MockReact.forwardRef((props: any, ref: any) => {
+        MockReact.useImperativeHandle(ref, () => ({
+          open: mockOpenCategorySheet,
+        }));
+        return <MockView {...props} testID="mock-CategoryBottomSheet" />;
+      }),
+    };
+  },
+);
 jest.mock(
   '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet',
   () => {
@@ -595,6 +610,83 @@ describe('ExpenseForm', () => {
       expect.anything(),
     );
     const mockedSheets = jest.requireMock('@/shared/hooks/useFormBottomSheets');
-    expect(mockedSheets.useFormBottomSheets().closeSheet).not.toHaveBeenCalled();
+    expect(
+      mockedSheets.useFormBottomSheets().closeSheet,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('should call file operation handlers and close sheet from upload sheet', () => {
+    const {getByTestId} = renderComponent();
+    const uploadSheet = getByTestId('mock-UploadDocumentBottomSheet');
+
+    act(() => uploadSheet.props.onTakePhoto());
+    act(() => uploadSheet.props.onChooseGallery());
+    act(() => uploadSheet.props.onUploadDrive());
+
+    expect(mockHandleTakePhoto).toHaveBeenCalled();
+    expect(mockHandleChooseFromGallery).toHaveBeenCalled();
+    expect(mockHandleUploadFromDrive).toHaveBeenCalled();
+
+    const mockedSheets = jest.requireMock('@/shared/hooks/useFormBottomSheets');
+    expect(mockedSheets.useFormBottomSheets().closeSheet).toHaveBeenCalledTimes(
+      3,
+    );
+  });
+
+  it('should resolve delete document title from attachment when fileToDelete is set', () => {
+    const attachment: ExpenseAttachment = {
+      id: 'file1',
+      name: 'receipt.pdf',
+    } as any;
+    const customFileOps = {
+      fileToDelete: 'file1',
+      handleTakePhoto: jest.fn(),
+      handleChooseFromGallery: jest.fn(),
+      handleUploadFromDrive: jest.fn(),
+      handleRemoveFile: jest.fn(),
+      confirmDeleteFile: jest.fn(),
+    };
+    const {getByTestId} = renderComponent({
+      formData: {...defaultFormData, attachments: [attachment]},
+      fileOperations: customFileOps,
+    });
+
+    const deleteSheet = getByTestId('mock-DeleteDocumentBottomSheet');
+    expect(deleteSheet.props.documentTitle).toBe('receipt.pdf');
+  });
+
+  it('should resolve delete document title to undefined when attachment is not found', () => {
+    const customFileOps = {
+      fileToDelete: 'missing',
+      handleTakePhoto: jest.fn(),
+      handleChooseFromGallery: jest.fn(),
+      handleUploadFromDrive: jest.fn(),
+      handleRemoveFile: jest.fn(),
+      confirmDeleteFile: jest.fn(),
+    };
+    const {getByTestId} = renderComponent({
+      formData: {...defaultFormData, attachments: []},
+      fileOperations: customFileOps,
+    });
+
+    const deleteSheet = getByTestId('mock-DeleteDocumentBottomSheet');
+    expect(deleteSheet.props.documentTitle).toBeUndefined();
+  });
+
+  it('should default provider value to empty string when providerName is undefined', () => {
+    const {getByTestId} = renderComponent({
+      formData: {...defaultFormData, providerName: undefined},
+    });
+    const providerInput = getByTestId('mock-Input-Provider / Business');
+    expect(providerInput.props.value).toBe('');
+  });
+
+  it('should not render bottom sheets when renderBottomSheets is false', () => {
+    const {queryByTestId} = renderComponent({renderBottomSheets: false});
+    expect(queryByTestId('mock-CategoryBottomSheet')).toBeNull();
+    expect(queryByTestId('mock-SubcategoryBottomSheet')).toBeNull();
+    expect(queryByTestId('mock-VisitTypeBottomSheet')).toBeNull();
+    expect(queryByTestId('mock-UploadDocumentBottomSheet')).toBeNull();
+    expect(queryByTestId('mock-DeleteDocumentBottomSheet')).toBeNull();
   });
 });

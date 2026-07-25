@@ -6,13 +6,28 @@ import { resolveUserIdFromRequest } from "src/utils/request";
 
 // Resolve UserID
 
+const KNOWN_AUTH_PROVIDERS = ["supertokens", "cognito", "firebase"] as const;
+type KnownAuthProvider = (typeof KNOWN_AUTH_PROVIDERS)[number];
+
+const isKnownAuthProvider = (value: unknown): value is KnownAuthProvider =>
+  KNOWN_AUTH_PROVIDERS.includes(value as KnownAuthProvider);
+
 export const AuthUserMobileController = {
   async signup(req: Request, res: Response) {
     try {
       const authRequest = req as AuthenticatedRequest;
-      const authProvider = authRequest.provider!;
+      // Fixes a long-standing bug where a typo ("congito") classified every
+      // mobile signup as firebase; the verified session's provider is now
+      // stored as-is.
+      const authProvider = authRequest.provider;
+      if (!isKnownAuthProvider(authProvider)) {
+        return res.status(401).json({
+          success: false,
+          message: "Unsupported auth provider",
+        });
+      }
       const authUser = await AuthUserMobileService.createOrGetAuthUser(
-        authProvider == "congito" ? "cognito" : "firebase",
+        authProvider,
         authRequest.userId!,
         authRequest.email!,
       );

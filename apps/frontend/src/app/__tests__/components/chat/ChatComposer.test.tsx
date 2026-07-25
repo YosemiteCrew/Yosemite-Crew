@@ -41,6 +41,11 @@ describe('ChatComposer', () => {
     expect(screen.getByLabelText('Send message')).toBeInTheDocument();
   });
 
+  it('renders a disabled voice-message affordance', () => {
+    render(<ChatComposer />);
+    expect(screen.getByLabelText('Voice message')).toBeDisabled();
+  });
+
   it('sends on the send button', () => {
     render(<ChatComposer />);
     fireEvent.click(screen.getByLabelText('Send message'));
@@ -75,6 +80,11 @@ describe('ChatComposer', () => {
     expect(mockSetText).toHaveBeenCalledWith('Your appointment is confirmed.');
   });
 
+  it('labels the quick-reply row "Quick replies" (design)', () => {
+    render(<ChatComposer />);
+    expect(screen.getByText('Quick replies')).toBeInTheDocument();
+  });
+
   it('uploads safe selected files through the attachment manager', () => {
     const { container } = render(<ChatComposer />);
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -100,6 +110,15 @@ describe('ChatComposer', () => {
     fireEvent.change(fileInput, { target: { files: [ok, bad] } });
     expect(mockUploadFiles).toHaveBeenCalledWith([ok]);
     expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('pluralizes the warning when multiple files are rejected', () => {
+    const { container } = render(<ChatComposer />);
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const bad1 = new File(['x'], 'run.sh', { type: 'text/x-sh' });
+    const bad2 = new File(['x'], 'virus.exe', { type: 'application/octet-stream' });
+    fireEvent.change(fileInput, { target: { files: [bad1, bad2] } });
+    expect(screen.getByRole('alert')).toHaveTextContent(/Couldn't attach 2 files/);
   });
 
   it('triggers the photo and document pickers and closes the menu via the backdrop', () => {

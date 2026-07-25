@@ -6,7 +6,7 @@ import {
   type ConfirmActionBottomSheetRef,
 } from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
-import {Text} from 'react-native';
+import {Keyboard, Text} from 'react-native';
 
 // FIX: Added 'h3' to typography and 'text' to colors to prevent crashes
 
@@ -18,10 +18,35 @@ jest.mock('@/hooks', () => {
   };
 });
 
+jest.mock(
+  '@/shared/components/common/BottomSheetHeader/BottomSheetHeader',
+  () => {
+    const {
+      TouchableOpacity,
+      Text: RNText,
+      View,
+    } = jest.requireActual('react-native');
+    return {
+      BottomSheetHeader: ({title, onClose, showCloseButton}: any) => (
+        <View>
+          <RNText>{title}</RNText>
+          {showCloseButton ? (
+            <TouchableOpacity testID="mock-header-close" onPress={onClose}>
+              <RNText>Close</RNText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ),
+    };
+  },
+);
+
 const mockBottomSheet = jest.fn();
 const mockSnapToIndex = jest.fn();
 const mockClose = jest.fn();
 let mockSheetOnChange: (index: number) => void = () => {};
+let keyboardDidShow: () => void = () => {};
+let keyboardDidHide: () => void = () => {};
 
 jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   const ReactActual = jest.requireActual('react');
@@ -81,6 +106,19 @@ describe('ConfirmActionBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    keyboardDidShow = () => {};
+    keyboardDidHide = () => {};
+    jest
+      .spyOn(Keyboard, 'addListener')
+      .mockImplementation((eventName: string, callback: () => void) => {
+        if (eventName === 'keyboardDidShow') {
+          keyboardDidShow = callback;
+        }
+        if (eventName === 'keyboardDidHide') {
+          keyboardDidHide = callback;
+        }
+        return {remove: jest.fn()} as any;
+      });
     (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});
   });
 
@@ -195,9 +233,9 @@ describe('ConfirmActionBottomSheet', () => {
     expect(mockLiquidGlassButton).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Confirm',
-        tintColor: mockTheme.colors.secondary,
+        tintColor: mockTheme.colors.cta,
         textStyle: expect.objectContaining({
-          color: mockTheme.colors.white,
+          color: mockTheme.colors.ctaText,
         }),
       }),
     );
@@ -214,9 +252,11 @@ describe('ConfirmActionBottomSheet', () => {
     expect(mockLiquidGlassButton).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Cancel',
-        tintColor: mockTheme.colors.surface,
+        tintColor: mockTheme.colors.screen,
+        forceBorder: true,
+        borderColor: mockTheme.colors.divider,
         textStyle: expect.objectContaining({
-          color: mockTheme.colors.secondary,
+          color: mockTheme.colors.inkBody,
         }),
       }),
     );
@@ -263,7 +303,7 @@ describe('ConfirmActionBottomSheet', () => {
     // Backdrop is always enabled; visibility is controlled by backdropAppearsOnIndex/backdropDisappearsOnIndex
     expect(mockBottomSheet).toHaveBeenCalledWith(
       expect.objectContaining({
-        enableBackdrop: true,
+        behavior: expect.objectContaining({backdrop: true}),
         initialIndex: 0,
         backdropAppearsOnIndex: 0,
         backdropDisappearsOnIndex: -1,
@@ -281,7 +321,7 @@ describe('ConfirmActionBottomSheet', () => {
     // Backdrop always enabled; sheet starts closed via initialIndex=-1
     expect(mockBottomSheet).toHaveBeenCalledWith(
       expect.objectContaining({
-        enableBackdrop: true,
+        behavior: expect.objectContaining({backdrop: true}),
         initialIndex: -1,
         backdropAppearsOnIndex: 0,
         backdropDisappearsOnIndex: -1,
@@ -324,6 +364,56 @@ describe('ConfirmActionBottomSheet', () => {
     expect(mockClose).toHaveBeenCalledTimes(1);
   });
 
+  it('dismisses keyboard from backdrop and header close handlers', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    const {getByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+      />,
+    );
+
+    const props = mockBottomSheet.mock.calls.at(-1)?.[0];
+    act(() => {
+      props.onBackdropPress();
+      fireEvent.press(getByTestId('mock-header-close'));
+    });
+
+    expect(dismissSpy).toHaveBeenCalled();
+    expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('expands snap points while the keyboard is visible and restores custom snap points when hidden', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        snapPoints={['40%', '80%']}
+      />,
+    );
+
+    expect(mockBottomSheet.mock.calls.at(-1)?.[0].snapPoints).toEqual([
+      '40%',
+      '80%',
+    ]);
+
+    act(() => {
+      keyboardDidShow();
+    });
+    expect(mockBottomSheet.mock.calls.at(-1)?.[0].snapPoints).toEqual([
+      '93%',
+      '95%',
+    ]);
+
+    act(() => {
+      keyboardDidHide();
+    });
+    expect(mockBottomSheet.mock.calls.at(-1)?.[0].snapPoints).toEqual([
+      '40%',
+      '80%',
+    ]);
+  });
+
   it('updates state and calls onSheetChange when sheet callback fires', () => {
     const mockOnSheetChange = jest.fn();
     render(
@@ -340,6 +430,25 @@ describe('ConfirmActionBottomSheet', () => {
     });
 
     expect(mockOnSheetChange).toHaveBeenCalledWith(-1);
+  });
+
+  it('keeps keyboard state when sheet changes to an open index', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    const mockOnSheetChange = jest.fn();
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        onSheetChange={mockOnSheetChange}
+      />,
+    );
+
+    act(() => {
+      mockSheetOnChange(0);
+    });
+
+    expect(mockOnSheetChange).toHaveBeenCalledWith(0);
+    expect(dismissSpy).not.toHaveBeenCalled();
   });
 
   it('handles async button press rejection and warns', async () => {
@@ -382,5 +491,122 @@ describe('ConfirmActionBottomSheet', () => {
       fireEvent.press(getByTestId('mock-liquid-button-Confirm'));
     });
     expect(mockPrimaryPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the destructive header, default icon, and danger primary button', () => {
+    const {getByText, getByTestId, queryByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Delete Item"
+        message="This action cannot be undone"
+        destructive
+        primaryButton={{label: 'Delete', onPress: mockPrimaryPress}}
+      />,
+    );
+
+    // Destructive title + message render
+    expect(getByText('Delete Item')).toBeTruthy();
+    expect(getByText('This action cannot be undone')).toBeTruthy();
+    // Default destructive medallion icon
+    expect(getByTestId('icon-trash-outline')).toBeTruthy();
+    // BottomSheetHeader (and its close button) is not used in destructive mode
+    expect(queryByTestId('mock-header-close')).toBeNull();
+    // Primary button uses danger tint + white text in destructive mode
+    expect(mockLiquidGlassButton).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Delete',
+        tintColor: mockTheme.colors.danger,
+        textStyle: expect.objectContaining({
+          color: mockTheme.colors.white,
+        }),
+      }),
+    );
+  });
+
+  it('renders a custom destructive icon when provided', () => {
+    const {getByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Warning"
+        destructive
+        destructiveIcon="alert-circle-outline"
+        primaryButton={primaryButtonConfig}
+      />,
+    );
+
+    expect(getByTestId('icon-alert-circle-outline')).toBeTruthy();
+  });
+
+  it('passes provided zIndex and bottomInset to the bottom sheet', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        zIndex={999}
+        bottomInset={24}
+      />,
+    );
+
+    expect(mockBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({zIndex: 999, bottomInset: 24}),
+    );
+  });
+
+  it('defaults zIndex to 100 when not provided', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+      />,
+    );
+
+    expect(mockBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({zIndex: 100}),
+    );
+  });
+
+  it('forwards an explicit shadowIntensity to the button', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={{...primaryButtonConfig, shadowIntensity: 'strong'}}
+      />,
+    );
+
+    expect(mockLiquidGlassButton).toHaveBeenCalledWith(
+      expect.objectContaining({title: 'Confirm', shadowIntensity: 'strong'}),
+    );
+  });
+
+  it('forwards behavior and backdrop overrides to the bottom sheet', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        enablePanDown={false}
+        enableHandlePanning={false}
+        backdropPressBehavior="none"
+      />,
+    );
+
+    expect(mockBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        behavior: expect.objectContaining({
+          panDownToClose: false,
+          handlePanningGesture: false,
+        }),
+        backdropPressBehavior: 'none',
+      }),
+    );
+  });
+
+  it('hides the header close button when showCloseButton is false', () => {
+    const {queryByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        showCloseButton={false}
+      />,
+    );
+
+    expect(queryByTestId('mock-header-close')).toBeNull();
   });
 });

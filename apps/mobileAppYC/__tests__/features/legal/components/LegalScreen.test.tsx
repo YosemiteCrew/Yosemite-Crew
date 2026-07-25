@@ -1,8 +1,23 @@
 import React from 'react';
 import {mockTheme} from '../../../setup/mockTheme';
-import {Text} from 'react-native';
-import {render, fireEvent} from '@testing-library/react-native';
+import {Alert, Text} from 'react-native';
+import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {LegalScreen} from '../../../../src/features/legal/components/LegalScreen';
+import {legalDocumentService} from '../../../../src/features/legal/services/legalDocumentService';
+import {downloadDocumentToAppStorage} from '../../../../src/shared/utils/documentDownload';
+
+jest.mock(
+  '../../../../src/features/legal/services/legalDocumentService',
+  () => ({
+    legalDocumentService: {
+      fetchLegalDocument: jest.fn(),
+    },
+  }),
+);
+
+jest.mock('../../../../src/shared/utils/documentDownload', () => ({
+  downloadDocumentToAppStorage: jest.fn(),
+}));
 
 // --- Mocks ---
 
@@ -99,6 +114,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Terms of Service"
+        docType="terms"
         sections={mockSections}
       />,
     );
@@ -122,6 +138,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Privacy Policy"
+        docType="privacy"
         sections={mockSections}
         extraContent={<Text>Additional Info</Text>}
       />,
@@ -139,6 +156,7 @@ describe('LegalScreen', () => {
         navigation={mockNavigation}
         route={{} as any}
         title="Back Test"
+        docType="terms"
         sections={[]}
       />,
     );
@@ -147,5 +165,199 @@ describe('LegalScreen', () => {
     fireEvent.press(backButton);
 
     expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  // --- 4. Header height measurement ---
+
+  it('adds top padding to the scroll content once the header height is measured', () => {
+    const {UNSAFE_root, UNSAFE_getByType} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Height Test"
+        docType="terms"
+        sections={mockSections}
+      />,
+    );
+    const {ScrollView} = require('react-native');
+
+    const {View} = require('react-native');
+    const topSectionView = UNSAFE_root.findAllByType(View).find(
+      (node: any) => node.props.style?.position === 'absolute',
+    );
+    fireEvent(topSectionView, 'layout', {
+      nativeEvent: {layout: {height: 90}},
+    });
+
+    const scrollView = UNSAFE_getByType(ScrollView);
+    expect(scrollView.props.contentContainerStyle).toEqual([
+      {padding: 16},
+      {paddingTop: 90 + mockTheme.spacing['3']},
+    ]);
+  });
+
+  // --- 5. Document meta (serif title + last-updated pill) ---
+
+  it('renders the serif display title and last-updated pill from meta', () => {
+    const {getByText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Terms & Conditions"
+        docType="terms"
+        sections={mockSections}
+        meta={{
+          displayTitle: 'Terms of service',
+          lastUpdated: '10 Jul 2026',
+          version: 'v1.0',
+        }}
+      />,
+    );
+
+    expect(getByText('Terms of service')).toBeTruthy();
+    expect(getByText('Last updated 10 Jul 2026 · v1.0')).toBeTruthy();
+  });
+
+  it('falls back to the plain title when no meta is provided', () => {
+    const {getAllByText, queryByText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Privacy Policy"
+        docType="privacy"
+        sections={mockSections}
+      />,
+    );
+
+    // Display title falls back to the title prop (also shown in the header),
+    // and there is no "Last updated" pill.
+    expect(getAllByText('Privacy Policy').length).toBeGreaterThan(0);
+    expect(queryByText(/Last updated/)).toBeNull();
+  });
+
+  // --- 6. On-page nav chips ---
+
+  it('renders nav chips and switches the active chip on press', () => {
+    const {getByText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Privacy Policy"
+        docType="privacy"
+        sections={mockSections}
+        navChips={['What we collect', 'Your rights']}
+      />,
+    );
+
+    expect(getByText('What we collect')).toBeTruthy();
+    // Pressing the second chip drives the active-chip state branch.
+    fireEvent.press(getByText('Your rights'));
+    expect(getByText('Your rights')).toBeTruthy();
+  });
+
+  // --- 7. Download as PDF ---
+
+  it('fetches the real PDF and downloads it when the download button is pressed', async () => {
+    const meta = {
+      displayTitle: 'Terms of service',
+      lastUpdated: '10 Jul 2026',
+      version: 'v1.0',
+    };
+    (legalDocumentService.fetchLegalDocument as jest.Mock).mockResolvedValue({
+      pdfUrl: 'https://cdn.example/legal/terms-v1.pdf',
+      version: 'v1',
+      lastUpdated: '2026-03-01',
+    });
+    (downloadDocumentToAppStorage as jest.Mock).mockResolvedValue(
+      '/app/Downloads/Terms-Conditions-v1.pdf',
+    );
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    const {getByLabelText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Terms & Conditions"
+        docType="terms"
+        sections={mockSections}
+        meta={meta}
+      />,
+    );
+
+    fireEvent.press(getByLabelText('Download as PDF'));
+
+    await waitFor(() =>
+      expect(legalDocumentService.fetchLegalDocument).toHaveBeenCalledWith(
+        'terms',
+      ),
+    );
+    await waitFor(() =>
+      expect(downloadDocumentToAppStorage).toHaveBeenCalledWith(
+        'https://cdn.example/legal/terms-v1.pdf',
+        'Terms-Conditions-v1.pdf',
+      ),
+    );
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Download complete',
+        expect.stringContaining('/app/Downloads/Terms-Conditions-v1.pdf'),
+      ),
+    );
+  });
+
+  it('shows a download-failed alert when fetching the PDF fails', async () => {
+    (legalDocumentService.fetchLegalDocument as jest.Mock).mockRejectedValue(
+      new Error('Network down'),
+    );
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    const {getByLabelText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Privacy Policy"
+        docType="privacy"
+        sections={mockSections}
+      />,
+    );
+
+    fireEvent.press(getByLabelText('Download as PDF'));
+
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith('Download failed', 'Network down'),
+    );
+    expect(downloadDocumentToAppStorage).not.toHaveBeenCalled();
+  });
+
+  it('does not re-measure when the layout height is unchanged', () => {
+    const {UNSAFE_root, UNSAFE_getByType} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Height Test"
+        docType="terms"
+        sections={mockSections}
+      />,
+    );
+    const {ScrollView} = require('react-native');
+
+    const {View} = require('react-native');
+    const topSectionView = UNSAFE_root.findAllByType(View).find(
+      (node: any) => node.props.style?.position === 'absolute',
+    );
+    fireEvent(topSectionView, 'layout', {nativeEvent: {layout: {height: 0}}});
+
+    const scrollView = UNSAFE_getByType(ScrollView);
+    expect(scrollView.props.contentContainerStyle).toEqual([
+      {padding: 16},
+      null,
+    ]);
   });
 });

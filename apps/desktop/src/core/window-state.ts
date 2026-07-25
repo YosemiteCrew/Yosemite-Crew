@@ -46,6 +46,9 @@ export const MIN_HEIGHT = 700;
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max);
+
 /**
  * Validate and clamp a persisted window state, falling back to defaults for any
  * missing or malformed field. Pure function so it can be unit tested without Electron.
@@ -110,6 +113,36 @@ export const clampToVisibleDisplays = (
   delete next.x;
   delete next.y;
   return next;
+};
+
+/** Pixels of the window that must stay inside the work area while dragging. */
+export const MIN_VISIBLE_DRAG_PX = 80;
+
+/**
+ * Clamp a proposed window position to the bounding box of the connected
+ * displays' work areas, keeping at least `margin` pixels grabbable and the top
+ * edge on-screen, so a drag can never park the window where the user cannot
+ * reach it. The bounding box (rather than a single display) is used so a drag
+ * across an interior seam between displays is not blocked.
+ * Pure function so it can be unit tested without Electron's `screen` module.
+ */
+export const clampPositionToWorkArea = (
+  position: { x: number; y: number },
+  size: WindowBounds,
+  displays: ReadonlyArray<{ workArea: DisplayWorkArea }>,
+  margin: number = MIN_VISIBLE_DRAG_PX
+): { x: number; y: number } => {
+  if (displays.length === 0) return position;
+  const areas = displays.map((d) => d.workArea);
+  const left = Math.min(...areas.map((a) => a.x));
+  const top = Math.min(...areas.map((a) => a.y));
+  const right = Math.max(...areas.map((a) => a.x + a.width));
+  const bottom = Math.max(...areas.map((a) => a.y + a.height));
+
+  return {
+    x: clamp(position.x, left + margin - size.width, right - margin),
+    y: clamp(position.y, top, Math.max(top, bottom - margin)),
+  };
 };
 
 /**

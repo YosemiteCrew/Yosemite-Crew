@@ -4,12 +4,7 @@ import {render, fireEvent, act} from '@testing-library/react-native';
 import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {
-  Alert,
-  BackHandler,
-  ToastAndroid,
-  Platform,
-} from 'react-native';
+import {Alert, BackHandler, ToastAndroid, Platform} from 'react-native';
 
 // --- Imports to be mocked ---
 import {
@@ -117,21 +112,15 @@ jest.mock(
     const React = require('react');
     const RN = require('react-native');
 
-    const MockSheet = React.forwardRef(
-      ({onDelete, onCancel}: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
-          open: jest.fn(),
-          close: jest.fn(),
-        }));
-        return (
-          <RN.View
-            testID="DeleteSheet"
-            onDelete={onDelete}
-            onCancel={onCancel}
-          />
-        );
-      },
-    );
+    const MockSheet = ({onDelete, onCancel, ref}: any) => {
+      React.useImperativeHandle(ref, () => ({
+        open: jest.fn(),
+        close: jest.fn(),
+      }));
+      return (
+        <RN.View testID="DeleteSheet" onDelete={onDelete} onCancel={onCancel} />
+      );
+    };
 
     return {
       __esModule: true,
@@ -274,10 +263,8 @@ describe('ProfileOverviewScreen', () => {
   });
 
   it('renders correctly with companion data', () => {
-    const {getByText, getByTestId, getAllByText} = setup();
+    const {getByText, getByTestId} = setup();
     expect(getByText('Overview')).toBeTruthy();
-    // Use getAllByText as "Complete" appears in multiple status badges
-    expect(getAllByText('Complete').length).toBeGreaterThan(0);
     expect(getByTestId('CompanionProfileHeader')).toBeTruthy();
     expect(setSelectedCompanion).toHaveBeenCalledWith('comp-123');
   });
@@ -356,8 +343,14 @@ describe('ProfileOverviewScreen', () => {
 
   it('navigates to CoParents screen', () => {
     const {getByText} = setup();
-    fireEvent.press(getByText('Co-Parent (Optional)'));
+    fireEvent.press(getByText('Co-parents'));
     expect(mockNavigate).toHaveBeenCalledWith('CoParents');
+  });
+
+  it('exposes a button role and title-based label on the grid tiles', () => {
+    const {getByLabelText} = setup();
+    const tile = getByLabelText('Co-parents');
+    expect(tile.props.accessibilityRole).toBe('button');
   });
 
   it('navigates to Tasks (Health) if permission allowed', () => {
@@ -385,7 +378,7 @@ describe('ProfileOverviewScreen', () => {
     const {getByText} = setup(primaryState);
     mockGetParent.mockReturnValue(navigationMock);
 
-    fireEvent.press(getByText('Expense'));
+    fireEvent.press(getByText('Expenses'));
     expect(mockNavigate).toHaveBeenCalledWith(
       'ExpensesStack',
       expect.anything(),
@@ -409,7 +402,7 @@ describe('ProfileOverviewScreen', () => {
       },
     };
     const {getByText} = setup(restrictedState);
-    fireEvent.press(getByText('Expense'));
+    fireEvent.press(getByText('Expenses'));
 
     expect(mockNavigate).not.toHaveBeenCalledWith(
       'ExpensesStack',
@@ -480,7 +473,7 @@ describe('ProfileOverviewScreen', () => {
     };
     const {getByText} = setup(noAccessState);
     mockGetParent.mockReturnValue(navigationMock);
-    fireEvent.press(getByText('Dietary plan tasks'));
+    fireEvent.press(getByText('Dietary plans'));
     expect(mockNavigate).toHaveBeenCalled();
   });
 
@@ -628,5 +621,420 @@ describe('ProfileOverviewScreen', () => {
       'Tasks',
       expect.objectContaining({params: {category: 'custom'}}),
     );
+  });
+
+  it('renders stacked co-parent avatars on the Co-parents tile', () => {
+    const coParentState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        coParents: [
+          {
+            id: 'cp-1',
+            email: 'friend@example.com',
+            firstName: 'Friend',
+            lastName: 'Smith',
+          },
+        ],
+      },
+    };
+    const {getByText} = setup(coParentState);
+    // The warm-bone profile hub shows co-parent initials (no completion badge).
+    expect(getByText('FS')).toBeTruthy();
+  });
+
+  it('throws and shows an alert when parentId is missing during profile image update', async () => {
+    const {useAuth} = require('@/features/auth/context/AuthContext');
+    (useAuth as jest.Mock).mockReturnValueOnce({user: {parentId: undefined}});
+
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByTestId} = setup();
+    const header = getByTestId('CompanionProfileHeader');
+
+    await act(async () => {
+      await header.props.onImageSelected('new-image-uri');
+    });
+
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Image Update Failed',
+      expect.any(String),
+      expect.any(Array),
+    );
+    expect(updateCompanionProfile).not.toHaveBeenCalled();
+  });
+
+  it('blocks Documents when the documents permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {documents: false}},
+        },
+      },
+    };
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByText} = setup(restrictedState);
+    // setSelectedCompanion also fires unconditionally on mount, so clear it
+    // to isolate the effect of pressing Documents specifically.
+    (setSelectedCompanion as unknown as jest.Mock).mockClear();
+
+    fireEvent.press(getByText('Documents'));
+
+    expect(setSelectedCompanion).not.toHaveBeenCalled();
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("don't have access"),
+    );
+  });
+
+  it('blocks a linked-business section when the appointments permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {appointments: false}},
+        },
+      },
+    };
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Boarder'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'LinkedBusinesses',
+      expect.anything(),
+    );
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("don't have access"),
+    );
+  });
+
+  it('blocks Health tasks when the tasks permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {tasks: false}},
+        },
+      },
+    };
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Health tasks'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'health'}}),
+    );
+  });
+
+  it('navigates to Hygiene tasks when the tasks permission is granted', () => {
+    const {getByText} = setup();
+    mockGetParent.mockReturnValue(navigationMock);
+    fireEvent.press(getByText('Hygiene tasks'));
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'hygiene'}}),
+    );
+  });
+
+  it('blocks Dietary plan tasks when the tasks permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {tasks: false}},
+        },
+      },
+    };
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Dietary plans'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'dietary'}}),
+    );
+  });
+
+  it('blocks Custom tasks when the tasks permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {tasks: false}},
+        },
+      },
+    };
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Custom tasks'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'custom'}}),
+    );
+  });
+
+  it('BackHandler returns false when the delete sheet is not open', () => {
+    const addSpy = jest
+      .spyOn(BackHandler, 'addEventListener')
+      .mockImplementation(_ => {
+        return {remove: jest.fn()} as any;
+      });
+
+    setup();
+
+    const lastCall = addSpy.mock.calls[addSpy.mock.calls.length - 1];
+    const cb = lastCall[1];
+
+    expect(cb()).toBe(false);
+  });
+
+  it('closes the delete sheet without deleting when cancelled', () => {
+    const {getByTestId} = setup();
+    const header = getByTestId('Header');
+    act(() => {
+      header.props.onRightPress();
+    });
+    const sheet = getByTestId('DeleteSheet');
+
+    act(() => {
+      sheet.props.onCancel();
+    });
+
+    expect(deleteCompanion).not.toHaveBeenCalled();
+  });
+
+  // --- 9. Remaining warm-bone branch coverage ---
+  it('navigates to Hospital linked business and tolerates a nameless/imageless companion', () => {
+    const sparseState = {
+      ...initialState,
+      companion: {
+        ...initialState.companion,
+        companions: [
+          {
+            id: 'comp-123',
+            name: '',
+            breed: {breedName: 'Golden Retriever'},
+            profileImage: null,
+          },
+        ],
+      },
+    };
+    const {getByText, getByTestId} = setup(sparseState);
+
+    // profileImage `?? undefined` falls back to undefined when the image is null
+    expect(
+      getByTestId('CompanionProfileHeader').props.profileImage,
+    ).toBeUndefined();
+
+    fireEvent.press(getByText('Hospital'));
+
+    // companionName `|| ''` falls back to an empty string when the name is falsy
+    expect(mockNavigate).toHaveBeenCalledWith('LinkedBusinesses', {
+      screen: 'BusinessSearch',
+      params: expect.objectContaining({
+        category: 'hospital',
+        companionName: '',
+      }),
+    });
+  });
+
+  it('navigates to Breeder linked business', () => {
+    const {getByText} = setup();
+    fireEvent.press(getByText('Breeder'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('LinkedBusinesses', {
+      screen: 'BusinessSearch',
+      params: expect.objectContaining({
+        category: 'breeder',
+        companionId: 'comp-123',
+      }),
+    });
+  });
+
+  it('navigates to Groomer linked business', () => {
+    const {getByText} = setup();
+    fireEvent.press(getByText('Groomer'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('LinkedBusinesses', {
+      screen: 'BusinessSearch',
+      params: expect.objectContaining({
+        category: 'groomer',
+        companionId: 'comp-123',
+      }),
+    });
+  });
+
+  it('clears the profile image when null is selected', async () => {
+    const {getByTestId} = setup();
+    const header = getByTestId('CompanionProfileHeader');
+
+    await act(async () => {
+      await header.props.onImageSelected(null);
+    });
+
+    expect(updateCompanionProfile).toHaveBeenCalledWith({
+      parentId: 'parent-123',
+      updatedCompanion: expect.objectContaining({profileImage: null}),
+    });
+  });
+
+  it('shows the loader in the empty state while companions are loading', () => {
+    const loadingState = {
+      ...initialState,
+      companion: {companions: [], loading: true},
+    };
+    const {queryByText, getByTestId} = setup(loadingState);
+
+    // isLoading true -> the loader branch renders, not the "not found" text
+    expect(queryByText('Companion not found.')).toBeNull();
+    expect(getByTestId('Header')).toBeTruthy();
+  });
+
+  it('renders co-parent avatars with fallback initials and alternating styles', () => {
+    const sparseCoParents = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        // first entry is null (fully defensive fallbacks), second has only an email
+        coParents: [null, {email: 'zoe@example.com'}],
+      },
+    };
+    const {getByText} = setup(sparseCoParents);
+
+    // null co-parent -> no name and no email -> '?'
+    expect(getByText('?')).toBeTruthy();
+    // email-only co-parent -> initials from the email's first char
+    expect(getByText('Z')).toBeTruthy();
+  });
+
+  it('handles a co-parent slice that has no coParents array', () => {
+    const missingCoParentsList = {
+      ...initialState,
+      coParent: {
+        accessByCompanionId: {
+          'comp-123': {
+            role: 'PRIMARY_OWNER',
+            permissions: {
+              documents: true,
+              expenses: true,
+              tasks: true,
+              appointments: true,
+            },
+          },
+        },
+        defaultAccess: null,
+        lastFetchedRole: 'PRIMARY_OWNER',
+      },
+    };
+    const {getByText} = setup(missingCoParentsList);
+    // selectCoParents returns undefined -> `(coParents ?? [])` falls back to []
+    expect(getByText('Co-parents')).toBeTruthy();
+  });
+
+  it('renders when the co-parent slice is absent from the store', () => {
+    const localStore = configureStore({
+      reducer: {
+        auth: (state = initialState.auth) => state,
+        companion: (state = initialState.companion) => state,
+        documents: (state = initialState.documents) => state,
+        businesses: (state = initialState.businesses) => state,
+        tasks: (state = initialState.tasks) => state,
+        expenses: (state = initialState.expenses) => state,
+        linkedBusinesses: (state = initialState.linkedBusinesses) => state,
+        // intentionally omit the coParent reducer so state.coParent is undefined
+      },
+    });
+
+    const {getByText} = render(
+      <Provider store={localStore}>
+        <ProfileOverviewScreen navigation={navigationMock} route={routeMock} />
+      </Provider>,
+    );
+
+    // `state.coParent?.accessByCompanionId ?? {}` resolves via the nullish fallback
+    expect(getByText('Overview')).toBeTruthy();
+  });
+
+  it('skips side effects when the resolved companion has a falsy id', async () => {
+    const undefinedIdState = {
+      ...initialState,
+      companion: {
+        ...initialState.companion,
+        companions: [
+          {
+            id: undefined,
+            name: 'Buddy',
+            breed: {breedName: 'Golden Retriever'},
+            profileImage: 'some-url',
+          },
+        ],
+      },
+    };
+    const localStore = configureStore({
+      reducer: {
+        auth: (state = undefinedIdState.auth) => state,
+        companion: (state = undefinedIdState.companion) => state,
+        documents: (state = undefinedIdState.documents) => state,
+        businesses: (state = undefinedIdState.businesses) => state,
+        tasks: (state = undefinedIdState.tasks) => state,
+        expenses: (state = undefinedIdState.expenses) => state,
+        coParent: (state = undefinedIdState.coParent) => state,
+        linkedBusinesses: (state = undefinedIdState.linkedBusinesses) => state,
+      },
+    });
+    // route with no companionId -> matches the companion whose id is undefined
+    const undefinedRoute: any = {params: {companionId: undefined}};
+
+    const {getByTestId} = render(
+      <Provider store={localStore}>
+        <ProfileOverviewScreen
+          navigation={navigationMock}
+          route={undefinedRoute}
+        />
+      </Provider>,
+    );
+
+    // 221: the `if (companionId)` effect is skipped when companionId is falsy
+    expect(setSelectedCompanion).not.toHaveBeenCalled();
+
+    // 260: handleProfileImageChange returns early because companion.id is falsy
+    const header = getByTestId('CompanionProfileHeader');
+    await act(async () => {
+      await header.props.onImageSelected('new-image-uri');
+    });
+    expect(updateCompanionProfile).not.toHaveBeenCalled();
+
+    // 423: handleDeleteProfile returns early because companion.id is falsy
+    const sheet = getByTestId('DeleteSheet');
+    await act(async () => {
+      await sheet.props.onDelete();
+    });
+    expect(deleteCompanion).not.toHaveBeenCalled();
+  });
+
+  it('skips deleting when parentId is missing', async () => {
+    const {useAuth} = require('@/features/auth/context/AuthContext');
+    (useAuth as jest.Mock).mockReturnValueOnce({user: {parentId: undefined}});
+
+    const {getByTestId} = setup();
+    const sheet = getByTestId('DeleteSheet');
+
+    await act(async () => {
+      await sheet.props.onDelete();
+    });
+
+    // 423: `!parentId` short-circuits the delete before dispatching
+    expect(deleteCompanion).not.toHaveBeenCalled();
   });
 });

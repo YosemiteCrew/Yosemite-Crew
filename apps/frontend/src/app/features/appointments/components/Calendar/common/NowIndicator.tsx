@@ -14,21 +14,22 @@ const NowIndicator = ({ topPx, timeLabel }: NowIndicatorProps) => (
           {timeLabel && (
             <div
               className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
-              style={{ color: 'var(--color-danger-700)' }}
+              style={{ color: 'var(--blue-text)' }}
             >
               {timeLabel}
             </div>
           )}
           <div
-            className="absolute -left-3 size-3 rounded-full translate-y-[-50%]"
-            style={{ backgroundColor: 'var(--color-danger-700)' }}
+            className="absolute -left-4 size-4 rounded-full translate-y-[-50%]"
+            style={{ backgroundColor: 'var(--blue)' }}
           />
           <div
             className="translate-y-[-50%]"
             style={{
               borderTopWidth: '2px',
               borderTopStyle: 'solid',
-              borderTopColor: 'var(--color-danger-700)',
+              borderTopColor: 'var(--blue)',
+              opacity: 0.75,
             }}
           />
         </div>

@@ -148,14 +148,17 @@ describe('AccessibilityReportPage', () => {
     expect(postDataMock).toHaveBeenCalledWith(
       '/v1/contact-us/contact-web',
       expect.objectContaining({
+        // ContactSource only accepts MOBILE_APP | PMS_WEB | MARKETING_SITE; any
+        // other value is rejected by the backend's enum.
         type: 'COMPLAINT',
-        source: 'accessibility',
+        source: 'PMS_WEB',
         fullName: 'Ada Lovelace',
         email: 'ada@example.com',
       })
     );
 
     const callArgs = postDataMock.mock.calls[0][1];
+    expect(callArgs.message).toContain('Accessibility barrier report');
     expect(callArgs.message).toContain('https://app.example.com/appointments');
     expect(callArgs.message).toContain('Severity: Very difficult to use');
     expect(callArgs.message).toContain('Cannot tab to the submit button.');

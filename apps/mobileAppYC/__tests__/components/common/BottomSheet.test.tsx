@@ -44,6 +44,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
           {props.handleComponent?.({})}
           {props.backdropComponent?.({})}
           {props.footerComponent?.({})}
+          {props.backgroundComponent?.({style: {}})}
           {props.children}
         </RNView>
       );
@@ -113,6 +114,19 @@ describe('CustomBottomSheet', () => {
     );
   });
 
+  it('forwards contentStyle to the default BottomSheetView', () => {
+    const contentStyle = {bottom: 0};
+    const {getByTestId} = render(
+      <CustomBottomSheet contentStyle={contentStyle}>
+        <Text>Styled Content</Text>
+      </CustomBottomSheet>,
+    );
+
+    expect(getByTestId('mock-bottom-sheet-view').props.style).toBe(
+      contentStyle,
+    );
+  });
+
   it('passes all custom props correctly to BottomSheet', () => {
     const mockOnChange = jest.fn();
     const mockOnAnimate = jest.fn();
@@ -122,11 +136,13 @@ describe('CustomBottomSheet', () => {
       <CustomBottomSheet
         snapPoints={snapPoints}
         initialIndex={-1}
-        enablePanDownToClose={true}
-        enableDynamicSizing={false}
-        enableOverDrag={false}
-        enableContentPanningGesture={false}
-        enableHandlePanningGesture={false}
+        behavior={{
+          panDownToClose: true,
+          dynamicSizing: false,
+          overDrag: false,
+          contentPanningGesture: false,
+          handlePanningGesture: false,
+        }}
         style={style}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
@@ -285,7 +301,7 @@ describe('CustomBottomSheet', () => {
     const mockOnBackdropPress = jest.fn();
     const {getByTestId} = render(
       <CustomBottomSheet
-        enableBackdrop={true}
+        behavior={{backdrop: true}}
         backdropOpacity={0.7}
         backdropAppearsOnIndex={0}
         backdropDisappearsOnIndex={-1}
@@ -309,7 +325,7 @@ describe('CustomBottomSheet', () => {
 
   it('does not render backdrop when disabled', () => {
     const {queryByTestId} = render(
-      <CustomBottomSheet enableBackdrop={false}>
+      <CustomBottomSheet behavior={{backdrop: false}}>
         <Text>Test</Text>
       </CustomBottomSheet>,
     );

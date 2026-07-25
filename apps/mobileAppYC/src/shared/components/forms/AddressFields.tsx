@@ -2,17 +2,19 @@ import React, {useMemo} from 'react';
 import {
   ActivityIndicator,
   Platform,
-  ScrollView,
   StyleProp,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import {useTranslation} from 'react-i18next';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Input} from '@/shared/components/common/Input/Input';
 import {useTheme} from '@/hooks';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
+
+const MAX_VISIBLE_ADDRESS_SUGGESTIONS = 5;
 
 export interface AddressFieldValues {
   addressLine?: string;
@@ -31,7 +33,12 @@ interface AddressFieldsProps {
   onSelectSuggestion: (suggestion: PlaceSuggestion) => void;
   fieldErrors?: Partial<Record<keyof AddressFieldValues, string | undefined>>;
   containerStyle?: StyleProp<ViewStyle>;
-  labels?: Partial<Record<'addressLine' | 'city' | 'stateProvince' | 'postalCode' | 'country', string>>;
+  labels?: Partial<
+    Record<
+      'addressLine' | 'city' | 'stateProvince' | 'postalCode' | 'country',
+      string
+    >
+  >;
 }
 
 export const AddressFields: React.FC<AddressFieldsProps> = ({
@@ -46,17 +53,36 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
   labels,
 }) => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const resolvedLabels = {
-    addressLine: labels?.addressLine ?? 'Address',
-    stateProvince: labels?.stateProvince ?? (Platform.select({ios: 'State', default: 'State/Province'}) ?? 'State/Province'),
-    city: labels?.city ?? 'City',
-    postalCode: labels?.postalCode ?? 'Postal code',
-    country: labels?.country ?? 'Country',
+    addressLine: labels?.addressLine ?? t('addressFields.addressLine'),
+    stateProvince:
+      labels?.stateProvince ??
+      Platform.select({
+        ios: t('addressFields.state'),
+        default: t('addressFields.stateProvince'),
+      }) ??
+      t('addressFields.stateProvince'),
+    city: labels?.city ?? t('addressFields.city'),
+    postalCode: labels?.postalCode ?? t('addressFields.postalCode'),
+    country: labels?.country ?? t('addressFields.country'),
   };
 
   const shouldShowSuggestionList =
     isFetchingSuggestions || addressSuggestions.length > 0 || !!error;
+  const visibleAddressSuggestions = useMemo(
+    () => addressSuggestions.slice(0, MAX_VISIBLE_ADDRESS_SUGGESTIONS),
+    [addressSuggestions],
+  );
+  const hasMoreSuggestions =
+    addressSuggestions.length > MAX_VISIBLE_ADDRESS_SUGGESTIONS;
+  const suggestionTitleText = hasMoreSuggestions
+    ? t('addressFields.topSuggestionsTitle', {
+        count: MAX_VISIBLE_ADDRESS_SUGGESTIONS,
+        total: addressSuggestions.length,
+      })
+    : t('addressFields.suggestionsTitle');
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -71,54 +97,71 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
           containerStyle={styles.addressInput}
         />
 
-        {shouldShowSuggestionList ? (() => {
-          let content: React.ReactNode;
-          if (isFetchingSuggestions) {
-            content = (
-              <View style={styles.suggestionLoader}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              </View>
-            );
-          } else if (addressSuggestions.length > 0) {
-            content = (
-              <ScrollView
-                style={styles.suggestionList}
-                scrollEnabled={addressSuggestions.length > 3}
-                showsVerticalScrollIndicator={true}>
-                {addressSuggestions.map((item, index) => (
-                  <TouchableOpacity
-                    key={item.placeId}
-                    style={[
-                      styles.suggestionItem,
-                      index === addressSuggestions.length - 1 && styles.suggestionItemLast,
-                    ]}
-                    onPress={() => onSelectSuggestion(item)}>
-                    <Text style={styles.suggestionPrimary}>{item.primaryText}</Text>
-                    {item.secondaryText ? (
-                      <Text style={styles.suggestionSecondary}>{item.secondaryText}</Text>
-                    ) : null}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            );
-          } else {
-            content = (
-              <Text style={styles.suggestionEmpty}>
-                {error ?? 'No suggestions found.'}
-              </Text>
-            );
-          }
+        {shouldShowSuggestionList
+          ? (() => {
+              let content: React.ReactNode;
+              if (isFetchingSuggestions) {
+                content = (
+                  <View style={styles.suggestionLoader}>
+                    <ActivityIndicator
+                      size="small"
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                );
+              } else if (addressSuggestions.length > 0) {
+                content = (
+                  <View style={styles.suggestionList}>
+                    {visibleAddressSuggestions.map((item, index) => (
+                      <PressableOpacity
+                        key={item.placeId}
+                        style={[
+                          styles.suggestionItem,
+                          index === visibleAddressSuggestions.length - 1 &&
+                            styles.suggestionItemLast,
+                        ]}
+                        onPress={() => onSelectSuggestion(item)}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          item.secondaryText
+                            ? `${item.primaryText}, ${item.secondaryText}`
+                            : item.primaryText
+                        }>
+                        <Text style={styles.suggestionPrimary}>
+                          {item.primaryText}
+                        </Text>
+                        {item.secondaryText ? (
+                          <Text style={styles.suggestionSecondary}>
+                            {item.secondaryText}
+                          </Text>
+                        ) : null}
+                      </PressableOpacity>
+                    ))}
+                  </View>
+                );
+              } else {
+                content = (
+                  <Text style={styles.suggestionEmpty}>
+                    {error ?? t('addressFields.noSuggestionsFound')}
+                  </Text>
+                );
+              }
 
-          return (
-            <View style={styles.suggestionContainer}>
-              <Text style={styles.suggestionTitle}>Suggestions</Text>
-              {content}
-              {isFetchingSuggestions || addressSuggestions.length > 0 ? (
-                <Text style={styles.suggestionFooter}>Powered by Google</Text>
-              ) : null}
-            </View>
-          );
-        })() : null}
+              return (
+                <View style={styles.suggestionContainer}>
+                  <Text style={styles.suggestionTitle}>
+                    {suggestionTitleText}
+                  </Text>
+                  {content}
+                  {isFetchingSuggestions || addressSuggestions.length > 0 ? (
+                    <Text style={styles.suggestionFooter}>
+                      {t('addressFields.poweredByGoogle')}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })()
+          : null}
       </View>
 
       <Input

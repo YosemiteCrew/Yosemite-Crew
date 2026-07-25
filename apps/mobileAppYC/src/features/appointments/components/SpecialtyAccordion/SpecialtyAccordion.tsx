@@ -1,13 +1,12 @@
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Animated,
-  Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, Image, Platform} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -42,8 +41,18 @@ interface SpecialtyAccordionProps {
   icon?: any;
   specialties: SpecialtyGroup[];
   onSelectService: (serviceId: string, specialtyName: string) => void;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
+
+const getSpecialtyKey = (specialty: SpecialtyGroup): string => {
+  const serviceIds = specialty.services.map(service => service.id).join('-');
+  const packageIds = specialty.packages.map(item => item.id).join('-');
+  return `${specialty.name}-${serviceIds}-${packageIds}`;
+};
 
 // ─── Specialty Item ───────────────────────────────────────────────────────────
 
@@ -51,7 +60,11 @@ interface SpecialtyItemProps {
   specialty: SpecialtyGroup;
   defaultExpanded?: boolean;
   onSelectService: (serviceId: string, specialtyName: string) => void;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
@@ -63,29 +76,30 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [animation] = useState(new Animated.Value(defaultExpanded ? 1 : 0));
+  const animation = useSharedValue(defaultExpanded ? 1 : 0);
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-    Animated.timing(animation, {
-      toValue,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    animation.value = withTiming(toValue, {duration: 300});
     setExpanded(!expanded);
   };
 
-  const rotateInterpolate = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: `${interpolate(animation.value, [0, 1], [0, 180])}deg`,
+      },
+    ],
+  }));
 
   return (
     <View style={styles.specialtyItem}>
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.specialtyHeader}
         onPress={toggleExpanded}
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{expanded}}>
         <View style={styles.specialtyHeaderContent}>
           <Text style={styles.specialtyName}>{specialty.name}</Text>
           <Text style={styles.doctorCount}>
@@ -94,12 +108,9 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
         </View>
         <Animated.Image
           source={Images.downArrow}
-          style={[
-            styles.chevronIcon,
-            {transform: [{rotate: rotateInterpolate}]},
-          ]}
+          style={[styles.chevronIcon, chevronAnimatedStyle]}
         />
-      </TouchableOpacity>
+      </PressableOpacity>
 
       {expanded && (
         <View style={styles.servicesList}>
@@ -166,6 +177,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
                     key={pkg.id}
                     pkg={pkg}
                     compact
+                    specialtyName={specialty.name}
                     onSelectPackage={onSelectPackage}
                   />
                 ))}
@@ -202,7 +214,7 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
       <View style={styles.specialtiesList}>
         {specialties.map((specialty, index) => (
           <SpecialtyItem
-            key={`${specialty.name}-${index}`}
+            key={getSpecialtyKey(specialty)}
             specialty={specialty}
             defaultExpanded={index === 0}
             onSelectService={onSelectService}
@@ -246,12 +258,17 @@ const createStyles = (theme: any) =>
     },
     specialtyName: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.textSecondary,
+      color: theme.colors.secondary,
     },
     doctorCount: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      textAlign: 'right',
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.blueText,
+      backgroundColor: theme.colors.blueSoft,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: 2,
+      borderRadius: theme.borderRadius.pill,
+      overflow: 'hidden',
+      alignSelf: 'center',
     },
     chevronIcon: {
       width: theme.spacing['5'],

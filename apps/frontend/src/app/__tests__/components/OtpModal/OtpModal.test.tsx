@@ -3,7 +3,6 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useSignOut } from '@/app/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { postData } from '@/app/services/axios';
 import { axe, toHaveNoViolations } from 'jest-axe';
@@ -18,16 +17,12 @@ jest.mock('next/navigation', () => ({
 // Mock Axios
 jest.mock('@/app/services/axios', () => ({
   postData: jest.fn(),
+  isAuthRedirectError: jest.fn(() => false),
 }));
 
 // Mock Auth Store
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: jest.fn(),
-}));
-
-// Mock useAuth Hook
-jest.mock('@/app/hooks/useAuth', () => ({
-  useSignOut: jest.fn(),
+  useAuthStore: Object.assign(jest.fn(), { getState: jest.fn() }),
 }));
 
 // Mock Iconify
@@ -44,8 +39,14 @@ describe('OtpModal Component', () => {
   const mockConfirmSignUp = jest.fn();
   const mockResendCode = jest.fn();
   const mockSignIn = jest.fn();
-  const mockSignOut = jest.fn();
   const mockPush = jest.fn();
+
+  const fillCode = (digits: string[] = ['1', '1', '1', '1', '1', '1']) => {
+    for (let i = 0; i < digits.length; i++) {
+      const inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+      fireEvent.change(inputs[i], { target: { value: digits[i] } });
+    }
+  };
 
   const defaultProps = {
     email: 'test@example.com',
@@ -67,9 +68,7 @@ describe('OtpModal Component', () => {
       resendCode: mockResendCode,
       signIn: mockSignIn,
     });
-    (useSignOut as jest.Mock).mockReturnValue({
-      signOut: mockSignOut,
-    });
+    (useAuthStore.getState as jest.Mock).mockReturnValue({ pendingSignUp: null });
   });
 
   afterEach(() => {
@@ -110,16 +109,16 @@ describe('OtpModal Component', () => {
     expect(screen.getByText('01:29 sec')).toBeInTheDocument();
   });
 
-  it('disables verify button and stops timer when it reaches 0', () => {
+  it('disables verify after the countdown ends and prompts for a resend', () => {
     render(<OtpModal {...defaultProps} />);
+    fillCode();
 
     act(() => {
       jest.advanceTimersByTime(151000); // > 150 seconds
     });
 
-    expect(screen.getByText('Code expired')).toBeInTheDocument();
-    const button = screen.getByRole('button', { name: /Verify Code/i });
-    expect(button).toBeDisabled();
+    expect(screen.getByText('Didn’t get the code? Request a new one below.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Verify Code/i })).toBeDisabled();
   });
 
   // --- 2. Input Handling Logic ---
@@ -239,7 +238,7 @@ describe('OtpModal Component', () => {
     expect(mockConfirmSignUp).toHaveBeenCalledWith(defaultProps.email, '012345');
     expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
     expect(mockSignIn).toHaveBeenCalledWith(defaultProps.email, defaultProps.password);
-    expect(postData).toHaveBeenCalledWith('/fhir/v1/user');
+    expect(postData).toHaveBeenCalledWith('/fhir/v1/user', undefined);
     expect(mockPush).toHaveBeenCalledWith('/appointments');
   });
 
@@ -264,50 +263,76 @@ describe('OtpModal Component', () => {
     expect(window.scrollTo).toHaveBeenCalled();
   });
 
-  it('handles signIn failure after successful confirm', async () => {
+  it('redirects to sign in with the email prefilled when auto sign in fails after confirm', async () => {
     mockConfirmSignUp.mockResolvedValue(true);
     mockSignIn.mockRejectedValue(new Error('Signin failed'));
 
     render(<OtpModal {...defaultProps} />);
-    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
-    const button = screen.getByRole('button', { name: /Verify Code/i });
-
-    for (let i = 0; i < 6; i++) {
-      inputs = screen.getAllByRole<HTMLInputElement>('textbox');
-      fireEvent.change(inputs[i], { target: { value: '1' } });
-    }
+    fillCode();
 
     await act(async () => {
-      fireEvent.click(button);
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
     });
 
     expect(mockSignIn).toHaveBeenCalled();
     expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Sign in failed' })
+      expect.objectContaining({ errortext: 'Account created' })
+    );
+    expect(mockPush).toHaveBeenCalledWith('/signin?email=test%40example.com');
+  });
+
+  it('includes next and developer sign-in path in the fallback redirect', async () => {
+    mockConfirmSignUp.mockResolvedValue(true);
+    mockSignIn.mockRejectedValue(new Error('Signin failed'));
+
+    render(<OtpModal {...defaultProps} redirectPath="/developers/home" isDeveloper />);
+    fillCode();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
+    });
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/developers/signin?email=test%40example.com&next=%2Fdevelopers%2Fhome'
     );
   });
 
-  it('handles postData failure (calls signOut)', async () => {
+  it('retries backend provisioning and continues after a transient failure', async () => {
+    mockConfirmSignUp.mockResolvedValue(true);
+    mockSignIn.mockResolvedValue(true);
+    (postData as jest.Mock)
+      .mockRejectedValueOnce(new Error('cold start timeout'))
+      .mockResolvedValueOnce({});
+
+    render(<OtpModal {...defaultProps} />);
+    fillCode();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
+      await jest.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(postData).toHaveBeenCalledTimes(2);
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('stays signed in and still redirects when provisioning keeps failing', async () => {
     mockConfirmSignUp.mockResolvedValue(true);
     mockSignIn.mockResolvedValue(true);
     (postData as jest.Mock).mockRejectedValue(new Error('FHIR Error'));
 
     render(<OtpModal {...defaultProps} />);
-    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
-    const button = screen.getByRole('button', { name: /Verify Code/i });
-
-    for (let i = 0; i < 6; i++) {
-      inputs = screen.getAllByRole<HTMLInputElement>('textbox');
-      fireEvent.change(inputs[i], { target: { value: '1' } });
-    }
+    fillCode();
 
     await act(async () => {
-      fireEvent.click(button);
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
+      await jest.advanceTimersByTimeAsync(10_000);
     });
 
-    expect(postData).toHaveBeenCalled();
-    expect(mockSignOut).toHaveBeenCalled();
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
+    expect(postData).toHaveBeenCalledTimes(3);
+    // No sign-out, no dead end: the verified user still lands in the app.
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
+    expect(mockShowErrorTost).not.toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Sign in failed' })
     );
   });

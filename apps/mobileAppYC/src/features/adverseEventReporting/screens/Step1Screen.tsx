@@ -1,5 +1,7 @@
 import React, {useState, useMemo, useEffect} from 'react';
-import {View, StyleSheet, Image, TouchableOpacity, Text} from 'react-native';
+import {View, StyleSheet, Image, Text} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {useDispatch, useSelector} from 'react-redux';
@@ -96,6 +98,8 @@ export const Step1Screen: React.FC<Props> = ({navigation}) => {
   return (
     <AERLayout
       stepLabel="Step 1 of 5"
+      currentStep={1}
+      totalSteps={5}
       onBack={() => navigation.goBack()}
       bottomButton={{
         title: 'Next',
@@ -131,28 +135,66 @@ export const Step1Screen: React.FC<Props> = ({navigation}) => {
       <View style={styles.radioSection}>
         <Text style={styles.sectionTitle}>Who is reporting the concern?</Text>
 
-        <TouchableOpacity
-          style={styles.radioOption}
+        <PressableOpacity
+          style={[
+            styles.optionCard,
+            reporterType === 'parent' && styles.optionCardSelected,
+          ]}
+          activeOpacity={0.9}
+          accessibilityRole="radio"
+          accessibilityState={{selected: reporterType === 'parent'}}
           onPress={() => handleReporterTypeSelect('parent')}>
-          <View style={styles.radioOuter}>
-            {reporterType === 'parent' && <View style={styles.radioInner} />}
+          <View style={[styles.optionIconTile, styles.optionIconTileParent]}>
+            <Ionicons
+              name="person-outline"
+              size={22}
+              color={theme.colors.blueText}
+            />
           </View>
-          <Text style={styles.radioLabel}>The parent</Text>
-        </TouchableOpacity>
+          <Text style={styles.optionLabel}>The parent</Text>
+          <View
+            style={[
+              styles.radioOuter,
+              reporterType === 'parent' && styles.radioOuterSelected,
+            ]}>
+            {reporterType === 'parent' ? (
+              <Ionicons name="checkmark" size={15} color={theme.colors.white} />
+            ) : null}
+          </View>
+        </PressableOpacity>
 
-        <TouchableOpacity
-          style={styles.radioOption}
+        <PressableOpacity
+          style={[
+            styles.optionCard,
+            reporterType === 'guardian' && styles.optionCardSelected,
+          ]}
+          activeOpacity={0.9}
+          accessibilityRole="radio"
+          accessibilityState={{selected: reporterType === 'guardian'}}
           onPress={() => handleReporterTypeSelect('guardian')}>
-          <View style={styles.radioOuter}>
-            {reporterType === 'guardian' && <View style={styles.radioInner} />}
+          <View style={[styles.optionIconTile, styles.optionIconTileGuardian]}>
+            <Ionicons
+              name="people-outline"
+              size={22}
+              color={theme.colors.avatarVioletInk}
+            />
           </View>
-          <Text style={styles.radioLabel}>The guardian (Co-Parent)</Text>
-        </TouchableOpacity>
+          <Text style={styles.optionLabel}>The guardian (Co-Parent)</Text>
+          <View
+            style={[
+              styles.radioOuter,
+              reporterType === 'guardian' && styles.radioOuterSelected,
+            ]}>
+            {reporterType === 'guardian' ? (
+              <Ionicons name="checkmark" size={15} color={theme.colors.white} />
+            ) : null}
+          </View>
+        </PressableOpacity>
       </View>
 
       <View style={styles.checkboxSection}>
         <Text style={styles.beforeProceed}>Before you proceed</Text>
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.consentRow}
           activeOpacity={0.9}
           onPress={handleToggleTerms}
@@ -178,7 +220,7 @@ export const Step1Screen: React.FC<Props> = ({navigation}) => {
               privacy policy
             </Text>
           </Text>
-        </TouchableOpacity>
+        </PressableOpacity>
         {termsError ? <Text style={styles.errorText}>{termsError}</Text> : null}
       </View>
     </AERLayout>
@@ -191,25 +233,21 @@ const createStyles = (theme: any) =>
       width: '100%',
       height: 200,
       resizeMode: 'contain',
-      marginBottom: theme.spacing['6'],
+      marginBottom: theme.spacing['5'],
     },
     title: {
-      ...theme.typography.h4Alt,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['2'],
-      textAlign: 'center',
-      paddingHorizontal: theme.spacing['16'],
     },
     subtitle: {
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.placeholder,
-      marginBottom: theme.spacing['6'],
-      textAlign: 'center',
-      paddingHorizontal: theme.spacing['6'],
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.inkMuted,
+      marginBottom: theme.spacing['3'],
     },
     descriptionText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.text,
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.inkMuted,
       marginBottom: theme.spacing['6'],
     },
     companionSelector: {
@@ -217,36 +255,62 @@ const createStyles = (theme: any) =>
     },
     radioSection: {
       marginBottom: theme.spacing['6'],
+      gap: theme.spacing['3'],
     },
     sectionTitle: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['3'],
+      ...theme.typography.pillSubtitleBold15,
+      lineHeight: 18,
+      color: theme.colors.ink,
     },
-    radioOption: {
+    optionCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: theme.spacing['4'],
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['4'],
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
+    },
+    optionCardSelected: {
+      borderWidth: 1.5,
+      borderColor: theme.colors.blue,
+      backgroundColor: theme.colors.screen,
+      ...theme.shadows.card,
+    },
+    optionIconTile: {
+      width: 46,
+      height: 46,
+      borderRadius: theme.borderRadius.field,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    optionIconTileParent: {
+      backgroundColor: theme.colors.blueSoft,
+    },
+    optionIconTileGuardian: {
+      backgroundColor: theme.colors.avatarVioletBg,
+    },
+    optionLabel: {
+      ...theme.typography.pillSubtitleBold15,
+      lineHeight: 20,
+      color: theme.colors.ink,
+      flex: 1,
     },
     radioOuter: {
-      width: theme.spacing['5'],
-      height: theme.spacing['5'],
+      width: 24,
+      height: 24,
       borderRadius: theme.borderRadius.full,
       borderWidth: 2,
-      borderColor: theme.colors.borderMuted,
-      marginRight: theme.spacing['3'],
+      borderColor: theme.colors.divider,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: theme.colors.transparent,
     },
-    radioInner: {
-      width: theme.spacing['2.5'],
-      height: theme.spacing['2.5'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.primary,
-    },
-    radioLabel: {
-      ...theme.typography.body,
-      color: theme.colors.secondary,
+    radioOuterSelected: {
+      borderColor: theme.colors.blue,
+      backgroundColor: theme.colors.blue,
     },
     checkboxSection: {
       marginBottom: theme.spacing['6'],
@@ -258,7 +322,7 @@ const createStyles = (theme: any) =>
       // Satoshi 15 bold, 120%, -0.3 letter spacing
       ...theme.typography.pillSubtitleBold15,
       lineHeight: 18,
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['2'],
     },
     consentRow: {
@@ -270,20 +334,20 @@ const createStyles = (theme: any) =>
     },
     consentText: {
       ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
-      marginLeft: 8,
+      color: theme.colors.inkMuted,
+      marginLeft: theme.spacing['2'],
       flex: 1,
       // Add comfortable space from the right screen edge
       paddingRight: theme.spacing['6'],
     },
     consentLink: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.textTertiary,
+      color: theme.colors.blueText,
       textDecorationLine: 'underline',
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.danger,
       marginLeft: theme.spacing['1'],
     },
   });

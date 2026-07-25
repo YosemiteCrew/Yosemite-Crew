@@ -1,16 +1,9 @@
-// src/components/common/TouchableInput/TouchableInput.tsx
-import React, { useRef, useCallback, useEffect } from 'react';
+// src/shared/components/common/TouchableInput/TouchableInput.tsx
+import React from 'react';
+import {View, Text, ViewStyle, TextStyle} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {useTheme} from '@/hooks';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ViewStyle,
-  TextStyle,
-  Animated,
-} from 'react-native';
-import { useTheme } from '@/hooks';
-import {
-  getFloatingLabelAnimatedStyle,
   getInputContainerBaseStyle,
   getValueTextStyle,
 } from '../shared/floatingLabelStyles';
@@ -44,25 +37,8 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   errorStyle,
   disabled = false,
 }) => {
-  const { theme } = useTheme();
-  const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const {theme} = useTheme();
   const hasValue = !!value;
-
-  const animateLabel = useCallback((toValue: number) => {
-    Animated.timing(animatedValue, {
-      toValue,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [animatedValue]);
-
-  useEffect(() => {
-    if (hasValue) {
-      animateLabel(1);
-    } else {
-      animateLabel(0);
-    }
-  }, [hasValue, animateLabel]);
 
   const inputContainerStyle: ViewStyle = {
     ...getInputContainerBaseStyle(theme, error),
@@ -72,7 +48,15 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   };
 
   const valueStyle = getValueTextStyle(theme, hasValue);
-  const floatingLabelStyle = getFloatingLabelAnimatedStyle({animatedValue, theme});
+
+  // Static label sits above the field in dark ink; the error is carried by the
+  // red field border and the red message below (matching the design).
+  const getLabelStyle = (): TextStyle => ({
+    ...theme.typography.inputLabel,
+    color: theme.colors.inkBody,
+    marginBottom: theme.spacing['2'],
+    marginLeft: theme.spacing['1'],
+  });
 
   const getErrorStyle = (): TextStyle => ({
     ...theme.typography.labelXxsBold,
@@ -92,40 +76,30 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
 
   return (
     <View style={containerStyle}>
-      <TouchableOpacity
+      {label && <Text style={[getLabelStyle(), labelStyle]}>{label}</Text>}
+      <PressableOpacity
         onPress={onPress}
         activeOpacity={0.7}
         disabled={disabled}
-      >
+        accessibilityRole="button"
+        accessibilityLabel={[label, value || placeholder]
+          .filter(Boolean)
+          .join(', ')}
+        accessibilityState={{disabled}}>
         <View style={[inputContainerStyle, inputStyle]}>
-          {/* Only show the floating label when there's a value */}
-          {label && hasValue && (
-            <Animated.Text style={[floatingLabelStyle, labelStyle]}>
-              {label}
-            </Animated.Text>
-          )}
-
           {leftComponent && (
-            <View style={leftComponentWrapperStyle}>
-              {leftComponent}
-            </View>
+            <View style={leftComponentWrapperStyle}>{leftComponent}</View>
           )}
 
-          <Text style={valueStyle}>
-            {value || placeholder}
-          </Text>
+          <Text style={valueStyle}>{value || placeholder}</Text>
 
           {rightComponent && (
-            <View style={rightComponentWrapperStyle}>
-              {rightComponent}
-            </View>
+            <View style={rightComponentWrapperStyle}>{rightComponent}</View>
           )}
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
 
-      {error && (
-        <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>
-      )}
+      {error && <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>}
     </View>
   );
 };

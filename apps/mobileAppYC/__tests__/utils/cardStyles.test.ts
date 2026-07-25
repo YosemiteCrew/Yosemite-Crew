@@ -8,7 +8,6 @@ import {mockTheme} from '../setup/mockTheme';
 
 // A mock theme to test against
 
-
 // An empty theme to test fallbacks
 const emptyTheme = {};
 
@@ -50,7 +49,7 @@ describe('cardStyles', () => {
       expect(styles.card).toEqual({
         borderRadius: 16, // fallback
         borderWidth: 1,
-        borderColor: '#EAEAEA', // fallback
+        borderColor: '#E5DCCF', // fallback (warm hairline)
         overflow: 'hidden',
         backgroundColor: '#FFFFFF', // fallback
         padding: 16, // fallback
@@ -58,7 +57,7 @@ describe('cardStyles', () => {
       expect(styles.fallback).toEqual({
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
-        borderColor: '#EAEAEA', // fallback uses border
+        borderColor: '#E5DCCF', // fallback uses border (warm hairline)
         overflow: 'hidden',
       });
     });

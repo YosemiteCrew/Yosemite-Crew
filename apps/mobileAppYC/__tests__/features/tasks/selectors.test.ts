@@ -201,6 +201,32 @@ describe('features/tasks/selectors', () => {
       )(state);
       expect(result).toHaveLength(1);
     });
+
+    it('falls back to today for a value that is neither a Date, object, nor string', () => {
+      const result = selectTasksByCompanionAndDate('c1', 123 as any)(state);
+      // mockDate is frozen at 2023-10-15, matching tasks 1/2/5/6.
+      expect(result).toHaveLength(4);
+    });
+
+    it('falls back to today for a plain object that does not parse into a valid Date', () => {
+      const result = selectTasksByCompanionAndDate('c1', {foo: 'bar'} as any)(
+        state,
+      );
+      // mockDate is frozen at 2023-10-15, matching tasks 1/2/5/6.
+      expect(result).toHaveLength(4);
+    });
+
+    it('resolves a plain object that parses into a valid Date via its own timestamp', () => {
+      const dateLikeObject = {
+        valueOf: () => new Date('2023-10-16').getTime(),
+      };
+      const result = selectTasksByCompanionAndDate(
+        'c1',
+        dateLikeObject as any,
+      )(state);
+      // Task '3' is the only c1 task dated 2023-10-16.
+      expect(result).toHaveLength(1);
+    });
   });
 
   // --- Category Logic ---
@@ -221,6 +247,135 @@ describe('features/tasks/selectors', () => {
     const result = selectAllTasksByCategory('c1', 'general' as any)(state);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('3');
+  });
+
+  it('selectAllTasksByCategory sorts pending/active before completed before cancelled, then by date, then by time', () => {
+    const sortTasks: Task[] = [
+      {
+        ...taskBase,
+        id: 's-completed',
+        category: 'medication',
+        status: 'completed',
+        date: '2023-10-15',
+        time: '09:00',
+      } as any,
+      {
+        ...taskBase,
+        id: 's-cancelled',
+        category: 'medication',
+        status: 'cancelled',
+        date: '2023-10-15',
+        time: '09:00',
+      } as any,
+      {
+        ...taskBase,
+        id: 's-in-progress-older-date',
+        category: 'medication',
+        status: 'in_progress',
+        date: '2023-10-14',
+        time: '09:00',
+      } as any,
+      {
+        ...taskBase,
+        id: 's-overdue-newer-date',
+        category: 'medication',
+        status: 'overdue',
+        date: '2023-10-16',
+        time: '10:00',
+      } as any,
+      {
+        ...taskBase,
+        id: 's-no-time',
+        category: 'medication',
+        status: 'pending',
+        date: '2023-10-16',
+        time: undefined,
+      } as any,
+      {
+        ...taskBase,
+        id: 's-earlier-time',
+        category: 'medication',
+        status: 'pending',
+        date: '2023-10-16',
+        time: '08:00',
+      } as any,
+    ];
+    const sortState = createState(sortTasks, false, null, {c1: true});
+
+    const result = selectAllTasksByCategory(
+      'c1',
+      'medication' as any,
+    )(sortState);
+
+    // Active statuses (pending/in_progress/overdue) sort before completed,
+    // which sorts before cancelled; within a priority tier, newest date
+    // first, then tasks with a time before those without, then ascending time.
+    expect(result.map(t => t.id)).toEqual([
+      's-earlier-time',
+      's-overdue-newer-date',
+      's-no-time',
+      's-in-progress-older-date',
+      's-completed',
+      's-cancelled',
+    ]);
+  });
+
+  it('selectAllTasksByCategory treats an unrecognized status as equal priority to completed', () => {
+    const weirdTasks: Task[] = [
+      {
+        ...taskBase,
+        id: 's-weird-status',
+        category: 'medication',
+        status: 'some_weird_status',
+        date: '2023-10-15',
+      } as any,
+      {
+        ...taskBase,
+        id: 's-pending',
+        category: 'medication',
+        status: 'pending',
+        date: '2023-10-14',
+      } as any,
+    ];
+    const weirdState = createState(weirdTasks, false, null, {c1: true});
+
+    const result = selectAllTasksByCategory(
+      'c1',
+      'medication' as any,
+    )(weirdState);
+
+    // Pending (priority 0) sorts before the unrecognized status (falls back
+    // to priority 1, same tier as completed), regardless of date order.
+    expect(result.map(t => t.id)).toEqual(['s-pending', 's-weird-status']);
+  });
+
+  it('selectAllTasksByCategory keeps original relative order when date and time are both absent', () => {
+    const noTimeTasks: Task[] = [
+      {
+        ...taskBase,
+        id: 's-tie-1',
+        category: 'medication',
+        status: 'pending',
+        date: '2023-10-15',
+        time: undefined,
+      } as any,
+      {
+        ...taskBase,
+        id: 's-tie-2',
+        category: 'medication',
+        status: 'pending',
+        date: '2023-10-15',
+        time: undefined,
+      } as any,
+    ];
+    const noTimeState = createState(noTimeTasks, false, null, {c1: true});
+
+    const result = selectAllTasksByCategory(
+      'c1',
+      'medication' as any,
+    )(noTimeState);
+
+    expect(result.map(t => t.id)).toEqual(['s-tie-1', 's-tie-2']);
   });
 
   it('selectTaskCountByCategory counts correctly', () => {
@@ -274,6 +429,16 @@ describe('features/tasks/selectors', () => {
         date,
         'medication' as any,
         1,
+      )(state);
+      expect(result).toHaveLength(1);
+    });
+
+    it('defaults the limit to 1 when omitted', () => {
+      const date = new Date('2023-10-15');
+      const result = selectRecentTasksByCategory(
+        'c1',
+        date,
+        'medication' as any,
       )(state);
       expect(result).toHaveLength(1);
     });

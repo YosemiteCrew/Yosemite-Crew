@@ -5,78 +5,80 @@ import '@testing-library/jest-dom';
 import Payment from '@/app/features/organization/pages/Organization/Sections/Payment';
 
 const mockUseSubscriptionForPrimaryOrg = jest.fn();
-const mockUseCounterForPrimaryOrg = jest.fn();
+const mockCan = jest.fn();
 
 jest.mock('@/app/hooks/useBilling', () => ({
   useSubscriptionForPrimaryOrg: () => mockUseSubscriptionForPrimaryOrg(),
-  useCounterForPrimaryOrg: () => mockUseCounterForPrimaryOrg(),
+}));
+
+jest.mock('@/app/hooks/usePermissions', () => ({
+  usePermissions: () => ({ can: mockCan }),
 }));
 
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
-  __esModule: true,
-  default: ({
-    title,
-    actions,
-    children,
-  }: {
-    title: string;
-    actions?: React.ReactNode;
-    children: React.ReactNode;
-  }) => (
-    <section aria-label={title}>
-      {actions}
-      {children}
-    </section>
-  ),
-}));
-
-jest.mock('@/app/features/billing/components/StripeSettingsButton', () => ({
-  __esModule: true,
-  default: () => <a href="/stripe-onboarding?orgId=org-1">Settings</a>,
-}));
-
-jest.mock('@/app/features/organization/pages/Organization/Sections/ProfileCard', () => ({
-  __esModule: true,
-  default: ({ title, org }: { title: string; org: Record<string, unknown> }) => (
-    <div>
-      <h2>{title}</h2>
-      <p>Plan: {String(org.plan)}</p>
-      <p>Appointments: {String(org.appointments)}</p>
-      <p>Tools: {String(org.obervationalTools)}</p>
-      <p>Users: {String(org.members)}</p>
-    </div>
-  ),
-}));
-
 describe('Payment organization section', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseSubscriptionForPrimaryOrg.mockReturnValue({ plan: 'free' });
-    mockUseCounterForPrimaryOrg.mockReturnValue({
-      appointmentsUsed: 2,
-      freeAppointmentsLimit: 120,
-      toolsUsed: 1,
-      freeToolsLimit: 200,
-      usersBillableCount: 3,
-      freeUsersLimit: 10,
+    mockCan.mockReturnValue(true);
+    mockUseSubscriptionForPrimaryOrg.mockReturnValue({
+      orgId: 'org-1',
+      connectChargesEnabled: true,
+      connectPayoutsEnabled: true,
     });
   });
 
-  it('renders current plan and usage limits', () => {
+  it('renders the connected Stripe status card with a Manage link', () => {
     render(<Payment />);
 
-    expect(screen.getByText('Plan overview')).toBeInTheDocument();
-    expect(screen.getByText('Plan: Free')).toBeInTheDocument();
-    expect(screen.getByText('Appointments: 2 / 120')).toBeInTheDocument();
-    expect(screen.getByText('Tools: 1 / 200')).toBeInTheDocument();
-    expect(screen.getByText('Users: 3 / 10')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+    expect(screen.getByText('Payments · Stripe')).toBeInTheDocument();
+    expect(screen.getByText('Charges enabled · payouts weekly')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Manage' })).toHaveAttribute(
       'href',
       '/stripe-onboarding?orgId=org-1'
     );
+  });
+
+  it('drops the payouts phrase when payouts are not yet enabled', () => {
+    mockUseSubscriptionForPrimaryOrg.mockReturnValue({
+      orgId: 'org-1',
+      connectChargesEnabled: true,
+      connectPayoutsEnabled: false,
+    });
+    render(<Payment />);
+
+    expect(screen.getByText('Charges enabled')).toBeInTheDocument();
+  });
+
+  it('shows the not-connected state with a Connect link', () => {
+    mockUseSubscriptionForPrimaryOrg.mockReturnValue({
+      orgId: 'org-1',
+      connectChargesEnabled: false,
+    });
+    render(<Payment />);
+
+    expect(screen.getByText('Not connected yet')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Connect' })).toHaveAttribute(
+      'href',
+      '/stripe-onboarding?orgId=org-1'
+    );
+  });
+
+  it('hides the manage link when the user cannot manage stripe', () => {
+    mockCan.mockReturnValue(false);
+    render(<Payment />);
+
+    expect(screen.getByText('Payments · Stripe')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders a neutral card and no link when there is no subscription', () => {
+    mockUseSubscriptionForPrimaryOrg.mockReturnValue(null);
+    render(<Payment />);
+
+    expect(screen.getByText('Not connected yet')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 });

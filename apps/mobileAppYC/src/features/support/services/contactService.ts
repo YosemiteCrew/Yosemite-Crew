@@ -7,10 +7,7 @@ import {
 } from '@/shared/utils/serviceHelpers';
 
 export type ContactType =
-  | 'GENERAL_ENQUIRY'
-  | 'FEATURE_REQUEST'
-  | 'COMPLAINT'
-  | 'DSAR';
+  'GENERAL_ENQUIRY' | 'FEATURE_REQUEST' | 'COMPLAINT' | 'DSAR';
 
 export interface ContactAttachmentPayload {
   url: string;
@@ -94,16 +91,15 @@ export const uploadContactAttachments = async ({
   ensureFilesReady(files);
   const {accessToken} = await ensureAccessContext();
 
-  const uploaded: DocumentFile[] = [];
-
-  for (const file of files) {
-    const uploadedFile = await documentApi.uploadAttachment({
-      file,
-      companionId,
-      accessToken,
-    });
-    uploaded.push(uploadedFile);
-  }
+  const uploaded = await Promise.all(
+    files.map(file =>
+      documentApi.uploadAttachment({
+        file,
+        companionId,
+        accessToken,
+      }),
+    ),
+  );
 
   const attachments = uploaded.flatMap(f => {
     const a = mapFileToAttachment(f);

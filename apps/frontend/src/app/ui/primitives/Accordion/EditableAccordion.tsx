@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useImperativeHandle, useMemo, useState, useCallback, useRef } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -46,14 +46,12 @@ type EditableAccordionProps = {
     key: string,
     formValues: FormValues
   ) => Array<string | { label: string; value: string }> | undefined;
-  onRegisterActions?: (
-    actions: {
-      save: () => Promise<void>;
-      cancel: () => void;
-      startEditing: () => void;
-      isEditing: () => boolean;
-    } | null
-  ) => void;
+  ref?: React.Ref<{
+    save: () => Promise<void>;
+    cancel: () => void;
+    startEditing: () => void;
+    isEditing: () => boolean;
+  } | null>;
 };
 
 type FormValues = Record<string, any>;
@@ -107,7 +105,7 @@ const TextInputField = ({
       inlabel={field.label}
       error={error}
       onChange={handleChange}
-      className={isCurrency ? 'min-h-12! pl-10!' : 'min-h-12!'}
+      className={isCurrency ? 'pl-10!' : ''}
     />
   );
 
@@ -220,7 +218,6 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       inlabel={field.label}
       error={error}
       onChange={() => {}}
-      className="min-h-12!"
     />
   ),
   timeInput: ({ field, value, onChange, error }) => (
@@ -230,7 +227,6 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       name={field.key}
       error={error}
       onChange={onChange}
-      className="min-h-12!"
     />
   ),
   googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
@@ -263,13 +259,7 @@ const normalizeOptions = (options?: Array<string | { label: string; value: strin
 const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
   options.find((o) => o.value === value)?.label ?? value;
 
-const RenderField = (
-  field: FieldConfig,
-  value: any,
-  error: string | undefined,
-  onChange: (value: any) => void,
-  onMultiChange?: (values: Record<string, any>) => void
-) => {
+const EditableField = ({ field, value, error, onChange, onMultiChange }: EditableFieldProps) => {
   const type = field.type || 'text';
   const Component = FieldComponents[type] || FieldComponents['text'];
   return (
@@ -282,9 +272,6 @@ const RenderField = (
     />
   );
 };
-
-const EditableField = ({ field, value, error, onChange, onMultiChange }: EditableFieldProps) =>
-  RenderField(field, value, error, onChange, onMultiChange);
 
 const isCurrencyField = (fieldKey: string) => {
   return fieldKey === 'purchaseCost' || fieldKey === 'selling';
@@ -404,10 +391,10 @@ const buildInitialValues = (fields: FieldConfig[], data: Record<string, any>): F
         value = initialValue;
       } else if (typeof initialValue === 'string' && initialValue.trim() !== '') {
         value = initialValue.includes(',')
-          ? initialValue
-              .split(',')
-              .map((item) => item.trim())
-              .filter(Boolean)
+          ? initialValue.split(',').flatMap((item) => {
+              const trimmed = item.trim();
+              return trimmed ? [trimmed] : [];
+            })
           : [initialValue];
       }
       acc[field.key] = value;
@@ -457,7 +444,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   dynamicFooter,
   fieldResets,
   optionsResolver,
-  onRegisterActions,
+  ref,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -473,6 +460,17 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
   }
+
+  const setEditingState = useCallback(
+    (nextEditing: boolean) => {
+      if (readOnly && nextEditing) {
+        return;
+      }
+      setIsEditing(nextEditing);
+      onEditingChange?.(readOnly ? false : nextEditing);
+    },
+    [onEditingChange, readOnly]
+  );
 
   const handleChange = useCallback(
     (key: string, value: any) => {
@@ -495,9 +493,9 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     (key: string, value: any) => {
       if (readOnly) return;
       handleChange(key, value);
-      setIsEditing(true);
+      setEditingState(true);
     },
-    [readOnly, handleChange]
+    [readOnly, handleChange, setEditingState]
   );
 
   const handleMultiChange = (values: Record<string, any>) => {
@@ -527,24 +525,19 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     if (isSaving) return;
     setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
-    setIsEditing(false);
-  }, [data, fields, isSaving]);
+    setEditingState(false);
+  }, [data, fields, isSaving, setEditingState]);
 
-  useEffect(() => {
-    if (readOnly && isEditing) {
-      setIsEditing(false);
-      onEditingChange?.(false);
-    }
-  }, [readOnly, isEditing, onEditingChange]);
+  const effectiveEditing = readOnly ? false : isEditing;
 
   const handleSave = useCallback(async () => {
-    if (isSaving) return;
+    if (readOnly || isSaving) return;
     if (!validate()) return;
 
     setIsSaving(true);
     try {
       await onSave?.(formValues);
-      setIsEditing(false);
+      setEditingState(false);
       setError(null);
     } catch (e) {
       console.error('Failed to save accordion data:', e);
@@ -552,25 +545,16 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [formValues, isSaving, onSave, validate]);
+  }, [formValues, isSaving, onSave, readOnly, setEditingState, validate]);
 
-  useEffect(() => {
-    onEditingChange?.(isEditing);
-  }, [isEditing, onEditingChange]);
-
-  useEffect(() => {
-    onRegisterActions?.({
-      save: handleSave,
-      cancel: handleCancel,
-      startEditing: () => {
-        setIsEditing(true);
-      },
-      isEditing: () => isEditing,
-    });
-    return () => onRegisterActions?.(null);
-  }, [onRegisterActions, handleSave, handleCancel, isEditing, onEditingChange, fields, data]);
-
-  const effectiveEditing = readOnly ? false : isEditing;
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+    cancel: handleCancel,
+    startEditing: () => {
+      setEditingState(true);
+    },
+    isEditing: () => effectiveEditing,
+  }));
 
   const displayValues: FormValues = useMemo(() => ({ ...data, ...formValues }), [data, formValues]);
   const renderedFooter =
@@ -582,12 +566,22 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         })
       : footer;
 
+  const visibleFields = useMemo(() => {
+    const result: FieldConfig[] = [];
+    for (const field of fields) {
+      if (!fieldFilter || fieldFilter(field.key, formValues)) {
+        result.push(field);
+      }
+    }
+    return result;
+  }, [fields, fieldFilter, formValues]);
+
   return (
     <div className="flex flex-col gap-3 w-full">
       <Accordion
         title={title}
         defaultOpen={defaultOpen}
-        onEditClick={() => !readOnly && setIsEditing((prev) => !prev)}
+        onEditClick={() => setEditingState(!effectiveEditing)}
         isEditing={effectiveEditing}
         showEditIcon={!readOnly && showEditIcon}
         rightElement={rightElement}
@@ -596,37 +590,33 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       >
         <div className={`flex flex-col`}>
           {dynamicFooter && <div className="mb-3">{dynamicFooter(formValues)}</div>}
-          {fields
-            .filter((field) => !fieldFilter || fieldFilter(field.key, formValues))
-            .map((field) => {
-              const resolvedOptions = optionsResolver?.(field.key, formValues);
-              const resolvedField = resolvedOptions
-                ? { ...field, options: resolvedOptions }
-                : field;
-              const canEditThisField = !readOnly && effectiveEditing && isFieldEditable(field);
-              return (
-                <div key={field.key}>
-                  {canEditThisField ? (
-                    <div className="flex-1 mb-3">
-                      <EditableField
-                        field={resolvedField}
-                        value={formValues[field.key]}
-                        error={formValuesErrors[field.key]}
-                        onChange={(value) => handleChange(field.key, value)}
-                        onMultiChange={handleMultiChange}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex-1">{RenderValue(field, displayValues)}</div>
-                  )}
-                </div>
-              );
-            })}
+          {visibleFields.map((field) => {
+            const resolvedOptions = optionsResolver?.(field.key, formValues);
+            const resolvedField = resolvedOptions ? { ...field, options: resolvedOptions } : field;
+            const canEditThisField = !readOnly && effectiveEditing && isFieldEditable(field);
+            return (
+              <div key={field.key}>
+                {canEditThisField ? (
+                  <div className="flex-1 mb-3">
+                    <EditableField
+                      field={resolvedField}
+                      value={formValues[field.key]}
+                      error={formValuesErrors[field.key]}
+                      onChange={(value) => handleChange(field.key, value)}
+                      onMultiChange={handleMultiChange}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-1">{RenderValue(field, displayValues)}</div>
+                )}
+              </div>
+            );
+          })}
           {renderedFooter && <div className="mt-3">{renderedFooter}</div>}
         </div>
       </Accordion>
 
-      {isEditing && !hideInlineActions && (
+      {effectiveEditing && !hideInlineActions && (
         <div
           className={
             compactInlineActions

@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import Page from '@/app/(routes)/(public)/signup/page';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useRouter } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 // Mock the child SignUp component to isolate the page logic
@@ -13,23 +13,24 @@ jest.mock('@/app/features/auth/pages/SignUp/SignUp', () => {
 });
 
 jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
+  redirect: jest.fn(),
 }));
 
-jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: jest.fn(),
-}));
+jest.mock('@/app/stores/authStore', () => {
+  const useAuthStore = jest.fn();
+  (useAuthStore as unknown as { getState: unknown }).getState = jest.fn(() => ({
+    checkSession: jest.fn(),
+  }));
+  return { useAuthStore };
+});
 
 jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
 }));
 
 describe('Signup Page', () => {
-  const mockReplace = jest.fn();
-
   beforeEach(() => {
     jest.clearAllMocks();
-    (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace });
     (useAuthStore as unknown as jest.Mock).mockImplementation(
       (selector: (state: unknown) => unknown) => selector({ status: 'idle', role: 'owner' })
     );
@@ -51,7 +52,7 @@ describe('Signup Page', () => {
 
     await waitFor(() => {
       expect(resolvePostAuthRedirect).toHaveBeenCalledWith({ fallbackRole: 'owner' });
-      expect(mockReplace).toHaveBeenCalledWith('/dashboard');
+      expect(redirect).toHaveBeenCalledWith('/dashboard');
     });
   });
 
@@ -67,6 +68,6 @@ describe('Signup Page', () => {
       expect(screen.getByTestId('mock-signup')).toBeInTheDocument();
     });
     expect(resolvePostAuthRedirect).not.toHaveBeenCalled();
-    expect(mockReplace).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

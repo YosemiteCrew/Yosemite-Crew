@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { ParamsDictionary } from "express-serve-static-core";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import type { OrgRequest } from "src/middlewares/rbac";
+import type { Permission } from "src/models/role-permission";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
   isTaskCategory,
@@ -29,7 +30,7 @@ import {
   TaskTemplateService,
   UpdateTaskTemplateInput,
 } from "src/services/taskTemplate.service";
-import { TaskKind, TaskStatus } from "@prisma/client";
+import { TaskKind, TaskStatus, TaskPriority } from "@prisma/client";
 
 type CreateCustomTaskRequestBody = Omit<
   CreateCustomTaskInput,
@@ -61,6 +62,12 @@ const TASK_STATUSES = new Set<TaskStatus>([
   "IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
+]);
+const TASK_PRIORITIES = new Set<TaskPriority>([
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
 ]);
 const pickFirstQueryValue = (value?: string | string[]): string | undefined =>
   Array.isArray(value) ? value[0] : value;
@@ -128,6 +135,15 @@ const parseTaskCategory = (
   return value && isTaskCategory(value) ? value : undefined;
 };
 
+const parseTaskPriority = (
+  priority?: string | string[],
+): TaskPriority | undefined => {
+  const value = pickFirstQueryValue(priority);
+  return value && TASK_PRIORITIES.has(value as TaskPriority)
+    ? (value as TaskPriority)
+    : undefined;
+};
+
 const parseRecurrenceScope = (
   scope?: string | string[],
 ): RecurrenceScope | undefined => {
@@ -155,6 +171,7 @@ type TaskListQuery = {
   status?: string | string[];
   category?: string | string[];
   subcategory?: string | string[];
+  priority?: string | string[];
   kind?: string | string[];
   dueFrom?: string | string[];
   dueTo?: string | string[];
@@ -172,16 +189,30 @@ const handleError = (error: unknown, res: Response) => {
 };
 
 const resolveUserId = (
-  req: Request<ParamsDictionary, unknown, unknown, Record<string, unknown>>,
+  req: Request<unknown, unknown, unknown, unknown>,
 ): string => {
   const authReq = req as AuthenticatedRequest;
   return typeof authReq.userId === "string" ? authReq.userId : "";
 };
 
+const resolveOrganisationId = (
+  req: Request<unknown, unknown, unknown, unknown>,
+): string | undefined => {
+  const orgReq = req as OrgRequest;
+  return typeof orgReq.organisationId === "string"
+    ? orgReq.organisationId
+    : undefined;
+};
+
 const hasPermission = (
-  req: { userPermissions?: OrgRequest["userPermissions"] },
-  permission: string,
-): boolean => Boolean(req.userPermissions?.includes(permission as never));
+  req: Request<unknown, unknown, unknown, unknown>,
+  permission: Permission,
+): boolean => {
+  const orgReq = req as OrgRequest;
+  return Array.isArray(orgReq.userPermissions)
+    ? orgReq.userPermissions.includes(permission)
+    : false;
+};
 
 export const TaskController = {
   // MOBILE — Create Custom Task
@@ -280,19 +311,37 @@ export const TaskController = {
   // Get Task Detail
   getById: async (req: Request, res: Response) => {
     try {
-      const actorId = resolveUserId(req);
-      const canViewAny = hasPermission(req as OrgRequest, "tasks:view:any");
-      const task = await TaskService.getById(req.params.taskId);
+      const organisationId = resolveOrganisationId(req);
+      const task = await TaskService.getById(req.params.taskId, organisationId);
       if (!task) return res.status(404).json({ message: "Task not found" });
 
-      if (!canViewAny) {
-        if (
-          !actorId ||
-          (task.assignedTo !== actorId && task.createdBy !== actorId)
-        ) {
-          return res
-            .status(403)
-            .json({ message: "Forbidden – insufficient permissions" });
+      // Mobile has no org context, so `organisationId` is undefined and the PMS
+      // permission check below never runs; the parent identity is the only
+      // authority there and ownership is therefore unconditional.
+      if (!organisationId) {
+        const authUser = await AuthUserMobileService.getByProviderUserId(
+          resolveUserId(req),
+        );
+        const parentId = authUser?.parentId?.toString();
+        const isOwner =
+          !!parentId &&
+          (task.createdBy === parentId || task.assignedTo === parentId);
+        if (!isOwner) {
+          return res.status(404).json({ message: "Task not found" });
+        }
+
+        return res.json(task);
+      }
+
+      // PMS context (org membership resolved): callers without tasks:view:any
+      // may only read tasks they created or are assigned to.
+      if (!hasPermission(req, "tasks:view:any")) {
+        const actorId = resolveUserId(req);
+        const isOwner =
+          !!actorId &&
+          (task.createdBy === actorId || task.assignedTo === actorId);
+        if (!isOwner) {
+          return res.status(404).json({ message: "Task not found" });
         }
       }
 
@@ -339,12 +388,14 @@ export const TaskController = {
       }
 
       const scope =
-        parseRecurrenceScope(req.query.scope as string | string[]) ?? "THIS";
+        parseRecurrenceScope(req.query?.scope as string | string[]) ?? "THIS";
+      const organisationId = resolveOrganisationId(req);
       const task = await TaskService.updateTask(
         taskId,
         req.body,
         actorId,
         scope,
+        organisationId,
       );
       res.json(task);
     } catch (error) {
@@ -366,7 +417,12 @@ export const TaskController = {
 
       const scope =
         parseRecurrenceScope(req.query.scope as string | string[]) ?? "THIS";
-      await TaskService.deleteTask(taskId, actorId, scope);
+      await TaskService.deleteTask(
+        taskId,
+        actorId,
+        scope,
+        resolveOrganisationId(req),
+      );
       res.status(204).json({});
     } catch (error) {
       handleError(error, res);
@@ -429,11 +485,13 @@ export const TaskController = {
         return res.status(400).json({ message: "Invalid task status" });
       }
 
+      const organisationId = resolveOrganisationId(req);
       const result = await TaskService.changeStatus(
         taskId,
         status,
         actorId,
         completion,
+        organisationId,
       );
       res.json(result);
     } catch (error) {
@@ -486,15 +544,22 @@ export const TaskController = {
   ) => {
     try {
       const actorId = resolveUserId(req);
-      const canViewAny = hasPermission(req as OrgRequest, "tasks:view:any");
+      const canViewAny = hasPermission(req, "tasks:view:any");
       if (!canViewAny && !actorId) {
         return res.status(403).json({ message: "Account not found" });
       }
 
       const organisationId =
         (req as OrgRequest).organisationId ?? req.params.organisationId;
-      const requestedAssignedTo = req.query.assignedTo ?? req.query.userId;
-      const assignedTo = canViewAny ? requestedAssignedTo : actorId;
+
+      // Own-scope enforcement: callers without tasks:view:any may only list
+      // their OWN tasks — those they created OR are assigned to (mirrors the
+      // per-task detail check and the parent list). The client-supplied
+      // userId/assignedTo is ignored for these callers.
+      const assignedTo = canViewAny
+        ? (req.query.assignedTo ?? req.query.userId)
+        : undefined;
+      const ownerId = canViewAny ? undefined : actorId;
       const audience =
         parseAudience(req.query.audience) ??
         parseAudience(req.query.assignedRole);
@@ -503,6 +568,7 @@ export const TaskController = {
         organisationId,
         userId: assignedTo,
         assignedTo,
+        ownerId,
         patientId:
           req.query.patientId ?? req.query.companionId ?? req.query.clientId,
         companionId: req.query.companionId,
@@ -518,6 +584,7 @@ export const TaskController = {
         status: parseStatusList(req.query.status),
         category: parseTaskCategory(req.query.category),
         subcategory: pickFirstQueryValue(req.query.subcategory),
+        priority: parseTaskPriority(req.query.priority),
         kind: parseTaskKind(req.query.kind),
         dueFrom:
           parseDateQuery(req.query.dueFrom) ??
@@ -557,6 +624,7 @@ export const TaskController = {
         status: parseStatusList(req.query.status),
         category: parseTaskCategory(req.query.category),
         subcategory: pickFirstQueryValue(req.query.subcategory),
+        priority: parseTaskPriority(req.query.priority),
         kind: parseTaskKind(req.query.kind),
         dueFrom:
           parseDateQuery(req.query.dueFrom) ??

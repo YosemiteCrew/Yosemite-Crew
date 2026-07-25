@@ -1,12 +1,6 @@
 import React, {useMemo} from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  ImageSourcePropType,
-} from 'react-native';
+import {View, Text, Image, StyleSheet, ImageSourcePropType} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
@@ -110,6 +104,7 @@ export const AppointmentCard = ({
       actionIcon={Images.viewIconSlide}
       onAction={handleViewPress}
       onPress={handlePress}
+      actionAccessibilityLabel="View"
       actionBackgroundColor={theme.colors.success}
       containerStyle={styles.container}
       cardProps={{
@@ -127,12 +122,14 @@ export const AppointmentCard = ({
         mass: 0.8,
       }}
       enableHorizontalSwipeOnly={true}>
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={onPress ? 0.85 : 1}
         onPress={handlePress}
         disabled={!onPress}
         style={styles.touchWrapper}
-        testID={testIDs?.container}>
+        testID={testIDs?.container}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={`${doctorName}, ${specialization}, ${dateTime}`}>
         {/* Top Row: Avatar and Text Block */}
         <View style={styles.topRow}>
           <Image
@@ -212,7 +209,7 @@ export const AppointmentCard = ({
           </View>
         )}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
-      </TouchableOpacity>
+      </PressableOpacity>
     </SwipeableGlassCard>
   );
 };
@@ -267,7 +264,7 @@ const createStyles = (theme: any) =>
     },
     directionsButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     textBlock: {flex: 1, gap: theme.spacing['1']},
     name: {...theme.typography.titleMedium, color: theme.colors.secondary},

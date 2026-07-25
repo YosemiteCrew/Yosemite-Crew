@@ -261,27 +261,97 @@ describe("CompanionService", () => {
     });
   });
 
+  // Earlier tests leave persistent/once implementations on this mock, so each of these
+  // pins findByLinkedUserId explicitly.
+  const mockLinkedParent = (parent: { id: string } | null) => {
+    (ParentService.findByLinkedUserId as jest.Mock).mockReset();
+    (ParentService.findByLinkedUserId as jest.Mock).mockImplementation(
+      async () => parent,
+    );
+  };
+
   it("returns companions linked to a parent", async () => {
+    mockLinkedParent({ id: "parent-1" });
     (
       ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
     ).mockResolvedValueOnce(["patient-1"]);
     mockedPrisma.patient.findMany.mockResolvedValueOnce([createdPatient]);
 
-    const result = await CompanionService.listByParent("parent-1");
+    const result = await CompanionService.listByParent("parent-1", {
+      authUserId: "auth-1",
+    });
 
     expect(result.responses).toHaveLength(1);
     expect((result.responses[0] as any).id).toBe("patient-1");
   });
 
   it("returns an empty companion list when the parent has no companions", async () => {
+    mockLinkedParent({ id: "parent-1" });
     (
       ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
-    ).mockResolvedValueOnce([]);
+    ).mockReset();
+    (
+      ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+    ).mockImplementation(async () => []);
 
-    const result = await CompanionService.listByParent("parent-1");
+    const result = await CompanionService.listByParent("parent-1", {
+      authUserId: "auth-1",
+    });
 
     expect(result.responses).toEqual([]);
     expect(mockedPrisma.patient.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects listing companions for a parent the caller does not own", async () => {
+    mockLinkedParent({ id: "parent-1" });
+    (
+      ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+    ).mockReset();
+
+    await expect(
+      CompanionService.listByParent("victim-parent", { authUserId: "auth-1" }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        message: "Parent not found.",
+        statusCode: 404,
+      }),
+    );
+    expect(
+      ParentCompanionService.getActiveCompanionIdsForParent,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.patient.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects listing companions when the caller has no parent record", async () => {
+    mockLinkedParent(null);
+    (
+      ParentCompanionService.getActiveCompanionIdsForParent as jest.Mock
+    ).mockReset();
+
+    await expect(
+      CompanionService.listByParent("parent-1", { authUserId: "auth-1" }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        message: "Parent not found.",
+        statusCode: 404,
+      }),
+    );
+    expect(
+      ParentCompanionService.getActiveCompanionIdsForParent,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.patient.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects listing companions without an authenticated user", async () => {
+    mockLinkedParent({ id: "parent-1" });
+
+    await expect(CompanionService.listByParent("parent-1", {})).rejects.toEqual(
+      expect.objectContaining({
+        message: "Authenticated user is required to list companions.",
+        statusCode: 401,
+      }),
+    );
+    expect(ParentService.findByLinkedUserId).not.toHaveBeenCalled();
   });
 
   it("returns companions not linked to an organisation", async () => {

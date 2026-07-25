@@ -1,15 +1,7 @@
 import React from 'react';
-import {
-  Platform,
-  StyleProp,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from 'react-native';
-import {
-  LiquidGlassView,
-  isLiquidGlassSupported,
-} from '@callstack/liquid-glass';
+import {Platform, StyleProp, View, ViewStyle} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 
 const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.65)';
@@ -29,6 +21,7 @@ interface LiquidGlassIconButtonProps {
   colorScheme?: 'light' | 'dark' | 'system';
   shadow?: keyof typeof import('@/theme').shadows;
   disabled?: boolean;
+  accessibilityLabel?: string;
 }
 
 export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
@@ -41,6 +34,7 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
   colorScheme = 'light',
   shadow = 'sm',
   disabled = false,
+  accessibilityLabel,
 }) => {
   const {theme} = useTheme();
   const useNativeGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
@@ -59,7 +53,9 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
         ? ANDROID_DARK_GLASS_TINT
         : ANDROID_LIGHT_GLASS_TINT;
     }
-    return resolvedColorScheme === 'dark' ? IOS_DARK_GLASS_TINT : IOS_LIGHT_GLASS_TINT;
+    return resolvedColorScheme === 'dark'
+      ? IOS_DARK_GLASS_TINT
+      : IOS_LIGHT_GLASS_TINT;
   }, [resolvedColorScheme, tintColor]);
 
   const baseStyle = React.useMemo<ViewStyle>(
@@ -75,7 +71,13 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
       ...theme.shadows[shadow],
       shadowColor: theme.colors.neutralShadow ?? theme.colors.black,
     }),
-    [size, shadow, theme.colors.black, theme.colors.neutralShadow, theme.shadows],
+    [
+      size,
+      shadow,
+      theme.colors.black,
+      theme.colors.neutralShadow,
+      theme.shadows,
+    ],
   );
 
   const pressableStyle = React.useMemo<ViewStyle>(
@@ -96,19 +98,22 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
         effect={glassEffect}
         tintColor={resolvedTintColor}
         colorScheme={resolvedColorScheme}>
-        <TouchableOpacity
+        <PressableOpacity
           onPress={onPress}
           disabled={disabled}
           activeOpacity={0.85}
-          style={pressableStyle}>
+          style={pressableStyle}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
+          accessibilityState={{disabled}}>
           {children}
-        </TouchableOpacity>
+        </PressableOpacity>
       </LiquidGlassView>
     );
   }
 
   return (
-    <TouchableOpacity
+    <PressableOpacity
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.85}
@@ -127,9 +132,12 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
             : null),
         },
         style,
-      ]}>
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{disabled}}>
       <View style={pressableStyle}>{children}</View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 };
 

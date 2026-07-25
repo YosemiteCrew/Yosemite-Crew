@@ -27,7 +27,7 @@ const buildMedicationDetails = (formData: TaskFormData) => {
   const formattedDosages = formData.dosages.map(dosage => ({
     id: dosage.id,
     label: dosage.label,
-    time: formatTimeToISO(new Date(dosage.time)) || '00:00:00',
+    time: formatTimeToISO(new Date(dosage.time)) as string,
   }));
 
   return {
@@ -94,8 +94,7 @@ export const buildTaskFromForm = (
   }
 
   const taskDate = formData.date || formData.startDate || new Date();
-  const formattedDate =
-    formatDateToISODate(taskDate) || formatDateToISODate(new Date())!;
+  const formattedDate = formatDateToISODate(taskDate) as string;
   const formattedTime = formData.time
     ? formatTimeToISO(formData.time)
     : undefined;

@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, Text, Image, TouchableOpacity} from 'react-native';
+import {View, Text, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
 import {
@@ -27,7 +28,11 @@ export const DocumentAttachmentThumbnail: React.FC<Props> = ({
   return (
     <View style={styles.previewCard}>
       {isImage && source ? (
-        <Image source={{uri: source}} style={styles.previewImage} resizeMode="contain" />
+        <Image
+          source={{uri: source}}
+          style={styles.previewImage}
+          resizeMode="contain"
+        />
       ) : (
         <View style={styles.pdfPlaceholder}>
           <Image source={Images.documentIcon} style={styles.pdfIcon} />
@@ -37,13 +42,13 @@ export const DocumentAttachmentThumbnail: React.FC<Props> = ({
       <Text style={styles.pageIndicator}>
         Document {index + 1} of {total}
       </Text>
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.shareButton}
         onPress={() => onShare(file)}
         accessibilityRole="button"
         accessibilityLabel="Share attachment">
         <Image source={Images.shareIcon} style={styles.shareIcon} />
-      </TouchableOpacity>
+      </PressableOpacity>
     </View>
   );
 };

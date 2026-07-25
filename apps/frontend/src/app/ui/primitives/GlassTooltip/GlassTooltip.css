@@ -13,16 +13,20 @@
   white-space: normal;
   overflow-wrap: anywhere;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(26, 26, 28, 0.72);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* Aligned to the warm liquid-glass tokens (was cool hardcoded rgba): cream
+     frost + dark ink in light, espresso frost + cream ink in dark. */
+  border: 1px solid var(--hairline-soft);
+  background: var(--glass-93);
+  box-shadow:
+    0 12px 30px var(--sh28),
+    inset 0 1px 0 var(--glass-inset-hi);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
   padding: 6px 10px;
   font-family: var(--font-satoshi);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.2;
-  color: var(--color-neutral-0);
+  color: var(--ink);
   opacity: 1;
 }

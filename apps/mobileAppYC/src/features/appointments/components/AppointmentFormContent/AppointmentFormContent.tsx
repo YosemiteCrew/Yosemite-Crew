@@ -186,6 +186,7 @@ export const AppointmentFormContent: React.FC<AppointmentFormContentProps> = ({
         selectedDate={selectedDate}
         onChange={handleDateChange}
         datesWithMarkers={dateMarkers}
+        markerColor={theme.colors.success}
       />
 
       <Text style={styles.sectionTitle}>Available slots</Text>

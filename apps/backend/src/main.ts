@@ -1,6 +1,5 @@
 import "dotenv/config";
 import { createApp } from "./app";
-import { connectDB } from "./config/db";
 import { initQueues } from "./queues";
 import { configureStreamUploadPolicy } from "./config/stream-upload-policy";
 import logger from "./utils/logger";
@@ -11,7 +10,6 @@ const PORT = process.env.PORT || 3000;
 // NOSONAR – top-level await not supported in this runtime
 async function startServer() {
   try {
-    await connectDB();
     await initQueues();
     await configureStreamUploadPolicy();
     const app = createApp();

@@ -46,7 +46,6 @@ const treatmentItemParamsSchema = z.object({
 
 const signPacketBodySchema = z.object({
   signerName: z.string().trim().min(1).optional(),
-  signerEmail: z.string().trim().email().optional(),
 });
 
 const treatmentItemBodySchema = z.object({
@@ -262,7 +261,7 @@ export const WorkspaceController = {
     try {
       const params = packetParamsSchema.parse(req.params);
       const body = signPacketBodySchema.parse(req.body ?? {});
-      const signerId = resolveUserIdFromRequest(req);
+      const signerId = (req as OrgRequest).userId;
 
       if (!signerId) {
         return res.status(401).json({ message: "User not authenticated." });
@@ -273,7 +272,6 @@ export const WorkspaceController = {
         packetId: params.packetId,
         signerId,
         signerName: body.signerName,
-        signerEmail: body.signerEmail,
       });
       return res.status(200).json(data);
     } catch (error) {

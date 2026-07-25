@@ -137,6 +137,27 @@ describe('CustomAttachment', () => {
       fireEvent.press(getByText('My Video'));
       expect(ReactNativeHapticFeedback.trigger).toHaveBeenCalledTimes(2);
     });
+
+    it('exposes button role and toggles the accessibility label between play/pause', () => {
+      mockContext([
+        {type: 'video', asset_url: 'http://video.mp4', title: 'My Video'},
+      ]);
+
+      const {getByLabelText} = render(<CustomAttachment />);
+
+      const playButton = getByLabelText('Play video');
+      expect(playButton.props.accessibilityRole).toBe('button');
+
+      fireEvent.press(playButton);
+      expect(getByLabelText('Pause video')).toBeTruthy();
+    });
+
+    it('uses default title "Video" if title is missing', () => {
+      mockContext([{type: 'video', asset_url: 'http://video.mp4'}]);
+
+      const {getByText} = render(<CustomAttachment />);
+      expect(getByText('Video')).toBeTruthy();
+    });
   });
 
   // 4. File Attachment Tests
@@ -171,6 +192,16 @@ describe('CustomAttachment', () => {
 
       expect(getByText('Unknown.pdf')).toBeTruthy();
       expect(queryByText(/KB/)).toBeNull();
+    });
+
+    it('exposes button role and the file name as the accessibility label', () => {
+      mockContext([
+        {type: 'file', asset_url: 'http://file.pdf', title: 'Document.pdf'},
+      ]);
+
+      const {getByLabelText} = render(<CustomAttachment />);
+      const button = getByLabelText('Document.pdf');
+      expect(button.props.accessibilityRole).toBe('button');
     });
 
     it('triggers haptic feedback on file press', () => {

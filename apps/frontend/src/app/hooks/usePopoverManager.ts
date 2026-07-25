@@ -152,8 +152,10 @@ export const usePopoverManager = ({
         schedulePopoverClose();
       }
     };
+    // A touch *inside* the panel must never schedule a close — dismissal is
+    // handled by the outside-pointerdown listener. Cancel any pending close so
+    // interacting with the popover on touch devices keeps it open.
     const onTouchStart = () => clearCloseTimer();
-    const onTouchEnd = () => schedulePopoverClose();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setActivePopoverKey(null);
@@ -165,7 +167,6 @@ export const usePopoverManager = ({
     dialogEl.addEventListener('focusin', onFocusIn);
     dialogEl.addEventListener('focusout', onFocusOut);
     dialogEl.addEventListener('touchstart', onTouchStart, { passive: true });
-    dialogEl.addEventListener('touchend', onTouchEnd, { passive: true });
     dialogEl.addEventListener('keydown', onKeyDown);
 
     return () => {
@@ -174,7 +175,6 @@ export const usePopoverManager = ({
       dialogEl.removeEventListener('focusin', onFocusIn);
       dialogEl.removeEventListener('focusout', onFocusOut);
       dialogEl.removeEventListener('touchstart', onTouchStart);
-      dialogEl.removeEventListener('touchend', onTouchEnd);
       dialogEl.removeEventListener('keydown', onKeyDown);
     };
   }, [activePopoverKey, clearCloseTimer, closeOnHoverLeave, schedulePopoverClose]);

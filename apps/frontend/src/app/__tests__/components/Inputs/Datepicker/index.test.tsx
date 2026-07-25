@@ -54,6 +54,114 @@ describe('Datepicker (index)', () => {
     expect(screen.getByLabelText('Toggle calendar')).toBeInTheDocument();
   });
 
+  it('exposes the selected value in the accessible name in input mode', () => {
+    render(
+      <Datepicker
+        currentDate={new Date('2025-01-15T00:00:00.000Z')}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+        error="Required"
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Visit date: Jan 15, 2025, toggle calendar' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Required');
+  });
+
+  it('falls back to a default accessible label when the placeholder is empty', () => {
+    render(
+      <Datepicker currentDate={null} setCurrentDate={jest.fn()} placeholder="" type="input" />
+    );
+
+    expect(screen.getByRole('button', { name: 'Date, toggle calendar' })).toBeInTheDocument();
+  });
+
+  it('stays memoised across re-renders with equal props', () => {
+    const { rerender } = render(
+      <Datepicker
+        currentDate={new Date('2025-01-15T00:00:00.000Z')}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+        minDate={new Date('2025-01-01T00:00:00.000Z')}
+        minYear={2000}
+        maxYear={2030}
+        containerClassName="wrap"
+      />
+    );
+
+    rerender(
+      <Datepicker
+        currentDate={new Date('2025-01-15T00:00:00.000Z')}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+        minDate={new Date('2025-01-01T00:00:00.000Z')}
+        minYear={2000}
+        maxYear={2030}
+        containerClassName="wrap"
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Visit date: Jan 15, 2025, toggle calendar/ })
+    ).toBeInTheDocument();
+  });
+
+  it('renders when given a non-finite date value', () => {
+    render(
+      <Datepicker
+        currentDate={new Date('not-a-real-date')}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+      />
+    );
+
+    expect(screen.getByTestId('datepicker-portal-id')).toBeInTheDocument();
+  });
+
+  it('re-renders when a compared prop changes', () => {
+    const { rerender } = render(
+      <Datepicker
+        currentDate={new Date('2025-01-15T00:00:00.000Z')}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+        error="First error"
+      />
+    );
+
+    rerender(
+      <Datepicker
+        currentDate={new Date('2025-01-15T00:00:00.000Z')}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+        error="Second error"
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Second error');
+  });
+
+  it('renders the calendar inline when the portal is disabled', () => {
+    render(
+      <Datepicker
+        currentDate={null}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+        portal={false}
+      />
+    );
+
+    expect(screen.getByTestId('datepicker-portal-id')).toHaveTextContent('none');
+  });
+
   it('uses the shared portal by default to avoid modal clipping', () => {
     render(
       <Datepicker

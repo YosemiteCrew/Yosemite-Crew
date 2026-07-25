@@ -2,34 +2,69 @@ import React from 'react';
 import AppointmentAvatar from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar';
 
 type StaffFieldProps = {
-  /** Floating label, e.g. "Assigned Lead" / "Support Staff". */
+  /** Field label notched into the box's top border, e.g. "Assigned lead". */
   label: string;
   /** Assigned person's name; falls back to an em dash placeholder when empty. */
   name?: string;
   photoUrl?: string;
 };
 
+type MetaFieldShellProps = {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+};
+
 /**
- * Read display of an assigned staff member — a floating-label box showing the
- * name with a trailing initial-circle avatar, mirroring the client/patient name
- * field in the Add Appointment central modal (no dropdown).
+ * Shared meta-bar field chrome: a 46px box with a filled surface, a 1.5px
+ * hairline border, and the label notched into the top border (the label paints
+ * the screen background behind itself so the border reads as interrupted rather
+ * than overlapped). The surface uses `--field-bg` so the field reads as filled —
+ * matching the design — instead of washing out transparently over the page.
+ */
+export const MetaFieldShell = ({ label, children, className = '' }: MetaFieldShellProps) => (
+  <div
+    className={`relative flex h-[46px] w-full items-center gap-2 rounded-[14px] border-[1.5px] pr-2 pl-3.5 ${className}`}
+    style={{ background: 'var(--field-bg)', borderColor: 'var(--hairline)' }}
+  >
+    <span
+      className="absolute -top-[7px] left-3 truncate px-[5px] text-[10.5px] font-semibold leading-[120%]"
+      style={{ background: 'var(--screen)', color: 'var(--ink-faint)' }}
+    >
+      {label}
+    </span>
+    {children}
+  </div>
+);
+
+/** Value text shared by every meta-bar field — 13.5px/600 on the body ink. */
+export const MetaFieldValue = ({
+  children,
+  isPlaceholder = false,
+}: {
+  children: React.ReactNode;
+  isPlaceholder?: boolean;
+}) => (
+  <span
+    className="min-w-0 flex-1 truncate text-left text-[13.5px] font-semibold leading-[120%]"
+    style={{ color: isPlaceholder ? 'var(--ink-faint)' : 'var(--ink-body)' }}
+  >
+    {children}
+  </span>
+);
+
+/**
+ * Read display of an assigned staff member — a notched-label box showing the
+ * name with a trailing initial-circle avatar (no dropdown; the assignment is
+ * changed elsewhere).
  */
 const StaffField = ({ label, name, photoUrl }: StaffFieldProps) => {
   const hasValue = Boolean(name?.trim());
   return (
-    <div className="relative w-full">
-      <div className="relative flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) py-2 pr-2 pl-5">
-        <span
-          className={`min-w-0 flex-1 truncate text-left text-body-4 ${hasValue ? 'text-text-primary' : 'text-input-text-placeholder'}`}
-        >
-          {hasValue ? name : 'Unassigned'}
-        </span>
-        {hasValue && <AppointmentAvatar name={name!} photoUrl={photoUrl} size={32} />}
-      </div>
-      <span className="pointer-events-none absolute -top-2 left-5 z-10 bg-(--whitebg) px-1 text-caption-2 text-text-secondary">
-        {label}
-      </span>
-    </div>
+    <MetaFieldShell label={label}>
+      <MetaFieldValue isPlaceholder={!hasValue}>{hasValue ? name : 'Unassigned'}</MetaFieldValue>
+      {hasValue && <AppointmentAvatar name={name!} photoUrl={photoUrl} size={30} />}
+    </MetaFieldShell>
   );
 };
 

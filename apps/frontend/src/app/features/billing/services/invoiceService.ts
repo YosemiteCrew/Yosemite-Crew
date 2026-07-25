@@ -514,17 +514,26 @@ const shouldFetchInvoices = (
   return status === 'idle' || status === 'error';
 };
 
-// Dedupe key for "is this line already on the invoice". Intentionally keyed on
-// name + quantity only — NOT price. The same booked service can reach the invoice
-// through two pipelines (the treatment/catalog seed and the FE bill re-seed) whose
-// prices differ by a sub-cent rounding delta (e.g. 257.127 vs 257.13), and keying
-// on price let that rounded copy slip past the guard and append a duplicate line.
-const normalizeInvoiceLineKey = (item: Pick<InvoiceItem, 'name' | 'quantity'>) =>
+// Dedupe key for "is this line already on the invoice", keyed on name + quantity +
+// unit price at CENT precision. The same booked service can reach the invoice through
+// two pipelines (the treatment/catalog seed and the FE bill re-seed) whose prices differ
+// by a sub-cent rounding delta (e.g. 257.127 vs 257.13); rounding to cents collapses that
+// drift so the rounded copy still dedupes, while a genuinely different charge for the same
+// name + quantity keeps its own key and is billed instead of being silently dropped.
+// Keyed on unitPrice rather than total: total is derived (unitPrice * quantity), so the same
+// sub-cent drift scales with quantity and can exceed a cent, which would defeat the guard.
+const toCentPrecision = (value: number) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
+};
+
+const normalizeInvoiceLineKey = (item: Pick<InvoiceItem, 'name' | 'quantity' | 'unitPrice'>) =>
   [
     String(item.name ?? '')
       .trim()
       .toLowerCase(),
     Number(item.quantity),
+    toCentPrecision(item.unitPrice),
   ].join('|');
 
 const filterNewInvoiceLineItems = (invoice: Invoice, lineItems: InvoiceItem[]): InvoiceItem[] => {

@@ -8,9 +8,9 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 const FORMS_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import { IoAdd, IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
-import FormsFilters from '@/app/ui/filters/FormsFilters';
+import FormsFilters, { type FormsFilterState } from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { loadForms } from '@/app/features/forms/services/formService';
@@ -28,6 +28,57 @@ import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
 const FormInfo = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/FormInfo'));
 
+type CatalogSelectableEntry = {
+  id?: string;
+  name?: unknown;
+  status?: string;
+  organisationId?: string;
+  specialityId?: unknown;
+  isInpatientPreferred?: boolean;
+};
+
+/**
+ * Coerce a catalog field (typed `unknown` by the stores) to a string for display
+ * or map-key use without falling back to an object's `[object Object]`
+ * stringification. Primitives round-trip; anything else becomes an empty string.
+ */
+const toPrimitiveString = (value: unknown): string =>
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : '';
+
+/**
+ * Catalog stores accumulate entries across organisations, so an entry is only
+ * selectable here when it belongs to the organisation currently in context.
+ */
+const toActiveCatalogItems = (
+  entries: readonly CatalogSelectableEntry[],
+  badge: 'Service' | 'Package',
+  organisationId: string | null | undefined
+) =>
+  entries.reduce<
+    Array<{
+      id: CatalogSelectableEntry['id'];
+      name: string;
+      specialityId: CatalogSelectableEntry['specialityId'];
+      badge: 'Service' | 'Package';
+      isInpatient: boolean;
+    }>
+  >((items, entry) => {
+    // Single pass: filter to the active, in-context entries and shape them at
+    // once instead of chaining .filter().map() (two iterations).
+    if (entry.status === 'ACTIVE' && entry.organisationId === organisationId) {
+      items.push({
+        id: entry.id,
+        name: toPrimitiveString(entry.name).trim(),
+        specialityId: entry.specialityId,
+        badge,
+        isInpatient: entry.isInpatientPreferred === true,
+      });
+    }
+    return items;
+  }, []);
+
 const Forms = () => {
   const permissions = usePermissions();
   const canEditForms = permissions.can(PERMISSIONS.FORMS_EDIT_ANY);
@@ -36,7 +87,7 @@ const Forms = () => {
   const headerSearchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
-  const [filteredList, setFilteredList] = useState<FormsProps[]>([]);
+  const [filters, setFilters] = useState<FormsFilterState>({ status: 'All', category: 'All' });
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [editingForm, setEditingForm] = useState<FormsProps | null>(null);
@@ -76,6 +127,17 @@ const Forms = () => {
     [formIds, formsById]
   );
 
+  const filteredList = useMemo(() => {
+    const q = headerSearchQuery.trim().toLowerCase();
+    return list.filter((item) => {
+      const matchesStatus = filters.status === 'All' || item.status === filters.status;
+      const matchesCategory = filters.category === 'All' || item.category === filters.category;
+      const matchesQuery =
+        !q || item.name?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
+      return matchesStatus && matchesCategory && matchesQuery;
+    });
+  }, [filters, headerSearchQuery, list]);
+
   const activeForm: FormsProps | null = useMemo(() => {
     const current = activeFormId ? formsById[activeFormId] : null;
     if (current) {
@@ -85,34 +147,14 @@ const Forms = () => {
     return filteredList[0] ?? null;
   }, [activeFormId, filteredList, formsById]);
 
-  useEffect(() => {
-    setFilteredList(list);
-  }, [list]);
-
   const serviceOptions = useMemo(() => {
     const specialityNameById = new Map(
       orgSpecialities.map((speciality) => [String(speciality.id ?? ''), speciality.name])
     );
 
     const catalogItems = [
-      ...services
-        .filter((service) => service.status === 'ACTIVE')
-        .map((service) => ({
-          id: service.id,
-          name: String(service.name ?? '').trim(),
-          specialityId: service.specialityId,
-          badge: 'Service' as const,
-          isInpatient: service.isInpatientPreferred === true,
-        })),
-      ...packages
-        .filter((pkg) => pkg.status === 'ACTIVE')
-        .map((pkg) => ({
-          id: pkg.id,
-          name: String(pkg.name ?? '').trim(),
-          specialityId: pkg.specialityId,
-          badge: 'Package' as const,
-          isInpatient: pkg.isInpatientPreferred === true,
-        })),
+      ...toActiveCatalogItems(services, 'Service', primaryOrgId),
+      ...toActiveCatalogItems(packages, 'Package', primaryOrgId),
     ];
 
     const nameFrequency = new Map<string, number>();
@@ -122,20 +164,21 @@ const Forms = () => {
       nameFrequency.set(key, (nameFrequency.get(key) ?? 0) + 1);
     }
 
-    return catalogItems
-      .filter((item) => item.id && item.name)
-      .map((item) => {
-        const duplicateName = (nameFrequency.get(item.name.toLowerCase()) ?? 0) > 1;
-        const specialityLabel =
-          specialityNameById.get(String(item.specialityId ?? '')) ?? 'Unknown Speciality';
-        return {
-          label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
-          value: item.id,
-          badge: item.badge,
-          isInpatient: item.isInpatient,
-        };
+    const options = [];
+    for (const item of catalogItems) {
+      if (!item.id || !item.name) continue;
+      const duplicateName = (nameFrequency.get(item.name.toLowerCase()) ?? 0) > 1;
+      const specialityLabel =
+        specialityNameById.get(toPrimitiveString(item.specialityId)) ?? 'Unknown Speciality';
+      options.push({
+        label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
+        value: item.id,
+        badge: item.badge,
+        isInpatient: item.isInpatient,
       });
-  }, [services, packages, orgSpecialities]);
+    }
+    return options;
+  }, [services, packages, orgSpecialities, primaryOrgId]);
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -209,13 +252,12 @@ const Forms = () => {
   });
 
   return (
-    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+    <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>
-              {'Templates'}
-              <span className="text-body-2 text-text-tertiary">{` (${list.length})`}</span>
+              {'Templates'} <span className="text-page-title-count">{`(${list.length})`}</span>
             </span>
             <GlassTooltip
               content="Build and reuse templates, link them to services, and use custom available templates."
@@ -230,6 +272,9 @@ const Forms = () => {
               </button>
             </GlassTooltip>
           </h1>
+          <p className="text-[13.5px] text-text-secondary">
+            Build and reuse templates, link them to services and packages
+          </p>
         </div>
       </div>
 
@@ -237,11 +282,17 @@ const Forms = () => {
       <PermissionGate allOf={[PERMISSIONS.FORMS_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <FormsFilters
-            list={list}
-            setFilteredList={setFilteredList}
-            searchQuery={headerSearchQuery}
+            filters={filters}
+            onFiltersChange={setFilters}
             categoryAction={
-              canEditForms ? <Primary href="#" text="Add" onClick={openAddForm} /> : null
+              canEditForms ? (
+                <Primary
+                  href="#"
+                  text="Add"
+                  onClick={openAddForm}
+                  icon={<IoAdd size={18} aria-hidden="true" />}
+                />
+              ) : null
             }
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
@@ -250,6 +301,8 @@ const Forms = () => {
               setActiveForm={handleSelectForm}
               setViewPopup={setViewPopup}
               loading={loading}
+              showLinkedServices
+              serviceOptions={serviceOptions}
             />
           </div>
         </div>

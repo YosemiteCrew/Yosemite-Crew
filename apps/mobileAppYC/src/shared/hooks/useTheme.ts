@@ -8,62 +8,33 @@ import {darkTheme, lightTheme} from '@/theme';
 const resolveScheme = (value: string | null | undefined): 'light' | 'dark' =>
   value === 'dark' ? 'dark' : 'light';
 
-export const DARK_MODE_ENABLED = false;
-
+/**
+ * Resolves the active warm-bone theme (light or espresso dark) from the
+ * persisted preference and keeps "system" mode in sync with the OS appearance.
+ */
 export const useTheme = () => {
   const dispatch = useAppDispatch();
-  const themeState = useAppSelector(state => state.theme);
-  const {theme: storedThemeMode, isDark: storedIsDark} = themeState;
+  const {theme: themeMode, isDark} = useAppSelector(state => state.theme);
 
   useEffect(() => {
-    if (!DARK_MODE_ENABLED) {
-      if (storedThemeMode !== 'light' || storedIsDark) {
-        dispatch(setTheme('light'));
-      }
-      return;
-    }
-
     dispatch(updateSystemTheme(resolveScheme(Appearance.getColorScheme())));
 
     const subscription = Appearance.addChangeListener(({colorScheme}) => {
       dispatch(updateSystemTheme(resolveScheme(colorScheme)));
     });
 
+    // Older RN / test mocks can return void from addChangeListener.
     return () => {
-      subscription.remove();
+      subscription?.remove?.();
     };
-  }, [dispatch, storedIsDark, storedThemeMode]);
-
-  const effectiveThemeMode = DARK_MODE_ENABLED ? storedThemeMode : 'light';
-  const effectiveIsDark = DARK_MODE_ENABLED ? storedIsDark : false;
-
-  const currentTheme = effectiveIsDark ? darkTheme : lightTheme;
-
-  const safeSetTheme = (mode: 'light' | 'dark' | 'system') => {
-    if (!DARK_MODE_ENABLED) {
-      if (storedThemeMode !== 'light') {
-        dispatch(setTheme('light'));
-      }
-      return;
-    }
-
-    dispatch(setTheme(mode));
-  };
-
-  const safeToggleTheme = () => {
-    if (!DARK_MODE_ENABLED) {
-      return;
-    }
-
-    dispatch(toggleTheme());
-  };
+  }, [dispatch]);
 
   return {
-    theme: currentTheme,
-    isDark: effectiveIsDark,
-    themeMode: effectiveThemeMode,
-    darkModeLocked: !DARK_MODE_ENABLED,
-    setTheme: safeSetTheme,
-    toggleTheme: safeToggleTheme,
+    theme: isDark ? darkTheme : lightTheme,
+    isDark,
+    themeMode,
+    darkModeLocked: false,
+    setTheme: (mode: 'light' | 'dark' | 'system') => dispatch(setTheme(mode)),
+    toggleTheme: () => dispatch(toggleTheme()),
   };
 };

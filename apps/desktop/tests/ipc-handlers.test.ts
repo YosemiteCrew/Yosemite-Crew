@@ -202,6 +202,9 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
     updateUnreadBadge: jest.fn(),
     startTelehealth: jest.fn(() => 'https://yosemitecrew.com/telehealth'),
     moveWindowBy: jest.fn(),
+    minimizeWindow: jest.fn(),
+    toggleMaximizeWindow: jest.fn(),
+    closeWindow: jest.fn(),
     ...overrides,
   };
 };
@@ -219,6 +222,8 @@ const register = (services: IpcServices) => {
   } as never);
   return Object.assign((channel: string, ...args: unknown[]) => handlers[channel](event, ...args), {
     emit: (channel: string, ...args: unknown[]) => listeners[channel]?.(event, ...args),
+    emitAs: (sender: unknown, channel: string, ...args: unknown[]) =>
+      listeners[channel]?.(sender, ...args),
   });
 };
 
@@ -245,6 +250,56 @@ describe('ipc-handlers — tab preview caching', () => {
     // Same tab, now in the background → served from cache, no live capture.
     active = null;
     expect(await call('yc:tab-get-preview', 't1')).toMatchObject({ ok: true });
+  });
+
+  test('does not serve a cached preview after the tab navigates away', async () => {
+    let active: unknown = null;
+    const services = makeServices({ activeContents: () => active as never });
+    const call = register(services);
+    const wc = (
+      services.tabViewHost as unknown as {
+        getWebContents: (id: string) => ReturnType<typeof makeWc>;
+      }
+    ).getWebContents('t1');
+
+    active = wc;
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({ ok: true });
+
+    // The tab has since navigated to a different page, so the thumbnail of the
+    // previous page must not be disclosed.
+    active = null;
+    wc.getURL.mockReturnValue('https://yosemitecrew.com/other-patient');
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({
+      ok: false,
+      error: 'no-preview',
+    });
+
+    // The stale entry is evicted, so a later hover cannot resurrect it either.
+    wc.getURL.mockReturnValue('https://yosemitecrew.com/page');
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({
+      ok: false,
+      error: 'no-preview',
+    });
+  });
+
+  test('forgets a cached preview when the tab is closed', async () => {
+    let active: unknown = null;
+    const services = makeServices({ activeContents: () => active as never });
+    const call = register(services);
+    const wc = (
+      services.tabViewHost as unknown as { getWebContents: (id: string) => unknown }
+    ).getWebContents('t1');
+
+    active = wc;
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({ ok: true });
+
+    // A tab id that gets reused after a close must not inherit the preview.
+    active = null;
+    await call('yc:tab-close', 't1');
+    expect(await call('yc:tab-get-preview', 't1')).toMatchObject({
+      ok: false,
+      error: 'no-preview',
+    });
   });
 });
 
@@ -438,6 +493,71 @@ describe('ipc-handlers — happy paths', () => {
     call.emit('yc:window-drag-by', Infinity, 1);
     call.emit('yc:window-drag-by', 0, 0);
     expect(moveWindowBy).toHaveBeenCalledTimes(1);
+  });
+
+  test('yc:window-drag-by ignores deltas from an untrusted sender', () => {
+    const moveWindowBy = jest.fn();
+    const services = makeServices({ moveWindowBy });
+    const call = register(services);
+    call.emitAs(
+      { senderFrame: { url: 'https://evil.example.com/embed' } },
+      'yc:window-drag-by',
+      10,
+      -5
+    );
+    expect(moveWindowBy).not.toHaveBeenCalled();
+  });
+
+  test('window caption channels forward to the matching service', () => {
+    const minimizeWindow = jest.fn();
+    const toggleMaximizeWindow = jest.fn();
+    const closeWindow = jest.fn();
+    const services = makeServices({ minimizeWindow, toggleMaximizeWindow, closeWindow });
+    const call = register(services);
+    call.emit('yc:window-minimize');
+    call.emit('yc:window-toggle-maximize');
+    call.emit('yc:window-close');
+    expect(minimizeWindow).toHaveBeenCalledTimes(1);
+    expect(toggleMaximizeWindow).toHaveBeenCalledTimes(1);
+    expect(closeWindow).toHaveBeenCalledTimes(1);
+  });
+
+  test('yc:idle-unlock forwards only the two known modes', () => {
+    const idleUnlock = jest.fn();
+    const services = makeServices({ idleUnlock });
+    const call = register(services);
+    call.emit('yc:idle-unlock', 'biometric');
+    call.emit('yc:idle-unlock', 'password');
+    expect(idleUnlock).toHaveBeenCalledTimes(2);
+    expect(idleUnlock).toHaveBeenNthCalledWith(1, 'biometric');
+    expect(idleUnlock).toHaveBeenNthCalledWith(2, 'password');
+  });
+
+  test('yc:idle-unlock drops unknown modes and untrusted senders', () => {
+    const idleUnlock = jest.fn();
+    const services = makeServices({ idleUnlock });
+    const call = register(services);
+    call.emit('yc:idle-unlock', 'sudo');
+    call.emit('yc:idle-unlock');
+    call.emit('yc:idle-unlock', { mode: 'password' });
+    call.emitAs(
+      { senderFrame: { url: 'https://evil.example.com/embed' } },
+      'yc:idle-unlock',
+      'password'
+    );
+    expect(idleUnlock).not.toHaveBeenCalled();
+  });
+
+  test('window caption channels ignore an untrusted sender and stray args', () => {
+    const minimizeWindow = jest.fn();
+    const closeWindow = jest.fn();
+    const services = makeServices({ minimizeWindow, closeWindow });
+    const call = register(services);
+    call.emitAs({ senderFrame: { url: 'https://evil.example.com/embed' } }, 'yc:window-close');
+    // Caption channels take no args, so a message carrying any is rejected too.
+    call.emit('yc:window-minimize', 1);
+    expect(closeWindow).not.toHaveBeenCalled();
+    expect(minimizeWindow).not.toHaveBeenCalled();
   });
 });
 

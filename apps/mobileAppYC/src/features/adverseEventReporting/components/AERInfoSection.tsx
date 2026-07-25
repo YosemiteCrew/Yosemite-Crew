@@ -1,9 +1,11 @@
 import React, {useMemo} from 'react';
-import {View, Text, TouchableOpacity, Image, StyleSheet} from 'react-native';
+import {View, Text, Image, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {RowButton, Separator} from '@/shared/components/common/FormRowComponents';
+import {RowButton} from '@/shared/components/common/RowButton';
+import {Separator} from '@/shared/components/common/Separator';
 
 export interface AERInfoRow {
   label: string;
@@ -26,9 +28,12 @@ export const AERInfoSection: React.FC<Props> = ({title, rows, onEdit}) => {
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {onEdit ? (
-          <TouchableOpacity onPress={onEdit}>
+          <PressableOpacity
+            onPress={onEdit}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${title}`}>
             <Image source={Images.blackEdit} style={styles.editIcon} />
-          </TouchableOpacity>
+          </PressableOpacity>
         ) : null}
       </View>
 
@@ -39,8 +44,12 @@ export const AERInfoSection: React.FC<Props> = ({title, rows, onEdit}) => {
         fallbackStyle={styles.infoCardFallback}>
         <View style={styles.cardContent}>
           {rows.map((row, idx) => (
-            <View key={`${row.label}-${idx}`}>
-              <RowButton label={row.label} value={row.value} onPress={row.onPress || (() => {})} />
+            <View key={`${row.label}-${row.value}`}>
+              <RowButton
+                label={row.label}
+                value={row.value}
+                onPress={row.onPress || (() => {})}
+              />
               {idx < rows.length - 1 ? <Separator /> : null}
             </View>
           ))}
@@ -59,21 +68,22 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['4'],
     },
     sectionTitle: {
-      ...theme.typography.h6Clash,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
       marginHorizontal: theme.spacing['2'],
+      flex: 1,
     },
     infoCard: {
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.card,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen,
       marginBottom: theme.spacing['6'],
-      ...theme.shadows.sm,
+      ...theme.shadows.card,
     },
     infoCardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen,
     },
     cardContent: {
       paddingVertical: 0,
@@ -83,6 +93,7 @@ const createStyles = (theme: any) =>
       height: 20,
       resizeMode: 'contain',
       marginHorizontal: theme.spacing['2'],
+      tintColor: theme.colors.inkMuted,
     },
   });
 

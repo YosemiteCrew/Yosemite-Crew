@@ -34,10 +34,7 @@ pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
 
 ## Issue Tracker
 
-Resolved/open issues log: `docs/guide/sonar-tracker.md`
-Raw Sonar dump: `docs/guide/sonar.md`
-
-Update `sonar-tracker.md` after every fix.
+The SonarCloud frontend project is the source of truth for open issues and security hotspots — it is analyzed in CI (`.github/workflows/sonar-cloud-analysis.yml`). Fix findings locally before pushing (see the pre-push Sonar gate in `CLAUDE.md`); never let them first surface on the PR.
 
 ---
 

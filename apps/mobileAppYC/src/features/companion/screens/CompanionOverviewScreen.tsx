@@ -1,4 +1,10 @@
-import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
+import React, {
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  useEffect as useReactEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -16,7 +22,6 @@ import type {AppDispatch, RootState} from '@/app/store';
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {
   capitalize,
@@ -25,10 +30,8 @@ import {
   displayOrigin,
 } from '@/shared/utils/commonHelpers';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
-import {
-  Separator,
-  RowButton,
-} from '@/shared/components/common/FormRowComponents';
+import {Separator} from '@/shared/components/common/Separator';
+import {RowButton} from '@/shared/components/common/RowButton';
 
 import {
   selectCompanionLoading,
@@ -72,10 +75,8 @@ import {
 } from '@/shared/components/common/OriginBottomSheet/OriginBottomSheet';
 
 // Date picker (reuse same component & formatter)
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 
 // Profile Image Picker
 import {CompanionProfileHeader} from '@/features/companion/components/CompanionProfileHeader';
@@ -88,6 +89,7 @@ import {
   updateCompanionProfile,
 } from '@/features/companion';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 import {fetchBreedCodeEntries} from '@/features/companion/services/codeEntriesService';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 
@@ -108,6 +110,7 @@ export const CompanionOverviewScreen: React.FC<
 > = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const today = useMemo(() => new Date(), []);
   const dispatch = useDispatch<AppDispatch>();
   const {weightUnit} = usePreferences();
 
@@ -143,7 +146,7 @@ export const CompanionOverviewScreen: React.FC<
     return selectedCompanionFromState ?? allCompanions[0] ?? null;
   }, [allCompanions, resolvedCompanionId, selectedCompanionFromState]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (resolvedCompanionId) {
       dispatch(setSelectedCompanion(resolvedCompanionId));
     }
@@ -166,7 +169,7 @@ export const CompanionOverviewScreen: React.FC<
   const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Track which bottom sheet is open
-  const [openBottomSheet, setOpenBottomSheet] = useState<
+  const openBottomSheetRef = useRef<
     | 'breed'
     | 'blood'
     | 'country'
@@ -237,7 +240,7 @@ export const CompanionOverviewScreen: React.FC<
   );
 
   // Handle Android back button for bottom sheets and date picker
-  useEffect(() => {
+  useReactEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
@@ -248,8 +251,8 @@ export const CompanionOverviewScreen: React.FC<
         }
 
         // Close bottom sheet first if open
-        if (openBottomSheet) {
-          switch (openBottomSheet) {
+        if (openBottomSheetRef.current) {
+          switch (openBottomSheetRef.current) {
             case 'breed':
               breedSheetRef.current?.close();
               break;
@@ -272,7 +275,7 @@ export const CompanionOverviewScreen: React.FC<
               originSheetRef.current?.close();
               break;
           }
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
           return true;
         }
 
@@ -281,14 +284,19 @@ export const CompanionOverviewScreen: React.FC<
     );
 
     return () => backHandler.remove();
-  }, [showDobPicker, openBottomSheet]);
+  }, [showDobPicker]);
 
   const currentWeightDisplay = useMemo(() => {
     if (!safeCompanion?.currentWeight) {
       return '';
     }
 
-    return `${safeCompanion.currentWeight.toFixed(1)} ${weightUnit}`;
+    const displayWeight = convertWeight(
+      safeCompanion.currentWeight,
+      'kg',
+      weightUnit,
+    );
+    return `${displayWeight.toFixed(1)} ${weightUnit}`;
   }, [safeCompanion, weightUnit]);
 
   const ageWhenNeuteredDisplay = useMemo(() => {
@@ -299,7 +307,7 @@ export const CompanionOverviewScreen: React.FC<
     return `${age} ${numValue === 1 ? 'Year' : 'Years'}`;
   }, [safeCompanion]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const loadBreeds = async () => {
@@ -373,7 +381,7 @@ export const CompanionOverviewScreen: React.FC<
       <LiquidGlassHeaderScreen
         header={
           <Header
-            title={`${safeCompanion.name}'s Overview`}
+            title="Overview"
             showBackButton
             onBack={goBack}
             glass={false}
@@ -395,232 +403,226 @@ export const CompanionOverviewScreen: React.FC<
               />
 
               {/* Card with rows */}
-              <View style={styles.glassShadowWrapper}>
-                <LiquidGlassCard
-                  glassEffect="clear"
-                  interactive
-                  tintColor={theme.colors.white}
-                  style={styles.glassContainer}
-                  fallbackStyle={styles.glassFallback}>
-                  <View style={styles.listContainer}>
-                    {/* Name – Inline */}
-                    <InlineEditRow
-                      label="Name"
-                      value={safeCompanion.name ?? ''}
-                      onSave={val => applyPatch({name: val})}
-                    />
+              <View style={styles.card}>
+                <View style={styles.listContainer}>
+                  {/* Name – Inline */}
+                  <InlineEditRow
+                    label="Name"
+                    value={safeCompanion.name ?? ''}
+                    onSave={val => applyPatch({name: val})}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Breed – Bottom sheet */}
-                    <RowButton
-                      label="Breed"
-                      value={safeCompanion.breed?.breedName ?? ''}
-                      onPress={() => {
-                        setOpenBottomSheet('breed');
-                        breedSheetRef.current?.open();
-                      }}
-                    />
+                  {/* Breed – Bottom sheet */}
+                  <RowButton
+                    label="Breed"
+                    value={safeCompanion.breed?.breedName ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'breed';
+                      breedSheetRef.current?.open();
+                    }}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Date of birth – Date picker */}
-                    <RowButton
-                      label="Date of birth"
-                      value={
-                        safeCompanion.dateOfBirth
-                          ? formatDateForDisplay(
-                              new Date(safeCompanion.dateOfBirth),
-                            )
-                          : ''
-                      }
-                      onPress={() => setShowDobPicker(true)}
-                    />
+                  {/* Date of birth – Date picker */}
+                  <RowButton
+                    label="Date of birth"
+                    value={
+                      safeCompanion.dateOfBirth
+                        ? formatDateForDisplay(
+                            new Date(safeCompanion.dateOfBirth),
+                          )
+                        : ''
+                    }
+                    onPress={() => setShowDobPicker(true)}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Gender – Bottom sheet */}
-                    <RowButton
-                      label="Gender"
-                      value={
-                        safeCompanion.gender
-                          ? capitalize(safeCompanion.gender)
-                          : ''
-                      }
-                      onPress={() => {
-                        setOpenBottomSheet('gender');
-                        genderSheetRef.current?.open();
-                      }}
-                    />
+                  {/* Gender – Bottom sheet */}
+                  <RowButton
+                    label="Gender"
+                    value={
+                      safeCompanion.gender
+                        ? capitalize(safeCompanion.gender)
+                        : ''
+                    }
+                    onPress={() => {
+                      openBottomSheetRef.current = 'gender';
+                      genderSheetRef.current?.open();
+                    }}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Current weight – Inline */}
-                    <InlineEditRow
-                      label="Current weight"
-                      value={currentWeightDisplay}
-                      keyboardType="decimal-pad"
-                      onSave={val => {
-                        // Remove any non-numeric or unit text
-                        const cleaned = val.replaceAll(/[^0-9.]/g, '').trim();
-                        let num = cleaned === '' ? null : Number(cleaned);
+                  {/* Current weight – Inline */}
+                  <InlineEditRow
+                    label="Current weight"
+                    value={currentWeightDisplay}
+                    keyboardType="decimal-pad"
+                    onSave={val => {
+                      // Remove any non-numeric or unit text
+                      const cleaned = val.replaceAll(/[^0-9.]/g, '').trim();
+                      const num = cleaned === '' ? null : Number(cleaned);
 
-                        // Convert to kg if user entered in lbs
-                        applyPatch({
-                          currentWeight:
-                            num === null || Number.isNaN(num) ? null : num,
-                        });
-                      }}
-                    />
+                      // currentWeight is always stored in kg; convert the
+                      // entered value from the user's preferred unit.
+                      applyPatch({
+                        currentWeight:
+                          num === null || Number.isNaN(num)
+                            ? null
+                            : convertWeight(num, weightUnit, 'kg'),
+                      });
+                    }}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Colour – Inline */}
-                    <InlineEditRow
-                      label="Colour"
-                      value={safeCompanion.color ?? ''}
-                      onSave={val => applyPatch({color: val || null})}
-                    />
+                  {/* Colour – Inline */}
+                  <InlineEditRow
+                    label="Colour"
+                    value={safeCompanion.color ?? ''}
+                    onSave={val => applyPatch({color: val || null})}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Allergies – Inline multiline */}
-                    <InlineEditRow
-                      label="Allergies"
-                      value={safeCompanion.allergies ?? ''}
-                      multiline
-                      onSave={val => applyPatch({allergies: val || null})}
-                    />
+                  {/* Allergies – Inline multiline */}
+                  <InlineEditRow
+                    label="Allergies"
+                    value={safeCompanion.allergies ?? ''}
+                    multiline
+                    onSave={val => applyPatch({allergies: val || null})}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Neutered status – Bottom sheet */}
-                    <RowButton
-                      label={
-                        safeCompanion.gender === 'female'
-                          ? 'Spayed status'
-                          : 'Neutered status'
-                      }
-                      value={displayNeutered(
-                        safeCompanion.neuteredStatus,
-                        safeCompanion.gender,
-                      )}
-                      onPress={() => {
-                        setOpenBottomSheet('neutered');
-                        neuteredSheetRef.current?.open();
-                      }}
-                    />
-
-                    {safeCompanion.neuteredStatus === 'neutered' && (
-                      <>
-                        <Separator />
-                        <InlineEditRow
-                          label={`Age when ${safeCompanion.gender === 'female' ? 'spayed' : 'neutered'} (optional)`}
-                          value={ageWhenNeuteredDisplay}
-                          onSave={val => {
-                            // Remove unit text (Year/Years) before saving - using string methods to avoid ReDoS
-                            let cleaned = val.trim();
-                            if (cleaned.toLowerCase().endsWith(' years')) {
-                              cleaned = cleaned.slice(0, -6).trim();
-                            } else if (
-                              cleaned.toLowerCase().endsWith(' year')
-                            ) {
-                              cleaned = cleaned.slice(0, -5).trim();
-                            }
-                            applyPatch({ageWhenNeutered: cleaned || null});
-                          }}
-                        />
-                      </>
+                  {/* Neutered status – Bottom sheet */}
+                  <RowButton
+                    label={
+                      safeCompanion.gender === 'female'
+                        ? 'Spayed status'
+                        : 'Neutered status'
+                    }
+                    value={displayNeutered(
+                      safeCompanion.neuteredStatus,
+                      safeCompanion.gender,
                     )}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'neutered';
+                      neuteredSheetRef.current?.open();
+                    }}
+                  />
 
-                    <Separator />
-
-                    {/* Blood group – Bottom sheet */}
-                    <RowButton
-                      label="Blood group"
-                      value={safeCompanion.bloodGroup ?? ''}
-                      onPress={() => {
-                        setOpenBottomSheet('blood');
-                        bloodSheetRef.current?.open();
-                      }}
-                    />
-
-                    <Separator />
-
-                    {/* Microchip number – Inline */}
-                    <InlineEditRow
-                      label="Microchip number"
-                      value={safeCompanion.microchipNumber ?? ''}
-                      onSave={val => applyPatch({microchipNumber: val || null})}
-                    />
-
-                    <Separator />
-
-                    {/* Passport number – Inline */}
-                    <InlineEditRow
-                      label="Passport number"
-                      value={safeCompanion.passportNumber ?? ''}
-                      onSave={val => applyPatch({passportNumber: val || null})}
-                    />
-
-                    <Separator />
-
-                    {/* Insured – Bottom sheet */}
-                    <RowButton
-                      label="Insurance status"
-                      value={displayInsured(safeCompanion.insuredStatus)}
-                      onPress={() => {
-                        setOpenBottomSheet('insured');
-                        insuredSheetRef.current?.open();
-                      }}
-                    />
-
-                    {safeCompanion.insuredStatus === 'insured' && (
-                      <>
-                        <Separator />
-                        <InlineEditRow
-                          label="Insurance company"
-                          value={safeCompanion.insuranceCompany ?? ''}
-                          onSave={val =>
-                            applyPatch({insuranceCompany: val || null})
+                  {safeCompanion.neuteredStatus === 'neutered' && (
+                    <>
+                      <Separator />
+                      <InlineEditRow
+                        label={`Age when ${safeCompanion.gender === 'female' ? 'spayed' : 'neutered'} (optional)`}
+                        value={ageWhenNeuteredDisplay}
+                        onSave={val => {
+                          // Remove unit text (Year/Years) before saving - using string methods to avoid ReDoS
+                          let cleaned = val.trim();
+                          if (cleaned.toLowerCase().endsWith(' years')) {
+                            cleaned = cleaned.slice(0, -6).trim();
+                          } else if (cleaned.toLowerCase().endsWith(' year')) {
+                            cleaned = cleaned.slice(0, -5).trim();
                           }
-                        />
-                        <Separator />
-                        <InlineEditRow
-                          label="Policy number"
-                          value={safeCompanion.insurancePolicyNumber ?? ''}
-                          onSave={val =>
-                            applyPatch({insurancePolicyNumber: val || null})
-                          }
-                        />
-                      </>
-                    )}
+                          applyPatch({ageWhenNeutered: cleaned || null});
+                        }}
+                      />
+                    </>
+                  )}
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Country of origin – Bottom sheet */}
-                    <RowButton
-                      label="Country of origin"
-                      value={safeCompanion.countryOfOrigin ?? ''}
-                      onPress={() => {
-                        setOpenBottomSheet('country');
-                        countrySheetRef.current?.open();
-                      }}
-                    />
+                  {/* Blood group – Bottom sheet */}
+                  <RowButton
+                    label="Blood group"
+                    value={safeCompanion.bloodGroup ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'blood';
+                      bloodSheetRef.current?.open();
+                    }}
+                  />
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Pet comes from – Bottom sheet */}
-                    <RowButton
-                      label="My pet comes from"
-                      value={displayOrigin(safeCompanion.origin)}
-                      onPress={() => {
-                        setOpenBottomSheet('origin');
-                        originSheetRef.current?.open();
-                      }}
-                    />
-                  </View>
-                </LiquidGlassCard>
+                  {/* Microchip number – Inline */}
+                  <InlineEditRow
+                    label="Microchip number"
+                    value={safeCompanion.microchipNumber ?? ''}
+                    onSave={val => applyPatch({microchipNumber: val || null})}
+                  />
+
+                  <Separator />
+
+                  {/* Passport number – Inline */}
+                  <InlineEditRow
+                    label="Passport number"
+                    value={safeCompanion.passportNumber ?? ''}
+                    onSave={val => applyPatch({passportNumber: val || null})}
+                  />
+
+                  <Separator />
+
+                  {/* Insured – Bottom sheet */}
+                  <RowButton
+                    label="Insurance status"
+                    value={displayInsured(safeCompanion.insuredStatus)}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'insured';
+                      insuredSheetRef.current?.open();
+                    }}
+                  />
+
+                  {safeCompanion.insuredStatus === 'insured' && (
+                    <>
+                      <Separator />
+                      <InlineEditRow
+                        label="Insurance company"
+                        value={safeCompanion.insuranceCompany ?? ''}
+                        onSave={val =>
+                          applyPatch({insuranceCompany: val || null})
+                        }
+                      />
+                      <Separator />
+                      <InlineEditRow
+                        label="Policy number"
+                        value={safeCompanion.insurancePolicyNumber ?? ''}
+                        onSave={val =>
+                          applyPatch({insurancePolicyNumber: val || null})
+                        }
+                      />
+                    </>
+                  )}
+
+                  <Separator />
+
+                  {/* Country of origin – Bottom sheet */}
+                  <RowButton
+                    label="Country of origin"
+                    value={safeCompanion.countryOfOrigin ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'country';
+                      countrySheetRef.current?.open();
+                    }}
+                  />
+
+                  <Separator />
+
+                  {/* Pet comes from – Bottom sheet */}
+                  <RowButton
+                    label="My pet comes from"
+                    value={displayOrigin(safeCompanion.origin)}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'origin';
+                      originSheetRef.current?.open();
+                    }}
+                  />
+                </View>
               </View>
             </ScrollView>
 
@@ -636,7 +638,7 @@ export const CompanionOverviewScreen: React.FC<
               }}
               show={showDobPicker}
               onDismiss={() => setShowDobPicker(false)}
-              maximumDate={new Date()}
+              maximumDate={today}
               mode="date"
             />
           </>
@@ -654,7 +656,7 @@ export const CompanionOverviewScreen: React.FC<
             speciesCode: b?.speciesCode ?? safeCompanion.speciesCode ?? null,
             breedCode: b?.breedCode ?? null,
           });
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -664,7 +666,7 @@ export const CompanionOverviewScreen: React.FC<
         category={safeCompanion.category}
         onSave={(bg: string | null) => {
           applyPatch({bloodGroup: bg});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -676,7 +678,7 @@ export const CompanionOverviewScreen: React.FC<
         )}
         onSave={country => {
           applyPatch({countryOfOrigin: country ? country.name : null});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -685,7 +687,7 @@ export const CompanionOverviewScreen: React.FC<
         selected={safeCompanion.gender}
         onSave={g => {
           applyPatch({gender: g});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -697,7 +699,7 @@ export const CompanionOverviewScreen: React.FC<
           const patch: Partial<Companion> = {neuteredStatus: n};
           if (n !== 'neutered') patch.ageWhenNeutered = null; // reset dependent
           applyPatch(patch);
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -711,7 +713,7 @@ export const CompanionOverviewScreen: React.FC<
             patch.insurancePolicyNumber = null;
           }
           applyPatch(patch);
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -720,7 +722,7 @@ export const CompanionOverviewScreen: React.FC<
         selected={safeCompanion.origin}
         onSave={o => {
           applyPatch({origin: o});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
     </>
@@ -744,4 +746,16 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
     ...createGlassCardStyles(theme),
+    // Flat warm-bone "screen2" card to match the Companion overview handoff:
+    // a single rounded surface with hairline row dividers, no glass/shadow.
+    card: {
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      paddingHorizontal: theme.spacing['1'],
+      paddingVertical: theme.spacing['1'],
+      marginTop: theme.spacing['4.5'],
+    },
+    listContainer: {
+      gap: 0,
+    },
   });

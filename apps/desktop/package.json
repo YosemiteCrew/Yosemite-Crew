@@ -34,7 +34,7 @@
     "@electron/fuses": "^2.1.2",
     "@electron/notarize": "^3.1.1",
     "@eslint/js": "^9.21.0",
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "^1.61.1",
     "@types/archiver": "^6",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.9.3",

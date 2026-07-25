@@ -10,6 +10,7 @@ import {
 } from "../../services/catalog.service";
 import logger from "../../utils/logger";
 import { ServiceRequestDTO } from "@yosemite-crew/types";
+import type { OrgRequest } from "src/middlewares/rbac";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 type BookableSlotsPayload = {
@@ -69,6 +70,21 @@ const handleError = (error: unknown, res: Response, defaultMessage: string) => {
   }
   logger.error(defaultMessage, error);
   return res.status(500).json({ message: defaultMessage });
+};
+
+// `vetIds` (staff identifiers) is an authenticated-only field. The slot routes
+// are a signed-out discovery surface, so an anonymous caller receives the time
+// windows without the practitioner assignment hint; a signed-in caller (staff
+// web app, or the mobile app once the user has authenticated to book) keeps it.
+const isAuthenticatedRequest = (req: Request): boolean =>
+  Boolean((req as OrgRequest).userId);
+
+const withoutVetIds = <T extends { vetIds: string[] }>(
+  value: T,
+): Omit<T, "vetIds"> => {
+  const clone: T = { ...value };
+  delete (clone as Partial<T>).vetIds;
+  return clone;
 };
 
 const parseCoordinates = (
@@ -242,7 +258,12 @@ export const ServiceController = {
     try {
       const { id } = req.params;
       const serviceRequest = req.body;
-      const updated = await ServiceService.update(id, serviceRequest);
+      const organisationId = (req as OrgRequest).organisationId;
+      const updated = await ServiceService.update(
+        id,
+        serviceRequest,
+        organisationId,
+      );
       return res.status(200).json(updated);
     } catch (error: unknown) {
       return handleError(error, res, "Unable to update service.");
@@ -252,7 +273,8 @@ export const ServiceController = {
   deleteService: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const { id } = req.params;
-      await ServiceService.delete(id);
+      const organisationId = (req as OrgRequest).organisationId;
+      await ServiceService.delete(id, organisationId);
       return res.status(204).send();
     } catch (error: unknown) {
       return handleError(error, res, "Unable to delete service.");
@@ -371,9 +393,13 @@ export const ServiceController = {
         referenceDate,
       );
 
+      const data = isAuthenticatedRequest(req)
+        ? result
+        : { ...result, windows: result.windows.map(withoutVetIds) };
+
       return res.status(200).json({
         success: true,
-        data: result,
+        data,
       });
     } catch (error: unknown) {
       return handleError(error, res, "Unable to fetch bookable slots");
@@ -406,9 +432,16 @@ export const ServiceController = {
         serviceIds,
       });
 
+      const sanitizedMatches = isAuthenticatedRequest(req)
+        ? matches
+        : matches.map((match) => ({
+            ...match,
+            slot: withoutVetIds(match.slot),
+          }));
+
       return res.status(200).json({
         success: true,
-        data: { matches },
+        data: { matches: sanitizedMatches },
       });
     } catch (error: unknown) {
       return handleError(error, res, "Unable to fetch calendar prefill");

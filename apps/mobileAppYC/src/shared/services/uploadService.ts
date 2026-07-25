@@ -33,14 +33,15 @@ const requestPresignedUrl = async (
   console.log('[UploadService] Presigned response', {
     endpoint,
     status: response.status,
-    data: response.data,
+    hasBody: response.data != null,
   });
 
   return response.data;
 };
 
-export const requestParentProfileUploadUrl = async (params: PresignedRequestParams) =>
-  requestPresignedUrl('/fhir/v1/parent/profile/presigned', params);
+export const requestParentProfileUploadUrl = async (
+  params: PresignedRequestParams,
+) => requestPresignedUrl('/fhir/v1/parent/profile/presigned', params);
 
 export const requestCompanionProfileUploadUrl = async (
   params: PresignedRequestParams,
@@ -105,7 +106,10 @@ const checkBlobPath = async (path: string) => {
   }
 };
 
-const findResolvedPath = async (wrappedPath: string, normalizedPath: string) => {
+const findResolvedPath = async (
+  wrappedPath: string,
+  normalizedPath: string,
+) => {
   const candidates = [wrappedPath, normalizedPath];
   for (const candidate of candidates) {
     const fsResult = await checkFsPath(candidate);
@@ -120,7 +124,10 @@ const findResolvedPath = async (wrappedPath: string, normalizedPath: string) => 
   return null;
 };
 
-const applyPathFallbacks = (resolvedResult: {path: string; size: number | null} | null, filePath: string) => {
+const applyPathFallbacks = (
+  resolvedResult: {path: string; size: number | null} | null,
+  filePath: string,
+) => {
   let path = resolvedResult?.path ?? null;
   if (!path && filePath.startsWith('content://')) {
     path = filePath;
@@ -169,18 +176,23 @@ export const uploadFileToPresignedUrl = async ({
 
   try {
     const isContentUri = resolvedPath.startsWith('content://');
-    let pathForRead = isContentUri ? resolvedPath : stripFileScheme(resolvedPath);
+    let pathForRead = isContentUri
+      ? resolvedPath
+      : stripFileScheme(resolvedPath);
 
     // Decode URL-encoded characters in file paths (e.g., %20 -> space)
     // This is necessary because file URIs from document picker may be URL-encoded
     pathForRead = decodeFilePath(pathForRead);
 
-    console.log('[UploadService] Pre-reading file content to ensure stability', {
-      path: pathForRead,
-      size: sizeHint ?? 'unknown',
-      isContentUri,
-      originalPath: resolvedPath,
-    });
+    console.log(
+      '[UploadService] Pre-reading file content to ensure stability',
+      {
+        path: pathForRead,
+        size: sizeHint ?? 'unknown',
+        isContentUri,
+        originalPath: resolvedPath,
+      },
+    );
 
     // Read entire file as base64 to verify it's readable and not empty
     // This prevents issues where file handles become invalid during upload
@@ -215,10 +227,13 @@ export const uploadFileToPresignedUrl = async ({
       );
     }
 
-    console.log('[UploadService] Starting S3 upload with verified file content', {
-      path: pathForRead,
-      uploadSize: actualSize,
-    });
+    console.log(
+      '[UploadService] Starting S3 upload with verified file content',
+      {
+        path: pathForRead,
+        uploadSize: actualSize,
+      },
+    );
 
     // Upload using the verified file path
     // Since we've already verified the file is readable and not empty,
@@ -242,8 +257,13 @@ export const uploadFileToPresignedUrl = async ({
 
     if (status >= 400) {
       const responseBody = response.text();
-      const responseText = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
-      throw new Error(`Failed to upload file. Status: ${status}. Response: ${responseText}`);
+      const responseText =
+        typeof responseBody === 'string'
+          ? responseBody
+          : JSON.stringify(responseBody);
+      throw new Error(
+        `Failed to upload file. Status: ${status}. Response: ${responseText}`,
+      );
     }
   } catch (error) {
     console.error('[UploadService] Upload failed with error', {

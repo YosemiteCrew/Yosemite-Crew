@@ -182,6 +182,23 @@ describe('AppointmentCard Component', () => {
   // 3. Interaction (Buttons & Card)
   // ===========================================================================
 
+  it('exposes button role and a descriptive accessibility label on the card body', () => {
+    const {getByTestId} = render(<AppointmentCard {...defaultProps} />);
+    const touchable = getByTestId('card-container');
+    expect(touchable.props.accessibilityRole).toBe('button');
+    expect(touchable.props.accessibilityLabel).toBe(
+      'Dr. Smith, Cardiology, Today, 10:00 AM',
+    );
+  });
+
+  it('omits the button role on the card body when onPress is undefined', () => {
+    const {getByTestId} = render(
+      <AppointmentCard {...defaultProps} onPress={undefined} />,
+    );
+    const touchable = getByTestId('card-container');
+    expect(touchable.props.accessibilityRole).toBeUndefined();
+  });
+
   it('calls onPress when the card body is pressed', () => {
     const {getByTestId} = render(<AppointmentCard {...defaultProps} />);
     const touchable = getByTestId('card-container');
@@ -281,5 +298,100 @@ describe('AppointmentCard Component', () => {
     fireEvent.press(getByText('Chat'));
     fireEvent.press(getByText('Check in'));
     getByTestId('swipe-trigger').props.onSwipeTrigger();
+  });
+
+  it('swaps to the fallback avatar when a rerendered avatar becomes a known dummy', () => {
+    const fallback = {uri: 'fallback.png'};
+    const {UNSAFE_getByType, rerender} = render(
+      <AppointmentCard
+        {...defaultProps}
+        avatar={{uri: 'real.png'}}
+        fallbackAvatar={fallback}
+      />,
+    );
+
+    expect(UNSAFE_getByType(Image).props.source).toEqual({uri: 'real.png'});
+
+    rerender(
+      <AppointmentCard
+        {...defaultProps}
+        avatar="dummy-url"
+        fallbackAvatar={fallback}
+      />,
+    );
+
+    expect(UNSAFE_getByType(Image).props.source).toEqual(fallback);
+  });
+
+  it('falls back to the fallbackAvatar source when there is no avatar at all', () => {
+    const fallback = {uri: 'fallback.png'};
+    const {UNSAFE_getByType} = render(
+      <AppointmentCard
+        {...defaultProps}
+        avatar={null}
+        fallbackAvatar={fallback}
+      />,
+    );
+
+    expect(UNSAFE_getByType(Image).props.source).toEqual(fallback);
+  });
+
+  it('falls back to the default cat image when neither avatar nor fallback exist', () => {
+    const {UNSAFE_getByType} = render(
+      <AppointmentCard {...defaultProps} avatar={null} fallbackAvatar={null} />,
+    );
+
+    expect(UNSAFE_getByType(Image).props.source).toEqual({
+      uri: 'cat-fallback-png',
+    });
+  });
+
+  it('does not change the avatar source on error when there is no fallback avatar', () => {
+    const onAvatarError = jest.fn();
+    const {UNSAFE_getByType} = render(
+      <AppointmentCard
+        {...defaultProps}
+        avatar={{uri: 'real.png'}}
+        fallbackAvatar={undefined}
+        onAvatarError={onAvatarError}
+      />,
+    );
+
+    fireEvent(UNSAFE_getByType(Image), 'error');
+
+    expect(onAvatarError).toHaveBeenCalled();
+    expect(UNSAFE_getByType(Image).props.source).toEqual({uri: 'real.png'});
+  });
+
+  it('does not throw when the chat button is blocked with no onChatBlocked handler', () => {
+    const {getByText} = render(
+      <AppointmentCard
+        {...defaultProps}
+        canChat={false}
+        onChatBlocked={undefined}
+      />,
+    );
+
+    expect(() => fireEvent.press(getByText('Chat'))).not.toThrow();
+  });
+
+  it('falls back to the default check-in label when checkInLabel is explicitly null', () => {
+    const {getByText} = render(
+      <AppointmentCard {...defaultProps} checkInLabel={null as any} />,
+    );
+
+    expect(getByText('Check in')).toBeTruthy();
+  });
+
+  it('renders the provided footer content', () => {
+    const {Text: RNText} = require('react-native');
+    const {getByTestId} = render(
+      <AppointmentCard
+        {...defaultProps}
+        footer={<RNText testID="custom-footer">Footer content</RNText>}
+      />,
+    );
+
+    expect(getByTestId('custom-footer')).toBeTruthy();
   });
 });

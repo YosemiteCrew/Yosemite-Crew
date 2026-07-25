@@ -30,11 +30,14 @@ jest.mock('react-native', () => {
       }),
     );
 
+  const mockTouchableOpacity = createMockComponent(
+    'TouchableOpacity',
+    'mock-touchable-opacity',
+  );
+
   return {
-    TouchableOpacity: createMockComponent(
-      'TouchableOpacity',
-      'mock-touchable-opacity',
-    ),
+    TouchableOpacity: mockTouchableOpacity,
+    Pressable: mockTouchableOpacity,
     Text: createMockComponent('Text', 'mock-text'),
     View: createMockComponent('View'),
     Image: createMockComponent('Image', 'mock-image'),
@@ -71,6 +74,15 @@ describe('CardActionButton', () => {
     // Check for press
     fireEvent.press(getByTestId('mock-touchable-opacity'));
     expect(mockOnPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes button role and the label to screen readers', () => {
+    const {getByTestId} = render(
+      <CardActionButton label="Press Me" onPress={mockOnPress} />,
+    );
+    const button = getByTestId('mock-touchable-opacity');
+    expect(button.props.accessibilityRole).toBe('button');
+    expect(button.props.accessibilityLabel).toBe('Press Me');
   });
 
   it('renders the icon when provided', () => {
@@ -172,9 +184,8 @@ describe('CardActionButton', () => {
     const icon = getByTestId('mock-image');
     const label = getByText('Custom');
 
-    expect(button.props.style).toEqual(
-      expect.arrayContaining([customButtonStyle]),
-    );
+    const buttonStyles = [button.props.style({pressed: false})].flat(Infinity);
+    expect(buttonStyles).toEqual(expect.arrayContaining([customButtonStyle]));
     expect(label.props.style).toEqual(
       expect.arrayContaining([customLabelStyle]),
     );
