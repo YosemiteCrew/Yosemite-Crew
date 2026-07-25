@@ -38,7 +38,7 @@ const ZoomOutMarker = ({ ev, marginTopPx, blockHeightPx, ...interaction }: ZoomO
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0.5 right-0.5 rounded-sm z-30"
+        className="pointer-events-none absolute inset-y-0 left-0.5 right-0.5 rounded-sm z-10"
         style={{
           backgroundColor: statusStyle.backgroundColor,
           borderWidth: '1px',
