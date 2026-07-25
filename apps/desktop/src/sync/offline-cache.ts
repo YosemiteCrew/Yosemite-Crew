@@ -125,6 +125,7 @@ const loadEntries = (
 ): CacheEntry[] => {
   try {
     if (existsSync && !existsSync(filePath)) return [];
+    if (filePath.includes('..') || path.isAbsolute(filePath)) return [];
     const raw = readFileSync(filePath) as Buffer;
     let jsonStr: string;
 

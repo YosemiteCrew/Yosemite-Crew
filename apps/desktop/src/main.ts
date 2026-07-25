@@ -1291,7 +1291,17 @@ const setupIdleLock = (ses: Session): void => {
       // Sizes and raises it; every later layout pass does the same.
       layoutLockOverlay();
       applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
-      void view.webContents.loadFile(localPage('idle-lock'));
+      const base = path.resolve(__dirname);
+      const pageName = 'idle-lock';
+      if (pageName.includes('..') || path.isAbsolute(pageName)) {
+        throw new Error('Invalid page name');
+      }
+      const target = path.resolve(base, localPage(pageName));
+      const relative = path.relative(base, target);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error('Invalid page name');
+      }
+      void view.webContents.loadFile(target);
     },
     unmount: () => {
       const view = lockOverlayView;

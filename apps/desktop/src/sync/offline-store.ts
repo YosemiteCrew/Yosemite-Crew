@@ -203,8 +203,15 @@ export const createOfflineStore = async (deps: StoreDeps = {}): Promise<OfflineS
   };
 
   const loadFile = (filePath: string): void => {
-    if (fs.existsSync(filePath)) {
-      const buffer = fs.readFileSync(filePath);
+    const path = require('path');
+    const baseDir = path.resolve(__dirname);
+    const resolvedPath = path.resolve(baseDir, filePath);
+    const relativePath = path.relative(baseDir, resolvedPath);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+      throw new Error('Invalid file path');
+    }
+    if (fs.existsSync(resolvedPath)) {
+      const buffer = fs.readFileSync(resolvedPath);
       db = new (db.constructor as new (data?: Uint8Array) => SqlJsDatabase)(buffer);
     }
   };

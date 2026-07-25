@@ -92,7 +92,15 @@ export const createBackupService = (deps: BackupDeps = {}): BackupService => {
 
   let schedule: BackupSchedule = { enabled: false, intervalMs: 86400000 };
 
-  const metaFilename = (destDir: string): string => path.join(destDir, '.backup-meta.json');
+  const metaFilename = (destDir: string): string => {
+    const base = path.resolve(destDir);
+    const target = path.resolve(base, '.backup-meta.json');
+    const relative = path.relative(base, target);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error('Invalid path');
+    }
+    return target;
+  };
 
   const loadMeta = (destDir: string): BackupResult[] => {
     const mf = metaFilename(destDir);

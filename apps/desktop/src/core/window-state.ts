@@ -158,6 +158,9 @@ export const createWindowStateStore = (
 
   const load = (defaults: WindowBounds = DEFAULT_BOUNDS): WindowState => {
     try {
+      if (filePath.includes('..') || path.isAbsolute(filePath)) {
+        throw new Error('Invalid file path');
+      }
       const raw = readFileSync(filePath, 'utf8');
       return normalizeWindowState(JSON.parse(raw), defaults);
     } catch (error) {
