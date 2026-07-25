@@ -1,4 +1,5 @@
 import { getData, postData } from '@/app/services/axios';
+import { MERCK_MANUAL_DOMAINS } from '@/securityHeaders';
 import {
   IntegrationProvider,
   IntegrationStatus,
@@ -296,13 +297,7 @@ export const isAllowedMerckUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    const allowedDomains = [
-      'merckvetmanual.com',
-      'msdvetmanual.com',
-      'merckmanuals.com',
-      'msdmanuals.com',
-    ];
-    return allowedDomains.some((domain) => host === domain || host.endsWith(`.${domain}`));
+    return MERCK_MANUAL_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
   } catch {
     return false;
   }

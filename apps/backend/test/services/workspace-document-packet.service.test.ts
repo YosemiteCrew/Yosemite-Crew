@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { WorkspaceService } from "src/services/workspace.prisma.service";
 import axios from "axios";
+import dns from "node:dns";
 import { DocumensoService } from "../../src/services/documenso.service";
 import { buildMergedClinicalPacketPdf } from "../../src/services/clinical-packet-pdf.service";
 import { renderCombinedClinicalPacketPdf } from "../../src/services/rendered-document-renderer.service";
@@ -149,9 +150,28 @@ const basePacket = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+let lookupSpy: jest.SpyInstance;
+
+/** Bytes that open with the PDF marker, as any real document does. */
+const pdfBytes = (marker: string): Buffer =>
+  Buffer.from(`%PDF-1.7\n${marker}\n%%EOF\n`);
+
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.DOCUMENSO_URL = "https://sign.example";
+  // The signed-packet link is checked before it is used, which resolves the
+  // host. Keep that resolution deterministic and offline: the placeholder hosts
+  // in this suite stand for ordinary public endpoints. Cases about which hosts
+  // are permitted live in workspace-document-packet.service.url-validation.
+  lookupSpy = jest
+    .spyOn(dns.promises, "lookup")
+    .mockResolvedValue([
+      { address: "203.0.113.10", family: 4 },
+    ] as unknown as dns.LookupAddress);
+});
+
+afterEach(() => {
+  lookupSpy.mockRestore();
 });
 
 describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
@@ -1264,7 +1284,7 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
       downloadUrl: "https://signed.example/packet.pdf",
     });
     mockedAxios.get.mockResolvedValue({
-      data: Buffer.from("signed-pdf"),
+      data: pdfBytes("signed"),
     });
 
     const pdf = await WorkspaceDocumentPacketService.buildEncounterPacketPdf(
@@ -1272,7 +1292,7 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
       "enc-1",
     );
 
-    expect(pdf.toString()).toBe("signed-pdf");
+    expect(pdf).toEqual(pdfBytes("signed"));
     expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
     expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
     expect(mockedBuildPacketPdf).not.toHaveBeenCalled();

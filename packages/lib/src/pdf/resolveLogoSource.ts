@@ -111,7 +111,7 @@ export const isPrivateAddress = (address: string): boolean =>
  * validated addresses (rather than a boolean) lets the caller pin the
  * connection to them.
  */
-const resolvePublicAddresses = async (hostname: string): Promise<string[] | null> => {
+export const resolvePublicAddresses = async (hostname: string): Promise<string[] | null> => {
   if (net.isIP(hostname)) {
     return isPrivateAddress(hostname) ? null : [hostname];
   }
@@ -133,7 +133,10 @@ const resolvePublicAddresses = async (hostname: string): Promise<string[] | null
  * re-resolve the hostname and could connect to a loopback / cloud-metadata
  * address that the name was rebound to after the check.
  */
-const buildPinnedAgent = (protocol: string, addresses: string[]): http.Agent | https.Agent => {
+export const buildPinnedAgent = (
+  protocol: string,
+  addresses: string[]
+): http.Agent | https.Agent => {
   const entries: dns.LookupAddress[] = addresses.map((address) => ({
     address,
     family: net.isIPv6(address) ? 6 : 4,

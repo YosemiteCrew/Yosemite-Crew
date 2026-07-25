@@ -4,6 +4,7 @@ import { IoEye } from 'react-icons/io5';
 import PaginatedGridTable, { GridHeaderCell } from '@/app/ui/tables/PaginatedGridTable';
 import { DispensaryRecord, DispensaryStatus } from '@/app/features/inventory/pages/Inventory/types';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 import './DataTable.css';
 
@@ -93,13 +94,8 @@ const getDisplayName = (record: DispensaryRecord) => {
   return ownerLastName ? `${record.patient.name} • ${ownerLastName}` : record.patient.name;
 };
 
-const StatusPill = ({ status }: { status: DispensaryStatus }) => (
-  <span
-    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] whitespace-nowrap"
-    style={STATUS_STYLES[status]}
-  >
-    {STATUS_LABELS[status]}
-  </span>
+const DispensaryStatusPill = ({ status }: { status: DispensaryStatus }) => (
+  <StatusPill style={STATUS_STYLES[status]} label={STATUS_LABELS[status]} />
 );
 
 const DispensaryRow = ({
@@ -125,7 +121,7 @@ const DispensaryRow = ({
         {getDisplayName(record)}
       </div>
       <div>
-        <StatusPill status={record.status} />
+        <DispensaryStatusPill status={record.status} />
       </div>
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {items.length === 0 ? (
@@ -197,9 +193,7 @@ const DispensaryCard = ({
           ? `${record.patient.name} • ${record.petParentName.trim().split(/\s+/).at(-1)}`
           : record.patient.name}
       </div>
-      <div className="appointment-status shrink-0" style={STATUS_STYLES[record.status]}>
-        {STATUS_LABELS[record.status]}
-      </div>
+      <DispensaryStatusPill status={record.status} />
     </div>
     {record.patient.petBreed && (
       <div className="text-caption-1 text-text-secondary">{record.patient.petBreed}</div>

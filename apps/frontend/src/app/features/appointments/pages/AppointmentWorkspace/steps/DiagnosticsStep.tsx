@@ -19,6 +19,7 @@ import {
   IoTrashOutline,
 } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -155,32 +156,28 @@ const IntegrationPills = ({
 };
 
 /**
- * Maps a lab order / result status string to the shared design-system pill
- * tokens (border + bg + text), matching the Invoice section's StatusPill.
+ * Maps a lab order / result status string to a shared StatusPill tone, so
+ * diagnostics states read at the same size and weight as every other status.
  */
-const getStatusPillClasses = (status: string): string => {
+const getStatusTone = (status: string): StatusTone => {
   const key = status.toLowerCase();
   if (key.includes('complete') || key.includes('final') || key.includes('submitted')) {
-    return 'border-pill-success-border bg-pill-success-bg text-pill-success-text';
+    return 'success';
   }
   if (key.includes('process') || key.includes('progress') || key.includes('pending')) {
-    return 'border-pill-info-border bg-pill-info-bg text-pill-info-text';
+    return 'info';
   }
   if (key.includes('error') || key.includes('fail') || key.includes('cancel')) {
-    return 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text';
+    return 'warning';
   }
-  return 'border-pill-neutral-border bg-pill-neutral-bg text-pill-neutral-text';
+  return 'neutral';
 };
 
 const getIvlsConfirmationLabel = (confirmed: boolean): string =>
   confirmed ? 'Confirmed for selected device' : 'Pending for selected device';
 
-const StatusPill = ({ status }: { status: string }) => (
-  <span
-    className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${getStatusPillClasses(status)}`}
-  >
-    {status}
-  </span>
+const DiagnosticsStatusPill = ({ status }: { status: string }) => (
+  <StatusPill tone={getStatusTone(status)} label={status} />
 );
 
 const MODALITY_LABELS: Record<string, string> = {
@@ -613,7 +610,7 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                   {formatDateTimeLocal(order.updatedAt ?? order.createdAt, '-')}
                 </span>
                 <div className="flex">
-                  <StatusPill status={s.getOrderDisplayStatus(order)} />
+                  <DiagnosticsStatusPill status={s.getOrderDisplayStatus(order)} />
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <Secondary
@@ -689,7 +686,7 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
                       {formatDateTimeLocal(result.updatedAt ?? result.createdAt, '-')}
                     </span>
                     <div className="flex">
-                      <StatusPill status={toTitleCase(result.status)} />
+                      <DiagnosticsStatusPill status={toTitleCase(result.status)} />
                     </div>
                     <div className="flex justify-end gap-2">
                       <CircleIconButton

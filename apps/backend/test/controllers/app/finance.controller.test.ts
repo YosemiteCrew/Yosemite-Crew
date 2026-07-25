@@ -3094,7 +3094,10 @@ describe("FinanceController", () => {
       await run(FinanceController.webhook);
 
       expect(mockedStripeController.webhook).toHaveBeenCalledTimes(1);
-      expect(mockedStripeController.webhook).toHaveBeenCalledWith(req, res);
+      expect(mockedStripeController.webhook).toHaveBeenCalledWith(
+        req as Request,
+        res as Response,
+      );
     });
   });
 });

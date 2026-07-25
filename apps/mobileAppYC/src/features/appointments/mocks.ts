@@ -6,15 +6,14 @@ import type {
   Invoice,
 } from './types';
 
-
-
 export const mockServices: VetService[] = [
   {
     id: 'svc_internal_consult',
     businessId: 'biz_sfamc',
     specialty: 'Internal Medicine',
     name: 'Internal Medicine Consultation',
-    description: 'Comprehensive diagnostic review and treatment planning for internal conditions.',
+    description:
+      'Comprehensive diagnostic review and treatment planning for internal conditions.',
     basePrice: 185,
     icon: Images.hospitalIcon,
     defaultEmployeeId: 'emp_brown',
@@ -24,7 +23,8 @@ export const mockServices: VetService[] = [
     businessId: 'biz_sfamc',
     specialty: 'Oncology',
     name: 'Oncology Follow-up',
-    description: 'Post-treatment monitoring including imaging and oncology review.',
+    description:
+      'Post-treatment monitoring including imaging and oncology review.',
     basePrice: 220,
     icon: Images.hospitalIcon,
     defaultEmployeeId: 'emp_emily',
@@ -34,7 +34,8 @@ export const mockServices: VetService[] = [
     businessId: 'biz_sfamc',
     specialty: 'Cardiology',
     name: 'Cardiology Evaluation',
-    description: 'Advanced cardiology work-up, ECG review, and treatment recommendations.',
+    description:
+      'Advanced cardiology work-up, ECG review, and treatment recommendations.',
     basePrice: 210,
     icon: Images.hospitalIcon,
     defaultEmployeeId: 'emp_emily',
@@ -44,7 +45,8 @@ export const mockServices: VetService[] = [
     businessId: 'biz_pawpet',
     specialty: 'Pain Management & Rehab',
     name: 'Rehab Program Intake',
-    description: 'Custom rehabilitation plan with mobility assessment and therapy plan.',
+    description:
+      'Custom rehabilitation plan with mobility assessment and therapy plan.',
     basePrice: 165,
     icon: Images.hospitalIcon,
     defaultEmployeeId: 'emp_olivia',
@@ -60,14 +62,21 @@ export const mockServices: VetService[] = [
   },
 ];
 
-// Helper to create a YYYY-MM-DD string for today
-const todayISO = () => {
+// Helper to create a YYYY-MM-DD string for today, in the device's local timezone.
+// The consuming screens key off the device's local day, so this must stay local.
+// Exported so tests reuse it rather than deriving the key themselves: computing it
+// with `new Date().toISOString().slice(0, 10)` yields the UTC day, which disagrees
+// with the local day between midnight and the UTC offset (e.g. 00:00-02:00 CEST).
+export const todayISO = () => {
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
+
+// Evaluated once so every entry below shares one key, even across a midnight tick.
+const TODAY_ISO = todayISO();
 
 export const mockAvailability: EmployeeAvailability[] = [
   {
@@ -76,7 +85,7 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_internal_consult',
     label: 'Internal medicine consults',
     slotsByDate: {
-      [todayISO()]: ['10:00', '11:00', '13:00', '15:00', '18:00'].map(time => ({
+      [TODAY_ISO]: ['10:00', '11:00', '13:00', '15:00', '18:00'].map(time => ({
         startTime: time,
         endTime: time,
         isAvailable: true,
@@ -89,7 +98,7 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_cardiology_eval',
     label: 'Cardiology evaluations',
     slotsByDate: {
-      [todayISO()]: ['09:30', '12:30', '16:00'].map(time => ({
+      [TODAY_ISO]: ['09:30', '12:30', '16:00'].map(time => ({
         startTime: time,
         endTime: time,
         isAvailable: true,
@@ -102,7 +111,7 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_rehab_program',
     label: 'Rehab intake',
     slotsByDate: {
-      [todayISO()]: ['10:15', '13:45', '17:30'].map(time => ({
+      [TODAY_ISO]: ['10:15', '13:45', '17:30'].map(time => ({
         startTime: time,
         endTime: time,
         isAvailable: true,
@@ -114,7 +123,7 @@ export const mockAvailability: EmployeeAvailability[] = [
     serviceId: 'svc_groom_spa',
     label: 'Grooming sessions',
     slotsByDate: {
-      [todayISO()]: ['09:00', '11:30', '14:00'].map(time => ({
+      [TODAY_ISO]: ['09:00', '11:30', '14:00'].map(time => ({
         startTime: time,
         endTime: time,
         isAvailable: true,

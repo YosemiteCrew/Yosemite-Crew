@@ -28,6 +28,14 @@ import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
 import { DocumensoService } from "src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
+import {
+  INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+  readValidatedPdfResponse,
+  resolveOutboundDocumentUrl,
+  UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE,
+  type OutboundDocumentRequest,
+  type OutboundDocumentResponse,
+} from "src/utils/outbound-document-url";
 
 export class RenderedDocumentServiceError extends Error {
   constructor(
@@ -138,42 +146,97 @@ const normalizeRequiredString = (value: string, fieldName: string): string => {
   return normalized;
 };
 
-const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
+/**
+ * Read the document from our own bucket when the stored link points at an
+ * object we hold. `validatedUrl` must already have been through
+ * `resolveOutboundDocumentUrl` — the object key is derived from it, so it can
+ * only ever be derived from a checked, normalised URL. Returns `null` when the
+ * object is not there, so the caller falls back to the bounded direct fetch.
+ */
+const readPdfFromBucket = async (
+  validatedUrl: string,
+): Promise<Buffer | null> => {
   try {
-    const parsedUrl = new URL(url);
-    const key = decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, ""));
+    const key = decodeURIComponent(
+      new URL(validatedUrl).pathname.replace(/^\/+/, ""),
+    );
 
-    if (key) {
-      const response = await s3
-        .getObject({
-          Bucket: getBucketName(),
-          Key: key,
-        })
-        .promise();
+    if (!key) {
+      return null;
+    }
 
-      if (response.Body) {
-        if (Buffer.isBuffer(response.Body)) {
-          return response.Body;
-        }
+    const response = await s3
+      .getObject({
+        Bucket: getBucketName(),
+        Key: key,
+      })
+      .promise();
 
-        if (response.Body instanceof Uint8Array) {
-          return Buffer.from(response.Body);
-        }
+    if (response.Body) {
+      if (Buffer.isBuffer(response.Body)) {
+        return response.Body;
+      }
 
-        if (typeof response.Body === "string") {
-          return Buffer.from(response.Body);
-        }
+      if (response.Body instanceof Uint8Array) {
+        return Buffer.from(response.Body);
+      }
+
+      if (typeof response.Body === "string") {
+        return Buffer.from(response.Body);
       }
     }
   } catch {
-    // Fall back to direct fetch below. This covers public URLs and non-S3 sources.
+    // Not an object we hold. This covers public URLs and non-S3 sources.
   }
 
-  const response = await axios.get<ArrayBuffer>(url, {
-    responseType: "arraybuffer",
-  });
+  return null;
+};
 
-  return Buffer.from(response.data);
+/**
+ * Confirm the bytes we are about to return are a PDF. An upstream that hands
+ * back something else is an upstream fault rather than a bad request from our
+ * caller, so this reports 502 while an unusable stored link reports 400.
+ */
+const toValidatedPdf = (response: OutboundDocumentResponse): Buffer => {
+  try {
+    return readValidatedPdfResponse(response);
+  } catch (error) {
+    throw new RenderedDocumentServiceError(
+      error instanceof Error
+        ? error.message
+        : UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE,
+      502,
+    );
+  }
+};
+
+const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
+  // Resolve and validate the stored link first: nothing - not the bucket key,
+  // not the request - is derived from an unchecked URL.
+  let outbound: OutboundDocumentRequest;
+  try {
+    outbound = await resolveOutboundDocumentUrl(url);
+  } catch (error) {
+    throw new RenderedDocumentServiceError(
+      error instanceof Error
+        ? error.message
+        : INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+      400,
+    );
+  }
+
+  const storedObject = await readPdfFromBucket(outbound.url);
+  if (storedObject) {
+    // No HTTP headers on this leg, so the leading bytes settle it on their own.
+    return toValidatedPdf({ data: storedObject });
+  }
+
+  const response = await axios.get<ArrayBuffer>(
+    outbound.url,
+    outbound.requestOptions,
+  );
+
+  return toValidatedPdf(response);
 };
 
 type PersistedRenderedDocumentPdfSnapshot = {

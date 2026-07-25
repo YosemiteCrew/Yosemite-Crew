@@ -34,7 +34,7 @@ type AppointmentMerckSearchProps = {
   activeAppointment: Appointment | null;
 };
 
-// A framing-refused MSD page never fires onLoad; cap the spinner and fall back.
+// A stalled MSD page may never fire onLoad; cap the spinner and fall back.
 const MERCK_READER_TIMEOUT_MS = 12000;
 
 const getSafeMerckEntries = (entries: MerckEntry[]) =>
@@ -297,18 +297,17 @@ const MerckReaderOverlay = ({
       </div>
       <div className="relative flex-1">
         {blocked ? (
-          // MSD forbids third-party framing (X-Frame-Options / frame-ancestors),
-          // so the embed can never load. Rather than spin forever, offer the
-          // working new-tab path.
+          // Safety net for a manual that never finishes loading (network stall, MSD
+          // outage). Rather than spin forever, offer the working new-tab path.
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)] px-6 text-center">
             <span className="flex size-11 items-center justify-center rounded-full bg-blue-soft text-blue-text">
               <IoOpenOutline size={20} aria-hidden="true" />
             </span>
             <span className="text-[13.5px] font-bold text-[var(--ink)]">
-              This manual can’t open inside the app
+              This manual didn’t load
             </span>
             <span className="max-w-[340px] text-[12px] text-[var(--ink-faint)]">
-              MSD does not allow its manuals to be embedded. Open it in a new tab instead.
+              MSD took too long to respond. Open it in a new tab instead.
             </span>
             <button
               type="button"
@@ -338,7 +337,10 @@ const MerckReaderOverlay = ({
           className="flex-1 size-full border-0"
           loading="lazy"
           referrerPolicy="strict-origin"
-          sandbox="allow-scripts allow-popups allow-forms"
+          // allow-same-origin is required: MSD's app reads document.cookie on boot and
+          // throws in an opaque origin, leaving the frame stuck on its own loader. It is
+          // safe here because the framed origin is never our own (isAllowedMerckUrl).
+          sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
           onLoad={onLoad}
           onError={onError}
         />
@@ -436,9 +438,8 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     setReaderOpen(true);
   };
 
-  // MSD refuses third-party framing, so the iframe's onLoad often never fires
-  // (nor does onError, reliably). Cap the spinner and switch to the new-tab
-  // fallback so it can't hang on "Loading Manual" forever.
+  // A stalled MSD page fires neither onLoad nor onError reliably. Cap the spinner
+  // and switch to the new-tab fallback so it can't hang on "Loading Manual" forever.
   const failReaderLoad = useCallback(() => {
     setReaderLoading(false);
     setReaderBlocked(true);

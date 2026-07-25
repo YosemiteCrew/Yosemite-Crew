@@ -10,40 +10,40 @@ Manages the link between a companion (a pet) and an organisation (a clinic): lin
 
 ### POST /link
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `CompanionOrganisationController.linkByParent`
 - Response: `401`: keys `message`, `400`: keys `message`, `201`: keys `message`, `500`: keys `message`
 
 ### POST /invite
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `CompanionOrganisationController.sendInvite`
 - Response: `401`: keys `message`, `400`: keys `message`, `201`: keys `message`, `500`: keys `message`
 
 ### POST /:linkId/approve
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `linkId`
 - Controller: `CompanionOrganisationController.approvePendingLink`
 - Response: `401`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /:linkId/deny
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `linkId`
 - Controller: `CompanionOrganisationController.denyPendingLink`
 - Response: `401`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### DELETE /revoke/:linkId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `linkId`
 - Controller: `CompanionOrganisationController.revokeLink`
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /:companionId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `companionId`
 - Query: `type`
 - Controller: `CompanionOrganisationController.getLinksForCompanionByOrganisationType`
@@ -51,21 +51,21 @@ Manages the link between a companion (a pet) and an organisation (a clinic): lin
 
 ### POST /pms/accept
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `CompanionOrganisationController.acceptInvite`
 - Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /pms/reject
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `CompanionOrganisationController.rejectInvite`
 - Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /pms/:organisationId/:companionId/link
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `companionId`
 - Controller: `CompanionOrganisationController.linkByPmsUser`
@@ -73,7 +73,7 @@ Manages the link between a companion (a pet) and an organisation (a clinic): lin
 
 ### GET /pms/:organisationId/list
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `CompanionOrganisationController.getLinksForOrganisation`
