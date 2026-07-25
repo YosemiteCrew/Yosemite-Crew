@@ -331,6 +331,12 @@ describe('AppointmentMerckSearch', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     const iframe = await screen.findByTitle('Canine Fever');
     expect(screen.getByTestId('appointment-merck-reader-loader')).toBeInTheDocument();
+    // Without allow-same-origin, MSD's app throws reading document.cookie and the
+    // frame hangs on its own loader forever.
+    expect(iframe).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-popups allow-forms allow-same-origin'
+    );
 
     fireEvent.load(iframe);
     await waitFor(() =>
@@ -353,7 +359,7 @@ describe('AppointmentMerckSearch', () => {
         jest.advanceTimersByTime(12000);
       });
 
-      expect(screen.getByText(/can.t open inside the app/)).toBeInTheDocument();
+      expect(screen.getByText(/didn.t load/)).toBeInTheDocument();
       expect(screen.queryByTestId('appointment-merck-reader-loader')).not.toBeInTheDocument();
 
       fireEvent.click(screen.getAllByRole('button', { name: 'Open in new tab' }).at(-1)!);

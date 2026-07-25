@@ -145,9 +145,16 @@ export const buildContentSecurityPolicy = ({
       'https://hooks.stripe.com',
       'https://cal.com',
       'https://app.cal.com',
+      // Must stay in sync with isAllowedMerckUrl's allowlist; the apex entries are
+      // needed because a `*.` wildcard does not match the bare domain.
+      'https://merckvetmanual.com',
       'https://*.merckvetmanual.com',
+      'https://msdvetmanual.com',
       'https://*.msdvetmanual.com',
+      'https://merckmanuals.com',
       'https://*.merckmanuals.com',
+      'https://msdmanuals.com',
+      'https://*.msdmanuals.com',
       'https://*.idexx.com',
       'https://*.vetconnectplus.com',
       ...YC_CLOUDFRONT_HOSTS,
