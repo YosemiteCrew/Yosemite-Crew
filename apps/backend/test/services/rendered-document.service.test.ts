@@ -1,5 +1,6 @@
 import { ClinicalArtifactKind, TemplateKind } from "@prisma/client";
-import { fetchPublicUrlAsBuffer } from "@yosemite-crew/lib";
+import axios from "axios";
+import dns from "node:dns";
 import { prisma } from "src/config/prisma";
 import {
   buildDocumentSignature,
@@ -45,9 +46,8 @@ jest.mock("../../src/services/rendered-document-renderer.service", () => ({
 jest.mock("../../src/middlewares/upload", () => ({
   uploadBufferAsFile: jest.fn(),
 }));
-jest.mock("@yosemite-crew/lib", () => ({
-  ...jest.requireActual("@yosemite-crew/lib"),
-  fetchPublicUrlAsBuffer: jest.fn(),
+jest.mock("axios", () => ({
+  get: jest.fn(),
 }));
 
 describe("rendered-document service", () => {
@@ -71,10 +71,29 @@ describe("rendered-document service", () => {
   const mockedRenderedDocumentRenderer =
     renderRenderedDocumentPdfWithMetadata as jest.Mock;
   const mockedUploadBufferAsFile = uploadBufferAsFile as jest.Mock;
-  const mockedFetchPublicUrl = fetchPublicUrlAsBuffer as jest.Mock;
+  const mockedAxiosGet = axios.get as jest.Mock;
+
+  let lookupSpy: jest.SpyInstance;
+
+  /** Bytes that open with the PDF marker, as any real document does. */
+  const pdfBytes = (marker: string): Buffer =>
+    Buffer.from(`%PDF-1.7\n${marker}\n%%EOF\n`);
 
   beforeEach(() => {
     process.env.DOCUMENSO_HOST_URL = "https://documenso.example";
+    // Stored PDF links are checked before they are used, which resolves the
+    // host. Keep that resolution deterministic and offline: the placeholder
+    // hosts in this suite stand for ordinary public CDNs. Cases about which
+    // hosts are permitted live in rendered-document.service.url-validation.
+    lookupSpy = jest
+      .spyOn(dns.promises, "lookup")
+      .mockResolvedValue([
+        { address: "203.0.113.10", family: 4 },
+      ] as unknown as dns.LookupAddress);
+  });
+
+  afterEach(() => {
+    lookupSpy.mockRestore();
   });
 
   afterAll(() => {
@@ -548,8 +567,10 @@ describe("rendered-document service", () => {
 
   it("uses the stored pdfUrl for clinical documents", async () => {
     mockedRenderedDocumentRenderer.mockClear();
-    mockedFetchPublicUrl.mockClear();
-    mockedFetchPublicUrl.mockResolvedValueOnce(Buffer.from("stored-pdf"));
+    mockedAxiosGet.mockClear();
+    mockedAxiosGet.mockResolvedValueOnce({
+      data: pdfBytes("stored"),
+    });
     mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
       id: "doc-3",
       organisationId: "org-123",
@@ -593,11 +614,14 @@ describe("rendered-document service", () => {
 
     const result = await getPersistedRenderedDocumentPdf("doc-3", "org-123");
 
-    expect(mockedFetchPublicUrl).toHaveBeenCalledWith(
+    expect(mockedAxiosGet).toHaveBeenCalledWith(
       "https://cdn.example/stored.pdf",
+      expect.objectContaining({
+        responseType: "arraybuffer",
+      }),
     );
     expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
-    expect(result.pdf).toEqual(Buffer.from("stored-pdf"));
+    expect(result.pdf).toEqual(pdfBytes("stored"));
   });
 
   it("rerenders and persists a clinical rendered document", async () => {

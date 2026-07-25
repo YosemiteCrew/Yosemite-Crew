@@ -56,9 +56,17 @@ export {
   type PacketDocumentPdfLoader,
 } from './clinicalPacket.js';
 export { mergePdfBuffers } from './mergePdf.js';
+/**
+ * Outbound-request building blocks shared with any service that fetches a
+ * document over the network: classify an address, resolve a hostname to the
+ * public addresses it maps to, and pin a connection to addresses already
+ * checked. Exported so callers reuse this one implementation rather than
+ * writing their own host checks.
+ */
 export {
-  fetchPublicUrlAsBuffer,
-  GuardedFetchError,
-  type FetchPublicUrlOptions,
-} from './fetchGuardedUrl.js';
+  buildPinnedAgent,
+  isPrivateAddress,
+  resolveLogoSource,
+  resolvePublicAddresses,
+} from './resolveLogoSource.js';
 export * from './examples/index.js';

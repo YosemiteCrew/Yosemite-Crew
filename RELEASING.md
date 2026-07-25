@@ -1,0 +1,49 @@
+# Releasing
+
+This describes how Yosemite Crew actually ships today. It intentionally does not introduce a new versioning scheme — it documents the one already in use across tags and GitHub Releases, and automates the one manual step (writing release notes) that Conventional Commits already make redundant.
+
+## Branch model
+
+- `dev` — integration branch. All PRs target `dev` (see [CONTRIBUTING.md](./CONTRIBUTING.md)).
+- `main` — release-ready. Cut a release by fast-forwarding/merging `dev` into `main` once CI is green, then tagging on `main`.
+- Hotfix: branch from `main`, fix, patch-tag directly (skip the `dev` queue for the fix itself), then back-merge `main` into `dev` so the fix isn't lost on the next release cut.
+
+## Two release shapes
+
+Different apps in this monorepo ship on different cadences to different targets, so they don't share one release mechanism:
+
+| App | Mechanism | Trigger |
+|---|---|---|
+| `apps/frontend` / PIMS (web) | Continuous deployment **and** a separate versioned tag line | Every push to `main`/`dev` that touches frontend paths deploys automatically ([`cd-frontend.yaml`](./.github/workflows/cd-frontend.yaml)). Independently, `pims-vX.Y.Z-beta` tags mark named release points for changelog/versioning purposes (see [README.md § Release Versioning](./README.md#release-versioning)) — deployment doesn't wait for the tag, the tag just labels a commit that already shipped. **Not CI-automated**: tagging is manual (`git tag -a pims-vX.Y.Z-beta && git push origin pims-vX.Y.Z-beta`). Older tags used the `pms-v` spelling (`pms-v1.0.0-beta` through `pms-v1.3.0-beta`); the `pims-v` spelling is current going forward per the README — this repo has both in tag history, worth normalizing on `pims-v` only rather than papering over it. |
+| `apps/backend` | Discrete tagged release | Manual: tag `backend-vX.Y.Z[-beta]`, then `gh release create`. **Not yet CI-automated.** |
+| `apps/mobileAppYC` | Discrete tagged release | Manual: tag `mobile-vX.Y.Z-iOS-vA.B`, then `gh release create`. App-store submission is a separate manual step outside this repo. |
+| `apps/desktop` | Discrete tagged release, CI-built | Tag `desktop-vX.Y.Z-beta` pushed → [`desktop-release.yml`](./.github/workflows/desktop-release.yml) builds and publishes the Windows installer automatically. |
+
+Each component versions independently with SemVer plus a pre-release suffix (`-beta`, etc.) while still stabilizing.
+
+**Note:** for `apps/backend`, `apps/frontend` and `apps/mobileAppYC`, `package.json` `version` fields (e.g. `apps/backend/package.json` currently reads `0.0.0`) are **not** kept in sync with release tags today — the tag is the source of truth for those components, not the `package.json`. Don't infer a release version from `package.json`.
+
+> **`apps/desktop` is the exception — do not apply the above to it.** The desktop build derives the installer filename, the embedded application version and the updater metadata from `apps/desktop/package.json` (`artifactName` interpolates `${version}`), and the updater compares SemVer to decide whether an update is available. [`apps/desktop/RELEASE.md`](./apps/desktop/RELEASE.md) therefore requires bumping `version` in `apps/desktop/package.json` **first**, then cutting a tag that matches it exactly.
+>
+> Tagging `desktop-v0.2.0-beta` while `package.json` still reads `0.1.0-beta.1` publishes an installer and update manifest still identified as `0.1.0-beta.1`. That breaks version ordering and can stop clients from taking the update. Follow [`apps/desktop/RELEASE.md`](./apps/desktop/RELEASE.md) for desktop, not the generic checklist below.
+
+## Release checklist
+
+1. Confirm CI is green on `main` for the commit you're about to tag.
+2. Pick the version per SemVer for that component (breaking change → major, new capability → minor, fix-only → patch), keeping the `-beta` suffix while the component is still pre-1.0-stable.
+3. Tag with the correct component prefix, e.g. `git tag backend-v1.4.0-beta && git push origin backend-v1.4.0-beta`.
+4. If a GitHub Release doesn't already exist for the tag, create one: `gh release create backend-v1.4.0-beta --title "backend v1.4.0-beta"`. The [release-notes workflow](#release-notes-are-generated-not-hand-written) below fills in the body automatically.
+5. Smoke-test the deployed/published artifact.
+
+## Release notes are generated, not hand-written
+
+Commit messages are already enforced into `<type>(<scope>): <subject>` format by `commitlint` and the `pr-governance.yml` PR-title gate — every commit reaching `main` already carries the structure a changelog generator needs, so hand-writing release notes duplicates information the repo already has.
+
+[`cliff.toml`](./cliff.toml) configures [git-cliff](https://git-cliff.org) to group commits by their Conventional Commit `type` (Features, Fixes, Performance, etc.). [`.github/workflows/release-notes.yml`](./.github/workflows/release-notes.yml) runs on every push of a `*-v*` tag: it finds the previous tag sharing the same component prefix, runs git-cliff over the commit range between them, and attaches the result to the GitHub Release via `gh release edit --notes-file` (creating the release first if the tag author hasn't already). Nothing is committed back to `main`/`dev` — the generated notes live on the GitHub Release itself, same place they've always lived, just no longer hand-typed.
+
+If you want a preview before tagging, run it locally: `git-cliff <previous-tag>..HEAD --config cliff.toml`.
+
+## What this does not (yet) do
+
+- Backend/PIMS/mobile releases are still manually tagged — this only automates the notes, not the decision of when/what to release or the artifact build/publish step.
+- `package.json` versions are not wired to tags, for every app except `apps/desktop`, where the two are already required to match by hand (see above and [`apps/desktop/RELEASE.md`](./apps/desktop/RELEASE.md)). Automating the rest would need per-app release tooling (e.g. Changesets or release-please) with either per-PR changeset files or `package.json` as the real source of truth — a bigger change than "stop hand-writing notes," left for a future ADR if the team wants it. Worth noting that desktop's manual bump-then-tag step is exactly the kind of thing such tooling would remove.
