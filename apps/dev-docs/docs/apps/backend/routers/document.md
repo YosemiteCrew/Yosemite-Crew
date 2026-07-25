@@ -10,7 +10,7 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### POST /mobile/upload-url
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `UploadUrlBody`
 - Body fields: `companionId`, `mimeType`
 - Controller: `DocumentController.getUploadUrl`
@@ -18,7 +18,7 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### POST /mobile/:companionId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `companionId`
 - Body: `DocumentRequestBody`
 - Body fields: `title`, `category`, `subcategory`, `attachments`, `appointmentId`, `visitType`, `issuingBusinessName`, `issueDate`
@@ -26,13 +26,13 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### GET /mobile/:companionId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `companionId`
 - Controller: `DocumentController.listDocumentsForParent`
 
 ### PATCH /mobile/details/:id
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `id`
 - Body: `Partial<DocumentRequestBody`
 - Controller: `DocumentController.updateDocument`
@@ -40,20 +40,20 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### GET /mobile/appointments/:appointmentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Controller: `DocumentController.listForAppointment`
 
 ### GET /mobile/view/:documentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `documentId`
 - Controller: `DocumentController.getDocumentDownloadUrl`
 - Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /mobile/view
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `SignedDownloadUrlBody`
 - Body fields: `key`
 - Controller: `DocumentController.getSignedDownloadUrl`
@@ -61,13 +61,13 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### DELETE /mobile/:documentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `documentId`
 - Controller: `DocumentController.deleteForParent`
 
 ### GET /search/:companionId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `companionId`
 - Query: `title`
 - Controller: `DocumentController.searchDocument`
@@ -75,7 +75,7 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### POST /pms/upload-url
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Body: `UploadUrlBody`
 - Body fields: `companionId`, `mimeType`
@@ -84,7 +84,7 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### POST /pms/:companionId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `companionId`
 - Body: `DocumentRequestBody`
@@ -93,21 +93,21 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### GET /pms/:companionId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `companionId`
 - Controller: `DocumentController.listForPms`
 
 ### GET /pms/details/:documentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `documentId`
 - Controller: `DocumentController.getForPms`
 
 ### PATCH /pms/details/:documentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `documentId`
 - Body: `Partial<DocumentRequestBody`
@@ -116,7 +116,7 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### GET /pms/view/:documentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `documentId`
 - Controller: `DocumentController.getDocumentDownloadUrl`
@@ -124,7 +124,7 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### POST /pms/view
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Body: `SignedDownloadUrlBody`
 - Body fields: `key`
@@ -133,7 +133,7 @@ Manages companion (pet) documents: upload URLs, create, list, update, view/downl
 
 ### GET /pms/appointments/:appointmentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `appointmentId`
 - Controller: `DocumentController.listForAppointment`

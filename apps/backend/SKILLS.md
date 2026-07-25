@@ -17,7 +17,7 @@ This file documents the backend-specific working patterns for agents and contrib
 - Zod for request validation
 - BullMQ for background jobs
 - Winston for logging
-- SuperTokens (`@yosemite-crew/auth`) for web session auth; AWS Cognito (`jsonwebtoken` + `jwks-rsa`) and Firebase Admin (social login) for mobile auth
+- SuperTokens (`@yosemite-crew/auth`) for both web (`requireWebAuth`) and mobile (`requireMobileAuth`) session auth. Firebase remains for push notifications - plus legacy-token verification only while the `AUTH_LEGACY_TOKEN_GRACE` window is active (`packages/auth/src/providers/legacy-cognito/` still verifies residual Firebase/Cognito bearer tokens, so keep `FIREBASE_PROJECT_ID` and the verifier until the grace window closes)
 
 ## Required Architecture
 

@@ -10,14 +10,14 @@ CRUD endpoints for an organisation's rooms (for example consultation or treatmen
 
 ### POST /
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `OrganisationRoomController.create`
 - Response: `400`: keys `message`, `500`: keys `message`
 
 ### PUT /:id
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
 - Controller: `OrganisationRoomController.update`
@@ -25,7 +25,7 @@ CRUD endpoints for an organisation's rooms (for example consultation or treatmen
 
 ### GET /organization/:organizationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organizationId`
 - Controller: `OrganisationRoomController.getAllByOrganizationId`
@@ -33,7 +33,7 @@ CRUD endpoints for an organisation's rooms (for example consultation or treatmen
 
 ### DELETE /:id
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
 - Controller: `OrganisationRoomController.delete`

@@ -45,6 +45,13 @@ module.exports = {
     '\\.(png|jpg|jpeg|gif|webp|bmp|mp4)$': '<rootDir>/__mocks__/fileMock.js',
     '^react-native/Libraries/Image/Image$':
       'react-native/Libraries/Image/Image.ios.js',
+    // Jest 30's resolver honours react-native's "exports" map (its
+    // jest/resolver.js strips it via packageFilter, which jest-resolve no
+    // longer calls), so the deep subpath lands on RN's compat shim rather than
+    // the platform module react-native's own index imports relatively. Mocks
+    // registered against the subpath would target a different module instance.
+    '^react-native/Libraries/Utilities/BackHandler$':
+      'react-native/Libraries/Utilities/BackHandler.ios.js',
     '^react-native-permissions$':
       '<rootDir>/__mocks__/react-native-permissions.ts',
     '^@react-native-community/datetimepicker$':
