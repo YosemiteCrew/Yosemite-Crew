@@ -124,8 +124,6 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
 
   const readExistingKey = (): string | null => {
     try {
-      const keyRelative = path.relative(path.resolve(dirPath), path.resolve(keyPath));
-      if (keyRelative.startsWith('..') || path.isAbsolute(keyRelative)) return null;
       if (!existsSync(keyPath)) return null;
       const stored = readFileSync(keyPath, 'utf8').trim();
       return stored ? decodeStoredKey(stored) : null;
@@ -158,13 +156,6 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
   const load = (): AuditEntry[] => {
     if (cached) return cached;
     try {
-      const baseDir = path.resolve(dirPath);
-      const targetPath = path.resolve(filePath);
-      const pathRelative = path.relative(baseDir, targetPath);
-      if (pathRelative.startsWith('..') || path.isAbsolute(pathRelative)) {
-        cached = [];
-        return cached;
-      }
       if (!existsSync(filePath)) {
         cached = [];
         return cached;
