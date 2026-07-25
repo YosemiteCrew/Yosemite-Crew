@@ -28,6 +28,11 @@ import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
 import { DocumensoService } from "src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
+import {
+  INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+  resolveOutboundDocumentUrl,
+  type OutboundDocumentRequest,
+} from "src/utils/outbound-document-url";
 
 export class RenderedDocumentServiceError extends Error {
   constructor(
@@ -138,61 +143,76 @@ const normalizeRequiredString = (value: string, fieldName: string): string => {
   return normalized;
 };
 
-function buildValidatedUrl(baseUrl: string): string {
+/**
+ * Read the document from our own bucket when the stored link points at an
+ * object we hold. `validatedUrl` must already have been through
+ * `resolveOutboundDocumentUrl` — the object key is derived from it, so it can
+ * only ever be derived from a checked, normalised URL. Returns `null` when the
+ * object is not there, so the caller falls back to the bounded direct fetch.
+ */
+const readPdfFromBucket = async (
+  validatedUrl: string,
+): Promise<Buffer | null> => {
   try {
-    // Minimal path validation (Do this before new URL(baseUrl), as URL() resolves dot-segments.)
-    if (baseUrl.includes("/../") || /\/%2e%2e\//i.test(baseUrl)) {
-      throw new Error("Invalid path");
+    const key = decodeURIComponent(
+      new URL(validatedUrl).pathname.replace(/^\/+/, ""),
+    );
+
+    if (!key) {
+      return null;
     }
 
-    const url = new URL(baseUrl);
+    const response = await s3
+      .getObject({
+        Bucket: getBucketName(),
+        Key: key,
+      })
+      .promise();
 
-    // Protocol + host checks
-    if (!["http:", "https:"].includes(url.protocol)) {
-      throw new Error("Invalid protocol");
-    }
+    if (response.Body) {
+      if (Buffer.isBuffer(response.Body)) {
+        return response.Body;
+      }
 
-    return url.href;
-  } catch {
-    throw new Error("Invalid URL");
-  }
-}
+      if (response.Body instanceof Uint8Array) {
+        return Buffer.from(response.Body);
+      }
 
-const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
-  try {
-    const parsedUrl = new URL(url);
-    const key = decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, ""));
-
-    if (key) {
-      const response = await s3
-        .getObject({
-          Bucket: getBucketName(),
-          Key: key,
-        })
-        .promise();
-
-      if (response.Body) {
-        if (Buffer.isBuffer(response.Body)) {
-          return response.Body;
-        }
-
-        if (response.Body instanceof Uint8Array) {
-          return Buffer.from(response.Body);
-        }
-
-        if (typeof response.Body === "string") {
-          return Buffer.from(response.Body);
-        }
+      if (typeof response.Body === "string") {
+        return Buffer.from(response.Body);
       }
     }
   } catch {
-    // Fall back to direct fetch below. This covers public URLs and non-S3 sources.
+    // Not an object we hold. This covers public URLs and non-S3 sources.
   }
 
-  const validatedUrl = buildValidatedUrl(url);
-  const response = await axios.get<ArrayBuffer>(validatedUrl, {
-    responseType: "arraybuffer",
-  });
+  return null;
+};
+
+const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
+  // Resolve and validate the stored link first: nothing - not the bucket key,
+  // not the request - is derived from an unchecked URL.
+  let outbound: OutboundDocumentRequest;
+  try {
+    outbound = await resolveOutboundDocumentUrl(url);
+  } catch (error) {
+    throw new RenderedDocumentServiceError(
+      error instanceof Error
+        ? error.message
+        : INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+      400,
+    );
+  }
+
+  const storedObject = await readPdfFromBucket(outbound.url);
+  if (storedObject) {
+    return storedObject;
+  }
+
+  const response = await axios.get<ArrayBuffer>(
+    outbound.url,
+    outbound.requestOptions,
+  );
 
   return Buffer.from(response.data);
 };

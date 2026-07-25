@@ -10,6 +10,11 @@ import { buildMergedClinicalPacketPdf } from "src/services/clinical-packet-pdf.s
 import { renderCombinedClinicalPacketPdf } from "src/services/rendered-document-renderer.service";
 import { rerenderPersistedClinicalRenderedDocumentPdf } from "src/services/rendered-document.service";
 import logger from "src/utils/logger";
+import {
+  INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+  resolveOutboundDocumentUrl,
+  type OutboundDocumentRequest,
+} from "src/utils/outbound-document-url";
 import type {
   WorkspaceDocumentPacketRow,
   WorkspaceDocumentPacketSigning,
@@ -36,25 +41,27 @@ const ensureRequiredId = (value: string, fieldName: string): string => {
   return normalized;
 };
 
-function buildValidatedUrl(baseUrl: string): string {
+/**
+ * Validate the signing provider's download link before it is used and translate
+ * a rejection into a typed 400. A link the guard turns down is a configuration
+ * problem, not the transient "the signed copy is momentarily unavailable" case
+ * the caller's fallback exists for, so the two must not look the same: this one
+ * surfaces, while an expired or unreachable link still falls back.
+ */
+const resolveSignedPacketRequest = async (
+  downloadUrl: string,
+): Promise<OutboundDocumentRequest> => {
   try {
-    // Minimal path validation
-    if (baseUrl.includes("/../") || /\/%2e%2e\//i.test(baseUrl)) {
-      throw new Error("Invalid path");
-    }
-
-    const url = new URL(baseUrl);
-
-    // Protocol check
-    if (!["http:", "https:"].includes(url.protocol)) {
-      throw new Error("Invalid protocol");
-    }
-
-    return url.href;
-  } catch {
-    throw new Error("Invalid URL");
+    return await resolveOutboundDocumentUrl(downloadUrl);
+  } catch (error) {
+    throw new WorkspaceServiceError(
+      error instanceof Error
+        ? error.message
+        : INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+      400,
+    );
   }
-}
+};
 
 type PacketRecord = {
   id: string;
@@ -722,6 +729,7 @@ export const WorkspaceDocumentPacketService = {
       return null;
     }
 
+    let downloadUrl: string | null = null;
     try {
       // Re-resolve a fresh signed download URL — the persisted one is a
       // short-lived presigned URL that may have expired since signing completed.
@@ -731,15 +739,26 @@ export const WorkspaceDocumentPacketService = {
         documentId: Number.parseInt(signing.documentId, 10),
         apiKey: apiKey ?? undefined,
       });
-      const downloadUrl = signed?.downloadUrl ?? signing.pdf?.url ?? null;
-      if (!downloadUrl) {
-        return null;
-      }
+      downloadUrl = signed?.downloadUrl ?? signing.pdf?.url ?? null;
+    } catch (error) {
+      logger.error(
+        `[WorkspaceDocumentPacket] Unable to resolve a signed packet download URL for encounter ${encounterId}; falling back to live merge.`,
+        error,
+      );
+      return null;
+    }
+
+    if (!downloadUrl) {
+      return null;
+    }
+
+    // Outside the fallback catch on purpose: a rejected link must stay visible.
+    const outbound = await resolveSignedPacketRequest(downloadUrl);
+
+    try {
       const response = await axios.get<ArrayBuffer>(
-        buildValidatedUrl(downloadUrl),
-        {
-          responseType: "arraybuffer",
-        },
+        outbound.url,
+        outbound.requestOptions,
       );
       return Buffer.from(response.data);
     } catch (error) {

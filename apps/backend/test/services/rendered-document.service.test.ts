@@ -1,5 +1,6 @@
 import { ClinicalArtifactKind, TemplateKind } from "@prisma/client";
 import axios from "axios";
+import dns from "node:dns";
 import { prisma } from "src/config/prisma";
 import {
   buildDocumentSignature,
@@ -72,8 +73,23 @@ describe("rendered-document service", () => {
   const mockedUploadBufferAsFile = uploadBufferAsFile as jest.Mock;
   const mockedAxiosGet = axios.get as jest.Mock;
 
+  let lookupSpy: jest.SpyInstance;
+
   beforeEach(() => {
     process.env.DOCUMENSO_HOST_URL = "https://documenso.example";
+    // Stored PDF links are checked before they are used, which resolves the
+    // host. Keep that resolution deterministic and offline: the placeholder
+    // hosts in this suite stand for ordinary public CDNs. Cases about which
+    // hosts are permitted live in rendered-document.service.url-validation.
+    lookupSpy = jest
+      .spyOn(dns.promises, "lookup")
+      .mockResolvedValue([
+        { address: "203.0.113.10", family: 4 },
+      ] as unknown as dns.LookupAddress);
+  });
+
+  afterEach(() => {
+    lookupSpy.mockRestore();
   });
 
   afterAll(() => {
