@@ -22,24 +22,416 @@ const TOC: readonly TocEntry[] = [
   { id: 'analytics', label: 'Analytics (PostHog)' },
 ];
 
-const PrivacyPolicy = () => (
-  <LegalDoc
-    eyebrow="Legal"
-    title="Privacy policy"
-    subtitle="The protection and security of your personal data matters to us. This describes how our open-source practice management software collects, processes and stores personal data, as a web app and a mobile app."
-    meta="Updated March 2026 · Controller: DuneXploration UG (haftungsbeschränkt), Mainz"
-    toc={TOC}
-  >
+/* 3.1. Web Application Our web application is offered to business owners  */
+const PrivacySectionsPart1 = () => (
+  <>
     <p>
-      The protection and security of your personal information is important to us. This privacy
-      policy describes how we collect, process, and store personal data through our open-source
-      practice management software (hereinafter referred to as &quot;PIMS&quot;, &quot;PMS&quot; or
-      &quot;the Software&quot;). Our Software is available as a web application and as a mobile
-      application. Unless stated otherwise, the information provided applies equally to both
-      versions. This policy helps you to understand what information we collect, why we collect it,
-      how we use it, and how long we store it.
+      When you use our application, we process personal data. You are not legally required to
+      provide this data, but without it, many features may not be available.
     </p>
+    <p>
+      The following sections explain what data we process, for what purposes, for how long, and on
+      what legal basis. You will also learn to whom we pass on your data. At the end of the privacy
+      policy, you will also find information about our storage periods, general recipients, and
+      algorithmic decision-making.
+    </p>
+    <h3>3.1. Web Application</h3>
+    <p> Our web application is offered to business owners and web developers </p>
+    <h4>3.1.1. Server Provision and Hosting</h4>
+    <p>
+      <strong>Purpose:</strong> The web application can be self-hosted or hosted in the cloud. If
+      you choose our cloud, we collect and temporarily store certain data to ensure the operation,
+      availability, stability and security of the application.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> IP address, time and date of access, browser type and
+      version, operating system.
+    </p>
+    <p>
+      <strong>Legal basis: </strong> The legitimate interest in ensuring the technical functionality
+      and security of our software (Art. 6 para. 1 lit. f) GDPR.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
+    </ul>
+    <p>
+      <strong>Storage period: </strong> Log data is deleted after 7 days.
+    </p>
+    <h4>3.1.2. Signing up and setting up a profile</h4>
+    <p>
+      <strong>Purpose:</strong> To register and onboard veterinary businesses, create accounts, and
+      establish secure access for managing their practice&lsquo;s information and activities, thus
+      allowing them to provide services through the platform.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> In particular, work email, business name, business type
+      (veterinary business, breeding facility, pet sitter, groomer shop), registration number,
+      address, specialised department, provided services, professional background (specialisation,
+      qualification, medical license number), appointment duration (consultation mode, consultation
+      fee, username)
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
+      <li>Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.</li>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> Establishment of the user relationship, Art. 6 para. 1 lit. b)
+      GDPR. By providing voluntary profile information, you consent to the processing of this data,
+      Art. 6 para. 1 lit. a) GDPR.
+    </p>
+    <p>
+      <strong>Storage period: </strong> The data will generally be processed for as long as you
+      maintain your account with us. After termination of the account, your data will be deleted
+      unless the deletion of individual data or documents is prevented by statutory retention
+      obligations.
+    </p>
+    <h4>3.1.3. General Use of the Application</h4>
+    <p>
+      <strong>Purpose:</strong> To allow businesses to use the application and all its core
+      functions (such as creating appointments, adding prescriptions, generating bills, creating
+      appointments), we process the information you enter, and data generated during use.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> In particular, name, e-mail address, phone number,
+      doctor’s name, prescription notes, billing details, payment information.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
+      <li>Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.</li>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> The processing is necessary for the performance of the user
+      contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in pursuing
+      the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> We store the data as long as the user account is active.
+      Data may be deleted upon account deletion unless legal retention applies.
+    </p>
+    <h4>3.1.4. Contacting Clients and Communications</h4>
+    <p>
+      <strong>Purpose:</strong> The application allows communication with clients and within teams.
+      This can include sending messages, images and videos related to the pet’s condition,
+      treatment, or general care questions.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> Messages, attachments (photos, videos), pet-related
+      context (e.g. symptoms, recent treatments), metadata (timestamps, sender/recipient).
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
+      <li>Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.</li>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> The processing is necessary for the performance of the user
+      contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in pursuing
+      the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> We store the data until the conversation or account is
+      deleted unless the deletion of individual data or documents is prevented by statutory
+      retention obligations
+    </p>
+    <h4>3.1.5. Payment</h4>
+    <p>
+      Business owners and developers can implement their preferred payment options and payment
+      services directly in the web application. The payment is directly performed over these payment
+      providers. DuneXploration does not process any personal data in connection with the payment.
+    </p>
+    <h3>3.2. Mobile Application</h3>
+    <h4>3.2.1. Server Provision and Hosting</h4>
+    <p>
+      <strong>Purpose:</strong> The application is hosted on servers to be made technically
+      available for users. For this purpose, we collect and temporarily store certain data to ensure
+      the operation, availability, stability and security of the software.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> IP address, time and date of access, browser type and
+      version, operating system.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland</li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> The legitimate interest in ensuring the technical functionality
+      and security of our software (Art. 6 para. 1 lit. f) GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> Log data is deleted after 7 days.
+    </p>
+    <h4>3.2.2. Signing up and setting up a profile</h4>
+    <p>
+      <strong>Purpose:</strong> To onboard new users (pet owners, breeders, groomers, and vet
+      doctors) to the mobile application, enabling account creation, authentication, and access to
+      platform features.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> In particular, name, e-mail address, phone number,
+      address, type of user.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+      <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg, and</li>
+      <li>
+        Your identity provider, if you use the log-in of a third party service (we support Meta,
+        Google or Apple).
+      </li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> Establishment of the user relationship, Art. 6 para. 1 lit. b)
+      GDPR.
+    </p>
+    <p>
+      <strong>Storage period: </strong> The data will generally be processed for as long as you
+      maintain your account with us. After termination of the account, your data will be deleted
+      unless the deletion of individual data or documents is prevented by statutory retention
+      obligations.
+    </p>
+    <h4>3.2.3. General Use of the Application</h4>
+    <p>
+      <strong>Purpose:</strong> To allow users to use the application and all its core functions
+      (such as creating pet profiles, managing daily care tasks, recording notes of health data,
+      adding vaccination record, creating exercise plans etc), we process the information you enter
+      and data generated during use.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> In particular, name, e-mail address, phone number, type
+      and content of enquiry, message.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com),
+      </li>
+      <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg, and</li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> The processing is necessary for the performance of the user
+      contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in pursuing
+      the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> We store the data as long as the user account is active.
+      Data may be deleted upon account deletion unless legal retention applies.
+    </p>
+  </>
+);
 
+/* 3.2.4. Booking Appointments Purpose: */
+const PrivacySectionsPart2 = () => (
+  <>
+    <h4>3.2.4. Booking Appointments</h4>
+    <p>
+      <strong>Purpose:</strong> To enable pet owners to book appointments with veterinarians through
+      the Yosemite Crew mobile application.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> Name, e-mail address, telephone number, booking details
+      and, if applicable, desired appointment reminders or additional comments on your booking. The
+      data marked as mandatory fields must be provided in order to make a booking.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com),
+      </li>
+      <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
+      <li>Selected veterinarians.</li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> The processing is necessary for the performance of the user
+      contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in pursuing
+      the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> The data collected as part of the booking will be deleted
+      after the expiry of the applicable statutory retention obligations (6 years according to HGB,
+      10 years according to AO).
+    </p>
+    <h4>3.2.5. Contacting Veterinarians and Communications</h4>
+    <p>
+      <strong>Purpose:</strong> To enable meaningful communication between pet owners and veterinary
+      professionals the user can contact veterinarians directly through the application. This can
+      include sending messages, images and videos related to the pet’s condition, treatment, or
+      general care questions. If you contact the veterinarian, your data will be processed to the
+      extent necessary for the veterinarian to answer your inquiry and for any follow-up measures.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> Messages, attachments (photos, videos), pet-related
+      context (e.g. symptoms, recent treatments), metadata (timestamps, sender/recipient).
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com),
+      </li>
+      <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
+      <li>Selected veterinarians.</li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> The processing is necessary for the performance of the user
+      contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in pursuing
+      the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> We store the data until the conversation or account is
+      deleted unless the deletion of individual data or documents is prevented by statutory
+      retention obligations.
+    </p>
+    <h4>3.2.6. Review and Ratings</h4>
+    <p>
+      <strong>Purpose:</strong> Users can provide feedback on services received from pet service
+      providers to help other users to make their decision and enhance user friendliness.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> Rating (in the form of stars), review text, name,
+      timestamp.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>
+        Any user of the PIMS - including the pet service provider selected by the user - can view
+        the review.
+      </li>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> Voluntary consent to publish review (Art. 6 para 1 lit. a
+      GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> We store the data until the review is manually removed by
+      the user or deleted due to inactivity or policy violations.
+    </p>
+    <h4>3.2.7. Payment</h4>
+    <p>
+      Users can pay assessment fees directly or receive invoices for treatments via the app. When
+      payment is made through the app, the transaction is directly performed by the pet service
+      providers own payment services. We will not process any payment data in connection with the
+      payment process.
+    </p>
+    <h4>3.2.8. Pet Medical Records and Health Features</h4>
+    <p>
+      <strong>Purpose:</strong> To enable users to record, track and share their pet&apos;s medical
+      and health information, such as medical conditions, medications, vaccination status and
+      observations (e.g. water intake or pain levels), users can add information to their profile.
+      This allows for better monitoring and communication with veterinary care providers.
+    </p>
+    <p>
+      <strong>Categories of data: </strong> Pet&apos;s medical records (vaccinations, prescriptions,
+      diagnoses), daily health logs, notes on behaviour or pain, exercise schedules, reminders, task
+      lists.
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+      <li>Pet service provider selected by the user.</li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> The legitimate interest in pursuing the aforementioned purposes
+      (Art. 6 para. 1 lit. f. GDPR).
+    </p>
+    <p>
+      <strong>Storage period: </strong> As long as the pet profile exists and data is not manually
+      deleted. Full deletion occurs with account removal or upon user request.
+    </p>
+    <h4>3.2.9. Contacting Us</h4>
+    <p>
+      <strong>Purpose:</strong> Users can contact us through the application by sending us a
+      message. Users can submit a general enquiry, feature request or a data subject access request.
+      When you contact us at, your data will be processed to the extent necessary to answer your
+      enquiry and for any follow-up measures.
+    </p>
+    <p>
+      <strong>Categories of data: </strong>Inventory data (e.g., names, addresses), contact details,
+      content data, metadata (timestamps, sender/recipient).
+    </p>
+    <p>
+      <strong>Recipient:</strong>
+    </p>
+    <ul>
+      <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland.</li>
+      <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
+      <li>
+        Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy contact:
+        privacy@supabase.com).
+      </li>
+    </ul>
+    <p>
+      <strong>Legal basis: </strong> Contract fulfillment and pre-contractual inquiries (Art. 6
+      para. 1 lit. b. GDPR); legitimate interests (Art. 6 para. 1 lit. f. GDPR) in the processing of
+      communication.
+    </p>
+    <p>
+      <strong>Storage period: </strong> The data will generally be processed for as long as it is
+      necessary to process the inquiry.
+    </p>
+  </>
+);
+
+/* Trademark notice, 1. Controller and Data Protection Officer, 2. Our role regarding your personal data, 3. Processing activities in applications, 4. Presence on social media */
+const PrivacySectionsPart3 = () => (
+  <>
     <DocSection id="trademark" title="Trademark notice">
       <p>
         This repository may reference or include integrations, plugins, names, logos, or trademarks
@@ -92,403 +484,8 @@ const PrivacyPolicy = () => (
     </DocSection>
 
     <DocSection id="processing" title="3. Processing activities in applications">
-      <p>
-        When you use our application, we process personal data. You are not legally required to
-        provide this data, but without it, many features may not be available.
-      </p>
-      <p>
-        The following sections explain what data we process, for what purposes, for how long, and on
-        what legal basis. You will also learn to whom we pass on your data. At the end of the
-        privacy policy, you will also find information about our storage periods, general
-        recipients, and algorithmic decision-making.
-      </p>
-      <h3>3.1. Web Application</h3>
-      <p> Our web application is offered to business owners and web developers </p>
-      <h4>3.1.1. Server Provision and Hosting</h4>
-      <p>
-        <strong>Purpose:</strong> The web application can be self-hosted or hosted in the cloud. If
-        you choose our cloud, we collect and temporarily store certain data to ensure the operation,
-        availability, stability and security of the application.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> IP address, time and date of access, browser type and
-        version, operating system.
-      </p>
-      <p>
-        <strong>Legal basis: </strong> The legitimate interest in ensuring the technical
-        functionality and security of our software (Art. 6 para. 1 lit. f) GDPR.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
-      </ul>
-      <p>
-        <strong>Storage period: </strong> Log data is deleted after 7 days.
-      </p>
-      <h4>3.1.2. Signing up and setting up a profile</h4>
-      <p>
-        <strong>Purpose:</strong> To register and onboard veterinary businesses, create accounts,
-        and establish secure access for managing their practice&lsquo;s information and activities,
-        thus allowing them to provide services through the platform.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> In particular, work email, business name, business
-        type (veterinary business, breeding facility, pet sitter, groomer shop), registration
-        number, address, specialised department, provided services, professional background
-        (specialisation, qualification, medical license number), appointment duration (consultation
-        mode, consultation fee, username)
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
-        <li>Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.</li>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> Establishment of the user relationship, Art. 6 para. 1 lit.
-        b) GDPR. By providing voluntary profile information, you consent to the processing of this
-        data, Art. 6 para. 1 lit. a) GDPR.
-      </p>
-      <p>
-        <strong>Storage period: </strong> The data will generally be processed for as long as you
-        maintain your account with us. After termination of the account, your data will be deleted
-        unless the deletion of individual data or documents is prevented by statutory retention
-        obligations.
-      </p>
-      <h4>3.1.3. General Use of the Application</h4>
-      <p>
-        <strong>Purpose:</strong> To allow businesses to use the application and all its core
-        functions (such as creating appointments, adding prescriptions, generating bills, creating
-        appointments), we process the information you enter, and data generated during use.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> In particular, name, e-mail address, phone number,
-        doctor’s name, prescription notes, billing details, payment information.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
-        <li>Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.</li>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> The processing is necessary for the performance of the user
-        contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in
-        pursuing the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> We store the data as long as the user account is active.
-        Data may be deleted upon account deletion unless legal retention applies.
-      </p>
-      <h4>3.1.4. Contacting Clients and Communications</h4>
-      <p>
-        <strong>Purpose:</strong> The application allows communication with clients and within
-        teams. This can include sending messages, images and videos related to the pet’s condition,
-        treatment, or general care questions.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> Messages, attachments (photos, videos), pet-related
-        context (e.g. symptoms, recent treatments), metadata (timestamps, sender/recipient).
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
-        <li>Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.</li>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> The processing is necessary for the performance of the user
-        contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in
-        pursuing the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> We store the data until the conversation or account is
-        deleted unless the deletion of individual data or documents is prevented by statutory
-        retention obligations
-      </p>
-      <h4>3.1.5. Payment</h4>
-      <p>
-        Business owners and developers can implement their preferred payment options and payment
-        services directly in the web application. The payment is directly performed over these
-        payment providers. DuneXploration does not process any personal data in connection with the
-        payment.
-      </p>
-      <h3>3.2. Mobile Application</h3>
-      <h4>3.2.1. Server Provision and Hosting</h4>
-      <p>
-        <strong>Purpose:</strong> The application is hosted on servers to be made technically
-        available for users. For this purpose, we collect and temporarily store certain data to
-        ensure the operation, availability, stability and security of the software.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> IP address, time and date of access, browser type and
-        version, operating system.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland</li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> The legitimate interest in ensuring the technical
-        functionality and security of our software (Art. 6 para. 1 lit. f) GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> Log data is deleted after 7 days.
-      </p>
-      <h4>3.2.2. Signing up and setting up a profile</h4>
-      <p>
-        <strong>Purpose:</strong> To onboard new users (pet owners, breeders, groomers, and vet
-        doctors) to the mobile application, enabling account creation, authentication, and access to
-        platform features.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> In particular, name, e-mail address, phone number,
-        address, type of user.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-        <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg, and</li>
-        <li>
-          Your identity provider, if you use the log-in of a third party service (we support Meta,
-          Google or Apple).
-        </li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> Establishment of the user relationship, Art. 6 para. 1 lit.
-        b) GDPR.
-      </p>
-      <p>
-        <strong>Storage period: </strong> The data will generally be processed for as long as you
-        maintain your account with us. After termination of the account, your data will be deleted
-        unless the deletion of individual data or documents is prevented by statutory retention
-        obligations.
-      </p>
-      <h4>3.2.3. General Use of the Application</h4>
-      <p>
-        <strong>Purpose:</strong> To allow users to use the application and all its core functions
-        (such as creating pet profiles, managing daily care tasks, recording notes of health data,
-        adding vaccination record, creating exercise plans etc), we process the information you
-        enter and data generated during use.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> In particular, name, e-mail address, phone number,
-        type and content of enquiry, message.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com),
-        </li>
-        <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg, and</li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> The processing is necessary for the performance of the user
-        contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in
-        pursuing the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> We store the data as long as the user account is active.
-        Data may be deleted upon account deletion unless legal retention applies.
-      </p>
-      <h4>3.2.4. Booking Appointments</h4>
-      <p>
-        <strong>Purpose:</strong> To enable pet owners to book appointments with veterinarians
-        through the Yosemite Crew mobile application.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> Name, e-mail address, telephone number, booking
-        details and, if applicable, desired appointment reminders or additional comments on your
-        booking. The data marked as mandatory fields must be provided in order to make a booking.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com),
-        </li>
-        <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
-        <li>Selected veterinarians.</li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> The processing is necessary for the performance of the user
-        contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in
-        pursuing the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> The data collected as part of the booking will be deleted
-        after the expiry of the applicable statutory retention obligations (6 years according to
-        HGB, 10 years according to AO).
-      </p>
-      <h4>3.2.5. Contacting Veterinarians and Communications</h4>
-      <p>
-        <strong>Purpose:</strong> To enable meaningful communication between pet owners and
-        veterinary professionals the user can contact veterinarians directly through the
-        application. This can include sending messages, images and videos related to the pet’s
-        condition, treatment, or general care questions. If you contact the veterinarian, your data
-        will be processed to the extent necessary for the veterinarian to answer your inquiry and
-        for any follow-up measures.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> Messages, attachments (photos, videos), pet-related
-        context (e.g. symptoms, recent treatments), metadata (timestamps, sender/recipient).
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com),
-        </li>
-        <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland,</li>
-        <li>Selected veterinarians.</li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> The processing is necessary for the performance of the user
-        contract (Art. 6 para. 1 lit. b) GDPR). In addition, we have a legitimate interest in
-        pursuing the above-mentioned purposes (Art. 6 para. 1 lit. f) GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> We store the data until the conversation or account is
-        deleted unless the deletion of individual data or documents is prevented by statutory
-        retention obligations.
-      </p>
-      <h4>3.2.6. Review and Ratings</h4>
-      <p>
-        <strong>Purpose:</strong> Users can provide feedback on services received from pet service
-        providers to help other users to make their decision and enhance user friendliness.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> Rating (in the form of stars), review text, name,
-        timestamp.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>
-          Any user of the PIMS - including the pet service provider selected by the user - can view
-          the review.
-        </li>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> Voluntary consent to publish review (Art. 6 para 1 lit. a
-        GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> We store the data until the review is manually removed by
-        the user or deleted due to inactivity or policy violations.
-      </p>
-      <h4>3.2.7. Payment</h4>
-      <p>
-        Users can pay assessment fees directly or receive invoices for treatments via the app. When
-        payment is made through the app, the transaction is directly performed by the pet service
-        providers own payment services. We will not process any payment data in connection with the
-        payment process.
-      </p>
-      <h4>3.2.8. Pet Medical Records and Health Features</h4>
-      <p>
-        <strong>Purpose:</strong> To enable users to record, track and share their pet&apos;s
-        medical and health information, such as medical conditions, medications, vaccination status
-        and observations (e.g. water intake or pain levels), users can add information to their
-        profile. This allows for better monitoring and communication with veterinary care providers.
-      </p>
-      <p>
-        <strong>Categories of data: </strong> Pet&apos;s medical records (vaccinations,
-        prescriptions, diagnoses), daily health logs, notes on behaviour or pain, exercise
-        schedules, reminders, task lists.
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-        <li>Pet service provider selected by the user.</li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> The legitimate interest in pursuing the aforementioned
-        purposes (Art. 6 para. 1 lit. f. GDPR).
-      </p>
-      <p>
-        <strong>Storage period: </strong> As long as the pet profile exists and data is not manually
-        deleted. Full deletion occurs with account removal or upon user request.
-      </p>
-      <h4>3.2.9. Contacting Us</h4>
-      <p>
-        <strong>Purpose:</strong> Users can contact us through the application by sending us a
-        message. Users can submit a general enquiry, feature request or a data subject access
-        request. When you contact us at, your data will be processed to the extent necessary to
-        answer your enquiry and for any follow-up measures.
-      </p>
-      <p>
-        <strong>Categories of data: </strong>Inventory data (e.g., names, addresses), contact
-        details, content data, metadata (timestamps, sender/recipient).
-      </p>
-      <p>
-        <strong>Recipient:</strong>
-      </p>
-      <ul>
-        <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland.</li>
-        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxembourg.</li>
-        <li>
-          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-          contact: privacy@supabase.com).
-        </li>
-      </ul>
-      <p>
-        <strong>Legal basis: </strong> Contract fulfillment and pre-contractual inquiries (Art. 6
-        para. 1 lit. b. GDPR); legitimate interests (Art. 6 para. 1 lit. f. GDPR) in the processing
-        of communication.
-      </p>
-      <p>
-        <strong>Storage period: </strong> The data will generally be processed for as long as it is
-        necessary to process the inquiry.
-      </p>
+      <PrivacySectionsPart1 />
+      <PrivacySectionsPart2 />
     </DocSection>
 
     <DocSection id="social-media" title="4. Presence on social media">
@@ -677,7 +674,12 @@ const PrivacyPolicy = () => (
         above information on establishing contact applies accordingly.
       </p>
     </DocSection>
+  </>
+);
 
+/* 5. General information on recipients, 6. General information on storage duration, 7. Automated decision-making and obligation to provide data, 8. What rights do you have with regard to the personal data you provide to us?, 9. In particular, right to object and withdrawal of consent, 10. Obligation to provide data, 11. If you have any comments or questions */
+const PrivacySectionsPart4 = () => (
+  <>
     <DocSection id="recipients" title="5. General information on recipients">
       <p>
         When we process your data, it may be necessary to transfer or disclose your data to other
@@ -845,6 +847,29 @@ const PrivacyPolicy = () => (
         <a href="mailto:security@yosemitecrew.com">security@yosemitecrew.com</a>.
       </p>
     </DocSection>
+  </>
+);
+
+const PrivacyPolicy = () => (
+  <LegalDoc
+    eyebrow="Legal"
+    title="Privacy policy"
+    subtitle="The protection and security of your personal data matters to us. This describes how our open-source practice management software collects, processes and stores personal data, as a web app and a mobile app."
+    meta="Updated March 2026 · Controller: DuneXploration UG (haftungsbeschränkt), Mainz"
+    toc={TOC}
+  >
+    <p>
+      The protection and security of your personal information is important to us. This privacy
+      policy describes how we collect, process, and store personal data through our open-source
+      practice management software (hereinafter referred to as &quot;PIMS&quot;, &quot;PMS&quot; or
+      &quot;the Software&quot;). Our Software is available as a web application and as a mobile
+      application. Unless stated otherwise, the information provided applies equally to both
+      versions. This policy helps you to understand what information we collect, why we collect it,
+      how we use it, and how long we store it.
+    </p>
+
+    <PrivacySectionsPart3 />
+    <PrivacySectionsPart4 />
 
     <DocSection id="analytics" title="Analytics (PostHog)">
       <p>

@@ -2,7 +2,8 @@
 
 import { DocSection } from '@/app/features/marketing/site';
 
-export const TermsBody = () => (
+/* 1. Definitions, 2. Scope, 3. Overview of the SaaS Services, 4. Conclusion of the Agreement and registering for an account */
+const TermsBodyPart1 = () => (
   <>
     <DocSection id="definitions" title="1. Definitions">
       <p>
@@ -209,7 +210,12 @@ export const TermsBody = () => (
         </li>
       </ul>
     </DocSection>
+  </>
+);
 
+/* 5. Functions of the PIMS, 6. Functions for Developers, 7. Offering services to Pet Owners, 8. DuneXploration’s responsibilities */
+const TermsBodyPart2 = () => (
+  <>
     <DocSection id="pms-functions" title="5. Functions of the PIMS">
       <ul>
         <li>
@@ -418,7 +424,12 @@ export const TermsBody = () => (
         </li>
       </ul>
     </DocSection>
+  </>
+);
 
+/* 9. SaaS access rights and licenses, 10. Customer’s obligations, 11. Technical dependencies and limitations, 12. Acceptable use policy */
+const TermsBodyPart3 = () => (
+  <>
     <DocSection id="access-rights" title="9. SaaS access rights and licenses">
       <ul>
         <li>
@@ -564,7 +575,12 @@ export const TermsBody = () => (
         </li>
       </ul>
     </DocSection>
+  </>
+);
 
+/* 13. Fees, 14. Warranty */
+const TermsBodyPart4 = () => (
+  <>
     <DocSection id="fees" title="13. Fees">
       <ul>
         <li>
@@ -706,7 +722,12 @@ export const TermsBody = () => (
         </li>
       </ul>
     </DocSection>
+  </>
+);
 
+/* 15. Limitation of liability, 16. Confidentiality, 17. Use of Customer name and logo, 18. Term and termination, 20. Miscellaneous */
+const TermsBodyPart5 = () => (
+  <>
     <DocSection id="liability" title="15. Limitation of liability">
       <ul>
         <li>
@@ -885,5 +906,15 @@ export const TermsBody = () => (
         </li>
       </ul>
     </DocSection>
+  </>
+);
+
+export const TermsBody = () => (
+  <>
+    <TermsBodyPart1 />
+    <TermsBodyPart2 />
+    <TermsBodyPart3 />
+    <TermsBodyPart4 />
+    <TermsBodyPart5 />
   </>
 );
