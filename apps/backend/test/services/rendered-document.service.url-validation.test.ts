@@ -109,6 +109,12 @@ describe("rendered-document service outbound PDF URL validation", () => {
   const NON_PUBLIC_HOST_MESSAGE =
     "Document URL host did not resolve to a permitted address";
 
+  const UNEXPECTED_RESPONSE_MESSAGE = "Fetched document is not a PDF";
+
+  /** Bytes that open with the PDF marker, as any real document does. */
+  const pdfBytes = (marker: string): Buffer =>
+    Buffer.from(`%PDF-1.7\n${marker}\n%%EOF\n`);
+
   const resolvesTo = (...addresses: string[]): void => {
     lookupSpy.mockResolvedValue(
       addresses.map((address) => ({ address, family: 4 })),
@@ -140,7 +146,7 @@ describe("rendered-document service outbound PDF URL validation", () => {
     // The stored URL is not an object in our bucket, so the bucket read misses
     // and the service falls through to the validated direct fetch.
     mockS3GetObject.mockRejectedValue(new Error("NoSuchKey"));
-    mockedAxiosGet.mockResolvedValue({ data: Buffer.from("pdf-bytes") });
+    mockedAxiosGet.mockResolvedValue({ data: pdfBytes("fetched") });
   });
 
   afterEach(() => {
@@ -162,7 +168,7 @@ describe("rendered-document service outbound PDF URL validation", () => {
         "https://203.0.113.10/rendered/invoice-1.pdf",
         expectedRequestOptions,
       );
-      expect(result.pdf).toEqual(Buffer.from("pdf-bytes"));
+      expect(result.pdf).toEqual(pdfBytes("fetched"));
       expect(result.contentType).toBe("application/pdf");
     });
 
@@ -213,19 +219,19 @@ describe("rendered-document service outbound PDF URL validation", () => {
 
     it("returns the stored object directly without an outbound request", async () => {
       mockS3GetObject.mockReset();
-      mockS3GetObject.mockResolvedValue({ Body: Buffer.from("stored-bytes") });
+      mockS3GetObject.mockResolvedValue({ Body: pdfBytes("stored") });
 
       const result = (await fetchPdf(
         "https://203.0.113.10/rendered/invoice-1.pdf",
       )) as { pdf: Buffer };
 
-      expect(result.pdf).toEqual(Buffer.from("stored-bytes"));
+      expect(result.pdf).toEqual(pdfBytes("stored"));
       expect(mockedAxiosGet).not.toHaveBeenCalled();
     });
 
     it("derives the object key from the normalised URL", async () => {
       mockS3GetObject.mockReset();
-      mockS3GetObject.mockResolvedValue({ Body: Buffer.from("stored-bytes") });
+      mockS3GetObject.mockResolvedValue({ Body: pdfBytes("stored") });
 
       await fetchPdf("https://203.0.113.10/rendered/invoice%201.pdf");
 
@@ -236,8 +242,8 @@ describe("rendered-document service outbound PDF URL validation", () => {
     });
 
     it.each([
-      ["a byte array", new Uint8Array([1, 2, 3]), Buffer.from([1, 2, 3])],
-      ["a string", "stored-bytes", Buffer.from("stored-bytes")],
+      ["a byte array", new Uint8Array(pdfBytes("stored")), pdfBytes("stored")],
+      ["a string", pdfBytes("stored").toString("latin1"), pdfBytes("stored")],
     ])("returns a stored body given as %s", async (_case, body, expected) => {
       mockS3GetObject.mockReset();
       mockS3GetObject.mockResolvedValue({ Body: body });
@@ -272,6 +278,145 @@ describe("rendered-document service outbound PDF URL validation", () => {
         "https://203.0.113.10/",
         expectedRequestOptions,
       );
+    });
+  });
+
+  describe("response content", () => {
+    const fetchReturning = (
+      data: unknown,
+      headers?: Record<string, string>,
+    ): Promise<unknown> => {
+      mockedAxiosGet.mockReset();
+      mockedAxiosGet.mockResolvedValue({ data, headers });
+      return fetchPdf("https://203.0.113.10/rendered/invoice-1.pdf");
+    };
+
+    it("accepts a response declared as a PDF", async () => {
+      const result = (await fetchReturning(pdfBytes("fetched"), {
+        "content-type": "application/pdf",
+      })) as { pdf: Buffer };
+
+      expect(result.pdf).toEqual(pdfBytes("fetched"));
+    });
+
+    it("accepts a PDF media type carrying parameters", async () => {
+      const result = (await fetchReturning(pdfBytes("fetched"), {
+        "content-type": "Application/PDF; charset=binary",
+      })) as { pdf: Buffer };
+
+      expect(result.pdf).toEqual(pdfBytes("fetched"));
+    });
+
+    it.each([
+      ["no content type at all", undefined],
+      ["a generic binary content type", "application/octet-stream"],
+      ["the alternate generic binary content type", "binary/octet-stream"],
+    ])(
+      "accepts correct leading bytes served with %s",
+      async (_case, contentType) => {
+        const result = (await fetchReturning(
+          pdfBytes("fetched"),
+          contentType ? { "content-type": contentType } : undefined,
+        )) as { pdf: Buffer };
+
+        expect(result.pdf).toEqual(pdfBytes("fetched"));
+      },
+    );
+
+    it("accepts headers that carry no content type entry", async () => {
+      const result = (await fetchReturning(pdfBytes("fetched"), {
+        "content-length": "42",
+      })) as { pdf: Buffer };
+
+      expect(result.pdf).toEqual(pdfBytes("fetched"));
+    });
+
+    it("accepts a typed-array body", async () => {
+      const result = (await fetchReturning(
+        new Uint8Array(pdfBytes("fetched")),
+        { "content-type": "application/pdf" },
+      )) as { pdf: Buffer };
+
+      expect(result.pdf).toEqual(pdfBytes("fetched"));
+    });
+
+    it.each([
+      ["html", "text/html"],
+      ["json", "application/json"],
+      ["an image", "image/png"],
+      ["plain text", "text/plain"],
+    ])("rejects a response declared as %s", async (_case, contentType) => {
+      await expect(
+        fetchReturning(pdfBytes("fetched"), { "content-type": contentType }),
+      ).rejects.toThrow(UNEXPECTED_RESPONSE_MESSAGE);
+    });
+
+    it("rejects a PDF media type whose body does not start with the marker", async () => {
+      await expect(
+        fetchReturning(Buffer.from("<html>not a document</html>"), {
+          "content-type": "application/pdf",
+        }),
+      ).rejects.toThrow(UNEXPECTED_RESPONSE_MESSAGE);
+    });
+
+    it("rejects a body whose marker is not at the very start", async () => {
+      await expect(
+        fetchReturning(Buffer.from(`leading junk%PDF-1.7\n`), {
+          "content-type": "application/pdf",
+        }),
+      ).rejects.toThrow(UNEXPECTED_RESPONSE_MESSAGE);
+    });
+
+    it.each([
+      ["an empty body", Buffer.alloc(0)],
+      ["a body shorter than the marker", Buffer.from("%PD")],
+    ])("rejects %s", async (_case, body) => {
+      await expect(
+        fetchReturning(body, { "content-type": "application/pdf" }),
+      ).rejects.toThrow(UNEXPECTED_RESPONSE_MESSAGE);
+    });
+
+    it("accepts an ArrayBuffer body, as axios returns for arraybuffer", async () => {
+      const bytes = pdfBytes("fetched");
+      const arrayBuffer = bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength,
+      );
+
+      const result = (await fetchReturning(arrayBuffer)) as { pdf: Buffer };
+
+      expect(result.pdf).toEqual(bytes);
+    });
+
+    it("rejects a stored object that is not a PDF", async () => {
+      mockS3GetObject.mockReset();
+      mockS3GetObject.mockResolvedValue({
+        Body: Buffer.from("<html>not a document</html>"),
+      });
+
+      await expect(
+        fetchPdf("https://203.0.113.10/rendered/invoice-1.pdf"),
+      ).rejects.toThrow(UNEXPECTED_RESPONSE_MESSAGE);
+      expect(mockedAxiosGet).not.toHaveBeenCalled();
+    });
+
+    it("reports an unusable response as an upstream failure", async () => {
+      mockedAxiosGet.mockReset();
+      mockedAxiosGet.mockResolvedValue({
+        data: Buffer.from("<html>not a document</html>"),
+        headers: { "content-type": "text/html" },
+      });
+      arrangeDocument("https://203.0.113.10/rendered/invoice-1.pdf");
+
+      const error = await getPersistedRenderedDocumentPdf(
+        "doc-1",
+        "org-123",
+      ).catch((caught: unknown) => caught);
+
+      expect(error).toMatchObject({
+        name: "RenderedDocumentServiceError",
+        statusCode: 502,
+      });
     });
   });
 

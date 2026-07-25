@@ -12,6 +12,7 @@ import { rerenderPersistedClinicalRenderedDocumentPdf } from "src/services/rende
 import logger from "src/utils/logger";
 import {
   INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+  readValidatedPdfResponse,
   resolveOutboundDocumentUrl,
   type OutboundDocumentRequest,
 } from "src/utils/outbound-document-url";
@@ -760,7 +761,9 @@ export const WorkspaceDocumentPacketService = {
         outbound.url,
         outbound.requestOptions,
       );
-      return Buffer.from(response.data);
+      // A response that is not a PDF is no more usable than an expired link, so
+      // it degrades the same way: log it and let the caller re-merge.
+      return readValidatedPdfResponse(response);
     } catch (error) {
       logger.error(
         `[WorkspaceDocumentPacket] Unable to fetch signed packet PDF for encounter ${encounterId}; falling back to live merge.`,

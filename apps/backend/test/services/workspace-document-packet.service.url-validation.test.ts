@@ -99,6 +99,10 @@ describe("workspace document packet signed-download URL validation", () => {
   const NON_PUBLIC_HOST_MESSAGE =
     "Document URL host did not resolve to a permitted address";
 
+  /** Bytes that open with the PDF marker, as any real document does. */
+  const pdfBytes = (marker: string): Buffer =>
+    Buffer.from(`%PDF-1.7\n${marker}\n%%EOF\n`);
+
   const expectedRequestOptions = expect.objectContaining({
     responseType: "arraybuffer",
     timeout: expect.any(Number),
@@ -151,7 +155,10 @@ describe("workspace document packet signed-download URL validation", () => {
     lookupSpy = jest
       .spyOn(dns.promises, "lookup")
       .mockRejectedValue(new Error("ENOTFOUND"));
-    mockedAxios.get.mockResolvedValue({ data: Buffer.from("signed-pdf") });
+    mockedAxios.get.mockResolvedValue({
+      data: pdfBytes("signed"),
+      headers: { "content-type": "application/pdf" },
+    });
   });
 
   afterEach(() => {
@@ -173,7 +180,7 @@ describe("workspace document packet signed-download URL validation", () => {
         "https://203.0.113.10/packets/pkt-1.pdf?sig=abc",
         expectedRequestOptions,
       );
-      expect(pdf?.toString()).toBe("signed-pdf");
+      expect(pdf).toEqual(pdfBytes("signed"));
     });
 
     it("passes a plain http download URL through to axios", async () => {
@@ -300,7 +307,7 @@ describe("workspace document packet signed-download URL validation", () => {
         "http://storage.internal:9000/packets/pkt-1.pdf",
       );
 
-      expect(pdf?.toString()).toBe("signed-pdf");
+      expect(pdf).toEqual(pdfBytes("signed"));
       expect(mockedAxios.get).toHaveBeenCalledWith(
         "http://storage.internal:9000/packets/pkt-1.pdf",
         expectedRequestOptions,
@@ -313,6 +320,78 @@ describe("workspace document packet signed-download URL validation", () => {
         fetchSignedPacket("http://storage.internal/packets/pkt-1.pdf"),
       ).rejects.toThrow(NON_PUBLIC_HOST_MESSAGE);
       expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("response content", () => {
+    const fetchReturning = (
+      data: unknown,
+      headers?: Record<string, string>,
+    ): Promise<Buffer | null> => {
+      mockedAxios.get.mockReset();
+      mockedAxios.get.mockResolvedValue({ data, headers });
+      return fetchSignedPacket("https://203.0.113.10/packets/pkt-1.pdf");
+    };
+
+    it("returns a response declared as a PDF", async () => {
+      const pdf = await fetchReturning(pdfBytes("signed"), {
+        "content-type": "application/pdf",
+      });
+
+      expect(pdf).toEqual(pdfBytes("signed"));
+    });
+
+    it.each([
+      ["no content type at all", undefined],
+      ["a generic binary content type", "application/octet-stream"],
+      ["the alternate generic binary content type", "binary/octet-stream"],
+    ])(
+      "returns correct leading bytes served with %s",
+      async (_case, contentType) => {
+        const pdf = await fetchReturning(
+          pdfBytes("signed"),
+          contentType ? { "content-type": contentType } : undefined,
+        );
+
+        expect(pdf).toEqual(pdfBytes("signed"));
+      },
+    );
+
+    it.each([
+      ["html", "text/html"],
+      ["json", "application/json"],
+    ])(
+      "falls back to null for a response declared as %s",
+      async (_case, contentType) => {
+        const pdf = await fetchReturning(pdfBytes("signed"), {
+          "content-type": contentType,
+        });
+
+        expect(pdf).toBeNull();
+        expect(mockedLogger.error).toHaveBeenCalled();
+      },
+    );
+
+    it("falls back to null when the body does not start with the marker", async () => {
+      const pdf = await fetchReturning(
+        Buffer.from("<html>not a document</html>"),
+        { "content-type": "application/pdf" },
+      );
+
+      expect(pdf).toBeNull();
+      expect(mockedLogger.error).toHaveBeenCalled();
+    });
+
+    it.each([
+      ["an empty body", Buffer.alloc(0)],
+      ["a body shorter than the marker", Buffer.from("%PD")],
+    ])("falls back to null for %s", async (_case, body) => {
+      const pdf = await fetchReturning(body, {
+        "content-type": "application/pdf",
+      });
+
+      expect(pdf).toBeNull();
+      expect(mockedLogger.error).toHaveBeenCalled();
     });
   });
 

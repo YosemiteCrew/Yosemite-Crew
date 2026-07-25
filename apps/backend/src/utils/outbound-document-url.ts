@@ -4,13 +4,15 @@ import { buildPinnedAgent, resolvePublicAddresses } from "@yosemite-crew/lib";
 /**
  * Stored document links (an object-store URL on a rendered document, a signing
  * provider's download link) are operator- and provider-supplied rather than
- * hard-coded, so they are treated as untrusted input: the host is resolved and
- * checked before anything is derived from the URL, and the request itself is
- * bounded.
+ * hard-coded, so they are treated as untrusted input on both legs of the round
+ * trip: the host is resolved and checked before anything is derived from the
+ * URL, the request itself is bounded, and the response is confirmed to be a PDF
+ * before its bytes are handed back to a caller.
  *
  * The address classification, hostname resolution and connection pinning all
  * come from `@yosemite-crew/lib`, which is the single implementation shared
- * with the PDF renderer's branding fetch.
+ * with the PDF renderer's branding fetch. The response check follows the same
+ * shape that renderer already applies to a fetched branding asset.
  */
 
 /** Documents are larger than branding assets, so the caps are set separately. */
@@ -120,4 +122,96 @@ export const resolveOutboundDocumentUrl = async (
       httpsAgent: agent,
     },
   };
+};
+
+export const UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE =
+  "Fetched document is not a PDF";
+
+export class OutboundDocumentResponseError extends Error {
+  constructor(message: string = UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE) {
+    super(message);
+    this.name = "OutboundDocumentResponseError";
+  }
+}
+
+/** Media types a PDF is legitimately served as. */
+const PDF_CONTENT_TYPES = new Set(["application/pdf", "application/x-pdf"]);
+
+/**
+ * Media types that say "some bytes" and nothing more. Object stores routinely
+ * serve stored files this way (and presigned URLs often carry no type at all),
+ * so turning these down would break ordinary deployments. They are accepted,
+ * but only on the strength of the leading bytes checked below - the byte check
+ * is the real gate, and the media type only rules out a response that openly
+ * declares itself to be something else.
+ */
+const GENERIC_CONTENT_TYPES = new Set([
+  "application/octet-stream",
+  "binary/octet-stream",
+]);
+
+/** Every PDF begins with this marker at offset 0. */
+const PDF_LEADING_BYTES = "%PDF-";
+
+export type OutboundDocumentResponse = {
+  data: ArrayBuffer | ArrayBufferView | Buffer;
+  /** Raw axios response headers, or omitted for bytes read from our own store. */
+  headers?: unknown;
+};
+
+const readContentType = (headers: unknown): string => {
+  if (typeof headers !== "object" || headers === null) {
+    return "";
+  }
+
+  const value = (headers as Record<string, unknown>)["content-type"];
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  // Drop any parameters, e.g. `application/pdf; charset=binary`.
+  return value.split(";")[0].trim().toLowerCase();
+};
+
+const toBuffer = (data: OutboundDocumentResponse["data"]): Buffer => {
+  if (Buffer.isBuffer(data)) {
+    return data;
+  }
+
+  if (ArrayBuffer.isView(data)) {
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  }
+
+  return Buffer.from(data);
+};
+
+/**
+ * Confirm a fetched document really is a PDF before its bytes are returned.
+ *
+ * Two independent checks, because either one alone is weak: a declared media
+ * type says nothing about the body, and the body alone would let a response
+ * that openly declares itself as something else through. A missing or generic
+ * media type is allowed and settled by the leading bytes.
+ */
+export const readValidatedPdfResponse = (
+  response: OutboundDocumentResponse,
+): Buffer => {
+  const contentType = readContentType(response.headers);
+  if (
+    contentType &&
+    !PDF_CONTENT_TYPES.has(contentType) &&
+    !GENERIC_CONTENT_TYPES.has(contentType)
+  ) {
+    throw new OutboundDocumentResponseError();
+  }
+
+  const pdf = toBuffer(response.data);
+  if (
+    pdf.subarray(0, PDF_LEADING_BYTES.length).toString("latin1") !==
+    PDF_LEADING_BYTES
+  ) {
+    throw new OutboundDocumentResponseError();
+  }
+
+  return pdf;
 };

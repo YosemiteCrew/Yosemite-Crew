@@ -30,8 +30,11 @@ import { DocumensoService } from "src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
 import {
   INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+  readValidatedPdfResponse,
   resolveOutboundDocumentUrl,
+  UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE,
   type OutboundDocumentRequest,
+  type OutboundDocumentResponse,
 } from "src/utils/outbound-document-url";
 
 export class RenderedDocumentServiceError extends Error {
@@ -189,6 +192,24 @@ const readPdfFromBucket = async (
   return null;
 };
 
+/**
+ * Confirm the bytes we are about to return are a PDF. An upstream that hands
+ * back something else is an upstream fault rather than a bad request from our
+ * caller, so this reports 502 while an unusable stored link reports 400.
+ */
+const toValidatedPdf = (response: OutboundDocumentResponse): Buffer => {
+  try {
+    return readValidatedPdfResponse(response);
+  } catch (error) {
+    throw new RenderedDocumentServiceError(
+      error instanceof Error
+        ? error.message
+        : UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE,
+      502,
+    );
+  }
+};
+
 const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
   // Resolve and validate the stored link first: nothing - not the bucket key,
   // not the request - is derived from an unchecked URL.
@@ -206,7 +227,8 @@ const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
 
   const storedObject = await readPdfFromBucket(outbound.url);
   if (storedObject) {
-    return storedObject;
+    // No HTTP headers on this leg, so the leading bytes settle it on their own.
+    return toValidatedPdf({ data: storedObject });
   }
 
   const response = await axios.get<ArrayBuffer>(
@@ -214,7 +236,7 @@ const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
     outbound.requestOptions,
   );
 
-  return Buffer.from(response.data);
+  return toValidatedPdf(response);
 };
 
 type PersistedRenderedDocumentPdfSnapshot = {

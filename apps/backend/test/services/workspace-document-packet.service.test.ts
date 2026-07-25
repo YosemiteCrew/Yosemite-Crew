@@ -152,6 +152,10 @@ const basePacket = (overrides: Record<string, unknown> = {}) => ({
 
 let lookupSpy: jest.SpyInstance;
 
+/** Bytes that open with the PDF marker, as any real document does. */
+const pdfBytes = (marker: string): Buffer =>
+  Buffer.from(`%PDF-1.7\n${marker}\n%%EOF\n`);
+
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.DOCUMENSO_URL = "https://sign.example";
@@ -1280,7 +1284,7 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
       downloadUrl: "https://signed.example/packet.pdf",
     });
     mockedAxios.get.mockResolvedValue({
-      data: Buffer.from("signed-pdf"),
+      data: pdfBytes("signed"),
     });
 
     const pdf = await WorkspaceDocumentPacketService.buildEncounterPacketPdf(
@@ -1288,7 +1292,7 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
       "enc-1",
     );
 
-    expect(pdf.toString()).toBe("signed-pdf");
+    expect(pdf).toEqual(pdfBytes("signed"));
     expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
     expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
     expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
