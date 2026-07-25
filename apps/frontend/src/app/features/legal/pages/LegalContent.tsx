@@ -34,7 +34,14 @@ const cell = (data: LegalCell) =>
     <td key={data.k}>{inline(data.content)}</td>
   );
 
-const block = (data: LegalBlock): ReactNode => {
+/**
+ * Nesting in these documents is a list inside a list item, so depth 2 is the most
+ * the content ever uses. The cap keeps a malformed or hand-edited content module
+ * from recursing without bound.
+ */
+const MAX_NESTING = 6;
+
+const block = (data: LegalBlock, depth = 0): ReactNode => {
   switch (data.type) {
     case 'h3':
       return <h3 key={data.k}>{inline(data.content)}</h3>;
@@ -46,11 +53,12 @@ const block = (data: LegalBlock): ReactNode => {
       return <span key={data.k}>{inline(data.content)}</span>;
     case 'ul':
     case 'ol': {
+      if (depth >= MAX_NESTING) return null;
       const List = data.type;
       return (
         <List key={data.k}>
           {data.items.map((item) => (
-            <li key={item.k}>{item.blocks.map(block)}</li>
+            <li key={item.k}>{item.blocks.map((child) => block(child, depth + 1))}</li>
           ))}
         </List>
       );
@@ -84,7 +92,7 @@ const block = (data: LegalBlock): ReactNode => {
 
 /** Renders the blocks of one legal section. */
 export const LegalBlocks = ({ blocks }: Readonly<{ blocks: readonly LegalBlock[] }>) => (
-  <>{blocks.map(block)}</>
+  <>{blocks.map((item) => block(item, 0))}</>
 );
 
 /** Renders a legal document as a run of anchored, titled sections. */
