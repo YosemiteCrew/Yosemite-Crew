@@ -56,4 +56,9 @@ export {
   type PacketDocumentPdfLoader,
 } from './clinicalPacket.js';
 export { mergePdfBuffers } from './mergePdf.js';
+export {
+  fetchPublicUrlAsBuffer,
+  GuardedFetchError,
+  type FetchPublicUrlOptions,
+} from './fetchGuardedUrl.js';
 export * from './examples/index.js';

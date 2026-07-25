@@ -1,5 +1,5 @@
 import { ClinicalArtifactKind, TemplateKind } from "@prisma/client";
-import axios from "axios";
+import { fetchPublicUrlAsBuffer } from "@yosemite-crew/lib";
 import { prisma } from "src/config/prisma";
 import {
   buildDocumentSignature,
@@ -45,8 +45,9 @@ jest.mock("../../src/services/rendered-document-renderer.service", () => ({
 jest.mock("../../src/middlewares/upload", () => ({
   uploadBufferAsFile: jest.fn(),
 }));
-jest.mock("axios", () => ({
-  get: jest.fn(),
+jest.mock("@yosemite-crew/lib", () => ({
+  ...jest.requireActual("@yosemite-crew/lib"),
+  fetchPublicUrlAsBuffer: jest.fn(),
 }));
 
 describe("rendered-document service", () => {
@@ -70,7 +71,7 @@ describe("rendered-document service", () => {
   const mockedRenderedDocumentRenderer =
     renderRenderedDocumentPdfWithMetadata as jest.Mock;
   const mockedUploadBufferAsFile = uploadBufferAsFile as jest.Mock;
-  const mockedAxiosGet = axios.get as jest.Mock;
+  const mockedFetchPublicUrl = fetchPublicUrlAsBuffer as jest.Mock;
 
   beforeEach(() => {
     process.env.DOCUMENSO_HOST_URL = "https://documenso.example";
@@ -547,10 +548,8 @@ describe("rendered-document service", () => {
 
   it("uses the stored pdfUrl for clinical documents", async () => {
     mockedRenderedDocumentRenderer.mockClear();
-    mockedAxiosGet.mockClear();
-    mockedAxiosGet.mockResolvedValueOnce({
-      data: Buffer.from("stored-pdf"),
-    });
+    mockedFetchPublicUrl.mockClear();
+    mockedFetchPublicUrl.mockResolvedValueOnce(Buffer.from("stored-pdf"));
     mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
       id: "doc-3",
       organisationId: "org-123",
@@ -594,11 +593,8 @@ describe("rendered-document service", () => {
 
     const result = await getPersistedRenderedDocumentPdf("doc-3", "org-123");
 
-    expect(mockedAxiosGet).toHaveBeenCalledWith(
+    expect(mockedFetchPublicUrl).toHaveBeenCalledWith(
       "https://cdn.example/stored.pdf",
-      expect.objectContaining({
-        responseType: "arraybuffer",
-      }),
     );
     expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
     expect(result.pdf).toEqual(Buffer.from("stored-pdf"));

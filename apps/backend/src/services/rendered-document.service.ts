@@ -4,7 +4,6 @@ import {
   RenderedDocumentSourceKind as PrismaRenderedDocumentSourceKind,
 } from "@prisma/client";
 import AWS from "aws-sdk";
-import axios from "axios";
 import {
   buildDocumentSignature as buildDocumentSignatureContract,
   buildRenderedDocumentDraft as buildRenderedDocumentDraftContract,
@@ -23,6 +22,7 @@ import {
   type RenderedDocumentSource,
   type SignRenderedDocumentInput,
 } from "@yosemite-crew/types";
+import { fetchPublicUrlAsBuffer } from "@yosemite-crew/lib";
 import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
 import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
@@ -169,11 +169,12 @@ const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
     // Fall back to direct fetch below. This covers public URLs and non-S3 sources.
   }
 
-  const response = await axios.get<ArrayBuffer>(url, {
-    responseType: "arraybuffer",
-  });
-
-  return Buffer.from(response.data);
+  // `url` is read back from a stored document record, so it is operator-supplied
+  // rather than request-supplied - but it still must not be able to turn this
+  // renderer into a way to reach internal services. The guarded fetch enforces
+  // http(s) only, an optional host allowlist, public-only DNS resolution pinned
+  // against rebinding, no redirects, and a response size cap.
+  return fetchPublicUrlAsBuffer(url);
 };
 
 type PersistedRenderedDocumentPdfSnapshot = {
