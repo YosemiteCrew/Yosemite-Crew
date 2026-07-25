@@ -4,6 +4,7 @@ import { getFormattedDate } from '@/app/features/appointments/components/Calenda
 import { Task } from '@/app/features/tasks/types/task';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
 import {
@@ -36,9 +37,7 @@ const TaskCard = ({
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex items-start justify-between gap-2">
         <div className="text-body-3-emphasis text-text-primary">{item.name}</div>
-        <div className="appointment-status shrink-0" style={getTaskStatusStyle(item.status)}>
-          {toTitleCase(item.status)}
-        </div>
+        <StatusPill style={getTaskStatusStyle(item.status)} label={toTitleCase(item.status)} />
       </div>
       {getTaskQuickDetails(item).map((detail) => (
         <div className="flex gap-1" key={detail.label}>
