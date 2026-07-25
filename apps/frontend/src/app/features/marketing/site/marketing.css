@@ -414,9 +414,63 @@
 .yc-doc a:hover {
   text-decoration: underline;
 }
+.yc-doc h4 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ink-body);
+  margin: 20px 0 8px;
+}
+.yc-doc h5 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink-body);
+  margin: 16px 0 6px;
+}
 .yc-doc strong {
   color: var(--ink-body);
   font-weight: 600;
+}
+.yc-doc ol {
+  margin: 0 0 16px;
+  padding-left: 26px;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.yc-doc ol li {
+  padding-left: 0;
+  list-style: decimal;
+}
+.yc-doc ol li::before {
+  content: none;
+}
+/* Legal exhibits carry wide data tables; let them scroll instead of the page. */
+.yc-doc table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 700px;
+  margin: 0 0 20px;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+.yc-doc th,
+.yc-doc td {
+  border: 1px solid var(--hairline);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 140px;
+}
+.yc-doc thead:not(.sr-only) th {
+  color: var(--ink-body);
+  font-weight: 600;
+  background: var(--inset);
 }
 .yc-doc section {
   padding: 40px 0;
