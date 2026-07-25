@@ -32,7 +32,7 @@
     "@yosemite-crew/database": "workspace:^",
     "@yosemite-crew/lib": "workspace:^",
     "aws-sdk": "2.1692.0",
-    "axios": "^1.16.0",
+    "axios": "^1.18.0",
     "bcrypt": "5.1.1",
     "body-parser": "1.20.3",
     "bullmq": "^5.65.1",

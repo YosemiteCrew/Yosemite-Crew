@@ -46,7 +46,7 @@
     "@yosemite-crew/fhir": "workspace:*",
     "@yosemite-crew/types": "workspace:*",
     "aws-amplify": "^6.15.6",
-    "axios": "^1.16.0",
+    "axios": "^1.18.0",
     "i18next": "^25.4.1",
     "js-sha256": "^0.11.1",
     "posthog-react-native": "^4.44.4",
