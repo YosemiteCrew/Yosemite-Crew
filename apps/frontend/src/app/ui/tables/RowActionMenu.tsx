@@ -55,7 +55,13 @@ const RowActionMenu = ({
     const width = 224;
     const margin = 8;
     const left = Math.max(margin, rect.right - width);
-    const panelHeight = panelRef.current?.offsetHeight ?? 0;
+    // scrollHeight, not offsetHeight: the first pass (before we know which way
+    // to flip) can clamp the panel to a small maxHeight when there's little
+    // room below. offsetHeight would then read back that shrunk box on the
+    // second pass instead of the panel's true content height, corrupting the
+    // flip decision and leaving the panel positioned as if it were far
+    // shorter than it actually renders - overflowing the viewport regardless.
+    const panelHeight = panelRef.current?.scrollHeight ?? 0;
     const spaceBelow = globalThis.window.innerHeight - rect.bottom - margin;
     const spaceAbove = rect.top - margin;
     const flipUp = panelHeight > 0 && spaceBelow < panelHeight && spaceAbove > spaceBelow;
