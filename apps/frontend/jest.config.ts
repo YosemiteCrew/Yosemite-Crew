@@ -60,6 +60,8 @@ const config: Config = {
     '!<rootDir>/src/app/features/*/*/*/*/index.tsx',
     '!<rootDir>/src/app/features/*/types/**',
     '!<rootDir>/src/app/features/*/types.ts',
+    '!<rootDir>/src/app/**/*.types.ts',
+    '!<rootDir>/src/app/lib/index.ts',
     '!<rootDir>/src/app/services/http/types.ts',
     '!<rootDir>/src/app/features/integrations/services/types.ts',
     '!<rootDir>/src/app/features/onboarding/components/Steps/types.ts',
