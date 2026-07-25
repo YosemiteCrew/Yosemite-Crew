@@ -17,46 +17,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
+      # Tag names reach this workflow as untrusted input, so every value derived
+      # from them is passed through env rather than interpolated into a script.
       - name: Determine component prefix and previous tag
         id: prev
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          PREFIX=$(echo "$TAG" | sed -E 's/-v[0-9].*$//')
+          PREFIX=$(printf '%s' "$TAG" | sed -E 's/-v[0-9].*$//')
           echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
           PREV=$(git tag --list "${PREFIX}-v*" --sort=-v:refname | grep -vFx "$TAG" | head -n1 || true)
           echo "prev=$PREV" >> "$GITHUB_OUTPUT"
 
-      - name: Install git-cliff
-        run: |
-          ASSET_URL=$(curl -sL https://api.github.com/repos/orhun/git-cliff/releases/latest \
-            | grep browser_download_url \
-            | grep 'x86_64-unknown-linux-gnu\.tar\.gz"' \
-            | cut -d '"' -f4)
-          curl -sL "$ASSET_URL" -o git-cliff.tar.gz
-          tar xzf git-cliff.tar.gz
-          sudo mv git-cliff-*/git-cliff /usr/local/bin/
-          git-cliff --version
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
 
       - name: Generate release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          PREV: ${{ steps.prev.outputs.prev }}
         run: |
-          if [ -n "${{ steps.prev.outputs.prev }}" ]; then
-            RANGE="${{ steps.prev.outputs.prev }}..${{ github.ref_name }}"
+          if [ -n "$PREV" ]; then
+            RANGE="$PREV..$TAG"
           else
-            RANGE="${{ github.ref_name }}"
+            RANGE="$TAG"
           fi
-          git-cliff "$RANGE" --config cliff.toml --strip all -o notes.md
+          npx --yes git-cliff@2.13.1 "$RANGE" --config cliff.toml --strip all -o notes.md
           cat notes.md
 
       - name: Publish to GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
         run: |
-          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            gh release edit "${{ github.ref_name }}" --notes-file notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md
           else
-            gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --notes-file notes.md
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md
           fi
