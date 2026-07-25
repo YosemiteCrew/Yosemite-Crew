@@ -23,7 +23,9 @@ filter_unconventional = true
 split_commits = false
 protect_breaking_commits = false
 filter_commits = true
-tag_pattern = "*-v[0-9]*"
+# A regex, not a glob. Anchored to the component prefixes RELEASING.md documents,
+# so an unrelated tag cannot be picked up as a release boundary.
+tag_pattern = "^(backend|pims|pms|mobile|desktop)-v[0-9].*$"
 sort_commits = "oldest"
 
 commit_parsers = [

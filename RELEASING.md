@@ -19,7 +19,13 @@ Different apps in this monorepo ship on different cadences to different targets,
 | `apps/mobileAppYC` | Discrete tagged release | Manual: tag `mobile-vX.Y.Z-iOS-vA.B`, then `gh release create`. App-store submission is a separate manual step outside this repo. |
 | `apps/desktop` | Discrete tagged release, CI-built | Tag `desktop-vX.Y.Z-beta` pushed → [`desktop-release.yml`](./.github/workflows/desktop-release.yml) builds and publishes the Windows installer automatically. |
 
-Each component versions independently with SemVer plus a pre-release suffix (`-beta`, etc.) while still stabilizing. **Note:** `package.json` `version` fields (e.g. `apps/backend/package.json` currently reads `0.0.0`) are **not** kept in sync with release tags today — the tag is the source of truth for a component's version, not the `package.json`. Don't infer a release version from `package.json`.
+Each component versions independently with SemVer plus a pre-release suffix (`-beta`, etc.) while still stabilizing.
+
+**Note:** for `apps/backend`, `apps/frontend` and `apps/mobileAppYC`, `package.json` `version` fields (e.g. `apps/backend/package.json` currently reads `0.0.0`) are **not** kept in sync with release tags today — the tag is the source of truth for those components, not the `package.json`. Don't infer a release version from `package.json`.
+
+> **`apps/desktop` is the exception — do not apply the above to it.** The desktop build derives the installer filename, the embedded application version and the updater metadata from `apps/desktop/package.json` (`artifactName` interpolates `${version}`), and the updater compares SemVer to decide whether an update is available. [`apps/desktop/RELEASE.md`](./apps/desktop/RELEASE.md) therefore requires bumping `version` in `apps/desktop/package.json` **first**, then cutting a tag that matches it exactly.
+>
+> Tagging `desktop-v0.2.0-beta` while `package.json` still reads `0.1.0-beta.1` publishes an installer and update manifest still identified as `0.1.0-beta.1`. That breaks version ordering and can stop clients from taking the update. Follow [`apps/desktop/RELEASE.md`](./apps/desktop/RELEASE.md) for desktop, not the generic checklist below.
 
 ## Release checklist
 
@@ -40,4 +46,4 @@ If you want a preview before tagging, run it locally: `git-cliff <previous-tag>.
 ## What this does not (yet) do
 
 - Backend/PIMS/mobile releases are still manually tagged — this only automates the notes, not the decision of when/what to release or the artifact build/publish step.
-- `package.json` versions are not wired to tags. Doing so would need per-app release automation (e.g. Changesets or release-please) with either per-PR changeset files or `package.json` as the real source of truth — a bigger change than "stop hand-writing notes," left for a future ADR if the team wants it.
+- `package.json` versions are not wired to tags, for every app except `apps/desktop`, where the two are already required to match by hand (see above and [`apps/desktop/RELEASE.md`](./apps/desktop/RELEASE.md)). Automating the rest would need per-app release tooling (e.g. Changesets or release-please) with either per-PR changeset files or `package.json` as the real source of truth — a bigger change than "stop hand-writing notes," left for a future ADR if the team wants it. Worth noting that desktop's manual bump-then-tag step is exactly the kind of thing such tooling would remove.

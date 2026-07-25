@@ -30,7 +30,10 @@ jobs:
         run: |
           PREFIX=$(printf '%s' "$TAG" | sed -E 's/-v[0-9].*$//')
           echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
-          PREV=$(git tag --list "${PREFIX}-v*" --sort=-v:refname | grep -vFx "$TAG" | head -n1 || true)
+          # The nearest matching tag reachable from this one, not the highest by
+          # version sort. Sorting picks the wrong predecessor whenever stable and
+          # prerelease tags coexist, or a maintenance tag is cut out of order.
+          PREV=$(git describe --tags --abbrev=0 --match "${PREFIX}-v*" "${TAG}^" 2>/dev/null || true)
           echo "prev=$PREV" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
