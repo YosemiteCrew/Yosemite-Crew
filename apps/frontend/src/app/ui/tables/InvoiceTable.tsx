@@ -53,11 +53,14 @@ const joinMeta = (...parts: (string | undefined)[]): string => {
   return kept.join(' · ');
 };
 
-/* The status micro-badge is `white-space: nowrap` + `width: fit-content`, so the
-   column has to hold the widest label ("AWAITING PAYMENT" measures 133.7px at
-   10px/700/0.08em Satoshi) plus the 22px of td padding, or the pill bleeds over
-   the Payment cell. 160px is the measured-safe floor. */
-const STATUS_COLUMN_WIDTH = '160px';
+/* The status micro-badge is `white-space: nowrap` + `width: fit-content` +
+   `overflow-hidden`, so an undersized column doesn't bleed the pill over the
+   Payment cell — it silently clips the label instead ("AWAITING PAYMENT" ->
+   "AWAITING PAYME"). The widest label measures 133.7px at 10px/700/0.08em
+   Satoshi; 160px (- 22px td padding = 138px) left only ~4px of slack, which
+   real-world font hinting/zoom/DPI variance ate into. 180px leaves a real
+   margin (~23px). */
+const STATUS_COLUMN_WIDTH = '180px';
 
 const renderInvoiceNumber = (item: Invoice) => (
   <div
