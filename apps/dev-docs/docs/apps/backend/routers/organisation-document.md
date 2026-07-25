@@ -10,7 +10,7 @@ Manages an organisation's documents and policies (upload, create, update, delete
 
 ### POST /pms/:orgId/documents/upload
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Controller: `OrganizationDocumentController.uploadFile`
@@ -18,7 +18,7 @@ Manages an organisation's documents and policies (upload, create, update, delete
 
 ### POST /pms/:orgId/documents
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Body: `CreateOrgDocumentBody`
@@ -26,7 +26,7 @@ Manages an organisation's documents and policies (upload, create, update, delete
 
 ### PATCH /pms/:orgId/documents/:documentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`, `documentId`
 - Body: `UpdateOrgDocumentBody`
@@ -34,28 +34,28 @@ Manages an organisation's documents and policies (upload, create, update, delete
 
 ### DELETE /pms/:orgId/documents/:documentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`, `documentId`
 - Controller: `OrganizationDocumentController.remove`
 
 ### GET /pms/:orgId/documents
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Controller: `OrganizationDocumentController.list`
 
 ### GET /pms/:orgId/documents/:documentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`, `documentId`
 - Controller: `OrganizationDocumentController.getById`
 
 ### POST /pms/:orgId/documents/policy
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Body: `UpsertPolicyBody`
@@ -63,6 +63,6 @@ Manages an organisation's documents and policies (upload, create, update, delete
 
 ### GET /mobile/:orgId/documents
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `orgId`
 - Controller: `OrganizationDocumentController.listPublic`

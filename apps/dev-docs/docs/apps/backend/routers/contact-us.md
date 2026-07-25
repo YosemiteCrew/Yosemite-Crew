@@ -10,16 +10,16 @@ Handles "contact us" support requests. The mobile app submits a request (`POST /
 
 ### POST /contact
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `ContactController.create`
 
 ### GET /requests
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Controller: `ContactController.getById`
 
 ### PATCH /requests/:id/status
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `id`
 - Controller: `ContactController.updateStatus`

@@ -113,9 +113,11 @@ pnpm run build   # = clean:build && tsc && node scripts/copy-static.js
 
 ## Quality Gate
 
-Desktop changes must pass **SonarCloud** (project key `yosemitecrew_Yosemite-Crew_Desktop`),
-analyzed in CI by `.github/workflows/sonar-cloud-analysis.yml`. Load the `desktop-sonar` skill
-for the enforced rule set, the deferral policy, and fix patterns.
+Desktop changes must pass **SonarCloud** (project key `yosemitecrew_Yosemite-Crew_Desktop`).
+PR and branch pushes are analyzed in CI by the scan-only `_sonar` stage of
+`.github/workflows/ci.yaml`; `.github/workflows/sonar-cloud-analysis.yml` is the nightly
+type-aware backstop. Load the `desktop-sonar` skill for the enforced rule set, the deferral
+policy, and fix patterns.
 
 ---
 

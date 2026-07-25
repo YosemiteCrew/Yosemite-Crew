@@ -10,14 +10,14 @@ CRUD endpoints for an organisation's specialities (the areas of veterinary pract
 
 ### POST /
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `SpecialityController.create`
 - Response: `400`: keys `message`, `500`: keys `message`
 
 ### GET /:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `SpecialityController.getAllByOrganizationId`
@@ -25,7 +25,7 @@ CRUD endpoints for an organisation's specialities (the areas of veterinary pract
 
 ### PUT /:id
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
 - Controller: `SpecialityController.update`
@@ -33,7 +33,7 @@ CRUD endpoints for an organisation's specialities (the areas of veterinary pract
 
 ### DELETE /:organisationId/:specialityId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `specialityId`
 - Controller: `SpecialityController.deleteSpeciality`

@@ -10,14 +10,14 @@ Manages adverse event reports (for example, a suspected reaction to a medication
 
 ### POST /
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `AdverseEventReport`
 - Controller: `AdverseEventController.createFromMobile`
 - Response: `201`: keys `message`, `500`: keys `message`
 
 ### GET /regulatory-authority/
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `AdverseEventController.getRegulatoryAuthorityInof`
 
 ### GET /organisation/:organisationId

@@ -16,28 +16,28 @@ Wraps the Stripe payment integration: the incoming Stripe webhook, payment inten
 
 ### POST /payment-intent/:appointmentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Controller: `StripeController.createPaymentIntent`
 - Response: `200`: keys `createPaymentIntent`, `400`: keys `error`, `message`
 
 ### GET /payment-intent/:paymentIntentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `paymentIntentId`
 - Controller: `StripeController.retrievePaymentIntent`
 - Response: `200`: keys `retrievePaymentIntent`, `400`: keys `error`, `message`
 
 ### GET /checkout-session/:sessionId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `none`
 - Params: `sessionId`
 - Controller: `StripeController.createPaymentIntentForInvoice`
 - Response: `200`: keys `createPaymentIntentForInvoice`, `400`: keys `error`, `message`
 
 ### POST /pms/payment-intent/:invoiceId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `invoiceId`
 - Controller: `StripeController.createPaymentIntentForInvoice`
@@ -45,7 +45,7 @@ Wraps the Stripe payment integration: the incoming Stripe webhook, payment inten
 
 ### POST /organisation/:organisationId/account
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `StripeController.createOrGetConnectedAccount`
@@ -53,7 +53,7 @@ Wraps the Stripe payment integration: the incoming Stripe webhook, payment inten
 
 ### GET /organisation/:organisationId/account/status
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `StripeController.getAccountStatus`
@@ -61,7 +61,7 @@ Wraps the Stripe payment integration: the incoming Stripe webhook, payment inten
 
 ### POST /organisation/:organisationId/onboarding
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `StripeController.createOnboardingLink`
@@ -69,7 +69,7 @@ Wraps the Stripe payment integration: the incoming Stripe webhook, payment inten
 
 ### POST /organisation/:organisationId/billing/checkout
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `StripeController.createBusinessCheckout`
@@ -77,7 +77,7 @@ Wraps the Stripe payment integration: the incoming Stripe webhook, payment inten
 
 ### POST /organisation/:organisationId/billing/portal
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `StripeController.createBillingPortal`
@@ -85,7 +85,7 @@ Wraps the Stripe payment integration: the incoming Stripe webhook, payment inten
 
 ### POST /organisation/:organisationId/billing/sync-seats
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `StripeController.syncSeats`

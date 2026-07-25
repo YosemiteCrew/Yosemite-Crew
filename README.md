@@ -224,7 +224,7 @@ A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneat
   cp apps/frontend/.env.example apps/frontend/.env
   ```
 
-  The backend needs a reachable database on boot. [`apps/backend/README.md`](./apps/backend/README.md) documents the startup requirements, including the legacy MongoDB connection that `READ_FROM_POSTGRES=true` bypasses, and Redis for the background job queues.
+  The backend needs a reachable PostgreSQL database on boot and Redis for the background job queues. [`apps/backend/README.md`](./apps/backend/README.md) documents the startup requirements.
 
 - Run the website and api.
 
@@ -234,7 +234,7 @@ A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneat
   pnpm run dev                                     -- To run website & api
   ```
 
-- Run the Yosemite Crew mobile app. The mobile app does not load `.env` files. It needs its own configuration (a `variables.local.ts`, Amplify outputs, and native Firebase and credential files copied from [`apps/mobileAppYC/config-templates/`](./apps/mobileAppYC/config-templates)). Follow the setup in [`apps/mobileAppYC/README.md`](./apps/mobileAppYC/README.md) before running.
+- Run the Yosemite Crew mobile app. The mobile app does not load `.env` files. It needs its own configuration (a `variables.local.ts` and native Firebase and credential files copied from [`apps/mobileAppYC/config-templates/`](./apps/mobileAppYC/config-templates)). Follow the setup in [`apps/mobileAppYC/README.md`](./apps/mobileAppYC/README.md) before running.
 
   ```shell
   // In apps/mobileAppYC directory
