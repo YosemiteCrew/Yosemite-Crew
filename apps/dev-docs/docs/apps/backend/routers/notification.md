@@ -4,7 +4,7 @@ title: Notification API
 slug: /apps/backend/api/notification
 ---
 
-Lets the mobile app list a pet parent's notifications and mark one as seen. Both routes are called by the mobile app and authenticated with the mobile Cognito user pool.
+Lets the mobile app list a pet parent's notifications and mark one as seen. Both routes are called by the mobile app and authenticated with the pet parent's SuperTokens session (`requireMobileAuth`).
 
 **Endpoints**
 

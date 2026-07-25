@@ -4,7 +4,7 @@ title: Organisationrating API
 slug: /apps/backend/api/organisationRating
 ---
 
-Lets a pet parent rate an organisation and check whether they have already rated it. Both routes are called by the mobile app and authenticated with the mobile Cognito user pool.
+Lets a pet parent rate an organisation and check whether they have already rated it. Both routes are called by the mobile app and authenticated with the pet parent's SuperTokens session (`requireMobileAuth`).
 
 **Endpoints**
 
