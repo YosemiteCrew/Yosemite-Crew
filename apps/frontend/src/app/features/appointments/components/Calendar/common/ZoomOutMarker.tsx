@@ -13,6 +13,10 @@ type ZoomOutMarkerProps = MarkerInteractionProps & {
   blockHeightPx: number;
 };
 
+// Below this, a single truncated line no longer fits the bar - keep those
+// markers bare (colour + accessible name only) rather than clipping text.
+const MIN_HEIGHT_FOR_LABEL_PX = 16;
+
 const ZoomOutMarker = ({ ev, marginTopPx, blockHeightPx, ...interaction }: ZoomOutMarkerProps) => {
   const statusStyle = getStatusStyle(ev.status);
   const serviceName = ev.appointmentType?.name?.trim() ?? '';
@@ -21,6 +25,7 @@ const ZoomOutMarker = ({ ev, marginTopPx, blockHeightPx, ...interaction }: ZoomO
   const companionDisplayName = getCompanionDisplayName(ev);
   const markerTitle = subtitle ? `${companionDisplayName} • ${subtitle}` : companionDisplayName;
   const buttonProps = getMarkerButtonProps(ev, interaction, markerTitle);
+  const showLabel = blockHeightPx >= MIN_HEIGHT_FOR_LABEL_PX;
 
   return (
     <div
@@ -44,11 +49,20 @@ const ZoomOutMarker = ({ ev, marginTopPx, blockHeightPx, ...interaction }: ZoomO
       <button
         type="button"
         {...buttonProps}
-        className={`min-w-0 absolute inset-x-0 -inset-y-2 z-20 ${
+        className={`min-w-0 flex items-center absolute inset-x-0.5 -inset-y-2 z-20 ${
           buttonProps.draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
         }`}
       >
-        <span className="sr-only">{markerTitle}</span>
+        {showLabel ? (
+          <span
+            className="min-w-0 truncate px-1 text-left font-satoshi text-[9.5px] font-semibold leading-none tracking-[-0.1px]"
+            style={{ color: statusStyle.color }}
+          >
+            {markerTitle}
+          </span>
+        ) : (
+          <span className="sr-only">{markerTitle}</span>
+        )}
       </button>
     </div>
   );
