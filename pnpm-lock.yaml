@@ -11,7 +11,7 @@ overrides:
   serialize-javascript: 7.0.5
   undici: 7.28.0
   svgo: 3.3.4
-  '@hono/node-server': 2.0.5
+  '@hono/node-server': 2.0.11
   hono: 4.12.27
   yauzl: 3.2.1
   '@tootallnate/once': 3.0.1
@@ -8534,8 +8534,8 @@ packages:
     dependencies:
       '@hapi/hoek': 9.3.0
 
-  /@hono/node-server@2.0.5(hono@4.12.27):
-    resolution: {integrity: sha512-yQFvDmyDo3y6rEOJZDUYPJ49DIKTPpIk4kGvm40xx4Ejne0Pu9a1+exxPN+C1UppWK/WGZX9F++/Xs231tE86g==}
+  /@hono/node-server@2.0.11(hono@4.12.27):
+    resolution: {integrity: sha512-bjD221KPLoJTWUwso1J6fGKiTXEUFedG/s0visavY4zakFPkeGURMRNly+FhBHs7T8Dz4qHaZIMX9ZoJHSJtKA==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: 4.12.27
@@ -9598,7 +9598,7 @@ packages:
       '@cfworker/json-schema':
         optional: true
     dependencies:
-      '@hono/node-server': 2.0.5(hono@4.12.27)
+      '@hono/node-server': 2.0.11(hono@4.12.27)
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       content-type: 1.0.5
