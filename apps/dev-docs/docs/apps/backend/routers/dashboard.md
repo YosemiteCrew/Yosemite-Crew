@@ -10,7 +10,7 @@ Read-only analytics endpoints (summary, appointment and revenue trends, leaderbo
 
 ### GET /summary/:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Query: `range`
@@ -19,7 +19,7 @@ Read-only analytics endpoints (summary, appointment and revenue trends, leaderbo
 
 ### GET /appointments/:organisationId/trend
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Query: `months`
@@ -28,7 +28,7 @@ Read-only analytics endpoints (summary, appointment and revenue trends, leaderbo
 
 ### GET /revenue/:organisationId/trend
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Query: `months`
@@ -37,7 +37,7 @@ Read-only analytics endpoints (summary, appointment and revenue trends, leaderbo
 
 ### GET /appointment-leaders/:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Query: `limit`, `range`
@@ -46,7 +46,7 @@ Read-only analytics endpoints (summary, appointment and revenue trends, leaderbo
 
 ### GET /revenue-leaders/:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Query: `limit`, `range`
@@ -55,7 +55,7 @@ Read-only analytics endpoints (summary, appointment and revenue trends, leaderbo
 
 ### GET /inventory/:organisationId/turnover
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Query: `targetTurns`, `year`
@@ -64,7 +64,7 @@ Read-only analytics endpoints (summary, appointment and revenue trends, leaderbo
 
 ### GET /inventory/:organisationId/products
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Query: `limit`, `year`

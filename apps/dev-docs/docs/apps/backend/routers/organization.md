@@ -16,7 +16,7 @@ Manages organisations (also referred to as businesses): nearby search, logo uplo
 
 ### GET /mobile/getNearby
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Query: `lat`, `limit`, `lng`, `page`, `radius`
 - Controller: `OrganizationController.getNearbyPaginated`
 - Response: `400`: keys `message`, `500`: JSON
@@ -28,13 +28,13 @@ Manages organisations (also referred to as businesses): nearby search, logo uplo
 
 ### POST /
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Controller: `OrganizationController.getAllBusinesses`
 - Response: `200`: JSON, `500`: keys `message`
 
 ### GET /:organizationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organizationId`
 - Controller: `OrganizationController.getBusinessById`
@@ -42,7 +42,7 @@ Manages organisations (also referred to as businesses): nearby search, logo uplo
 
 ### PUT /:organizationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organizationId`
 - Controller: `OrganizationController.updateBusinessById`
@@ -50,7 +50,7 @@ Manages organisations (also referred to as businesses): nearby search, logo uplo
 
 ### DELETE /:organizationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organizationId`
 - Controller: `OrganizationController.deleteBusinessById`
@@ -58,7 +58,7 @@ Manages organisations (also referred to as businesses): nearby search, logo uplo
 
 ### GET /:organizationId/specality
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organizationId`
 - Controller: `SpecialityController.getAllByOrganizationId`
@@ -66,7 +66,7 @@ Manages organisations (also referred to as businesses): nearby search, logo uplo
 
 ### POST /:organisationId/invites
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `OrganisationInviteController.createInvite`
@@ -74,7 +74,7 @@ Manages organisations (also referred to as businesses): nearby search, logo uplo
 
 ### GET /:organisationId/invites
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `OrganisationInviteController.listOrganisationInvites`

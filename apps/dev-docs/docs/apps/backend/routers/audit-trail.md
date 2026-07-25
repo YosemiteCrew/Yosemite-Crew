@@ -10,14 +10,14 @@ Read-only endpoints for retrieving the audit trail (the history of recorded acti
 
 ### GET /companion/:companionId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `companionId`
 - Controller: `AuditTrailController.listForCompanion`
 
 ### GET /appointment/:appointmentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `appointmentId`
 - Controller: `AuditTrailController.listForAppointment`

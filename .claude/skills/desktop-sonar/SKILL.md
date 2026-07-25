@@ -22,8 +22,9 @@ or when writing new Electron/renderer code.
 ## Authoritative Source — Do Not Freeze a Snapshot
 
 The single source of truth for open issues is the **SonarCloud project
-`yosemitecrew_Yosemite-Crew_Desktop`**, analyzed in CI by
-`.github/workflows/sonar-cloud-analysis.yml`. The rule mix changes over time, so **check the live
+`yosemitecrew_Yosemite-Crew_Desktop`**. PR and branch pushes are analyzed in CI by the scan-only
+`_sonar` stage of `.github/workflows/ci.yaml`; `.github/workflows/sonar-cloud-analysis.yml` is
+the nightly type-aware backstop. The rule mix changes over time, so **check the live
 project for the current list** rather than trusting any static dump. This skill documents the
 _categories_ and _fix patterns_ that recur on this codebase, not a frozen issue count.
 
@@ -69,12 +70,12 @@ complexity and smell check is still the SonarCloud analysis.
 ## TypeScript / JS Rules (with one-line fixes)
 
 | Rule               | Fix                                                                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------------- |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `typescript:S1874` | Deprecated `webContents.goBack()/goForward()` → `webContents.navigationHistory.goBack()/goForward()` (also `canGoBack/canGoForward`). |
 | `*:S7764`          | Prefer `globalThis` over bare `window` in renderer page scripts.                                                                      |
 | `*:S7761`          | Prefer `.dataset` over `get/set/removeAttribute('data-…')`.                                                                           |
 | `*:S6582`          | Optional chaining: `a && a.b` → `a?.b`.                                                                                               |
-| `typescript:S6606` | Nullish coalescing: `                                                                                                                 |     | `→`??`/`??=`when the left side can be`0`/`''`. |
+| `typescript:S6606` | Nullish coalescing: `\|\|` → `??`/`??=` when the left side can be `0`/`''`.                                                           |
 | `typescript:S7741` | `=== undefined` over `typeof x === 'undefined'`.                                                                                      |
 | `*:S7735`          | Invert unexpected negated conditions (`if(!x){A}else{B}`) or use an early return.                                                     |
 | `*:S3358`          | Extract nested ternaries into a named helper.                                                                                         |
@@ -94,11 +95,11 @@ complexity and smell check is still the SonarCloud analysis.
 
 ### Modern method preferences
 
-| Rule      | Fix                                                                 |
+| Rule | Fix |
 | --------- | ------------------------------------------------------------------- | --- |
-| `*:S6557` | `String.startsWith(...)` over regex/`indexOf` at position 0.        |
-| `*:S7781` | `String.replaceAll(...)` over global-regex `replace`.               |
-| `*:S7765` | `.includes()` over `indexOf(…) !== -1`.                             |
+| `*:S6557` | `String.startsWith(...)` over regex/`indexOf` at position 0. |
+| `*:S7781` | `String.replaceAll(...)` over global-regex `replace`. |
+| `*:S7765` | `.includes()` over `indexOf(…) !== -1`. |
 | `*:S7758` | `codePointAt` / `String.fromCodePoint` over the char-code variants. |
 | `*:S7767` | `Math.trunc(x)` over `x                                             | 0`. |
 
