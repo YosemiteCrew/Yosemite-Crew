@@ -44,6 +44,47 @@ jobs:
           PREV=$(git describe --tags --abbrev=0 --match "${PREFIX}-v*" "${TAG}^" 2>/dev/null || true)
           echo "prev=$PREV" >> "$GITHUB_OUTPUT"
 
+          # Every tag line documented in RELEASING.md carries a pre-release
+          # suffix today. Publishing one as a full release would make it
+          # eligible for /releases/latest, which the marketing release pill
+          # reads, so a beta would surface publicly as the current release.
+          case "$TAG" in
+            *-beta*|*-alpha*|*-rc*) PRERELEASE=true ;;
+            *) PRERELEASE=false ;;
+          esac
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
+          # A range between two component tags still contains every other
+          # workspace's commits, so notes are filtered to the paths that
+          # component actually ships. Unknown prefixes fall back to no filter
+          # rather than silently publishing empty notes.
+          case "$PREFIX" in
+            backend)      PATHS="apps/backend packages" ;;
+            pims|pms)     PATHS="apps/frontend packages" ;;
+            mobile)       PATHS="apps/mobileAppYC" ;;
+            desktop)      PATHS="apps/desktop" ;;
+            *)            PATHS="" ;;
+          esac
+          echo "paths=$PATHS" >> "$GITHUB_OUTPUT"
+
+      # A tag is only a release if it sits on the shipped line. Without this,
+      # any accidental *-v* tag pushed on dev or a feature branch publishes a
+      # public GitHub Release.
+      - name: Require the tag to be reachable from main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Explicit refspec: the checkout is of a tag, so refs/remotes/origin/main
+          # does not necessarily exist yet.
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$TAG" origin/main; then
+            echo "::error::$TAG does not point at a commit reachable from origin/main."
+            echo "RELEASING.md requires cutting releases from main. Delete the tag, or"
+            echo "merge the commit to main and re-tag."
+            exit 1
+          fi
+          echo "$TAG is reachable from origin/main."
+
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -53,22 +94,38 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
           PREV: ${{ steps.prev.outputs.prev }}
+          PATHS: ${{ steps.prev.outputs.paths }}
         run: |
           if [ -n "$PREV" ]; then
             RANGE="$PREV..$TAG"
           else
             RANGE="$TAG"
           fi
-          npx --yes git-cliff@2.13.1 "$RANGE" --config cliff.toml --strip all -o notes.md
+
+          set -- "$RANGE" --config cliff.toml --strip all -o notes.md
+          for p in $PATHS; do
+            set -- "$@" --include-path "$p/**"
+          done
+
+          npx --yes git-cliff@2.13.1 "$@"
           cat notes.md
 
       - name: Publish to GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.prev.outputs.prerelease }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --notes-file notes.md
+          # --prerelease is set on both paths so editing an existing release
+          # cannot silently promote a beta to a full release.
+          if [ "$PRERELEASE" = "true" ]; then
+            FLAG="--prerelease=true"
           else
-            gh release create "$TAG" --title "$TAG" --notes-file notes.md
+            FLAG="--prerelease=false"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md "$FLAG"
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md "$FLAG"
           fi
