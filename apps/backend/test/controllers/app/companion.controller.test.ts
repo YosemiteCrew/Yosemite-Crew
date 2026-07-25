@@ -69,7 +69,7 @@ describe("CompanionController", () => {
   let sendMock: jest.Mock;
 
   const validFhirPayload = {
-    resourceType: "Patient",
+    resourceType: "Patient" as const,
     name: [{ given: ["Fido"] }],
   };
 
