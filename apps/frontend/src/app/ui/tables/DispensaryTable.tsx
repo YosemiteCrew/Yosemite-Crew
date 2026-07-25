@@ -120,7 +120,7 @@ const DispensaryRow = ({
       >
         {getDisplayName(record)}
       </div>
-      <div>
+      <div className="flex justify-start">
         <DispensaryStatusPill status={record.status} />
       </div>
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
