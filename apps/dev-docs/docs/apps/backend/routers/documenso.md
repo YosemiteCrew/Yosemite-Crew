@@ -10,7 +10,7 @@ Integrates with Documenso, an open-source document e-signature service. Called b
 
 ### POST /pms/redirect/:orgId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Controller: `DocumensoAuthController.createRedirectUrl`

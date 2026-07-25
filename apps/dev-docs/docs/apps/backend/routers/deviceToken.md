@@ -10,10 +10,10 @@ Registers and unregisters push-notification device tokens. Called by the mobile 
 
 ### POST /register
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `DeviceTokenController.registerDeviceToken`
 
 ### POST /unregister
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `DeviceTokenController.unregisterDeviceToken`

@@ -10,7 +10,7 @@ Manages tasks and the libraries and templates they are created from: creating, l
 
 ### POST /mobile/
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `CreateCustomTaskRequestBody`
 - Body fields: `assignedTo`
 - Controller: `TaskController.createCustomTask`
@@ -18,19 +18,19 @@ Manages tasks and the libraries and templates they are created from: creating, l
 
 ### GET /mobile/task
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `TaskController.listParentTasks`
 
 ### GET /mobile/:taskId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `taskId`
 - Body: `TaskUpdateInput`
 - Controller: `TaskController.updateTask`
 
 ### POST /mobile/:taskId/status
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `taskId`
 - Body: `ChangeStatusRequestBody`
 - Body fields: `status`, `completion`
@@ -38,80 +38,80 @@ Manages tasks and the libraries and templates they are created from: creating, l
 
 ### GET /mobile/companion/:companionId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `companionId`
 - Controller: `TaskController.listForCompanion`
 
 ### POST /pms/from-library
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Body: `CreateFromLibraryRequestBody`
 - Controller: `TaskController.createFromLibrary`
 - Response: `201`: JSON
 
 ### POST /pms/from-template
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Body: `CreateFromTemplateRequestBody`
 - Controller: `TaskController.createFromTemplate`
 - Response: `201`: JSON
 
 ### POST /pms/custom
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Body: `CreateCustomTaskInput`
 - Controller: `TaskController.createCustomTaskFromPms`
 - Response: `201`: JSON
 
 ### GET /pms/organisation/:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `organisationId`
 - Controller: `TaskController.listEmployeeTasks`
 
 ### GET /pms/companion/:companionId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `companionId`
 - Controller: `TaskController.listForCompanion`
 
 ### GET /pms/library
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Controller: `TaskLibraryController.create`
 
 ### PUT /pms/library/:libraryId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `libraryId`
 - Controller: `TaskLibraryController.getById`
 
 ### GET /pms/templates/organisation/:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `organisationId`
 - Controller: `TaskTemplateController.list`
 
 ### GET /pms/templates/:templateId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `templateId`
 - Controller: `TaskTemplateController.getById`
 
 ### POST /pms/templates
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Controller: `TaskTemplateController.update`
 
 ### DELETE /pms/templates/:templateId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - Params: `templateId`
 - Controller: `TaskTemplateController.archive`
 
 ### GET /pms/:taskId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `taskId`
 - Controller: `TaskController.getById`
@@ -119,7 +119,7 @@ Manages tasks and the libraries and templates they are created from: creating, l
 
 ### PATCH /pms/:taskId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `taskId`
 - Body: `TaskUpdateInput`
@@ -127,7 +127,7 @@ Manages tasks and the libraries and templates they are created from: creating, l
 
 ### POST /pms/:taskId/status
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `taskId`
 - Body: `ChangeStatusRequestBody`

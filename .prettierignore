@@ -8,3 +8,4 @@ pnpm-lock.yaml
 apps/mobileAppYC/android
 apps/mobileAppYC/ios
 apps/frontend/src/idexx guide
+apps/frontend/public/dev-docs
