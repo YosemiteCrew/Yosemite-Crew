@@ -18,20 +18,57 @@ describe('PrivacyPolicy', () => {
       screen.getByRole('heading', { name: '1. Controller and Data Protection Officer', level: 2 })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: '3. What we process, and why', level: 2 })
+      screen.getByRole('heading', { name: '3. Processing activities in applications', level: 2 })
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '9. Your rights', level: 2 })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: '8. What rights do you have with regard to the personal data you provide to us?',
+        level: 2,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Trademark notice', level: 2 })).toBeInTheDocument();
   });
 
-  it('lists subprocessors and links to the data request form', () => {
-    expect(screen.getByText(/Supabase, Inc\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Amazon Web Services EMEA SARL/i)).toBeInTheDocument();
+  it('keeps the per-activity web and mobile application breakdown', () => {
+    expect(
+      screen.getByRole('heading', { name: '3.1. Web Application', level: 3 })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: '3.2. Mobile Application', level: 3 })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: '3.2.4. Booking Appointments', level: 4 })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/Legal basis:/i).length).toBeGreaterThan(10);
+    expect(screen.getAllByText(/Storage period:/i).length).toBeGreaterThan(5);
+  });
+
+  it('lists recipients, social media presences and the GDPR rights', () => {
+    expect(screen.getAllByText(/Supabase, Inc\./i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Amazon Web Services EMEA SARL/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'https://discord.gg/YVzMa9j7BK' })).toHaveAttribute(
+      'href',
+      'https://discord.gg/YVzMa9j7BK'
+    );
+    expect(
+      screen.getByRole('heading', { name: /Art. 20 GDPR – Right to data portability/, level: 3 })
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('link', { name: 'security@yosemitecrew.com' }).length
+    ).toBeGreaterThan(0);
+  });
+
+  it('discloses the product analytics we actually run', () => {
+    expect(
+      screen.getByRole('heading', { name: 'Analytics (PostHog)', level: 2 })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/PostHog/).length).toBeGreaterThan(1);
+  });
+
+  it('keeps the data request form route for exercising rights', () => {
     expect(screen.getByRole('link', { name: 'data request form' })).toHaveAttribute(
       'href',
       '/contact-us'
     );
-    expect(
-      screen.getAllByRole('link', { name: 'security@yosemitecrew.com' }).length
-    ).toBeGreaterThan(0);
   });
 });
