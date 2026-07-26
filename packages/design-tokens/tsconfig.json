@@ -12,8 +12,8 @@
     "noImplicitReturns": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

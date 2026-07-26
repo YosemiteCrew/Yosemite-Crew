@@ -9,11 +9,10 @@
     { "path": "apps/mobileAppYC" }
   ],
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@yosemite-crew/types": ["packages/types/src"],
-      "@yosemite-crew/fhir": ["packages/fhir/src"],
-      "@yosemite-crew/auth": ["packages/auth/src"]
+      "@yosemite-crew/types": ["./packages/types/src"],
+      "@yosemite-crew/fhir": ["./packages/fhir/src"],
+      "@yosemite-crew/auth": ["./packages/auth/src"]
     }
   }
 }

@@ -5,12 +5,11 @@
   "compilerOptions": {
     "strict": true,
     "types": ["react", "react-native", "jest"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/app/*": ["src/app/*"],
-      "@/features/*": ["src/features/*"],
-      "@/shared/*": ["src/shared/*"]
+      "@/*": ["./src/*"],
+      "@/app/*": ["./src/app/*"],
+      "@/features/*": ["./src/features/*"],
+      "@/shared/*": ["./src/shared/*"]
     }
   }
 }

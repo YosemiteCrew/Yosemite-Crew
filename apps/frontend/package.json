@@ -77,7 +77,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
     "@types/jest-axe": "^3.5.9",
-    "@types/node": "^20",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.1.1",
     "@types/react-datepicker": "^7.0.0",
     "@types/react-dom": "^19.1.1",
@@ -96,6 +96,6 @@
     "tailwindcss": "^4.1.17",
     "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^7.0.2"
   }
 }

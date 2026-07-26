@@ -2,7 +2,7 @@
   "name": "@yosemite-crew/desktop",
   "version": "0.1.0-beta.1",
   "private": true,
-  "description": "Desktop shell for Yosemite Crew PIMS — Windows, macOS, Linux.",
+  "description": "Desktop shell for Yosemite Crew PIMS \u2014 Windows, macOS, Linux.",
   "author": "Yosemite Crew",
   "type": "commonjs",
   "main": "build/main.js",
@@ -37,7 +37,7 @@
     "@playwright/test": "^1.61.1",
     "@types/archiver": "^6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.1.1",
     "@types/sql.js": "^1.4.11",
     "@typescript-eslint/eslint-plugin": "^8.61.0",
     "@typescript-eslint/parser": "^8.61.0",
@@ -46,7 +46,7 @@
     "globals": "^17.6.0",
     "jest": "^30.4.2",
     "ts-jest": "^29.2.5",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "build": {
     "appId": "com.yosemitecrew.pims",
@@ -117,7 +117,7 @@
     "win": {
       "icon": "resources/icon.ico",
       "signtoolOptions": {
-        "publisherName": "DuneXploration UG (haftungsbeschränkt)",
+        "publisherName": "DuneXploration UG (haftungsbeschr\u00e4nkt)",
         "sign": "./scripts/windows-trusted-sign.js",
         "signingHashAlgorithms": [
           "sha256"

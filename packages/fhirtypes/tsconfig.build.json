@@ -7,7 +7,8 @@
     "module": "esnext",
     "target": "esnext",
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "rootDir": "./src"
   },
   "include": ["src"]
 }

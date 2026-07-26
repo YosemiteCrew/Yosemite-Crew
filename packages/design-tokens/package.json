@@ -2,7 +2,7 @@
   "name": "@yosemite-crew/design-tokens",
   "version": "0.1.0",
   "private": true,
-  "description": "Shared semantic design tokens for Yosemite Crew — consumed by web and mobile",
+  "description": "Shared semantic design tokens for Yosemite Crew \u2014 consumed by web and mobile",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -29,6 +29,6 @@
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "typescript": "^7.0.2"
   }
 }
