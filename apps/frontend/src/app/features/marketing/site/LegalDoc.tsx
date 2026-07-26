@@ -44,8 +44,9 @@ export function LegalDoc({
   children,
 }: Readonly<LegalDocProps>) {
   // These documents run to tens of thousands of words, so the contents has to stay
-  // reachable on a phone. Below the grid breakpoint it collapses behind a toggle;
-  // above it the sticky rail is always open and the toggle is not rendered.
+  // reachable on a phone. Both the toggle and the rail heading are always in the
+  // markup; marketing.css shows one and hides the other at the grid breakpoint, so
+  // above it the rail stays open and `tocOpen` has no effect on what is displayed.
   const [tocOpen, setTocOpen] = useState(false);
 
   return (
