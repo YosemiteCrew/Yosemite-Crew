@@ -32,7 +32,7 @@
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1200px; /* 96+200+180+150+90+70+80+160+110+64 */
+  min-width: 1220px; /* 96+200+180+150+90+70+80+180+110+64 */
 }
 .companions-table-fixed {
   table-layout: fixed;

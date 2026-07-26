@@ -307,11 +307,13 @@ describe('InvoiceTable', () => {
     it('gives Status a column wide enough for the widest badge', () => {
       render(<InvoiceTable filteredList={[invoice]} />);
 
-      // "AWAITING PAYMENT" measures 133.7px + 22px td padding; anything under
-      // ~156px lets the pill bleed over the Payment cell.
+      // "AWAITING PAYMENT" measures 133.7px + 22px td padding = ~156px bare
+      // minimum, which real-world font hinting/zoom/DPI variance clipped in
+      // production ("AWAITING PAYME"). 176px keeps a real ~20px margin instead
+      // of a ~4px one.
       const widths = capturedColumnWidths();
-      expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(156);
-      expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(156);
+      expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(176);
+      expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(176);
     });
 
     it('leaves the Parent / patient column fluid so it absorbs the slack', () => {
