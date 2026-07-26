@@ -1,0 +1,131 @@
+name: Migration
+
+# Reusable migration stage: prove that every Prisma migration applies cleanly to
+# a real Postgres, that the schema is valid, and that schema.prisma and the
+# migration history have not drifted apart.
+#
+# Why this stage exists: before it, migration SQL in this repository was never
+# executed by CI even once. There was no Postgres service, no `prisma validate`,
+# no `prisma migrate deploy` and no drift check in any workflow, in any husky
+# hook, or in any Dockerfile - `.husky/pre-push` runs lint and type-check only,
+# and there is no backend CD workflow. A schema change therefore merged green
+# and first ran when an operator applied it by hand against a live database.
+#
+# The drift check is the part that earns its keep: a `migrate diff` taken today
+# emits `DROP TABLE` for four live control-plane tables (see CONTROL_PLANE_TABLES
+# below), and nothing in the repository would have caught that before an
+# operator ran it.
+
+on:
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+env:
+  # The four shared control-plane tables live in `public` and are deliberately
+  # NOT part of this datamodel. `packages/database/prisma/schema.prisma` models
+  # tenant-scoped operational data (one schema per tenant, see
+  # `packages/database/src/tenant.ts`), while Enterprise / Tenant /
+  # EnterpriseMembership / TenantMembership are shared across tenants, created by
+  # `20260607120000_tenant_control_plane`, and read through raw SQL rather than
+  # the generated client - `prisma.enterprise` and `prisma.tenant` have no
+  # callers anywhere in the repository.
+  #
+  # `migrate diff` cannot know that, so it reports them as droppable on every
+  # run. They are allow-listed here so the drift check still fails on every
+  # *other* difference. Do not "fix" this by declaring them in schema.prisma:
+  # that would replicate the control plane into every tenant schema.
+  #
+  # Written as one alternation rather than a word-split list on purpose: a
+  # `for t in $VAR` loop silently iterates once over the whole string in shells
+  # that do not word-split unquoted expansions, which would disable the
+  # allow-list without failing.
+  CONTROL_PLANE_TABLE_PATTERN: '"(Enterprise|Tenant|EnterpriseMembership|TenantMembership)"'
+
+jobs:
+  migrate:
+    name: Prisma migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          # Not a secret: this database is a service container created for this
+          # job and destroyed with it, reachable only on the runner's localhost.
+          # Derived from the run id so no credential literal sits in the repo.
+          POSTGRES_PASSWORD: ${{ github.run_id }}
+          POSTGRES_DB: yosemite_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:${{ github.run_id }}@localhost:5432/yosemite_ci?schema=public
+      DIRECT_URL: postgresql://postgres:${{ github.run_id }}@localhost:5432/yosemite_ci?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}@localhost:5432/yosemite_shadow?schema=public
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      # `migrate diff --from-migrations` replays the whole history into a
+      # throwaway database, so it needs one that is not the target.
+      - name: Create shadow database
+        env:
+          PGPASSWORD: ${{ github.run_id }}
+        run: psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE yosemite_shadow;'
+
+      - name: Validate schema
+        run: pnpm --filter @yosemite-crew/database exec prisma validate
+
+      # The gate that did not exist: prove the migration history applies, in
+      # order, to an empty database.
+      - name: Apply migrations
+        run: pnpm --filter @yosemite-crew/database run prisma:deploy
+
+      - name: Check schema and migrations have not drifted
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pnpm --filter @yosemite-crew/database exec prisma migrate diff \
+            --from-migrations ./prisma/migrations \
+            --to-schema-datamodel ./prisma/schema.prisma \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
+            --script > drift.sql
+
+          # Drop the allow-listed control-plane statements, then SQL comments and
+          # blank lines. Anything still standing is real drift: either
+          # schema.prisma changed without a migration, or a migration changed
+          # without the schema.
+          #
+          # Both greps are guarded with `|| true`: grep exits 1 when it prints
+          # nothing, and "prints nothing" is the healthy outcome here, so without
+          # the guard `set -e` would fail the step precisely when there is no
+          # drift.
+          grep -Ev "$CONTROL_PLANE_TABLE_PATTERN" drift.sql > drift.filtered || true
+          remaining=$(grep -Ev '^[[:space:]]*(--|$)' drift.filtered || true)
+
+          if [ -n "$remaining" ]; then
+            echo "::error::schema.prisma and prisma/migrations have drifted apart."
+            echo "Generate a migration for the schema change, or reconcile the schema with the migration."
+            echo "--- unaccounted-for drift ---"
+            echo "$remaining"
+            exit 1
+          fi
+
+          echo "No drift: schema.prisma matches the migration history."
