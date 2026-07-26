@@ -14,7 +14,7 @@ describe('generate-notices path traversal protection', () => {
   beforeEach(() => {
     jest.resetModules();
     mockFs = fs as jest.Mocked<typeof fs>;
-    
+
     // Set up the module paths
     appRoot = path.resolve(__dirname, '..');
     nodeModulesRoot = path.join(appRoot, 'node_modules');
@@ -85,7 +85,7 @@ describe('generate-notices path traversal protection', () => {
 
     test('blocks paths that resolve outside appRoot', () => {
       const outsidePath = path.resolve(appRoot, '..', '..', 'etc', 'passwd');
-      
+
       expect(() => readJson(outsidePath)).toThrow('Invalid file path');
       expect(mockFs.readFileSync).not.toHaveBeenCalled();
     });
@@ -137,7 +137,15 @@ describe('generate-notices path traversal protection', () => {
 
   describe('security edge cases', () => {
     test('readJson allows nested paths within appRoot', () => {
-      const validPath = path.join(appRoot, 'node_modules', '@scope', 'package', 'deep', 'nested', 'package.json');
+      const validPath = path.join(
+        appRoot,
+        'node_modules',
+        '@scope',
+        'package',
+        'deep',
+        'nested',
+        'package.json'
+      );
       mockFs.readFileSync.mockReturnValue('{"name":"nested"}');
 
       const result = readJson(validPath);
@@ -161,6 +169,7 @@ describe('generate-notices path traversal protection', () => {
       const result = licenseTextFor(validDir);
 
       expect(result).toBe('Apache 2.0');
+      expect(mockFs.readFileSync).toHaveBeenCalledWith(licensePath, 'utf8');
     });
   });
 });
