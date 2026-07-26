@@ -386,16 +386,22 @@ export const handler: CreateAuthChallengeTriggerHandler = async event => {
     shouldSendEmail = false;
   }
 
+  // Tracked separately from challengeAnswer so the value handed to
+  // sendOtpEmail - and therefore to its debug log - can only ever be an OTP
+  // this function just generated, never a configured demo password.
+  let generatedOtp: string | null = null;
+
   if (!challengeAnswer) {
     challengeAnswer = generateOtp(OTP_LENGTH);
+    generatedOtp = challengeAnswer;
     challengeMetadataPrefix = OTP_METADATA_PREFIX;
     shouldSendEmail = true;
   }
 
   const recipientName = resolveRecipientName(event, email);
 
-  if (shouldSendEmail) {
-    await sendOtpEmail(email, challengeAnswer, recipientName);
+  if (shouldSendEmail && generatedOtp) {
+    await sendOtpEmail(email, generatedOtp, recipientName);
   }
 
   event.response.publicChallengeParameters = {
