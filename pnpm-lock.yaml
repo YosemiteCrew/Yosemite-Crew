@@ -17,12 +17,12 @@ overrides:
   '@tootallnate/once': 3.0.1
   node-forge: 1.4.0
   '@modelcontextprotocol/sdk': 1.26.0
-  validator: 13.15.22
+  validator: 13.15.26
   axios: 1.18.0
   handlebars: 4.7.9
-  ajv@6: 6.14.0
+  ajv@6: 6.15.0
   ajv@7: 8.18.0
-  ajv@8: 8.18.0
+  ajv@8: 8.20.0
   glob@10.4.5: 10.5.0
   glob@11.0.3: 11.1.0
   jws@3.2.2: 3.2.3
@@ -93,6 +93,8 @@ overrides:
   fast-xml-parser: 5.7.2
   inline-style-parser@<=0.2.9: 0.2.9
   nodemailer: 9.0.2
+  immer: 11.1.15
+  nanoid@3: 3.3.12
   tar: 7.5.22
   tar-fs@<=3.1.3: 3.1.3
   fast-uri: 3.1.4
@@ -272,8 +274,8 @@ importers:
         specifier: 11.1.1
         version: 11.1.1
       validator:
-        specifier: 13.15.22
-        version: 13.15.22
+        specifier: 13.15.26
+        version: 13.15.26
       winston:
         specifier: ^3.17.0
         version: 3.19.0
@@ -539,8 +541,8 @@ importers:
         specifier: ^0.16.0
         version: 0.16.0
       validator:
-        specifier: 13.15.22
-        version: 13.15.22
+        specifier: 13.15.26
+        version: 13.15.26
       zustand:
         specifier: ^5.0.6
         version: 5.0.11(@types/react@19.2.11)(react@19.2.4)
@@ -747,8 +749,8 @@ importers:
         specifier: 19.1.0
         version: 19.1.0
       react-hook-form:
-        specifier: ^7.63.0
-        version: 7.71.1(react@19.1.0)
+        specifier: ^7.81.0
+        version: 7.83.0(react@19.1.0)
       react-i18next:
         specifier: ^15.4.1
         version: 15.7.4(i18next@25.8.1)(react-native@0.81.4)(react@19.1.0)(typescript@5.9.3)
@@ -1056,8 +1058,8 @@ importers:
         specifier: ^0.19.1
         version: 0.19.1
       validator:
-        specifier: 13.15.22
-        version: 13.15.22
+        specifier: 13.15.26
+        version: 13.15.26
     devDependencies:
       '@types/node':
         specifier: ^22.15.21
@@ -5221,7 +5223,7 @@ packages:
     engines: {node: '>=v18'}
     dependencies:
       '@commitlint/types': 19.8.1
-      ajv: 8.18.0
+      ajv: 8.20.0
     dev: true
 
   /@commitlint/ensure@19.8.1:
@@ -7711,7 +7713,7 @@ packages:
     resolution: {integrity: sha512-269Z39MS6wVJtsoUl10L60WdkhJVdPG24Q4eZTH3nnF6lpvSShEK3wQjDX9JRWAUPvPh7COouPpU9IrqaZFvtQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dependencies:
-      ajv: 6.14.0
+      ajv: 6.15.0
       debug: 4.4.3(supports-color@5.5.0)
       espree: 9.6.1
       globals: 13.24.0
@@ -7728,7 +7730,7 @@ packages:
     resolution: {integrity: sha512-l2Ul9PrHsPCKcEY/ac7VgFj9D80C7S68sOKc618SyHDPK36s1XcFebXY0iTzUVn4Yq+YbwvSnDmCz9yxjX+QrA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     dependencies:
-      ajv: 6.14.0
+      ajv: 6.15.0
       debug: 4.4.3(supports-color@5.5.0)
       espree: 10.4.0
       globals: 14.0.0
@@ -9599,8 +9601,8 @@ packages:
         optional: true
     dependencies:
       '@hono/node-server': 2.0.11(hono@4.12.27)
-      ajv: 8.18.0
-      ajv-formats: 3.0.1(ajv@8.18.0)
+      ajv: 8.20.0
+      ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
       cors: 2.8.5
       cross-spawn: 7.0.6
@@ -11520,7 +11522,7 @@ packages:
       '@react-navigation/core': 7.14.0(react@19.1.0)
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
-      nanoid: 3.3.11
+      nanoid: 3.3.12
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
       use-latest-callback: 0.2.6(react@19.1.0)
@@ -11568,7 +11570,7 @@ packages:
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@standard-schema/utils': 0.3.0
-      immer: 11.1.3
+      immer: 11.1.15
       react: 19.1.0
       react-redux: 9.2.0(@types/react@19.2.11)(react@19.1.0)(redux@5.0.1)
       redux: 5.0.1
@@ -11833,7 +11835,7 @@ packages:
       '@secretlint/profiler': 11.3.1
       '@secretlint/resolver': 11.3.1
       '@secretlint/types': 11.3.1
-      ajv: 8.18.0
+      ajv: 8.20.0
       debug: 4.4.3(supports-color@5.5.0)
       rc-config-loader: 4.1.4
     transitivePeerDependencies:
@@ -15468,54 +15470,54 @@ packages:
       indent-string: 4.0.0
     dev: false
 
-  /ajv-formats@2.1.1(ajv@8.18.0):
+  /ajv-formats@2.1.1(ajv@8.20.0):
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
     peerDependencies:
-      ajv: 8.18.0
+      ajv: 8.20.0
     peerDependenciesMeta:
       ajv:
         optional: true
     dependencies:
-      ajv: 8.18.0
+      ajv: 8.20.0
     dev: false
 
-  /ajv-formats@3.0.1(ajv@8.18.0):
+  /ajv-formats@3.0.1(ajv@8.20.0):
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
     peerDependencies:
-      ajv: 8.18.0
+      ajv: 8.20.0
     peerDependenciesMeta:
       ajv:
         optional: true
     dependencies:
-      ajv: 8.18.0
+      ajv: 8.20.0
 
-  /ajv-keywords@3.5.2(ajv@6.14.0):
+  /ajv-keywords@3.5.2(ajv@6.15.0):
     resolution: {integrity: sha512-5p6WTN0DdTGVQk6VjcEju19IgaHudalcfabD7yhDGeA6bcQnmL+CpveLJq/3hvfwd1aof6L386Ougkx6RfyMIQ==}
     peerDependencies:
-      ajv: 6.14.0
+      ajv: 6.15.0
     dependencies:
-      ajv: 6.14.0
+      ajv: 6.15.0
     dev: false
 
-  /ajv-keywords@5.1.0(ajv@8.18.0):
+  /ajv-keywords@5.1.0(ajv@8.20.0):
     resolution: {integrity: sha512-YCS/JNFAUyr5vAuhk1DWm1CBxRHW9LbJ2ozWeemrIqpbsqKjHVxYPyi5GC0rjZIT5JxJ3virVTS8wk4i/Z+krw==}
     peerDependencies:
-      ajv: 8.18.0
+      ajv: 8.20.0
     dependencies:
-      ajv: 8.18.0
+      ajv: 8.20.0
       fast-deep-equal: 3.1.3
     dev: false
 
-  /ajv@6.14.0:
-    resolution: {integrity: sha512-IWrosm/yrn43eiKqkfkHis7QioDleaXQHdDVPKg0FSwwd/DuvyX79TZnFOnYpB7dcsFAMmtFztZuXPDvSePkFw==}
+  /ajv@6.15.0:
+    resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
     dependencies:
       fast-deep-equal: 3.1.3
       fast-json-stable-stringify: 2.1.0
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
 
-  /ajv@8.18.0:
-    resolution: {integrity: sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==}
+  /ajv@8.20.0:
+    resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
     dependencies:
       fast-deep-equal: 3.1.3
       fast-uri: 3.1.4
@@ -15655,7 +15657,7 @@ packages:
       '@noble/hashes': 2.2.0
       '@peculiar/webcrypto': 1.7.1
       '@types/fs-extra': 9.0.13
-      ajv: 8.18.0
+      ajv: 8.20.0
       asn1js: 3.0.10
       async-exit-hook: 2.0.1
       builder-util: 26.15.3
@@ -17143,7 +17145,7 @@ packages:
     dependencies:
       '@types/validator': 13.15.10
       libphonenumber-js: 1.12.36
-      validator: 13.15.22
+      validator: 13.15.26
     dev: false
 
   /classnames@2.5.1:
@@ -17454,8 +17456,8 @@ packages:
     resolution: {integrity: sha512-Uy5YN9KEu0WWDaZAVJ5FAmZoaJt9rdK6kH+utItPyGsCqCgaTKkrmZx3zoE0/3q6S3bcp3Ihkk+ZqPxWxFK5og==}
     engines: {node: '>=20'}
     dependencies:
-      ajv: 8.18.0
-      ajv-formats: 3.0.1(ajv@8.18.0)
+      ajv: 8.20.0
+      ajv-formats: 3.0.1(ajv@8.20.0)
       atomically: 2.1.1
       debounce-fn: 6.0.0
       dot-prop: 10.1.0
@@ -18408,7 +18410,7 @@ packages:
     dependencies:
       '@wix-pilot/core': 3.4.2(expect@29.7.0)
       '@wix-pilot/detox': 1.0.13(@wix-pilot/core@3.4.2)(detox@20.47.0)(expect@29.7.0)
-      ajv: 8.18.0
+      ajv: 8.20.0
       bunyan: 1.8.15
       bunyan-debug-stream: 3.1.1(bunyan@1.8.15)
       caf: 15.0.1
@@ -19618,7 +19620,7 @@ packages:
       '@humanwhocodes/module-importer': 1.0.1
       '@nodelib/fs.walk': 1.2.8
       '@ungap/structured-clone': 1.3.1
-      ajv: 6.14.0
+      ajv: 6.15.0
       chalk: 4.1.2
       cross-spawn: 7.0.6
       debug: 4.4.3(supports-color@5.5.0)
@@ -19674,7 +19676,7 @@ packages:
       '@humanwhocodes/module-importer': 1.0.1
       '@humanwhocodes/retry': 0.4.3
       '@types/estree': 1.0.8
-      ajv: 6.14.0
+      ajv: 6.15.0
       chalk: 4.1.2
       cross-spawn: 7.0.6
       debug: 4.4.3(supports-color@5.5.0)
@@ -21846,10 +21848,6 @@ packages:
 
   /immer@11.1.15:
     resolution: {integrity: sha512-VrNANlmnWQnh5COXIIOQXM9oOJw7naGKlBT74ZOOR6lpVXc3gFEu9FJLDFcpCJ2j+NWr8TIwtWD//T6ZX6TKiQ==}
-    dev: false
-
-  /immer@11.1.3:
-    resolution: {integrity: sha512-6jQTc5z0KJFtr1UgFpIL3N9XSC3saRaI9PwWtzM2pSqkNGtiNkYY2OSwkOGDK2XcTRcLb1pi/aNkKZz0nxVH4Q==}
     dev: false
 
   /import-fresh@3.3.1:
@@ -25368,12 +25366,6 @@ packages:
     dev: true
     optional: true
 
-  /nanoid@3.3.11:
-    resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-    dev: false
-
   /nanoid@3.3.12:
     resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -27818,8 +27810,8 @@ packages:
       react: 19.1.0
     dev: false
 
-  /react-hook-form@7.71.1(react@19.1.0):
-    resolution: {integrity: sha512-9SUJKCGKo8HUSsCO+y0CtqkqI5nNuaDqTxyqPsZPqIwudpj4rCrAz/jZV+jn57bx5gtZKOh3neQu94DXMc+w5w==}
+  /react-hook-form@7.83.0(react@19.1.0):
+    resolution: {integrity: sha512-AXt8cMCmx5a7u4uvpb2uRFVrWQhllI4pV+LSykxIac/hjt44TnQkmX9BKuQi2i+LDC62esmiLpilkav+kjVf/A==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -29354,8 +29346,8 @@ packages:
     engines: {node: '>= 10.13.0'}
     dependencies:
       '@types/json-schema': 7.0.15
-      ajv: 6.14.0
-      ajv-keywords: 3.5.2(ajv@6.14.0)
+      ajv: 6.15.0
+      ajv-keywords: 3.5.2(ajv@6.15.0)
     dev: false
 
   /schema-utils@4.3.3:
@@ -29363,9 +29355,9 @@ packages:
     engines: {node: '>= 10.13.0'}
     dependencies:
       '@types/json-schema': 7.0.15
-      ajv: 8.18.0
-      ajv-formats: 2.1.1(ajv@8.18.0)
-      ajv-keywords: 5.1.0(ajv@8.18.0)
+      ajv: 8.20.0
+      ajv-formats: 2.1.1(ajv@8.20.0)
+      ajv-keywords: 5.1.0(ajv@8.20.0)
     dev: false
 
   /scmp@2.1.0:
@@ -30309,7 +30301,7 @@ packages:
       lodash.mergewith: 4.6.2
       lodash.throttle: 4.1.1
       lodash.uniqby: 4.7.0
-      nanoid: 3.3.11
+      nanoid: 3.3.12
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
       react-dropzone: 14.4.0(react@19.2.4)
@@ -30791,7 +30783,7 @@ packages:
     resolution: {integrity: sha512-9kY+CygyYM6j02t5YFHbNz2FN5QmYGv9zAjVp4lCDjlCw7amdckXlEt/bjMhUIfj4ThGRE4gCUH5+yGnNuPo5A==}
     engines: {node: '>=10.0.0'}
     dependencies:
-      ajv: 8.18.0
+      ajv: 8.20.0
       lodash.truncate: 4.4.2
       slice-ansi: 4.0.0
       string-width: 4.2.3
@@ -32121,8 +32113,8 @@ packages:
       spdx-expression-parse: 3.0.1
     dev: true
 
-  /validator@13.15.22:
-    resolution: {integrity: sha512-uT/YQjiyLJP7HSrv/dPZqK9L28xf8hsNca01HSz1dfmI0DgMfjopp1rO/z13NeGF1tVystF0Ejx3y4rUKPw+bQ==}
+  /validator@13.15.26:
+    resolution: {integrity: sha512-spH26xU080ydGggxRyR1Yhcbgx+j3y5jbNXk/8L+iRvdIEQ4uTRH2Sgf2dokud6Q4oAtsbNvJ1Ft+9xmm6IZcA==}
     engines: {node: '>= 0.10'}
     dev: false
 
@@ -33102,7 +33094,7 @@ packages:
     engines: {node: '>=12.20.0'}
     peerDependencies:
       '@types/react': '>=18.0.0'
-      immer: '>=9.0.6'
+      immer: 11.1.15
       react: '>=18.0.0'
       use-sync-external-store: '>=1.2.0'
     peerDependenciesMeta:

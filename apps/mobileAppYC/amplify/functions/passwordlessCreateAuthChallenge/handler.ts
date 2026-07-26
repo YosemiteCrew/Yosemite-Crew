@@ -11,8 +11,19 @@ const CANDIDATE_ATTR_KEYS = [
 ] as const;
 const EMAIL_SEPARATOR_PATTERN = /@/;
 const DEMO_PASSWORD_METADATA_PREFIX = 'DEMO_PASSWORD';
-const DEMO_LOGIN_EMAIL = 'test@yosemitecrew.com';
-const DEMO_LOGIN_PASSWORD = 'Test@YosemiteCrew@1234';
+/**
+ * The demo login bypasses the emailed OTP, so its credentials are injected at
+ * deploy time rather than committed. Both must be set for the bypass to exist:
+ * with either missing the demo path stays off and the account falls back to the
+ * normal OTP flow, so an unconfigured environment cannot be signed into with an
+ * empty password.
+ */
+const DEMO_LOGIN_EMAIL = (process.env.DEMO_LOGIN_EMAIL ?? '')
+  .trim()
+  .toLowerCase();
+const DEMO_LOGIN_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? '';
+const DEMO_LOGIN_ENABLED =
+  DEMO_LOGIN_EMAIL !== '' && DEMO_LOGIN_PASSWORD !== '';
 const DEBUG_LOG_OTP = process.env.PASSWORDLESS_DEBUG_LOG_OTP === 'true';
 
 const sesClient = new SESClient({});
@@ -343,7 +354,7 @@ export const handler: CreateAuthChallengeTriggerHandler = async event => {
   const previousMetadata = previousChallenge?.challengeMetadata;
   const previousResult = previousChallenge?.challengeResult;
 
-  const isDemoLogin = email === DEMO_LOGIN_EMAIL;
+  const isDemoLogin = DEMO_LOGIN_ENABLED && email === DEMO_LOGIN_EMAIL;
 
   let challengeAnswer: string | null = null;
   let challengeMetadataPrefix = OTP_METADATA_PREFIX;
@@ -360,7 +371,10 @@ export const handler: CreateAuthChallengeTriggerHandler = async event => {
     }
   }
 
-  if (previousMetadata?.startsWith(`${DEMO_PASSWORD_METADATA_PREFIX}:`)) {
+  if (
+    DEMO_LOGIN_ENABLED &&
+    previousMetadata?.startsWith(`${DEMO_PASSWORD_METADATA_PREFIX}:`)
+  ) {
     challengeAnswer = DEMO_LOGIN_PASSWORD;
     challengeMetadataPrefix = DEMO_PASSWORD_METADATA_PREFIX;
     shouldSendEmail = false;
@@ -372,16 +386,22 @@ export const handler: CreateAuthChallengeTriggerHandler = async event => {
     shouldSendEmail = false;
   }
 
+  // Tracked separately from challengeAnswer so the value handed to
+  // sendOtpEmail - and therefore to its debug log - can only ever be an OTP
+  // this function just generated, never a configured demo password.
+  let generatedOtp: string | null = null;
+
   if (!challengeAnswer) {
     challengeAnswer = generateOtp(OTP_LENGTH);
+    generatedOtp = challengeAnswer;
     challengeMetadataPrefix = OTP_METADATA_PREFIX;
     shouldSendEmail = true;
   }
 
   const recipientName = resolveRecipientName(event, email);
 
-  if (shouldSendEmail) {
-    await sendOtpEmail(email, challengeAnswer, recipientName);
+  if (shouldSendEmail && generatedOtp) {
+    await sendOtpEmail(email, generatedOtp, recipientName);
   }
 
   event.response.publicChallengeParameters = {
