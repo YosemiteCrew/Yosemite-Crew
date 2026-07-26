@@ -13,7 +13,7 @@ import type {
 
 /** Plain strings need no key; every other run carries its own sibling-unique `k`. */
 const inline = (content: Content): ReactNode =>
-  (typeof content === 'string' ? [content] : content).map((run: LegalInline) => {
+  (Array.isArray(content) ? content : [content]).map((run: LegalInline) => {
     if (typeof run === 'string') return run;
     if ('br' in run) return <br key={run.k} />;
     if ('bold' in run) return <strong key={run.k}>{run.text}</strong>;
