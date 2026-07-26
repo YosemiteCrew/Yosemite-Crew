@@ -1,6 +1,15 @@
 import React from 'react';
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
 import { configureAxe } from 'jest-axe';
+
+// Testing Library defaults `findBy*`/`waitFor` to a 1s timeout, which assumes an
+// idle machine. A full `jest --coverage` run saturates every core, and suites
+// have been measured running ~20x slower under that contention than in
+// isolation — enough for correct assertions to time out and fail the run
+// non-deterministically. 5s restores the headroom while staying well inside the
+// 30s `testTimeout`, so a genuinely broken assertion still fails promptly.
+configure({ asyncUtilTimeout: 5000 });
 
 // Configure axe with WCAG 2.1 AA rules as the project accessibility baseline
 configureAxe({

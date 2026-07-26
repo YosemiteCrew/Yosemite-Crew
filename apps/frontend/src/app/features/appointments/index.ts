@@ -9,9 +9,11 @@ export {
   toSlotsArray,
   updateAppointment,
   useAppointmentById,
-} from "@/app/features/appointments/services/appointmentService";
-export * from "@/app/features/appointments/hooks/useAppointments";
-export { createSubmission, fetchSubmissions } from "@/app/features/appointments/services/soapService";
+} from '@/app/features/appointments/services/appointmentService';
+export {
+  createSubmission,
+  fetchSubmissions,
+} from '@/app/features/appointments/services/soapService';
 export {
   AppointmentCardContent,
   AppointmentDetailField,
@@ -21,5 +23,5 @@ export {
   BookingErrorMessage,
   DateTimePickerSection,
   EmergencyCheckbox,
-} from "@/app/features/appointments/components";
-export * from "@/app/features/appointments/types";
+} from '@/app/features/appointments/components';
+export * from '@/app/features/appointments/types';
