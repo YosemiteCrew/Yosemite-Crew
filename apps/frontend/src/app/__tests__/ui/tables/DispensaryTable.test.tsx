@@ -208,6 +208,12 @@ describe('DispensaryTable', () => {
     expect(container.querySelector('.text-\\[var\\(--color-success-600\\)\\]')).toBeInTheDocument();
   });
 
+  it('left-aligns the status pill in its own row instead of leaving default grid stretch/centering', () => {
+    const { container } = render(<DispensaryTable filteredList={[baseRecord]} />);
+    const pill = tableBranch(container).getByText('Pending');
+    expect(pill.parentElement).toHaveClass('flex', 'justify-start');
+  });
+
   it('renders appointment id and item names in the mobile card list', () => {
     render(<DispensaryTable filteredList={[baseRecord]} />);
     expect(screen.getByText('appt-1')).toBeInTheDocument();

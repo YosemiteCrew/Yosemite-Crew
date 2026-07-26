@@ -22,7 +22,10 @@ const mockButtonRect = (rect: Partial<DOMRect>) => {
 };
 
 const mockPanelHeight = (height: number) => {
-  jest.spyOn(HTMLDivElement.prototype, 'offsetHeight', 'get').mockReturnValue(height);
+  // scrollHeight, not offsetHeight - the component reads the panel's true
+  // content height so a first-pass maxHeight clamp can't corrupt the second
+  // pass's flip decision (see the comment in position() for why).
+  jest.spyOn(HTMLDivElement.prototype, 'scrollHeight', 'get').mockReturnValue(height);
 };
 
 describe('RowActionMenu', () => {
@@ -79,6 +82,28 @@ describe('RowActionMenu', () => {
     const panel = screen.getByRole('menu');
     // rect.top - panelHeight - 6 = 350 - 200 - 6
     expect(panel.style.top).toBe('144px');
+  });
+
+  it("flips using the panel's true content height, not a clamped offsetHeight (last-row dropdown cut off)", () => {
+    // In a real browser, the first (unmeasured) pass can clamp the panel to
+    // an 80px maxHeight when there's little room below - that shrinks
+    // offsetHeight to 80 too. If the second pass re-read offsetHeight, it'd
+    // wrongly think the panel only needs 80px, flip up too little, and the
+    // panel would then re-expand to its true height and overflow the
+    // viewport anyway (the reported bug). scrollHeight reports the panel's
+    // real content height regardless of that clamp, so mock the two
+    // differently here to prove the fix reads scrollHeight.
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 900 });
+    mockButtonRect({ top: 815.5, bottom: 837.5, right: 1495 });
+    jest.spyOn(HTMLDivElement.prototype, 'offsetHeight', 'get').mockReturnValue(80);
+    mockPanelHeight(192.5625);
+
+    render(<RowActionMenu actions={actions()} label="Row actions" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }));
+
+    const panel = screen.getByRole('menu');
+    // rect.top - panelHeight - 6 = 815.5 - 192.5625 - 6
+    expect(panel.style.top).toBe('616.9375px');
   });
 
   it('positions on the side with more room and clamps height when neither side fully fits', () => {
