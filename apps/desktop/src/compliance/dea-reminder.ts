@@ -24,7 +24,13 @@ const REMINDER_FILENAME = 'dea-biennial-reminder.json';
 
 export const createDeaBiennialReminder = (deps: ReminderDeps): DeaBiennialReminder => {
   const now = deps.now || (() => Date.now());
-  const filePath = path.join(deps.storagePath, REMINDER_FILENAME);
+  const base = path.resolve(deps.storagePath);
+  const target = path.resolve(base, REMINDER_FILENAME);
+  const relative = path.relative(base, target);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Invalid file path');
+  }
+  const filePath = target;
 
   const load = (): ReminderData | null => {
     try {

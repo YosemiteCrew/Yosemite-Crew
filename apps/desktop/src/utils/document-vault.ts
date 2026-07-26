@@ -52,6 +52,9 @@ interface VaultDeps {
 const readManifest = (manifestPath: string, deps: VaultDeps): VaultManifest => {
   const readFileSync = deps.readFileSync || fs.readFileSync;
   try {
+    if (manifestPath.includes('..') || path.isAbsolute(manifestPath)) {
+      return { documents: [] };
+    }
     const raw = readFileSync(manifestPath, 'utf8');
     return JSON.parse(raw) as VaultManifest;
   } catch {

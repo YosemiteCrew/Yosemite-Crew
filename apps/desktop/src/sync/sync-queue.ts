@@ -48,7 +48,13 @@ export const createSyncQueue = (dirPath: string, deps: QueueDeps = {}): SyncQueu
   const mkdirSync = deps.mkdirSync || fs.mkdirSync;
   const existsSync = deps.existsSync || fs.existsSync;
   const now = deps.now || (() => Date.now());
-  const filePath = path.join(dirPath, QUEUE_FILENAME);
+  const resolvedBase = path.resolve(dirPath);
+  const resolvedFilePath = path.resolve(resolvedBase, QUEUE_FILENAME);
+  const relativePath = path.relative(resolvedBase, resolvedFilePath);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    throw new Error('Invalid file path');
+  }
+  const filePath = resolvedFilePath;
 
   const load = (): Mutation[] => {
     try {

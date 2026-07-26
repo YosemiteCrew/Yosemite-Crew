@@ -233,6 +233,9 @@ export function formatFinding(finding) {
 function readJson(file, label) {
   let raw;
   try {
+    if (file.includes('..') || path.isAbsolute(file)) {
+      fail(`cannot read ${label} at ${file}: invalid path`);
+    }
     raw = readFileSync(file, 'utf8');
   } catch (error) {
     fail(`cannot read ${label} at ${file}: ${error.message}`);

@@ -249,7 +249,12 @@ export const createRecentsStore = (dirPath: string, deps: StoreDeps = {}): Recen
   const readFileSync = deps.readFileSync || fs.readFileSync;
   const writeFileSync = deps.writeFileSync || fs.writeFileSync;
   const mkdirSync = deps.mkdirSync || fs.mkdirSync;
-  const filePath = path.join(dirPath, RECENTS_FILENAME);
+  const baseDir = path.resolve(dirPath);
+  const filePath = path.resolve(baseDir, RECENTS_FILENAME);
+  const relativePath = path.relative(baseDir, filePath);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    throw new Error('Invalid file path');
+  }
 
   const load = (): RecentEntry[] => {
     try {
@@ -270,7 +275,7 @@ export const createRecentsStore = (dirPath: string, deps: StoreDeps = {}): Recen
     const trimmed = entries.slice(0, MAX_RECENTS);
 
     try {
-      mkdirSync(dirPath, { recursive: true });
+      mkdirSync(baseDir, { recursive: true });
       writeFileSync(filePath, JSON.stringify(trimmed), 'utf8');
     } catch {
       // persist must never break the app
