@@ -18,10 +18,17 @@ export type LegalInline =
   | { k: string; text: string; href: string }
   | { k: string; br: true };
 
+/**
+ * Content of a block or cell. Most of this document is unformatted prose, so the
+ * common case is written as a bare string and only mixed content needs the array
+ * form. That keeps a table row to one readable line per cell.
+ */
+export type LegalContent = string | LegalInline[];
+
 /** A table cell. `header` cells render as a row header. */
 export interface LegalCell {
   k: string;
-  content: LegalInline[];
+  content: LegalContent;
   header?: true;
 }
 
@@ -37,9 +44,9 @@ export interface LegalListItem {
 }
 
 export type LegalBlock =
-  | { k: string; type: 'p' | 'h3' | 'h4' | 'h5'; content: LegalInline[] }
+  | { k: string; type: 'p' | 'h3' | 'h4' | 'h5'; content: LegalContent }
   /** A bare inline run, used for the text of a list item. */
-  | { k: string; type: 'text'; content: LegalInline[] }
+  | { k: string; type: 'text'; content: LegalContent }
   | { k: string; type: 'ul' | 'ol'; items: LegalListItem[] }
   | {
       k: string;

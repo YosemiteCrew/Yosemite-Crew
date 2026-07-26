@@ -3,11 +3,17 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { DocSection } from '@/app/features/marketing/site';
-import type { LegalBlock, LegalCell, LegalInline, LegalSection } from './legalContentTypes';
+import type {
+  LegalBlock,
+  LegalCell,
+  LegalContent as Content,
+  LegalInline,
+  LegalSection,
+} from './legalContentTypes';
 
 /** Plain strings need no key; every other run carries its own sibling-unique `k`. */
-const inline = (content: readonly LegalInline[]): ReactNode =>
-  content.map((run) => {
+const inline = (content: Content): ReactNode =>
+  (typeof content === 'string' ? [content] : content).map((run: LegalInline) => {
     if (typeof run === 'string') return run;
     if ('br' in run) return <br key={run.k} />;
     if ('bold' in run) return <strong key={run.k}>{run.text}</strong>;
