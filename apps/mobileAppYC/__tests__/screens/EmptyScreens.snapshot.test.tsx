@@ -1,6 +1,6 @@
 // __tests__/screens/EmptyScreens.snapshot.test.tsx
 import React from 'react';
-import renderer from 'react-test-renderer';
+import {cleanupSnapshotTrees, renderSnapshot} from '../setup/snapshotRenderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 
@@ -30,19 +30,6 @@ const createTestStore = () =>
     },
   });
 
-// Drain pending async work (mount effects, theme dispatch) then unmount so the
-// tree never re-renders after the Jest environment is torn down.
-const drainAndUnmount = async (tree: renderer.ReactTestRenderer) => {
-  for (let i = 0; i < 3; i++) {
-    await renderer.act(async () => {
-      await new Promise<void>(resolve => setTimeout(resolve, 0));
-    });
-  }
-  await renderer.act(async () => {
-    tree.unmount();
-  });
-};
-
 describe('Empty Screen Snapshots', () => {
   let store: ReturnType<typeof createTestStore>;
 
@@ -51,19 +38,22 @@ describe('Empty Screen Snapshots', () => {
     jest.clearAllMocks();
   });
 
+  // Unmount in afterEach rather than after the assertion, so a failing
+  // snapshot cannot leave a tree mounted and leak into the next suite.
+  afterEach(cleanupSnapshotTrees);
+
   describe('GenericEmptyScreen', () => {
-    it('should render with minimal props', async () => {
-      const tree = renderer.create(
+    it('should render with minimal props', () => {
+      const tree = renderSnapshot(
         <Provider store={store}>
           <GenericEmptyScreen title="Empty" subtitle="No items found" />
         </Provider>,
       );
-      expect(tree.toJSON()).toMatchSnapshot();
-      await drainAndUnmount(tree);
+      expect(tree).toMatchSnapshot();
     });
 
-    it('should render with all props', async () => {
-      const tree = renderer.create(
+    it('should render with all props', () => {
+      const tree = renderSnapshot(
         <Provider store={store}>
           <GenericEmptyScreen
             title="No Documents"
@@ -71,12 +61,11 @@ describe('Empty Screen Snapshots', () => {
           />
         </Provider>,
       );
-      expect(tree.toJSON()).toMatchSnapshot();
-      await drainAndUnmount(tree);
+      expect(tree).toMatchSnapshot();
     });
 
-    it('should render with different icon', async () => {
-      const tree = renderer.create(
+    it('should render with different icon', () => {
+      const tree = renderSnapshot(
         <Provider store={store}>
           <GenericEmptyScreen
             title="No Companions"
@@ -84,20 +73,18 @@ describe('Empty Screen Snapshots', () => {
           />
         </Provider>,
       );
-      expect(tree.toJSON()).toMatchSnapshot();
-      await drainAndUnmount(tree);
+      expect(tree).toMatchSnapshot();
     });
   });
 
   describe('EmptyDocumentsScreen', () => {
-    it('should render correctly', async () => {
-      const tree = renderer.create(
+    it('should render correctly', () => {
+      const tree = renderSnapshot(
         <Provider store={store}>
           <EmptyDocumentsScreen />
         </Provider>,
       );
-      expect(tree.toJSON()).toMatchSnapshot();
-      await drainAndUnmount(tree);
+      expect(tree).toMatchSnapshot();
     });
   });
 });
