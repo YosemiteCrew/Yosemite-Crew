@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Reveal } from './motion';
 
 export interface TocEntry {
@@ -43,6 +43,12 @@ export function LegalDoc({
   toc,
   children,
 }: Readonly<LegalDocProps>) {
+  // These documents run to tens of thousands of words, so the contents has to stay
+  // reachable on a phone. Both the toggle and the rail heading are always in the
+  // markup; marketing.css shows one and hides the other at the grid breakpoint, so
+  // above it the rail stays open and `tocOpen` has no effect on what is displayed.
+  const [tocOpen, setTocOpen] = useState(false);
+
   return (
     <div data-yc-theme style={{ background: 'var(--page)', color: 'var(--ink-body)' }}>
       <section
@@ -127,6 +133,7 @@ export function LegalDoc({
             style={{ position: 'sticky', top: 100, display: 'flex', flexDirection: 'column' }}
           >
             <div
+              className="yc-toc-heading"
               style={{
                 fontSize: 12,
                 fontWeight: 700,
@@ -139,11 +146,23 @@ export function LegalDoc({
             >
               On this page
             </div>
-            {toc.map((entry) => (
-              <a key={entry.id} href={`#${entry.id}`}>
-                {entry.label}
-              </a>
-            ))}
+            <button
+              type="button"
+              className="yc-toc-toggle"
+              aria-expanded={tocOpen}
+              aria-controls="yc-toc-list"
+              onClick={() => setTocOpen((open) => !open)}
+            >
+              On this page
+              <span aria-hidden="true">{tocOpen ? '–' : '+'}</span>
+            </button>
+            <nav id="yc-toc-list" className="yc-toc-list" data-open={tocOpen}>
+              {toc.map((entry) => (
+                <a key={entry.id} href={`#${entry.id}`} onClick={() => setTocOpen(false)}>
+                  {entry.label}
+                </a>
+              ))}
+            </nav>
           </aside>
           <Reveal className="yc-doc">{children}</Reveal>
         </div>
