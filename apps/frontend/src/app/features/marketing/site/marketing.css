@@ -475,6 +475,9 @@
 .yc-doc section {
   padding: 40px 0;
   border-top: 1px solid var(--hairline);
+  /* The contents links target the section, not its heading, so the offset has to
+     live here too or the sticky header covers the title after a jump. */
+  scroll-margin-top: 96px;
 }
 .yc-doc section:first-child {
   border-top: none;
@@ -497,12 +500,74 @@
   border-left-color: var(--hairline-hover);
 }
 
+/* Grid items are min-width:auto by default, so the widest table's min-content
+   width would stretch the document column past the viewport. Because
+   .yc-public-page clips overflow-x, that showed up as the right edge of every
+   line being cut off on a phone rather than as a scrollbar. Let the column
+   shrink; the table scrolls on its own (see .yc-doc table). */
+[data-doc-grid] > * {
+  min-width: 0;
+}
+
+.yc-toc-toggle {
+  display: none;
+}
+.yc-toc-list {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 900px) {
   [data-doc-grid] {
     grid-template-columns: 1fr !important;
+    gap: 0 !important;
   }
+  /* The contents stays available on small screens: these documents are far too
+     long to thumb through. It collapses so it does not bury the text. */
   [data-toc] {
-    display: none !important;
+    position: static !important;
+    margin-bottom: 24px;
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    background: var(--inset);
+  }
+  .yc-toc-heading {
+    display: none;
+  }
+  .yc-toc-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    border: 0;
+    border-radius: 14px;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint2);
+    cursor: pointer;
+  }
+  .yc-toc-toggle span {
+    font-size: 18px;
+    line-height: 1;
+  }
+  .yc-toc-list {
+    display: none;
+    padding: 0 8px 8px;
+  }
+  .yc-toc-list[data-open='true'] {
+    display: flex;
+  }
+  .yc-toc a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 }
 
