@@ -42,6 +42,26 @@ const ensureRequiredId = (value: string, fieldName: string): string => {
   return normalized;
 };
 
+function buildValidatedUrl(baseUrl: string): string {
+  try {
+    // Minimal path validation
+    if (baseUrl.includes('/../') || /\/%2e%2e\//i.test(baseUrl)) {
+      throw new Error('Invalid path');
+    }
+    
+    const url = new URL(baseUrl);
+    
+    // Protocol check
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+    
+    return url.href;
+  } catch {
+    throw new Error('Invalid URL');
+  }
+}
+
 /**
  * Validate the signing provider's download link before it is used and translate
  * a rejection into a typed 400. A link the guard turns down is a configuration
@@ -757,8 +777,9 @@ export const WorkspaceDocumentPacketService = {
     const outbound = await resolveSignedPacketRequest(downloadUrl);
 
     try {
+      const validatedUrl = buildValidatedUrl(outbound.url);
       const response = await axios.get<ArrayBuffer>(
-        outbound.url,
+        validatedUrl,
         outbound.requestOptions,
       );
       // A response that is not a PDF is no more usable than an expired link, so
