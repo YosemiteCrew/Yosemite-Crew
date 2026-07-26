@@ -78,9 +78,44 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          # Needed to diff this branch against its base for the immutability
+          # check below.
+          fetch-depth: 0
 
       - name: Setup
         uses: ./.github/actions/setup
+
+      # Prisma stores a checksum of every migration it has applied. Editing a
+      # migration that is already deployed therefore does not fail here - it
+      # fails later, in `migrate deploy` against the environment that already
+      # ran it, which is the worst possible place to find out. Applied
+      # migrations are immutable: fix a mistake with a new migration.
+      - name: Check applied migrations were not edited
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          # Only additions are allowed under prisma/migrations. Renames count as
+          # a delete plus an add, so -M is disabled to catch a migration being
+          # moved rather than added.
+          changed=$(git diff --no-renames --name-status "$BASE_SHA...HEAD" \
+            -- packages/database/prisma/migrations \
+            | grep -Ev '^A' || true)
+
+          if [ -n "$changed" ]; then
+            echo "::error::An existing migration was modified or deleted."
+            echo "Migrations that have been applied anywhere are immutable - Prisma"
+            echo "checksums them, so an edit here surfaces as a failed deploy against"
+            echo "an environment that already ran it. Add a new migration instead."
+            echo "--- disallowed changes ---"
+            echo "$changed"
+            exit 1
+          fi
+
+          echo "No existing migration was modified."
 
       # `migrate diff --from-migrations` replays the whole history into a
       # throwaway database, so it needs one that is not the target.
