@@ -528,7 +528,12 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   it('renders the order iframe overlay when showOrderIframe is set', () => {
     renderStep({ showOrderIframe: true, iframeOrderUiUrl: 'https://idexx.test/frame' });
 
-    expect(screen.getByTitle('IDEXX order UI')).toBeInTheDocument();
+    const iframe = screen.getByTitle('IDEXX order UI');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-forms allow-popups allow-downloads allow-same-origin'
+    );
   });
 
   it('shows the IDEXX loader when the follow-up iframe modal opens', () => {

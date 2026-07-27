@@ -1316,7 +1316,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
             title="IDEXX order UI"
             className="size-full border-0"
             loading="lazy"
-            sandbox="allow-scripts allow-popups allow-forms"
+            sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
