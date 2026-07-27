@@ -335,8 +335,8 @@ importers:
         specifier: workspace:^
         version: link:../../packages/types
       chromium-bidi:
-        specifier: ^15.0.0
-        version: 15.0.0(devtools-protocol@0.0.1666840)
+        specifier: ^17.0.2
+        version: 17.0.2(devtools-protocol@0.0.1666840)
       esbuild:
         specifier: ^0.28.1
         version: 0.28.1
@@ -17090,8 +17090,9 @@ packages:
     engines: {node: '>=6.0'}
     dev: false
 
-  /chromium-bidi@15.0.0(devtools-protocol@0.0.1666840):
-    resolution: {integrity: sha512-ESWZM1u85CoeSozBXXG9M73S5tH0EjkqnFJoQ6F3MHs2YGe0CLVMaRvhGxetLP6w4GVR59+/cpWvDLUpLvJXLQ==}
+  /chromium-bidi@17.0.2(devtools-protocol@0.0.1666840):
+    resolution: {integrity: sha512-5v9GQFhTktFvotn/OFNJBmKLKRAb6n9r0bVCwf7sHgWc3/JryK0bj1nn93L3pHFrfgcsu6Be6EWsDi+1XHTGDg==}
+    engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0'}
     peerDependencies:
       devtools-protocol: '*'
     dependencies:

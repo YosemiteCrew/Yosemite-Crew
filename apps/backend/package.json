@@ -82,7 +82,7 @@
     "@types/uuid": "^10.0.0",
     "@types/validator": "^13.15.2",
     "@yosemite-crew/types": "workspace:^",
-    "chromium-bidi": "^15.0.0",
+    "chromium-bidi": "^17.0.2",
     "esbuild": "^0.28.1",
     "eslint": "^9.27.0",
     "jest": "^30.4.2",
