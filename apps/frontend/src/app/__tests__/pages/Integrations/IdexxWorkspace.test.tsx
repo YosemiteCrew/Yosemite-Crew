@@ -14,6 +14,7 @@ import ProtectedIdexxWorkspace, {
   getCensusDeviceSerial,
   buildCensusDeviceByPatientId,
   getCensusCardStatus,
+  getResultStatusTone,
   getMeterMeta,
   getOrderUiUrl,
   getOrderPdfUrl,
@@ -374,6 +375,27 @@ describe('IDEXX Hub page', () => {
       expect(screen.getByText('Delta')).toBeInTheDocument();
       expect(screen.getByText('Lena Hartmann')).toBeInTheDocument();
     });
+  });
+
+  it('renders result status pills with shared inventory-style badge geometry', async () => {
+    listIdexxResultsMock.mockResolvedValue([
+      makeResult({ resultId: 'a', status: 'COMPLETE', patientName: 'Alpha One' }),
+    ]);
+    render(<ProtectedIdexxWorkspace />);
+    await findHeading();
+
+    const pill = await screen.findByText('Complete');
+    expect(pill).toHaveClass(
+      'rounded-full!',
+      'border!',
+      'px-2.5',
+      'py-[3px]',
+      'text-[10px]',
+      'font-bold',
+      'uppercase',
+      'tracking-[0.08em]'
+    );
+    expect(pill).toHaveStyle({ backgroundColor: 'var(--color-pill-success-bg)' });
   });
 
   it('opens the order detail slide-over and loads the payload with meters', async () => {
@@ -1065,6 +1087,16 @@ describe('IdexxWorkspace pure helpers', () => {
       ] as any).label
     ).toBe('1 running · 1 complete');
     expect(getCensusCardStatus(entry, [] as any)).toMatchObject({ tone: 'amber' });
+  });
+
+  it('getResultStatusTone maps lab statuses to shared pill tones', () => {
+    expect(getResultStatusTone('COMPLETE')).toBe('success');
+    expect(getResultStatusTone('FINAL')).toBe('success');
+    expect(getResultStatusTone('PENDING')).toBe('progress');
+    expect(getResultStatusTone('RUNNING')).toBe('progress');
+    expect(getResultStatusTone('FAILED')).toBe('danger');
+    expect(getResultStatusTone('CREATED')).toBe('neutral');
+    expect(getResultStatusTone(undefined)).toBe('neutral');
   });
 
   it('getMeterMeta guards invalid ranges and values', () => {
