@@ -792,7 +792,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
             loading="lazy"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+            sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-same-origin"
             onLoad={() => setLoaded(true)}
           />
         </div>
