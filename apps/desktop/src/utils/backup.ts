@@ -130,6 +130,10 @@ export const createBackupService = (deps: BackupDeps = {}): BackupService => {
       }
       for (const entry of entries) {
         const fullPath = path.join(dir, entry);
+        const resolvedBase = path.resolve(prefix || '.');
+        const resolvedTarget = path.resolve(resolvedBase, entry);
+        const relCheck = path.relative(resolvedBase, resolvedTarget);
+        if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) continue;
         const relativePath = prefix ? path.posix.join(prefix, entry) : entry;
         try {
           const s = statSync(fullPath);

@@ -13,8 +13,10 @@ const extraNodeModules = new Proxy(
       if (name === 'react' || name === 'react-native') {
         return path.join(projectRoot, 'node_modules', name);
       }
-      const appModulePath = path.join(projectRoot, 'node_modules', name);
-      if (fs.existsSync(appModulePath)) return appModulePath;
+      const appModuleBase = path.resolve(projectRoot, 'node_modules');
+      const appModulePath = path.resolve(appModuleBase, name);
+      const appModuleRelative = path.relative(appModuleBase, appModulePath);
+      if (!appModuleRelative.startsWith('..') && !path.isAbsolute(appModuleRelative) && fs.existsSync(appModulePath)) return appModulePath;
       return path.join(workspaceRoot, 'node_modules', name);
     },
   },

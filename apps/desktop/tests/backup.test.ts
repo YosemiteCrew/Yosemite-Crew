@@ -453,4 +453,212 @@ describe('createBackupService', () => {
     expect(result.success).toBe(true);
     expect(result.fileCount).toBe(1);
   });
+
+  // Security tests for path traversal vulnerability mitigation
+  describe('path traversal security', () => {
+    test('rejects path traversal with .. in entry name', async () => {
+      const deps = makeDeps();
+      const svc = createBackupService(deps);
+
+      // Simulate a directory with a malicious entry containing ..
+      mockDirs['/data'] = ['safe.json', '..', '../etc/passwd'];
+      mockFs['/data/safe.json'] = '{"safe":true}';
+      mockStats['/data'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/safe.json'] = {
+        size: 14,
+        isFile: () => true,
+        isDirectory: () => false,
+      };
+
+      const result = await svc.createBackup({
+        sourcePaths: ['/data'],
+        destinationDir: '/backups',
+        maxBackups: 5,
+      });
+
+      expect(result.success).toBe(true);
+      // Only the safe file should be included, traversal attempts should be skipped
+      expect(result.fileCount).toBe(1);
+      
+      // Verify createArchive was called with only safe files
+      const archiveCall = deps.createArchive.mock.calls[0];
+      const files = archiveCall[1];
+      expect(files).toHaveLength(1);
+      expect(files[0].relativePath).toBe('safe.json');
+    });
+
+    test('rejects absolute path in entry name', async () => {
+      const deps = makeDeps();
+      const svc = createBackupService(deps);
+
+      // Simulate a directory with absolute path entries
+      mockDirs['/data'] = ['safe.json', '/etc/passwd', '/tmp/malicious'];
+      mockFs['/data/safe.json'] = '{"safe":true}';
+      mockStats['/data'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/safe.json'] = {
+        size: 14,
+        isFile: () => true,
+        isDirectory: () => false,
+      };
+
+      const result = await svc.createBackup({
+        sourcePaths: ['/data'],
+        destinationDir: '/backups',
+        maxBackups: 5,
+      });
+
+      expect(result.success).toBe(true);
+      // Only the safe file should be included
+      expect(result.fileCount).toBe(1);
+      
+      const archiveCall = deps.createArchive.mock.calls[0];
+      const files = archiveCall[1];
+      expect(files).toHaveLength(1);
+      expect(files[0].relativePath).toBe('safe.json');
+    });
+
+    test('rejects nested path traversal attempts', async () => {
+      const deps = makeDeps();
+      const svc = createBackupService(deps);
+
+      // Simulate nested directories with traversal attempts
+      mockDirs['/data'] = ['subdir', 'safe.json'];
+      mockDirs['/data/subdir'] = ['nested.json', '../../etc/passwd'];
+      mockFs['/data/safe.json'] = '{"safe":true}';
+      mockFs['/data/subdir/nested.json'] = '{"nested":true}';
+      
+      mockStats['/data'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/safe.json'] = {
+        size: 14,
+        isFile: () => true,
+        isDirectory: () => false,
+      };
+      mockStats['/data/subdir'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/subdir/nested.json'] = {
+        size: 16,
+        isFile: () => true,
+        isDirectory: () => false,
+      };
+
+      const result = await svc.createBackup({
+        sourcePaths: ['/data'],
+        destinationDir: '/backups',
+        maxBackups: 5,
+      });
+
+      expect(result.success).toBe(true);
+      // Should include safe.json and nested.json, but not the traversal attempt
+      expect(result.fileCount).toBe(2);
+      
+      const archiveCall = deps.createArchive.mock.calls[0];
+      const files = archiveCall[1];
+      expect(files).toHaveLength(2);
+      
+      // Verify no paths contain traversal sequences
+      const relativePaths = files.map(f => f.relativePath);
+      expect(relativePaths).toContain('safe.json');
+      expect(relativePaths).toContain('subdir/nested.json');
+      
+      // Ensure no path escapes the base directory
+      for (const file of files) {
+        expect(file.relativePath).not.toMatch(/\.\./);
+        expect(file.relativePath).not.toMatch(/^\//);
+      }
+    });
+
+    test('allows legitimate subdirectory traversal', async () => {
+      const deps = makeDeps();
+      const svc = createBackupService(deps);
+
+      // Legitimate nested structure should work fine
+      mockDirs['/data'] = ['level1'];
+      mockDirs['/data/level1'] = ['level2'];
+      mockDirs['/data/level1/level2'] = ['deep.json'];
+      mockFs['/data/level1/level2/deep.json'] = '{"deep":true}';
+      
+      mockStats['/data'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/level1'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/level1/level2'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/level1/level2/deep.json'] = {
+        size: 14,
+        isFile: () => true,
+        isDirectory: () => false,
+      };
+
+      const result = await svc.createBackup({
+        sourcePaths: ['/data'],
+        destinationDir: '/backups',
+        maxBackups: 5,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fileCount).toBe(1);
+      
+      const archiveCall = deps.createArchive.mock.calls[0];
+      const files = archiveCall[1];
+      expect(files[0].relativePath).toBe('level1/level2/deep.json');
+    });
+
+    test('rejects mixed traversal patterns', async () => {
+      const deps = makeDeps();
+      const svc = createBackupService(deps);
+
+      // Test various obfuscated traversal attempts
+      mockDirs['/data'] = ['safe.json', '..\\..\\etc\\passwd', './../secret', 'subdir/../../../etc/shadow'];
+      mockFs['/data/safe.json'] = '{"safe":true}';
+      mockStats['/data'] = {
+        size: 0,
+        isFile: () => false,
+        isDirectory: () => true,
+      };
+      mockStats['/data/safe.json'] = {
+        size: 14,
+        isFile: () => true,
+        isDirectory: () => false,
+      };
+
+      const result = await svc.createBackup({
+        sourcePaths: ['/data'],
+        destinationDir: '/backups',
+        maxBackups: 5,
+      });
+
+      expect(result.success).toBe(true);
+      // Only safe file should be included
+      expect(result.fileCount).toBe(1);
+      
+      const archiveCall = deps.createArchive.mock.calls[0];
+      const files = archiveCall[1];
+      expect(files).toHaveLength(1);
+      expect(files[0].relativePath).toBe('safe.json');
+    });
+  });
 });
