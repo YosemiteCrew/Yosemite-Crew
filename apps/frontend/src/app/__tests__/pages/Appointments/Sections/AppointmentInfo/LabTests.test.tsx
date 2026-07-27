@@ -944,6 +944,10 @@ describe('LabTests', () => {
     fireEvent.load(iframe);
     expect(iframe).toHaveAttribute('src', 'https://integration.vetconnectplus.com/order/123');
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    expect(iframe).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-popups allow-forms allow-same-origin'
+    );
   });
 
   it('shows manual close guidance for follow-up iframe flows', async () => {

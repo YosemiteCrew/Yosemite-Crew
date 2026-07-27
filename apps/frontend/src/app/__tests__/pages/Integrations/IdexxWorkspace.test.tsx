@@ -727,8 +727,13 @@ describe('IDEXX Hub page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open follow-up' }));
     await screen.findByText('IDEXX follow-up hub');
+    const followUpIframe = screen.getByTitle('IDEXX follow-up hub');
+    expect(followUpIframe).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-popups allow-forms allow-same-origin'
+    );
     // The iframe onLoad hides the loader.
-    fireEvent.load(screen.getByTitle('IDEXX follow-up hub'));
+    fireEvent.load(followUpIframe);
     await waitFor(() => expect(screen.queryByTestId('yosemite-loader')).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Close IDEXX follow-up frame' }));
