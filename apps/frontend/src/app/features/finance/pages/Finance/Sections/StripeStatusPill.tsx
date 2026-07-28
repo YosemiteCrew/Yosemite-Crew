@@ -27,7 +27,7 @@ const StripeStatusPill = () => {
     <a
       href={`/stripe-onboarding?orgId=${subscription.orgId}`}
       aria-label="Stripe settings"
-      className="inline-flex rounded-full transition-opacity hover:opacity-80"
+      className="inline-flex min-h-[38px] items-center rounded-full px-2 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
     >
       <StatusPill tone="success" label="Stripe · settings" showDot />
     </a>

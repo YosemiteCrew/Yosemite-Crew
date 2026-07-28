@@ -432,27 +432,27 @@ textarea:focus-visible {
 
   --color-badge-blue-bg: var(--color-primary-500);
   --color-badge-blue-text: #eaf3ff;
-  --color-pill-neutral-bg: #f5f3f1;
-  --color-pill-neutral-text: #5c5956;
-  --color-pill-neutral-border: #a9a39e;
-  --color-pill-info-bg: #e6f2ff;
-  --color-pill-info-text: #0057c2;
-  --color-pill-info-border: #007cf5;
-  --color-pill-accent-bg: #eef2ff;
-  --color-pill-accent-text: #3730a3;
-  --color-pill-accent-border: #6366f1;
-  --color-pill-progress-bg: #f5f3ff;
-  --color-pill-progress-text: #5b21b6;
-  --color-pill-progress-border: #8b5cf6;
-  --color-pill-success-bg: #f0fdf4;
-  --color-pill-success-text: #166534;
-  --color-pill-success-border: #64c487;
-  --color-pill-warning-bg: #fff7ed;
-  --color-pill-warning-text: #9a3412;
-  --color-pill-warning-border: #f97316;
-  --color-pill-danger-bg: rgba(234, 55, 41, 0.09);
-  --color-pill-danger-text: #c2261a;
-  --color-pill-danger-border: rgba(234, 55, 41, 0.32);
+  --color-pill-neutral-bg: var(--status-requested-bg);
+  --color-pill-neutral-text: var(--status-requested-text);
+  --color-pill-neutral-border: var(--status-requested-border);
+  --color-pill-info-bg: var(--status-upcoming-bg);
+  --color-pill-info-text: var(--status-upcoming-text);
+  --color-pill-info-border: var(--status-upcoming-border);
+  --color-pill-accent-bg: var(--status-checked-in-bg);
+  --color-pill-accent-text: var(--status-checked-in-text);
+  --color-pill-accent-border: var(--status-checked-in-border);
+  --color-pill-progress-bg: var(--status-in-progress-bg);
+  --color-pill-progress-text: var(--status-in-progress-text);
+  --color-pill-progress-border: var(--status-in-progress-border);
+  --color-pill-success-bg: var(--status-completed-bg);
+  --color-pill-success-text: var(--status-completed-text);
+  --color-pill-success-border: var(--status-completed-border);
+  --color-pill-warning-bg: var(--status-cancelled-bg);
+  --color-pill-warning-text: var(--status-cancelled-text);
+  --color-pill-warning-border: var(--status-cancelled-border);
+  --color-pill-danger-bg: var(--status-danger-bg);
+  --color-pill-danger-text: var(--status-danger-text);
+  --color-pill-danger-border: var(--status-danger-border);
   --font-sans: 'Satoshi Variable', 'Satoshi', sans-serif;
   --font-satoshi: 'Satoshi Variable', 'Satoshi', sans-serif;
 
@@ -484,6 +484,10 @@ textarea:focus-visible {
   --status-no-show-bg: #fff7ed;
   --status-no-show-text: #9a3412;
   --status-no-show-border: #f97316;
+
+  --status-danger-bg: rgba(234, 55, 41, 0.09);
+  --status-danger-text: #c2261a;
+  --status-danger-border: rgba(234, 55, 41, 0.32);
 
   /* Alert / document-category palette (workspace revamp — Figma "documents cat" sheet) */
   --color-category-caution: #b9501f;
@@ -1595,6 +1599,9 @@ html[data-theme='dark'] {
   --status-no-show-bg: rgba(249, 115, 22, 0.15);
   --status-no-show-text: #f0a36c;
   --status-no-show-border: rgba(249, 115, 22, 0.5);
+  --status-danger-bg: rgba(234, 55, 41, 0.18);
+  --status-danger-text: #f2938a;
+  --status-danger-border: rgba(242, 147, 138, 0.42);
 }
 
 /* PIMS app surface — native control theming + post-paint flip transition.

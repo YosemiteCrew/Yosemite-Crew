@@ -108,8 +108,8 @@ describe('getAppointmentStatusTone', () => {
   it('maps appointment statuses to shared inventory-style pill tones', () => {
     expect(getAppointmentStatusTone('COMPLETED')).toBe('success');
     expect(getAppointmentStatusTone('IN_PROGRESS')).toBe('progress');
-    expect(getAppointmentStatusTone('CHECKED_IN')).toBe('info');
-    expect(getAppointmentStatusTone('Checked in')).toBe('info');
+    expect(getAppointmentStatusTone('CHECKED_IN')).toBe('accent');
+    expect(getAppointmentStatusTone('Checked in')).toBe('accent');
     expect(getAppointmentStatusTone('UPCOMING')).toBe('info');
     expect(getAppointmentStatusTone('CANCELLED')).toBe('danger');
     expect(getAppointmentStatusTone('NO_SHOW')).toBe('danger');

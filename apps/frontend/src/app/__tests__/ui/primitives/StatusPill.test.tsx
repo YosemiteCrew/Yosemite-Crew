@@ -86,4 +86,8 @@ describe('StatusPill', () => {
     render(<StatusPill label={<span>Dues cleared</span>} />);
     expect(screen.getByText('Dues cleared').closest('span[title]')).toBeNull();
   });
+  it('uses an explicit title for composed labels', () => {
+    render(<StatusPill label={<span>Dues cleared</span>} title="Dues cleared" />);
+    expect(screen.getByTitle('Dues cleared')).toBeInTheDocument();
+  });
 });

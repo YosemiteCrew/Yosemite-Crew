@@ -161,12 +161,26 @@ const StatusFilterDropdown = ({
         {isDefault ? (
           <span className="text-[12px] font-semibold">All statuses</span>
         ) : (
-          <StatusPill tokens={getStatusPillTokens(selectedStatus)} label={selectedStatus.name} />
+          <StatusPill
+            tokens={getStatusPillTokens(selectedStatus)}
+            title={selectedStatus.name}
+            label={
+              <>
+                {selectedStatus.name}
+                <IoChevronDown
+                  size={12}
+                  className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
+                />
+              </>
+            }
+          />
         )}
-        <IoChevronDown
-          size={12}
-          className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
-        />
+        {isDefault && (
+          <IoChevronDown
+            size={12}
+            className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
+          />
+        )}
       </button>
 
       {isMounted &&

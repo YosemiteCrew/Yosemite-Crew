@@ -77,6 +77,8 @@ type StatusPillProps = {
   showDot?: boolean;
   /** Extra classes for layout only (e.g. `w-fit`). */
   className?: string;
+  /** Accessible hover text when `label` is composed from multiple nodes. */
+  title?: string;
 };
 
 const StatusPill = ({
@@ -86,6 +88,7 @@ const StatusPill = ({
   style,
   showDot = false,
   className,
+  title,
 }: StatusPillProps) => {
   const resolved = tokens ?? TONE_TOKENS[tone];
   // Geometry is the design's micro-badge, measured off the `.dc.html` sources:
@@ -107,7 +110,7 @@ const StatusPill = ({
   // becomes unreadable. Start-aligned, a clamped pill still reads from the top.
   return (
     <span
-      title={typeof label === 'string' ? label : undefined}
+      title={title ?? (typeof label === 'string' ? label : undefined)}
       className={`inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] ${
         className ?? ''
       }`}

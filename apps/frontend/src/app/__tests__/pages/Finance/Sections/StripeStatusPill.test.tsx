@@ -38,6 +38,7 @@ describe('StripeStatusPill', () => {
 
     const link = screen.getByRole('link', { name: 'Stripe settings' });
     expect(link).toHaveAttribute('href', '/stripe-onboarding?orgId=org-1');
+    expect(link).toHaveClass('min-h-[38px]', 'px-2');
     expect(link).toHaveTextContent('Stripe · settings');
     expect(screen.getByText('Stripe · settings')).toHaveClass(
       'rounded-full!',

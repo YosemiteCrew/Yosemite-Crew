@@ -322,6 +322,24 @@ describe('Header Component', () => {
     expect(trigger).toHaveStyle({ borderColor: 'var(--hairline)' });
   });
 
+  it('keeps the selected status chevron inside the coloured pill', () => {
+    render(
+      <Header
+        {...defaultProps}
+        activeStatus="scheduled"
+        setActiveStatus={jest.fn()}
+        statusOptions={statusOptions}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Scheduled/i });
+    const pill = screen.getByText('Scheduled').closest('span');
+
+    expect(trigger.children).toHaveLength(1);
+    expect(pill).toHaveStyle({ backgroundColor: '#eef' });
+    expect(pill?.querySelector('svg')).toBeInTheDocument();
+  });
+
   // Trigger + open panel both render the label text; when open there are two matches.
   const statusOptionButton = (label: string) =>
     screen.getAllByText(label).at(-1)!.closest('button') as HTMLElement;

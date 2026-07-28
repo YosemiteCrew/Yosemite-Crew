@@ -83,6 +83,7 @@ export const getAppointmentStatusTone = (status?: string | null): StatusTone => 
     case 'in_progress':
       return 'progress';
     case 'checked_in':
+      return 'accent';
     case 'upcoming':
       return 'info';
     case 'cancelled':
