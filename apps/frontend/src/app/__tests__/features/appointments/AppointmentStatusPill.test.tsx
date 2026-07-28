@@ -111,8 +111,9 @@ describe('getAppointmentStatusTone', () => {
     expect(getAppointmentStatusTone('CHECKED_IN')).toBe('accent');
     expect(getAppointmentStatusTone('Checked in')).toBe('accent');
     expect(getAppointmentStatusTone('UPCOMING')).toBe('info');
-    expect(getAppointmentStatusTone('CANCELLED')).toBe('danger');
-    expect(getAppointmentStatusTone('NO_SHOW')).toBe('danger');
+    expect(getAppointmentStatusTone('CANCELLED')).toBe('warning');
+    expect(getAppointmentStatusTone('NO_SHOW')).toBe('warning');
+    expect(getAppointmentStatusTone('NO_PAYMENT')).toBe('warning');
     expect(getAppointmentStatusTone('REQUESTED')).toBe('neutral');
     expect(getAppointmentStatusTone(undefined)).toBe('neutral');
   });

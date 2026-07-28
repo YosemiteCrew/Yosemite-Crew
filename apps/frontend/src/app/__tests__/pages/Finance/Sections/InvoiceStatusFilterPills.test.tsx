@@ -49,7 +49,9 @@ describe('InvoiceStatusFilterPills', () => {
       />
     );
 
-    const allPill = within(screen.getByRole('button', { name: 'All' })).getByText('All');
+    const allButton = screen.getByRole('button', { name: 'All' });
+    const allPill = within(allButton).getByText('All');
+    expect(allButton).toHaveClass('min-h-[38px]', 'px-1', 'py-1');
     expect(allPill).toHaveClass('px-2.5', 'py-[3px]', 'text-[10px]');
   });
 

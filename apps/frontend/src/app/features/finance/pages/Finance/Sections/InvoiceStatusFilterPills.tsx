@@ -70,8 +70,8 @@ const InvoiceStatusFilterPills = ({
           onClick={() => setActiveStatus(option.key)}
           aria-pressed={isActive}
           className={clsx(
-            'inline-flex shrink-0 rounded-full! bg-transparent p-0 transition-opacity duration-200 hover:opacity-100',
-            size === 'md' && 'my-0.5'
+            'inline-flex shrink-0 items-center justify-center rounded-full! bg-transparent transition-opacity duration-200 hover:opacity-100',
+            size === 'md' ? 'my-0.5 min-h-[38px] px-1 py-1' : 'p-0'
           )}
         >
           <StatusPill

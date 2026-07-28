@@ -89,7 +89,7 @@ export const getAppointmentStatusTone = (status?: string | null): StatusTone => 
     case 'cancelled':
     case 'no_show':
     case 'no_payment':
-      return 'danger';
+      return 'warning';
     case 'pending':
     case 'requested':
     default:
