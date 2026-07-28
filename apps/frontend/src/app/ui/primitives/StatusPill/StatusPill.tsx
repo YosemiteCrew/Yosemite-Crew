@@ -111,7 +111,7 @@ const StatusPill = ({
   return (
     <span
       title={title ?? (typeof label === 'string' ? label : undefined)}
-      className={`inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] ${
+      className={`yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] ${
         className ?? ''
       }`}
       style={{

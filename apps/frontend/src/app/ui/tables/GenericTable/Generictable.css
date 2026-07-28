@@ -100,3 +100,12 @@
   line-height: 120%;
   opacity: 60%;
 }
+.TableDiv tbody tr td span.yc-status-pill,
+.TableDiv tbody tr td .yc-status-pill span {
+  font-family: var(--font-satoshi) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+  letter-spacing: 0.08em !important;
+  opacity: 1 !important;
+}

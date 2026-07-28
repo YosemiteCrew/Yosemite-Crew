@@ -290,6 +290,24 @@ describe('Appointments table', () => {
     expect(screen.getByText('-')).toBeInTheDocument();
   });
 
+  it('renders the desktop status cell through the protected shared pill class', () => {
+    const appointment: any = {
+      id: 'a6',
+      status: 'IN_PROGRESS',
+      companion: {
+        id: 'c6',
+        name: 'Ruby',
+        species: 'dog',
+        parent: { name: 'Jamie' },
+      },
+    };
+
+    render(<Appointments filteredList={[appointment]} canEditAppointments />);
+
+    const statusPill = screen.getByText('IN_PROGRESS');
+    expect(statusPill).toHaveClass('yc-status-pill', 'text-[10px]', 'leading-[normal]');
+  });
+
   it('shows room unit and mode pill in the room column for inpatient appointments', () => {
     const appointment: any = {
       id: 'a5',
