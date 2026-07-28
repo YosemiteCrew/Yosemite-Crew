@@ -1061,7 +1061,7 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
-  it("does not reapply metadata duration units when approving a created dispense request", async () => {
+  it("matches the dispensary modal duration calculation when approving a created request", async () => {
     mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
       {
         id: "item-created-duration",
@@ -1123,7 +1123,7 @@ describe("InventoryConsumptionService", () => {
     expect(createdRequest.data.medications[0]).toEqual(
       expect.objectContaining({
         quantity: 2,
-        durationDays: 21,
+        durationDays: 3,
         metadata: { durationUnit: "weeks" },
       }),
     );
@@ -1179,6 +1179,79 @@ describe("InventoryConsumptionService", () => {
     expect(mockedPrisma.inventoryItem.update).toHaveBeenLastCalledWith(
       expect.objectContaining({
         data: { onHand: 44 },
+      }),
+    );
+  });
+
+  it("matches the dispensary modal calculation for descriptive frequency labels", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-modal-frequency",
+      prescriptionId: "rx-modal-frequency",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [
+        {
+          inventoryItemId: "item-modal-frequency",
+          inventoryItemName: "Enterogermina",
+          quantity: 1,
+          frequency: "TID (three times daily)",
+          durationDays: 6,
+          metadata: {
+            durationUnit: "days",
+          },
+          stockUnitQuantity: 4,
+          stockUnitQty: 4,
+          sourceLineKey: "line-modal-frequency",
+        },
+      ],
+      metadata: {
+        appointmentKind: "INPATIENT",
+        dispenseStockSource: "ALLOCATED",
+      },
+    });
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-modal-frequency",
+      organisationId: "org-1",
+      onHand: 20,
+      allocated: 20,
+    });
+    mockedPrisma.inventoryBatch.findMany
+      .mockResolvedValueOnce([
+        { id: "batch-modal-frequency", quantity: 20, allocated: 0 },
+      ])
+      .mockResolvedValueOnce([
+        { id: "batch-modal-frequency", quantity: 15, allocated: 0 },
+      ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-modal-frequency",
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
+      id: "request-modal-frequency",
+      prescriptionId: "rx-modal-frequency",
+      organisationId: "org-1",
+      status: "DISPENSED",
+    });
+
+    const events =
+      await InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-modal-frequency",
+        medications: [],
+        reviewedBy: "user-1",
+      });
+
+    expect(events).toHaveLength(1);
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ change: -5 }),
+      }),
+    );
+    expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { onHand: 15, allocated: 15 },
       }),
     );
   });

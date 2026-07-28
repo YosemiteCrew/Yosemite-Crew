@@ -246,12 +246,7 @@ const resolveDurationInDays = (item: {
   durationUnit?: unknown;
   metadata?: unknown;
 }) => {
-  const normalizedDurationDays = readPositiveInteger(item.durationDays);
-  if (normalizedDurationDays !== undefined) {
-    return normalizedDurationDays;
-  }
-
-  const durationText = item.duration ?? item.days;
+  const durationText = item.duration ?? item.days ?? item.durationDays;
   const rawDuration = readPositiveInteger(durationText);
   if (rawDuration === undefined) {
     return undefined;
@@ -290,6 +285,43 @@ const resolveFrequencyPerDay = (frequency?: string | null) => {
   };
   if (Object.prototype.hasOwnProperty.call(directMap, normalized)) {
     return directMap[normalized];
+  }
+
+  if (
+    normalized.includes("SID") ||
+    (normalized.includes("ONCE") && !normalized.includes("WEEKLY"))
+  ) {
+    return 1;
+  }
+  if (normalized.includes("BID") || normalized.includes("TWICE")) {
+    return 2;
+  }
+  if (
+    normalized.includes("TID") ||
+    normalized.includes("THREE TIMES") ||
+    normalized.includes("THRICE")
+  ) {
+    return 3;
+  }
+  if (normalized.includes("QID") || normalized.includes("FOUR TIMES")) {
+    return 4;
+  }
+  if (normalized.includes("ONCE WEEKLY") || normalized.includes("WEEKLY")) {
+    return 1 / 7;
+  }
+  if (
+    normalized.includes("BEFORE MEALS") ||
+    normalized.includes("AFTER MEALS")
+  ) {
+    return 3;
+  }
+
+  const everyHoursText = /EVERY\s+(\d+)\s+HOURS?/.exec(normalized);
+  if (everyHoursText) {
+    const hours = Number(everyHoursText[1]);
+    if (Number.isFinite(hours) && hours > 0) {
+      return Math.max(1, Math.ceil(24 / hours));
+    }
   }
 
   const everyNhours = /^Q(\d+)H$/.exec(normalized);
@@ -707,7 +739,12 @@ const enrichDispenseRequestMedications = async (
       asNonEmptyString(item.name);
     const frequency = asNonEmptyString(item.frequency ?? item.freq);
     const doseParts = readDoseParts(item.dosage ?? item.dose);
-    const durationDays = resolveDurationInDays(item);
+    const rawDurationDays = readPositiveInteger(
+      item.durationDays ?? item.duration ?? item.days,
+    );
+    const durationInDays = resolveDurationInDays(item);
+    const durationDays =
+      durationInDays === undefined ? undefined : rawDurationDays;
     const refillsRemaining =
       readPositiveInteger(item.refillsRemaining) ??
       readPositiveInteger(item.refill);
@@ -729,8 +766,8 @@ const enrichDispenseRequestMedications = async (
       ) ??
       (doseQty !== undefined &&
       frequencyPerDay !== undefined &&
-      durationDays !== undefined
-        ? Math.max(1, Math.ceil(doseQty * frequencyPerDay * durationDays))
+      durationInDays !== undefined
+        ? Math.max(1, Math.ceil(doseQty * frequencyPerDay * durationInDays))
         : undefined);
 
     return {
