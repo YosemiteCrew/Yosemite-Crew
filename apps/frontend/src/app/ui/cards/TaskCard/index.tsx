@@ -1,5 +1,5 @@
 import React from 'react';
-import { getTaskStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getTaskStatusTone } from '@/app/ui/tables/tableUtils';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { Task } from '@/app/features/tasks/types/task';
 import { toTitleCase } from '@/app/lib/validators';
@@ -37,7 +37,7 @@ const TaskCard = ({
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex items-start justify-between gap-2">
         <div className="text-body-3-emphasis text-text-primary">{item.name}</div>
-        <StatusPill style={getTaskStatusStyle(item.status)} label={toTitleCase(item.status)} />
+        <StatusPill tone={getTaskStatusTone(item.status)} label={toTitleCase(item.status)} />
       </div>
       {getTaskQuickDetails(item).map((detail) => (
         <div className="flex gap-1" key={detail.label}>

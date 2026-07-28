@@ -94,7 +94,9 @@ describe('DashboardProfile', () => {
     render(<DashboardProfile />);
 
     expect(screen.getByText('Welcome back,')).toBeInTheDocument();
-    expect(screen.getByText('Verified clinic')).toBeInTheDocument();
+    expect(screen.getByText('Verified clinic')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
   });
 
   it('opens the Cal booking overlay from the verification button', () => {
@@ -128,6 +130,6 @@ describe('DashboardProfile', () => {
     expect(
       screen.queryByText('Verification in progress. Limited access enabled')
     ).not.toBeInTheDocument();
-    expect(screen.getByText('Verified clinic')).toBeInTheDocument();
+    expect(screen.getByText('Verified clinic')).toHaveClass('rounded-full!', 'uppercase');
   });
 });

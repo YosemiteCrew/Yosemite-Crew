@@ -13,7 +13,7 @@ import {
 } from '@/app/lib/tasks';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
-import { getTaskStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getTaskStatusTone } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
@@ -121,7 +121,7 @@ const Tasks = ({
       key: 'status',
       width: '130px',
       render: (item: Task) => (
-        <StatusPill style={getTaskStatusStyle(item.status)} label={toTitleCase(item.status)} />
+        <StatusPill tone={getTaskStatusTone(item.status)} label={toTitleCase(item.status)} />
       ),
     },
     {

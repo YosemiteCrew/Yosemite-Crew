@@ -12,9 +12,9 @@ import React from 'react';
  *   already compute a status colour via a helper can adopt the shared geometry
  *   without rewriting their colour logic. `tokens` wins when both are given.
  *
- * `danger` draws from the `--danger-*` scale rather than `--color-pill-*`,
- * which has no danger set. It is a distinct tone on purpose: folding danger
- * into `warning` would silently repaint every error state amber.
+ * `danger` draws from the shared `--color-pill-danger-*` set. It is a distinct
+ * tone on purpose: folding danger into `warning` would silently repaint every
+ * error state amber.
  */
 export type StatusTone =
   'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'accent' | 'progress';

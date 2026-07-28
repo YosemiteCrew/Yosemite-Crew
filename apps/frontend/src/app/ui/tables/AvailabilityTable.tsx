@@ -10,7 +10,7 @@ import AvailabilityCard from '@/app/ui/cards/AvailabilityCard';
 import { toTitleCase } from '@/app/lib/validators';
 import { getSafeImageUrl } from '@/app/lib/urls';
 
-import { formatWeeklyWorkingHours, getAvailabilityStatusStyle } from '@/app/ui/tables/tableUtils';
+import { formatWeeklyWorkingHours, getAvailabilityStatusTone } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 
@@ -113,7 +113,7 @@ const AvailabilityTable = ({
       key: 'status',
       width: '12%',
       render: (item: Team) => (
-        <StatusPill style={getAvailabilityStatusStyle(item.status)} label={item.status} />
+        <StatusPill tone={getAvailabilityStatusTone(item.status)} label={item.status} />
       ),
     },
   ];
