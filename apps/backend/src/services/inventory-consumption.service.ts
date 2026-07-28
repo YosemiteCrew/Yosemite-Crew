@@ -204,16 +204,19 @@ const readDoseParts = (
  * days, weeks and months), so the raw value is not a day count. Multiplying a
  * weekly duration as if it were days under-dispenses the course.
  */
-const DURATION_UNIT_IN_DAYS: Record<string, number> = {
-  DAY: 1,
-  DAYS: 1,
-  D: 1,
-  WEEK: 7,
-  WEEKS: 7,
-  W: 7,
-  MONTH: 30,
-  MONTHS: 30,
-  M: 30,
+const DURATION_UNIT_DEFINITIONS: Record<
+  string,
+  { label: "days" | "weeks" | "months"; multiplier: number }
+> = {
+  DAY: { label: "days", multiplier: 1 },
+  DAYS: { label: "days", multiplier: 1 },
+  D: { label: "days", multiplier: 1 },
+  WEEK: { label: "weeks", multiplier: 7 },
+  WEEKS: { label: "weeks", multiplier: 7 },
+  W: { label: "weeks", multiplier: 7 },
+  MONTH: { label: "months", multiplier: 30 },
+  MONTHS: { label: "months", multiplier: 30 },
+  M: { label: "months", multiplier: 30 },
 };
 
 /**
@@ -239,18 +242,8 @@ const readDurationUnit = (
   return match?.[1]?.toUpperCase();
 };
 
-const toDurationUnitLabel = (unit: string): string | undefined => {
-  if (unit === "DAY" || unit === "DAYS" || unit === "D") {
-    return "days";
-  }
-  if (unit === "WEEK" || unit === "WEEKS" || unit === "W") {
-    return "weeks";
-  }
-  if (unit === "MONTH" || unit === "MONTHS" || unit === "M") {
-    return "months";
-  }
-  return undefined;
-};
+const getDurationUnitDefinition = (unit: string | undefined) =>
+  unit ? DURATION_UNIT_DEFINITIONS[unit] : undefined;
 
 const resolveDurationInDays = (item: {
   durationDays?: unknown;
@@ -274,8 +267,10 @@ const resolveDurationInDays = (item: {
     return rawDuration;
   }
 
-  const multiplier = DURATION_UNIT_IN_DAYS[unit];
-  return multiplier === undefined ? undefined : rawDuration * multiplier;
+  const unitDefinition = getDurationUnitDefinition(unit);
+  return unitDefinition === undefined
+    ? undefined
+    : rawDuration * unitDefinition.multiplier;
 };
 
 const resolveDurationUnitLabel = (item: {
@@ -290,7 +285,7 @@ const resolveDurationUnitLabel = (item: {
     item.durationUnit ?? metadata.durationUnit,
     item.duration ?? item.days ?? item.durationDays,
   );
-  return unit ? toDurationUnitLabel(unit) : undefined;
+  return getDurationUnitDefinition(unit)?.label;
 };
 
 const resolveFrequencyPerDay = (frequency?: string | null) => {
