@@ -186,7 +186,12 @@ describe('FormsTable Component', () => {
     // "Custom" appears multiple times (once per row)
     expect(screen.getAllByText('Custom').length).toBeGreaterThan(0);
     expect(screen.getAllByText('2023-10-01 · Alice').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Published').length).toBeGreaterThan(0);
+    const publishedStatus = screen.getByText('Published');
+    expect(publishedStatus).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(publishedStatus).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
   });
 
   it('resolves the updated-by id to a team member name and skips incomplete members', () => {

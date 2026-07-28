@@ -210,6 +210,18 @@ export const getFormsStatusStyle = (status: string) => {
   }
 };
 
+export const getFormsStatusTone = (status?: string | null): StatusTone => {
+  switch (String(status ?? '').toLowerCase()) {
+    case 'published':
+      return 'success';
+    case 'draft':
+    case 'archived':
+      return 'neutral';
+    default:
+      return status ? 'progress' : 'neutral';
+  }
+};
+
 export const getInventoryTurnoverStatusStyle = (status?: string) => {
   const key = (status || '').toLowerCase();
   switch (key) {

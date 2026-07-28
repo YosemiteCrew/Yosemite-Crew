@@ -11,6 +11,8 @@ import { IoChevronDown } from 'react-icons/io5';
 import clsx from 'clsx';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { getFormsStatusTone } from '@/app/ui/tables/tableUtils';
 
 export type FormsFilterState = {
   status: FormsStatus | 'All';
@@ -23,14 +25,28 @@ type FormsFiltersProps = {
   categoryAction?: React.ReactNode;
 };
 
-// Design filter-chip recipe: pill, 6px 13px, 12px text.
-const chipClassName = (isActive: boolean): string =>
-  clsx(
-    'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
-    isActive
-      ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
-      : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
-  );
+const getStatusFilterStyle = (
+  status: FormsStatus | 'All',
+  isActive: boolean
+): React.CSSProperties | undefined => {
+  if (!isActive) {
+    return {
+      backgroundColor: 'transparent',
+      borderColor: 'var(--hairline)',
+      color: 'var(--ink-muted)',
+      fontWeight: 600,
+    };
+  }
+  if (status === 'All') {
+    return {
+      backgroundColor: 'var(--inset)',
+      borderColor: 'var(--divider)',
+      color: 'var(--ink)',
+      fontWeight: 700,
+    };
+  }
+  return undefined;
+};
 
 const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFiltersProps) => {
   const orgType = useOrgStore((s) =>
@@ -112,9 +128,14 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
               type="button"
               key={status}
               onClick={() => onFiltersChange({ ...filters, status })}
-              className={chipClassName(isActive)}
+              aria-pressed={isActive}
+              className="inline-flex rounded-full! bg-transparent p-0 transition-opacity hover:opacity-100"
             >
-              {status}
+              <StatusPill
+                tone={status === 'All' ? 'neutral' : getFormsStatusTone(status)}
+                label={status}
+                style={getStatusFilterStyle(status, isActive)}
+              />
             </button>
           );
         })}

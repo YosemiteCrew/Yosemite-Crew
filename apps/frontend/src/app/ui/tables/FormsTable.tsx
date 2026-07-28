@@ -13,7 +13,7 @@ import { useTeamStore } from '@/app/stores/teamStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 
-import { getFormsStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getFormsStatusTone } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 
@@ -171,7 +171,7 @@ const FormsTable = ({
       key: 'status',
       width: '110px',
       render: (item: FormsProps) => (
-        <StatusPill style={getFormsStatusStyle(item.status || '')} label={item.status} />
+        <StatusPill tone={getFormsStatusTone(item.status)} label={item.status} />
       ),
     },
     {

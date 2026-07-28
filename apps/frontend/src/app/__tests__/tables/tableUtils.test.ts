@@ -8,6 +8,7 @@ import {
   getCompanionStatusStyle,
   getCompanionStatusTone,
   getFormsStatusStyle,
+  getFormsStatusTone,
   getInventoryTurnoverStatusStyle,
   formatTurnoverStatus,
   getTaskStatusStyle,
@@ -106,6 +107,19 @@ describe('tableUtils', () => {
 
     it.each(['published', 'draft', 'archived', 'unknown'])('returns a style for %s', (status) => {
       expect(getFormsStatusStyle(status)).toHaveProperty('color');
+    });
+  });
+
+  describe('getFormsStatusTone', () => {
+    it.each([
+      ['Published', 'success'],
+      ['Draft', 'neutral'],
+      ['Archived', 'neutral'],
+      ['Superseded', 'progress'],
+      ['', 'neutral'],
+      [undefined, 'neutral'],
+    ])('maps %s to %s', (status, tone) => {
+      expect(getFormsStatusTone(status as any)).toBe(tone);
     });
   });
 

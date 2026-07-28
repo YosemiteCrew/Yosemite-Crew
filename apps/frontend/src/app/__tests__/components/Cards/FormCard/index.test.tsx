@@ -6,7 +6,7 @@ import { FormsProps } from '@/app/features/forms/types/forms';
 // --- Mocks ---
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
-  getFormsStatusStyle: jest.fn(() => ({ color: 'blue' })),
+  getFormsStatusTone: jest.fn(() => 'success'),
 }));
 
 // --- Test Data ---
@@ -19,7 +19,7 @@ const mockForm: FormsProps = {
   usage: 'Onboarding',
   updatedBy: 'Admin User',
   lastUpdated: '2023-01-15',
-  status: 'active',
+  status: 'Published',
 } as any;
 
 describe('FormCard Component', () => {
@@ -63,10 +63,13 @@ describe('FormCard Component', () => {
   it('renders status with correct style', () => {
     render(<FormCard form={mockForm} handleViewForm={mockHandleViewForm} />);
 
-    const statusBadge = screen.getByText('active');
+    const statusBadge = screen.getByText('Published');
     expect(statusBadge).toBeInTheDocument();
-    // JSDOM computes "blue" to "rgb(0, 0, 255)"
-    expect(statusBadge).toHaveStyle({ color: 'rgb(0, 0, 255)' });
+    expect(statusBadge).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(statusBadge).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
   });
 
   it('handles missing status gracefully', () => {

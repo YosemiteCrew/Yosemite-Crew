@@ -62,16 +62,29 @@ describe('FormsFilters Component', () => {
     expect(screen.getByRole('button', { name: 'Archived' })).toBeInTheDocument();
   });
 
-  it('gives the active status chip the neutral bold pill treatment', () => {
+  it('gives status filters the shared inventory-style pill treatment', () => {
     renderFilters({ status: 'Published', category: 'All' });
     const active = screen.getByRole('button', { name: 'Published' });
-    expect(active.className).toContain('rounded-full!');
-    expect(active.className).toContain('bg-[var(--inset)]');
-    expect(active.className).toContain('font-bold');
+    expect(active).toHaveAttribute('aria-pressed', 'true');
+    const activePill = within(active).getByText('Published');
+    expect(activePill).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(activePill).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
+    expect(activePill).toHaveAttribute(
+      'style',
+      expect.stringContaining('border-color: var(--color-pill-success-border)')
+    );
 
     const inactive = screen.getByRole('button', { name: 'Archived' });
-    expect(inactive.className).toContain('text-[var(--ink-muted)]');
-    expect(inactive.className).toContain('font-semibold');
+    expect(inactive).toHaveAttribute('aria-pressed', 'false');
+    const inactivePill = within(inactive).getByText('Archived');
+    expect(inactivePill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
+    expect(inactivePill).toHaveAttribute(
+      'style',
+      expect.stringContaining('color: var(--ink-muted)')
+    );
   });
 
   it('emits a status change without touching the category', () => {
