@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
@@ -114,7 +114,7 @@ export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentPr
   const displayStatus = normalizeAppointmentStatus(appointment.status) ?? 'REQUESTED';
   return (
     <StatusPill
-      style={getStatusStyle(displayStatus)}
+      tone={getAppointmentStatusTone(displayStatus)}
       label={toTitle(displayStatus)}
       className="w-fit"
     />

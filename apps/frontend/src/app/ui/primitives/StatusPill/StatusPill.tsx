@@ -33,9 +33,9 @@ const TONE_TOKENS: Record<StatusTone, StatusPillTokens> = {
     border: 'var(--color-pill-warning-border)',
   },
   danger: {
-    bg: 'var(--danger-bg)',
-    text: 'var(--danger-text)',
-    border: 'var(--danger-border)',
+    bg: 'var(--color-pill-danger-bg)',
+    text: 'var(--color-pill-danger-text)',
+    border: 'var(--color-pill-danger-border)',
   },
   info: {
     bg: 'var(--color-pill-info-bg)',

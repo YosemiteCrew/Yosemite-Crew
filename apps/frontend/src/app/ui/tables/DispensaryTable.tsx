@@ -44,9 +44,9 @@ const STATUS_STYLES: Record<DispensaryStatus, React.CSSProperties> = {
     borderColor: 'var(--color-pill-success-border)',
   },
   NOT_DISPENSED: {
-    color: 'var(--color-danger-600)',
-    backgroundColor: 'var(--color-danger-100)',
-    borderColor: 'var(--color-danger-400)',
+    color: 'var(--color-pill-danger-text)',
+    backgroundColor: 'var(--color-pill-danger-bg)',
+    borderColor: 'var(--color-pill-danger-border)',
   },
 };
 

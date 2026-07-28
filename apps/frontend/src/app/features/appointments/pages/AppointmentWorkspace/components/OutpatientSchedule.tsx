@@ -4,7 +4,7 @@ import { IoAddOutline, IoEllipsisHorizontal, IoPaperPlaneOutline } from 'react-i
 import './OutpatientSchedule.css';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
 import type {
   OutpatientScheduleModel,
   OutpatientSeriesProgress,
@@ -50,7 +50,7 @@ const dayMarker = (iso: string): { weekday: string; day: string } => {
 
 const StatusPill = ({ status }: { status: OutpatientVisitStatus }) => (
   <SharedStatusPill
-    style={getStatusStyle(STATUS_STYLE_KEY[status])}
+    tone={getAppointmentStatusTone(STATUS_STYLE_KEY[status])}
     label={STATUS_LABEL[status]}
     className="w-fit"
   />

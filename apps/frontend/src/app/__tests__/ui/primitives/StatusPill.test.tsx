@@ -53,9 +53,11 @@ describe('StatusPill', () => {
     );
     expect(screen.getByText('Overdue')).toHaveStyle({ backgroundColor: 'rgb(10, 20, 30)' });
   });
-  it('draws the danger tone from the --danger-* scale, not warning', () => {
+  it('draws the danger tone from the inventory pill palette, not warning', () => {
     render(<StatusPill label="Overdue" tone="danger" />);
-    expect(screen.getByText('Overdue')).toHaveStyle({ backgroundColor: 'var(--danger-bg)' });
+    expect(screen.getByText('Overdue')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-danger-bg)',
+    });
   });
   it('hugs its content so a flex column cannot stretch it into a band', () => {
     render(<StatusPill label="Low stock" />);

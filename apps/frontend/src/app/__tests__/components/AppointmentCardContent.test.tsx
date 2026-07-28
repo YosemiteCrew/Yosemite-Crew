@@ -224,7 +224,10 @@ describe('AppointmentDetails', () => {
 describe('AppointmentStatusBadge', () => {
   it('renders the normalized appointment status', () => {
     render(<AppointmentStatusBadge appointment={baseAppointment} />);
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    const pill = screen.getByText('Upcoming');
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
+    expect(pill).toHaveStyle({ backgroundColor: 'var(--color-pill-info-bg)' });
   });
 
   it('falls back to Requested when the status cannot be normalized', () => {
