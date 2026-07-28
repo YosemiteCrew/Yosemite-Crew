@@ -175,7 +175,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     const avatarPalette = getAvatarPalette(companion?.id || companionName);
     return (
       <div className="appointment-profile flex items-center gap-2.5">
-        <span
+        <div
           className="flex size-[30px] shrink-0 overflow-hidden rounded-full"
           style={{ background: avatarPalette.bg }}
         >
@@ -186,7 +186,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
             height={30}
             className="size-[30px] rounded-full object-cover"
           />
-        </span>
+        </div>
         <div className="appointment-profile-two min-w-0">
           <div className="appointment-profile-title cell-name truncate" title={ownerAndCompanion}>
             {ownerAndCompanion}

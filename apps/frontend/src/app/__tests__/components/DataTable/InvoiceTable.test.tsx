@@ -26,7 +26,11 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt }: any) => <span data-testid="companion-avatar">{alt}</span>,
+  default: ({ alt, className }: any) => (
+    <span data-testid="companion-avatar" className={className}>
+      {alt}
+    </span>
+  ),
 }));
 
 const mockGenericTableCalls: { columns: any[]; tableClassName?: string }[] = [];
@@ -144,6 +148,7 @@ describe('InvoiceTable', () => {
 
     expect(desktop.getByText('Sam / Buddy')).toBeInTheDocument();
     expect(desktop.getByText('#inv-1')).toBeInTheDocument();
+    expect(desktop.getByTestId('companion-avatar').parentElement?.tagName).toBe('DIV');
     // Design's date cell is one muted line — the time rides the identity
     // sub-line, so it is not repeated here.
     const dateCell = desktop.getByRole('button', { name: 'Open finance details for Buddy' });
