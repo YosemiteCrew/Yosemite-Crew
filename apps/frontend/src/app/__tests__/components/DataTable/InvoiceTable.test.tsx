@@ -152,7 +152,14 @@ describe('InvoiceTable', () => {
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
     expect(desktop.getByText('Paid in cash')).toBeInTheDocument();
     const status = desktop.getByText('Pending');
-    expect(status).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(status).toHaveClass(
+      'yc-status-pill',
+      'rounded-full!',
+      'text-[10px]',
+      'leading-[normal]',
+      'font-bold',
+      'uppercase'
+    );
     expect(status).toHaveAttribute(
       'style',
       expect.stringContaining('background-color: var(--color-pill-neutral-bg)')
