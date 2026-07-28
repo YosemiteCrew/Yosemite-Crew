@@ -1102,10 +1102,7 @@ describe("InventoryConsumptionService", () => {
           inventoryItemId: "item-created-duration",
           quantity: 2,
           frequency: "BID",
-          duration: "3",
-          metadata: {
-            durationUnit: "weeks",
-          },
+          duration: "3 weeks",
           sourceLineKey: "line-created-duration",
         },
       ],

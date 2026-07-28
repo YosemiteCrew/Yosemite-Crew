@@ -239,6 +239,19 @@ const readDurationUnit = (
   return match?.[1]?.toUpperCase();
 };
 
+const toDurationUnitLabel = (unit: string): string | undefined => {
+  if (unit === "DAY" || unit === "DAYS" || unit === "D") {
+    return "days";
+  }
+  if (unit === "WEEK" || unit === "WEEKS" || unit === "W") {
+    return "weeks";
+  }
+  if (unit === "MONTH" || unit === "MONTHS" || unit === "M") {
+    return "months";
+  }
+  return undefined;
+};
+
 const resolveDurationInDays = (item: {
   durationDays?: unknown;
   duration?: unknown;
@@ -263,6 +276,21 @@ const resolveDurationInDays = (item: {
 
   const multiplier = DURATION_UNIT_IN_DAYS[unit];
   return multiplier === undefined ? undefined : rawDuration * multiplier;
+};
+
+const resolveDurationUnitLabel = (item: {
+  durationDays?: unknown;
+  duration?: unknown;
+  days?: unknown;
+  durationUnit?: unknown;
+  metadata?: unknown;
+}) => {
+  const metadata = toRecord(item.metadata);
+  const unit = readDurationUnit(
+    item.durationUnit ?? metadata.durationUnit,
+    item.duration ?? item.days ?? item.durationDays,
+  );
+  return unit ? toDurationUnitLabel(unit) : undefined;
 };
 
 const resolveFrequencyPerDay = (frequency?: string | null) => {
@@ -745,6 +773,14 @@ const enrichDispenseRequestMedications = async (
     const durationInDays = resolveDurationInDays(item);
     const durationDays =
       durationInDays === undefined ? undefined : rawDurationDays;
+    const metadataDurationUnit = resolveDurationUnitLabel(item);
+    const metadata =
+      metadataDurationUnit === undefined
+        ? item.metadata
+        : {
+            ...toRecord(item.metadata),
+            durationUnit: metadataDurationUnit,
+          };
     const refillsRemaining =
       readPositiveInteger(item.refillsRemaining) ??
       readPositiveInteger(item.refill);
@@ -772,6 +808,7 @@ const enrichDispenseRequestMedications = async (
 
     return {
       ...item,
+      metadata,
       inventoryItemName:
         inventoryItem?.name ??
         asNonEmptyString(item.inventoryItemName) ??
