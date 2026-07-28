@@ -88,7 +88,7 @@ jest.mock('@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger', 
 }));
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
-  getInvoiceStatusStyle: () => ({}),
+  getInvoiceStatusTone: () => 'success',
 }));
 
 jest.mock('@/app/hooks/useAppointments', () => ({

@@ -39,6 +39,12 @@ describe('StripeStatusPill', () => {
     const link = screen.getByRole('link', { name: 'Stripe settings' });
     expect(link).toHaveAttribute('href', '/stripe-onboarding?orgId=org-1');
     expect(link).toHaveTextContent('Stripe · settings');
+    expect(screen.getByText('Stripe · settings')).toHaveClass(
+      'rounded-full!',
+      'text-[10px]',
+      'font-bold',
+      'uppercase'
+    );
   });
 
   it('renders a plain connected pill when the viewer cannot manage billing', () => {
@@ -47,6 +53,8 @@ describe('StripeStatusPill', () => {
     render(<StripeStatusPill />);
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.getByText('Stripe · connected')).toBeInTheDocument();
+    const pill = screen.getByText('Stripe · connected');
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
   });
 });

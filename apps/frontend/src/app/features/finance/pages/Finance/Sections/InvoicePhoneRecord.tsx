@@ -10,7 +10,7 @@ import {
   IoOpenOutline,
   IoPhonePortraitOutline,
 } from 'react-icons/io5';
-import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { formatMoney } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
@@ -25,7 +25,8 @@ type InvoicePhoneRecordProps = {
   appointment?: Appointment;
   currency: string;
   statusLabel: string;
-  statusStyle: React.CSSProperties;
+  statusStyle?: React.CSSProperties;
+  statusTone?: StatusTone;
   payerName?: string;
   payerEmail?: string;
   onClose: () => void;
@@ -99,6 +100,7 @@ const InvoicePhoneRecord = ({
   currency,
   statusLabel,
   statusStyle,
+  statusTone,
   payerName,
   payerEmail,
   onClose,
@@ -144,7 +146,12 @@ const InvoicePhoneRecord = ({
                 {numberLabel}
               </h2>
               {statusLabel && (
-                <StatusPill className="shrink-0" label={statusLabel} style={statusStyle} />
+                <StatusPill
+                  className="shrink-0"
+                  label={statusLabel}
+                  tone={statusTone}
+                  style={statusStyle}
+                />
               )}
             </span>
             {subtitle && (

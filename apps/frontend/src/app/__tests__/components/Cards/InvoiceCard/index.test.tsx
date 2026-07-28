@@ -6,7 +6,7 @@ import { Invoice } from '@yosemite-crew/types';
 // --- Mocks ---
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
-  getInvoiceStatusStyle: jest.fn(() => ({ color: 'green' })),
+  getInvoiceStatusTone: jest.fn(() => 'success'),
   getInvoiceItemNames: jest.fn(() => 'Grooming'),
 }));
 
@@ -107,8 +107,11 @@ describe('InvoiceCard Component', () => {
     // "paid" -> "Paid"
     const statusBadge = screen.getByText('Paid');
     expect(statusBadge).toBeInTheDocument();
-    // JSDOM computes "green" to "rgb(0, 128, 0)"
-    expect(statusBadge).toHaveStyle({ color: 'rgb(0, 128, 0)' });
+    expect(statusBadge).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(statusBadge).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
   });
 
   // --- 4. Interaction ---

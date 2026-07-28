@@ -14,7 +14,7 @@ import {
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
-import { getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { getInvoiceOutstanding, type FinanceMetrics } from '@/app/lib/financeMetrics';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
@@ -100,7 +100,7 @@ const PhoneInvoiceCard = ({
           )}
         </span>
         {statusLabel && (
-          <StatusPill label={statusLabel} style={getInvoiceStatusStyle(invoice.status)} />
+          <StatusPill label={statusLabel} tone={getInvoiceStatusTone(invoice.status)} />
         )}
       </span>
       <span className="flex items-center gap-2.5">

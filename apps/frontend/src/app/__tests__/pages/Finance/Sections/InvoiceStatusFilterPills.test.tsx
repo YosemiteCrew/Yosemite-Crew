@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 
@@ -21,6 +21,8 @@ describe('InvoiceStatusFilterPills', () => {
       'aria-pressed',
       'false'
     );
+    const activePill = within(screen.getByRole('button', { name: 'Paid' })).getByText('Paid');
+    expect(activePill).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
   });
 
   it('calls setActiveStatus with the option key on click', () => {
@@ -37,7 +39,7 @@ describe('InvoiceStatusFilterPills', () => {
     expect(setActiveStatus).toHaveBeenCalledWith('pending');
   });
 
-  it('applies the phone padding when size is md', () => {
+  it('keeps shared status pill geometry when size is md', () => {
     render(
       <InvoiceStatusFilterPills
         options={options}
@@ -47,7 +49,8 @@ describe('InvoiceStatusFilterPills', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'All' }).className).toContain('py-2');
+    const allPill = within(screen.getByRole('button', { name: 'All' })).getByText('All');
+    expect(allPill).toHaveClass('px-2.5', 'py-[3px]', 'text-[10px]');
   });
 
   it('merges an extra className onto the group', () => {

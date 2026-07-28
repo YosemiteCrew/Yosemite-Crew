@@ -2,6 +2,7 @@ import {
   buildPagerPageList,
   getInvoiceItemNames,
   getInvoiceStatusStyle,
+  getInvoiceStatusTone,
   getInventoryStatusStyle,
   formatWeeklyWorkingHours,
   getAvailabilityStatusStyle,
@@ -46,6 +47,21 @@ describe('tableUtils', () => {
 
     it('handles undefined status', () => {
       expect(getInvoiceStatusStyle(undefined as any).color).toBe('var(--color-pill-neutral-text)');
+    });
+  });
+
+  describe('getInvoiceStatusTone', () => {
+    it.each([
+      ['awaiting_payment', 'info'],
+      ['paid', 'success'],
+      ['failed', 'warning'],
+      ['cancelled', 'warning'],
+      ['refunded', 'progress'],
+      ['pending', 'neutral'],
+      ['unknown', 'neutral'],
+      [undefined, 'neutral'],
+    ])('maps %s to %s', (status, tone) => {
+      expect(getInvoiceStatusTone(status as any)).toBe(tone);
     });
   });
 

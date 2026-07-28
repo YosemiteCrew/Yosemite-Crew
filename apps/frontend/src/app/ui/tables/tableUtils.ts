@@ -82,6 +82,23 @@ export const getInvoiceStatusStyle = (status: string) => {
   }
 };
 
+export const getInvoiceStatusTone = (status?: string | null): StatusTone => {
+  switch (String(status ?? '').toLowerCase()) {
+    case 'awaiting_payment':
+      return 'info';
+    case 'paid':
+      return 'success';
+    case 'failed':
+    case 'cancelled':
+      return 'warning';
+    case 'refunded':
+      return 'progress';
+    case 'pending':
+    default:
+      return 'neutral';
+  }
+};
+
 export const getInventoryStatusStyle = (status: string) => {
   return getStatusBadgeStyle(status);
 };

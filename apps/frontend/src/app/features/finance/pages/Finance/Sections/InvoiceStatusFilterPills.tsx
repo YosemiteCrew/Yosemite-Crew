@@ -2,14 +2,44 @@
 import React from 'react';
 import clsx from 'clsx';
 import { StatusOption } from '@/app/features/companions/pages/Companions/types';
+import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type InvoiceStatusFilterPillsProps = {
   options: StatusOption[];
   activeStatus: string;
   setActiveStatus: (value: string) => void;
-  /** `sm` = desktop/tablet header pills (6/13 padding); `md` = phone pills (8/14 padding). */
+  /** Kept for caller compatibility; geometry now comes from the shared StatusPill primitive. */
   size?: 'sm' | 'md';
   className?: string;
+};
+
+const getStatusPillTokens = (option: StatusOption): StatusPillTokens => ({
+  bg: option.bg ?? 'var(--color-pill-neutral-bg)',
+  text: option.text ?? 'var(--color-pill-neutral-text)',
+  border: option.border ?? option.bg ?? 'var(--color-pill-neutral-border)',
+});
+
+const getStatusPillStyle = (
+  option: StatusOption,
+  isActive: boolean
+): React.CSSProperties | undefined => {
+  if (!isActive) {
+    return {
+      backgroundColor: 'transparent',
+      borderColor: 'var(--hairline)',
+      color: 'var(--ink-muted)',
+      fontWeight: 600,
+    };
+  }
+  if (option.key.toLowerCase() === 'all') {
+    return {
+      backgroundColor: 'var(--inset)',
+      borderColor: 'var(--divider)',
+      color: 'var(--ink)',
+      fontWeight: 700,
+    };
+  }
+  return undefined;
 };
 
 /**
@@ -40,14 +70,15 @@ const InvoiceStatusFilterPills = ({
           onClick={() => setActiveStatus(option.key)}
           aria-pressed={isActive}
           className={clsx(
-            'shrink-0 rounded-full! border transition-colors duration-200',
-            size === 'md' ? 'px-3.5 py-2 text-[12px]' : 'px-[13px] py-1.5 text-[12px]',
-            isActive
-              ? 'bg-[var(--inset)] border-[var(--divider)] font-bold text-[var(--ink)]'
-              : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-[var(--inset)]'
+            'inline-flex shrink-0 rounded-full! bg-transparent p-0 transition-opacity duration-200 hover:opacity-100',
+            size === 'md' && 'my-0.5'
           )}
         >
-          {option.name}
+          <StatusPill
+            tokens={getStatusPillTokens(option)}
+            label={option.name}
+            style={getStatusPillStyle(option, isActive)}
+          />
         </button>
       );
     })}
