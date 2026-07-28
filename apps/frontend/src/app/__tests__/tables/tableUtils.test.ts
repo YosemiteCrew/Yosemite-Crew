@@ -6,6 +6,7 @@ import {
   formatWeeklyWorkingHours,
   getAvailabilityStatusStyle,
   getCompanionStatusStyle,
+  getCompanionStatusTone,
   getFormsStatusStyle,
   getInventoryTurnoverStatusStyle,
   formatTurnoverStatus,
@@ -83,6 +84,18 @@ describe('tableUtils', () => {
   describe('getCompanionStatusStyle', () => {
     it.each(['active', 'archived', 'inactive', 'unknown'])('returns a style for %s', (status) => {
       expect(getCompanionStatusStyle(status)).toHaveProperty('color');
+    });
+  });
+
+  describe('getCompanionStatusTone', () => {
+    it.each([
+      ['active', 'success'],
+      ['archived', 'warning'],
+      ['inactive', 'neutral'],
+      ['unknown', 'neutral'],
+      [undefined, 'neutral'],
+    ])('maps %s to %s', (status, tone) => {
+      expect(getCompanionStatusTone(status as any)).toBe(tone);
     });
   });
 

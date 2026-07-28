@@ -165,6 +165,18 @@ export const getCompanionStatusStyle = (status: string) => {
   }
 };
 
+export const getCompanionStatusTone = (status?: string | null): StatusTone => {
+  switch (String(status ?? '').toLowerCase()) {
+    case 'active':
+      return 'success';
+    case 'archived':
+      return 'warning';
+    case 'inactive':
+    default:
+      return 'neutral';
+  }
+};
+
 export const getFormsStatusStyle = (status: string) => {
   if (!status) {
     return {
