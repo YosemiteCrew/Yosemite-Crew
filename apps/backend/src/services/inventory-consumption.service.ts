@@ -244,6 +244,7 @@ const resolveDurationInDays = (item: {
   duration?: unknown;
   days?: unknown;
   durationUnit?: unknown;
+  metadata?: unknown;
 }) => {
   const durationText = item.durationDays ?? item.duration ?? item.days;
   const rawDuration =
@@ -253,7 +254,11 @@ const resolveDurationInDays = (item: {
     return undefined;
   }
 
-  const unit = readDurationUnit(item.durationUnit, durationText);
+  const metadata = toRecord(item.metadata);
+  const unit = readDurationUnit(
+    item.durationUnit ?? metadata.durationUnit,
+    durationText,
+  );
   if (!unit) {
     return rawDuration;
   }
