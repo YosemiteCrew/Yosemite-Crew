@@ -47,6 +47,11 @@ describe('TaskFilterBar', () => {
     expect(screen.getByRole('button', { name: 'Pending' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'In progress' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Completed' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pending' })).toHaveClass(
+      'min-h-[38px]',
+      'px-1',
+      'py-1'
+    );
     expect(screen.getByTitle('Pending')).toHaveClass('text-[10px]', 'uppercase');
     expect(screen.getByTitle('Pending')).toHaveStyle({
       backgroundColor: 'var(--color-pill-neutral-bg)',

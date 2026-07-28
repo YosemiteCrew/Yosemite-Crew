@@ -66,6 +66,7 @@ describe('FormsFilters Component', () => {
     renderFilters({ status: 'Published', category: 'All' });
     const active = screen.getByRole('button', { name: 'Published' });
     expect(active).toHaveAttribute('aria-pressed', 'true');
+    expect(active).toHaveClass('min-h-[38px]', 'px-1', 'py-1');
     const activePill = within(active).getByText('Published');
     expect(activePill).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
     expect(activePill).toHaveAttribute(

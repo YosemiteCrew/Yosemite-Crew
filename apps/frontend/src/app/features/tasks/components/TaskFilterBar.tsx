@@ -133,7 +133,7 @@ const TaskFilterBar = ({
               aria-pressed={isActive}
               onClick={() => toggleStatus(option.key)}
               className={clsx(
-                'inline-flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand',
+                'inline-flex min-h-[38px] items-center justify-center rounded-full px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand',
                 !isActive && 'opacity-65 transition-opacity hover:opacity-100'
               )}
             >

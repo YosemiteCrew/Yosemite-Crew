@@ -129,7 +129,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
               key={status}
               onClick={() => onFiltersChange({ ...filters, status })}
               aria-pressed={isActive}
-              className="inline-flex rounded-full! bg-transparent p-0 transition-opacity hover:opacity-100"
+              className="inline-flex min-h-[38px] items-center justify-center rounded-full! bg-transparent px-1 py-1 transition-opacity hover:opacity-100"
             >
               <StatusPill
                 tone={status === 'All' ? 'neutral' : getFormsStatusTone(status)}
