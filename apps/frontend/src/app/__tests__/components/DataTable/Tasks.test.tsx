@@ -116,7 +116,9 @@ describe('Tasks table', () => {
       />
     );
 
-    expect(screen.getByTitle('PENDING')).toHaveStyle({
+    const statusPill = screen.getByTitle('PENDING');
+    expect(statusPill).toHaveClass('yc-status-pill', 'text-[10px]', 'leading-[normal]');
+    expect(statusPill).toHaveStyle({
       backgroundColor: 'var(--color-pill-neutral-bg)',
     });
 

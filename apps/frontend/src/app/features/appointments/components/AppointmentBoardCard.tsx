@@ -210,11 +210,7 @@ const BoardCardMetaRow = ({
       )}
     </div>
     <div className="flex shrink-0 items-center gap-1.5">
-      <AppointmentModePill
-        appointment={appointment}
-        className="h-6 px-2.5 text-[10px]"
-        iconSize={12}
-      />
+      <AppointmentModePill appointment={appointment} className="w-fit" iconSize={12} />
       <AppointmentPaymentBadge
         appointment={appointment}
         invoicesByAppointmentId={invoicesByAppointmentId}

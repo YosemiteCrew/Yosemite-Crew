@@ -71,6 +71,7 @@ describe('StatusPill', () => {
     // status render at three different sizes across the app.
     render(<StatusPill label="Awaiting payment" />);
     const pill = screen.getByText('Awaiting payment');
+    expect(pill).toHaveClass('yc-status-pill');
     expect(pill).toHaveClass('px-2.5', 'py-[3px]', 'text-[10px]', 'font-bold');
     expect(pill).toHaveClass('tracking-[0.08em]', 'leading-[normal]', 'uppercase');
   });

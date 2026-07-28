@@ -386,6 +386,7 @@ describe('IDEXX Hub page', () => {
 
     const pill = await screen.findByText('Complete');
     expect(pill).toHaveClass(
+      'yc-status-pill',
       'rounded-full!',
       'border!',
       'px-2.5',

@@ -187,7 +187,14 @@ describe('FormsTable Component', () => {
     expect(screen.getAllByText('Custom').length).toBeGreaterThan(0);
     expect(screen.getAllByText('2023-10-01 · Alice').length).toBeGreaterThan(0);
     const publishedStatus = screen.getByText('Published');
-    expect(publishedStatus).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(publishedStatus).toHaveClass(
+      'yc-status-pill',
+      'rounded-full!',
+      'text-[10px]',
+      'leading-[normal]',
+      'font-bold',
+      'uppercase'
+    );
     expect(publishedStatus).toHaveAttribute(
       'style',
       expect.stringContaining('background-color: var(--color-pill-success-bg)')
