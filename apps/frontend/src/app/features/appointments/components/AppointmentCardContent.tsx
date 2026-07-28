@@ -36,11 +36,6 @@ const normalizeLeadId = (value?: string | null): string => {
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
 };
 
-const resolveModeBackgroundColor = (isInpatient: boolean, isStrong: boolean): string => {
-  if (!isInpatient) return 'var(--color-neutral-100)';
-  return isStrong ? 'var(--color-primary-600)' : 'var(--color-primary-500)';
-};
-
 export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardContentProps) => (
   <div className="flex gap-2 items-center">
     {(() => {
@@ -125,34 +120,29 @@ export const AppointmentModePill = ({
   appointment,
   className = '',
   iconSize = 14,
-  tone = 'default',
 }: AppointmentModePillProps) => {
   const mode: EncounterMode = resolveEncounterMode(appointment);
   const isInpatient = mode === 'INPATIENT';
-  const isStrong = tone === 'strong';
-  const modeStyle: React.CSSProperties = {
-    backgroundColor: resolveModeBackgroundColor(isInpatient, isStrong),
-    borderColor: isInpatient ? 'var(--color-primary-700)' : 'var(--color-neutral-200)',
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxShadow: isStrong && isInpatient ? '0 1px 6px rgba(0, 87, 194, 0.18)' : undefined,
-    color: isInpatient ? 'var(--color-white)' : 'var(--color-neutral-700)',
-  };
+  const label = isInpatient ? 'Inpatient' : 'Outpatient';
 
   return (
-    <div
-      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-2xl px-3 text-yc-12-b-neutral ${className}`}
-      style={modeStyle}
-    >
-      {isInpatient ? (
-        <IoBedOutline size={iconSize} aria-hidden="true" />
-      ) : (
-        <IoFootstepsOutline size={iconSize} aria-hidden="true" />
-      )}
-      <span className="whitespace-nowrap" style={{ color: 'inherit', opacity: 1 }}>
-        {isInpatient ? 'Inpatient' : 'Outpatient'}
-      </span>
-    </div>
+    <StatusPill
+      tone={isInpatient ? 'info' : 'neutral'}
+      title={label}
+      className={className}
+      label={
+        <>
+          {isInpatient ? (
+            <IoBedOutline size={iconSize} aria-hidden="true" />
+          ) : (
+            <IoFootstepsOutline size={iconSize} aria-hidden="true" />
+          )}
+          <span className="whitespace-nowrap" style={{ color: 'inherit', opacity: 1 }}>
+            {label}
+          </span>
+        </>
+      }
+    />
   );
 };
 

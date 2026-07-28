@@ -102,6 +102,24 @@ describe('AppointmentCard', () => {
     expect(screen.getByText('COMPLETED')).toBeInTheDocument();
   });
 
+  it('renders the card mode pill with the shared status-pill appearance', () => {
+    render(
+      <AppointmentCard
+        appointment={{ ...appointment, appointmentKind: 'INPATIENT' }}
+        handleViewAppointment={handleViewAppointment}
+        handleWorkspaceAppointment={handleWorkspaceAppointment}
+        getSoapViewIntent={getSoapViewIntent}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+      />
+    );
+
+    const modePill = screen.getByText('Inpatient').closest('[title="Inpatient"]') as HTMLElement;
+    expect(modePill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
+    expect(modePill).not.toHaveClass('h-7');
+    expect(modePill).toHaveStyle({ backgroundColor: 'var(--color-pill-info-bg)' });
+  });
+
   it('calls handlers on view/reschedule', () => {
     render(
       <AppointmentCard

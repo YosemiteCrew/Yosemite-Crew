@@ -311,6 +311,9 @@ describe('Appointments table', () => {
 
     expect(screen.getByText('Ward 1')).toBeInTheDocument();
     expect(screen.getByText('Kennel A')).toBeInTheDocument();
-    expect(screen.getByText('Inpatient')).toBeInTheDocument();
+    const modePill = screen.getByText('Inpatient').closest('[title="Inpatient"]') as HTMLElement;
+    expect(modePill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
+    expect(modePill).not.toHaveClass('h-6');
+    expect(modePill).toHaveStyle({ backgroundColor: 'var(--color-pill-info-bg)' });
   });
 });
