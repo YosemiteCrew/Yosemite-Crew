@@ -29,6 +29,12 @@ type AppointmentModePillProps = {
   tone?: 'default' | 'strong';
 };
 
+type EncounterModePillProps = {
+  mode: EncounterMode;
+  className?: string;
+  iconSize?: number;
+};
+
 const normalizeLeadId = (value?: string | null): string => {
   const trimmed = String(value ?? '').trim();
   if (!trimmed) return '';
@@ -116,12 +122,11 @@ export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentPr
   );
 };
 
-export const AppointmentModePill = ({
-  appointment,
+export const EncounterModePill = ({
+  mode,
   className = '',
   iconSize = 14,
-}: AppointmentModePillProps) => {
-  const mode: EncounterMode = resolveEncounterMode(appointment);
+}: EncounterModePillProps) => {
   const isInpatient = mode === 'INPATIENT';
   const label = isInpatient ? 'Inpatient' : 'Outpatient';
 
@@ -144,6 +149,15 @@ export const AppointmentModePill = ({
       }
     />
   );
+};
+
+export const AppointmentModePill = ({
+  appointment,
+  className = '',
+  iconSize = 14,
+}: AppointmentModePillProps) => {
+  const mode: EncounterMode = resolveEncounterMode(appointment);
+  return <EncounterModePill mode={mode} className={className} iconSize={iconSize} />;
 };
 
 const AppointmentCardContent = ({ appointment }: AppointmentCardContentProps) => (

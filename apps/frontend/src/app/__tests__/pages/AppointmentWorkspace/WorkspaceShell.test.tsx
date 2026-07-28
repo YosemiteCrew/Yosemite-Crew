@@ -261,7 +261,9 @@ describe('CompanionContextCard', () => {
 
   it('renders the inpatient mode pill', () => {
     render(<CompanionContextCard name="Gigi" details={details} mode="INPATIENT" />);
-    expect(screen.getByText('Inpatient')).toBeInTheDocument();
+    const modePill = screen.getByText('Inpatient').closest('[title="Inpatient"]') as HTMLElement;
+    expect(modePill).toHaveClass('yc-status-pill', 'text-[10px]', 'uppercase');
+    expect(modePill).toHaveStyle({ backgroundColor: 'var(--color-pill-info-bg)' });
   });
 
   it('has no axe violations', async () => {

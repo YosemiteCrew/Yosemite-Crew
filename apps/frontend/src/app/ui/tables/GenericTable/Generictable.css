@@ -91,7 +91,9 @@
   tbody
   tr
   td
-  span:not(a span):not(button span):not(.glass-tooltip):not(.glass-tooltip span) {
+  span:not(a span):not(button span):not(.glass-tooltip):not(.glass-tooltip span):not(
+    .yc-status-pill
+  ):not(.yc-status-pill span) {
   margin: 0px;
   font-family: var(--satoshi-font);
   color: var(--black-text);
