@@ -32,8 +32,8 @@ describe('Badge', () => {
 
     const badge = screen.getByText('Delete');
     expect(badge).toHaveStyle({
-      backgroundColor: 'var(--danger-bg)',
-      color: 'var(--danger-text)',
+      backgroundColor: 'var(--color-pill-danger-bg)',
+      color: 'var(--color-pill-danger-text)',
     });
     expect(badge.className).toContain('extra');
   });
