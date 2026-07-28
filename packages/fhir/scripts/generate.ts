@@ -152,6 +152,9 @@ function sanitizeReleaseName(value: string): string {
 
 async function collectStructureDefinitions(inputPath: string): Promise<StructureDefinition[]> {
   const absolutePath = path.resolve(inputPath);
+  if (path.isAbsolute(inputPath) || inputPath.includes('..')) {
+    throw new Error(`Invalid input file: ${inputPath}`);
+  }
   const inputStat = await stat(absolutePath);
 
   if (inputStat.isDirectory()) {
@@ -188,7 +191,13 @@ async function collectFromDirectory(directory: string): Promise<StructureDefinit
     }
 
     try {
-      const json = JSON.parse(await readFile(file, 'utf8'));
+      const base = path.resolve(directory);
+      const target = path.resolve(file);
+      const relative = path.relative(base, target);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        continue;
+      }
+      const json = JSON.parse(await readFile(target, 'utf8'));
       results.push(...collectFromJson(json));
     } catch {
       // Some JSON files in packages may not be FHIR resources. Ignore malformed or irrelevant files.
@@ -828,7 +837,13 @@ async function writeRootIndex(outRoot: string): Promise<void> {
     return `export * as ${namespaceForRelease(releaseDir)} from "./${releaseDir}/index.js";`;
   });
 
-  await writeFile(path.join(outRoot, 'index.ts'), `${lines.join('\n')}\n`, 'utf8');
+  const base = path.resolve(outRoot);
+  const target = path.resolve(base, 'index.ts');
+  const relative = path.relative(base, target);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Invalid file path');
+  }
+  await writeFile(target, `${lines.join('\n')}\n`, 'utf8');
 }
 
 async function main(): Promise<void> {

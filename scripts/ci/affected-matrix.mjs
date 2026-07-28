@@ -68,6 +68,7 @@ function parseArgs(argv) {
 function readJson(file) {
   let raw;
   try {
+    if (file.includes('..') || path.isAbsolute(file)) fail(`invalid file path`);
     raw = readFileSync(file, 'utf8');
   } catch (error) {
     fail(`cannot read ${file}: ${error.message}`);
