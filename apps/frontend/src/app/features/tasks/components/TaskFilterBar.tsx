@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { IoAdd } from 'react-icons/io5';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 /**
  * Task filter row rebuilt to the design: fully-rounded audience pills (All /
@@ -30,6 +31,12 @@ type TaskFilterBarProps = {
 };
 
 const PARENT_AUDIENCE_KEY = 'parent_task';
+
+const getStatusPillTokens = (option: StatusOption): StatusPillTokens => ({
+  bg: option.bg ?? 'var(--color-pill-neutral-bg)',
+  text: option.text ?? 'var(--color-pill-neutral-text)',
+  border: option.border ?? option.bg ?? 'var(--color-pill-neutral-border)',
+});
 
 const TaskFilterBar = ({
   filterOptions,
@@ -126,22 +133,11 @@ const TaskFilterBar = ({
               aria-pressed={isActive}
               onClick={() => toggleStatus(option.key)}
               className={clsx(
-                'inline-flex h-7 items-center rounded-full border px-3.5 text-[12px] transition-colors',
-                !isActive &&
-                  'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
+                'inline-flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand',
+                !isActive && 'opacity-65 transition-opacity hover:opacity-100'
               )}
-              style={
-                isActive
-                  ? {
-                      backgroundColor: option.bg,
-                      color: option.text,
-                      borderColor: option.border ?? option.bg,
-                      fontWeight: 700,
-                    }
-                  : undefined
-              }
             >
-              {option.name}
+              <StatusPill tokens={getStatusPillTokens(option)} label={option.name} />
             </button>
           );
         })}

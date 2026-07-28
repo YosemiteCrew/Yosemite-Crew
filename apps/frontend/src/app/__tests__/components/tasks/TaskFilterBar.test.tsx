@@ -47,6 +47,10 @@ describe('TaskFilterBar', () => {
     expect(screen.getByRole('button', { name: 'Pending' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'In progress' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Completed' })).toBeInTheDocument();
+    expect(screen.getByTitle('Pending')).toHaveClass('text-[10px]', 'uppercase');
+    expect(screen.getByTitle('Pending')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-neutral-bg)',
+    });
     expect(screen.queryByText('All statuses')).not.toBeInTheDocument();
   });
 
@@ -145,8 +149,9 @@ describe('TaskFilterBar', () => {
       statusOptions: [{ key: 'pending', name: 'Pending', bg: '#eeeeee', text: '#111111' }],
       activeStatus: 'pending',
     });
-    const pill = screen.getByRole('button', { name: 'Pending' });
-    expect(pill).toHaveAttribute('aria-pressed', 'true');
+    const button = screen.getByRole('button', { name: 'Pending' });
+    const pill = screen.getByTitle('Pending');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
     expect(pill).toHaveStyle({ borderColor: '#eeeeee' });
   });
 

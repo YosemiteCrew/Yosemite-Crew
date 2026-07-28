@@ -235,6 +235,11 @@ describe('Header Component', () => {
       />
     );
 
+    expect(screen.getByTitle('Pending')).toHaveClass('text-[10px]', 'uppercase');
+    expect(screen.getByTitle('Pending')).toHaveStyle({
+      backgroundColor: 'var(--color-badge-slate-bg)',
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Pending/i }));
 
     expect(screen.getAllByText('Pending')[1]).toHaveStyle({
