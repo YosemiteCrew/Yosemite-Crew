@@ -246,10 +246,13 @@ const resolveDurationInDays = (item: {
   durationUnit?: unknown;
   metadata?: unknown;
 }) => {
-  const durationText = item.durationDays ?? item.duration ?? item.days;
-  const rawDuration =
-    readPositiveInteger(item.durationDays) ??
-    readPositiveInteger(item.duration ?? item.days);
+  const normalizedDurationDays = readPositiveInteger(item.durationDays);
+  if (normalizedDurationDays !== undefined) {
+    return normalizedDurationDays;
+  }
+
+  const durationText = item.duration ?? item.days;
+  const rawDuration = readPositiveInteger(durationText);
   if (rawDuration === undefined) {
     return undefined;
   }

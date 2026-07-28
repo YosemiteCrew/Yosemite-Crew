@@ -1061,6 +1061,128 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it("does not reapply metadata duration units when approving a created dispense request", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      {
+        id: "item-created-duration",
+        sku: "created-duration",
+        name: "Created Duration Medicine",
+        stockUnitType: "strip",
+        unitOfMeasure: "tablet",
+        packageQuantity: 15,
+        sellingPrice: 12.34,
+        unitCost: 8.5,
+        prescriptionRequired: true,
+        controlledItem: false,
+      },
+    ]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-created-duration",
+      prescriptionId: "rx-created-duration",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: [],
+      metadata: null,
+      requestedBy: "user-1",
+      reviewedBy: null,
+      reviewedAt: null,
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-created-duration",
+      medications: [
+        {
+          inventoryItemId: "item-created-duration",
+          quantity: 2,
+          frequency: "BID",
+          duration: "3",
+          metadata: {
+            durationUnit: "weeks",
+          },
+          sourceLineKey: "line-created-duration",
+        },
+      ],
+      requestedBy: "user-1",
+    });
+
+    const createdRequest = mockedPrisma.prescriptionDispenseRequest.create.mock
+      .calls[0][0] as {
+      data: {
+        medications: Record<string, unknown>[];
+        metadata: Record<string, unknown>;
+      };
+    };
+
+    expect(createdRequest.data.medications[0]).toEqual(
+      expect.objectContaining({
+        quantity: 2,
+        durationDays: 21,
+        metadata: { durationUnit: "weeks" },
+      }),
+    );
+
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-created-duration",
+      prescriptionId: "rx-created-duration",
+      organisationId: "org-1",
+      status: "PENDING",
+      medications: createdRequest.data.medications,
+      metadata: createdRequest.data.metadata,
+    });
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-created-duration",
+      organisationId: "org-1",
+      onHand: 50,
+      allocated: 0,
+    });
+    mockedPrisma.inventoryBatch.findMany
+      .mockResolvedValueOnce([
+        { id: "batch-created-duration", quantity: 50, allocated: 0 },
+      ])
+      .mockResolvedValueOnce([
+        { id: "batch-created-duration", quantity: 44, allocated: 0 },
+      ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-created-duration",
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({
+      id: "request-created-duration",
+      prescriptionId: "rx-created-duration",
+      organisationId: "org-1",
+      status: "DISPENSED",
+    });
+
+    const events =
+      await InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-created-duration",
+        medications: [],
+        reviewedBy: "user-1",
+      });
+
+    expect(events).toHaveLength(1);
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ change: -6 }),
+      }),
+    );
+    expect(mockedPrisma.inventoryItem.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: { onHand: 44 },
+      }),
+    );
+  });
+
   it("returns null when a dispense request is not found for not-dispensed", async () => {
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
       null,
