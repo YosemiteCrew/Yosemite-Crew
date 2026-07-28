@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
 import InvoiceTable from '@/app/ui/tables/InvoiceTable';
-import { getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getInvoiceStatusStyle, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { Invoice } from '@yosemite-crew/types';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
@@ -151,6 +151,12 @@ describe('InvoiceTable', () => {
     expect(dateCell).not.toHaveTextContent('10:00 AM');
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
     expect(desktop.getByText('Paid in cash')).toBeInTheDocument();
+    const status = desktop.getByText('Pending');
+    expect(status).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-neutral-bg)')
+    );
     expect(pushMock).toHaveBeenCalledWith(
       '/appointments?appointmentId=appt-1&open=finance&subLabel=summary'
     );
@@ -177,6 +183,11 @@ describe('InvoiceTable', () => {
       backgroundColor: 'var(--color-pill-neutral-bg)',
       borderColor: 'var(--color-pill-neutral-border)',
     });
+  });
+
+  it('returns tones for known status', () => {
+    expect(getInvoiceStatusTone('paid')).toBe('success');
+    expect(getInvoiceStatusTone('awaiting_payment')).toBe('info');
   });
 
   it('shows only the companion name when the parent name is missing', () => {

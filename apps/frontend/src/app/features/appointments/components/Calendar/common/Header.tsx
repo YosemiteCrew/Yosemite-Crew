@@ -24,6 +24,7 @@ import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
+import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useHasMounted } from '@/app/hooks/useHasMounted';
 import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import { useCalendarWeekNavigation } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
@@ -40,6 +41,12 @@ type StatusOption = {
 };
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
+
+const getStatusPillTokens = (status: StatusOption): StatusPillTokens => ({
+  bg: status.bg ?? 'var(--color-pill-neutral-bg)',
+  text: status.text ?? 'var(--color-pill-neutral-text)',
+  border: status.border ?? status.bg ?? 'var(--color-pill-neutral-border)',
+});
 
 // Scope pills follow the planner's filter-row recipe: inactive is a bare
 // --hairline outline with --ink-muted 600 type; the selected pill fills with
@@ -138,29 +145,42 @@ const StatusFilterDropdown = ({
         ref={dropdown.triggerRef}
         type="button"
         onClick={() => dropdown.setOpen((v) => !v)}
-        className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-full! transition-colors text-[12px] font-semibold whitespace-nowrap"
+        className="flex shrink-0 items-center gap-1.5 rounded-full! transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         style={
-          !isDefault && selectedStatus?.bg
+          isDefault
             ? {
-                backgroundColor: selectedStatus.bg,
-                color: selectedStatus.text ?? 'var(--ink)',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: selectedStatus.border ?? selectedStatus.bg,
-              }
-            : {
+                padding: '6px 12px',
                 borderWidth: '1px',
                 borderStyle: 'solid',
                 borderColor: 'var(--hairline)',
                 color: 'var(--ink-muted)',
               }
+            : undefined
         }
       >
-        <span>{isDefault ? 'All statuses' : selectedStatus.name}</span>
-        <IoChevronDown
-          size={12}
-          className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
-        />
+        {isDefault ? (
+          <span className="text-[12px] font-semibold">All statuses</span>
+        ) : (
+          <StatusPill
+            tokens={getStatusPillTokens(selectedStatus)}
+            title={selectedStatus.name}
+            label={
+              <>
+                {selectedStatus.name}
+                <IoChevronDown
+                  size={12}
+                  className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
+                />
+              </>
+            }
+          />
+        )}
+        {isDefault && (
+          <IoChevronDown
+            size={12}
+            className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
+          />
+        )}
       </button>
 
       {isMounted &&

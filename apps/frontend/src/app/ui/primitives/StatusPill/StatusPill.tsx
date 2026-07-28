@@ -12,9 +12,9 @@ import React from 'react';
  *   already compute a status colour via a helper can adopt the shared geometry
  *   without rewriting their colour logic. `tokens` wins when both are given.
  *
- * `danger` draws from the `--danger-*` scale rather than `--color-pill-*`,
- * which has no danger set. It is a distinct tone on purpose: folding danger
- * into `warning` would silently repaint every error state amber.
+ * `danger` draws from the shared `--color-pill-danger-*` set. It is a distinct
+ * tone on purpose: folding danger into `warning` would silently repaint every
+ * error state amber.
  */
 export type StatusTone =
   'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'accent' | 'progress';
@@ -33,9 +33,9 @@ const TONE_TOKENS: Record<StatusTone, StatusPillTokens> = {
     border: 'var(--color-pill-warning-border)',
   },
   danger: {
-    bg: 'var(--danger-bg)',
-    text: 'var(--danger-text)',
-    border: 'var(--danger-border)',
+    bg: 'var(--color-pill-danger-bg)',
+    text: 'var(--color-pill-danger-text)',
+    border: 'var(--color-pill-danger-border)',
   },
   info: {
     bg: 'var(--color-pill-info-bg)',
@@ -77,6 +77,8 @@ type StatusPillProps = {
   showDot?: boolean;
   /** Extra classes for layout only (e.g. `w-fit`). */
   className?: string;
+  /** Accessible hover text when `label` is composed from multiple nodes. */
+  title?: string;
 };
 
 const StatusPill = ({
@@ -86,6 +88,7 @@ const StatusPill = ({
   style,
   showDot = false,
   className,
+  title,
 }: StatusPillProps) => {
   const resolved = tokens ?? TONE_TOKENS[tone];
   // Geometry is the design's micro-badge, measured off the `.dc.html` sources:
@@ -107,7 +110,7 @@ const StatusPill = ({
   // becomes unreadable. Start-aligned, a clamped pill still reads from the top.
   return (
     <span
-      title={typeof label === 'string' ? label : undefined}
+      title={title ?? (typeof label === 'string' ? label : undefined)}
       className={`inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] ${
         className ?? ''
       }`}

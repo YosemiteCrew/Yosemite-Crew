@@ -51,8 +51,12 @@ describe('OutpatientSchedule', () => {
     expect(screen.getByText('This week')).toBeInTheDocument();
     expect(screen.getByText('Next week')).toBeInTheDocument();
     expect(screen.getByText('Laser therapy')).toBeInTheDocument();
-    expect(screen.getByText('Scheduled')).toBeInTheDocument();
-    expect(screen.getByText('Proposed')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-info-bg)',
+    });
+    expect(screen.getByText('Proposed')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-neutral-bg)',
+    });
     expect(screen.getByText('1 proposed visit awaiting owner confirmation')).toBeInTheDocument();
   });
 

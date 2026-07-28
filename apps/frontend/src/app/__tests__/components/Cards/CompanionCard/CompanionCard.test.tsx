@@ -89,7 +89,20 @@ describe('CompanionCard', () => {
     expect(screen.getByText('Male - 2 Yrs')).toBeInTheDocument();
     expect(screen.getByText('Allergies:')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
-    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+    const status = screen.getByText('ACTIVE');
+    expect(status).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('border-color: var(--color-pill-success-border)')
+    );
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('color: var(--color-pill-success-text)')
+    );
   });
 
   it('calls action handlers', () => {

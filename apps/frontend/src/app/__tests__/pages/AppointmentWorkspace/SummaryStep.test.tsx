@@ -211,6 +211,9 @@ describe('SummaryStep', () => {
     expect(screen.getByText('All Documents')).toBeInTheDocument();
     // Documents are sourced from the backend read-model, not rebuilt client-side.
     expect(await screen.findByText('Signed SOAP note')).toBeInTheDocument();
+    expect(screen.getByText('Signed')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
     expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-1');
   });
 

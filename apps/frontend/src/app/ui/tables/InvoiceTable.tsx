@@ -20,7 +20,7 @@ import {
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
-import { getInvoiceItemNames, getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getInvoiceItemNames, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { getAvatarPalette } from '@/app/features/companions/pages/Companions/companionsDirectory';
@@ -76,7 +76,7 @@ const renderServices = (item: Invoice) => (
 );
 
 const renderStatus = (item: Invoice) => (
-  <StatusPill style={getInvoiceStatusStyle(item?.status)} label={toTitle(item?.status)} />
+  <StatusPill tone={getInvoiceStatusTone(item?.status)} label={toTitle(item?.status)} />
 );
 
 const renderPayment = (item: Invoice) => (

@@ -1,6 +1,7 @@
 import { InvoiceItem, RoomReferenceMapping } from '@yosemite-crew/types';
 import { Team } from '@/app/features/organization/types/team';
 import { getStatusBadgeStyle } from '@/app/features/inventory/pages/Inventory/utils';
+import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 
 /* Design pager: discrete numbered page pills, collapsed behind an ellipsis once
    the run exceeds 7 pages so the footer never wraps. Shared by every table
@@ -81,6 +82,23 @@ export const getInvoiceStatusStyle = (status: string) => {
   }
 };
 
+export const getInvoiceStatusTone = (status?: string | null): StatusTone => {
+  switch (String(status ?? '').toLowerCase()) {
+    case 'awaiting_payment':
+      return 'info';
+    case 'paid':
+      return 'success';
+    case 'failed':
+    case 'cancelled':
+      return 'warning';
+    case 'refunded':
+      return 'progress';
+    case 'pending':
+    default:
+      return 'neutral';
+  }
+};
+
 export const getInventoryStatusStyle = (status: string) => {
   return getStatusBadgeStyle(status);
 };
@@ -126,6 +144,20 @@ export const getAvailabilityStatusStyle = (status: string) => {
   }
 };
 
+export const getAvailabilityStatusTone = (status: string): StatusTone => {
+  switch (status.toLowerCase()) {
+    case 'available':
+      return 'success';
+    case 'consulting':
+      return 'progress';
+    case 'off-duty':
+      return 'warning';
+    case 'requested':
+    default:
+      return 'neutral';
+  }
+};
+
 export const getCompanionStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case 'active':
@@ -147,6 +179,18 @@ export const getCompanionStatusStyle = (status: string) => {
         backgroundColor: 'var(--color-pill-neutral-bg)',
         borderColor: 'var(--color-pill-neutral-border)',
       };
+  }
+};
+
+export const getCompanionStatusTone = (status?: string | null): StatusTone => {
+  switch (String(status ?? '').toLowerCase()) {
+    case 'active':
+      return 'success';
+    case 'archived':
+      return 'warning';
+    case 'inactive':
+    default:
+      return 'neutral';
   }
 };
 
@@ -180,6 +224,18 @@ export const getFormsStatusStyle = (status: string) => {
         backgroundColor: 'var(--color-pill-progress-bg)',
         borderColor: 'var(--color-pill-progress-border)',
       };
+  }
+};
+
+export const getFormsStatusTone = (status?: string | null): StatusTone => {
+  switch (String(status ?? '').toLowerCase()) {
+    case 'published':
+      return 'success';
+    case 'draft':
+    case 'archived':
+      return 'neutral';
+    default:
+      return status ? 'progress' : 'neutral';
   }
 };
 
@@ -251,6 +307,19 @@ export const getTaskStatusStyle = (status: string) => {
         backgroundColor: 'var(--color-pill-warning-bg)',
         borderColor: 'var(--color-pill-warning-border)',
       };
+  }
+};
+
+export const getTaskStatusTone = (status: string): StatusTone => {
+  switch (status?.toLowerCase()) {
+    case 'pending':
+      return 'neutral';
+    case 'in_progress':
+      return 'progress';
+    case 'completed':
+      return 'success';
+    default:
+      return 'warning';
   }
 };
 

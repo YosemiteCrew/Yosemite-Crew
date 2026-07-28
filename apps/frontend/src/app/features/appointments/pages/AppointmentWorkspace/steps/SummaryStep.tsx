@@ -17,7 +17,7 @@ import {
   IoSearchOutline,
 } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
-import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Search from '@/app/ui/inputs/Search';
 import Datepicker from '@/app/ui/inputs/Datepicker';
@@ -33,7 +33,6 @@ import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import { usePermissions } from '@/app/hooks/usePermissions';
-import { getStatusStyle } from '@/app/config/statusConfig';
 import {
   getRenderedDocument,
   saveDischargeSummaryArtifact,
@@ -207,22 +206,24 @@ export const DocumentSourcePill = ({ source }: { source: string }) => (
   </span>
 );
 
-/** Map a signing/attachment state to a shared status-pill token key (design: SIGNED /
- *  ATTACHED / PAID coloured pills), reusing the same colour source as the appointment
- *  status pill. */
-const signingStatusStyleKey = (signingStatus?: string | null): string => {
+const signingStatusTone = (signingStatus?: string | null): StatusTone => {
   const key = String(signingStatus ?? '')
     .trim()
     .toUpperCase();
-  if (key === 'SIGNED' || key === 'PAID') return 'completed';
-  if (key === 'ATTACHED') return 'upcoming';
-  if (key === 'IN_PROGRESS' || key === 'PENDING') return 'checked_in';
-  return 'requested';
+  if (key === 'SIGNED' || key === 'PAID') return 'success';
+  if (key === 'ATTACHED') return 'info';
+  if (key === 'IN_PROGRESS') return 'progress';
+  return 'neutral';
 };
 
 const SigningStatusPill = ({ signingStatus }: { signingStatus?: string | null }) => {
-  const style = getStatusStyle(signingStatusStyleKey(signingStatus));
-  return <StatusPill style={style} label={humanizeToken(signingStatus)} className="w-fit" />;
+  return (
+    <StatusPill
+      tone={signingStatusTone(signingStatus)}
+      label={humanizeToken(signingStatus)}
+      className="w-fit"
+    />
+  );
 };
 
 const downloadDocumentUrl = (url: string) => {

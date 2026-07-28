@@ -9,7 +9,7 @@ import React, { useId, useMemo } from 'react';
 import { getOwnerFirstName } from '@/app/lib/companionName';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
 import { useRouter } from 'next/navigation';
-import { getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { useParentStore } from '@/app/stores/parentStore';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import InvoiceDetailHeader from '@/app/features/finance/pages/Finance/Sections/InvoiceDetailHeader';
@@ -60,7 +60,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
   const payerEmail = storedParent?.email ?? '';
 
   const invoiceStatusLabel = toTitle(activeInvoice?.status ?? '');
-  const invoiceStatusStyle = getInvoiceStatusStyle(activeInvoice?.status ?? '');
+  const invoiceStatusTone = getInvoiceStatusTone(activeInvoice?.status ?? '');
 
   const goToAppointmentFinance = () => {
     if (!appointment?.id) return;
@@ -89,7 +89,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
             appointment={appointment}
             currency={currency}
             statusLabel={invoiceStatusLabel}
-            statusStyle={invoiceStatusStyle}
+            statusTone={invoiceStatusTone}
             payerName={payerName}
             payerEmail={payerEmail}
             onClose={() => setShowModal(false)}
@@ -104,7 +104,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               invoice={activeInvoice}
               appointment={appointment}
               statusLabel={invoiceStatusLabel}
-              statusStyle={invoiceStatusStyle}
+              statusTone={invoiceStatusTone}
               onClose={() => setShowModal(false)}
               onOpenAppointment={goToAppointmentFinance}
             />

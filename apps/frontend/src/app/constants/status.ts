@@ -1,3 +1,5 @@
+import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+
 export type StatusStyle = {
   color: string;
   backgroundColor: string;
@@ -68,6 +70,31 @@ const defaultStatusStyle: StatusStyle = {
 
 export const getStatusStyle = (status: string): StatusStyle => {
   return statusStyles[status?.toLowerCase()] ?? defaultStatusStyle;
+};
+
+export const getAppointmentStatusTone = (status?: string | null): StatusTone => {
+  const key = String(status ?? '')
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[\s-]+/g, '_');
+  switch (key) {
+    case 'completed':
+      return 'success';
+    case 'in_progress':
+      return 'progress';
+    case 'checked_in':
+      return 'accent';
+    case 'upcoming':
+      return 'info';
+    case 'cancelled':
+    case 'no_show':
+    case 'no_payment':
+      return 'warning';
+    case 'pending':
+    case 'requested':
+    default:
+      return 'neutral';
+  }
 };
 
 export const AppointmentLabels: StatusLabel[] = [

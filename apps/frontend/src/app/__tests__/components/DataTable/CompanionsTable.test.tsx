@@ -204,7 +204,7 @@ describe('CompanionsTable', () => {
     expect(screen.getAllByText('-').length).toBeGreaterThan(0);
   });
 
-  it('shows the co-parent pill and the active status dot', () => {
+  it('shows the co-parent pill and inventory-style active status pill', () => {
     const coParented = {
       ...companion,
       companion: {
@@ -215,7 +215,20 @@ describe('CompanionsTable', () => {
     render(<CompanionsTable {...baseProps} filteredList={[coParented]} />);
 
     expect(screen.getByText('+ CO-PARENT')).toBeInTheDocument();
-    expect(screen.getByText('active')).toBeInTheDocument();
+    const status = screen.getByText('active');
+    expect(status).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('border-color: var(--color-pill-success-border)')
+    );
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('color: var(--color-pill-success-text)')
+    );
   });
 
   it('fades inactive rows and defaults a missing status to inactive', () => {

@@ -118,7 +118,9 @@ describe('TaskCard Component', () => {
     expect(getFormattedDate).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/Formatted/)).toBeInTheDocument();
 
-    expect(screen.getByText('In_progress')).toBeInTheDocument();
+    expect(screen.getByText('In_progress')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-progress-bg)',
+    });
 
     expect(screen.getByTestId('IoEyeOutline')).toBeInTheDocument();
     expect(screen.getByTestId('IoSyncOutline')).toBeInTheDocument();
@@ -148,7 +150,9 @@ describe('TaskCard Component', () => {
     expect(screen.getByText('From:')).toBeInTheDocument();
     expect(screen.getByText('To:')).toBeInTheDocument();
     expect(screen.getByText('Due date:')).toBeInTheDocument();
-    expect(screen.getByText('In_progress')).toBeInTheDocument();
+    expect(screen.getByText('In_progress')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-progress-bg)',
+    });
   });
 
   it('calls handleViewTask with the task when clicking View', () => {

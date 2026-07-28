@@ -23,10 +23,11 @@ import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import RowActionMenu, { RowMenuAction } from '@/app/ui/tables/RowActionMenu';
+import { getCompanionStatusTone } from '@/app/ui/tables/tableUtils';
 
 import {
-  getCompanionRowStatusColor,
   getLastVisit,
   hasCoParent,
   isToday,
@@ -124,14 +125,12 @@ const CoParentPill = () => (
   </span>
 );
 
-const StatusDot = ({ status, className = '' }: { status?: string; className?: string }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.09em] ${className}`}
-    style={{ color: getCompanionRowStatusColor(status) }}
-  >
-    <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
-    {toTitleCase(status || 'inactive')}
-  </span>
+const PatientStatusPill = ({ status, className = '' }: { status?: string; className?: string }) => (
+  <StatusPill
+    tone={getCompanionStatusTone(status)}
+    label={toTitleCase(status || 'inactive')}
+    className={className}
+  />
 );
 
 const CompanionRow = ({
@@ -194,7 +193,7 @@ const CompanionRow = ({
 
       {/* Status */}
       <span>
-        <StatusDot status={item.companion.status} />
+        <PatientStatusPill status={item.companion.status} />
       </span>
 
       {/* Row menu */}
@@ -244,7 +243,7 @@ const CompanionGridCard = ({
         </button>
       </div>
       <div className="flex items-center justify-between">
-        <StatusDot status={item.companion.status} />
+        <PatientStatusPill status={item.companion.status} />
         <RowActionMenu label={terminologyText('Companion row actions')} actions={actions} />
       </div>
     </div>
@@ -261,11 +260,7 @@ const CompanionPhoneCard = ({
   terminologyText: (label: string) => string;
 }) => {
   const isInactive = String(item.companion.status ?? 'inactive').toLowerCase() !== 'active';
-  const subline = [
-    formatDisplayValue(item.companion.breed, ''),
-    formatParentName(item.parent),
-    toTitleCase(item.companion.status || 'inactive'),
-  ]
+  const subline = [formatDisplayValue(item.companion.breed, ''), formatParentName(item.parent)]
     .filter(Boolean)
     .join(' · ');
   return (
@@ -286,6 +281,7 @@ const CompanionPhoneCard = ({
           {hasCoParent(item) ? <CoParentPill /> : null}
         </span>
         <span className="truncate text-[11.5px] text-[var(--ink-faint)]">{subline}</span>
+        <PatientStatusPill status={item.companion.status} className="mt-1" />
       </span>
       <IoChevronForwardOutline
         size={16}

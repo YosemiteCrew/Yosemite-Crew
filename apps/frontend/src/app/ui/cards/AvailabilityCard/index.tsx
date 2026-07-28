@@ -3,7 +3,7 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { Team } from '@/app/features/organization/types/team';
 import { getSafeImageUrl } from '@/app/lib/urls';
-import { formatWeeklyWorkingHours, getAvailabilityStatusStyle } from '@/app/ui/tables/tableUtils';
+import { formatWeeklyWorkingHours, getAvailabilityStatusTone } from '@/app/ui/tables/tableUtils';
 import { toTitleCase } from '@/app/lib/validators';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 
@@ -55,7 +55,7 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           {formatWeeklyWorkingHours(team.weeklyWorkingHours)}
         </div>
       </div>
-      <StatusPill style={getAvailabilityStatusStyle(team.status)} label={team.status} />
+      <StatusPill tone={getAvailabilityStatusTone(team.status)} label={team.status} />
       <Secondary href="#" onClick={() => handleViewTeam(team)} text="View" className="w-full" />
     </div>
   );
