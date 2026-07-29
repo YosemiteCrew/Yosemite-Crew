@@ -27,7 +27,6 @@ import {
   GITHUB_STAR_CTA_STYLE,
   DISCORD_INVITE_URL,
 } from '@/app/features/marketing/site';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 const SERIF = 'var(--font-newsreader)';
 const CONTRIBUTORS_URL = `${GITHUB_REPO_URL}/graphs/contributors`;
@@ -136,6 +135,23 @@ const BELIEF_ICON_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+};
+
+const CREW_SLOT_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'linear-gradient(135deg, var(--inset) 0%, var(--hairline) 100%)',
+  color: 'var(--ink-faint2)',
+  fontFamily: SERIF,
+  fontSize: '38px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  filter: 'sepia(0.12) saturate(1.12) brightness(1.02) contrast(1.02)',
 };
 
 const CTA_INNER_STYLE: CSSProperties = {
@@ -662,7 +678,7 @@ interface CrewMember {
   name: string;
   role: string;
   href: string;
-  photo: string;
+  slotId: string;
   delay: number;
 }
 
@@ -673,7 +689,7 @@ const FOUNDER: CrewMember = {
   name: 'Ankit Upadhyay',
   role: 'Founder',
   href: 'https://www.linkedin.com/in/aupyay/',
-  photo: MEDIA_SOURCES.team.ankit,
+  slotId: 'crew-ankit',
   delay: 0,
 };
 
@@ -705,13 +721,9 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
             boxShadow: '0 18px 40px var(--sh08)',
           }}
         >
-          <Image
-            src={member.photo}
-            alt={member.name}
-            fill
-            sizes="(max-width: 900px) 50vw, 280px"
-            style={{ objectFit: 'cover' }}
-          />
+          <span data-slot={member.slotId} aria-hidden="true" style={CREW_SLOT_STYLE}>
+            {member.name.charAt(0)}
+          </span>
         </div>
         <div
           style={{
