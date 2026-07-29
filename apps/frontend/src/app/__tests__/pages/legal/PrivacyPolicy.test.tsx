@@ -46,9 +46,9 @@ describe('PrivacyPolicy', () => {
   it('lists recipients, social media presences and the GDPR rights', () => {
     expect(screen.getAllByText(/Supabase, Inc\./i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Amazon Web Services EMEA SARL/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'https://discord.gg/YVzMa9j7BK' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'https://discord.gg/SwM6mX85KD' })).toHaveAttribute(
       'href',
-      'https://discord.gg/YVzMa9j7BK'
+      'https://discord.gg/SwM6mX85KD'
     );
     expect(
       screen.getByRole('heading', { name: /Art. 20 GDPR – Right to data portability/, level: 3 })
