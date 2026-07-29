@@ -361,9 +361,10 @@ describe('TreatmentStep', () => {
     (savePrescriptionArtifact as jest.Mock).mockClear();
     // Echo back the saved artifact id (mirrors the create/update response) so finalize targets
     // the real id and the save handler does not append a duplicate local row.
-    (savePrescriptionArtifact as jest.Mock).mockImplementation((_ctx, rx) =>
-      Promise.resolve({ resourceType: 'MedicationRequest', id: rx.id })
-    );
+    (savePrescriptionArtifact as jest.Mock).mockImplementation((_ctx, rx) => {
+      const rows = Array.isArray(rx) ? rx : [rx];
+      return Promise.resolve({ resourceType: 'MedicationRequest', id: rows[0]?.id });
+    });
     (finalizePrescription as jest.Mock).mockClear();
     (finalizePrescription as jest.Mock).mockResolvedValue({});
     (listScheduleTaskTemplates as jest.Mock).mockClear();
@@ -525,7 +526,9 @@ describe('TreatmentStep', () => {
     // Validation skips the finalized row, so the save advances to billing...
     await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
     // ...and the finalized row is never re-saved.
-    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.flatMap(([, rx]) =>
+      Array.isArray(rx) ? rx.map((item) => item.id) : [rx.id]
+    );
     expect(savedIds).not.toContain('rx-final');
   });
 
@@ -1095,9 +1098,16 @@ describe('TreatmentStep', () => {
 
     await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
     expect(persistTreatmentItems).toHaveBeenCalledWith(ORG, 'enc-1', enc.services);
+    expect(savePrescriptionArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ organisationId: ORG, appointmentId: APPT, encounterId: 'enc-1' }),
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'rx-1' }),
+        expect.objectContaining({ id: 'rx-2' }),
+      ])
+    );
     expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT);
     expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-1');
-    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-2');
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );
@@ -1130,7 +1140,9 @@ describe('TreatmentStep', () => {
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
     await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
-    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.map(([, rx]) => rx.id);
+    const savedIds = (savePrescriptionArtifact as jest.Mock).mock.calls.flatMap(([, rx]) =>
+      Array.isArray(rx) ? rx.map((item) => item.id) : [rx.id]
+    );
     // The finalized row is never re-saved; the fresh row still is.
     expect(savedIds).not.toContain('rx-1');
     expect(savedIds).toContain('rx-2');

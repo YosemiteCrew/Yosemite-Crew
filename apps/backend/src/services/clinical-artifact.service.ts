@@ -1214,6 +1214,41 @@ const advanceCheckedInAppointment = async (
   });
 };
 
+const findReusablePrescriptionForAppointment = async (
+  organisationId: string,
+  appointmentId?: string,
+) => {
+  if (!appointmentId) {
+    return null;
+  }
+
+  return clinicalPrisma.prescription.findFirst({
+    where: {
+      artifact: {
+        organisationId,
+        appointmentId,
+        kind: "PRESCRIPTION",
+        status: { in: ["DRAFT", "IN_PROGRESS"] },
+      },
+    },
+    include: { artifact: true, items: true },
+    orderBy: { updatedAt: "desc" },
+  });
+};
+
+const prescriptionCreateInputToUpdateInput = (
+  input: PrescriptionInput,
+  status: ClinicalArtifactStatus,
+): PrescriptionUpdateInput => ({
+  status: input.status ?? status,
+  summary: input.summary,
+  items: input.items,
+  medications: input.medications,
+  instructions: input.instructions,
+  notes: input.notes,
+  metadata: input.metadata,
+});
+
 export const ClinicalArtifactService = {
   async createSoapNote(input: SoapNoteInput): Promise<SoapNoteRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
@@ -1411,6 +1446,27 @@ export const ClinicalArtifactService = {
     input: PrescriptionInput,
   ): Promise<PrescriptionRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
+    const reusablePrescription = await findReusablePrescriptionForAppointment(
+      organisationId,
+      input.appointmentId,
+    );
+
+    if (reusablePrescription) {
+      return ClinicalArtifactService.updatePrescription(
+        reusablePrescription.id,
+        prescriptionCreateInputToUpdateInput(
+          input,
+          reusablePrescription.artifact.status,
+        ),
+        organisationId,
+        {
+          actorId:
+            input.authorId ?? reusablePrescription.artifact.authorId ?? "",
+          canEditAny: true,
+        },
+      );
+    }
+
     const prescriptionItems = normalizePrescriptionItemInputs(
       input.items ?? input.medications,
     );

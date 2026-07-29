@@ -826,28 +826,26 @@ const TreatmentStep = ({
       // (`prescriptionItems`), not the raw store rows, so inventory-owned fields the clinician
       // sees on the card (brand, strength unit, form, route, controlled flag, schedule) are
       // included in the payload even when the originally-hydrated record was missing them.
-      // create-or-update is keyed off the row id.
-      const reconciledPrescriptions = await Promise.all(
-        normalizedPrescriptions.map(async (rx) => {
-          // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
-          // only ever set from persisted server state, so it always carries a real id). Re-POSTing
-          // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
-          // already-persisted, already-dispensed row untouched instead of re-saving it.
-          if (rx.finalized) {
-            return rx;
-          }
-          const savedRx = await savePrescriptionArtifact(
-            { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
-            rx
-          );
-          const savedId = (savedRx as { id?: string } | undefined)?.id ?? rx.id;
-          if (savedId && rx.fulfillment !== 'PRESCRIPTION_ONLY') savedInHouseIds.push(savedId);
-          return { ...rx, id: savedId };
-        })
-      );
-      // Authoritatively replace the list with exactly the saved rows (deduped by backend id) so
-      // there is never a stale local + persisted duplicate — even before the bootstrap lands or
-      // when the bootstrap returns the still-draft prescription differently.
+      // The whole editable prescription set is sent in one request so the appointment keeps one
+      // prescription document with every medication line.
+      // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
+      // only ever set from persisted server state, so it always carries a real id). Re-POSTing
+      // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
+      // already-persisted, already-dispensed row untouched instead of re-saving it.
+      const editablePrescriptions = normalizedPrescriptions.filter((rx) => !rx.finalized);
+      if (editablePrescriptions.length > 0) {
+        const savedRx = await savePrescriptionArtifact(
+          { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
+          editablePrescriptions
+        );
+        const savedId = (savedRx as { id?: string } | undefined)?.id;
+        if (savedId && editablePrescriptions.some((rx) => rx.fulfillment !== 'PRESCRIPTION_ONLY')) {
+          savedInHouseIds.push(savedId);
+        }
+      }
+      const reconciledPrescriptions = normalizedPrescriptions;
+      // Keep the local rows stable until the authoritative bootstrap refresh lands; the backend
+      // returns one prescription artifact id for the whole medication plan, not one id per line.
       const dedupedById = Array.from(
         new Map(reconciledPrescriptions.map((rx) => [rx.id, rx])).values()
       );

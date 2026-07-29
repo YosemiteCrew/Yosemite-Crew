@@ -564,6 +564,65 @@ describe('workspaceClinicalService', () => {
     ]);
   });
 
+  it('saves multiple prescription rows in one FHIR MedicationRequest', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: { resourceType: 'MedicationRequest', id: 'rx-appointment-1' },
+    });
+
+    await savePrescriptionArtifact(
+      {
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        encounterId: 'enc-1',
+        authorId: 'user-1',
+      },
+      [
+        {
+          medicineName: 'Gabapentin',
+          dosage: '100mg',
+          route: 'Oral',
+          frequency: 'BID',
+          durationDays: '7',
+          qty: '14',
+          instructions: 'With food',
+          fulfillment: 'IN_HOUSE',
+        },
+        {
+          medicineName: 'Meloxicam',
+          dosage: '1.5mg',
+          route: 'Oral',
+          frequency: 'SID',
+          durationDays: '3',
+          qty: '3',
+          instructions: 'After meal',
+          fulfillment: 'PRESCRIPTION_ONLY',
+        },
+      ]
+    );
+
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription',
+      expect.objectContaining({ resourceType: 'MedicationRequest' })
+    );
+    expect(patchDataMock).not.toHaveBeenCalled();
+    const [, body] = postDataMock.mock.calls[0];
+    const medicationsExtension = body.extension.find((entry: { url: string }) =>
+      entry.url.endsWith('/prescription-medications')
+    );
+    expect(JSON.parse(medicationsExtension.valueString)).toEqual([
+      expect.objectContaining({
+        medicineName: 'Gabapentin',
+        dosage: '100mg',
+        instructions: 'With food',
+      }),
+      expect.objectContaining({
+        medicineName: 'Meloxicam',
+        dosage: '1.5mg',
+        instructions: 'After meal',
+      }),
+    ]);
+  });
+
   it('updates a persisted prescription artifact instead of creating a duplicate', async () => {
     patchDataMock.mockResolvedValueOnce({
       data: { resourceType: 'MedicationRequest', id: 'rx-1' },

@@ -752,10 +752,9 @@ export const listPmsObservationTaskPreviewsForAppointment = async (appointmentId
   return res.data ?? [];
 };
 
-export const savePrescriptionArtifact = async (
-  context: ClinicalContext,
-  prescription: PrescriptionItem | Omit<PrescriptionItem, 'id'>
-) => {
+type PrescriptionSaveItem = PrescriptionItem | Omit<PrescriptionItem, 'id'>;
+
+const prescriptionToMedicationLine = (prescription: PrescriptionSaveItem) => {
   // The backend persists prescription lines into TYPED columns (medication, strength, dosage,
   // route, frequency, duration, quantity, refill, instructions, inventoryItemId/Sku, batch…) and
   // stashes anything else in a per-item `metadata` JSON column. So the flat fields below survive as
@@ -763,7 +762,7 @@ export const savePrescriptionArtifact = async (
   // so they round-trip. `dose` is sent both flat (BE maps it to the `dosage` column) and kept in
   // metadata for an exact rehydrate.
   const { id: _id, ...lineFields } = prescription as PrescriptionItem;
-  const medicationLine = {
+  return {
     ...lineFields,
     // BE reads `dosage` from ["dosage","dose"]; send the per-administration amount there.
     dosage: prescription.dose ?? prescription.dosage,
@@ -785,22 +784,31 @@ export const savePrescriptionArtifact = async (
       prescriptionRequired: prescription.prescriptionRequired,
     },
   };
+};
+
+export const savePrescriptionArtifact = async (
+  context: ClinicalContext,
+  prescription: PrescriptionSaveItem | PrescriptionSaveItem[]
+) => {
+  const prescriptions = Array.isArray(prescription) ? prescription : [prescription];
+  const primaryPrescription = prescriptions[0];
+  const medicationLines = prescriptions.map(prescriptionToMedicationLine);
   const body: MedicationRequest & Record<string, unknown> = {
     resourceType: 'MedicationRequest',
     // Saving creates a draft prescription; only $finalize completes it (and triggers
     // the inventory dispense). 'active' here would dispense on every plain save.
     status: 'draft',
     intent: 'order',
-    medicationCodeableConcept: { text: prescription.medicineName },
-    medicationReference: { display: prescription.medicineName },
+    medicationCodeableConcept: { text: primaryPrescription?.medicineName ?? 'Prescription' },
+    medicationReference: { display: primaryPrescription?.medicineName ?? 'Prescription' },
     subject: { display: 'Patient' },
     encounter:
       context.encounterId === undefined
         ? undefined
         : { reference: `Encounter/${context.encounterId}` },
     extension: compactExtensions([
-      jsonExtension(PRESCRIPTION_EXT.medications, [medicationLine]),
-      jsonExtension(PRESCRIPTION_EXT.instructions, prescription.instructions),
+      jsonExtension(PRESCRIPTION_EXT.medications, medicationLines),
+      jsonExtension(PRESCRIPTION_EXT.instructions, primaryPrescription?.instructions),
     ]),
     organisationId: context.organisationId,
     appointmentId: context.appointmentId,
@@ -810,7 +818,8 @@ export const savePrescriptionArtifact = async (
     templateVersion: context.templateVersion,
     templateVersionId: context.templateVersionId,
   };
-  const prescriptionId = 'id' in prescription ? prescription.id : undefined;
+  const prescriptionId =
+    !Array.isArray(prescription) && 'id' in prescription ? prescription.id : undefined;
   const endpoint = `/fhir/v1/clinical-artifact/organisation/${context.organisationId}/prescription`;
   const res = isPersistedArtifactId(prescriptionId)
     ? await patchData<MedicationRequest>(`${endpoint}/${prescriptionId}`, body)
