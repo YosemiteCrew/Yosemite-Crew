@@ -4,6 +4,7 @@ import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
 import { LazyMotion, domAnimation, m, Variants, useInView } from 'framer-motion';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { DISCORD_INVITE_URL } from '@/app/features/marketing/site/assets';
 
 import './Footer.css';
 
@@ -56,7 +57,7 @@ const footerLinks = [
   {
     title: 'Community',
     links: [
-      { label: 'Discord', href: 'https://discord.gg/yosemitecrew' },
+      { label: 'Discord', href: DISCORD_INVITE_URL },
       {
         label: 'GitHub',
         href: 'https://github.com/YosemiteCrew/Yosemite-Crew',

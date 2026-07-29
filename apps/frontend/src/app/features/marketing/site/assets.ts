@@ -6,7 +6,13 @@ export const CDN_BASE = 'https://d2il6osz49gpup.cloudfront.net';
 
 export const GITHUB_REPO_URL = 'https://github.com/YosemiteCrew/Yosemite-Crew';
 export const GITHUB_API_REPO = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
-export const DISCORD_INVITE_URL = 'https://discord.gg/yosemitecrew';
+/**
+ * Invite code for the Yosemite Crew Discord (guild 1325181058777616395), the same code the
+ * README/dev-docs badges use. It is NOT the `yosemitecrew` vanity: that vanity was never
+ * registered, so both the join link and the member-count lookup 404'd against it.
+ */
+export const DISCORD_INVITE_CODE = 'SwM6mX85KD';
+export const DISCORD_INVITE_URL = `https://discord.gg/${DISCORD_INVITE_CODE}`;
 export const LINKEDIN_URL = 'https://www.linkedin.com/company/yosemitecrew';
 export const INSTAGRAM_URL = 'https://www.instagram.com/yosemite_crew';
 export const X_URL = 'https://x.com/yosemitecrew';

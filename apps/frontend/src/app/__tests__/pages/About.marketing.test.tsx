@@ -43,7 +43,7 @@ jest.mock('@/app/features/marketing/site', () => {
     useGithubStats: () => mockStats,
     ABOUT_ORIGIN_PHOTO: '/images/marketing/about-origin.webp',
     GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
-    DISCORD_INVITE_URL: 'https://discord.gg/yosemitecrew',
+    DISCORD_INVITE_URL: 'https://discord.gg/SwM6mX85KD',
   };
 });
 

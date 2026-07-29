@@ -7,7 +7,7 @@ import {
   setJsonStorageItem,
   setStorageItem,
 } from '@/app/lib/browserStorage';
-import { GITHUB_API_REPO } from './assets';
+import { DISCORD_INVITE_CODE, GITHUB_API_REPO } from './assets';
 
 export interface GithubStats {
   /** Compact star count, e.g. '2.4k'. */
@@ -33,7 +33,9 @@ const EMPTY_STATS: GithubStats = {
 };
 const REPO_STATS_SUMMARY =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
-const DISCORD_INVITE_API = 'https://discord.com/api/v9/invites/yosemitecrew?with_counts=true';
+// Derived from the shared invite code so the join link and the member-count lookup can never
+// drift apart again -- a wrong code makes this 404, which silently drops the Discord stat.
+const DISCORD_INVITE_API = `https://discord.com/api/v9/invites/${DISCORD_INVITE_CODE}?with_counts=true`;
 const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=1&anon=true`;
 
 const formatCompact = (n: number): string =>

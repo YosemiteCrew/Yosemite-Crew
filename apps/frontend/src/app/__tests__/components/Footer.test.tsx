@@ -92,7 +92,7 @@ describe('Footer Component', () => {
 
     const discordLink = screen.getByRole('link', { name: 'Discord' });
     expect(discordLink).toBeInTheDocument();
-    expect(discordLink).toHaveAttribute('href', 'https://discord.gg/yosemitecrew');
+    expect(discordLink).toHaveAttribute('href', 'https://discord.gg/SwM6mX85KD');
 
     const aboutUsLink = screen.getByRole('link', { name: 'About us' });
     expect(aboutUsLink).toBeInTheDocument();

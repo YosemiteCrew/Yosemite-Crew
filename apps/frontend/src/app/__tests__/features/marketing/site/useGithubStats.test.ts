@@ -28,6 +28,7 @@ describe('useGithubStats hooks', () => {
   });
 
   it('resolves stars, self-hosters, contributors and discord', async () => {
+    const inviteUrls: string[] = [];
     globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/releases')) return Promise.resolve(makeRes([]));
@@ -35,8 +36,10 @@ describe('useGithubStats hooks', () => {
         return Promise.resolve(makeRes({ clones: { total: 67134 } }));
       if (url.includes('contributors'))
         return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
-      if (url.includes('/invites/'))
+      if (url.includes('/invites/')) {
+        inviteUrls.push(url);
         return Promise.resolve(makeRes({ approximate_member_count: 3210 }));
+      }
       if (url.endsWith('/Yosemite-Crew'))
         return Promise.resolve(makeRes({ stargazers_count: 2431 }));
       return Promise.resolve(makeRes(null));
@@ -48,6 +51,9 @@ describe('useGithubStats hooks', () => {
     await waitFor(() => expect(result.current.selfHosters).toBe('67,134'));
     await waitFor(() => expect(result.current.contributors).toBe('58'));
     await waitFor(() => expect(result.current.discord).toBe('3,210'));
+    // Pin the live invite code: the `yosemitecrew` vanity it replaced was never registered,
+    // so Discord 404'd the lookup and the member count silently vanished from every surface.
+    expect(inviteUrls).toEqual(['https://discord.com/api/v9/invites/SwM6mX85KD?with_counts=true']);
   });
 
   it('skips the network entirely when the session cache is still fresh', () => {
