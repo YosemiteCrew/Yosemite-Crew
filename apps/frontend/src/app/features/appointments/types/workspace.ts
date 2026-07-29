@@ -224,6 +224,8 @@ export type PrescriptionFulfillment = 'IN_HOUSE' | 'PRESCRIPTION_ONLY';
 
 export type PrescriptionItem = {
   id: string;
+  /** Stable per-medication line key stored inside a shared prescription artifact. */
+  sourceLineKey?: string;
   /** Shared clinical prescription artifact id when multiple medication rows belong to one document. */
   prescriptionArtifactId?: string;
   medicineName: string;

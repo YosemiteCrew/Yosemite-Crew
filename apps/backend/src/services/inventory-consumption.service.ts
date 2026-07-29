@@ -926,6 +926,33 @@ const createInventoryConsumptionAppliedEvent = (
     status: "APPLIED",
   });
 
+const findPriorConsumptionEventQuantity = async (
+  tx: Prisma.TransactionClient,
+  params: {
+    organisationId: string;
+    sourceType: InventoryConsumptionSourceType;
+    sourceId: string;
+    sourceLineKey: string;
+    inventoryItemId: string;
+  },
+) => {
+  const events = await tx.inventoryConsumptionEvent.findMany({
+    where: {
+      organisationId: params.organisationId,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      sourceLineKey: params.sourceLineKey,
+      inventoryItemId: params.inventoryItemId,
+      action: "CONSUME",
+      status: "APPLIED",
+    },
+  });
+
+  return events.reduce((sum, event) => sum + (event.quantity ?? 0), 0);
+};
+
+type RestoredMovementQuantities = Map<string, number>;
+
 const applyInventoryRelease = async (
   tx: Prisma.TransactionClient,
   params: {
@@ -941,6 +968,7 @@ const applyInventoryRelease = async (
     movementReason?: string;
     stockSource?: DispenseStockSource;
     restorePriorConsumption?: boolean;
+    restoredMovementQuantities?: RestoredMovementQuantities;
   },
 ) => {
   const item = await tx.inventoryItem.findFirst({
@@ -971,20 +999,31 @@ const applyInventoryRelease = async (
   }
 
   const releaseQuantity = params.restorePriorConsumption
-    ? movements.reduce(
-        (sum, movement) => sum + Math.abs(movement.change ?? 0),
-        0,
-      )
+    ? await findPriorConsumptionEventQuantity(tx, params)
     : params.quantity;
+  if (params.restorePriorConsumption && releaseQuantity <= 0) {
+    throw new InventoryConsumptionServiceError(
+      "No prior consumption event found to release",
+      400,
+    );
+  }
+
   let remainingRelease = releaseQuantity;
   for (const movement of movements) {
     if (remainingRelease <= 0) break;
 
     const consumedQuantity = Math.abs(movement.change ?? 0);
-    if (consumedQuantity <= 0) continue;
+    const alreadyRestored =
+      params.restoredMovementQuantities?.get(movement.id) ?? 0;
+    const availableToRestore = consumedQuantity - alreadyRestored;
+    if (availableToRestore <= 0) continue;
 
-    const restore = Math.min(remainingRelease, consumedQuantity);
+    const restore = Math.min(remainingRelease, availableToRestore);
     remainingRelease -= restore;
+    params.restoredMovementQuantities?.set(
+      movement.id,
+      alreadyRestored + restore,
+    );
 
     if (movement.batchId) {
       await tx.inventoryBatch.update({
@@ -1153,6 +1192,7 @@ const consumeInventoryItem = async (
   movementReason?: string,
   stockSource?: DispenseStockSource,
   restorePriorConsumption?: boolean,
+  restoredMovementQuantities?: RestoredMovementQuantities,
 ) => {
   const existingEvent = await tx.inventoryConsumptionEvent.findUnique({
     where: { idempotencyKey },
@@ -1189,6 +1229,7 @@ const consumeInventoryItem = async (
       movementReason,
       stockSource,
       restorePriorConsumption,
+      restoredMovementQuantities,
     });
   }
 
@@ -1386,6 +1427,8 @@ const consumeResolvedLines = async (
   });
 
   const events = [];
+  const restoredMovementQuantities =
+    action === "RELEASE" ? new Map<string, number>() : undefined;
   for (const line of resolvedLines) {
     const quantity = ensureQuantity(line.quantity);
     const inventoryItemId = asNonEmptyString(line.inventoryItemId);
@@ -1410,6 +1453,7 @@ const consumeResolvedLines = async (
       options?.movementReason,
       options?.stockSource,
       line.restorePriorConsumption,
+      restoredMovementQuantities,
     );
     events.push(event);
   }

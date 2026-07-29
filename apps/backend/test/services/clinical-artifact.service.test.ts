@@ -40,6 +40,7 @@ jest.mock("src/config/prisma", () => ({
     clinicalArtifact: {
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       findUnique: jest.fn(),
     },
     renderedDocument: {
@@ -101,6 +102,7 @@ describe("ClinicalArtifactService", () => {
     clinicalArtifact: {
       create: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
       findUnique: jest.Mock;
     };
     renderedDocument: {
@@ -159,6 +161,8 @@ describe("ClinicalArtifactService", () => {
     mockedPrisma.workspaceTreatmentItem.findFirst.mockReset();
     mockedPrisma.workspaceTreatmentItem.deleteMany.mockReset();
     mockedPrisma.prescription.findFirst.mockReset();
+    mockedPrisma.prescription.findMany.mockResolvedValue([]);
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValue({ count: 0 });
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockReset();
     mockedRenderedDocumentRenderer.mockResolvedValue({
       pdf: Buffer.from("rendered-pdf"),
@@ -890,9 +894,12 @@ describe("ClinicalArtifactService", () => {
       artifact: existingArtifact,
     };
 
-    mockedPrisma.prescription.findFirst
-      .mockResolvedValueOnce(existingPrescription)
-      .mockResolvedValueOnce(existingPrescription);
+    mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+      existingPrescription,
+    ]);
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      existingPrescription,
+    );
     mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
       ...existingArtifact,
       summary: "Updated Rx summary",
@@ -1014,6 +1021,165 @@ describe("ClinicalArtifactService", () => {
     expect(result.prescription.items).toHaveLength(2);
   });
 
+  it("voids older appointment draft prescriptions when reusing the latest draft", async () => {
+    const latestArtifact = {
+      id: "artifact-latest",
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Latest",
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    };
+    const staleArtifact = {
+      ...latestArtifact,
+      id: "artifact-stale",
+      summary: "Stale",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    const latestPrescription = {
+      id: "prescription-latest",
+      artifactId: "artifact-latest",
+      medications: null,
+      items: [],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+      artifact: latestArtifact,
+    };
+    const stalePrescription = {
+      ...latestPrescription,
+      id: "prescription-stale",
+      artifactId: "artifact-stale",
+      artifact: staleArtifact,
+    };
+
+    mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+      latestPrescription,
+      stalePrescription,
+    ]);
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      latestPrescription,
+    );
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      ...latestArtifact,
+      summary: "Updated",
+    });
+    mockedPrisma.prescription.update.mockResolvedValueOnce({
+      ...latestPrescription,
+      items: [
+        {
+          id: "line-1",
+          prescriptionId: "prescription-latest",
+          medication: "Drug A",
+          quantity: "1",
+          sortOrder: 0,
+          createdAt: new Date("2026-01-02T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        },
+      ],
+    });
+
+    await ClinicalArtifactService.createPrescription({
+      organisationId,
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      authorId: "author-1",
+      summary: "Updated",
+      medications: [{ medication: "Drug A", quantity: 1 }],
+    });
+
+    expect(mockedPrisma.clinicalArtifact.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["artifact-stale"] } },
+      data: { status: "VOID" },
+    });
+    expect(mockedPrisma.clinicalArtifact.create).not.toHaveBeenCalled();
+  });
+
+  it("backfills encounter context when reusing an appointment-only draft", async () => {
+    const existingArtifact = {
+      id: artifactId,
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: null,
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Rx summary",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    const existingPrescription = {
+      id: "prescription-1",
+      artifactId,
+      medications: null,
+      items: [],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: existingArtifact,
+    };
+
+    mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+      existingPrescription,
+    ]);
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      existingPrescription,
+    );
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      ...existingArtifact,
+      caseId: "case-1",
+      encounterId: "enc-1",
+      summary: "Updated Rx summary",
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.prescription.update.mockResolvedValueOnce({
+      ...existingPrescription,
+      items: [],
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    await ClinicalArtifactService.createPrescription({
+      organisationId,
+      appointmentId: "appt-1",
+      caseId: "case-1",
+      encounterId: "enc-1",
+      authorId: "author-1",
+      summary: "Updated Rx summary",
+      medications: [],
+    });
+
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: artifactId },
+        data: expect.objectContaining({
+          caseId: "case-1",
+          encounterId: "enc-1",
+        }),
+      }),
+    );
+  });
+
   it("retries appointment prescription reuse after a serializable write conflict", async () => {
     const existingArtifact = {
       id: artifactId,
@@ -1051,9 +1217,12 @@ describe("ClinicalArtifactService", () => {
     );
 
     mockedPrisma.$transaction.mockRejectedValueOnce(writeConflict);
-    mockedPrisma.prescription.findFirst
-      .mockResolvedValueOnce(existingPrescription)
-      .mockResolvedValueOnce(existingPrescription);
+    mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+      existingPrescription,
+    ]);
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      existingPrescription,
+    );
     mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
       ...existingArtifact,
       summary: "Updated Rx summary",
@@ -1127,7 +1296,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     };
-    mockedPrisma.prescription.findFirst.mockResolvedValue({
+    const existingPrescription = {
       id: "prescription-1",
       artifactId,
       medications: null,
@@ -1138,7 +1307,13 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: existingArtifact,
-    });
+    };
+    mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+      existingPrescription,
+    ]);
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      existingPrescription,
+    );
 
     await expect(
       ClinicalArtifactService.createPrescription(

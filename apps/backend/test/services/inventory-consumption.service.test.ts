@@ -21,6 +21,7 @@ jest.mock("src/config/prisma", () => ({
     },
     inventoryConsumptionEvent: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
     inventoryItem: {
@@ -67,6 +68,7 @@ type MockedPrisma = typeof prisma & {
   };
   inventoryConsumptionEvent: {
     findUnique: jest.Mock;
+    findMany: jest.Mock;
     create: jest.Mock;
   };
   inventoryItem: {
@@ -115,6 +117,7 @@ describe("InventoryConsumptionService", () => {
       return undefined;
     });
     mockedPrisma.inventoryConsumptionEvent.findUnique.mockResolvedValue(null);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValue([]);
     mockedPrisma.inventoryStockMovement.findMany.mockResolvedValue([]);
     mockedPrisma.inventoryBatch.findFirst.mockResolvedValue(null);
     mockedPrisma.prescriptionDispenseRequest.findMany.mockResolvedValue([]);
@@ -3135,6 +3138,12 @@ describe("InventoryConsumptionService", () => {
         change: -3,
       },
     ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValue([
+      {
+        id: "event-consumed-pack",
+        quantity: 3,
+      },
+    ]);
     mockedPrisma.inventoryBatch.update.mockResolvedValue({});
     mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
       { id: "batch-pack-release", quantity: 10 },
@@ -3175,6 +3184,102 @@ describe("InventoryConsumptionService", () => {
         data: expect.objectContaining({ quantity: 3 }),
       }),
     );
+  });
+
+  it("restores legacy release quantities per source line for shared inventory items", async () => {
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValue({
+      id: "item-shared-release",
+      organisationId: "org-1",
+      onHand: 4,
+      allocated: 0,
+    });
+    mockedPrisma.inventoryStockMovement.findMany.mockResolvedValue([
+      {
+        id: "movement-line-a",
+        itemId: "item-shared-release",
+        batchId: "batch-shared-release",
+        change: -2,
+      },
+      {
+        id: "movement-line-b",
+        itemId: "item-shared-release",
+        batchId: "batch-shared-release",
+        change: -5,
+      },
+    ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany
+      .mockResolvedValueOnce([{ id: "event-line-a", quantity: 2 }])
+      .mockResolvedValueOnce([{ id: "event-line-b", quantity: 5 }]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryBatch.findMany.mockResolvedValue([
+      { id: "batch-shared-release", quantity: 10 },
+    ]);
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-release-shared",
+    });
+
+    const events = await InventoryConsumptionService.releasePrescription({
+      organisationId: "org-1",
+      prescriptionId: "rx-release-shared",
+      medications: [
+        {
+          inventoryItemId: "item-shared-release",
+          quantity: 24,
+          dosage: "1 tablet",
+          frequency: "BID",
+          duration: "12 days",
+          sourceLineKey: "line-a",
+        },
+        {
+          inventoryItemId: "item-shared-release",
+          quantity: 30,
+          dosage: "1 tablet",
+          frequency: "TID",
+          duration: "10 days",
+          sourceLineKey: "line-b",
+        },
+      ],
+    });
+
+    expect(events).toHaveLength(2);
+    expect(
+      mockedPrisma.inventoryConsumptionEvent.findMany,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceId: "rx-release-shared",
+          sourceLineKey: "line-a",
+          inventoryItemId: "item-shared-release",
+          action: "CONSUME",
+          status: "APPLIED",
+        }),
+      }),
+    );
+    expect(
+      mockedPrisma.inventoryConsumptionEvent.findMany,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceId: "rx-release-shared",
+          sourceLineKey: "line-b",
+          inventoryItemId: "item-shared-release",
+          action: "CONSUME",
+          status: "APPLIED",
+        }),
+      }),
+    );
+    const restoredChanges =
+      mockedPrisma.inventoryStockMovement.create.mock.calls.map(
+        ([movement]) => movement.data.change,
+      );
+    expect(restoredChanges).toEqual([2, 5]);
+    const releaseEventQuantities =
+      mockedPrisma.inventoryConsumptionEvent.create.mock.calls.map(
+        ([event]) => event.data.quantity,
+      );
+    expect(releaseEventQuantities).toEqual([2, 5]);
   });
 
   it("consumes allocated stock across a null-quantity batch and stops once satisfied", async () => {

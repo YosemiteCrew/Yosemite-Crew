@@ -633,8 +633,14 @@ const usePrescriptionActions = ({
   // Only persisted items (with an id) have a printable label.
   const handlePrintPrescriptionLabels = async () => {
     if (printingLabels || !organisationId) return;
-    const printable = encounter.prescription.filter((rx) => rx.id);
-    if (printable.length === 0) {
+    const printablePrescriptionIds = Array.from(
+      new Set(
+        encounter.prescription
+          .map((rx) => rx.prescriptionArtifactId ?? rx.id)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+    if (printablePrescriptionIds.length === 0) {
       setPrescriptionError('Save the treatment before printing prescription labels.');
       return;
     }
@@ -642,7 +648,7 @@ const usePrescriptionActions = ({
     setPrintingLabels(true);
     try {
       const blobs = await Promise.all(
-        printable.map((rx) => fetchPrescriptionLabelPdf(organisationId, rx.id))
+        printablePrescriptionIds.map((id) => fetchPrescriptionLabelPdf(organisationId, id))
       );
       blobs.forEach((blob) => {
         const url = URL.createObjectURL(blob);

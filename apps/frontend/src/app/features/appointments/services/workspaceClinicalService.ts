@@ -762,11 +762,13 @@ const prescriptionToMedicationLine = (prescription: PrescriptionSaveItem) => {
   // so they round-trip. `dose` is sent both flat (BE maps it to the `dosage` column) and kept in
   // metadata for an exact rehydrate.
   const {
-    id: _id,
+    id,
+    sourceLineKey,
     prescriptionArtifactId: _prescriptionArtifactId,
     ...lineFields
   } = prescription as PrescriptionItem;
   return {
+    sourceLineKey: sourceLineKey ?? id,
     ...lineFields,
     // BE reads `dosage` from ["dosage","dose"]; send the per-administration amount there.
     dosage: prescription.dose ?? prescription.dosage,
@@ -891,8 +893,15 @@ const prescriptionItemsFromMedicationRequest = (
       return undefined;
     };
     const fulfillmentValue = str('fulfillment');
+    const fallbackLineId = (() => {
+      if (!resource.id) return `rx-${index + 1}-${lineIndex + 1}`;
+      if (medications.length === 0) return resource.id;
+      return `${resource.id}-${lineIndex + 1}`;
+    })();
+    const lineId = str('sourceLineKey', 'id') ?? fallbackLineId;
     return {
-      id: str('sourceLineKey', 'id') ?? resource.id ?? `rx-${index + 1}-${lineIndex + 1}`,
+      id: lineId,
+      sourceLineKey: lineId,
       prescriptionArtifactId: resource.id,
       finalized,
       medicineName:

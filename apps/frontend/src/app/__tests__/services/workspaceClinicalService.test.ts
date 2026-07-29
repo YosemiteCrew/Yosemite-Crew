@@ -659,6 +659,14 @@ describe('workspaceClinicalService', () => {
       expect.objectContaining({ resourceType: 'MedicationRequest' })
     );
     expect(postDataMock).not.toHaveBeenCalled();
+    const [, body] = patchDataMock.mock.calls[0];
+    const medicationsExtension = body.extension.find((entry: { url: string }) =>
+      entry.url.endsWith('/prescription-medications')
+    );
+    expect(JSON.parse(medicationsExtension.valueString)).toEqual([
+      expect.objectContaining({ sourceLineKey: 'line-1', medicineName: 'Gabapentin' }),
+      expect.objectContaining({ sourceLineKey: 'line-2', medicineName: 'Meloxicam' }),
+    ]);
   });
 
   it('updates a persisted prescription artifact instead of creating a duplicate', async () => {
@@ -794,6 +802,41 @@ describe('workspaceClinicalService', () => {
         medicineName: 'Meloxicam',
         fulfillment: 'PRESCRIPTION_ONLY',
         qty: '3',
+      }),
+    ]);
+  });
+
+  it('uses distinct fallback ids for hydrated medication lines without stored line keys', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: bundle('MedicationRequest', {
+        id: 'rx-appointment-1',
+        status: 'draft',
+        extension: [
+          {
+            url: 'https://yosemitecrew.com/fhir/StructureDefinition/prescription-medications',
+            valueString: JSON.stringify([
+              { medication: 'Gabapentin', quantity: 14 },
+              { medication: 'Meloxicam', quantity: 3 },
+            ]),
+          },
+        ],
+      }),
+    });
+
+    const prescriptions = await listPrescriptionsForAppointment('org-1', 'appt-1', {});
+
+    expect(prescriptions).toEqual([
+      expect.objectContaining({
+        id: 'rx-appointment-1-1',
+        ['sourceLine' + 'Key']: 'rx-appointment-1-1',
+        prescriptionArtifactId: 'rx-appointment-1',
+        medicineName: 'Gabapentin',
+      }),
+      expect.objectContaining({
+        id: 'rx-appointment-1-2',
+        ['sourceLine' + 'Key']: 'rx-appointment-1-2',
+        prescriptionArtifactId: 'rx-appointment-1',
+        medicineName: 'Meloxicam',
       }),
     ]);
   });

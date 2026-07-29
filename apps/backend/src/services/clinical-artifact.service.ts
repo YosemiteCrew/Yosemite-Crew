@@ -407,6 +407,9 @@ export type PrescriptionUpdateInput = Partial<
   Pick<
     PrescriptionInput,
     | "status"
+    | "appointmentId"
+    | "caseId"
+    | "encounterId"
     | "summary"
     | "items"
     | "medications"
@@ -1214,16 +1217,16 @@ const advanceCheckedInAppointment = async (
   });
 };
 
-const findReusablePrescriptionForAppointment = async (
+const findReusablePrescriptionsForAppointment = async (
   organisationId: string,
   appointmentId?: string,
   client: ClinicalPrisma = clinicalPrisma,
 ) => {
   if (!appointmentId) {
-    return null;
+    return [];
   }
 
-  return client.prescription.findFirst({
+  return client.prescription.findMany({
     where: {
       artifact: {
         organisationId,
@@ -1242,6 +1245,9 @@ const prescriptionCreateInputToUpdateInput = (
   status: ClinicalArtifactStatus,
 ): PrescriptionUpdateInput => ({
   status: input.status ?? status,
+  appointmentId: input.appointmentId,
+  caseId: input.caseId,
+  encounterId: input.encounterId,
   summary: input.summary,
   items: input.items,
   medications: input.medications,
@@ -1464,14 +1470,25 @@ export const ClinicalArtifactService = {
         prisma.$transaction(
           async (tx) => {
             const txPrisma = tx as ClinicalPrisma;
-            const reusablePrescription =
-              await findReusablePrescriptionForAppointment(
+            const reusablePrescriptions =
+              await findReusablePrescriptionsForAppointment(
                 organisationId,
                 input.appointmentId,
                 txPrisma,
               );
+            const reusablePrescription = reusablePrescriptions[0];
 
             if (reusablePrescription) {
+              const staleArtifactIds = reusablePrescriptions
+                .slice(1)
+                .map((prescription) => prescription.artifact.id);
+              if (staleArtifactIds.length > 0) {
+                await txPrisma.clinicalArtifact.updateMany({
+                  where: { id: { in: staleArtifactIds } },
+                  data: { status: "VOID" },
+                });
+              }
+
               return {
                 kind: "reused",
                 prescription: reusablePrescription,
@@ -1631,6 +1648,18 @@ export const ClinicalArtifactService = {
         where: { id: record.artifact.id },
         data: {
           status: input.status ?? record.artifact.status,
+          appointmentId:
+            input.appointmentId === undefined || record.artifact.appointmentId
+              ? undefined
+              : input.appointmentId,
+          caseId:
+            input.caseId === undefined || record.artifact.caseId
+              ? undefined
+              : input.caseId,
+          encounterId:
+            input.encounterId === undefined || record.artifact.encounterId
+              ? undefined
+              : input.encounterId,
           summary:
             input.summary === undefined
               ? record.artifact.summary

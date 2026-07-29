@@ -1009,6 +1009,42 @@ describe('TreatmentStep', () => {
     openSpy.mockRestore();
   });
 
+  it('prints one label PDF per shared prescription artifact', async () => {
+    const labelBlob = new Blob(['pdf'], { type: 'application/pdf' });
+    (fetchPrescriptionLabelPdf as jest.Mock).mockResolvedValue(labelBlob);
+    const openSpy = jest
+      .spyOn(window, 'open')
+      .mockReturnValue({ focus: jest.fn() } as unknown as Window);
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:label');
+    window.URL.revokeObjectURL = jest.fn();
+    const seeded = seedAndGet();
+    const enc = {
+      ...seeded,
+      prescription: seeded.prescription.map((rx, index) => ({
+        ...rx,
+        id: `line-${index + 1}`,
+        prescriptionArtifactId: 'rx-shared',
+      })),
+    };
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /print labels/i })[0]);
+
+    await waitFor(() => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledTimes(1));
+    expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, 'rx-shared');
+    expect(openSpy).toHaveBeenCalledWith('blob:label', '_blank');
+
+    openSpy.mockRestore();
+  });
+
   it('shows an error when there are no saved prescriptions to print', async () => {
     const enc = { ...seedAndGet(), prescription: [] };
     render(
