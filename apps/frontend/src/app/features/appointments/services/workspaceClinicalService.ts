@@ -761,7 +761,11 @@ const prescriptionToMedicationLine = (prescription: PrescriptionSaveItem) => {
   // columns, and the display-only / unit fields that have no column are nested under `metadata`
   // so they round-trip. `dose` is sent both flat (BE maps it to the `dosage` column) and kept in
   // metadata for an exact rehydrate.
-  const { id: _id, ...lineFields } = prescription as PrescriptionItem;
+  const {
+    id: _id,
+    prescriptionArtifactId: _prescriptionArtifactId,
+    ...lineFields
+  } = prescription as PrescriptionItem;
   return {
     ...lineFields,
     // BE reads `dosage` from ["dosage","dose"]; send the per-administration amount there.
@@ -818,8 +822,22 @@ export const savePrescriptionArtifact = async (
     templateVersion: context.templateVersion,
     templateVersionId: context.templateVersionId,
   };
-  const prescriptionId =
-    !Array.isArray(prescription) && 'id' in prescription ? prescription.id : undefined;
+  const prescriptionId = (() => {
+    if (Array.isArray(prescription)) {
+      const artifactIds = prescriptions
+        .map((item) => ('prescriptionArtifactId' in item ? item.prescriptionArtifactId : undefined))
+        .filter((value): value is string => Boolean(value));
+      return artifactIds.length === prescriptions.length && new Set(artifactIds).size === 1
+        ? artifactIds[0]
+        : undefined;
+    }
+
+    return 'prescriptionArtifactId' in prescription && prescription.prescriptionArtifactId
+      ? prescription.prescriptionArtifactId
+      : 'id' in prescription
+        ? prescription.id
+        : undefined;
+  })();
   const endpoint = `/fhir/v1/clinical-artifact/organisation/${context.organisationId}/prescription`;
   const res = isPersistedArtifactId(prescriptionId)
     ? await patchData<MedicationRequest>(`${endpoint}/${prescriptionId}`, body)
@@ -827,85 +845,90 @@ export const savePrescriptionArtifact = async (
   return res.data;
 };
 
-const prescriptionFromMedicationRequest = (
+const prescriptionItemsFromMedicationRequest = (
   resource: MedicationRequest,
   index: number,
   context: Omit<ClinicalContext, 'organisationId' | 'appointmentId'> &
     Pick<ClinicalContext, 'organisationId' | 'appointmentId'>
-): PrescriptionItem => {
+): PrescriptionItem[] => {
   const input = clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(resource, context);
   const medications = Array.isArray(input.medications) ? input.medications : [];
-  // The backend persists the line into TYPED columns (medication/dosage/route/frequency/duration/
-  // quantity/refill/inventoryItemId/inventoryItemSku) and keeps display/unit extras in a nested
-  // `metadata` object. Coalesce both shapes (BE column name ?? our field name ?? metadata) so a
-  // round-tripped prescription rehydrates fully.
-  const raw = (medications[0] ?? {}) as Record<string, unknown>;
-  const meta =
-    raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
-      ? (raw.metadata as Record<string, unknown>)
-      : {};
-  const str = (...keys: string[]): string | undefined => {
-    for (const key of keys) {
-      const value = raw[key] ?? meta[key];
-      if (typeof value === 'string' && value.trim()) return value;
-      if (typeof value === 'number') return String(value);
-    }
-    return undefined;
-  };
-  const bool = (...keys: string[]): boolean | undefined => {
-    for (const key of keys) {
-      const value = raw[key] ?? meta[key];
-      if (typeof value === 'boolean') return value;
-    }
-    return undefined;
-  };
-  const num = (...keys: string[]): number | undefined => {
-    for (const key of keys) {
-      const value = raw[key] ?? meta[key];
-      if (typeof value === 'number') return value;
-    }
-    return undefined;
-  };
-  const fulfillmentValue = str('fulfillment');
   // A finalized prescription (COMPLETED/SIGNED) serializes to FHIR status 'active'; a draft stays
   // 'draft'. Once finalized it can no longer be PATCHed to draft, so flag it to skip the re-save.
   const finalized = resource.status === 'active';
-  return {
-    id: resource.id ?? `rx-${index + 1}`,
-    finalized,
-    medicineName:
-      str('medication', 'medicineName', 'name') ??
-      resource.medicationCodeableConcept?.text ??
-      resource.medicationReference?.display ??
-      'Medication',
-    brand: str('brand'),
-    genericName: str('genericName'),
-    sku: str('sku', 'inventoryItemSku'),
-    strength: str('strength'),
-    strengthUnit: str('strengthUnit'),
-    dosageForm: str('dosageForm'),
-    dosage: str('dosage'),
-    dose: str('dose', 'dosage'),
-    doseUnit: str('doseUnit'),
-    route: str('route', 'routeOfAdministration'),
-    frequency: str('frequency'),
-    durationDays: str('duration', 'durationDays'),
-    durationUnit: str('durationUnit'),
-    qty: str('quantity', 'qty'),
-    refill: str('refill'),
-    drugSchedule: str('drugSchedule'),
-    prescriptionRequired: bool('prescriptionRequired'),
-    instructions:
-      str('instructions') ??
-      (typeof input.instructions === 'string' ? input.instructions : undefined),
-    fulfillment: fulfillmentValue === 'IN_HOUSE' ? 'IN_HOUSE' : 'PRESCRIPTION_ONLY',
-    priceCents: num('priceCents'),
-    stockQty: num('stockQty'),
-    lowStock: bool('lowStock'),
-    controlledSubstance: bool('controlledSubstance', 'controlledItem'),
-    inventoryItemId: str('inventoryItemId'),
-    inventoryBatchId: str('inventoryBatchId', 'batchId'),
-  };
+  const lines = medications.length > 0 ? medications : [{}];
+
+  return lines.map((entry, lineIndex) => {
+    // The backend persists the line into TYPED columns (medication/dosage/route/frequency/duration/
+    // quantity/refill/inventoryItemId/inventoryItemSku) and keeps display/unit extras in a nested
+    // `metadata` object. Coalesce both shapes (BE column name ?? our field name ?? metadata) so a
+    // round-tripped prescription rehydrates fully.
+    const raw = (entry ?? {}) as Record<string, unknown>;
+    const meta =
+      raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
+        ? (raw.metadata as Record<string, unknown>)
+        : {};
+    const str = (...keys: string[]): string | undefined => {
+      for (const key of keys) {
+        const value = raw[key] ?? meta[key];
+        if (typeof value === 'string' && value.trim()) return value;
+        if (typeof value === 'number') return String(value);
+      }
+      return undefined;
+    };
+    const bool = (...keys: string[]): boolean | undefined => {
+      for (const key of keys) {
+        const value = raw[key] ?? meta[key];
+        if (typeof value === 'boolean') return value;
+      }
+      return undefined;
+    };
+    const num = (...keys: string[]): number | undefined => {
+      for (const key of keys) {
+        const value = raw[key] ?? meta[key];
+        if (typeof value === 'number') return value;
+      }
+      return undefined;
+    };
+    const fulfillmentValue = str('fulfillment');
+    return {
+      id: str('sourceLineKey', 'id') ?? resource.id ?? `rx-${index + 1}-${lineIndex + 1}`,
+      prescriptionArtifactId: resource.id,
+      finalized,
+      medicineName:
+        str('medication', 'medicineName', 'name') ??
+        resource.medicationCodeableConcept?.text ??
+        resource.medicationReference?.display ??
+        'Medication',
+      brand: str('brand'),
+      genericName: str('genericName'),
+      sku: str('sku', 'inventoryItemSku'),
+      strength: str('strength'),
+      strengthUnit: str('strengthUnit'),
+      dosageForm: str('dosageForm'),
+      dosage: str('dosage'),
+      dose: str('dose', 'dosage'),
+      doseUnit: str('doseUnit'),
+      route: str('route', 'routeOfAdministration'),
+      frequency: str('frequency'),
+      durationDays: str('duration', 'durationDays'),
+      durationUnit: str('durationUnit'),
+      qty: str('quantity', 'qty'),
+      refill: str('refill'),
+      drugSchedule: str('drugSchedule'),
+      prescriptionRequired: bool('prescriptionRequired'),
+      instructions:
+        str('instructions') ??
+        (typeof input.instructions === 'string' ? input.instructions : undefined),
+      fulfillment: fulfillmentValue === 'IN_HOUSE' ? 'IN_HOUSE' : 'PRESCRIPTION_ONLY',
+      priceCents: num('priceCents'),
+      stockQty: num('stockQty'),
+      lowStock: bool('lowStock'),
+      controlledSubstance: bool('controlledSubstance', 'controlledItem'),
+      inventoryItemId: str('inventoryItemId'),
+      inventoryBatchId: str('inventoryBatchId', 'batchId'),
+    };
+  });
 };
 
 export const listPrescriptionsForAppointment = async (
@@ -917,12 +940,13 @@ export const listPrescriptionsForAppointment = async (
     `/fhir/v1/clinical-artifact/organisation/${organisationId}/appointment/${appointmentId}/prescriptions`,
     {}
   );
-  return bundleResources<MedicationRequest>(res.data, 'MedicationRequest').map((resource, index) =>
-    prescriptionFromMedicationRequest(resource, index, {
-      organisationId,
-      appointmentId,
-      ...context,
-    })
+  return bundleResources<MedicationRequest>(res.data, 'MedicationRequest').flatMap(
+    (resource, index) =>
+      prescriptionItemsFromMedicationRequest(resource, index, {
+        organisationId,
+        appointmentId,
+        ...context,
+      })
   );
 };
 
@@ -984,12 +1008,13 @@ export const listPrescriptionsForEncounter = async (
     `/fhir/v1/clinical-artifact/organisation/${organisationId}/encounter/${encounterId}/prescriptions`,
     {}
   );
-  return bundleResources<MedicationRequest>(res.data, 'MedicationRequest').map((resource, index) =>
-    prescriptionFromMedicationRequest(resource, index, {
-      organisationId,
-      encounterId,
-      ...context,
-    })
+  return bundleResources<MedicationRequest>(res.data, 'MedicationRequest').flatMap(
+    (resource, index) =>
+      prescriptionItemsFromMedicationRequest(resource, index, {
+        organisationId,
+        encounterId,
+        ...context,
+      })
   );
 };
 

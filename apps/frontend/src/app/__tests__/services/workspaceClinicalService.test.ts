@@ -18,6 +18,7 @@ import {
   listDischargeSummariesForEncounter,
   listPmsObservationSubmissions,
   listPmsObservationTaskPreviewsForAppointment,
+  listPrescriptionsForAppointment,
   listPrescriptionsForEncounter,
   listSoapNotesForEncounter,
   listSoapNotesForAppointment,
@@ -623,6 +624,43 @@ describe('workspaceClinicalService', () => {
     ]);
   });
 
+  it('updates a shared prescription artifact when saving multiple existing rows', async () => {
+    patchDataMock.mockResolvedValueOnce({
+      data: { resourceType: 'MedicationRequest', id: 'rx-appointment-1' },
+    });
+
+    await savePrescriptionArtifact(
+      {
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        encounterId: 'enc-1',
+        authorId: 'user-1',
+      },
+      [
+        {
+          id: 'line-1',
+          prescriptionArtifactId: 'rx-appointment-1',
+          medicineName: 'Gabapentin',
+          dosage: '100mg',
+          fulfillment: 'IN_HOUSE',
+        },
+        {
+          id: 'line-2',
+          prescriptionArtifactId: 'rx-appointment-1',
+          medicineName: 'Meloxicam',
+          dosage: '1.5mg',
+          fulfillment: 'PRESCRIPTION_ONLY',
+        },
+      ]
+    );
+
+    expect(patchDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-appointment-1',
+      expect.objectContaining({ resourceType: 'MedicationRequest' })
+    );
+    expect(postDataMock).not.toHaveBeenCalled();
+  });
+
   it('updates a persisted prescription artifact instead of creating a duplicate', async () => {
     patchDataMock.mockResolvedValueOnce({
       data: { resourceType: 'MedicationRequest', id: 'rx-1' },
@@ -709,6 +747,55 @@ describe('workspaceClinicalService', () => {
 
     // A draft prescription can still be PATCHed, so it must not be flagged finalized.
     expect(prescriptions[0].finalized).toBe(false);
+  });
+
+  it('expands every medication line from a prescription MedicationRequest', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: bundle('MedicationRequest', {
+        id: 'rx-appointment-1',
+        status: 'draft',
+        extension: [
+          {
+            url: 'https://yosemitecrew.com/fhir/StructureDefinition/prescription-medications',
+            valueString: JSON.stringify([
+              {
+                sourceLineKey: 'line-1',
+                medication: 'Gabapentin',
+                quantity: 14,
+                metadata: { fulfillment: 'IN_HOUSE' },
+              },
+              {
+                sourceLineKey: 'line-2',
+                medication: 'Meloxicam',
+                quantity: 3,
+                metadata: { fulfillment: 'PRESCRIPTION_ONLY' },
+              },
+            ]),
+          },
+        ],
+      }),
+    });
+
+    const prescriptions = await listPrescriptionsForAppointment('org-1', 'appt-1', {
+      encounterId: 'enc-1',
+    });
+
+    expect(prescriptions).toEqual([
+      expect.objectContaining({
+        id: 'line-1',
+        prescriptionArtifactId: 'rx-appointment-1',
+        medicineName: 'Gabapentin',
+        fulfillment: 'IN_HOUSE',
+        qty: '14',
+      }),
+      expect.objectContaining({
+        id: 'line-2',
+        prescriptionArtifactId: 'rx-appointment-1',
+        medicineName: 'Meloxicam',
+        fulfillment: 'PRESCRIPTION_ONLY',
+        qty: '3',
+      }),
+    ]);
   });
 
   it('lists observation tool submissions attached to the appointment', async () => {

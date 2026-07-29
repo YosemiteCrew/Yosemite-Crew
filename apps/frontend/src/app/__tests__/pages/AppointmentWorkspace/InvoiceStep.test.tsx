@@ -745,6 +745,58 @@ describe('<InvoiceStep /> component', () => {
       );
     });
 
+    it('merges a bill-backed prescription into the existing shared draft artifact', async () => {
+      seedDispensableDrug();
+      clinicalServiceMock.savePrescriptionArtifact.mockResolvedValue({ id: 'rx-shared' });
+
+      const existingPrescription = {
+        id: 'rx-line-1',
+        prescriptionArtifactId: 'rx-shared',
+        medicineName: 'Existing med',
+        frequency: 'SID',
+        durationDays: '3',
+        qty: '3',
+        fulfillment: 'IN_HOUSE' as const,
+        finalized: false,
+      };
+
+      renderInvoiceStep(
+        { prescription: [existingPrescription] as AppointmentEncounter['prescription'] },
+        { encounterId: 'enc-1', authorId: 'vet-1' }
+      );
+      await clickAddManualItem();
+
+      await waitFor(() =>
+        expect(clinicalServiceMock.savePrescriptionArtifact).toHaveBeenCalledWith(
+          expect.objectContaining({
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            encounterId: 'enc-1',
+            authorId: 'vet-1',
+          }),
+          [
+            expect.objectContaining({
+              id: 'rx-line-1',
+              prescriptionArtifactId: 'rx-shared',
+              medicineName: 'Existing med',
+            }),
+            expect.objectContaining({
+              prescriptionArtifactId: 'rx-shared',
+              medicineName: 'Manual add',
+            }),
+          ]
+        )
+      );
+      expect(workspaceStoreMock.addPrescription).toHaveBeenCalledWith(
+        'appt-1',
+        expect.objectContaining({
+          medicineName: 'Manual add',
+          prescriptionArtifactId: 'rx-shared',
+        }),
+        'rx-shared'
+      );
+    });
+
     it('does not link the bill line when the prescription save fails', async () => {
       seedDispensableDrug();
       clinicalServiceMock.savePrescriptionArtifact.mockRejectedValue(new Error('boom'));

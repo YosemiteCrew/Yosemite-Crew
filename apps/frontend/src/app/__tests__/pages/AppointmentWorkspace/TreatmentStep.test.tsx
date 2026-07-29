@@ -841,6 +841,54 @@ describe('TreatmentStep', () => {
     ).toBe(false);
   });
 
+  it('updates a shared prescription artifact when removing one consolidated row', async () => {
+    (deletePrescriptionArtifact as jest.Mock).mockClear();
+    const seeded = seedAndGet();
+    const enc = {
+      ...seeded,
+      prescription: seeded.prescription.map((rx, index) => ({
+        ...rx,
+        id: `rx-line-${index + 1}`,
+        prescriptionArtifactId: 'rx-shared',
+      })),
+    };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
+
+    await waitFor(() =>
+      expect(savePrescriptionArtifact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: ORG,
+          appointmentId: APPT,
+          encounterId: 'enc-1',
+        }),
+        [
+          expect.objectContaining({
+            id: 'rx-line-2',
+            prescriptionArtifactId: 'rx-shared',
+            medicineName: 'Prednisone',
+          }),
+        ]
+      )
+    );
+    expect(deletePrescriptionArtifact).not.toHaveBeenCalled();
+    const prescription = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription;
+    expect(prescription?.some((rx) => rx.id === 'rx-line-1')).toBe(false);
+    expect(prescription?.some((rx) => rx.id === 'rx-line-2')).toBe(true);
+  });
+
   it('restores the row and warns when deleting a finalized/billed prescription returns 409', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     (deletePrescriptionArtifact as jest.Mock).mockClear();

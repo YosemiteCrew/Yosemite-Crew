@@ -1369,12 +1369,21 @@ const useInvoiceStepContent = ({
     // backfilled here has no later persist step to ride along with — save it now and
     // seed the store with the backend id so finalize and delete target the real artifact.
     try {
+      const existingDraftPrescriptions = encounter.prescription.filter((rx) => !rx.finalized);
+      const reusableArtifactId = existingDraftPrescriptions.find(
+        (rx) => rx.prescriptionArtifactId
+      )?.prescriptionArtifactId;
+      const prescriptionForSave = reusableArtifactId
+        ? { ...prescription, prescriptionArtifactId: reusableArtifactId }
+        : prescription;
       const saved = await savePrescriptionArtifact(
         { organisationId, appointmentId, encounterId, authorId },
-        prescription
+        reusableArtifactId
+          ? [...existingDraftPrescriptions, prescriptionForSave]
+          : prescriptionForSave
       );
       const savedPrescriptionId = (saved as { id?: string } | undefined)?.id;
-      addPrescription(appointmentId, prescription, savedPrescriptionId);
+      addPrescription(appointmentId, prescriptionForSave, savedPrescriptionId);
       // Link the bill line to the saved prescription so removing the line also
       // deletes the persisted draft — handleRemoveBillLine keys off
       // sourcePrescriptionId, so without this the draft orphans and re-seeds on

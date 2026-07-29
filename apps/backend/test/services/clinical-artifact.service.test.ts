@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { Prisma } from "@prisma/client";
 import {
   ClinicalArtifactService,
   ClinicalArtifactServiceError,
@@ -1011,6 +1012,147 @@ describe("ClinicalArtifactService", () => {
       expect.objectContaining({ where: { id: "doc-2" } }),
     );
     expect(result.prescription.items).toHaveLength(2);
+  });
+
+  it("retries appointment prescription reuse after a serializable write conflict", async () => {
+    const existingArtifact = {
+      id: artifactId,
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Rx summary",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    const existingPrescription = {
+      id: "prescription-1",
+      artifactId,
+      medications: null,
+      items: [],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: existingArtifact,
+    };
+    const writeConflict = new Prisma.PrismaClientKnownRequestError(
+      "Transaction failed due to a write conflict or a deadlock.",
+      { code: "P2034", clientVersion: "test" },
+    );
+
+    mockedPrisma.$transaction.mockRejectedValueOnce(writeConflict);
+    mockedPrisma.prescription.findFirst
+      .mockResolvedValueOnce(existingPrescription)
+      .mockResolvedValueOnce(existingPrescription);
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      ...existingArtifact,
+      summary: "Updated Rx summary",
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+    mockedPrisma.prescription.update.mockResolvedValueOnce({
+      id: "prescription-1",
+      artifactId,
+      medications: null,
+      items: [
+        {
+          id: "line-1",
+          prescriptionId: "prescription-1",
+          medication: "Drug B",
+          quantity: "4",
+          sortOrder: 0,
+          createdAt: new Date("2026-01-02T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        },
+      ],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    });
+
+    const result = await ClinicalArtifactService.createPrescription({
+      organisationId,
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      authorId: "author-1",
+      summary: "Updated Rx summary",
+      medications: [{ medication: "Drug B", quantity: 4 }],
+    });
+
+    expect(mockedPrisma.$transaction).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Function),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    expect(mockedPrisma.$transaction).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    expect(mockedPrisma.clinicalArtifact.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.prescription.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.prescription.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "prescription-1" } }),
+    );
+    expect(result.prescription.items).toHaveLength(1);
+  });
+
+  it("enforces own-scope authorization before reusing an appointment draft prescription", async () => {
+    const existingArtifact = {
+      id: artifactId,
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Rx summary",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    mockedPrisma.prescription.findFirst.mockResolvedValue({
+      id: "prescription-1",
+      artifactId,
+      medications: null,
+      items: [],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: existingArtifact,
+    });
+
+    await expect(
+      ClinicalArtifactService.createPrescription(
+        {
+          organisationId,
+          appointmentId: "appt-1",
+          encounterId: "enc-1",
+          authorId: "author-2",
+          medications: [{ medication: "Drug B", quantity: 1 }],
+        },
+        { actorId: "author-2", canEditAny: false },
+      ),
+    ).rejects.toThrow("Prescription was authored by another user");
+    expect(mockedPrisma.prescription.update).not.toHaveBeenCalled();
   });
 
   it("stores frontend prescription fields on line items instead of the json column", async () => {

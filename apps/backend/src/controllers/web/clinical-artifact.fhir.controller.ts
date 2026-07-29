@@ -258,6 +258,7 @@ export const ClinicalArtifactFhirController = {
           authorId,
           organisationId: req.params.organisationId,
         }),
+        actor,
       );
       return res
         .status(201)

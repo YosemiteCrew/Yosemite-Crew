@@ -3072,6 +3072,111 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it("skips prescription-only lines when consuming a mixed prescription", async () => {
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-in-house",
+      organisationId: "org-1",
+      onHand: 10,
+      allocated: 0,
+    });
+    mockedPrisma.inventoryBatch.findMany
+      .mockResolvedValueOnce([{ id: "batch-in-house", quantity: 10 }])
+      .mockResolvedValueOnce([{ id: "batch-in-house", quantity: 8 }]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-mixed",
+    });
+
+    const events = await InventoryConsumptionService.consumePrescription({
+      organisationId: "org-1",
+      prescriptionId: "rx-mixed",
+      medications: [
+        {
+          inventoryItemId: "item-in-house",
+          quantity: 2,
+          sourceLineKey: "line-in-house",
+          metadata: { fulfillment: "IN_HOUSE" },
+        },
+        {
+          inventoryItemId: "item-prescription-only",
+          quantity: 2,
+          sourceLineKey: "line-prescription-only",
+          metadata: { fulfillment: "PRESCRIPTION_ONLY" },
+        },
+      ],
+    });
+
+    expect(events).toHaveLength(1);
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          itemId: "item-in-house",
+          change: -2,
+        }),
+      }),
+    );
+  });
+
+  it("restores the originally consumed quantity for legacy release lines without pack snapshots", async () => {
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-pack-release",
+      organisationId: "org-1",
+      onHand: 7,
+      allocated: 0,
+    });
+    mockedPrisma.inventoryStockMovement.findMany.mockResolvedValue([
+      {
+        id: "movement-consumed",
+        itemId: "item-pack-release",
+        batchId: "batch-pack-release",
+        change: -3,
+      },
+    ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+      { id: "batch-pack-release", quantity: 10 },
+    ]);
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-release-pack",
+    });
+
+    const events = await InventoryConsumptionService.releasePrescription({
+      organisationId: "org-1",
+      prescriptionId: "rx-release-pack",
+      medications: [
+        {
+          inventoryItemId: "item-pack-release",
+          quantity: 24,
+          dosage: "1 tablet",
+          frequency: "BID",
+          duration: "12 days",
+          sourceLineKey: "line-pack-release",
+        },
+      ],
+    });
+
+    expect(events).toHaveLength(1);
+    expect(mockedPrisma.inventoryItem.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          itemId: "item-pack-release",
+          change: 3,
+        }),
+      }),
+    );
+    expect(mockedPrisma.inventoryConsumptionEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ quantity: 3 }),
+      }),
+    );
+  });
+
   it("consumes allocated stock across a null-quantity batch and stops once satisfied", async () => {
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-ab",

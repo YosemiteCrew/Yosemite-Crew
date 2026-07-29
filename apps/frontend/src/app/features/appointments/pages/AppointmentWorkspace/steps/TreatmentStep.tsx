@@ -443,6 +443,7 @@ const usePrescriptionActions = ({
   appointmentId,
   organisationId,
   encounterId,
+  authorId,
   encounter,
   readOnly,
   prescriptionItems,
@@ -450,6 +451,7 @@ const usePrescriptionActions = ({
   appointmentId: string;
   organisationId?: string;
   encounterId?: string;
+  authorId?: string;
   encounter: AppointmentEncounter;
   readOnly: boolean;
   prescriptionItems: AppointmentEncounter['prescription'];
@@ -586,10 +588,26 @@ const usePrescriptionActions = ({
 
     const isPersisted = Boolean(id) && !id.startsWith('local-');
     if (!isPersisted || !organisationId || !target) return;
+    const targetArtifactId = target.prescriptionArtifactId ?? id;
+    const siblingRows = prescriptionItems.filter(
+      (rx) =>
+        rx.id !== id && !rx.finalized && (rx.prescriptionArtifactId ?? rx.id) === targetArtifactId
+    );
 
     try {
+      if (siblingRows.length > 0) {
+        await savePrescriptionArtifact(
+          { organisationId, appointmentId, encounterId, authorId },
+          siblingRows.map((rx) => ({
+            ...rx,
+            prescriptionArtifactId: targetArtifactId,
+          }))
+        );
+        return;
+      }
+
       // Backend voids the draft and cascades the treatment-item row.
-      const deleted = await deletePrescriptionArtifact(organisationId, id);
+      const deleted = await deletePrescriptionArtifact(organisationId, targetArtifactId);
       // Route not available yet → fall back to deleting the linked treatment-item row.
       if (!deleted && encounterId) {
         await deletePrescriptionTreatmentItem(organisationId, encounterId, {
@@ -764,6 +782,7 @@ const TreatmentStep = ({
     appointmentId,
     organisationId,
     encounterId,
+    authorId,
     encounter,
     readOnly,
     prescriptionItems,

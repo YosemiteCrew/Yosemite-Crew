@@ -224,6 +224,8 @@ export type PrescriptionFulfillment = 'IN_HOUSE' | 'PRESCRIPTION_ONLY';
 
 export type PrescriptionItem = {
   id: string;
+  /** Shared clinical prescription artifact id when multiple medication rows belong to one document. */
+  prescriptionArtifactId?: string;
   medicineName: string;
   /** Brand/trade name from inventory (e.g. "Calpol"), shown beside the generic. */
   brand?: string;

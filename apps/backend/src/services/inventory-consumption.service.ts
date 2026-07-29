@@ -25,6 +25,7 @@ export type InventoryConsumptionLineInput = {
   batchId?: string;
   quantity: number;
   metadata?: Prisma.InputJsonValue;
+  restorePriorConsumption?: boolean;
 };
 
 export type InventoryConsumptionRuleInput = {
@@ -383,6 +384,25 @@ const resolvePackQuantity = (
       medication.stockUnitQty ??
       medication.unitQuantity ??
       medication.packageQuantity,
+  );
+
+const prescriptionLineFulfillment = (
+  medication: Record<string, unknown>,
+): string | undefined => {
+  const fulfillment = asNonEmptyString(medication.fulfillment);
+  if (fulfillment) return fulfillment;
+
+  const metadata = medication.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return undefined;
+  }
+
+  return asNonEmptyString((metadata as Record<string, unknown>).fulfillment);
+};
+
+const hasClinicalCourseFields = (medication: Record<string, unknown>) =>
+  ["dosage", "dose", "frequency", "duration", "durationDays"].some((key) =>
+    asNonEmptyString(medication[key]),
   );
 
 const toDispenseUnits = (quantity: number, packSize?: number) => {
@@ -920,6 +940,7 @@ const applyInventoryRelease = async (
     batchId?: string;
     movementReason?: string;
     stockSource?: DispenseStockSource;
+    restorePriorConsumption?: boolean;
   },
 ) => {
   const item = await tx.inventoryItem.findFirst({
@@ -949,7 +970,13 @@ const applyInventoryRelease = async (
     );
   }
 
-  let remainingRelease = params.quantity;
+  const releaseQuantity = params.restorePriorConsumption
+    ? movements.reduce(
+        (sum, movement) => sum + Math.abs(movement.change ?? 0),
+        0,
+      )
+    : params.quantity;
+  let remainingRelease = releaseQuantity;
   for (const movement of movements) {
     if (remainingRelease <= 0) break;
 
@@ -991,7 +1018,7 @@ const applyInventoryRelease = async (
   );
   const allocated =
     params.stockSource === "ALLOCATED"
-      ? Math.max(0, (item.allocated ?? 0) + params.quantity)
+      ? Math.max(0, (item.allocated ?? 0) + releaseQuantity)
       : (item.allocated ?? 0);
   await tx.inventoryItem.update({
     where: { id: params.inventoryItemId },
@@ -1007,7 +1034,7 @@ const applyInventoryRelease = async (
     action: "RELEASE",
     idempotencyKey: params.idempotencyKey,
     inventoryItemId: params.inventoryItemId,
-    quantity: params.quantity,
+    quantity: releaseQuantity,
     metadata: params.metadata,
   });
 };
@@ -1125,6 +1152,7 @@ const consumeInventoryItem = async (
   batchId?: string,
   movementReason?: string,
   stockSource?: DispenseStockSource,
+  restorePriorConsumption?: boolean,
 ) => {
   const existingEvent = await tx.inventoryConsumptionEvent.findUnique({
     where: { idempotencyKey },
@@ -1160,6 +1188,7 @@ const consumeInventoryItem = async (
       batchId,
       movementReason,
       stockSource,
+      restorePriorConsumption,
     });
   }
 
@@ -1380,6 +1409,7 @@ const consumeResolvedLines = async (
       line.batchId,
       options?.movementReason,
       options?.stockSource,
+      line.restorePriorConsumption,
     );
     events.push(event);
   }
@@ -1392,6 +1422,10 @@ const normalizePrescriptionLines = (medications: unknown) => {
   return medications.flatMap((entry, index) => {
     if (!entry || typeof entry !== "object") return [];
     const record = entry as Record<string, unknown>;
+    if (prescriptionLineFulfillment(record) === "PRESCRIPTION_ONLY") {
+      return [];
+    }
+
     const quantity = resolveDispenseTotalUnits(record);
     if (!quantity) {
       // The line is skipped for stock purposes while the request can still be
@@ -1434,6 +1468,7 @@ const normalizePrescriptionLines = (medications: unknown) => {
             ? record.expiryDate
             : undefined,
         stockUnitQuantity,
+        hasClinicalCourse: hasClinicalCourseFields(record),
         ruleKeys: [
           asNonEmptyString(record.inventoryItemCode),
           asNonEmptyString(record.medicationCode),
@@ -1451,6 +1486,7 @@ const resolvePrescriptionLines = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
   medications: unknown,
+  action: InventoryConsumptionAction,
 ) => {
   const prescriptionLines = normalizePrescriptionLines(medications);
   const resolvedInputs: Array<{
@@ -1526,7 +1562,10 @@ const resolvePrescriptionLines = async (
     tx,
     organisationId,
     resolvedInputs
-      .filter(({ line }) => line.stockUnitQuantity === undefined)
+      .filter(
+        ({ line }) =>
+          action !== "RELEASE" && line.stockUnitQuantity === undefined,
+      )
       .map(({ inventoryItemId }) => inventoryItemId),
   );
 
@@ -1545,6 +1584,10 @@ const resolvePrescriptionLines = async (
         quantity: toDispenseUnits(quantity, stockUnitQuantity),
         metadata: line.metadata,
         batchId,
+        restorePriorConsumption:
+          action === "RELEASE" &&
+          line.stockUnitQuantity === undefined &&
+          line.hasClinicalCourse,
       };
     },
   );
@@ -1597,6 +1640,7 @@ const consumePrescriptionMedications = async (
     tx,
     params.organisationId,
     params.medications,
+    params.action,
   );
   if (!lines.length) return [];
 
