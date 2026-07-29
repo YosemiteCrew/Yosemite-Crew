@@ -1222,6 +1222,27 @@ const resolveInventoryItemIdBySku = async (
   return item?.id ?? null;
 };
 
+/**
+ * The dispense request's medications JSON is enriched once, at creation time,
+ * from the inventory item's pack size. Existing PENDING requests created
+ * before that enrichment ran (or before the item's pack size was configured)
+ * carry a frozen 0/undefined stockUnitQuantity forever, so a later fix to the
+ * enrichment logic never reaches them. Falling back to the live inventory
+ * item here means dispensing always uses the current pack size, not
+ * whatever was snapshotted when the request was created.
+ */
+const resolveInventoryItemPackQuantity = async (
+  tx: Prisma.TransactionClient,
+  organisationId: string,
+  inventoryItemId: string,
+): Promise<number | undefined> => {
+  const item = await tx.inventoryItem.findFirst({
+    where: { id: inventoryItemId, organisationId },
+    select: { packageQuantity: true },
+  });
+  return asPositiveNumber(item?.packageQuantity ?? undefined);
+};
+
 const resolveInventoryItemIdByBatch = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
@@ -1437,47 +1458,33 @@ const resolvePrescriptionLines = async (
       lotNumber: line.lotNumber,
       expiryDate: line.expiryDate,
     });
-    const inventoryQuantity = toDispenseUnits(
-      line.quantity,
-      line.stockUnitQuantity,
-    );
 
-    if (line.inventoryItemId) {
+    const directInventoryItemId =
+      line.inventoryItemId ??
+      (line.inventoryItemSku
+        ? await resolveInventoryItemIdBySku(
+            tx,
+            organisationId,
+            line.inventoryItemSku,
+          )
+        : null) ??
+      batchMatch?.itemId ??
+      undefined;
+
+    if (directInventoryItemId) {
+      const stockUnitQuantity =
+        line.stockUnitQuantity ??
+        (await resolveInventoryItemPackQuantity(
+          tx,
+          organisationId,
+          directInventoryItemId,
+        ));
       resolved.push({
         sourceLineKey: line.sourceLineKey,
-        inventoryItemId: line.inventoryItemId,
-        quantity: inventoryQuantity,
+        inventoryItemId: directInventoryItemId,
+        quantity: toDispenseUnits(line.quantity, stockUnitQuantity),
         metadata: line.metadata,
         batchId: batchMatch?.id ?? line.batchId ?? undefined,
-      });
-      continue;
-    }
-
-    if (line.inventoryItemSku) {
-      const inventoryItemId = await resolveInventoryItemIdBySku(
-        tx,
-        organisationId,
-        line.inventoryItemSku,
-      );
-      if (inventoryItemId) {
-        resolved.push({
-          sourceLineKey: line.sourceLineKey,
-          inventoryItemId,
-          quantity: inventoryQuantity,
-          metadata: line.metadata,
-          batchId: batchMatch?.id ?? line.batchId ?? undefined,
-        });
-        continue;
-      }
-    }
-
-    if (batchMatch?.itemId) {
-      resolved.push({
-        sourceLineKey: line.sourceLineKey,
-        inventoryItemId: batchMatch.itemId,
-        quantity: inventoryQuantity,
-        metadata: line.metadata,
-        batchId: batchMatch.id,
       });
       continue;
     }
@@ -1490,12 +1497,19 @@ const resolvePrescriptionLines = async (
         normalizeKey(ruleKey),
       );
       if (rule) {
+        const stockUnitQuantity =
+          line.stockUnitQuantity ??
+          (await resolveInventoryItemPackQuantity(
+            tx,
+            organisationId,
+            rule.inventoryItemId,
+          ));
         resolved.push({
           sourceLineKey: line.sourceLineKey,
           inventoryItemId: rule.inventoryItemId,
           quantity: toDispenseUnits(
             Math.max(1, Math.round(line.quantity * rule.quantityMultiplier)),
-            line.stockUnitQuantity,
+            stockUnitQuantity,
           ),
           metadata: line.metadata,
           batchId: batchMatch?.id ?? line.batchId ?? undefined,
