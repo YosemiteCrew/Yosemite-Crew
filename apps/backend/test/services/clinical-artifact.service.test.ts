@@ -1308,12 +1308,20 @@ describe("ClinicalArtifactService", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: existingArtifact,
     };
+    const stalePrescription = {
+      ...existingPrescription,
+      id: "prescription-stale",
+      artifactId: "artifact-stale",
+      artifact: {
+        ...existingArtifact,
+        id: "artifact-stale",
+        authorId: "author-1",
+      },
+    };
     mockedPrisma.prescription.findMany.mockResolvedValueOnce([
       existingPrescription,
+      stalePrescription,
     ]);
-    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
-      existingPrescription,
-    );
 
     await expect(
       ClinicalArtifactService.createPrescription(
@@ -1327,6 +1335,7 @@ describe("ClinicalArtifactService", () => {
         { actorId: "author-2", canEditAny: false },
       ),
     ).rejects.toThrow("Prescription was authored by another user");
+    expect(mockedPrisma.clinicalArtifact.updateMany).not.toHaveBeenCalled();
     expect(mockedPrisma.prescription.update).not.toHaveBeenCalled();
   });
 

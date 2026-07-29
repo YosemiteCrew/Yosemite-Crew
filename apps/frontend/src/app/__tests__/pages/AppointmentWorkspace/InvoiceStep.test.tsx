@@ -1340,6 +1340,66 @@ describe('<InvoiceStep /> component', () => {
     );
   });
 
+  it('updates a shared prescription artifact when removing one linked bill line', async () => {
+    clinicalServiceMock.savePrescriptionArtifact.mockResolvedValue({ id: 'rx-shared' });
+    const line = { ...invoiceLine('Manual add'), sourcePrescriptionId: 'rx-shared' };
+    const existingPrescription = {
+      id: 'rx-line-1',
+      prescriptionArtifactId: 'rx-shared',
+      medicineName: 'Existing med',
+      frequency: 'SID',
+      durationDays: '3',
+      qty: '3',
+      fulfillment: 'IN_HOUSE' as const,
+      finalized: false,
+    };
+    const billPrescription = {
+      id: 'rx-line-2',
+      prescriptionArtifactId: 'rx-shared',
+      medicineName: 'Manual add',
+      frequency: 'BID',
+      durationDays: '5',
+      qty: '10',
+      fulfillment: 'IN_HOUSE' as const,
+      finalized: false,
+    };
+    renderInvoiceStep(
+      {
+        invoiceLineItems: [line],
+        prescription: [
+          existingPrescription,
+          billPrescription,
+        ] as AppointmentEncounter['prescription'],
+      },
+      { encounterId: 'enc-1', authorId: 'vet-1' }
+    );
+    await screen.findByTestId('total-bill-container');
+
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'Remove Manual add' }));
+    });
+
+    expect(workspaceStoreMock.removePrescription).toHaveBeenCalledWith('appt-1', 'rx-line-2');
+    await waitFor(() =>
+      expect(clinicalServiceMock.savePrescriptionArtifact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organisationId: 'org-1',
+          appointmentId: 'appt-1',
+          encounterId: 'enc-1',
+          authorId: 'vet-1',
+        }),
+        [
+          expect.objectContaining({
+            id: 'rx-line-1',
+            prescriptionArtifactId: 'rx-shared',
+            medicineName: 'Existing med',
+          }),
+        ]
+      )
+    );
+    expect(clinicalServiceMock.deletePrescriptionArtifact).not.toHaveBeenCalled();
+  });
+
   it('drops a locally-sourced prescription without calling the backend', async () => {
     const line = { ...invoiceLine('LocalDrug'), sourcePrescriptionId: 'local-rx-1' };
     renderInvoiceStep({ invoiceLineItems: [line] });

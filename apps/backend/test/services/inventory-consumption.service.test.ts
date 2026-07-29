@@ -1607,6 +1607,9 @@ describe("InventoryConsumptionService", () => {
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
     ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValueOnce([
+      { id: "event-consume-void-1", quantity: 1 },
+    ]);
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-9",
       organisationId: "org-1",
@@ -1668,6 +1671,9 @@ describe("InventoryConsumptionService", () => {
         referenceId: "rx-1",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
+    ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValueOnce([
+      { id: "event-consume-release-1", quantity: 2 },
     ]);
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-1",
@@ -2509,6 +2515,9 @@ describe("InventoryConsumptionService", () => {
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
     ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValueOnce([
+      { id: "event-consume-partial", quantity: 5 },
+    ]);
     mockedPrisma.inventoryBatch.update.mockResolvedValue({});
     mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
 
@@ -2533,6 +2542,9 @@ describe("InventoryConsumptionService", () => {
         referenceId: "rx-return",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
+    ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValueOnce([
+      { id: "event-consume-return", quantity: 2 },
     ]);
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-return",
@@ -3417,6 +3429,9 @@ describe("InventoryConsumptionService", () => {
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
     ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValueOnce([
+      { id: "event-consume-norm-rel", quantity: 2 },
+    ]);
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-norm-rel",
       organisationId: "org-1",
@@ -3779,6 +3794,9 @@ describe("InventoryConsumptionService", () => {
         referenceId: "rx-void-null",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
       },
+    ]);
+    mockedPrisma.inventoryConsumptionEvent.findMany.mockResolvedValueOnce([
+      { id: "event-consume-void-null", quantity: 1 },
     ]);
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-void-null",

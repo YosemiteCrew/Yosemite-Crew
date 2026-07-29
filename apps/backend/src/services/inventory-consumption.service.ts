@@ -400,11 +400,6 @@ const prescriptionLineFulfillment = (
   return asNonEmptyString((metadata as Record<string, unknown>).fulfillment);
 };
 
-const hasClinicalCourseFields = (medication: Record<string, unknown>) =>
-  ["dosage", "dose", "frequency", "duration", "durationDays"].some((key) =>
-    asNonEmptyString(medication[key]),
-  );
-
 const toDispenseUnits = (quantity: number, packSize?: number) => {
   if (!packSize || packSize <= 1) {
     return quantity;
@@ -1512,7 +1507,6 @@ const normalizePrescriptionLines = (medications: unknown) => {
             ? record.expiryDate
             : undefined,
         stockUnitQuantity,
-        hasClinicalCourse: hasClinicalCourseFields(record),
         ruleKeys: [
           asNonEmptyString(record.inventoryItemCode),
           asNonEmptyString(record.medicationCode),
@@ -1629,9 +1623,7 @@ const resolvePrescriptionLines = async (
         metadata: line.metadata,
         batchId,
         restorePriorConsumption:
-          action === "RELEASE" &&
-          line.stockUnitQuantity === undefined &&
-          line.hasClinicalCourse,
+          action === "RELEASE" && line.stockUnitQuantity === undefined,
       };
     },
   );

@@ -1412,14 +1412,41 @@ const useInvoiceStepContent = ({
       removeInvoiceLineItem(appointmentId, id);
       const prescriptionId = line?.sourcePrescriptionId;
       if (!prescriptionId || !organisationId) return;
+      const targetPrescription =
+        encounter.prescription.find((rx) => rx.id === prescriptionId) ??
+        encounter.prescription.find(
+          (rx) =>
+            (rx.prescriptionArtifactId ?? rx.id) === prescriptionId &&
+            line?.name.trim().toLowerCase() === rx.medicineName.trim().toLowerCase()
+        );
+      const targetArtifactId = targetPrescription?.prescriptionArtifactId ?? prescriptionId;
       // Drop the source prescription locally and remember the dismissal so auto-seed doesn't
       // re-add it this session.
       if (line?.name) getSeededBillNames().add(line.name.trim().toLowerCase());
-      removePrescription(appointmentId, prescriptionId);
-      const isPersisted = !prescriptionId.startsWith('local-');
+      removePrescription(appointmentId, targetPrescription?.id ?? prescriptionId);
+      const isPersisted = !targetArtifactId.startsWith('local-');
       if (!isPersisted) return;
       try {
-        await deletePrescriptionArtifact(organisationId, prescriptionId);
+        if (targetPrescription) {
+          const siblingRows = encounter.prescription.filter(
+            (rx) =>
+              rx.id !== targetPrescription.id &&
+              !rx.finalized &&
+              (rx.prescriptionArtifactId ?? rx.id) === targetArtifactId
+          );
+          if (siblingRows.length > 0) {
+            await savePrescriptionArtifact(
+              { organisationId, appointmentId, encounterId, authorId },
+              siblingRows.map((rx) => ({
+                ...rx,
+                prescriptionArtifactId: targetArtifactId,
+              }))
+            );
+            return;
+          }
+        }
+
+        await deletePrescriptionArtifact(organisationId, targetArtifactId);
       } catch (error) {
         console.error('Failed to delete prescription from invoice:', error);
         const status = (error as { response?: { status?: number } })?.response?.status;
@@ -1435,9 +1462,12 @@ const useInvoiceStepContent = ({
     [
       appointmentId,
       encounter.invoiceLineItems,
+      encounter.prescription,
+      encounterId,
       getSeededBillNames,
       notify,
       organisationId,
+      authorId,
       removeInvoiceLineItem,
       removePrescription,
     ]
