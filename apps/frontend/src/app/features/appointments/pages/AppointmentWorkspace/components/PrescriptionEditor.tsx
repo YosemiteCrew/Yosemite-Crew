@@ -504,7 +504,7 @@ const PrescriptionEditor = ({
           <ul className="flex flex-col gap-3">
             {items.map((item, index) => (
               <PrescriptionRow
-                key={`${item.id}-${index}`}
+                key={item.id}
                 item={item}
                 index={index}
                 readOnly={readOnly}

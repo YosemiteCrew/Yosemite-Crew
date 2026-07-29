@@ -1113,7 +1113,7 @@ describe('TreatmentStep', () => {
     );
   });
 
-  it('preserves medication rows that share one prescription artifact id before bootstrap refresh', async () => {
+  it('preserves local medication rows before bootstrap refresh', async () => {
     let resolveBootstrap: (value: Record<string, never>) => void = () => undefined;
     (getAppointmentWorkspaceBootstrap as jest.Mock).mockImplementationOnce(
       () =>
@@ -1126,13 +1126,7 @@ describe('TreatmentStep', () => {
       id: 'rx-shared',
     });
     const onOpenInvoice = jest.fn();
-    seedAndGet();
-    const store = useAppointmentWorkspaceStore.getState();
-    const sharedRows = store
-      .getEncounter(APPT)!
-      .prescription.map((rx) => ({ ...rx, id: 'rx-shared' }));
-    store.setPrescriptions(APPT, sharedRows);
-    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    const enc = seedAndGet();
     render(
       <TreatmentStep
         appointmentId={APPT}
