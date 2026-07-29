@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { DISCORD_INVITE_CODE } from '@/app/features/marketing/site/assets';
 
 export type TrafficDataPoint = {
   dateKey: string;
@@ -21,7 +22,7 @@ const SUMMARY_URL =
 const GITHUB_REPO_URL = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
 const GITHUB_CONTRIBUTORS_URL =
   'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew/contributors?per_page=100&anon=true';
-const DISCORD_MEMBERS_COUNT = 169;
+const DISCORD_INVITE_API = `https://discord.com/api/v9/invites/${DISCORD_INVITE_CODE}?with_counts=true`;
 
 const extractChartData = (json: any, chartKey: string) => {
   if (!json?.charts?.[chartKey]?.datasets) return [];
@@ -142,15 +143,13 @@ export const useOverviewStats = () => {
   const [totalStars, setTotalStars] = useState<number>(0);
   const [totalForks, setTotalForks] = useState<number>(0);
   const [totalContributors, setTotalContributors] = useState<number>(0);
-  const [totalDiscordMembers, setTotalDiscordMembers] = useState<number>(DISCORD_MEMBERS_COUNT);
+  const [totalDiscordMembers, setTotalDiscordMembers] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchRepoStats = async () => {
       setIsLoading(true);
       try {
-        setTotalDiscordMembers(DISCORD_MEMBERS_COUNT);
-
         const [summaryRes, repoRes, contributorsRes] = await Promise.all([
           fetch(`${SUMMARY_URL}?t=${Date.now()}`, { cache: 'no-store' }),
           fetch(GITHUB_REPO_URL, {
@@ -241,7 +240,23 @@ export const useOverviewStats = () => {
       }
     };
 
+    // Fetched on its own rather than alongside the GitHub calls: the block above bails out
+    // early when the summary report is unavailable, and a GitHub rate limit is common enough
+    // that it should not take the Discord number down with it.
+    const fetchDiscordMembers = async () => {
+      try {
+        const res = await fetch(DISCORD_INVITE_API);
+        if (!res.ok) return;
+        const json = await res.json();
+        const memberCount = Number(json?.approximate_member_count);
+        if (Number.isFinite(memberCount)) setTotalDiscordMembers(memberCount);
+      } catch (error) {
+        console.error('Failed to fetch Discord members', error);
+      }
+    };
+
     fetchRepoStats();
+    fetchDiscordMembers();
   }, []);
 
   return {

@@ -21,11 +21,13 @@ import {
   HeroGlow,
   InkAnnotate,
   useGithubStats,
+  useRepoInsights,
   ABOUT_ORIGIN_PHOTO,
   GITHUB_REPO_URL,
   GITHUB_STAR_CTA_STYLE,
   DISCORD_INVITE_URL,
 } from '@/app/features/marketing/site';
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 const SERIF = 'var(--font-newsreader)';
 const CONTRIBUTORS_URL = `${GITHUB_REPO_URL}/graphs/contributors`;
@@ -134,23 +136,6 @@ const BELIEF_ICON_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-};
-
-const CREW_SLOT_STYLE: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  width: '100%',
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--inset) 0%, var(--hairline) 100%)',
-  color: 'var(--ink-faint2)',
-  fontFamily: SERIF,
-  fontSize: '38px',
-  fontWeight: 500,
-  letterSpacing: '-0.02em',
-  filter: 'sepia(0.12) saturate(1.12) brightness(1.02) contrast(1.02)',
 };
 
 const CTA_INNER_STYLE: CSSProperties = {
@@ -677,40 +662,20 @@ interface CrewMember {
   name: string;
   role: string;
   href: string;
-  slotId: string;
+  photo: string;
   delay: number;
 }
 
-const CREW: CrewMember[] = [
-  {
-    name: 'Ankit Upadhyay',
-    role: 'Founder',
-    href: 'https://www.linkedin.com/in/aupyay/',
-    slotId: 'crew-ankit',
-    delay: 0,
-  },
-  {
-    name: 'Harshvardhan Parmar',
-    role: 'Crew',
-    href: 'https://www.linkedin.com/in/harshvardhan-parmar/',
-    slotId: 'crew-harshvardhan',
-    delay: 80,
-  },
-  {
-    name: 'Sneha',
-    role: 'Crew',
-    href: 'https://www.linkedin.com/in/snehadevc/',
-    slotId: 'crew-sneha',
-    delay: 160,
-  },
-  {
-    name: 'Vallirani Ravulapati',
-    role: 'Crew',
-    href: 'https://www.linkedin.com/in/vallirani-ravulapati/',
-    slotId: 'crew-vallirani',
-    delay: 240,
-  },
-];
+/** The founder's GitHub login, filtered out of the contributor wall so he is not listed twice. */
+const FOUNDER_GITHUB_LOGIN = 'aupyay';
+
+const FOUNDER: CrewMember = {
+  name: 'Ankit Upadhyay',
+  role: 'Founder',
+  href: 'https://www.linkedin.com/in/aupyay/',
+  photo: MEDIA_SOURCES.team.ankit,
+  delay: 0,
+};
 
 function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
   return (
@@ -740,9 +705,13 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
             boxShadow: '0 18px 40px var(--sh08)',
           }}
         >
-          <span data-slot={member.slotId} aria-hidden="true" style={CREW_SLOT_STYLE}>
-            {member.name.charAt(0)}
-          </span>
+          <Image
+            src={member.photo}
+            alt={member.name}
+            fill
+            sizes="(max-width: 900px) 50vw, 280px"
+            style={{ objectFit: 'cover' }}
+          />
         </div>
         <div
           style={{
@@ -794,6 +763,87 @@ function CommunityPill({
   );
 }
 
+const CONTRIBUTOR_CHIP_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  padding: '7px 14px 7px 7px',
+  borderRadius: '9999px',
+  border: '1px solid var(--hairline)',
+  background: 'var(--inset)',
+  textDecoration: 'none',
+  color: 'var(--ink)',
+  fontSize: '14px',
+  fontWeight: 600,
+  letterSpacing: '-0.01em',
+  transition: 'transform 350ms cubic-bezier(0.16,1,0.3,1)',
+};
+
+/**
+ * The people who have merged work into the repo, pulled live from GitHub rather than
+ * maintained by hand -- the previous hard-coded crew list went stale as soon as it shipped.
+ * The founder is filtered out because he already has his own card beside this wall.
+ */
+function ContributorWall() {
+  const { contributors } = useRepoInsights();
+  const others = contributors?.filter((person) => person.login !== FOUNDER_GITHUB_LOGIN) ?? null;
+
+  return (
+    <Reveal delay={80}>
+      <span
+        style={{
+          fontSize: '12.5px',
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: 'var(--ink-faint)',
+        }}
+      >
+        And everyone who ships with us
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', margin: '18px 0 0' }}>
+        {others?.length ? (
+          others.map((person) => (
+            <a
+              key={person.login}
+              href={person.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="yc-crew-card"
+              style={CONTRIBUTOR_CHIP_STYLE}
+            >
+              <Image
+                src={person.avatar}
+                alt=""
+                width={30}
+                height={30}
+                style={{ borderRadius: '9999px', objectFit: 'cover' }}
+              />
+              {person.login}
+            </a>
+          ))
+        ) : (
+          <span style={{ fontSize: '14px', color: 'var(--ink-faint)' }}>
+            Loading contributors from GitHub...
+          </span>
+        )}
+      </div>
+      <p
+        style={{
+          margin: '18px 0 0',
+          fontSize: '14.5px',
+          lineHeight: 1.6,
+          letterSpacing: '-0.01em',
+          color: 'var(--ink-muted)',
+          textWrap: 'pretty',
+        }}
+      >
+        Pulled live from GitHub. Every name is a real person who has merged work into Yosemite Crew.
+      </p>
+    </Reveal>
+  );
+}
+
 function TheCrew() {
   return (
     <section style={{ background: 'var(--page)' }}>
@@ -823,22 +873,22 @@ function TheCrew() {
               textWrap: 'pretty',
             }}
           >
-            No gates, no egos. A small, fully remote crew, started by founder Ankit Upadhyay and
-            kept deliberately small, plus a growing open-source community that files the issues,
-            sends the pull requests, and argues the hard calls in the open.
+            No gates, no egos. Founded by Ankit Upadhyay and kept deliberately small, plus a growing
+            open-source community that files the issues, sends the pull requests, and argues the
+            hard calls in the open.
           </p>
         </Reveal>
         <div
-          data-grid-2-m="true"
+          data-grid-1-m="true"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 'clamp(16px, 2vw, 26px)',
+            gridTemplateColumns: 'minmax(0, 260px) minmax(0, 1fr)',
+            gap: 'clamp(28px, 4vw, 56px)',
+            alignItems: 'start',
           }}
         >
-          {CREW.map((member) => (
-            <CrewCard key={member.name} member={member} />
-          ))}
+          <CrewCard member={FOUNDER} />
+          <ContributorWall />
         </div>
         <Reveal
           delay={0}

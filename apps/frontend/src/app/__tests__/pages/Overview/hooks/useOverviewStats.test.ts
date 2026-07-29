@@ -68,6 +68,10 @@ describe('useOverviewStats Hook', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [{ id: 1 }, { id: 2 }, { id: 3 }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ approximate_member_count: 196 }),
       });
 
     const { result } = renderHook(() => useOverviewStats());
@@ -83,7 +87,11 @@ describe('useOverviewStats Hook', () => {
     expect(result.current.totalStars).toBe(2200);
     expect(result.current.totalForks).toBe(64);
     expect(result.current.totalContributors).toBe(3);
-    expect(result.current.totalDiscordMembers).toBe(169);
+    await waitFor(() => expect(result.current.totalDiscordMembers).toBe(196));
+    // Pin the endpoint: this stat used to be a hard-coded 169 presented as a live number.
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://discord.com/api/v9/invites/SwM6mX85KD?with_counts=true'
+    );
 
     // 2. Verify Traffic Chart now covers the full daily traffic history
     expect(result.current.trafficChart.length).toBeGreaterThan(100);
@@ -128,7 +136,8 @@ describe('useOverviewStats Hook', () => {
     (globalThis.fetch as jest.Mock)
       .mockResolvedValueOnce({ ok: true, json: async () => mockJson })
       .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
-      .mockResolvedValueOnce({ ok: false, json: async () => [] });
+      .mockResolvedValueOnce({ ok: false, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ approximate_member_count: 210 }) });
 
     const { result } = renderHook(() => useOverviewStats());
 
@@ -142,7 +151,8 @@ describe('useOverviewStats Hook', () => {
     expect(result.current.totalStars).toBe(0);
     expect(result.current.totalForks).toBe(0);
     expect(result.current.totalContributors).toBe(0);
-    expect(result.current.totalDiscordMembers).toBe(169);
+    // The Discord lookup is independent of the GitHub calls, so it still resolves here.
+    await waitFor(() => expect(result.current.totalDiscordMembers).toBe(210));
   });
 
   it('3. handles missing dataset properties smoothly (extractChartData fallback)', async () => {
@@ -159,7 +169,8 @@ describe('useOverviewStats Hook', () => {
         json: async () => mockJson,
       })
       .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
-      .mockResolvedValueOnce({ ok: false, json: async () => [] });
+      .mockResolvedValueOnce({ ok: false, json: async () => [] })
+      .mockResolvedValueOnce({ ok: false });
 
     const { result } = renderHook(() => useOverviewStats());
 
@@ -172,6 +183,7 @@ describe('useOverviewStats Hook', () => {
 
   it('4. catches network failures securely', async () => {
     (globalThis.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false })
       .mockResolvedValueOnce({ ok: false });
@@ -195,7 +207,8 @@ describe('useOverviewStats Hook', () => {
         },
       })
       .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
-      .mockResolvedValueOnce({ ok: false, json: async () => [] });
+      .mockResolvedValueOnce({ ok: false, json: async () => [] })
+      .mockResolvedValueOnce({ ok: false });
 
     const { result } = renderHook(() => useOverviewStats());
 
@@ -204,5 +217,75 @@ describe('useOverviewStats Hook', () => {
     });
 
     expect(console.error).toHaveBeenCalledWith('Failed to fetch live JSON', expect.any(Error));
+  });
+
+  it('6. leaves the Discord count at zero when the invite lookup fails, never a stale constant', async () => {
+    (globalThis.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: false });
+
+    const { result } = renderHook(() => useOverviewStats());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.totalDiscordMembers).toBe(0);
+    expect(console.error).not.toHaveBeenCalledWith(
+      'Failed to fetch Discord members',
+      expect.anything()
+    );
+  });
+
+  it('7. catches a rejected Discord lookup without disturbing the GitHub stats', async () => {
+    const mockJson = {
+      charts: {
+        '#clones_total': {
+          datasets: { 'data-1': [{ time: '2026-03-24T00:00:00Z', clones_total: 40 }] },
+        },
+      },
+    };
+
+    (globalThis.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, json: async () => mockJson })
+      .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: false, json: async () => [] })
+      .mockRejectedValueOnce(new Error('Discord down'));
+
+    const { result } = renderHook(() => useOverviewStats());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.totalSelfHosters).toBe(40);
+    expect(result.current.totalDiscordMembers).toBe(0);
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        'Failed to fetch Discord members',
+        expect.any(Error)
+      )
+    );
+  });
+
+  it('8. ignores a malformed Discord payload', async () => {
+    (globalThis.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ approximate_member_count: 'lots' }),
+      });
+
+    const { result } = renderHook(() => useOverviewStats());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.totalDiscordMembers).toBe(0);
   });
 });

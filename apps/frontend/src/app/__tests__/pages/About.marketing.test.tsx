@@ -29,6 +29,8 @@ const mockStats = {
   discord: '412',
 };
 
+let mockContributors: Array<{ login: string; avatar: string; url: string }> | null = null;
+
 jest.mock('@/app/features/marketing/site', () => {
   const R = jest.requireActual<typeof import('react')>('react');
   return {
@@ -41,6 +43,7 @@ jest.mock('@/app/features/marketing/site', () => {
     CountUp: ({ value, className, style }: any) =>
       R.createElement('span', { className, style }, value),
     useGithubStats: () => mockStats,
+    useRepoInsights: () => ({ contributors: mockContributors }),
     ABOUT_ORIGIN_PHOTO: '/images/marketing/about-origin.webp',
     GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
     DISCORD_INVITE_URL: 'https://discord.gg/SwM6mX85KD',
@@ -49,7 +52,29 @@ jest.mock('@/app/features/marketing/site', () => {
 
 import { About } from '@/app/features/marketing/pages/About/About';
 
+const DEFAULT_CONTRIBUTORS = [
+  {
+    login: 'aupyay',
+    avatar: 'https://avatars.githubusercontent.com/u/1',
+    url: 'https://github.com/aupyay',
+  },
+  {
+    login: 'meetjain6091',
+    avatar: 'https://avatars.githubusercontent.com/u/2',
+    url: 'https://github.com/meetjain6091',
+  },
+  {
+    login: 'yashisrani',
+    avatar: 'https://avatars.githubusercontent.com/u/3',
+    url: 'https://github.com/yashisrani',
+  },
+];
+
 describe('About (marketing)', () => {
+  beforeEach(() => {
+    mockContributors = DEFAULT_CONTRIBUTORS;
+  });
+
   test('renders the hero heading and origin story', () => {
     render(<About />);
 
@@ -121,20 +146,31 @@ describe('About (marketing)', () => {
     expect(ankit).toHaveAttribute('target', '_blank');
     expect(ankit).toHaveAttribute('rel', 'noopener noreferrer');
 
-    expect(
-      screen.getByRole('link', {
-        name: /Harshvardhan Parmar, Crew, on LinkedIn/i,
-      })
-    ).toHaveAttribute('href', 'https://www.linkedin.com/in/harshvardhan-parmar/');
-    expect(screen.getByRole('link', { name: /Sneha, Crew, on LinkedIn/i })).toHaveAttribute(
-      'href',
-      'https://www.linkedin.com/in/snehadevc/'
-    );
-    expect(
-      screen.getByRole('link', {
-        name: /Vallirani Ravulapati, Crew, on LinkedIn/i,
-      })
-    ).toHaveAttribute('href', 'https://www.linkedin.com/in/vallirani-ravulapati/');
+    // The founder is the only named crew member; everyone else is a live GitHub contributor.
+    expect(screen.queryByText(/Harshvardhan Parmar/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Vallirani Ravulapati/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/, Crew, on LinkedIn/i)).not.toBeInTheDocument();
+  });
+
+  test('shows GitHub contributors beside the founder, without listing him twice', () => {
+    render(<About />);
+
+    const meet = screen.getByRole('link', { name: 'meetjain6091' });
+    expect(meet).toHaveAttribute('href', 'https://github.com/meetjain6091');
+    expect(meet).toHaveAttribute('target', '_blank');
+    expect(meet).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByRole('link', { name: 'yashisrani' })).toBeInTheDocument();
+
+    // The founder already has his own card, so his GitHub login is filtered out of the wall.
+    expect(screen.queryByRole('link', { name: 'aupyay' })).not.toBeInTheDocument();
+  });
+
+  test('shows a loading note while the contributor list is still in flight', () => {
+    mockContributors = null;
+    render(<About />);
+
+    expect(screen.getByText(/Loading contributors from GitHub/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'meetjain6091' })).not.toBeInTheDocument();
   });
 
   test('renders the legal entity block', () => {
