@@ -1113,6 +1113,47 @@ describe('TreatmentStep', () => {
     );
   });
 
+  it('preserves medication rows that share one prescription artifact id before bootstrap refresh', async () => {
+    let resolveBootstrap: (value: Record<string, never>) => void = () => undefined;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveBootstrap = resolve;
+        })
+    );
+    (savePrescriptionArtifact as jest.Mock).mockResolvedValueOnce({
+      resourceType: 'MedicationRequest',
+      id: 'rx-shared',
+    });
+    const onOpenInvoice = jest.fn();
+    seedAndGet();
+    const store = useAppointmentWorkspaceStore.getState();
+    const sharedRows = store
+      .getEncounter(APPT)!
+      .prescription.map((rx) => ({ ...rx, id: 'rx-shared' }));
+    store.setPrescriptions(APPT, sharedRows);
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT));
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription).toHaveLength(
+      2
+    );
+
+    resolveBootstrap({});
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
+  });
+
   // #1909: an already-finalized prescription (a locked clinical record) must NOT be re-saved on the
   // next Save Treatment - re-POSTing/PATCHing it returns 409 and would fail the whole save. It is
   // skipped while fresh rows still persist and the step advances to billing.

@@ -3000,6 +3000,78 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it("prefetches live pack quantities once for prescription lines missing snapshots", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+      { id: "item-pack-a", packageQuantity: 10 },
+      { id: "item-pack-b", packageQuantity: 5 },
+    ]);
+    mockedPrisma.inventoryItem.findFirst
+      .mockResolvedValueOnce({
+        id: "item-pack-a",
+        organisationId: "org-1",
+        onHand: 10,
+        allocated: 0,
+      })
+      .mockResolvedValueOnce({
+        id: "item-pack-b",
+        organisationId: "org-1",
+        onHand: 10,
+        allocated: 0,
+      });
+    mockedPrisma.inventoryBatch.findMany.mockResolvedValue([
+      { id: "batch-pack", quantity: 10, allocated: 0 },
+    ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-live-pack",
+    });
+
+    const events = await InventoryConsumptionService.consumePrescription({
+      organisationId: "org-1",
+      prescriptionId: "rx-live-pack",
+      medications: [
+        {
+          inventoryItemId: "item-pack-a",
+          quantity: 24,
+          sourceLineKey: "line-pack-a",
+        },
+        {
+          inventoryItemId: "item-pack-b",
+          quantity: 6,
+          sourceLineKey: "line-pack-b",
+        },
+      ],
+    });
+
+    expect(events).toHaveLength(2);
+    expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith({
+      where: {
+        organisationId: "org-1",
+        id: { in: ["item-pack-a", "item-pack-b"] },
+      },
+      select: { id: true, packageQuantity: true },
+    });
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          itemId: "item-pack-a",
+          change: -3,
+        }),
+      }),
+    );
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          itemId: "item-pack-b",
+          change: -2,
+        }),
+      }),
+    );
+  });
+
   it("consumes allocated stock across a null-quantity batch and stops once satisfied", async () => {
     mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
       id: "item-ab",

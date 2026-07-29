@@ -843,13 +843,9 @@ const TreatmentStep = ({
           savedInHouseIds.push(savedId);
         }
       }
-      const reconciledPrescriptions = normalizedPrescriptions;
-      // Keep the local rows stable until the authoritative bootstrap refresh lands; the backend
-      // returns one prescription artifact id for the whole medication plan, not one id per line.
-      const dedupedById = Array.from(
-        new Map(reconciledPrescriptions.map((rx) => [rx.id, rx])).values()
-      );
-      setPrescriptions(appointmentId, dedupedById);
+      // Keep every local medication row stable until the authoritative bootstrap refresh lands; a
+      // consolidated prescription can legitimately give multiple rows the same artifact id.
+      setPrescriptions(appointmentId, normalizedPrescriptions);
       // Finalize in-house prescriptions (triggers inventory dispense) using the real saved ids.
       await Promise.allSettled(
         savedInHouseIds.map((id) => finalizePrescription(organisationId, id))

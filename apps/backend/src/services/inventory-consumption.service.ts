@@ -1222,25 +1222,29 @@ const resolveInventoryItemIdBySku = async (
   return item?.id ?? null;
 };
 
-/**
- * The dispense request's medications JSON is enriched once, at creation time,
- * from the inventory item's pack size. Existing PENDING requests created
- * before that enrichment ran (or before the item's pack size was configured)
- * carry a frozen 0/undefined stockUnitQuantity forever, so a later fix to the
- * enrichment logic never reaches them. Falling back to the live inventory
- * item here means dispensing always uses the current pack size, not
- * whatever was snapshotted when the request was created.
- */
-const resolveInventoryItemPackQuantity = async (
+const resolveInventoryItemPackQuantities = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
-  inventoryItemId: string,
-): Promise<number | undefined> => {
-  const item = await tx.inventoryItem.findFirst({
-    where: { id: inventoryItemId, organisationId },
-    select: { packageQuantity: true },
+  inventoryItemIds: string[],
+): Promise<Map<string, number>> => {
+  const uniqueIds = Array.from(new Set(inventoryItemIds));
+  if (!uniqueIds.length) {
+    return new Map();
+  }
+
+  const items = await tx.inventoryItem.findMany({
+    where: { organisationId, id: { in: uniqueIds } },
+    select: { id: true, packageQuantity: true },
   });
-  return asPositiveNumber(item?.packageQuantity ?? undefined);
+
+  return new Map(
+    items.flatMap((item) => {
+      const packageQuantity = asPositiveNumber(
+        item.packageQuantity ?? undefined,
+      );
+      return packageQuantity === undefined ? [] : [[item.id, packageQuantity]];
+    }),
+  );
 };
 
 const resolveInventoryItemIdByBatch = async (
@@ -1449,7 +1453,12 @@ const resolvePrescriptionLines = async (
   medications: unknown,
 ) => {
   const prescriptionLines = normalizePrescriptionLines(medications);
-  const resolved: InventoryConsumptionLineInput[] = [];
+  const resolvedInputs: Array<{
+    line: (typeof prescriptionLines)[number];
+    inventoryItemId: string;
+    quantity: number;
+    batchId?: string;
+  }> = [];
 
   for (const line of prescriptionLines) {
     const batchMatch = await resolveInventoryItemIdByBatch(tx, organisationId, {
@@ -1472,18 +1481,10 @@ const resolvePrescriptionLines = async (
       undefined;
 
     if (directInventoryItemId) {
-      const stockUnitQuantity =
-        line.stockUnitQuantity ??
-        (await resolveInventoryItemPackQuantity(
-          tx,
-          organisationId,
-          directInventoryItemId,
-        ));
-      resolved.push({
-        sourceLineKey: line.sourceLineKey,
+      resolvedInputs.push({
+        line,
         inventoryItemId: directInventoryItemId,
-        quantity: toDispenseUnits(line.quantity, stockUnitQuantity),
-        metadata: line.metadata,
+        quantity: line.quantity,
         batchId: batchMatch?.id ?? line.batchId ?? undefined,
       });
       continue;
@@ -1497,21 +1498,13 @@ const resolvePrescriptionLines = async (
         normalizeKey(ruleKey),
       );
       if (rule) {
-        const stockUnitQuantity =
-          line.stockUnitQuantity ??
-          (await resolveInventoryItemPackQuantity(
-            tx,
-            organisationId,
-            rule.inventoryItemId,
-          ));
-        resolved.push({
-          sourceLineKey: line.sourceLineKey,
+        resolvedInputs.push({
+          line,
           inventoryItemId: rule.inventoryItemId,
-          quantity: toDispenseUnits(
-            Math.max(1, Math.round(line.quantity * rule.quantityMultiplier)),
-            stockUnitQuantity,
+          quantity: Math.max(
+            1,
+            Math.round(line.quantity * rule.quantityMultiplier),
           ),
-          metadata: line.metadata,
           batchId: batchMatch?.id ?? line.batchId ?? undefined,
         });
         break;
@@ -1519,7 +1512,42 @@ const resolvePrescriptionLines = async (
     }
   }
 
-  return resolved;
+  /**
+   * The dispense request's medications JSON is enriched once, at creation time,
+   * from the inventory item's pack size. Existing PENDING requests created
+   * before that enrichment ran (or before the item's pack size was configured)
+   * carry a frozen 0/undefined stockUnitQuantity forever, so a later fix to the
+   * enrichment logic never reaches them. Falling back to the live inventory item
+   * here means dispensing always uses the current pack size, not whatever was
+   * snapshotted when the request was created. Fetch all needed package sizes in
+   * one query so large prescriptions do not issue one lookup per line.
+   */
+  const livePackQuantities = await resolveInventoryItemPackQuantities(
+    tx,
+    organisationId,
+    resolvedInputs
+      .filter(({ line }) => line.stockUnitQuantity === undefined)
+      .map(({ inventoryItemId }) => inventoryItemId),
+  );
+
+  return resolvedInputs.map(
+    ({
+      line,
+      inventoryItemId,
+      quantity,
+      batchId,
+    }): InventoryConsumptionLineInput => {
+      const stockUnitQuantity =
+        line.stockUnitQuantity ?? livePackQuantities.get(inventoryItemId);
+      return {
+        sourceLineKey: line.sourceLineKey,
+        inventoryItemId,
+        quantity: toDispenseUnits(quantity, stockUnitQuantity),
+        metadata: line.metadata,
+        batchId,
+      };
+    },
+  );
 };
 
 const runPrescriptionInventoryAction = async (params: {
