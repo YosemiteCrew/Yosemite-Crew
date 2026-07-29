@@ -210,6 +210,65 @@ describe('parasiteRiskSlice', () => {
     expect(state.subscriptions.map(s => s.id)).toEqual(['s2']);
   });
 
+  it('marks loading and clears a stale error when a lookup starts', () => {
+    const state = parasiteRiskReducer(
+      {...parasiteRiskInitialState, error: 'previous failure'},
+      {type: loadRiskForLocation.pending.type},
+    );
+
+    expect(state.loading).toBe(true);
+    expect(state.error).toBeNull();
+  });
+
+  it('marks subscriptions loading while they are fetched', () => {
+    const state = parasiteRiskReducer(parasiteRiskInitialState, {
+      type: loadSubscriptions.pending.type,
+    });
+
+    expect(state.subscriptionsLoading).toBe(true);
+  });
+
+  it('records a subscription load failure', () => {
+    const state = parasiteRiskReducer(parasiteRiskInitialState, {
+      type: loadSubscriptions.rejected.type,
+      payload: 'no network',
+    });
+
+    expect(state.subscriptionsLoading).toBe(false);
+    expect(state.error).toBe('no network');
+  });
+
+  it('records a follow failure', () => {
+    const state = parasiteRiskReducer(parasiteRiskInitialState, {
+      type: followLocation.rejected.type,
+      payload: 'too many locations',
+    });
+
+    expect(state.error).toBe('too many locations');
+  });
+
+  it('records an unfollow failure', () => {
+    const state = parasiteRiskReducer(parasiteRiskInitialState, {
+      type: unfollowLocation.rejected.type,
+      payload: 'not found',
+    });
+
+    expect(state.error).toBe('not found');
+  });
+
+  it.each([
+    ['lookup', loadRiskForLocation.rejected.type],
+    ['subscription load', loadSubscriptions.rejected.type],
+    ['follow', followLocation.rejected.type],
+    ['unfollow', unfollowLocation.rejected.type],
+  ])(
+    'falls back to a generic message when %s rejects with no payload',
+    (_, type) => {
+      const state = parasiteRiskReducer(parasiteRiskInitialState, {type});
+      expect(state.error).toBe('Something went wrong.');
+    },
+  );
+
   it('records the disclaimer acknowledgement so it is shown once', () => {
     const state = parasiteRiskReducer(
       parasiteRiskInitialState,

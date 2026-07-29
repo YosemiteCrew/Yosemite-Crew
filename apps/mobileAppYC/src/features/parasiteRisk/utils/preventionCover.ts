@@ -54,12 +54,14 @@ export function resolvePreventionCover(
 
   if (relevant.length === 0) return {status: 'none'};
 
+  // Sorted newest first, so the head is the most recent completion. Compared
+  // explicitly rather than relying on the default sort, which is a stringify
+  // comparison that only happens to work for ISO timestamps.
   const completed = relevant
     .filter(isCompleted)
     .map(task => task.completedAt ?? task.dueAt ?? task.date)
     .filter((value): value is string => Boolean(value))
-    .sort()
-    .reverse();
+    .sort((a, b) => b.localeCompare(a));
 
   const overdue = relevant
     .filter(task => !isCompleted(task))

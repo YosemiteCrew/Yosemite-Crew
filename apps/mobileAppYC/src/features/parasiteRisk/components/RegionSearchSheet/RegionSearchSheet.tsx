@@ -51,13 +51,15 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Held as a translation key, not translated text, so the search effect does
+  // not have to depend on `t` and re-run on every render.
+  const [errorKey, setErrorKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) {
       setQuery('');
       setSuggestions([]);
-      setError(null);
+      setErrorKey(null);
     }
   }, [visible]);
 
@@ -76,7 +78,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
           if (!cancelled) setSuggestions(results);
         })
         .catch(() => {
-          if (!cancelled) setError(t('parasiteRisk.search.error'));
+          if (!cancelled) setErrorKey('parasiteRisk.search.error');
         })
         .finally(() => {
           if (!cancelled) setSearching(false);
@@ -87,12 +89,12 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, t]);
+  }, [query]);
 
   const handleSuggestion = useCallback(
     async (suggestion: PlaceSuggestion) => {
       setResolving(true);
-      setError(null);
+      setErrorKey(null);
 
       try {
         const details = await fetchPlaceDetails(suggestion.placeId);
@@ -101,7 +103,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
           details?.latitude === undefined ||
           details?.longitude === undefined
         ) {
-          setError(t('parasiteRisk.search.unresolved'));
+          setErrorKey('parasiteRisk.search.unresolved');
           return;
         }
 
@@ -113,17 +115,17 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
         });
         onClose();
       } catch {
-        setError(t('parasiteRisk.search.error'));
+        setErrorKey('parasiteRisk.search.error');
       } finally {
         setResolving(false);
       }
     },
-    [onSelect, onClose, t],
+    [onSelect, onClose],
   );
 
   const handleUseCurrentLocation = useCallback(async () => {
     setResolving(true);
-    setError(null);
+    setErrorKey(null);
 
     try {
       const coords = await LocationService.getCurrentPosition();
@@ -137,7 +139,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
       });
       onClose();
     } catch {
-      setError(t('parasiteRisk.search.locationDenied'));
+      setErrorKey('parasiteRisk.search.locationDenied');
     } finally {
       setResolving(false);
     }
@@ -195,9 +197,9 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
           </Text>
         </PressableOpacity>
 
-        {error ? (
+        {errorKey ? (
           <Text style={[styles.error, {color: theme.colors.danger}]}>
-            {error}
+            {t(errorKey)}
           </Text>
         ) : null}
 
