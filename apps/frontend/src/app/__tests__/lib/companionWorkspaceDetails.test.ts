@@ -76,6 +76,11 @@ describe('buildCompanionDetails', () => {
   // Bug 35: a pet under a year old reads in months, never a misleading "0 years".
   it('reads an under-one-year-old age in months', () => {
     const dob = new Date();
+    // Normalise to the first of the month before stepping back. Subtracting
+    // months from a late day rolls over when the target month is shorter (the
+    // 29th of July lands on 29 February, which does not exist outside a leap
+    // year), which would silently make this a four month old pet.
+    dob.setDate(1);
     dob.setMonth(dob.getMonth() - 5);
     expect(valueFor('Age / DOB', baseCompanion({ dateOfBirth: dob }))).toMatch(/^5 months \/ /);
   });
