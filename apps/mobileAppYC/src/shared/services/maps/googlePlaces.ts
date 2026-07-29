@@ -24,6 +24,8 @@ export interface PlaceDetails {
   stateProvince?: string;
   postalCode?: string;
   country?: string;
+  /** ISO 3166-1 alpha-2, e.g. "AU". Needed wherever a region has to be resolved. */
+  countryCode?: string;
   latitude?: number;
   longitude?: number;
   formattedAddress?: string;
@@ -221,7 +223,9 @@ export const fetchPlaceDetails = async (
     addressComponents,
     'postal_code',
   )?.longText;
-  const country = findAddressComponent(addressComponents, 'country')?.longText;
+  const countryComponent = findAddressComponent(addressComponents, 'country');
+  const country = countryComponent?.longText;
+  const countryCode = countryComponent?.shortText;
 
   const addressLineParts = [
     subpremise ? `${subpremise}/` : undefined,
@@ -237,6 +241,7 @@ export const fetchPlaceDetails = async (
     stateProvince,
     postalCode,
     country,
+    countryCode,
     latitude: payload?.location?.latitude,
     longitude: payload?.location?.longitude,
     formattedAddress,

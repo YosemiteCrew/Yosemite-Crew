@@ -64,6 +64,16 @@ export const semanticColorsLight = {
   'status.info': colors.info,
   'status.infoSurface': colors.infoSurface,
 
+  // --- Risk (ordered scale, low to extreme) ---
+  'risk.low': colors.riskLow,
+  'risk.lowSurface': colors.riskLowSurface,
+  'risk.moderate': colors.riskModerate,
+  'risk.moderateSurface': colors.riskModerateSurface,
+  'risk.high': colors.riskHigh,
+  'risk.highSurface': colors.riskHighSurface,
+  'risk.extreme': colors.riskExtreme,
+  'risk.extremeSurface': colors.riskExtremeSurface,
+
   // --- Input ---
   'input.bg': colors.fieldBg,
   'input.borderDefault': colors.hairline,
@@ -122,6 +132,16 @@ export const semanticColorsDark = {
   'status.errorSurface': colorsDark.dangerSurface,
   'status.info': colorsDark.info,
   'status.infoSurface': colorsDark.infoSurface,
+
+  // --- Risk (ordered scale, low to extreme) ---
+  'risk.low': colorsDark.riskLow,
+  'risk.lowSurface': colorsDark.riskLowSurface,
+  'risk.moderate': colorsDark.riskModerate,
+  'risk.moderateSurface': colorsDark.riskModerateSurface,
+  'risk.high': colorsDark.riskHigh,
+  'risk.highSurface': colorsDark.riskHighSurface,
+  'risk.extreme': colorsDark.riskExtreme,
+  'risk.extremeSurface': colorsDark.riskExtremeSurface,
 
   // --- Input ---
   'input.bg': colorsDark.fieldBg,

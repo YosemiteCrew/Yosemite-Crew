@@ -57,6 +57,7 @@ import {linkedBusinessesReducer} from '@/features/linkedBusinesses';
 import {notificationReducer} from '@/features/notifications';
 import formsReducer from '@/features/forms/formsSlice';
 import preferencesReducer from '@/features/preferences/preferencesSlice';
+import {parasiteRiskReducer} from '@/features/parasiteRisk';
 
 const migrateV1ToV2 = (_state: any) => {
   console.log(
@@ -130,6 +131,24 @@ const migrateV6ToV7 = (state: any) => {
 };
 
 // Keyed by the persisted version a state is migrating FROM.
+const migrateV7ToV8 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v7 to v8 - adding parasite risk state',
+  );
+  if (!state.parasiteRisk) {
+    state.parasiteRisk = {
+      location: null,
+      reading: null,
+      recentLocations: [],
+      subscriptions: [],
+      loading: false,
+      subscriptionsLoading: false,
+      error: null,
+      disclaimerAcknowledged: false,
+    };
+  }
+};
+
 const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   1: migrateV1ToV2,
   2: migrateV2ToV3,
@@ -137,11 +156,12 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   4: migrateV4ToV5,
   5: migrateV5ToV6,
   6: migrateV6ToV7,
+  7: migrateV7ToV8,
 };
 
 const persistConfig = {
   key: 'root',
-  version: 7,
+  version: 8,
   storage: storageForPersist,
   whitelist: [
     'auth',
@@ -157,6 +177,7 @@ const persistConfig = {
     'notifications',
     'forms',
     'preferences',
+    'parasiteRisk',
   ],
   migrate: (state: any) => {
     console.log(
@@ -183,6 +204,7 @@ const rootReducer = combineReducers({
   notifications: notificationReducer,
   forms: formsReducer,
   preferences: preferencesReducer,
+  parasiteRisk: parasiteRiskReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

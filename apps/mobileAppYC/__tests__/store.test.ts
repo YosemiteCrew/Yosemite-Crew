@@ -83,6 +83,7 @@ describe('Redux Store', () => {
         notifications: expect.anything(),
         forms: expect.anything(),
         preferences: expect.anything(),
+        parasiteRisk: expect.anything(),
       }),
     );
   });
@@ -92,7 +93,7 @@ describe('Redux Store', () => {
 
     expect(config).toBeDefined();
     expect(config.key).toBe('root');
-    expect(config.version).toBe(7);
+    expect(config.version).toBe(8);
     expect(config.storage).toBeDefined();
     expect(config.migrate).toEqual(expect.any(Function));
   });
@@ -112,6 +113,7 @@ describe('Redux Store', () => {
       'notifications',
       'forms',
       'preferences',
+      'parasiteRisk',
     ]);
   });
 

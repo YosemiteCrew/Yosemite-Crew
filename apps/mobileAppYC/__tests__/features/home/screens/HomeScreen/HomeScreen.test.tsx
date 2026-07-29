@@ -529,6 +529,16 @@ describe('HomeScreen', () => {
           allIds: [],
           hydratedCompanions: {c1: true},
         },
+        parasiteRisk: {
+          location: null,
+          reading: null,
+          recentLocations: [],
+          subscriptions: [],
+          loading: false,
+          subscriptionsLoading: false,
+          error: null,
+          disclaimerAcknowledged: false,
+        },
         ...stateOverrides,
       },
       middleware: getDefaultMiddleware =>

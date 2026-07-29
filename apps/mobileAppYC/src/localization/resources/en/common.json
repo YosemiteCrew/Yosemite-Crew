@@ -146,7 +146,9 @@
     "no": "No",
     "on": "On",
     "off": "Off",
-    "sign_out": "Sign Out"
+    "sign_out": "Sign Out",
+    "back": "Back",
+    "close": "Close"
   },
   "validation": {
     "email_required": "Email is required",
@@ -291,5 +293,124 @@
     "skipOnboarding": "Skip onboarding",
     "alreadyHaveAccount": "Already have an account? ",
     "signIn": "Sign in"
+  },
+  "parasiteRisk": {
+    "title": "Parasite risk",
+    "headline": "Highest right now: {{parasite}}",
+    "sectionTitle": "What's active near you",
+    "homeSummary": "{{parasite}} is the top risk in {{label}}",
+    "homePrompt": "Check what's active in your area",
+    "degraded": "Some weather data was unavailable, so this reading is less precise than usual.",
+    "disclaimer": "This is a modelled estimate based on local weather, not a record of confirmed cases. It is general information, not veterinary advice. Speak to your vet about parasite prevention, and seek care immediately if your pet is unwell.",
+    "tier": {
+      "low": "Low",
+      "moderate": "Moderate",
+      "high": "High",
+      "extreme": "Extreme"
+    },
+    "trend": {
+      "rising": "Rising over the next week",
+      "steady": "Steady over the next week",
+      "falling": "Easing over the next week"
+    },
+    "search": {
+      "title": "Search a location",
+      "placeholder": "Suburb, town or postcode",
+      "prompt": "Choose a location",
+      "useCurrentLocation": "Use my current location",
+      "currentLocation": "Current location",
+      "recent": "Recent",
+      "error": "We couldn't search right now. Please try again.",
+      "unresolved": "We couldn't pin that place to a location.",
+      "locationDenied": "We need location access to use your current position."
+    },
+    "cover": {
+      "title": "Prevention cover",
+      "lapsedBody_one": "{{name}}'s parasite prevention has been due for {{count}} day, and local risk is high right now.",
+      "lapsedBody_other": "{{name}}'s parasite prevention has been due for {{count}} days, and local risk is high right now.",
+      "noneBody": "There's no parasite prevention scheduled for {{name}}, and local risk is high right now.",
+      "addPrevention": "Add prevention",
+      "bookVisit": "Book a visit"
+    },
+    "detail": {
+      "about": "About",
+      "signs": "Signs to watch for",
+      "prevention": "How it's prevented",
+      "near": "Near {{label}}"
+    },
+    "parasite": {
+      "heartworm": {
+        "name": "Heartworm",
+        "summary": "Spread by mosquitoes. Worms mature in the heart and lungs and damage them slowly, usually long before any signs show.",
+        "signs": "Persistent cough, tiring quickly on walks, reduced appetite and weight loss. Early infection often has no signs at all.",
+        "prevention": "Preventatives given on a regular schedule wherever mosquitoes are active, with a blood test usually needed before starting. Your vet will advise on testing and timing."
+      },
+      "paralysis_tick": {
+        "name": "Paralysis tick",
+        "summary": "A tick of humid coastal Australia whose saliva carries a toxin causing progressive paralysis. It can be fatal without treatment.",
+        "signs": "Wobbly or weak back legs, a changed bark or meow, retching, and laboured breathing. Signs can escalate over hours.",
+        "prevention": "Searching the coat and skin daily, together with a preventative that covers this species. Finding a tick or seeing these signs is an emergency, so contact a vet immediately."
+      },
+      "brown_dog_tick": {
+        "name": "Brown dog tick",
+        "summary": "The one tick that thrives indoors and in kennels, so infestations build up in the home as well as outdoors.",
+        "signs": "Ticks on the ears, between the toes and around the neck. Heavy burdens can cause anaemia, and this tick also spreads other diseases.",
+        "prevention": "Treating the pet and the home together, because eggs and juveniles shelter in cracks and bedding. Your vet can advise on both."
+      },
+      "blacklegged_tick": {
+        "name": "Deer tick",
+        "summary": "The main carrier of Lyme disease in North America. It is small, and the nymphs are roughly the size of a poppy seed.",
+        "signs": "Often nothing from the bite itself. Lyme disease may bring shifting lameness, fever, swollen joints and lethargy weeks later.",
+        "prevention": "Tick preventatives, checking the coat after time in long grass or woodland, and prompt removal. A Lyme vaccine exists in some regions, so ask your vet."
+      },
+      "lone_star_tick": {
+        "name": "Lone star tick",
+        "summary": "An aggressive biter of the southern and eastern United States, recognised by the single pale spot on the female.",
+        "signs": "Visible ticks and irritation at the bite. It can transmit ehrlichiosis, which causes fever, lethargy and bleeding problems.",
+        "prevention": "Tick preventatives and coat checks after time outdoors, particularly along wooded and scrubby edges."
+      },
+      "american_dog_tick": {
+        "name": "American dog tick",
+        "summary": "A widespread tick of grassy and open country, and the main carrier of Rocky Mountain spotted fever.",
+        "signs": "Visible ticks, usually around the head and neck. Tick-borne fevers bring lethargy, poor appetite and joint pain.",
+        "prevention": "Tick preventatives, and checking the coat after walks through long grass."
+      },
+      "castor_bean_tick": {
+        "name": "Castor bean tick",
+        "summary": "Europe's most common tick, found in woodland, parks and gardens. It carries Lyme disease and tick-borne encephalitis.",
+        "signs": "Often nothing at the time. Later signs of tick-borne illness include fever, lameness and lethargy.",
+        "prevention": "Preventatives through the active season, coat checks after walks, and prompt, complete removal of any tick found."
+      },
+      "ornate_dog_tick": {
+        "name": "Ornate dog tick",
+        "summary": "A European tick with marbled markings, active earlier and later in the year than most. It transmits babesiosis, which destroys red blood cells.",
+        "signs": "Pale gums, dark urine, fever and marked lethargy point to babesiosis and need urgent attention.",
+        "prevention": "Preventatives that cover the spring and autumn peaks, plus coat checks after walks in meadow and scrub."
+      },
+      "flea": {
+        "name": "Fleas",
+        "summary": "A year-round problem, because most of the population lives in the home as eggs and larvae rather than on the pet.",
+        "signs": "Scratching, biting at the base of the tail, flea dirt in the coat, and hair loss. Some pets react severely to a single bite.",
+        "prevention": "Treating every pet in the household at the same time, alongside washing bedding and vacuuming thoroughly, since the home is the reservoir."
+      },
+      "sandfly_leishmania": {
+        "name": "Sandflies",
+        "summary": "Small biting flies of the Mediterranean that transmit leishmaniasis, a serious and often lifelong disease.",
+        "signs": "Skin sores around the head, hair loss, weight loss, overgrown claws and nosebleeds. Signs can appear months or years after the bite.",
+        "prevention": "Repellent products, keeping pets indoors from dusk to dawn, and fine mesh screens. A vaccine is available in some countries, so ask your vet."
+      },
+      "lungworm": {
+        "name": "Lungworm",
+        "summary": "Picked up by eating slugs and snails, or grass and toys they have crossed. The worms mature in the heart and lungs.",
+        "signs": "Coughing, tiring easily, and unusual bleeding or bruising that does not stop. This can be life-threatening.",
+        "prevention": "A worming product that specifically covers lungworm, since not all of them do, plus bringing toys and bowls in overnight."
+      },
+      "intestinal_worms": {
+        "name": "Intestinal worms",
+        "summary": "Roundworms, hookworms and whipworms, picked up from contaminated soil, faeces or prey. Some can pass to people.",
+        "signs": "Diarrhoea, a pot-bellied look in puppies and kittens, a poor coat, weight loss, and sometimes visible worms in faeces.",
+        "prevention": "Routine worming at a frequency matched to the pet's lifestyle, plus prompt cleanup of faeces. Your vet will advise on how often."
+      }
+    }
   }
 }

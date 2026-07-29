@@ -58,6 +58,7 @@ import {formatDateTime} from '@/features/appointments/utils/timeFormatting';
 import {useAutoSelectCompanion} from '@/shared/hooks/useAutoSelectCompanion';
 import {useBusinessPhotoFallback} from '@/features/appointments/hooks/useBusinessPhotoFallback';
 import {transformAppointmentCardData} from '@/features/appointments/utils/appointmentCardData';
+import {ParasiteRiskHomeCard} from '@/features/parasiteRisk';
 import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/appointmentStatus';
 import {handleChatActivation} from '@/features/appointments/utils/chatActivation';
 import {getBusinessCoordinates as getBusinessCoordinatesUtil} from '@/features/appointments/utils/businessCoordinates';
@@ -1503,6 +1504,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               </View>
             )}
           </View>
+
+          <ParasiteRiskHomeCard
+            onPress={() => navigation.navigate('ParasiteRisk')}
+          />
 
           <View style={styles.tileShadowWrapper}>
             <LiquidGlassCard

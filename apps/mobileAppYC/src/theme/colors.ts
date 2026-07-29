@@ -40,6 +40,21 @@ const palette = {
   violet: ['#7C3AED', '#C4B5FD'],
   violetSurface: ['#EDE9FE', 'rgba(139, 92, 246, 0.18)'],
 
+  // --- Risk scale ---
+  // A four-step sequential ramp for the parasite risk tiers. Kept separate
+  // from the status tokens because this is an ordered scale, not a set of
+  // independent states, and because it needs a fourth step beyond danger.
+  // Tier is never signalled by colour alone: every surface pairs these with a
+  // written tier label.
+  riskLow: ['#0F7A57', '#3FBF90'],
+  riskLowSurface: ['rgba(15, 122, 87, 0.12)', 'rgba(63, 191, 144, 0.16)'],
+  riskModerate: ['#B7791F', '#E9B949'],
+  riskModerateSurface: ['rgba(183, 121, 31, 0.12)', 'rgba(233, 185, 73, 0.18)'],
+  riskHigh: ['#D35400', '#F08A3C'],
+  riskHighSurface: ['rgba(211, 84, 0, 0.12)', 'rgba(240, 138, 60, 0.18)'],
+  riskExtreme: ['#A61B1B', '#F0625A'],
+  riskExtremeSurface: ['rgba(166, 27, 27, 0.12)', 'rgba(240, 98, 90, 0.18)'],
+
   // --- Surfaces ---
   page: ['#EFE8DC', '#201C18'],
   band: ['#E8E0D2', '#2A2216'],

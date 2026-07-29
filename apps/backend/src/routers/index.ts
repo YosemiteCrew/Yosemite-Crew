@@ -53,6 +53,7 @@ import codeRouter from "./code.router";
 import labOrderRouter from "./lab-order.router";
 import labResultRouter from "./lab-result.router";
 import companionHistoryRouter from "./companion-history.router";
+import parasiteRiskRouter from "./parasite-risk.router";
 import authRouter from "./auth.router";
 import superAdminRouter from "./super-admin.router";
 import catalogRouter from "./catalog.router";
@@ -122,6 +123,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/mobile-config`, mobileConfigRouter);
   app.use(`/v1/audit-trail`, auditTrailRouter);
   app.use(`/v1/companion-history`, companionHistoryRouter);
+  app.use(`/v1/parasite-risk`, parasiteRiskRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
