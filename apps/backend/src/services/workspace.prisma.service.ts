@@ -1805,10 +1805,7 @@ const loadDocuments = async (params: {
           },
           {
             clinicalArtifact: {
-              is: {
-                appointmentId: params.appointmentId,
-                status: { not: ClinicalArtifactStatus.VOID },
-              },
+              is: { appointmentId: params.appointmentId },
             },
           },
         ]
@@ -1830,10 +1827,7 @@ const loadDocuments = async (params: {
           },
           {
             clinicalArtifact: {
-              is: {
-                encounterId: params.encounterId,
-                status: { not: ClinicalArtifactStatus.VOID },
-              },
+              is: { encounterId: params.encounterId },
             },
           },
         ]
@@ -1862,6 +1856,11 @@ const loadDocuments = async (params: {
     prisma.renderedDocument.findMany({
       where: {
         organisationId: params.organisationId,
+        NOT: {
+          clinicalArtifact: {
+            is: { status: ClinicalArtifactStatus.VOID },
+          },
+        },
         ...(renderedDocumentConditions.length
           ? { OR: renderedDocumentConditions }
           : {}),
