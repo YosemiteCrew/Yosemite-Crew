@@ -548,6 +548,14 @@ describe("WorkspaceService", () => {
     expect(renderedDocumentQuery?.where?.OR).toEqual(
       expect.arrayContaining([
         { sourceKind: "INVOICE", sourceId: { in: ["invoice-1"] } },
+        {
+          clinicalArtifact: {
+            is: {
+              appointmentId: "appt-1",
+              status: { not: "VOID" },
+            },
+          },
+        },
       ]),
     );
   });

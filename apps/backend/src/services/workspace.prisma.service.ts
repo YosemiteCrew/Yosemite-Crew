@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { ClinicalArtifactStatus, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { ClinicalArtifactService } from "./clinical-artifact.service";
 import { FormAssignmentService } from "./form-assignment.service";
@@ -1805,7 +1805,10 @@ const loadDocuments = async (params: {
           },
           {
             clinicalArtifact: {
-              is: { appointmentId: params.appointmentId },
+              is: {
+                appointmentId: params.appointmentId,
+                status: { not: ClinicalArtifactStatus.VOID },
+              },
             },
           },
         ]
@@ -1827,7 +1830,10 @@ const loadDocuments = async (params: {
           },
           {
             clinicalArtifact: {
-              is: { encounterId: params.encounterId },
+              is: {
+                encounterId: params.encounterId,
+                status: { not: ClinicalArtifactStatus.VOID },
+              },
             },
           },
         ]
