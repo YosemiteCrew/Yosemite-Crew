@@ -548,8 +548,18 @@ describe("WorkspaceService", () => {
     expect(renderedDocumentQuery?.where?.OR).toEqual(
       expect.arrayContaining([
         { sourceKind: "INVOICE", sourceId: { in: ["invoice-1"] } },
+        {
+          clinicalArtifact: {
+            is: { appointmentId: "appt-1" },
+          },
+        },
       ]),
     );
+    expect(renderedDocumentQuery?.where?.NOT).toEqual({
+      clinicalArtifact: {
+        is: { status: "VOID" },
+      },
+    });
   });
 
   it("returns a bootstrap payload without billing state when no invoice is open", async () => {
@@ -1743,6 +1753,18 @@ describe("WorkspaceService", () => {
                 organisationId: "org-scope",
                 status: { in: ["ACTIVE", "PENDING"] },
               },
+            },
+          },
+        }),
+      }),
+    );
+    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org-scope",
+          NOT: {
+            clinicalArtifact: {
+              is: { status: "VOID" },
             },
           },
         }),

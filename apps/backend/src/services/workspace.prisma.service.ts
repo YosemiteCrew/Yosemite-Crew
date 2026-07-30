@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { ClinicalArtifactStatus, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { ClinicalArtifactService } from "./clinical-artifact.service";
 import { FormAssignmentService } from "./form-assignment.service";
@@ -1856,6 +1856,11 @@ const loadDocuments = async (params: {
     prisma.renderedDocument.findMany({
       where: {
         organisationId: params.organisationId,
+        NOT: {
+          clinicalArtifact: {
+            is: { status: ClinicalArtifactStatus.VOID },
+          },
+        },
         ...(renderedDocumentConditions.length
           ? { OR: renderedDocumentConditions }
           : {}),
