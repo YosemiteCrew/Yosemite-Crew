@@ -54,6 +54,7 @@ import labOrderRouter from "./lab-order.router";
 import labResultRouter from "./lab-result.router";
 import companionHistoryRouter from "./companion-history.router";
 import authRouter from "./auth.router";
+import superAdminRouter from "./super-admin.router";
 import catalogRouter from "./catalog.router";
 import healthcareServiceRouter from "./healthcare-service.router";
 import episodeOfCareRouter from "./episode-of-care.router";
@@ -61,7 +62,6 @@ import encounterRouter from "./encounter.router";
 import roomUnitRouter from "./room-unit.router";
 import roomUnitGroupRouter from "./room-unit-group.router";
 import marketingUnsubscribeRouter from "./marketing-unsubscribe.router";
-import { SuperAdminBusinessController } from "src/controllers/web/super-admin-business.controller";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -127,18 +127,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/labs`, labOrderRouter);
   app.use(`/v1/labs`, labResultRouter);
   app.use(`/v1/auth`, authRouter);
-  app.get(
-    `/v1/super-admin/businesses`,
-    SuperAdminBusinessController.listBusinesses,
-  );
-  app.get(
-    `/v1/super-admin/businesses/:id`,
-    SuperAdminBusinessController.getBusiness,
-  );
-  app.patch(
-    `/v1/super-admin/businesses/:id`,
-    SuperAdminBusinessController.updateBusiness,
-  );
+  app.use(`/v1/super-admin`, superAdminRouter);
   app.use(`/v1/catalog`, catalogRouter);
   app.use(`/v1/email-preferences`, marketingUnsubscribeRouter);
 }

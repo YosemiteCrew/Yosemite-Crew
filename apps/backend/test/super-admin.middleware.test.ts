@@ -1,10 +1,20 @@
 import type { Response } from "express";
 
-const mockGetUserMetadata = jest.fn();
+const mockGetUserRoles = jest.fn();
 const mockGetAuthService = jest.fn();
 
 jest.mock("@yosemite-crew/auth", () => ({
   getAuthService: mockGetAuthService,
+}));
+
+jest.mock("src/utils/logger", () => ({
+  __esModule: true,
+  default: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 import { requireSuperAdmin } from "src/middlewares/super-admin";
@@ -44,7 +54,7 @@ describe("requireSuperAdmin", () => {
 
   it("rejects missing sessions", async () => {
     mockGetAuthService.mockReturnValue({
-      getUserMetadata: mockGetUserMetadata,
+      getUserRoles: mockGetUserRoles,
     });
     const res = createResponse();
 
@@ -57,9 +67,9 @@ describe("requireSuperAdmin", () => {
   });
 
   it("rejects non-superadmin users", async () => {
-    mockGetUserMetadata.mockResolvedValue({ role: "admin" });
+    mockGetUserRoles.mockResolvedValue(["admin"]);
     mockGetAuthService.mockReturnValue({
-      getUserMetadata: mockGetUserMetadata,
+      getUserRoles: mockGetUserRoles,
     });
     const res = createResponse();
 
@@ -75,9 +85,9 @@ describe("requireSuperAdmin", () => {
 
   it("allows superadmin users regardless of case", async () => {
     const next = jest.fn();
-    mockGetUserMetadata.mockResolvedValue({ role: "SUPERADMIN" });
+    mockGetUserRoles.mockResolvedValue(["SUPERADMIN"]);
     mockGetAuthService.mockReturnValue({
-      getUserMetadata: mockGetUserMetadata,
+      getUserRoles: mockGetUserRoles,
     });
 
     await requireSuperAdmin(
@@ -87,5 +97,27 @@ describe("requireSuperAdmin", () => {
     );
 
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers the session role claim when present", async () => {
+    const next = jest.fn();
+    mockGetAuthService.mockReturnValue({
+      getUserRoles: mockGetUserRoles,
+    });
+
+    await requireSuperAdmin(
+      {
+        authSession: {
+          appUserId: "user-1",
+          providerUserId: "st-user-1",
+          roles: ["superadmin"],
+        },
+      } as never,
+      createResponse(),
+      next,
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(mockGetUserRoles).not.toHaveBeenCalled();
   });
 });

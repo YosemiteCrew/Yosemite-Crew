@@ -2,8 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { getAuthService } from "@yosemite-crew/auth";
 import type { AuthenticatedRequest } from "./auth";
 
-const normalizeRole = (value: unknown): string | null =>
-  typeof value === "string" && value.trim() ? value.trim().toLowerCase() : null;
+const SUPER_ADMIN_ROLE = "superadmin";
 
 export const requireSuperAdmin = async (
   req: Request,
@@ -25,10 +24,20 @@ export const requireSuperAdmin = async (
   }
 
   try {
-    const metadata = await authService.getUserMetadata(session.appUserId);
-    const role = normalizeRole(metadata.role);
+    const sessionRoles = (session.roles ?? []).map((role) =>
+      role.trim().toLowerCase(),
+    );
+    const lookupUserId = session.providerUserId ?? session.appUserId;
+    const lookupRoles =
+      sessionRoles.length > 0
+        ? []
+        : (await authService.getUserRoles(lookupUserId)).map((role) =>
+            role.trim().toLowerCase(),
+          );
+    const normalizedRoles =
+      sessionRoles.length > 0 ? sessionRoles : lookupRoles;
 
-    if (role !== "superadmin") {
+    if (!normalizedRoles.includes(SUPER_ADMIN_ROLE)) {
       res.status(403).json({ message: "Forbidden" });
       return;
     }

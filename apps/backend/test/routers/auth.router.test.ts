@@ -7,13 +7,28 @@ const requireAnyAuth = jest.fn(
   (_req: Request, _res: Response, next: () => void) => next(),
 );
 const mockSignOut = jest.fn();
-let mockService: { signOut: typeof mockSignOut } | null = {
+const mockGetUserRoles = jest.fn();
+let mockService: {
+  signOut: typeof mockSignOut;
+  getUserRoles: typeof mockGetUserRoles;
+} | null = {
   signOut: mockSignOut,
+  getUserRoles: mockGetUserRoles,
 };
 
 jest.mock("@yosemite-crew/auth", () => ({
   requireAuth,
   getAuthService: () => mockService,
+}));
+
+jest.mock("../../src/utils/logger", () => ({
+  __esModule: true,
+  default: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 jest.mock("../../src/middlewares/auth", () => ({
@@ -79,7 +94,7 @@ const makeRes = () => {
 describe("auth.router", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockService = { signOut: mockSignOut };
+    mockService = { signOut: mockSignOut, getUserRoles: mockGetUserRoles };
   });
 
   it("exposes the normalized /me and /logout routes", () => {
@@ -108,14 +123,15 @@ describe("auth.router", () => {
     expect(res.statusCode).toBe(200);
   });
 
-  it("serves the normalized session on GET /me", () => {
+  it("serves the normalized session on GET /me", async () => {
     const handler = handlerFor("/me", "get") as (
       req: Request,
       res: Response,
-    ) => void;
+    ) => Promise<void> | void;
     const res = makeRes();
     const session = {
       appUserId: "u1",
+      providerUserId: "st-user-1",
       authProfile: "pims_web",
       loginMethod: "emailpassword",
       email: "vet@clinic.test",
@@ -123,9 +139,10 @@ describe("auth.router", () => {
       mfa: { required: true, completed: true, completedFactors: ["totp"] },
       firstName: "Ada",
       lastName: "Vet",
-      role: "member",
+      roles: ["superadmin"],
     };
-    handler(
+    mockGetUserRoles.mockResolvedValueOnce([]);
+    await handler(
       { authSession: session } as unknown as Request,
       res as unknown as Response,
     );
@@ -134,7 +151,9 @@ describe("auth.router", () => {
       authProfile: "pims_web",
       email: "vet@clinic.test",
       emailVerified: true,
+      role: "superadmin",
     });
+    expect(mockGetUserRoles).toHaveBeenCalledWith("st-user-1");
   });
 
   it("revokes the session on POST /logout", async () => {
