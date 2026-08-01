@@ -35,6 +35,9 @@ const SUPERTOKENS_API_KEY_FIELD = 'apiKey' as const;
 const CTX_LOGIN_METHOD = 'ycLoginMethod';
 const CTX_EMAIL = 'ycEmail';
 const CTX_PROFILE = 'ycAuthProfile';
+const DEMO_LOGIN_EMAIL = (process.env.DEMO_LOGIN_EMAIL ?? '').trim().toLowerCase();
+const DEMO_LOGIN_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? '';
+const DEMO_LOGIN_ENABLED = DEMO_LOGIN_EMAIL !== '' && DEMO_LOGIN_PASSWORD !== '';
 
 type MutableContext = Record<string, unknown>;
 
@@ -87,6 +90,21 @@ async function reportUserCreated(input: {
 function isMfaRequirementEnabled(): boolean {
   // Escape hatch for CI/e2e environments only; defaults to enforced.
   return process.env.AUTH_REQUIRE_MFA !== 'false';
+}
+
+function isDemoLoginEmail(email?: string): boolean {
+  if (!DEMO_LOGIN_ENABLED || !email) {
+    return false;
+  }
+
+  return email.trim().toLowerCase() === DEMO_LOGIN_EMAIL;
+}
+
+function resolvePasswordlessRecipientEmail(input: {
+  email?: string;
+  templateVars?: { email?: string };
+}): string | undefined {
+  return input.email ?? input.templateVars?.email;
 }
 
 function buildThirdPartyProviders(): ProviderInput[] {
@@ -257,10 +275,37 @@ export function getSuperTokensConfig(): TypeInput {
           service: new PasswordlessSMTPService({
             smtpSettings,
           }),
+          override: (original) => ({
+            ...original,
+            sendEmail: async (input) => {
+              const recipientEmail = resolvePasswordlessRecipientEmail(
+                input as {
+                  email?: string;
+                  templateVars?: { email?: string };
+                }
+              );
+
+              if (isDemoLoginEmail(recipientEmail)) {
+                return;
+              }
+
+              return original.sendEmail(input);
+            },
+          }),
         },
         override: {
           functions: (original) => ({
             ...original,
+            createCode: async (input) => {
+              if ('email' in input && isDemoLoginEmail(input.email)) {
+                return original.createCode({
+                  ...input,
+                  userInputCode: DEMO_LOGIN_PASSWORD,
+                });
+              }
+
+              return original.createCode(input);
+            },
             consumeCode: async (input) => {
               const ctx = input.userContext as MutableContext;
               ctx[CTX_LOGIN_METHOD] = 'otp-email';
