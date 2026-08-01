@@ -9,6 +9,11 @@ import { MfaDebugController } from "../controllers/web/mfa-debug.controller";
 import { isLocalDevEnvironment } from "../utils/local-dev";
 
 const router = Router();
+type AuthServiceForRouter = {
+  getUserRoles(appUserId: string): Promise<string[]>;
+  getUserMetadata(appUserId: string): Promise<Record<string, unknown>>;
+  signOut(ctx: { req: unknown; res: Response }): Promise<void>;
+};
 
 // The auth provider is env-gated in app.ts; when it is off this router must
 // fail closed instead of throwing from an uninitialized SDK.
@@ -25,10 +30,30 @@ router.use((_req, res, next) => {
 router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
   try {
     const session = (req as AuthenticatedRequest).authSession!;
+    const authService = getAuthService();
+    if (!authService) {
+      res
+        .status(503)
+        .json({ message: "Authentication service is not enabled" });
+      return;
+    }
+
+    const authServiceForRouter = authService as AuthServiceForRouter;
+    const sessionRoles = (session.roles ?? []).map((role) =>
+      role.trim().toLowerCase(),
+    );
+    const lookupRoles = await authServiceForRouter.getUserRoles(
+      session.providerUserId ?? session.appUserId,
+    );
+    const normalizedLookupRoles = lookupRoles.map((role) =>
+      role.trim().toLowerCase(),
+    );
+    const resolvedRoles =
+      sessionRoles.length > 0 ? sessionRoles : normalizedLookupRoles;
 
     let metadata: Record<string, unknown> = {};
     try {
-      metadata = await getAuthService()!.getUserMetadata(session.appUserId);
+      metadata = await authServiceForRouter.getUserMetadata(session.appUserId);
     } catch {
       // Metadata enrichment is best-effort; the session itself is the source
       // of truth for identity.
@@ -51,7 +76,10 @@ router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
         (typeof metadata.last_name === "string"
           ? metadata.last_name
           : undefined),
-      role: typeof metadata.role === "string" ? metadata.role : undefined,
+      role:
+        resolvedRoles.find((role: string) => role === "superadmin") ??
+        resolvedRoles[0] ??
+        (typeof metadata.role === "string" ? metadata.role : undefined),
     });
   } catch (err) {
     next(err);
@@ -63,7 +91,16 @@ router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
 // signed-out.
 router.post("/logout", async (req, res: Response, next) => {
   try {
-    await getAuthService()!.signOut({ req, res });
+    const authService = getAuthService();
+    if (!authService) {
+      res
+        .status(503)
+        .json({ message: "Authentication service is not enabled" });
+      return;
+    }
+
+    const authServiceForRouter = authService as AuthServiceForRouter;
+    await authServiceForRouter.signOut({ req, res });
     res.status(200).json({ status: "OK" });
   } catch (err) {
     next(err);

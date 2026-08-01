@@ -51,4 +51,77 @@ export const authHooks: AuthHooks = {
       logger.error("Failed to record auth identity mapping", error);
     }
   },
+
+  async resolveAppUserId({
+    appUserId,
+    providerUserId,
+    provider,
+    authProfile,
+    email,
+  }) {
+    if (provider !== "supertokens") {
+      return appUserId;
+    }
+
+    try {
+      const normalizedEmail = email?.trim().toLowerCase();
+
+      if (normalizedEmail && authProfile) {
+        const candidates = await prisma.authIdentity.findMany({
+          where: {
+            email: normalizedEmail,
+            authProfile,
+          },
+          orderBy: { createdAt: "asc" },
+          select: {
+            appUserId: true,
+          },
+        });
+
+        const legacyCandidate = candidates.find(
+          (candidate) => candidate.appUserId !== appUserId,
+        );
+
+        if (legacyCandidate) {
+          await prisma.authIdentity.upsert({
+            where: {
+              provider_providerUserId: {
+                provider,
+                providerUserId,
+              },
+            },
+            update: {
+              appUserId: legacyCandidate.appUserId,
+              email: normalizedEmail,
+              authProfile,
+            },
+            create: {
+              provider,
+              providerUserId,
+              appUserId: legacyCandidate.appUserId,
+              email: normalizedEmail,
+              authProfile,
+            },
+          });
+
+          return legacyCandidate.appUserId;
+        }
+      }
+
+      const existingMapping = await prisma.authIdentity.findFirst({
+        where: {
+          provider,
+          providerUserId,
+        },
+        select: {
+          appUserId: true,
+        },
+      });
+
+      return existingMapping?.appUserId ?? appUserId;
+    } catch (error) {
+      logger.error("Failed to resolve auth identity mapping", error);
+      return appUserId;
+    }
+  },
 };

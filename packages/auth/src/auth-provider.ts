@@ -18,6 +18,8 @@ export interface AuthProvider {
 
   getUserMetadata?(appUserId: string): Promise<Record<string, unknown>>;
 
+  getUserRoles?(appUserId: string, tenantId: string): Promise<string[]>;
+
   setUserRole?(appUserId: string, role: string): Promise<void>;
 
   deleteUser?(appUserId: string): Promise<void>;

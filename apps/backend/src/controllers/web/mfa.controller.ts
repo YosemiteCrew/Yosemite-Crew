@@ -26,7 +26,7 @@ export class MfaController {
 
   static async enableTotp(req: SessionRequest, res: Response) {
     try {
-      const userId = getSessionUserId(req);
+      const userId = await getSessionUserId(req);
 
       await requireTotpForUser(userId);
 
@@ -46,7 +46,7 @@ export class MfaController {
 
   static async disableTotp(req: SessionRequest, res: Response) {
     try {
-      const userId = getSessionUserId(req);
+      const userId = await getSessionUserId(req);
 
       await removeTotpRequirementForUser(userId);
 

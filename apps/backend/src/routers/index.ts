@@ -34,6 +34,7 @@ import chatRouter from "./chat.router";
 import notificationRouter from "./notification.router";
 import contactRouter from "./contact-us.router";
 import accountWithdrawalRouter from "./account-withdrawal.router";
+import { OrganizationDocumentController } from "src/controllers/web/organisation-document.controller";
 import organisationDocumentRouter from "./organisation-document.router";
 import adverseEventRouter from "./adverse-event.router";
 import taskRouter from "./task.router";
@@ -53,6 +54,7 @@ import labOrderRouter from "./lab-order.router";
 import labResultRouter from "./lab-result.router";
 import companionHistoryRouter from "./companion-history.router";
 import authRouter from "./auth.router";
+import superAdminRouter from "./super-admin.router";
 import catalogRouter from "./catalog.router";
 import healthcareServiceRouter from "./healthcare-service.router";
 import episodeOfCareRouter from "./episode-of-care.router";
@@ -106,6 +108,10 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/notification`, notificationRouter);
   app.use(`/v1/contact-us`, contactRouter);
   app.use(`/v1/account-withdrawal`, accountWithdrawalRouter);
+  app.get(
+    `/v1/legal-document/:type`,
+    OrganizationDocumentController.getLegalDocument,
+  );
   app.use(`/v1/organisation-document`, organisationDocumentRouter);
   app.use(`/v1/adverse-event`, adverseEventRouter);
   app.use(`/v1/task`, taskRouter);
@@ -121,6 +127,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/labs`, labOrderRouter);
   app.use(`/v1/labs`, labResultRouter);
   app.use(`/v1/auth`, authRouter);
+  app.use(`/v1/super-admin`, superAdminRouter);
   app.use(`/v1/catalog`, catalogRouter);
   app.use(`/v1/email-preferences`, marketingUnsubscribeRouter);
 }

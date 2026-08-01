@@ -19,6 +19,56 @@ export class OrgDocumentServiceError extends Error {
   }
 }
 
+export type LegalDocumentType = "terms" | "privacy";
+
+export interface LegalDocumentResponse {
+  pdfUrl: string;
+  version: string;
+  lastUpdated: string;
+}
+
+export interface AcknowledgeOrgDocumentInput {
+  organisationId: string;
+  documentId: string;
+  userId: string;
+  category: OrgDocumentCategory;
+  version: number;
+}
+
+export interface DocumentAcknowledgementStatus {
+  acknowledged: boolean;
+  version: number;
+  acknowledgedAt?: Date;
+}
+
+const FIXED_LEGAL_DOCUMENTS: Record<
+  LegalDocumentType,
+  {
+    pdfKey: string;
+    version: string;
+    lastUpdated: string;
+  }
+> = {
+  terms: {
+    pdfKey: "legal/terms-v1.pdf",
+    version: "v1",
+    lastUpdated: "2026-03-01",
+  },
+  privacy: {
+    pdfKey: "legal/privacy-v1.pdf",
+    version: "v1",
+    lastUpdated: "2026-03-01",
+  },
+};
+
+const ORG_DOCUMENT_PDF_SLUGS: Record<OrgDocumentCategory, string> = {
+  TERMS_AND_CONDITIONS: "terms-and-conditions",
+  PRIVACY_POLICY: "privacy-policy",
+  CANCELLATION_POLICY: "cancellation-policy",
+  FIRE_SAFETY: "fire-safety",
+  GENERAL: "general",
+};
+
 const requireSafeString = (value: string, field: string) => {
   if (!value || typeof value !== "string") {
     throw new OrgDocumentServiceError(`Invalid ${field}`, 400);
@@ -43,6 +93,7 @@ const toOrganizationDocumentDocument = (doc: {
   fileName: string | null;
   fileType: string | null;
   fileSize: number | null;
+  pdfUrl: string | null;
   visibility: PrismaOrgDocumentVisibility;
   version: number;
   createdAt: Date;
@@ -59,12 +110,50 @@ const toOrganizationDocumentDocument = (doc: {
     fileName: rest.fileName ?? undefined,
     fileType: rest.fileType ?? undefined,
     fileSize: rest.fileSize ?? undefined,
+    pdfUrl: rest.pdfUrl ?? undefined,
     visibility: rest.visibility,
     version: rest.version,
     createdAt: rest.createdAt,
     updatedAt: rest.updatedAt,
   };
 };
+
+const buildOrganisationDocumentPdfUrl = (doc: {
+  organisationId: string;
+  category: PrismaOrgDocumentCategory;
+  fileUrl: string | null;
+  fileType: string | null;
+  version: number;
+}): string => {
+  if (doc.fileType === "application/pdf" && doc.fileUrl) {
+    return doc.fileUrl;
+  }
+
+  const slug = ORG_DOCUMENT_PDF_SLUGS[doc.category];
+  return getURLForKey(
+    `org-docs/${encodeURIComponent(doc.organisationId)}/${slug}-v${doc.version}.pdf`,
+  );
+};
+
+const toOrganizationDocumentDocumentWithPdfUrl = (doc: {
+  id: string;
+  organisationId: string;
+  title: string;
+  description: string | null;
+  category: PrismaOrgDocumentCategory;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileType: string | null;
+  fileSize: number | null;
+  visibility: PrismaOrgDocumentVisibility;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): OrganizationDocumentDocument =>
+  toOrganizationDocumentDocument({
+    ...doc,
+    pdfUrl: buildOrganisationDocumentPdfUrl(doc),
+  });
 
 type Visibility = "INTERNAL" | "PUBLIC";
 
@@ -124,7 +213,7 @@ export const OrganizationDocumentService = {
         version: 1,
       },
     });
-    return toOrganizationDocumentDocument(doc);
+    return toOrganizationDocumentDocumentWithPdfUrl(doc);
   },
 
   /**
@@ -171,7 +260,7 @@ export const OrganizationDocumentService = {
       },
     });
 
-    return toOrganizationDocumentDocument(updated);
+    return toOrganizationDocumentDocumentWithPdfUrl(updated);
   },
 
   /**
@@ -201,7 +290,7 @@ export const OrganizationDocumentService = {
     if (!doc) {
       throw new OrgDocumentServiceError("Document not found", 404);
     }
-    return toOrganizationDocumentDocument(doc);
+    return toOrganizationDocumentDocumentWithPdfUrl(doc);
   },
 
   /**
@@ -237,7 +326,7 @@ export const OrganizationDocumentService = {
       orderBy: { updatedAt: "desc" },
     });
 
-    return docs.map((doc) => toOrganizationDocumentDocument(doc));
+    return docs.map((doc) => toOrganizationDocumentDocumentWithPdfUrl(doc));
   },
 
   /**
@@ -274,7 +363,7 @@ export const OrganizationDocumentService = {
       orderBy: { updatedAt: "desc" },
     });
 
-    return docs.map((doc) => toOrganizationDocumentDocument(doc));
+    return docs.map((doc) => toOrganizationDocumentDocumentWithPdfUrl(doc));
   },
 
   /**
@@ -322,5 +411,116 @@ export const OrganizationDocumentService = {
       fileType: input.fileType,
       fileSize: input.fileSize,
     });
+  },
+
+  /**
+   * Fixed YC legal documents are static and pre-rendered as PDFs.
+   */
+  getFixedLegalDocument(type: LegalDocumentType): LegalDocumentResponse {
+    const document = FIXED_LEGAL_DOCUMENTS[type];
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Invalid legal document type", 400);
+    }
+
+    return {
+      pdfUrl: getURLForKey(document.pdfKey),
+      version: document.version,
+      lastUpdated: document.lastUpdated,
+    };
+  },
+
+  /**
+   * Persist a user acknowledgment for a specific document version.
+   */
+  async acknowledgeDocument(input: AcknowledgeOrgDocumentInput): Promise<void> {
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
+    const documentId = requireSafeString(input.documentId, "documentId");
+    const userId = requireSafeString(input.userId, "userId");
+
+    if (!Number.isInteger(input.version) || input.version < 1) {
+      throw new OrgDocumentServiceError("Invalid version", 400);
+    }
+
+    const document = await prisma.organizationDocument.findFirst({
+      where: {
+        id: documentId,
+        organisationId,
+      },
+    });
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Document not found", 404);
+    }
+
+    await prisma.organizationDocumentAcknowledgement.upsert({
+      where: {
+        userId_organisationId_documentId_category_version: {
+          userId,
+          organisationId,
+          documentId,
+          category: input.category as PrismaOrgDocumentCategory,
+          version: input.version,
+        },
+      },
+      create: {
+        userId,
+        organisationId,
+        documentId,
+        category: input.category as PrismaOrgDocumentCategory,
+        version: input.version,
+      },
+      update: {},
+    });
+  },
+
+  /**
+   * Return whether the current document version has already been acknowledged.
+   */
+  async getAcknowledgementStatus(input: {
+    organisationId: string;
+    documentId: string;
+    userId: string;
+  }): Promise<DocumentAcknowledgementStatus> {
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
+    const documentId = requireSafeString(input.documentId, "documentId");
+    const userId = requireSafeString(input.userId, "userId");
+
+    const document = await prisma.organizationDocument.findFirst({
+      where: {
+        id: documentId,
+        organisationId,
+      },
+    });
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Document not found", 404);
+    }
+
+    const acknowledgement =
+      await prisma.organizationDocumentAcknowledgement.findFirst({
+        where: {
+          userId,
+          organisationId,
+          documentId,
+          category: document.category,
+          version: document.version,
+        },
+        orderBy: {
+          acknowledgedAt: "desc",
+        },
+      });
+
+    return {
+      acknowledged: Boolean(acknowledgement),
+      version: document.version,
+      acknowledgedAt: acknowledgement?.acknowledgedAt,
+    };
   },
 };

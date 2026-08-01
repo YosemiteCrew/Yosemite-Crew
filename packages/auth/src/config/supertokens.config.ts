@@ -13,6 +13,7 @@ import Passwordless from 'supertokens-node/recipe/passwordless';
 import ThirdParty from 'supertokens-node/recipe/thirdparty';
 import UserMetadata from 'supertokens-node/recipe/usermetadata';
 import AccountLinking from 'supertokens-node/recipe/accountlinking';
+import UserRoles from 'supertokens-node/recipe/userroles';
 import { SMTPService as PasswordlessSMTPService } from 'supertokens-node/recipe/passwordless/emaildelivery';
 import { getAuthHooks } from '../hooks.js';
 import type { AuthProfile, LoginMethod } from '../types.js';
@@ -321,6 +322,7 @@ export function getSuperTokensConfig(): TypeInput {
         }),
       }),
       UserMetadata.init(),
+      UserRoles.init(),
       Session.init({
         override: {
           functions: (original) => ({

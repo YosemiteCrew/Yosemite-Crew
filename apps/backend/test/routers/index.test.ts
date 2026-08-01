@@ -83,6 +83,9 @@ for (const name of MARKER_ROUTER_MODULES) {
 // invoice.router.ts is loaded for real (via jest.requireActual below), so its
 // own direct dependencies are mocked the same way invoice.router.test.ts does.
 jest.doMock("../../src/middlewares/auth", () => ({
+  requireAnyAuth: jest.fn((_req: unknown, _res: unknown, next: () => void) =>
+    next(),
+  ),
   requireWebAuth: jest.fn((_req, _res, next) => next()),
   requireMobileAuth: jest.fn((_req, _res, next) => next()),
 }));
@@ -128,10 +131,17 @@ type RouteLayer = {
 
 describe("routers/index registerRoutes", () => {
   it("mounts the real invoice.router (not finance.router) at /fhir/v1/invoice", () => {
-    const calls: Array<{ path: string; handler: unknown }> = [];
+    const calls: Array<{
+      method: "use" | "get";
+      path: string;
+      handler: unknown;
+    }> = [];
     const fakeApp = {
       use: (path: string, handler: unknown) => {
-        calls.push({ path, handler });
+        calls.push({ method: "use", path, handler });
+      },
+      get: (path: string, handler: unknown) => {
+        calls.push({ method: "get", path, handler });
       },
     } as unknown as Express;
 

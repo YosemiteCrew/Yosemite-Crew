@@ -1,6 +1,7 @@
 import SuperTokens from 'supertokens-node';
 import Session from 'supertokens-node/recipe/session';
 import UserMetadata from 'supertokens-node/recipe/usermetadata';
+import UserRoles from 'supertokens-node/recipe/userroles';
 import type { Request, Response } from 'express';
 
 import type { AuthProvider } from '../../auth-provider.js';
@@ -12,6 +13,7 @@ import type {
   RequestContext,
 } from '../../types.js';
 import { AuthRequiredError } from '../../errors.js';
+import { resolveAppUserId } from '../../express/getSessionUserId.js';
 
 // SuperTokens adapter. This is the ONLY place outside SuperTokens setup that may
 // import the SuperTokens SDK. It converts a SuperTokens session into the
@@ -24,6 +26,9 @@ import { AuthRequiredError } from '../../errors.js';
 // Shape of the MultiFactorAuth claim SuperTokens stores in the access token
 // payload: { c: { [factorId]: completedAtEpochSeconds }, v: allRequirementsMet }.
 type StMfaClaim = { c?: Record<string, number>; v?: boolean };
+type StRolesClaim = { v?: unknown };
+
+const DEFAULT_TENANT_ID = 'public';
 
 const AUTH_PROFILE_CLAIM = 'authProfile';
 const LOGIN_METHOD_CLAIM = 'loginMethod';
@@ -47,6 +52,38 @@ function readMfaState(payload: Record<string, unknown>): AuthMfaState | undefine
     completed: claim.v !== false,
     completedFactors,
   };
+}
+
+function readRoles(payload: Record<string, unknown>): string[] {
+  const claim = payload['st-role'] as StRolesClaim | undefined;
+  const roles = claim?.v;
+  if (!Array.isArray(roles)) {
+    return [];
+  }
+
+  return roles.filter((role): role is string => typeof role === 'string');
+}
+
+async function readSessionRoles(
+  session: unknown,
+  payload: Record<string, unknown>
+): Promise<string[]> {
+  const claimSession = session as {
+    getClaimValue?<T>(claim: T): Promise<T | undefined>;
+  };
+
+  if (claimSession.getClaimValue) {
+    try {
+      const claimValue = await claimSession.getClaimValue(UserRoles.UserRoleClaim);
+      if (Array.isArray(claimValue)) {
+        return claimValue.filter((role): role is string => typeof role === 'string');
+      }
+    } catch {
+      // Fall back to the token payload shape below.
+    }
+  }
+
+  return readRoles(payload);
 }
 
 export class SuperTokensAuthProvider implements AuthProvider {
@@ -81,12 +118,18 @@ export class SuperTokensAuthProvider implements AuthProvider {
     }
 
     const payload = session.getAccessTokenPayload() as Record<string, unknown>;
+    const appUserId = await resolveAppUserId({
+      appUserId: session.getUserId(),
+      providerUserId: session.getRecipeUserId().getAsString(),
+      provider: 'supertokens',
+      authProfile: readProfile(payload),
+      email:
+        typeof payload[EMAIL_CLAIM] === 'string' ? (payload[EMAIL_CLAIM] as string) : undefined,
+      loginMethod: (payload[LOGIN_METHOD_CLAIM] as LoginMethod) ?? 'unknown',
+      claims: payload,
+    });
 
-    // With UserId Mapping in place, getUserId() returns the mapped external id
-    // (the pre-existing stable app user id) for migrated users, and the native
-    // SuperTokens id for new users - either way it IS the appUserId, so all
-    // existing foreign keys and request scoping remain valid.
-    const appUserId = session.getUserId();
+    const roles = await readSessionRoles(session, payload);
 
     return {
       appUserId,
@@ -100,7 +143,7 @@ export class SuperTokensAuthProvider implements AuthProvider {
         typeof payload['st-ev'] === 'object' && payload['st-ev'] !== null
           ? Boolean((payload['st-ev'] as { v?: boolean }).v)
           : undefined,
-      roles: [],
+      roles,
       permissions: [],
       claims: payload,
       mfa: readMfaState(payload),
@@ -156,7 +199,14 @@ export class SuperTokensAuthProvider implements AuthProvider {
     return (result.metadata as Record<string, unknown>) ?? {};
   }
 
+  async getUserRoles(appUserId: string, tenantId = DEFAULT_TENANT_ID): Promise<string[]> {
+    const result = await UserRoles.getRolesForUser(tenantId, appUserId);
+    return result.roles ?? [];
+  }
+
   async setUserRole(appUserId: string, role: string): Promise<void> {
+    await UserRoles.createNewRoleOrAddPermissions(role, []);
+    await UserRoles.addRoleToUser(DEFAULT_TENANT_ID, appUserId, role);
     await UserMetadata.updateUserMetadata(appUserId, { role });
   }
 

@@ -1,5 +1,9 @@
 import { UserController } from "../../src/controllers/web/user.controller";
-import { UserService, UserServiceError } from "../../src/services/user.service";
+import {
+  UserService,
+  UserServiceError,
+  resolveCanonicalUserId,
+} from "../../src/services/user.service";
 import logger from "../../src/utils/logger";
 
 jest.mock("../../src/services/user.service", () => {
@@ -9,7 +13,10 @@ jest.mock("../../src/services/user.service", () => {
     UserService: {
       create: jest.fn(),
       getById: jest.fn(),
+      deleteById: jest.fn(),
+      updateName: jest.fn(),
     },
+    resolveCanonicalUserId: jest.fn(),
   };
 });
 
@@ -24,6 +31,7 @@ const mockedUserService = UserService as unknown as {
   create: jest.Mock;
   getById: jest.Mock;
 };
+const mockedResolveCanonicalUserId = resolveCanonicalUserId as jest.Mock;
 
 const mockedLogger = logger as unknown as {
   error: jest.Mock;
@@ -136,6 +144,9 @@ describe("UserController", () => {
       const req = { params: { id: "user-1" }, userId: "user-1" } as any;
       const res = createResponse();
       const user = { id: "user-1", email: "user@example.com", isActive: true };
+      mockedResolveCanonicalUserId
+        .mockResolvedValueOnce("user-1")
+        .mockResolvedValueOnce("user-1");
       mockedUserService.getById.mockResolvedValueOnce(user);
 
       await UserController.getById(req, res as any);
@@ -147,6 +158,9 @@ describe("UserController", () => {
     it("returns 404 when user missing", async () => {
       const req = { params: { id: "missing" }, userId: "missing" } as any;
       const res = createResponse();
+      mockedResolveCanonicalUserId
+        .mockResolvedValueOnce("missing")
+        .mockResolvedValueOnce(null);
       mockedUserService.getById.mockResolvedValueOnce(null);
 
       await UserController.getById(req, res as any);

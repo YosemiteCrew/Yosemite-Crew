@@ -77,6 +77,18 @@ export type AuthHooks = {
     loginMethod: LoginMethod;
   }) => Promise<AuthProfile | undefined>;
 
+  // Resolve the stable app-level user id for a provider session. This lets the
+  // host restore legacy ids for migrated users whose SuperTokens id is new.
+  resolveAppUserId?: (input: {
+    appUserId: string;
+    providerUserId: string;
+    provider: AuthProviderName;
+    authProfile?: AuthProfile;
+    email?: string;
+    loginMethod: LoginMethod;
+    claims: Record<string, unknown>;
+  }) => Promise<string | undefined>;
+
   // Fired after the provider creates a brand-new user (sign-up). The host
   // records the identity mapping (auth_identities) here.
   onUserCreated?: (input: {

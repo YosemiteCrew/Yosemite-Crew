@@ -33,6 +33,10 @@ export class AuthService {
     return (await this.provider.getUserMetadata?.(appUserId)) ?? {};
   }
 
+  async getUserRoles(appUserId: string, tenantId = 'public'): Promise<string[]> {
+    return (await this.provider.getUserRoles?.(appUserId, tenantId)) ?? [];
+  }
+
   async setUserRole(appUserId: string, role: string): Promise<void> {
     await this.provider.setUserRole?.(appUserId, role);
   }
