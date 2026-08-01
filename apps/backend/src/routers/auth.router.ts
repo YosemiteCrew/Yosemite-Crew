@@ -7,7 +7,6 @@ import { requireAnyAuth } from "../middlewares/auth";
 import { MfaController } from "../controllers/web/mfa.controller";
 import { MfaDebugController } from "../controllers/web/mfa-debug.controller";
 import { isLocalDevEnvironment } from "../utils/local-dev";
-import logger from "src/utils/logger";
 
 const router = Router();
 type AuthServiceForRouter = {
