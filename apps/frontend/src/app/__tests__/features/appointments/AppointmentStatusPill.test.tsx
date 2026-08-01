@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import type { Appointment } from '@yosemite-crew/types';
 import AppointmentStatusPill from '@/app/features/appointments/components/AppointmentStatusPill';
 import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
 import { patchData } from '@/app/services/axios';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
@@ -34,14 +35,19 @@ describe('AppointmentStatusPill', () => {
 
   it('renders a read-only badge when no transitions are allowed', () => {
     render(<AppointmentStatusPill appointment={makeAppointment('COMPLETED')} />);
-    expect(screen.getByText('Completed')).toBeInTheDocument();
+    const pill = screen.getByText('Completed');
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
+    expect(pill).toHaveStyle({ backgroundColor: 'var(--color-pill-success-bg)' });
     // No dropdown trigger — it is a static span.
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('renders a read-only badge when editing is disabled', () => {
     render(<AppointmentStatusPill appointment={makeAppointment('IN_PROGRESS')} canEdit={false} />);
-    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(screen.getByText('In progress')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-progress-bg)',
+    });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
@@ -95,6 +101,21 @@ describe('AppointmentStatusPill', () => {
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(cleanup).toHaveBeenCalled();
+  });
+});
+
+describe('getAppointmentStatusTone', () => {
+  it('maps appointment statuses to shared inventory-style pill tones', () => {
+    expect(getAppointmentStatusTone('COMPLETED')).toBe('success');
+    expect(getAppointmentStatusTone('IN_PROGRESS')).toBe('progress');
+    expect(getAppointmentStatusTone('CHECKED_IN')).toBe('accent');
+    expect(getAppointmentStatusTone('Checked in')).toBe('accent');
+    expect(getAppointmentStatusTone('UPCOMING')).toBe('info');
+    expect(getAppointmentStatusTone('CANCELLED')).toBe('warning');
+    expect(getAppointmentStatusTone('NO_SHOW')).toBe('warning');
+    expect(getAppointmentStatusTone('NO_PAYMENT')).toBe('warning');
+    expect(getAppointmentStatusTone('REQUESTED')).toBe('neutral');
+    expect(getAppointmentStatusTone(undefined)).toBe('neutral');
   });
 });
 

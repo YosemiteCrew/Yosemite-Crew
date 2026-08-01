@@ -37,7 +37,7 @@ import {
   normalizeAppointmentStatus,
   toStatusLabel,
 } from '@/app/lib/appointments';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
@@ -899,7 +899,6 @@ const useAppointmentInfoView = ({
                 }
 
                 if (field.key === 'status') {
-                  const statusStyle = getStatusStyle(activeAppointment.status);
                   return (
                     <div
                       key={field.key}
@@ -907,7 +906,7 @@ const useAppointmentInfoView = ({
                     >
                       <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
                       <StatusPill
-                        style={statusStyle}
+                        tone={getAppointmentStatusTone(activeAppointment.status)}
                         label={toStatusLabel(activeAppointment.status)}
                       />
                     </div>

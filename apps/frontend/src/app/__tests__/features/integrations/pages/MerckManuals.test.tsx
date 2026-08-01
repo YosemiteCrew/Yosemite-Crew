@@ -44,8 +44,8 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
+  Primary: ({ text, onClick, isDisabled, className }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled} className={className}>
       {text}
     </button>
   ),
@@ -170,6 +170,18 @@ describe('MerckManuals page', () => {
     expect(screen.getByText('Open')).toBeInTheDocument();
   });
 
+  it('aligns the search row along the bottom with a 48px Search button, matching the field height (regression for search-row alignment)', () => {
+    render(<ProtectedMerckManuals />);
+
+    const searchInput = screen.getByLabelText('Search manuals');
+    const row = searchInput.closest('.items-end');
+    expect(row).not.toBeNull();
+
+    const searchButton = screen.getByRole('button', { name: 'Search' });
+    expect(row).toContainElement(searchButton);
+    expect(searchButton.className).toContain('h-12!');
+  });
+
   it('filters out disallowed results', async () => {
     searchMock.mockResolvedValue({
       entries: [
@@ -234,6 +246,12 @@ describe('MerckManuals page', () => {
       'z-10000'
     );
     expect(screen.getByTitle('Canine Fever')).toHaveAttribute('referrerpolicy', 'strict-origin');
+    // Without allow-same-origin, MSD's app throws reading document.cookie and the
+    // frame hangs on its own loader forever.
+    expect(screen.getByTitle('Canine Fever')).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-popups allow-forms allow-same-origin'
+    );
     fireEvent.click(screen.getByLabelText('Close Merck reader'));
     await waitFor(() => expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument());
   });
@@ -418,9 +436,7 @@ describe('MerckManuals page', () => {
         jest.advanceTimersByTime(12000);
       });
 
-      const fallback = screen
-        .getByText('This manual can’t be shown here')
-        .closest('div') as HTMLElement;
+      const fallback = screen.getByText('This manual didn’t load').closest('div') as HTMLElement;
       expect(fallback).toBeInTheDocument();
       // The infinite spinner and the un-renderable iframe are both gone.
       expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument();
@@ -452,7 +468,7 @@ describe('MerckManuals page', () => {
         jest.advanceTimersByTime(12000);
       });
 
-      expect(screen.queryByText('This manual can’t be shown here')).not.toBeInTheDocument();
+      expect(screen.queryByText('This manual didn’t load')).not.toBeInTheDocument();
       expect(screen.queryByText(/Fetching/)).not.toBeInTheDocument();
       expect(screen.getByTitle('Canine Fever')).toBeInTheDocument();
     } finally {
@@ -473,13 +489,13 @@ describe('MerckManuals page', () => {
       act(() => {
         jest.advanceTimersByTime(12000);
       });
-      expect(screen.getByText('This manual can’t be shown here')).toBeInTheDocument();
+      expect(screen.getByText('This manual didn’t load')).toBeInTheDocument();
 
       fireEvent.click(screen.getByLabelText('Close Merck reader'));
       fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
       expect(await screen.findByTitle('Canine Fever')).toBeInTheDocument();
-      expect(screen.queryByText('This manual can’t be shown here')).not.toBeInTheDocument();
+      expect(screen.queryByText('This manual didn’t load')).not.toBeInTheDocument();
       expect(screen.getByText(/Fetching/)).toBeInTheDocument();
     } finally {
       jest.useRealTimers();

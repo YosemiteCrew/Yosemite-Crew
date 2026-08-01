@@ -1,9 +1,10 @@
 import React from 'react';
 
 /**
- * The one status pill for the whole app. Geometry and type are the warm-bone
- * badge: 10px/700 uppercase, +0.06em, a full-radius bordered pill, with an
- * optional leading live-dot. Colour is the only thing that varies.
+ * The one status pill for the whole app. Geometry and type are the design's
+ * micro-badge: 10px/700 uppercase, +0.08em, 3px 10px inside a full-radius
+ * bordered pill, with an optional leading live-dot. Colour is the only thing
+ * that varies.
  *
  * Two ways to colour it:
  * - `tone` picks a `--color-pill-*` token set (the normal case).
@@ -11,9 +12,9 @@ import React from 'react';
  *   already compute a status colour via a helper can adopt the shared geometry
  *   without rewriting their colour logic. `tokens` wins when both are given.
  *
- * `danger` draws from the `--danger-*` scale rather than `--color-pill-*`,
- * which has no danger set. It is a distinct tone on purpose: folding danger
- * into `warning` would silently repaint every error state amber.
+ * `danger` draws from the shared `--color-pill-danger-*` set. It is a distinct
+ * tone on purpose: folding danger into `warning` would silently repaint every
+ * error state amber.
  */
 export type StatusTone =
   'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'accent' | 'progress';
@@ -32,9 +33,9 @@ const TONE_TOKENS: Record<StatusTone, StatusPillTokens> = {
     border: 'var(--color-pill-warning-border)',
   },
   danger: {
-    bg: 'var(--danger-bg)',
-    text: 'var(--danger-text)',
-    border: 'var(--danger-border)',
+    bg: 'var(--color-pill-danger-bg)',
+    text: 'var(--color-pill-danger-text)',
+    border: 'var(--color-pill-danger-border)',
   },
   info: {
     bg: 'var(--color-pill-info-bg)',
@@ -76,6 +77,8 @@ type StatusPillProps = {
   showDot?: boolean;
   /** Extra classes for layout only (e.g. `w-fit`). */
   className?: string;
+  /** Accessible hover text when `label` is composed from multiple nodes. */
+  title?: string;
 };
 
 const StatusPill = ({
@@ -85,15 +88,30 @@ const StatusPill = ({
   style,
   showDot = false,
   className,
+  title,
 }: StatusPillProps) => {
   const resolved = tokens ?? TONE_TOKENS[tone];
+  // Geometry is the design's micro-badge, measured off the `.dc.html` sources:
+  // 3px 10px padding, 10px/700, +0.08em, `line-height: normal` -> 21.5px tall.
+  // `py-0.5` + the inherited 15px line-height used to render it 21px with the
+  // wrong optical padding, while `.appointment-status` (line-height: 1) came
+  // out at 18px, so the same status read at two sizes across the app.
+  //
   // `w-fit` matters: a badge is often a direct child of a flex column, whose
   // default `align-items: stretch` would otherwise pull it into a full-width
   // band. An explicit cross size defeats the stretch, and unlike `self-start`
   // it leaves the badge centred in the flex rows it also sits in.
+  //
+  // `overflow-hidden` is the companion to `max-w-full`: a clamped pill must clip
+  // inside its own border rather than let `whitespace-nowrap` text bleed across
+  // it into the next column. `title` keeps the full label reachable when it does.
+  // No `justify-center`: a `w-fit` pill is exactly its content, so centring only
+  // ever shows up on a clamped pill - where it clips BOTH ends and the label
+  // becomes unreadable. Start-aligned, a clamped pill still reads from the top.
   return (
     <span
-      className={`inline-flex w-fit max-w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full! border! px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ${
+      title={title ?? (typeof label === 'string' ? label : undefined)}
+      className={`yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] ${
         className ?? ''
       }`}
       style={{

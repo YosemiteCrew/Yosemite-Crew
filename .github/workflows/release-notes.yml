@@ -1,0 +1,131 @@
+name: Release Notes
+
+# Generates GitHub Release notes from Conventional Commits (already enforced
+# by commitlint + pr-governance.yml) instead of requiring hand-written notes.
+# See RELEASING.md for the full release process this fits into.
+
+on:
+  push:
+    tags:
+      - '*-v*'
+
+# Deny by default at workflow level, grant the minimum on the job that needs it,
+# matching desktop-release.yml.
+permissions: {}
+
+jobs:
+  generate-notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to create or edit the GitHub Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so the previous tag can be resolved.
+          fetch-depth: 0
+          # Nothing here pushes over git; the release is published with gh using
+          # GITHUB_TOKEN from the environment. Leaving the token in .git/config
+          # would expose it to every later step in the job for no benefit.
+          persist-credentials: false
+
+      # Tag names reach this workflow as untrusted input, so every value derived
+      # from them is passed through env rather than interpolated into a script.
+      - name: Determine component prefix and previous tag
+        id: prev
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          PREFIX=$(printf '%s' "$TAG" | sed -E 's/-v[0-9].*$//')
+          echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+          # The nearest matching tag reachable from this one, not the highest by
+          # version sort. Sorting picks the wrong predecessor whenever stable and
+          # prerelease tags coexist, or a maintenance tag is cut out of order.
+          PREV=$(git describe --tags --abbrev=0 --match "${PREFIX}-v*" "${TAG}^" 2>/dev/null || true)
+          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+
+          # Every tag line documented in RELEASING.md carries a pre-release
+          # suffix today. Publishing one as a full release would make it
+          # eligible for /releases/latest, which the marketing release pill
+          # reads, so a beta would surface publicly as the current release.
+          case "$TAG" in
+            *-beta*|*-alpha*|*-rc*) PRERELEASE=true ;;
+            *) PRERELEASE=false ;;
+          esac
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
+          # A range between two component tags still contains every other
+          # workspace's commits, so notes are filtered to the paths that
+          # component actually ships. Unknown prefixes fall back to no filter
+          # rather than silently publishing empty notes.
+          case "$PREFIX" in
+            backend)      PATHS="apps/backend packages" ;;
+            pims|pms)     PATHS="apps/frontend packages" ;;
+            mobile)       PATHS="apps/mobileAppYC" ;;
+            desktop)      PATHS="apps/desktop" ;;
+            *)            PATHS="" ;;
+          esac
+          echo "paths=$PATHS" >> "$GITHUB_OUTPUT"
+
+      # A tag is only a release if it sits on the shipped line. Without this,
+      # any accidental *-v* tag pushed on dev or a feature branch publishes a
+      # public GitHub Release.
+      - name: Require the tag to be reachable from main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Explicit refspec: the checkout is of a tag, so refs/remotes/origin/main
+          # does not necessarily exist yet.
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$TAG" origin/main; then
+            echo "::error::$TAG does not point at a commit reachable from origin/main."
+            echo "RELEASING.md requires cutting releases from main. Delete the tag, or"
+            echo "merge the commit to main and re-tag."
+            exit 1
+          fi
+          echo "$TAG is reachable from origin/main."
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      - name: Generate release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          PREV: ${{ steps.prev.outputs.prev }}
+          PATHS: ${{ steps.prev.outputs.paths }}
+        run: |
+          if [ -n "$PREV" ]; then
+            RANGE="$PREV..$TAG"
+          else
+            RANGE="$TAG"
+          fi
+
+          set -- "$RANGE" --config cliff.toml --strip all -o notes.md
+          for p in $PATHS; do
+            set -- "$@" --include-path "$p/**"
+          done
+
+          npx --yes git-cliff@2.13.1 "$@"
+          cat notes.md
+
+      - name: Publish to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.prev.outputs.prerelease }}
+        run: |
+          # --prerelease is set on both paths so editing an existing release
+          # cannot silently promote a beta to a full release.
+          if [ "$PRERELEASE" = "true" ]; then
+            FLAG="--prerelease=true"
+          else
+            FLAG="--prerelease=false"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md "$FLAG"
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md "$FLAG"
+          fi

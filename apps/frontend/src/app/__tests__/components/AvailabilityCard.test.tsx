@@ -40,7 +40,9 @@ describe('AvailabilityCard', () => {
     expect(screen.getByText('Vet')).toBeInTheDocument();
     expect(screen.getByText('Surgery, Dental')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('Available')).toBeInTheDocument();
+    expect(screen.getByText('Available')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
   });
 
   it('renders speciality objects using their name field', () => {

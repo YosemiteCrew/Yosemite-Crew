@@ -53,14 +53,42 @@ describe('StatusPill', () => {
     );
     expect(screen.getByText('Overdue')).toHaveStyle({ backgroundColor: 'rgb(10, 20, 30)' });
   });
-  it('draws the danger tone from the --danger-* scale, not warning', () => {
+  it('draws the danger tone from the inventory pill palette, not warning', () => {
     render(<StatusPill label="Overdue" tone="danger" />);
-    expect(screen.getByText('Overdue')).toHaveStyle({ backgroundColor: 'var(--danger-bg)' });
+    expect(screen.getByText('Overdue')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-danger-bg)',
+    });
   });
   it('hugs its content so a flex column cannot stretch it into a band', () => {
     render(<StatusPill label="Low stock" />);
     // The class this replaced set width:fit-content; without it the badge is
     // stretched by a flex column's default align-items: stretch.
     expect(screen.getByText('Low stock')).toHaveClass('w-fit');
+  });
+  it('carries the design badge geometry: 3px 10px, 10px/700, +0.08em, normal leading', () => {
+    // Measured off the design sources: the badge computes to 21.5px tall. Any
+    // drift here (py-0.5, tracking-[0.06em], leading-none) is what made the same
+    // status render at three different sizes across the app.
+    render(<StatusPill label="Awaiting payment" />);
+    const pill = screen.getByText('Awaiting payment');
+    expect(pill).toHaveClass('yc-status-pill');
+    expect(pill).toHaveClass('px-2.5', 'py-[3px]', 'text-[10px]', 'font-bold');
+    expect(pill).toHaveClass('tracking-[0.08em]', 'leading-[normal]', 'uppercase');
+  });
+  it('clips a clamped label inside its own border instead of bleeding across it', () => {
+    render(<StatusPill label="Awaiting payment" />);
+    const pill = screen.getByText('Awaiting payment');
+    // max-w-full without overflow-hidden lets whitespace-nowrap text run past
+    // the pill border and over the next column.
+    expect(pill).toHaveClass('max-w-full', 'overflow-hidden', 'whitespace-nowrap');
+    expect(pill).toHaveAttribute('title', 'Awaiting payment');
+  });
+  it('omits the title when the label is not plain text', () => {
+    render(<StatusPill label={<span>Dues cleared</span>} />);
+    expect(screen.getByText('Dues cleared').closest('span[title]')).toBeNull();
+  });
+  it('uses an explicit title for composed labels', () => {
+    render(<StatusPill label={<span>Dues cleared</span>} title="Dues cleared" />);
+    expect(screen.getByTitle('Dues cleared')).toBeInTheDocument();
   });
 });

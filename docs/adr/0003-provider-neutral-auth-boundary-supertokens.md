@@ -1,6 +1,6 @@
 # 0003. Provider-neutral auth boundary with SuperTokens as the first adapter
 
-**Status:** Proposed
+**Status:** Accepted (implemented via PR #1763, merged 2026-07-16)
 **Date:** 2026-07-02
 
 ## Context

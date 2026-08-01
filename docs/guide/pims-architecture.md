@@ -173,11 +173,14 @@ AWS Cognito (web) and Firebase (mobile) are vendor lock-in. SuperTokens is open-
 
 ### Current State
 
-- Web: `@aws-sdk/client-cognito-identity-provider@3.772.0` + JWT + JWKS
-- Mobile: `firebase-admin@^13.6.0` + custom mobile auth (`AuthUserMobile` model)
-- Permissions: `RolePermission` model with 7 roles (OWNER, ADMIN, SUPERVISOR, VETERINARIAN, TECHNICIAN, ASSISTANT, RECEPTIONIST) - **keep this structure**
+Complete. The migration shipped via PR #1763 (merged 2026-07-16): SuperTokens serves both surfaces behind the provider-neutral boundary in `packages/auth` (`initSuperTokens` / `createSessionMiddleware`), and product code uses `requireWebAuth` / `requireMobileAuth` / `requireAnyAuth` from `src/middlewares/auth.ts` - `authorizeCognito*` no longer exists in the backend. Legacy Cognito/Firebase bearer tokens are verified only while the `AUTH_LEGACY_TOKEN_GRACE` window is active (`packages/auth/src/providers/legacy-cognito/`); Firebase otherwise remains for push notifications only.
 
-### Migration Steps
+- Pre-migration state (historical): web used `@aws-sdk/client-cognito-identity-provider` + JWT/JWKS; mobile used `firebase-admin` + the custom `AuthUserMobile` model.
+- Permissions: `RolePermission` model with 7 roles (OWNER, ADMIN, SUPERVISOR, VETERINARIAN, TECHNICIAN, ASSISTANT, RECEPTIONIST) - this structure was kept.
+
+### Migration Steps (historical plan - since implemented)
+
+> The recipe below is the original migration plan, kept for history. The shipped implementation is the `packages/auth` boundary described above; do not build against `authorizeCognito()`, which no longer exists.
 
 **Step 1 - Parallel run middleware**
 

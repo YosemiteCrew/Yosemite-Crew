@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
 import InvoiceTable from '@/app/ui/tables/InvoiceTable';
-import { getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getInvoiceStatusStyle, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { Invoice } from '@yosemite-crew/types';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
@@ -26,7 +26,11 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt }: any) => <span data-testid="companion-avatar">{alt}</span>,
+  default: ({ alt, className }: any) => (
+    <span data-testid="companion-avatar" className={className}>
+      {alt}
+    </span>
+  ),
 }));
 
 const mockGenericTableCalls: { columns: any[]; tableClassName?: string }[] = [];
@@ -144,6 +148,7 @@ describe('InvoiceTable', () => {
 
     expect(desktop.getByText('Sam / Buddy')).toBeInTheDocument();
     expect(desktop.getByText('#inv-1')).toBeInTheDocument();
+    expect(desktop.getByTestId('companion-avatar').parentElement?.tagName).toBe('DIV');
     // Design's date cell is one muted line — the time rides the identity
     // sub-line, so it is not repeated here.
     const dateCell = desktop.getByRole('button', { name: 'Open finance details for Buddy' });
@@ -151,6 +156,19 @@ describe('InvoiceTable', () => {
     expect(dateCell).not.toHaveTextContent('10:00 AM');
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
     expect(desktop.getByText('Paid in cash')).toBeInTheDocument();
+    const status = desktop.getByText('Pending');
+    expect(status).toHaveClass(
+      'yc-status-pill',
+      'rounded-full!',
+      'text-[10px]',
+      'leading-[normal]',
+      'font-bold',
+      'uppercase'
+    );
+    expect(status).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-neutral-bg)')
+    );
     expect(pushMock).toHaveBeenCalledWith(
       '/appointments?appointmentId=appt-1&open=finance&subLabel=summary'
     );
@@ -177,6 +195,11 @@ describe('InvoiceTable', () => {
       backgroundColor: 'var(--color-pill-neutral-bg)',
       borderColor: 'var(--color-pill-neutral-border)',
     });
+  });
+
+  it('returns tones for known status', () => {
+    expect(getInvoiceStatusTone('paid')).toBe('success');
+    expect(getInvoiceStatusTone('awaiting_payment')).toBe('info');
   });
 
   it('shows only the companion name when the parent name is missing', () => {
@@ -225,7 +248,7 @@ describe('InvoiceTable', () => {
     expect(screen.getByTestId('cell-appointment-id')).toHaveTextContent('Sam');
   });
 
-  it('pairs the appointment type with the time only in the desktop sub-line and falls back to appointmentDate for the time', () => {
+  it('shows the appointment time (not the type) in the desktop Parent / patient sub-line, since Services already shows the type', () => {
     useAppointmentsForPrimaryOrgMock.mockReturnValue([
       {
         id: 'appt-1',
@@ -238,13 +261,12 @@ describe('InvoiceTable', () => {
 
     render(<InvoiceTable filteredList={[invoice]} />);
 
-    // The Date column already carries 'Jan 1', so the desktop sub-line must not
-    // repeat it — only the appointment type and time.
-    const desktopSub = within(screen.getByTestId('generic-table')).getByTitle(
-      'Wellness exam · 10:00 AM'
-    );
-    expect(desktopSub).toBeInTheDocument();
-    expect(desktopSub).not.toHaveTextContent('Jan 1');
+    // Two appointments for the same patient on the same date are otherwise
+    // indistinguishable in this table without opening each row, since the
+    // Date column shows only the date - the time must survive here.
+    const cell = within(screen.getByTestId('cell-appointment-id'));
+    expect(cell.getByTitle('10:00 AM')).toBeInTheDocument();
+    expect(cell.queryByText(/Wellness exam/)).not.toBeInTheDocument();
   });
 
   it('renders an empty subtitle and no date cell when the appointment is not found', () => {
@@ -308,11 +330,13 @@ describe('InvoiceTable', () => {
     it('gives Status a column wide enough for the widest badge', () => {
       render(<InvoiceTable filteredList={[invoice]} />);
 
-      // "AWAITING PAYMENT" measures 133.7px + 22px td padding; anything under
-      // ~156px lets the pill bleed over the Payment cell.
+      // "AWAITING PAYMENT" measures 133.7px + 22px td padding = ~156px bare
+      // minimum, which real-world font hinting/zoom/DPI variance clipped in
+      // production ("AWAITING PAYME"). 176px keeps a real ~20px margin instead
+      // of a ~4px one.
       const widths = capturedColumnWidths();
-      expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(156);
-      expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(156);
+      expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(176);
+      expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(176);
     });
 
     it('leaves the Parent / patient column fluid so it absorbs the slack', () => {

@@ -59,8 +59,10 @@ describe('GithubSignInButton', () => {
     const button = screen.getByRole('button', { name: /continue with github/i });
     fireEvent.click(button);
 
+    // The button re-enables in the `else` branch *after* startGithubSignIn
+    // settles, so waiting on the call alone races that state update.
     await waitFor(() => expect(startGithubSignIn).toHaveBeenCalledWith('/developers/home'));
-    expect(button).not.toBeDisabled();
+    await waitFor(() => expect(button).not.toBeDisabled());
     expect(redirectToUrl).not.toHaveBeenCalled();
   });
 });

@@ -13,9 +13,16 @@ import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { upsertTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
+import { updateUser } from '@/app/features/users/services/userService';
+import { useTeamStore } from '@/app/stores/teamStore';
 import { hasAtLeastOneAvailability } from '@/app/features/appointments/components/Availability/utils';
 
 const editableSavePayloads: Record<string, any> = {};
+// The real EditableAccordion only stays in edit mode when onSave's promise
+// rejects, so this regression-tests handlePersonalSave's own contract
+// directly (does it actually reject?) rather than the mock's UI, which has
+// no editing-state concept to assert against.
+const capturedOnSaves: Record<string, (values: any) => Promise<void>> = {};
 const availabilitySetterSpy = jest.fn();
 const notifyMock = jest.fn();
 const refetchMock = jest.fn();
@@ -74,32 +81,44 @@ jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   // option VALUES the component actually offers. Values live in the value
   // attribute, not in text, so they cannot collide with the findByText(/FULL_TIME/)
   // queries that read the `data` JSON above.
-  default: ({ title, showEditIcon, onSave, data, fields }: any) => (
-    <div data-testid={`editable-${title}`}>
-      <div>{title}</div>
-      <div>{JSON.stringify(data)}</div>
-      {(fields ?? [])
-        .filter((field: any) => Array.isArray(field.options))
-        .map((field: any) => (
-          <select
-            key={field.key}
-            aria-label={field.label}
-            data-testid={`field-options-${field.key}`}
+  default: ({ title, showEditIcon, onSave, data, fields }: any) => {
+    if (onSave) capturedOnSaves[title] = onSave;
+    return (
+      <div data-testid={`editable-${title}`}>
+        <div>{title}</div>
+        <div>{JSON.stringify(data)}</div>
+        {(fields ?? [])
+          .filter((field: any) => Array.isArray(field.options))
+          .map((field: any) => (
+            <select
+              key={field.key}
+              aria-label={field.label}
+              data-testid={`field-options-${field.key}`}
+            >
+              {field.options.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ))}
+        {showEditIcon ? (
+          <button
+            type="button"
+            onClick={() => {
+              // The real EditableAccordion.handleSave awaits onSave inside its
+              // own try/catch and only exits edit mode on the resolved path -
+              // mirror that here so a rejected save doesn't surface as an
+              // unhandled promise rejection in this mock.
+              Promise.resolve(onSave(editableSavePayloads[title] ?? {})).catch(() => {});
+            }}
           >
-            {field.options.map((option: any) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        ))}
-      {showEditIcon ? (
-        <button type="button" onClick={() => onSave(editableSavePayloads[title] ?? {})}>
-          {`save-${title}`}
-        </button>
-      ) : null}
-    </div>
-  ),
+            {`save-${title}`}
+          </button>
+        ) : null}
+      </div>
+    );
+  },
 }));
 
 jest.mock('@/app/features/appointments/components/Availability/Availability', () => ({
@@ -255,6 +274,10 @@ jest.mock('@/app/features/organization/services/profileService', () => ({
   upsertUserProfile: jest.fn(),
 }));
 
+jest.mock('@/app/features/users/services/userService', () => ({
+  updateUser: jest.fn(),
+}));
+
 jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
   AvailabilityState: {},
   DEFAULT_INTERVAL: { start: '09:00', end: '17:00' },
@@ -310,7 +333,9 @@ describe('TeamInfo', () => {
     (useNotify as jest.Mock).mockReturnValue({ notify: notifyMock });
     (upsertTeamAvailability as jest.Mock).mockResolvedValue(undefined);
     (upsertUserProfile as jest.Mock).mockResolvedValue(undefined);
+    (updateUser as jest.Mock).mockResolvedValue(undefined);
     (hasAtLeastOneAvailability as jest.Mock).mockReturnValue(true);
+    useTeamStore.setState({ teamsById: { 'team-1': activeTeam }, teamIdsByOrgId: {} });
   });
 
   it('loads the member profile and closes the modal', async () => {
@@ -410,6 +435,28 @@ describe('TeamInfo', () => {
       'success',
       expect.objectContaining({ title: 'Team member updated' })
     );
+  });
+
+  it('falls back to the speciality name when the mapping API omits _id', async () => {
+    // The org/mapping API returns raw specialities keyed by `id`, not `_id`
+    // (see Speciality._id), so this reproduces that shape and asserts the
+    // Department field resolves to the name instead of a blank/undefined id.
+    const teamWithoutSpecialityId = {
+      ...activeTeam,
+      speciality: [{ name: 'Surgery' }, { name: 'Dental' }],
+    };
+
+    render(
+      <TeamInfo
+        showModal
+        setShowModal={setShowModal}
+        activeTeam={teamWithoutSpecialityId}
+        canEditTeam={true}
+      />
+    );
+
+    const orgDetails = await screen.findByTestId('editable-Org details');
+    expect(within(orgDetails).getByText(/"speciality":\["Surgery","Dental"\]/)).toBeInTheDocument();
   });
 
   it('shows an error notification when member update fails', async () => {
@@ -661,6 +708,10 @@ describe('TeamInfo', () => {
 
   it('saves personal details for the current member', async () => {
     editableSavePayloads['Personal details'] = {
+      // The real accordion always submits the pre-filled name alongside any
+      // edited fields, so an unchanged name must match activeTeam.name here
+      // too - otherwise it looks like the user cleared it.
+      name: activeTeam.name,
       gender: 'FEMALE',
       dateOfBirth: '1985-05-05',
       phoneNumber: '999888777',
@@ -694,8 +745,155 @@ describe('TeamInfo', () => {
     );
   });
 
+  it('persists a name change via updateUser and updates the team store', async () => {
+    editableSavePayloads['Personal details'] = {
+      name: 'Tim Apple',
+      gender: 'FEMALE',
+      dateOfBirth: '1985-05-05',
+      phoneNumber: '999888777',
+      country: 'United States',
+    };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith('Tim', 'Apple');
+    expect(useTeamStore.getState().teamsById['team-1'].name).toBe('Tim Apple');
+    expect(notifyMock).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Personal details updated' })
+    );
+  });
+
+  it('rejects a name with no last name without calling updateUser or upsertUserProfile', async () => {
+    editableSavePayloads['Personal details'] = { name: 'Tim', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ text: 'Enter both a first and last name.' })
+    );
+  });
+
+  it('rejects a cleared name instead of reporting success', async () => {
+    editableSavePayloads['Personal details'] = { name: '', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ text: 'Enter both a first and last name.' })
+    );
+    expect(notifyMock).not.toHaveBeenCalledWith('success', expect.anything());
+  });
+
+  it('rejects the save promise on an incomplete name so the accordion stays in edit mode', async () => {
+    editableSavePayloads['Personal details'] = { name: '', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+    await screen.findByText(/FULL_TIME/);
+
+    // EditableAccordion.handleSave only calls setEditingState(false) when
+    // onSave's promise resolves - asserting the rejection directly is what
+    // proves edit mode is retained, since this mock has no editing-state
+    // concept of its own to assert against.
+    await expect(
+      capturedOnSaves['Personal details'](editableSavePayloads['Personal details'])
+    ).rejects.toThrow('NAME_INCOMPLETE');
+  });
+
+  it('rejects the save promise when the name update fails on the server, so the accordion stays in edit mode', async () => {
+    editableSavePayloads['Personal details'] = { name: 'Tim Apple' };
+    (updateUser as jest.Mock).mockRejectedValue(new Error('name update failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+    await screen.findByText(/FULL_TIME/);
+
+    await expect(
+      capturedOnSaves['Personal details'](editableSavePayloads['Personal details'])
+    ).rejects.toThrow('name update failed');
+  });
+
+  it('persists a name change for a self member with no profile yet (pre-onboarding)', async () => {
+    (getProfileForUserForPrimaryOrg as jest.Mock).mockResolvedValue(null);
+    editableSavePayloads['Personal details'] = { name: 'Tim Apple', gender: 'FEMALE' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await waitFor(() => {
+      expect(getProfileForUserForPrimaryOrg).toHaveBeenCalled();
+    });
+    const personalBtn = await screen.findByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(updateUser).toHaveBeenCalledWith('Tim', 'Apple');
+    expect(useTeamStore.getState().teamsById['team-1'].name).toBe('Tim Apple');
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Personal details updated' })
+    );
+  });
+
+  it('shows an error notification when the name update fails', async () => {
+    editableSavePayloads['Personal details'] = { name: 'Tim Apple' };
+    (updateUser as jest.Mock).mockRejectedValue(new Error('name update failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ title: 'Unable to update personal details' })
+    );
+  });
+
   it('shows an error notification when saving personal details fails', async () => {
-    editableSavePayloads['Personal details'] = { gender: 'FEMALE' };
+    editableSavePayloads['Personal details'] = { name: activeTeam.name, gender: 'FEMALE' };
     (upsertUserProfile as jest.Mock).mockRejectedValue(new Error('personal failed'));
 
     render(

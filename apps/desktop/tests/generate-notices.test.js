@@ -24,7 +24,7 @@ const licenseTextFor = (dir) => {
     'NOTICE',
     'NOTICE.md',
   ];
-  
+
   for (const name of licenseFileNames) {
     const candidate = path.join(dir, name);
     if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
@@ -54,10 +54,7 @@ describe('generate-notices path traversal protection', () => {
       path.join(testPackageDir, 'package.json'),
       JSON.stringify({ name: 'test-package', version: '1.0.0', license: 'MIT' })
     );
-    fs.writeFileSync(
-      path.join(testPackageDir, 'LICENSE'),
-      'MIT License\n\nTest license text'
-    );
+    fs.writeFileSync(path.join(testPackageDir, 'LICENSE'), 'MIT License\n\nTest license text');
   });
 
   afterAll(() => {

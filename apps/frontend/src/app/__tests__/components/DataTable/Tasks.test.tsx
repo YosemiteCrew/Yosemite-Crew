@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Tasks from '@/app/ui/tables/Tasks';
+import { getTaskStatusTone } from '@/app/ui/tables/tableUtils';
 
 const useTeamMock = jest.fn();
 
@@ -115,6 +116,12 @@ describe('Tasks table', () => {
       />
     );
 
+    const statusPill = screen.getByTitle('PENDING');
+    expect(statusPill).toHaveClass('yc-status-pill', 'text-[10px]', 'leading-[normal]');
+    expect(statusPill).toHaveStyle({
+      backgroundColor: 'var(--color-pill-neutral-bg)',
+    });
+
     fireEvent.click(screen.getByTestId('IoEyeOutline'));
     expect(setActiveTask).toHaveBeenCalledWith(task);
     expect(setViewPopup).toHaveBeenCalledWith(true);
@@ -129,5 +136,12 @@ describe('Tasks table', () => {
   it('shows empty state for mobile list', () => {
     render(<Tasks filteredList={[]} />);
     expect(screen.getByText('No data available')).toBeInTheDocument();
+  });
+
+  it('maps dashboard task statuses to inventory-style pill tones', () => {
+    expect(getTaskStatusTone('PENDING')).toBe('neutral');
+    expect(getTaskStatusTone('IN_PROGRESS')).toBe('progress');
+    expect(getTaskStatusTone('COMPLETED')).toBe('success');
+    expect(getTaskStatusTone('CANCELLED')).toBe('warning');
   });
 });

@@ -91,7 +91,9 @@
   tbody
   tr
   td
-  span:not(a span):not(button span):not(.glass-tooltip):not(.glass-tooltip span) {
+  span:not(a span):not(button span):not(.glass-tooltip):not(.glass-tooltip span):not(
+    .yc-status-pill
+  ):not(.yc-status-pill span) {
   margin: 0px;
   font-family: var(--satoshi-font);
   color: var(--black-text);
@@ -99,4 +101,13 @@
   font-size: 13px;
   line-height: 120%;
   opacity: 60%;
+}
+.TableDiv tbody tr td span.yc-status-pill,
+.TableDiv tbody tr td .yc-status-pill span {
+  font-family: var(--font-satoshi) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+  letter-spacing: 0.08em !important;
+  opacity: 1 !important;
 }

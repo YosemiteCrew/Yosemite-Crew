@@ -162,5 +162,12 @@
     });
   }
 
+  // Prefixes the channel hint with the running version, per the Preferences
+  // design. The static markup stays as the fallback if the version never lands.
+  yc.getAppVersion().then(function (v) {
+    const hint = document.getElementById('updateHint');
+    if (hint) hint.textContent = 'Version ' + v + ' · beta may include unfinished features';
+  });
+
   loadSettings();
 })();

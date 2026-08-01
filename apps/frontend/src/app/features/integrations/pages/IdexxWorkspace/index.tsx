@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
-import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -187,38 +187,19 @@ const getCensusCardStatus = (
   return { label: 'Awaiting collection', tone: 'amber', pulse: false };
 };
 
-const getResultStatusStyle = (status?: string | null): React.CSSProperties => {
+const getResultStatusTone = (status?: string | null): StatusTone => {
   const key = String(status ?? '').toLowerCase();
-  if (key.includes('complete') || key.includes('final'))
-    return {
-      color: 'var(--color-pill-success-text)',
-      backgroundColor: 'var(--color-pill-success-bg)',
-      borderColor: 'var(--color-pill-success-border)',
-    };
-  if (key.includes('error') || key.includes('fail') || key.includes('cancel')) {
-    return {
-      color: 'var(--color-pill-warning-text)',
-      backgroundColor: 'var(--color-pill-warning-bg)',
-      borderColor: 'var(--color-pill-warning-border)',
-    };
-  }
+  if (key.includes('complete') || key.includes('final')) return 'success';
+  if (key.includes('error') || key.includes('fail') || key.includes('cancel')) return 'danger';
   if (
     key.includes('pending') ||
     key.includes('running') ||
     key.includes('partial') ||
     key.includes('inprocess')
   ) {
-    return {
-      color: 'var(--color-pill-progress-text)',
-      backgroundColor: 'var(--color-pill-progress-bg)',
-      borderColor: 'var(--color-pill-progress-border)',
-    };
+    return 'progress';
   }
-  return {
-    color: 'var(--color-pill-neutral-text)',
-    backgroundColor: 'var(--color-pill-neutral-bg)',
-    borderColor: 'var(--color-pill-neutral-border)',
-  };
+  return 'neutral';
 };
 
 const parseFloatSafe = (value?: string): number | null => {
@@ -302,7 +283,7 @@ const PatientCell = ({ result }: { result: LabResult }) => {
 
 const StatusCell = ({ result }: { result: LabResult }) => (
   <StatusPill
-    style={getResultStatusStyle(result.status)}
+    tone={getResultStatusTone(result.status)}
     label={formatTitleCase(result.status, '-')}
   />
 );
@@ -777,7 +758,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
             title="IDEXX follow-up hub"
             className="size-full border-0"
             loading="lazy"
-            sandbox="allow-scripts allow-popups allow-forms"
+            sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
@@ -1862,6 +1843,7 @@ export {
   getCensusDeviceSerial,
   buildCensusDeviceByPatientId,
   getCensusCardStatus,
+  getResultStatusTone,
   getMeterMeta,
   getOrderUiUrl,
   getOrderPdfUrl,

@@ -430,7 +430,7 @@ const MerckSearchPanel = ({
   disabled?: boolean;
 }) => (
   <div className="flex flex-col gap-3.5">
-    <div className="flex items-center gap-2 flex-nowrap">
+    <div className="flex items-end gap-2 flex-nowrap">
       <div className="flex-1 min-w-0">
         <FormInput
           intype="text"
@@ -447,6 +447,7 @@ const MerckSearchPanel = ({
           text={loading ? 'Searching...' : 'Search'}
           onClick={() => void performSearch(undefined, true)}
           isDisabled={loading || !query.trim()}
+          className="h-12!"
         />
         <button
           type="button"
@@ -543,8 +544,8 @@ const READER_AUDIENCE_META: Record<MerckAudience, { label: string; tokens: Statu
 const READER_FOOTER_NOTICE =
   "Content © MSD Veterinary Manual · displayed under your clinic's integration";
 
-// MSD forbids third-party framing (X-Frame-Options / frame-ancestors); the load
-// then never fires onLoad, so cap the spinner and fall back to opening in a new tab.
+// Safety net for a manual that never finishes loading (network stall, MSD outage):
+// cap the spinner and fall back to opening in a new tab.
 const READER_LOAD_TIMEOUT_MS = 12000;
 
 const MerckReaderFallback = ({
@@ -558,10 +559,10 @@ const MerckReaderFallback = ({
     <span className="flex size-14 items-center justify-center rounded-full bg-[var(--inset)] text-[var(--ink-faint)]">
       <IoBookOutline size={24} aria-hidden="true" />
     </span>
-    <span className="text-[15px] font-bold text-[var(--ink)]">This manual can’t be shown here</span>
+    <span className="text-[15px] font-bold text-[var(--ink)]">This manual didn’t load</span>
     <span className="max-w-[380px] text-[12.5px] leading-relaxed text-[var(--ink-muted)]">
-      MSD Veterinary Manual doesn’t allow its pages to be embedded. Open “{readerTitle}” in a new
-      tab to read the full content.
+      MSD Veterinary Manual took too long to respond. Open “{readerTitle}” in a new tab to read the
+      full content.
     </span>
     <Link
       href={readerUrl}
@@ -582,6 +583,7 @@ const MerckReaderPortal = ({
   readerLoading,
   readerBlocked,
   audience,
+  copied,
   onCopyUrl,
   setReaderOpen,
   setReaderLoading,
@@ -593,6 +595,7 @@ const MerckReaderPortal = ({
   readerLoading: boolean;
   readerBlocked: boolean;
   audience: MerckAudience;
+  copied: string | null;
   onCopyUrl: (url: string) => void;
   setReaderOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setReaderLoading: React.Dispatch<React.SetStateAction<boolean>>;
@@ -643,7 +646,7 @@ const MerckReaderPortal = ({
               className="flex items-center gap-1.5 rounded-full! border border-hairline px-3 py-[7px] text-[12px] font-semibold text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
             >
               <IoLinkOutline size={13} aria-hidden="true" />
-              Copy manual URL
+              {copied === readerUrl ? 'Copied!' : 'Copy manual URL'}
             </button>
             <Link
               href={readerUrl}
@@ -683,7 +686,10 @@ const MerckReaderPortal = ({
                 className="flex-1 size-full border-0"
                 loading="lazy"
                 referrerPolicy="strict-origin"
-                sandbox="allow-scripts allow-popups allow-forms"
+                // allow-same-origin is required: MSD's app reads document.cookie on boot and
+                // throws in an opaque origin, leaving the frame stuck on its own loader. It is
+                // safe here because the framed origin is never our own (isAllowedMerckUrl).
+                sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
                 onLoad={() => setReaderLoading(false)}
                 onError={onReaderLoadFailed}
               />
@@ -911,6 +917,7 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         readerLoading={readerLoading}
         readerBlocked={readerBlocked}
         audience={audience}
+        copied={copied}
         onCopyUrl={onCopyUrl}
         setReaderOpen={setReaderOpen}
         setReaderLoading={setReaderLoading}

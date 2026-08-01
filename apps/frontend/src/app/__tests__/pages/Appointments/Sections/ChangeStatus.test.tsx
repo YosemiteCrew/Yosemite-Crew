@@ -382,8 +382,8 @@ describe('ChangeStatus (Appointments)', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Dr. Smith' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Dr. Jones' })).not.toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: 'Dr. Jones' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -428,8 +428,8 @@ describe('ChangeStatus (Appointments)', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Dr. Available' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Dr. Also Available' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Dr. Existing' })).not.toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: 'Dr. Existing' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Dr. Also Available' }));
     await waitFor(() => {
@@ -474,8 +474,8 @@ describe('ChangeStatus (Appointments)', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Dr. Local Time' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Dr. Other' })).not.toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: 'Dr. Other' })).not.toBeInTheDocument();
   });
 
   it('blocks accepting when no lead is available for the slot', async () => {

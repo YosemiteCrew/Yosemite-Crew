@@ -4,6 +4,7 @@ import { IoEye } from 'react-icons/io5';
 import PaginatedGridTable, { GridHeaderCell } from '@/app/ui/tables/PaginatedGridTable';
 import { DispensaryRecord, DispensaryStatus } from '@/app/features/inventory/pages/Inventory/types';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 import './DataTable.css';
 
@@ -43,9 +44,9 @@ const STATUS_STYLES: Record<DispensaryStatus, React.CSSProperties> = {
     borderColor: 'var(--color-pill-success-border)',
   },
   NOT_DISPENSED: {
-    color: 'var(--color-danger-600)',
-    backgroundColor: 'var(--color-danger-100)',
-    borderColor: 'var(--color-danger-400)',
+    color: 'var(--color-pill-danger-text)',
+    backgroundColor: 'var(--color-pill-danger-bg)',
+    borderColor: 'var(--color-pill-danger-border)',
   },
 };
 
@@ -93,13 +94,8 @@ const getDisplayName = (record: DispensaryRecord) => {
   return ownerLastName ? `${record.patient.name} • ${ownerLastName}` : record.patient.name;
 };
 
-const StatusPill = ({ status }: { status: DispensaryStatus }) => (
-  <span
-    className="inline-flex items-center rounded-full border px-2.5 py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] whitespace-nowrap"
-    style={STATUS_STYLES[status]}
-  >
-    {STATUS_LABELS[status]}
-  </span>
+const DispensaryStatusPill = ({ status }: { status: DispensaryStatus }) => (
+  <StatusPill style={STATUS_STYLES[status]} label={STATUS_LABELS[status]} />
 );
 
 const DispensaryRow = ({
@@ -115,7 +111,7 @@ const DispensaryRow = ({
 
   return (
     <div
-      className="grid items-center gap-3 border-t border-card-border px-5 py-3 text-[13.5px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
+      className="grid items-center gap-2.5 border-t border-card-border px-5 py-3 text-[13.5px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
       style={{ gridTemplateColumns: GRID_COLUMNS }}
     >
       <div
@@ -124,8 +120,8 @@ const DispensaryRow = ({
       >
         {getDisplayName(record)}
       </div>
-      <div>
-        <StatusPill status={record.status} />
+      <div className="flex justify-start">
+        <DispensaryStatusPill status={record.status} />
       </div>
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {items.length === 0 ? (
@@ -197,9 +193,7 @@ const DispensaryCard = ({
           ? `${record.patient.name} • ${record.petParentName.trim().split(/\s+/).at(-1)}`
           : record.patient.name}
       </div>
-      <div className="appointment-status shrink-0" style={STATUS_STYLES[record.status]}>
-        {STATUS_LABELS[record.status]}
-      </div>
+      <DispensaryStatusPill status={record.status} />
     </div>
     {record.patient.petBreed && (
       <div className="text-caption-1 text-text-secondary">{record.patient.petBreed}</div>

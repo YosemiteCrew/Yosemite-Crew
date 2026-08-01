@@ -235,6 +235,11 @@ describe('Header Component', () => {
       />
     );
 
+    expect(screen.getByTitle('Pending')).toHaveClass('text-[10px]', 'uppercase');
+    expect(screen.getByTitle('Pending')).toHaveStyle({
+      backgroundColor: 'var(--color-badge-slate-bg)',
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Pending/i }));
 
     expect(screen.getAllByText('Pending')[1]).toHaveStyle({
@@ -315,6 +320,24 @@ describe('Header Component', () => {
 
     const trigger = screen.getByRole('button', { name: /All statuses/i });
     expect(trigger).toHaveStyle({ borderColor: 'var(--hairline)' });
+  });
+
+  it('keeps the selected status chevron inside the coloured pill', () => {
+    render(
+      <Header
+        {...defaultProps}
+        activeStatus="scheduled"
+        setActiveStatus={jest.fn()}
+        statusOptions={statusOptions}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Scheduled/i });
+    const pill = screen.getByText('Scheduled').closest('span');
+
+    expect(trigger.children).toHaveLength(1);
+    expect(pill).toHaveStyle({ backgroundColor: '#eef' });
+    expect(pill?.querySelector('svg')).toBeInTheDocument();
   });
 
   // Trigger + open panel both render the label text; when open there are two matches.

@@ -224,7 +224,10 @@ describe('AppointmentDetails', () => {
 describe('AppointmentStatusBadge', () => {
   it('renders the normalized appointment status', () => {
     render(<AppointmentStatusBadge appointment={baseAppointment} />);
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    const pill = screen.getByText('Upcoming');
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
+    expect(pill).toHaveStyle({ backgroundColor: 'var(--color-pill-info-bg)' });
   });
 
   it('falls back to Requested when the status cannot be normalized', () => {
@@ -239,9 +242,11 @@ describe('AppointmentModePill', () => {
 
     expect(screen.getByText('Outpatient')).toBeInTheDocument();
     expect(screen.getByTestId('icon-footsteps')).toBeInTheDocument();
-    expect(screen.getByText('Outpatient').parentElement).toHaveStyle({
-      backgroundColor: 'var(--color-neutral-100)',
+    const pill = screen.getByText('Outpatient').closest('[title="Outpatient"]') as HTMLElement;
+    expect(pill).toHaveStyle({
+      backgroundColor: 'var(--color-pill-neutral-bg)',
     });
+    expect(pill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
   });
 
   it('renders the inpatient pill in the default tone', () => {
@@ -251,8 +256,8 @@ describe('AppointmentModePill', () => {
 
     expect(screen.getByText('Inpatient')).toBeInTheDocument();
     expect(screen.getByTestId('icon-bed')).toBeInTheDocument();
-    expect(screen.getByText('Inpatient').parentElement).toHaveStyle({
-      backgroundColor: 'var(--color-primary-500)',
+    expect(screen.getByText('Inpatient').closest('[title="Inpatient"]')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-info-bg)',
     });
   });
 
@@ -266,17 +271,17 @@ describe('AppointmentModePill', () => {
       />
     );
 
-    const pill = screen.getByText('Inpatient').parentElement as HTMLElement;
+    const pill = screen.getByText('Inpatient').closest('[title="Inpatient"]') as HTMLElement;
     expect(pill).toHaveClass('custom-class');
-    expect(pill).toHaveStyle({ backgroundColor: 'var(--color-primary-600)' });
+    expect(pill).toHaveStyle({ backgroundColor: 'var(--color-pill-info-bg)' });
     expect(screen.getByTestId('icon-bed')).toHaveAttribute('size', '20');
   });
 
   it('renders the outpatient pill in the strong tone', () => {
     render(<AppointmentModePill appointment={baseAppointment} tone="strong" />);
 
-    expect(screen.getByText('Outpatient').parentElement).toHaveStyle({
-      backgroundColor: 'var(--color-neutral-100)',
+    expect(screen.getByText('Outpatient').closest('[title="Outpatient"]')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-neutral-bg)',
     });
   });
 });

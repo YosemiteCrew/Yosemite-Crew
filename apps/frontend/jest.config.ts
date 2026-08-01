@@ -4,7 +4,11 @@
  */
 
 import type { Config } from 'jest';
-import nextJest from 'next/jest';
+// Explicit `.js` extension: Jest 30 loads a TypeScript config through Node's
+// native type stripping on Node >= 22, where ESM resolution rejects the
+// extensionless specifier ("next" ships no exports map). CommonJS loaders
+// (ts-node on Node 20) resolve this form identically.
+import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
@@ -56,6 +60,8 @@ const config: Config = {
     '!<rootDir>/src/app/features/*/*/*/*/index.tsx',
     '!<rootDir>/src/app/features/*/types/**',
     '!<rootDir>/src/app/features/*/types.ts',
+    '!<rootDir>/src/app/**/*.types.ts',
+    '!<rootDir>/src/app/lib/index.ts',
     '!<rootDir>/src/app/services/http/types.ts',
     '!<rootDir>/src/app/features/integrations/services/types.ts',
     '!<rootDir>/src/app/features/onboarding/components/Steps/types.ts',
@@ -86,6 +92,7 @@ const config: Config = {
     '<rootDir>/src/app/features/forms/pages/Forms/index.tsx',
     '<rootDir>/src/app/features/onboarding/pages/StripeOnboarding/index.tsx',
     '<rootDir>/src/app/features/finance/pages/Finance/index.tsx',
+    '<rootDir>/src/app/features/finance/pages/Discounts/index.tsx',
     '<rootDir>/src/app/features/organization/pages/Organization/index.tsx',
     '<rootDir>/src/app/features/settings/pages/Settings/index.tsx',
     '<rootDir>/src/app/features/companions/components/AddCompanion/index.tsx',

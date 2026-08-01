@@ -423,6 +423,50 @@ describe('LabTests', () => {
     expect(screen.getByText('Order 100329789')).toBeInTheDocument();
   });
 
+  it('stages a searched test as pending instead of queueing it immediately, until confirmed (bug #1973)', async () => {
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    await waitFor(() => {
+      expect(result.current.tests).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.selectSearchResult('9126');
+    });
+
+    expect(result.current.pendingTest?.code).toBe('9126');
+    expect(result.current.selectedTests).toHaveLength(0);
+    expect(result.current.selectedTestLabel).toBe('Chem Panel (9126)');
+
+    act(() => {
+      result.current.confirmPendingTest();
+    });
+
+    expect(result.current.pendingTest).toBeNull();
+    expect(result.current.selectedTests.map((test) => test.code)).toEqual(['9126']);
+    expect(result.current.selectedTestLabel).toBe('');
+  });
+
+  it('discards a pending test without queueing it when cancelled', async () => {
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    await waitFor(() => {
+      expect(result.current.tests).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.selectSearchResult('9126');
+    });
+    expect(result.current.pendingTest?.code).toBe('9126');
+
+    act(() => {
+      result.current.cancelPendingTest();
+    });
+
+    expect(result.current.pendingTest).toBeNull();
+    expect(result.current.selectedTests).toHaveLength(0);
+  });
+
   it('refreshes the appointment orders when the IDEXX iframe is closed', async () => {
     const createdOrder = {
       _id: 'ord-2',
@@ -900,6 +944,10 @@ describe('LabTests', () => {
     fireEvent.load(iframe);
     expect(iframe).toHaveAttribute('src', 'https://integration.vetconnectplus.com/order/123');
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    expect(iframe).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-popups allow-forms allow-same-origin'
+    );
   });
 
   it('shows manual close guidance for follow-up iframe flows', async () => {

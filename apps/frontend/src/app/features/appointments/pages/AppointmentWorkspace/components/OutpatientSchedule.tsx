@@ -4,7 +4,7 @@ import { IoAddOutline, IoEllipsisHorizontal, IoPaperPlaneOutline } from 'react-i
 import './OutpatientSchedule.css';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
 import type {
   OutpatientScheduleModel,
   OutpatientSeriesProgress,
@@ -50,7 +50,7 @@ const dayMarker = (iso: string): { weekday: string; day: string } => {
 
 const StatusPill = ({ status }: { status: OutpatientVisitStatus }) => (
   <SharedStatusPill
-    style={getStatusStyle(STATUS_STYLE_KEY[status])}
+    tone={getAppointmentStatusTone(STATUS_STYLE_KEY[status])}
     label={STATUS_LABEL[status]}
     className="w-fit"
   />
@@ -173,11 +173,11 @@ const OutpatientSchedule = ({
   const nextVisitId = schedule.thisWeek[0]?.id ?? schedule.nextWeek[0]?.id;
 
   return (
-    <SectionContainer title="Visit schedule" className="flex flex-col gap-4">
+    <SectionContainer title="Task schedule" className="flex flex-col gap-4">
       <div className="overflow-hidden rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         <div className="flex items-center justify-between border-b border-card-border px-4 py-2.5">
           <span className="text-body-4 font-bold text-text-primary">
-            Scheduled outpatient visits · {schedule.total}
+            Scheduled outpatient tasks · {schedule.total}
           </span>
           {onAddVisit && (
             <button
@@ -187,14 +187,14 @@ const OutpatientSchedule = ({
               className="inline-flex items-center gap-1.5 text-caption-1 font-semibold text-blue-text hover:underline disabled:opacity-50"
             >
               <IoAddOutline size={13} aria-hidden="true" />
-              Add visit
+              Add task
             </button>
           )}
         </div>
 
         {schedule.total === 0 ? (
           <p className="px-4 py-6 text-center text-body-4 text-text-secondary">
-            No scheduled visits for this companion.
+            No scheduled tasks for this companion.
           </p>
         ) : (
           <>

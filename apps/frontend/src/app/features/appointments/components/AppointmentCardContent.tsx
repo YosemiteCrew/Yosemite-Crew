@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { toTitle } from '@/app/lib/validators';
 import AppointmentDetailField from '@/app/features/appointments/components/AppointmentDetailField';
@@ -29,16 +29,17 @@ type AppointmentModePillProps = {
   tone?: 'default' | 'strong';
 };
 
+type EncounterModePillProps = {
+  mode: EncounterMode;
+  className?: string;
+  iconSize?: number;
+};
+
 const normalizeLeadId = (value?: string | null): string => {
   const trimmed = String(value ?? '').trim();
   if (!trimmed) return '';
   const lowered = trimmed.toLowerCase();
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
-};
-
-const resolveModeBackgroundColor = (isInpatient: boolean, isStrong: boolean): string => {
-  if (!isInpatient) return 'var(--color-neutral-100)';
-  return isStrong ? 'var(--color-primary-600)' : 'var(--color-primary-500)';
 };
 
 export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardContentProps) => (
@@ -114,9 +115,38 @@ export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentPr
   const displayStatus = normalizeAppointmentStatus(appointment.status) ?? 'REQUESTED';
   return (
     <StatusPill
-      style={getStatusStyle(displayStatus)}
+      tone={getAppointmentStatusTone(displayStatus)}
       label={toTitle(displayStatus)}
       className="w-fit"
+    />
+  );
+};
+
+export const EncounterModePill = ({
+  mode,
+  className = '',
+  iconSize = 14,
+}: EncounterModePillProps) => {
+  const isInpatient = mode === 'INPATIENT';
+  const label = isInpatient ? 'Inpatient' : 'Outpatient';
+
+  return (
+    <StatusPill
+      tone={isInpatient ? 'info' : 'neutral'}
+      title={label}
+      className={className}
+      label={
+        <>
+          {isInpatient ? (
+            <IoBedOutline size={iconSize} aria-hidden="true" />
+          ) : (
+            <IoFootstepsOutline size={iconSize} aria-hidden="true" />
+          )}
+          <span className="whitespace-nowrap" style={{ color: 'inherit', opacity: 1 }}>
+            {label}
+          </span>
+        </>
+      }
     />
   );
 };
@@ -125,35 +155,9 @@ export const AppointmentModePill = ({
   appointment,
   className = '',
   iconSize = 14,
-  tone = 'default',
 }: AppointmentModePillProps) => {
   const mode: EncounterMode = resolveEncounterMode(appointment);
-  const isInpatient = mode === 'INPATIENT';
-  const isStrong = tone === 'strong';
-  const modeStyle: React.CSSProperties = {
-    backgroundColor: resolveModeBackgroundColor(isInpatient, isStrong),
-    borderColor: isInpatient ? 'var(--color-primary-700)' : 'var(--color-neutral-200)',
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    boxShadow: isStrong && isInpatient ? '0 1px 6px rgba(0, 87, 194, 0.18)' : undefined,
-    color: isInpatient ? 'var(--color-white)' : 'var(--color-neutral-700)',
-  };
-
-  return (
-    <div
-      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-2xl px-3 text-yc-12-b-neutral ${className}`}
-      style={modeStyle}
-    >
-      {isInpatient ? (
-        <IoBedOutline size={iconSize} aria-hidden="true" />
-      ) : (
-        <IoFootstepsOutline size={iconSize} aria-hidden="true" />
-      )}
-      <span className="whitespace-nowrap" style={{ color: 'inherit', opacity: 1 }}>
-        {isInpatient ? 'Inpatient' : 'Outpatient'}
-      </span>
-    </div>
-  );
+  return <EncounterModePill mode={mode} className={className} iconSize={iconSize} />;
 };
 
 const AppointmentCardContent = ({ appointment }: AppointmentCardContentProps) => (

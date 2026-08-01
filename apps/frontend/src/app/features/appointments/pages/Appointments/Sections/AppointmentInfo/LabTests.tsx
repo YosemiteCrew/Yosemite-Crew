@@ -199,6 +199,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [query, setQuery] = useState('');
   const [selectedTestLabel, setSelectedTestLabel] = useState('');
   const [selectedTests, setSelectedTests] = useState<IdexxTest[]>([]);
+  const [pendingTest, setPendingTest] = useState<IdexxTest | null>(null);
   const [appointmentOrders, setAppointmentOrders] = useState<LabOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [modality, setModality] = useState<'REFERENCE_LAB' | 'INHOUSE'>('REFERENCE_LAB');
@@ -621,22 +622,59 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     setLatestOrder(order);
   }, []);
 
+  const findTestByValue = useCallback(
+    (value: string) => tests.find((test) => test.code === value || test._id === value),
+    [tests]
+  );
+
+  // Single source of truth for "put this test in the queue, deduped by code" -
+  // both the direct-add and confirm-pending paths below route through it so
+  // they can't diverge.
+  const queueTest = useCallback((test: IdexxTest) => {
+    setSelectedTests((prev) => (prev.some((t) => t.code === test.code) ? prev : [...prev, test]));
+  }, []);
+
   const addTest = useCallback(
     (value: string) => {
-      const match = tests.find((test) => test.code === value || test._id === value);
+      const match = findTestByValue(value);
       if (!match) return;
       setSelectedTestLabel('');
       setQuery('');
-      setSelectedTests((prev) => {
-        if (prev.some((test) => test.code === match.code)) return prev;
-        return [...prev, match];
-      });
+      queueTest(match);
     },
-    [tests]
+    [findTestByValue, queueTest]
   );
 
   const removeTest = useCallback((code: string) => {
     setSelectedTests((prev) => prev.filter((test) => test.code !== code));
+  }, []);
+
+  // Search selection only stages a candidate test - it does not queue it. The
+  // workspace Diagnostics step requires the explicit "Add to Queue" action
+  // below before a searched test lands in the Test Queue (bug #1973).
+  const selectSearchResult = useCallback(
+    (value: string) => {
+      const match = findTestByValue(value);
+      if (!match) return;
+      setPendingTest(match);
+      const label = `${match.display} (${match.code})`;
+      setSelectedTestLabel(label);
+      setQuery(label);
+    },
+    [findTestByValue]
+  );
+
+  const confirmPendingTest = useCallback(() => {
+    if (pendingTest) queueTest(pendingTest);
+    setPendingTest(null);
+    setSelectedTestLabel('');
+    setQuery('');
+  }, [pendingTest, queueTest]);
+
+  const cancelPendingTest = useCallback(() => {
+    setPendingTest(null);
+    setSelectedTestLabel('');
+    setQuery('');
   }, []);
 
   const handleCreateOrder = useCallback(async () => {
@@ -658,6 +696,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
       setLatestOrder(created);
       upsertAppointmentOrder(created);
       setSelectedTests([]);
+      setPendingTest(null);
       setSelectedTestLabel('');
       setQuery('');
       setNotes('');
@@ -772,6 +811,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     selectedTestLabel,
     setSelectedTestLabel,
     selectedTests,
+    pendingTest,
     modality,
     setModality,
     selectedIvls,
@@ -823,6 +863,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     openOrderAcknowledgement,
     setActiveOrderForActions,
     addTest,
+    selectSearchResult,
+    confirmPendingTest,
+    cancelPendingTest,
     removeTest,
     handleCreateOrder,
     handleAddToCensus,
@@ -1273,7 +1316,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
             title="IDEXX order UI"
             className="size-full border-0"
             loading="lazy"
-            sandbox="allow-scripts allow-popups allow-forms"
+            sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}

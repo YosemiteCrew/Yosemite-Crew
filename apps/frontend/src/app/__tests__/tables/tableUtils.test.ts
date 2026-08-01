@@ -2,11 +2,14 @@ import {
   buildPagerPageList,
   getInvoiceItemNames,
   getInvoiceStatusStyle,
+  getInvoiceStatusTone,
   getInventoryStatusStyle,
   formatWeeklyWorkingHours,
   getAvailabilityStatusStyle,
   getCompanionStatusStyle,
+  getCompanionStatusTone,
   getFormsStatusStyle,
+  getFormsStatusTone,
   getInventoryTurnoverStatusStyle,
   formatTurnoverStatus,
   getTaskStatusStyle,
@@ -44,6 +47,21 @@ describe('tableUtils', () => {
 
     it('handles undefined status', () => {
       expect(getInvoiceStatusStyle(undefined as any).color).toBe('var(--color-pill-neutral-text)');
+    });
+  });
+
+  describe('getInvoiceStatusTone', () => {
+    it.each([
+      ['awaiting_payment', 'info'],
+      ['paid', 'success'],
+      ['failed', 'warning'],
+      ['cancelled', 'warning'],
+      ['refunded', 'progress'],
+      ['pending', 'neutral'],
+      ['unknown', 'neutral'],
+      [undefined, 'neutral'],
+    ])('maps %s to %s', (status, tone) => {
+      expect(getInvoiceStatusTone(status as any)).toBe(tone);
     });
   });
 
@@ -86,6 +104,18 @@ describe('tableUtils', () => {
     });
   });
 
+  describe('getCompanionStatusTone', () => {
+    it.each([
+      ['active', 'success'],
+      ['archived', 'warning'],
+      ['inactive', 'neutral'],
+      ['unknown', 'neutral'],
+      [undefined, 'neutral'],
+    ])('maps %s to %s', (status, tone) => {
+      expect(getCompanionStatusTone(status as any)).toBe(tone);
+    });
+  });
+
   describe('getFormsStatusStyle', () => {
     it('returns neutral style for empty status', () => {
       expect(getFormsStatusStyle('' as any).color).toBe('var(--color-pill-neutral-text)');
@@ -93,6 +123,19 @@ describe('tableUtils', () => {
 
     it.each(['published', 'draft', 'archived', 'unknown'])('returns a style for %s', (status) => {
       expect(getFormsStatusStyle(status)).toHaveProperty('color');
+    });
+  });
+
+  describe('getFormsStatusTone', () => {
+    it.each([
+      ['Published', 'success'],
+      ['Draft', 'neutral'],
+      ['Archived', 'neutral'],
+      ['Superseded', 'progress'],
+      ['', 'neutral'],
+      [undefined, 'neutral'],
+    ])('maps %s to %s', (status, tone) => {
+      expect(getFormsStatusTone(status as any)).toBe(tone);
     });
   });
 

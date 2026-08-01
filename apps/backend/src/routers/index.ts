@@ -20,6 +20,7 @@ import stripeRouter from "./stripe.router";
 import financeRouter from "./finance.router";
 import documensoRouter from "./documenso.router";
 import ratingRouter from "./organisationRating.router";
+import invoiceRouter from "./invoice.router";
 import formRouter from "./form.router";
 import formAssignmentRouter from "./form-assignment.router";
 import templateRouter from "./template.router";
@@ -89,7 +90,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/finance`, financeRouter);
   app.use(`/v1/documenso`, documensoRouter);
   app.use(`/v1/organisation-rating`, ratingRouter);
-  app.use(`/fhir/v1/invoice`, financeRouter);
+  app.use(`/fhir/v1/invoice`, invoiceRouter);
   app.use(`/fhir/v1/form`, formRouter);
   app.use(`/v1/forms`, formAssignmentRouter);
   app.use(`/fhir/v1/template`, templateFhirRouter);

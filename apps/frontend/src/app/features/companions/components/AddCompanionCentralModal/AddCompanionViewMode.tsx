@@ -19,6 +19,7 @@ import {
   ModalMode,
 } from './addCompanionCentralModalHelpers';
 import { toTitleCase } from '@/app/lib/validators';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type AddCompanionViewModeProps = {
   canEditCompanionStatus: boolean;
@@ -92,12 +93,7 @@ const AddCompanionViewMode = ({
             />
           </div>
         ) : (
-          <span
-            className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold border"
-            style={statusStyle}
-          >
-            {toTitleCase(displayStatus)}
-          </span>
+          <StatusPill style={statusStyle} label={toTitleCase(displayStatus)} />
         )}
 
         <button

@@ -31,6 +31,9 @@ const RowActionMenu = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [style, setStyle] = useState<React.CSSProperties | null>(null);
+  // Guards the re-measure pass below so it only runs once per open cycle,
+  // right after the panel has actually mounted and has a real height.
+  const measuredRef = useRef(false);
 
   const changeOpen = useCallback(
     (next: boolean) => {
@@ -40,21 +43,63 @@ const RowActionMenu = ({
     [onOpenChange]
   );
 
+  // Positions the panel below the trigger by default. Once the panel has a
+  // real height (second pass, below), flips to whichever side has more room
+  // when below doesn't fully fit, and clamps the panel to that available
+  // space (scrollable) so it can never run off the viewport even when
+  // neither side has enough room - e.g. a menu with many actions at a short
+  // viewport or high zoom (bug #1979).
   const position = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = 224;
-    const left = Math.max(8, rect.right - width);
-    setStyle({ position: 'fixed', top: rect.bottom + 6, left, width, zIndex: 5000 });
+    const margin = 8;
+    const left = Math.max(margin, rect.right - width);
+    // scrollHeight, not offsetHeight: the first pass (before we know which way
+    // to flip) can clamp the panel to a small maxHeight when there's little
+    // room below. offsetHeight would then read back that shrunk box on the
+    // second pass instead of the panel's true content height, corrupting the
+    // flip decision and leaving the panel positioned as if it were far
+    // shorter than it actually renders - overflowing the viewport regardless.
+    const panelHeight = panelRef.current?.scrollHeight ?? 0;
+    const spaceBelow = globalThis.window.innerHeight - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const flipUp = panelHeight > 0 && spaceBelow < panelHeight && spaceAbove > spaceBelow;
+    const availableHeight = Math.max(flipUp ? spaceAbove : spaceBelow, 80);
+    const top = flipUp
+      ? Math.max(margin, rect.top - Math.min(panelHeight, availableHeight) - 6)
+      : rect.bottom + 6;
+    setStyle({
+      position: 'fixed',
+      top,
+      left,
+      width,
+      zIndex: 5000,
+      maxHeight: availableHeight,
+      overflowY: 'auto',
+    });
   }, []);
 
   useLayoutEffect(() => {
     if (!open) {
       setStyle(null);
+      measuredRef.current = false;
       return;
     }
     position();
   }, [open, position]);
+
+  // Second pass: runs after the panel above has actually mounted (style is no
+  // longer null), so panelRef now reports its real height. Re-measures once so
+  // the flip-up decision uses the true panel height instead of 0, then moves
+  // keyboard focus into the menu so keyboard users land directly on the first
+  // action instead of on an invisible portal node (bug #1979).
+  useLayoutEffect(() => {
+    if (!open || measuredRef.current || !panelRef.current) return;
+    measuredRef.current = true;
+    position();
+    panelRef.current.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  });
 
   // Keep the latest close action in a ref so the dismiss listeners subscribe
   // once per open (deps: [open]) instead of re-subscribing whenever the parent
@@ -70,11 +115,28 @@ const RowActionMenu = ({
       closeMenuRef.current();
     };
     const handleScroll = () => closeMenuRef.current();
+    // Escape closes and returns focus to the trigger. Tab closes the menu too
+    // (it isn't a modal - trapping Tab inside it would strand keyboard users
+    // who can no longer reach the rest of the page) and, deliberately, does
+    // NOT preventDefault, so the browser's normal Tab order continues from
+    // wherever it would have gone next.
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenuRef.current();
+        buttonRef.current?.focus();
+        return;
+      }
+      if (event.key === 'Tab') {
+        closeMenuRef.current();
+      }
+    };
     document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKeyDown);
     globalThis.window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
     globalThis.window.addEventListener('resize', handleScroll);
     return () => {
       document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKeyDown);
       globalThis.window.removeEventListener('scroll', handleScroll, { capture: true });
       globalThis.window.removeEventListener('resize', handleScroll);
     };

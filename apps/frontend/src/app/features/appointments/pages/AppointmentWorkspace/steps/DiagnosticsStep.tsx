@@ -1,3 +1,4 @@
+import { useRouter } from 'next/navigation';
 import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
@@ -18,6 +19,7 @@ import {
   IoTrashOutline,
 } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -66,10 +68,18 @@ type ProviderOption = {
   label: string;
   available: boolean;
   unavailableReason?: string;
+  /** Provider hub to open on click. IDEXX is always the selected provider, so
+   *  without this the logo looks clickable but nothing happens. */
+  workspaceHref?: string;
 };
 
 const PROVIDERS: ProviderOption[] = [
-  { key: 'IDEXX', label: 'IDEXX', available: true },
+  {
+    key: 'IDEXX',
+    label: 'IDEXX',
+    available: true,
+    workspaceHref: '/appointments/idexx-workspace',
+  },
   {
     key: 'RAD_ANALYZER',
     label: 'RadAnalyzer',
@@ -106,65 +116,68 @@ const IntegrationPills = ({
 }: {
   selected: DiagnosticProvider;
   onSelect: (provider: DiagnosticProvider) => void;
-}) => (
-  <div className="flex flex-wrap items-center gap-3">
-    {PROVIDERS.map((provider) => {
-      const active = selected === provider.key;
-      const disabled = !provider.available;
-      return (
-        <button
-          key={provider.key}
-          type="button"
-          aria-pressed={active}
-          disabled={disabled}
-          title={disabled ? provider.unavailableReason : undefined}
-          onClick={() => {
-            if (!disabled) onSelect(provider.key);
-          }}
-          className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
-            disabled,
-            active
-          )}`}
-        >
-          <ProviderContent provider={provider} />
-          {disabled ? (
-            <span className="text-caption-2 text-text-secondary">Coming soon</span>
-          ) : (
-            active && <IoOpenOutline size={14} aria-hidden="true" />
-          )}
-        </button>
-      );
-    })}
-  </div>
-);
+}) => {
+  const router = useRouter();
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {PROVIDERS.map((provider) => {
+        const active = selected === provider.key;
+        const disabled = !provider.available;
+        return (
+          <button
+            key={provider.key}
+            type="button"
+            aria-pressed={active}
+            disabled={disabled}
+            title={disabled ? provider.unavailableReason : undefined}
+            aria-label={provider.workspaceHref ? `Open the ${provider.label} workspace` : undefined}
+            onClick={() => {
+              if (disabled) return;
+              onSelect(provider.key);
+              if (provider.workspaceHref) router.push(provider.workspaceHref);
+            }}
+            className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
+              disabled,
+              active
+            )}`}
+          >
+            <ProviderContent provider={provider} />
+            {disabled ? (
+              <span className="text-caption-2 text-text-secondary">Coming soon</span>
+            ) : (
+              active && <IoOpenOutline size={14} aria-hidden="true" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 /**
- * Maps a lab order / result status string to the shared design-system pill
- * tokens (border + bg + text), matching the Invoice section's StatusPill.
+ * Maps a lab order / result status string to a shared StatusPill tone, so
+ * diagnostics states read at the same size and weight as every other status.
  */
-const getStatusPillClasses = (status: string): string => {
+const getStatusTone = (status: string): StatusTone => {
   const key = status.toLowerCase();
   if (key.includes('complete') || key.includes('final') || key.includes('submitted')) {
-    return 'border-pill-success-border bg-pill-success-bg text-pill-success-text';
+    return 'success';
   }
   if (key.includes('process') || key.includes('progress') || key.includes('pending')) {
-    return 'border-pill-info-border bg-pill-info-bg text-pill-info-text';
+    return 'info';
   }
   if (key.includes('error') || key.includes('fail') || key.includes('cancel')) {
-    return 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text';
+    return 'warning';
   }
-  return 'border-pill-neutral-border bg-pill-neutral-bg text-pill-neutral-text';
+  return 'neutral';
 };
 
 const getIvlsConfirmationLabel = (confirmed: boolean): string =>
   confirmed ? 'Confirmed for selected device' : 'Pending for selected device';
 
-const StatusPill = ({ status }: { status: string }) => (
-  <span
-    className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${getStatusPillClasses(status)}`}
-  >
-    {status}
-  </span>
+const DiagnosticsStatusPill = ({ status }: { status: string }) => (
+  <StatusPill tone={getStatusTone(status)} label={status} />
 );
 
 const MODALITY_LABELS: Record<string, string> = {
@@ -292,6 +305,32 @@ const TestTypeSelect = ({ s }: { s: UseLabTestsReturn }) => (
   />
 );
 
+const PendingTestConfirmation = ({ s }: { s: UseLabTestsReturn }) => {
+  if (!s.pendingTest) return null;
+  const test = s.pendingTest;
+  return (
+    <div
+      data-testid="pending-test-confirmation"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4"
+    >
+      <div className="flex flex-col gap-1">
+        <span className="text-body-4 font-medium text-text-primary">{test.display}</span>
+        <span className="text-caption-1 text-text-secondary">
+          Code: {test.code} · {formatTestPrice(test)}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Secondary text="Cancel" onClick={s.cancelPendingTest} />
+        <Primary
+          text="Add to Queue"
+          icon={<IoCheckmarkOutline aria-hidden="true" />}
+          onClick={s.confirmPendingTest}
+        />
+      </div>
+    </div>
+  );
+};
+
 const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   <div className="grid items-stretch gap-5 lg:grid-cols-[1fr_320px]">
     <div className="flex flex-col gap-4">
@@ -302,7 +341,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
           label: `${test.display} (${test.code})`,
           meta: test,
         }))}
-        onSelect={s.addTest}
+        onSelect={s.selectSearchResult}
         query={s.selectedTestLabel || s.query}
         setQuery={(value: string) => {
           s.setSelectedTestLabel(value);
@@ -329,6 +368,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
           );
         }}
       />
+      <PendingTestConfirmation s={s} />
       <p className="max-w-2xl text-body-4 text-text-secondary">
         IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
         this contract. Use reference lab for external IDEXX ordering.
@@ -337,7 +377,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         <FormDesc
           intype="text"
           inname="lab-notes"
-          inlabel="Notes"
+          inlabel="Order notes"
           value={s.notes}
           onChange={(e) => s.setNotes(e.target.value)}
         />
@@ -555,12 +595,22 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                       <MetaPill label={formatModality(order.modality) as string} />
                     )}
                   </span>
+                  {/* Order notes are saved at the order level (IDEXX has no per-test notes),
+                      shown here so they remain visible after refreshing or reopening (bug #1973). */}
+                  {order.notes && (
+                    <span
+                      className="truncate text-caption-1 text-text-secondary"
+                      title={order.notes}
+                    >
+                      <strong>Order notes:</strong> {order.notes}
+                    </span>
+                  )}
                 </span>
                 <span className="truncate text-body-4 text-text-secondary">
                   {formatDateTimeLocal(order.updatedAt ?? order.createdAt, '-')}
                 </span>
                 <div className="flex">
-                  <StatusPill status={s.getOrderDisplayStatus(order)} />
+                  <DiagnosticsStatusPill status={s.getOrderDisplayStatus(order)} />
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <Secondary
@@ -636,7 +686,7 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
                       {formatDateTimeLocal(result.updatedAt ?? result.createdAt, '-')}
                     </span>
                     <div className="flex">
-                      <StatusPill status={toTitleCase(result.status)} />
+                      <DiagnosticsStatusPill status={toTitleCase(result.status)} />
                     </div>
                     <div className="flex justify-end gap-2">
                       <CircleIconButton
@@ -742,7 +792,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
             loading="lazy"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+            sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-same-origin"
             onLoad={() => setLoaded(true)}
           />
         </div>

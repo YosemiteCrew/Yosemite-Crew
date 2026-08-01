@@ -32,7 +32,7 @@
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1200px; /* 96+200+180+150+90+70+80+160+110+64 */
+  min-width: 1220px; /* 96+200+180+150+90+70+80+180+110+64 */
 }
 .companions-table-fixed {
   table-layout: fixed;
@@ -358,7 +358,11 @@
   font-size: 13.5px;
 }
 /* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 3px 10px, fully round.
-   Per-status bg/text/border are supplied inline via getStatusStyle(...). */
+   Per-status bg/text/border are supplied inline via getStatusStyle(...).
+   Kept byte-for-byte in step with the StatusPill primitive: the design's badges
+   compute to 21.5px tall (`line-height: normal`), and pinning this one to
+   `line-height: 1` made it 18px, i.e. the same status at two sizes depending on
+   which surface drew it. New code should use StatusPill, not this class. */
 .appointment-status {
   display: inline-flex;
   width: fit-content;
@@ -377,7 +381,7 @@
   font-size: 10px;
   font-style: normal;
   font-weight: 700;
-  line-height: 1;
+  line-height: normal;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;

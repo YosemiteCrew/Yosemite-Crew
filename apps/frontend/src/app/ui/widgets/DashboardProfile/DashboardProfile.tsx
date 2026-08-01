@@ -10,6 +10,7 @@ import { getSafeImageUrl } from '@/app/lib/urls';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import dynamic from 'next/dynamic';
 const CalBookingOverlay = dynamic(() => import('@/app/ui/overlays/CalBookingOverlay'), {
   ssr: false,
@@ -48,16 +49,7 @@ const DashboardProfile = () => {
             Your central hub for insights, performance tracking and quick access to essential tools
           </span>
         </div>
-        {primaryOrg.isVerified && (
-          <span className="flex items-center gap-1.5 rounded-full border border-card-border bg-[var(--pill-raised)] px-[14px] py-2 text-[12.5px] font-semibold text-text-primary">
-            <span
-              className="h-[7px] w-[7px] rounded-full"
-              style={{ background: 'var(--success)' }}
-              aria-hidden="true"
-            />
-            {'Verified clinic'}
-          </span>
-        )}
+        {primaryOrg.isVerified && <StatusPill tone="success" showDot label="Verified clinic" />}
       </div>
 
       <PermissionGate allOf={[PERMISSIONS.ORG_EDIT]}>

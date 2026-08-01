@@ -1,4 +1,5 @@
 import {
+  calculateInvoiceDiscountPercentOfBase,
   calculateInvoicePricing,
   roundMoney,
 } from "../../src/services/finance/pricing";
@@ -7,6 +8,21 @@ describe("finance/pricing", () => {
   it("rounds money deterministically", () => {
     expect(roundMoney(10.004)).toBe(10);
     expect(roundMoney(10.005)).toBe(10.01);
+  });
+
+  describe("calculateInvoiceDiscountPercentOfBase", () => {
+    it("expresses a discount amount as a percent of the base", () => {
+      expect(calculateInvoiceDiscountPercentOfBase(50, 200)).toBe(25);
+      expect(calculateInvoiceDiscountPercentOfBase(200, 200)).toBe(100);
+      expect(calculateInvoiceDiscountPercentOfBase(33.33, 100)).toBe(33.33);
+    });
+
+    it("returns zero for a non-positive base or discount", () => {
+      expect(calculateInvoiceDiscountPercentOfBase(50, 0)).toBe(0);
+      expect(calculateInvoiceDiscountPercentOfBase(50, -10)).toBe(0);
+      expect(calculateInvoiceDiscountPercentOfBase(0, 200)).toBe(0);
+      expect(calculateInvoiceDiscountPercentOfBase(-5, 200)).toBe(0);
+    });
   });
 
   it("calculates exclusive tax, line discounts, and invoice discounts", () => {

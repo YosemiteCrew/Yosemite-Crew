@@ -450,6 +450,9 @@ textarea:focus-visible {
   --color-pill-warning-bg: var(--status-cancelled-bg);
   --color-pill-warning-text: var(--status-cancelled-text);
   --color-pill-warning-border: var(--status-cancelled-border);
+  --color-pill-danger-bg: var(--status-danger-bg);
+  --color-pill-danger-text: var(--status-danger-text);
+  --color-pill-danger-border: var(--status-danger-border);
   --font-sans: 'Satoshi Variable', 'Satoshi', sans-serif;
   --font-satoshi: 'Satoshi Variable', 'Satoshi', sans-serif;
 
@@ -481,6 +484,10 @@ textarea:focus-visible {
   --status-no-show-bg: #fff7ed;
   --status-no-show-text: #9a3412;
   --status-no-show-border: #f97316;
+
+  --status-danger-bg: rgba(234, 55, 41, 0.09);
+  --status-danger-text: #c2261a;
+  --status-danger-border: rgba(234, 55, 41, 0.32);
 
   /* Alert / document-category palette (workspace revamp — Figma "documents cat" sheet) */
   --color-category-caution: #b9501f;
@@ -1592,6 +1599,9 @@ html[data-theme='dark'] {
   --status-no-show-bg: rgba(249, 115, 22, 0.15);
   --status-no-show-text: #f0a36c;
   --status-no-show-border: rgba(249, 115, 22, 0.5);
+  --status-danger-bg: rgba(234, 55, 41, 0.18);
+  --status-danger-text: #f2938a;
+  --status-danger-border: rgba(242, 147, 138, 0.42);
 }
 
 /* PIMS app surface — native control theming + post-paint flip transition.

@@ -17,13 +17,7 @@ import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 
 export type BadgeTone =
-  | 'neutral'
-  | 'info'
-  | 'indigo'
-  | 'violet'
-  | 'success'
-  | 'warning'
-  | 'danger';
+  'neutral' | 'info' | 'indigo' | 'violet' | 'success' | 'warning' | 'danger';
 
 export type BadgeStatus =
   | 'upcoming'

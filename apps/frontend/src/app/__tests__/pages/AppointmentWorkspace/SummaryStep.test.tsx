@@ -211,6 +211,9 @@ describe('SummaryStep', () => {
     expect(screen.getByText('All Documents')).toBeInTheDocument();
     // Documents are sourced from the backend read-model, not rebuilt client-side.
     expect(await screen.findByText('Signed SOAP note')).toBeInTheDocument();
+    expect(screen.getByText('Signed')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
     expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-1');
   });
 
@@ -606,6 +609,20 @@ describe('SummaryStep', () => {
 
     expect(printSpy).toHaveBeenCalled();
     printSpy.mockRestore();
+  });
+
+  it('dims the follow-up date once the summary is saved so it does not read as editable', () => {
+    // The saved state locks the field (the Edit pencil reopens it). Without the
+    // dimming it still renders as a live input, so the date looks broken rather
+    // than locked - which is how it was reported.
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    renderSummary(enc);
+
+    const field = screen
+      .getAllByRole('button', { name: /^Follow up date:/ })[0]
+      .closest('[aria-disabled="true"]');
+    expect(field).toHaveClass('pointer-events-none');
+    expect(field).toHaveClass('opacity-60');
   });
 
   it('opens the merged packet PDF when printing with encounter context', async () => {

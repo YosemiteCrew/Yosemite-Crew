@@ -42,7 +42,7 @@ jest.mock('@/app/lib/invoicePaymentMethod', () => ({
 }));
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
-  getInvoiceStatusStyle: () => ({}),
+  getInvoiceStatusTone: () => 'success',
 }));
 
 jest.mock('@/app/lib/financeMetrics', () => ({

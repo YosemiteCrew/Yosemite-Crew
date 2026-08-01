@@ -2,7 +2,7 @@ import Image from 'next/image';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { IoCalendarOutline, IoEye, IoListOutline, IoSyncOutline } from 'react-icons/io5';
-import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getCompanionStatusTone } from '@/app/ui/tables/tableUtils';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import { formatCompanionAge } from '@/app/lib/date';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -94,7 +94,7 @@ const CompanionCard = ({
         <div className="text-caption-1 text-text-primary">{'-'}</div>
       </div>
       <StatusPill
-        style={getCompanionStatusStyle(companion.companion.status || 'inactive')}
+        tone={getCompanionStatusTone(companion.companion.status)}
         label={toTitleCase(companion.companion.status || 'inactive')}
       />
       <div className="flex gap-2 justify-center">

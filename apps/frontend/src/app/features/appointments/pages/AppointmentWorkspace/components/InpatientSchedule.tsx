@@ -11,7 +11,7 @@ import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContai
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone, getStatusStyle } from '@/app/config/statusConfig';
 import type { ScheduleTask, ScheduleTaskStatus } from '@/app/features/appointments/types/workspace';
 import type { TemplateLike } from '@yosemite-crew/types';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
@@ -66,12 +66,6 @@ const formatTimelineLabel = (task: ScheduleTask): { primary: string; secondary?:
   return { primary: '—' };
 };
 
-/** Shared status colours (same source of truth as the appointment status pill). */
-const statusPillStyle = (status: ScheduleTaskStatus): React.CSSProperties => {
-  const s = getStatusStyle(status);
-  return { color: s.color, backgroundColor: s.backgroundColor, borderColor: s.borderColor };
-};
-
 /**
  * Status pill that opens a small menu to reassign the task status. Uses the same
  * border styles/colours as the appointment status pill, and shows a coloured dot
@@ -91,7 +85,7 @@ const StatusPillSelect = ({
   if (locked) {
     return (
       <StatusPill
-        style={statusPillStyle(status)}
+        tone={getAppointmentStatusTone(status)}
         label={formatStatusLabel(status)}
         className="w-fit"
       />
@@ -110,7 +104,7 @@ const StatusPillSelect = ({
         className="w-fit rounded-full! transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
         <StatusPill
-          style={statusPillStyle(status)}
+          tone={getAppointmentStatusTone(status)}
           label={
             <>
               {formatStatusLabel(status)}

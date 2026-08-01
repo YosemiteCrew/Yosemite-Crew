@@ -8,7 +8,7 @@ import {
   isRequestedLikeStatus,
   toStatusLabel,
 } from '@/app/lib/appointments';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone, getStatusStyle } from '@/app/config/statusConfig';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
 import type { AppointmentStatus } from '@/app/features/appointments/types/appointments';
@@ -43,7 +43,7 @@ const AppointmentStatusPill = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
-  const statusStyle = getStatusStyle(appointment.status);
+  const statusTone = getAppointmentStatusTone(appointment.status);
   const allowedTransitions = getAllowedAppointmentStatusTransitions(appointment.status);
   const canChange =
     canEdit &&
@@ -106,7 +106,7 @@ const AppointmentStatusPill = ({
 
   if (!canChange) {
     return (
-      <StatusPill style={statusStyle} label={toStatusLabel(appointment.status)} className="w-fit" />
+      <StatusPill tone={statusTone} label={toStatusLabel(appointment.status)} className="w-fit" />
     );
   }
 
@@ -126,7 +126,7 @@ const AppointmentStatusPill = ({
         style={{ opacity: saving ? 0.6 : 1 }}
       >
         <StatusPill
-          style={statusStyle}
+          tone={statusTone}
           label={
             <>
               <span>{saving ? 'Saving…' : toStatusLabel(appointment.status)}</span>

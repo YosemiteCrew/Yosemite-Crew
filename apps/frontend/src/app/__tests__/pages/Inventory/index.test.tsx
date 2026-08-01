@@ -697,6 +697,7 @@ describe('Inventory Page', () => {
         leadName: null,
         location: null,
         currency: null,
+        status: 'DISPENSED',
         reviewedAt: '2026-07-01T10:00:00.000Z',
         paymentStatus: 'PAID',
         invoiceId: 'invoice-1',
@@ -750,6 +751,25 @@ describe('Inventory Page', () => {
         stockUnitQty: 7,
         prescription: { dose: '', freq: '', duration: '', refill: '', route: 'oral' },
       });
+
+      // Bug #1968: reviewedAt marks when a request was reviewed at all (dispensed
+      // OR marked not dispensed) - a "Not dispensed" row must not show a
+      // "Dispensed" timestamp just because it carries a reviewedAt value.
+      const notDispensedRequest = mapDispenseRequestToRecord(
+        baseDispenseRequest({
+          status: 'NOT_DISPENSED',
+          reviewedAt: '2026-07-01T10:00:00.000Z',
+        }) as any
+      );
+      expect(notDispensedRequest.timeDispensed).toBeUndefined();
+
+      const pendingRequest = mapDispenseRequestToRecord(
+        baseDispenseRequest({
+          status: 'PENDING',
+          reviewedAt: '2026-07-01T10:00:00.000Z',
+        }) as any
+      );
+      expect(pendingRequest.timeDispensed).toBeUndefined();
 
       const summaryFallback = mapDispenseRequestToRecord(
         baseDispenseRequest({

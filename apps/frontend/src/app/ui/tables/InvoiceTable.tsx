@@ -20,7 +20,7 @@ import {
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
-import { getInvoiceItemNames, getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getInvoiceItemNames, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { getAvatarPalette } from '@/app/features/companions/pages/Companions/companionsDirectory';
@@ -53,11 +53,14 @@ const joinMeta = (...parts: (string | undefined)[]): string => {
   return kept.join(' · ');
 };
 
-/* The status micro-badge is `white-space: nowrap` + `width: fit-content`, so the
-   column has to hold the widest label ("AWAITING PAYMENT" measures 133.7px at
-   10px/700/0.08em Satoshi) plus the 22px of td padding, or the pill bleeds over
-   the Payment cell. 160px is the measured-safe floor. */
-const STATUS_COLUMN_WIDTH = '160px';
+/* The status micro-badge is `white-space: nowrap` + `width: fit-content` +
+   `overflow-hidden`, so an undersized column doesn't bleed the pill over the
+   Payment cell — it silently clips the label instead ("AWAITING PAYMENT" ->
+   "AWAITING PAYME"). The widest label measures 133.7px at 10px/700/0.08em
+   Satoshi; 160px (- 22px td padding = 138px) left only ~4px of slack, which
+   real-world font hinting/zoom/DPI variance ate into. 180px leaves a real
+   margin (~23px). */
+const STATUS_COLUMN_WIDTH = '180px';
 
 const renderInvoiceNumber = (item: Invoice) => (
   <div
@@ -73,7 +76,7 @@ const renderServices = (item: Invoice) => (
 );
 
 const renderStatus = (item: Invoice) => (
-  <StatusPill style={getInvoiceStatusStyle(item?.status)} label={toTitle(item?.status)} />
+  <StatusPill tone={getInvoiceStatusTone(item?.status)} label={toTitle(item?.status)} />
 );
 
 const renderPayment = (item: Invoice) => (
@@ -149,14 +152,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       getAppointmentCompanionPhotoUrl(companion),
       (companion?.species as ImageType) ?? 'other'
     );
-    // The Date column already carries the appointment date, so the desktop
-    // sub-line pairs the appointment type with the time only — no duplicated
-    // date. On tablet the Date column is dropped, so the date folds back in.
+    // The Services column already carries the appointment type, and the Date
+    // column carries the date, but neither shows the time — so the desktop
+    // sub-line keeps just the time (not the type, which really is duplicated).
+    // On tablet, Services/Date are dropped entirely, so their content folds
+    // back in here alongside the time.
     const foldedDate =
       foldMeta && appointment ? formatDateLabel(appointment.appointmentDate) : undefined;
     const appointmentSubtitle = appointment
       ? buildAppointmentSubtitle(
-          appointment.appointmentType?.name,
+          foldMeta ? appointment.appointmentType?.name : undefined,
           formatTimeLabel(appointment.startTime ?? appointment.appointmentDate),
           foldedDate
         )
@@ -170,7 +175,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     const avatarPalette = getAvatarPalette(companion?.id || companionName);
     return (
       <div className="appointment-profile flex items-center gap-2.5">
-        <span
+        <div
           className="flex size-[30px] shrink-0 overflow-hidden rounded-full"
           style={{ background: avatarPalette.bg }}
         >
@@ -181,7 +186,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
             height={30}
             className="size-[30px] rounded-full object-cover"
           />
-        </span>
+        </div>
         <div className="appointment-profile-two min-w-0">
           <div className="appointment-profile-title cell-name truncate" title={ownerAndCompanion}>
             {ownerAndCompanion}
@@ -214,12 +219,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
             title="Open appointment finance"
           >
             {formatDateLabel(appointment.appointmentDate)}
-            <IoOpenOutline
-              size={12}
-              style={{ color: 'var(--ink-faint)' }}
-              className="shrink-0"
-              aria-hidden="true"
-            />
+            <IoOpenOutline size={12} className="shrink-0" aria-hidden="true" />
           </button>
         )}
       </div>

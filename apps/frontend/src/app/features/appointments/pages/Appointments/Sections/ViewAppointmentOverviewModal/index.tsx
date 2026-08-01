@@ -120,7 +120,7 @@ const resolveEstimateDisplay = (
 
 type RoomSelectorSectionProps = {
   label: string;
-  savingRoom: boolean;
+  saving: boolean;
   canEditRoom: boolean;
   options: Array<{ label: string; value: string }>;
   defaultOption: string;
@@ -130,35 +130,36 @@ type RoomSelectorSectionProps = {
 
 const RoomSelectorSection = ({
   label,
-  savingRoom,
+  saving,
   canEditRoom,
   options,
   defaultOption,
   onSelect,
   fallback,
-}: RoomSelectorSectionProps) => (
-  <div className="relative">
-    <span
-      className="pointer-events-none absolute left-4 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-neutral-0 px-1 font-satoshi text-sm leading-none"
-      style={{ color: 'var(--color-input-text-placeholder)' }}
-    >
-      {label}
-    </span>
-    {canEditRoom ? (
+}: RoomSelectorSectionProps) =>
+  canEditRoom ? (
+    // The label always stays "Room"/"Unit" - Room and Unit save independently
+    // (see savingField in the parent), so only the field actually in flight
+    // dims, instead of both losing their identity to a shared "Saving…" state.
+    <div className={saving ? 'pointer-events-none opacity-60' : ''}>
       <LabelDropdown
-        placeholder={savingRoom ? 'Saving…' : `Select ${label.toLowerCase()}`}
+        placeholder={label}
         options={options}
         defaultOption={defaultOption}
         onSelect={onSelect}
         searchable={false}
       />
-    ) : (
+    </div>
+  ) : (
+    <div>
+      <span className="mb-1.5 block font-satoshi text-sm font-semibold text-text-secondary">
+        {label}
+      </span>
       <div className="border border-input-border-default rounded-2xl px-4 py-3 min-h-12 font-satoshi text-base text-text-primary">
         {fallback}
       </div>
-    )}
-  </div>
-);
+    </div>
+  );
 
 type OverviewLeftColumnProps = {
   companion: ReturnType<typeof getAppointmentCompanion>;
@@ -244,7 +245,7 @@ const OverviewLeftColumn = ({
 type OverviewRightColumnProps = {
   activeAppointment: Appointment;
   canEditAppointments: boolean;
-  savingRoom: boolean;
+  savingField: 'room' | 'unit' | null;
   canEditRoom: boolean;
   roomOptions: Array<{ label: string; value: string }>;
   effectiveRoomId: string | undefined;
@@ -265,7 +266,7 @@ type OverviewRightColumnProps = {
 const OverviewRightColumn = ({
   activeAppointment,
   canEditAppointments,
-  savingRoom,
+  savingField,
   canEditRoom,
   roomOptions,
   effectiveRoomId,
@@ -294,7 +295,7 @@ const OverviewRightColumn = ({
     {/* Room */}
     <RoomSelectorSection
       label="Room"
-      savingRoom={savingRoom}
+      saving={savingField === 'room'}
       canEditRoom={canEditRoom}
       options={roomOptions}
       defaultOption={effectiveRoomId ?? ''}
@@ -309,7 +310,7 @@ const OverviewRightColumn = ({
     {isInpatient ? (
       <RoomSelectorSection
         label="Unit"
-        savingRoom={savingRoom}
+        saving={savingField === 'unit'}
         canEditRoom={canEditRoom}
         options={unitOptions}
         defaultOption={effectiveUnitId ?? ''}
@@ -393,7 +394,7 @@ const ViewAppointmentOverviewModal = ({
     activeAppointment.id ? s.encountersById[activeAppointment.id] : undefined
   );
 
-  const [savingRoom, setSavingRoom] = useState(false);
+  const [savingField, setSavingField] = useState<'room' | 'unit' | null>(null);
 
   React.useEffect(() => {
     if (!showModal) return;
@@ -491,7 +492,7 @@ const ViewAppointmentOverviewModal = ({
   const handleRoomChange = useCallback(
     async (option: { label: string; value: string }) => {
       if (!canEditRoom) return;
-      setSavingRoom(true);
+      setSavingField('room');
       try {
         const foundRoom = rooms.find((r) => r.id === option.value);
         const nextUnitId = isInpatient
@@ -521,7 +522,7 @@ const ViewAppointmentOverviewModal = ({
       } catch {
         notify('error', { title: 'Room update failed', text: 'Please try again.' });
       } finally {
-        setSavingRoom(false);
+        setSavingField(null);
       }
     },
     [
@@ -541,7 +542,7 @@ const ViewAppointmentOverviewModal = ({
   const handleUnitChange = useCallback(
     async (option: { label: string; value: string }) => {
       if (!canEditRoom || !isInpatient || !activeAppointment.id) return;
-      setSavingRoom(true);
+      setSavingField('unit');
       try {
         initEncounter(activeAppointment.id, 'INPATIENT', {
           leadId: activeAppointment.lead?.id,
@@ -561,7 +562,7 @@ const ViewAppointmentOverviewModal = ({
       } catch {
         notify('error', { title: 'Unit update failed', text: 'Please try again.' });
       } finally {
-        setSavingRoom(false);
+        setSavingField(null);
       }
     },
     [
@@ -607,7 +608,7 @@ const ViewAppointmentOverviewModal = ({
         <OverviewRightColumn
           activeAppointment={activeAppointment}
           canEditAppointments={canEditAppointments}
-          savingRoom={savingRoom}
+          savingField={savingField}
           canEditRoom={canEditRoom}
           roomOptions={roomOptions}
           effectiveRoomId={effectiveRoomId}

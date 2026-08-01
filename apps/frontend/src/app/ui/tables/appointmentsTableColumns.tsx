@@ -17,7 +17,7 @@ import {
   getClinicalNotesLabel,
   isRequestedLikeStatus,
 } from '@/app/lib/appointments';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { getAppointmentPaymentDisplay } from '@/app/lib/paymentStatus';
 import type { Invoice, Organisation, RoomUnit } from '@yosemite-crew/types';
@@ -154,12 +154,7 @@ export const buildAppointmentColumns = ({
           {roomDisplay.unitLabel && (
             <div className="appointment-profile-sub text-[12px]">{roomDisplay.unitLabel}</div>
           )}
-          <AppointmentModePill
-            appointment={item}
-            className="mt-1 h-6 w-fit px-2.5 text-[10px]"
-            iconSize={12}
-            tone="strong"
-          />
+          <AppointmentModePill appointment={item} className="mt-1" iconSize={12} tone="strong" />
         </div>
       );
     },
@@ -221,16 +216,11 @@ export const buildAppointmentColumns = ({
     render: (item: Appointment) => {
       const displayStatus = item.status === 'REQUESTED' ? 'REQUESTED' : item.status;
       const payment = getAppointmentPaymentDisplay(item, invoicesByAppointmentId);
-      const statusStyle = getStatusStyle(displayStatus);
 
       return (
         <div className="appointment-profile-two">
           <StatusPill
-            style={{
-              ...statusStyle,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-            }}
+            tone={getAppointmentStatusTone(displayStatus)}
             label={toTitle(displayStatus)}
           />
           <div

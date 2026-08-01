@@ -9,8 +9,8 @@ type StaffInputProps = {
 
 const StaffInput = ({ label, value }: StaffInputProps) => (
   <div className="relative min-w-0">
-    <span className="text-yc-12-m-neutral pointer-events-none absolute left-5 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-neutral-0 px-1">
-      <IoPerson size={12} className="text-neutral-900" aria-hidden="true" />
+    <span className="pointer-events-none absolute left-5 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-[var(--screen)] px-1 text-[11px] font-semibold text-[var(--ink-soft)]">
+      <IoPerson size={12} className="text-[var(--ink-faint)]" aria-hidden="true" />
       {label}
     </span>
     <FormInput
@@ -20,7 +20,7 @@ const StaffInput = ({ label, value }: StaffInputProps) => (
       value={value || '-'}
       readonly
       tabIndex={-1}
-      className="text-yc-16-r-neutral px-4! whitespace-normal wrap-break-word"
+      className="px-4! whitespace-normal wrap-break-word"
     />
   </div>
 );

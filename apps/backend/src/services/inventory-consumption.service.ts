@@ -204,16 +204,19 @@ const readDoseParts = (
  * days, weeks and months), so the raw value is not a day count. Multiplying a
  * weekly duration as if it were days under-dispenses the course.
  */
-const DURATION_UNIT_IN_DAYS: Record<string, number> = {
-  DAY: 1,
-  DAYS: 1,
-  D: 1,
-  WEEK: 7,
-  WEEKS: 7,
-  W: 7,
-  MONTH: 30,
-  MONTHS: 30,
-  M: 30,
+const DURATION_UNIT_DEFINITIONS: Record<
+  string,
+  { label: "days" | "weeks" | "months"; multiplier: number }
+> = {
+  DAY: { label: "days", multiplier: 1 },
+  DAYS: { label: "days", multiplier: 1 },
+  D: { label: "days", multiplier: 1 },
+  WEEK: { label: "weeks", multiplier: 7 },
+  WEEKS: { label: "weeks", multiplier: 7 },
+  W: { label: "weeks", multiplier: 7 },
+  MONTH: { label: "months", multiplier: 30 },
+  MONTHS: { label: "months", multiplier: 30 },
+  M: { label: "months", multiplier: 30 },
 };
 
 /**
@@ -239,27 +242,50 @@ const readDurationUnit = (
   return match?.[1]?.toUpperCase();
 };
 
+const getDurationUnitDefinition = (unit: string | undefined) =>
+  unit ? DURATION_UNIT_DEFINITIONS[unit] : undefined;
+
 const resolveDurationInDays = (item: {
   durationDays?: unknown;
   duration?: unknown;
   days?: unknown;
   durationUnit?: unknown;
+  metadata?: unknown;
 }) => {
-  const durationText = item.durationDays ?? item.duration ?? item.days;
-  const rawDuration =
-    readPositiveInteger(item.durationDays) ??
-    readPositiveInteger(item.duration ?? item.days);
+  const durationText = item.duration ?? item.days ?? item.durationDays;
+  const rawDuration = readPositiveInteger(durationText);
   if (rawDuration === undefined) {
     return undefined;
   }
 
-  const unit = readDurationUnit(item.durationUnit, durationText);
+  const metadata = toRecord(item.metadata);
+  const unit = readDurationUnit(
+    item.durationUnit ?? metadata.durationUnit,
+    durationText,
+  );
   if (!unit) {
     return rawDuration;
   }
 
-  const multiplier = DURATION_UNIT_IN_DAYS[unit];
-  return multiplier === undefined ? undefined : rawDuration * multiplier;
+  const unitDefinition = getDurationUnitDefinition(unit);
+  return unitDefinition === undefined
+    ? undefined
+    : rawDuration * unitDefinition.multiplier;
+};
+
+const resolveDurationUnitLabel = (item: {
+  durationDays?: unknown;
+  duration?: unknown;
+  days?: unknown;
+  durationUnit?: unknown;
+  metadata?: unknown;
+}) => {
+  const metadata = toRecord(item.metadata);
+  const unit = readDurationUnit(
+    item.durationUnit ?? metadata.durationUnit,
+    item.duration ?? item.days ?? item.durationDays,
+  );
+  return getDurationUnitDefinition(unit)?.label;
 };
 
 const resolveFrequencyPerDay = (frequency?: string | null) => {
@@ -282,6 +308,43 @@ const resolveFrequencyPerDay = (frequency?: string | null) => {
   };
   if (Object.prototype.hasOwnProperty.call(directMap, normalized)) {
     return directMap[normalized];
+  }
+
+  if (
+    normalized.includes("SID") ||
+    (normalized.includes("ONCE") && !normalized.includes("WEEKLY"))
+  ) {
+    return 1;
+  }
+  if (normalized.includes("BID") || normalized.includes("TWICE")) {
+    return 2;
+  }
+  if (
+    normalized.includes("TID") ||
+    normalized.includes("THREE TIMES") ||
+    normalized.includes("THRICE")
+  ) {
+    return 3;
+  }
+  if (normalized.includes("QID") || normalized.includes("FOUR TIMES")) {
+    return 4;
+  }
+  if (normalized.includes("ONCE WEEKLY") || normalized.includes("WEEKLY")) {
+    return 1 / 7;
+  }
+  if (
+    normalized.includes("BEFORE MEALS") ||
+    normalized.includes("AFTER MEALS")
+  ) {
+    return 3;
+  }
+
+  const everyHoursText = /EVERY\s+(\d+)\s+HOURS?/.exec(normalized);
+  if (everyHoursText) {
+    const hours = Number(everyHoursText[1]);
+    if (Number.isFinite(hours) && hours > 0) {
+      return Math.max(1, Math.ceil(24 / hours));
+    }
   }
 
   const everyNhours = /^Q(\d+)H$/.exec(normalized);
@@ -699,7 +762,20 @@ const enrichDispenseRequestMedications = async (
       asNonEmptyString(item.name);
     const frequency = asNonEmptyString(item.frequency ?? item.freq);
     const doseParts = readDoseParts(item.dosage ?? item.dose);
-    const durationDays = resolveDurationInDays(item);
+    const rawDurationDays = readPositiveInteger(
+      item.durationDays ?? item.duration ?? item.days,
+    );
+    const durationInDays = resolveDurationInDays(item);
+    const durationDays =
+      durationInDays === undefined ? undefined : rawDurationDays;
+    const metadataDurationUnit = resolveDurationUnitLabel(item);
+    const metadata =
+      metadataDurationUnit === undefined
+        ? item.metadata
+        : {
+            ...toRecord(item.metadata),
+            durationUnit: metadataDurationUnit,
+          };
     const refillsRemaining =
       readPositiveInteger(item.refillsRemaining) ??
       readPositiveInteger(item.refill);
@@ -721,12 +797,13 @@ const enrichDispenseRequestMedications = async (
       ) ??
       (doseQty !== undefined &&
       frequencyPerDay !== undefined &&
-      durationDays !== undefined
-        ? Math.max(1, Math.ceil(doseQty * frequencyPerDay * durationDays))
+      durationInDays !== undefined
+        ? Math.max(1, Math.ceil(doseQty * frequencyPerDay * durationInDays))
         : undefined);
 
     return {
       ...item,
+      metadata,
       inventoryItemName:
         inventoryItem?.name ??
         asNonEmptyString(item.inventoryItemName) ??

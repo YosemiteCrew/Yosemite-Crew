@@ -16,7 +16,7 @@ Before writing any new UI, check `src/app/ui/` for existing components:
 src/app/ui/
   Button.tsx          variants: primary | secondary | danger
   Card.tsx            variants: default | bordered | subtle
-  Badge.tsx           status chips
+  Badge.tsx           non-status labels (status chips use primitives/StatusPill)
   Input.tsx           base input
   Stack.tsx           flex layout helper
   Text.tsx            typography
@@ -39,7 +39,7 @@ Design-token source of truth: `src/app/globals.css` (`@theme`). `src/app/ui/toke
 
 - Tailwind CSS 4 only for new code. No new Bootstrap classes.
 - Use `clsx` for conditional classes.
-- Font: **Satoshi** (already loaded). Never default to Inter or system fonts for new UI.
+- Fonts: **Satoshi** for body/UI; **Newsreader** (`--font-newsreader`) is the display serif for page titles and marketing moments. Never default to Inter or system fonts for new UI.
 - No arbitrary Tailwind values (e.g. `w-[347px]`) without a clear reason.
 
 ## UI Copy Rules
