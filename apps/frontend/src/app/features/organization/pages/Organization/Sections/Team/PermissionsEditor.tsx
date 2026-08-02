@@ -216,9 +216,13 @@ function pickEnablePermission(
   return enablePriority[0] ?? null;
 }
 
-const OWNER_LOCKED_PERMISSIONS: Permission[] = PERMISSION_ROWS.filter(
-  (row) => row.ownerLocked === true
-).flatMap((row) => [...(row.view ?? []), ...(row.edit ?? [])]);
+const OWNER_LOCKED_PERMISSIONS: Permission[] = PERMISSION_ROWS.reduce<Permission[]>(
+  (permissions, row) => {
+    if (row.ownerLocked === true) permissions.push(...(row.view ?? []), ...(row.edit ?? []));
+    return permissions;
+  },
+  []
+);
 
 function samePermissionSet(a: Permission[], b: Permission[]) {
   if (a.length !== b.length) return false;

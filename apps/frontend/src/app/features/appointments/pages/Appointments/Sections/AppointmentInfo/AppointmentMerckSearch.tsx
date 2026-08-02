@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -349,6 +349,43 @@ const MerckReaderOverlay = ({
   </div>
 );
 
+type ReaderState = {
+  open: boolean;
+  url: string | null;
+  title: string;
+  loading: boolean;
+  blocked: boolean;
+};
+
+const initialReaderState: ReaderState = {
+  open: false,
+  url: null,
+  title: 'Merck Manual',
+  loading: false,
+  blocked: false,
+};
+
+type ReaderAction =
+  | { type: 'opened'; url: string; title: string }
+  | { type: 'closed' }
+  | { type: 'loaded' }
+  | { type: 'blocked' };
+
+const readerReducer = (state: ReaderState, action: ReaderAction): ReaderState => {
+  switch (action.type) {
+    case 'opened':
+      return { open: true, url: action.url, title: action.title, loading: true, blocked: false };
+    case 'closed':
+      return { ...state, open: false };
+    case 'loaded':
+      return { ...state, loading: false };
+    case 'blocked':
+      return { ...state, loading: false, blocked: true };
+    default:
+      return state;
+  }
+};
+
 const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchProps) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const { isEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
@@ -364,11 +401,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const [readerOpen, setReaderOpen] = useState(false);
-  const [readerUrl, setReaderUrl] = useState<string | null>(null);
-  const [readerTitle, setReaderTitle] = useState('Merck Manual');
-  const [readerLoading, setReaderLoading] = useState(false);
-  const [readerBlocked, setReaderBlocked] = useState(false);
+  const [readerState, dispatchReader] = useReducer(readerReducer, initialReaderState);
   const requestRef = useRef(0);
   const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
   resultCacheRef.current ??= new Map();
@@ -431,25 +464,20 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
       setError('Blocked URL: only Merck/MSD Manual links are allowed.');
       return;
     }
-    setReaderTitle(entry.title);
-    setReaderUrl(url);
-    setReaderLoading(true);
-    setReaderBlocked(false);
-    setReaderOpen(true);
+    dispatchReader({ type: 'opened', url, title: entry.title });
   };
 
   // A stalled MSD page fires neither onLoad nor onError reliably. Cap the spinner
   // and switch to the new-tab fallback so it can't hang on "Loading Manual" forever.
   const failReaderLoad = useCallback(() => {
-    setReaderLoading(false);
-    setReaderBlocked(true);
+    dispatchReader({ type: 'blocked' });
   }, []);
 
   useEffect(() => {
-    if (!readerOpen || !readerUrl || !readerLoading) return;
+    if (!readerState.open || !readerState.url || !readerState.loading) return;
     const timer = setTimeout(failReaderLoad, MERCK_READER_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [readerOpen, readerUrl, readerLoading, failReaderLoad]);
+  }, [readerState.open, readerState.url, readerState.loading, failReaderLoad]);
 
   const copyUrl = async (url: string) => {
     try {
@@ -586,15 +614,15 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
         </div>
       </div>
 
-      {readerOpen && readerUrl && typeof document !== 'undefined'
+      {readerState.open && readerState.url && typeof document !== 'undefined'
         ? createPortal(
             <MerckReaderOverlay
-              url={readerUrl}
-              title={readerTitle}
-              loading={readerLoading}
-              blocked={readerBlocked}
-              onClose={() => setReaderOpen(false)}
-              onLoad={() => setReaderLoading(false)}
+              url={readerState.url}
+              title={readerState.title}
+              loading={readerState.loading}
+              blocked={readerState.blocked}
+              onClose={() => dispatchReader({ type: 'closed' })}
+              onLoad={() => dispatchReader({ type: 'loaded' })}
               onError={failReaderLoad}
             />,
             document.body
