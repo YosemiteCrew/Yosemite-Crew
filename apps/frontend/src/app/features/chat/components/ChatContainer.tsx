@@ -1112,9 +1112,11 @@ const useChatContainerView = ({
         setOrgChannelIds({
           orgId: requestedOrgId,
           ids: new Set<string>(
-            channels
-              .map((session: any) => String(session?.channelId ?? ''))
-              .filter((channelId: string) => channelId.length > 0)
+            channels.reduce((ids: string[], session: any) => {
+              const channelId = String(session?.channelId ?? '');
+              if (channelId.length > 0) ids.push(channelId);
+              return ids;
+            }, [])
           ),
         });
       })

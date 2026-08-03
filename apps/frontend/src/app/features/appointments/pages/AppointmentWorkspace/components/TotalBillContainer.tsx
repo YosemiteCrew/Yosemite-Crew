@@ -9,6 +9,10 @@ import PackageBreakdownTooltip from '@/app/features/appointments/pages/Appointme
 import type { BillableKind, InvoiceLineItem } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import {
+  OVERALL_DISCOUNT_ERROR_ID,
+  overallDiscountCapMessage,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/components/totalBillMessages';
 
 export type BillableSearchItem = Omit<InvoiceLineItem, 'id'> & { kind?: BillableKind };
 
@@ -407,11 +411,6 @@ const FooterBreakdownRow = ({
     </span>
   </div>
 );
-
-const OVERALL_DISCOUNT_ERROR_ID = 'overall-discount-cap-error';
-
-export const overallDiscountCapMessage = (maxPercent: number): string =>
-  `Overall discount can't go above your organisation's ${maxPercent}% cap. Ask an admin to change the cap in Finance > Discounts.`;
 
 /**
  * Controlled state for the overall-discount field.
