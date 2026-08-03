@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@docusaurus/core": "^3.6.1",
-    "@docusaurus/preset-classic": "^3.6.1",
+    "@docusaurus/preset-classic": "^3.10.2",
     "@easyops-cn/docusaurus-search-local": "^0.52.1",
     "clsx": "^2.1.1",
     "react": "^18.2.0",
