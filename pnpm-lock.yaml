@@ -49,7 +49,7 @@ overrides:
   fast-xml-builder: 1.2.1
   postcss: 8.5.18
   uuid@11.1.0: 11.1.1
-  ip-address: 10.1.1
+  ip-address: 10.3.1
   '@grpc/grpc-js@1.9.15': 1.9.16
   '@grpc/grpc-js@1.14.3': 1.14.4
   axios@1.15.2: 1.18.0
@@ -19934,7 +19934,7 @@ packages:
       express: '>= 4.11'
     dependencies:
       express: 5.2.1
-      ip-address: 10.1.1
+      ip-address: 10.3.1
     dev: false
 
   /express@4.21.2:
@@ -21937,8 +21937,8 @@ packages:
       - supports-color
     dev: false
 
-  /ip-address@10.1.1:
-    resolution: {integrity: sha512-1FMu8/N15Ck1BL551Jf42NYIoin2unWjLQ2Fze/DXryJRl5twqtwNHlO39qERGbIOcKYWHdgRryhOC+NG4eaLw==}
+  /ip-address@10.3.1:
+    resolution: {integrity: sha512-1e9d3kb97NHJTIJDZW9rKqW2h6+dFa50Dy0fpPSMQp2ADje5gvKsXmdiK6dwY5t76TaTt5+P5N1Y/LoToIxP6g==}
     engines: {node: '>= 12'}
     dev: false
 
