@@ -28,6 +28,7 @@ export {
   type GithubStats,
   type ReleaseInfo,
 } from './useGithubStats';
+export { useGithubContributors, type GithubContributor } from './useGithubContributors';
 export {
   useRepoInsights,
   type RepoInsights,

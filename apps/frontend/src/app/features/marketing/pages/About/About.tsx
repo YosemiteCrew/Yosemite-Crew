@@ -21,6 +21,8 @@ import {
   HeroGlow,
   InkAnnotate,
   useGithubStats,
+  useGithubContributors,
+  type GithubContributor,
   ABOUT_ORIGIN_PHOTO,
   GITHUB_REPO_URL,
   GITHUB_STAR_CTA_STYLE,
@@ -671,56 +673,75 @@ function BuildingInPublic() {
   );
 }
 
-/* ------------------------------------------------------------ THE CREW */
+/* ------------------------------------------------------ CONTRIBUTORS */
 
 interface CrewMember {
   name: string;
   role: string;
   href: string;
-  slotId: string;
   delay: number;
+  slotId?: string;
+  avatarSrc?: string;
 }
 
-const CREW: CrewMember[] = [
+const CORE_TEAM: CrewMember[] = [
   {
     name: 'Ankit Upadhyay',
-    role: 'Founder',
+    role: 'Founder and contributor',
     href: 'https://www.linkedin.com/in/aupyay/',
     slotId: 'crew-ankit',
     delay: 0,
   },
   {
     name: 'Harshvardhan Parmar',
-    role: 'Crew',
+    role: 'Contributor',
     href: 'https://www.linkedin.com/in/harshvardhan-parmar/',
     slotId: 'crew-harshvardhan',
     delay: 80,
   },
   {
     name: 'Sneha',
-    role: 'Crew',
+    role: 'Contributor',
     href: 'https://www.linkedin.com/in/snehadevc/',
     slotId: 'crew-sneha',
     delay: 160,
   },
   {
     name: 'Vallirani Ravulapati',
-    role: 'Crew',
+    role: 'Contributor',
     href: 'https://www.linkedin.com/in/vallirani-ravulapati/',
     slotId: 'crew-vallirani',
     delay: 240,
   },
 ];
 
-function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
+function ProfileCard({
+  name,
+  role,
+  href,
+  delay,
+  icon,
+  ariaLabel,
+  slotId,
+  avatarSrc,
+}: Readonly<{
+  name: string;
+  role: string;
+  href: string;
+  delay: number;
+  icon: ReactNode;
+  ariaLabel: string;
+  slotId?: string;
+  avatarSrc?: string;
+}>) {
   return (
-    <Reveal delay={member.delay} as="span">
+    <Reveal delay={delay} as="span">
       <a
-        href={member.href}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         className="yc-crew-card"
-        aria-label={`${member.name}, ${member.role}, on LinkedIn`}
+        aria-label={ariaLabel}
         style={{
           textDecoration: 'none',
           display: 'flex',
@@ -740,9 +761,22 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
             boxShadow: '0 18px 40px var(--sh08)',
           }}
         >
-          <span data-slot={member.slotId} aria-hidden="true" style={CREW_SLOT_STYLE}>
-            {member.name.charAt(0)}
-          </span>
+          {avatarSrc ? (
+            <Image
+              src={avatarSrc}
+              alt=""
+              fill
+              sizes="(max-width: 900px) 50vw, 25vw"
+              style={{
+                objectFit: 'cover',
+                filter: 'sepia(0.05) saturate(1.02) brightness(1.02) contrast(1.02)',
+              }}
+            />
+          ) : (
+            <span data-slot={slotId} aria-hidden="true" style={CREW_SLOT_STYLE}>
+              {name.charAt(0)}
+            </span>
+          )}
         </div>
         <div
           style={{
@@ -761,17 +795,33 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
                 color: 'var(--ink)',
               }}
             >
-              {member.name}
+              {name}
             </div>
-            <div style={{ fontSize: '12.5px', color: 'var(--ink-faint)' }}>{member.role}</div>
+            <div style={{ fontSize: '12.5px', color: 'var(--ink-faint)' }}>{role}</div>
           </div>
-          <IoLogoLinkedin
-            aria-hidden="true"
-            style={{ flex: 'none', fontSize: '18px', color: 'var(--blue)' }}
-          />
+          <span style={{ flex: 'none', color: 'var(--blue)' }} aria-hidden="true">
+            {icon}
+          </span>
         </div>
       </a>
     </Reveal>
+  );
+}
+
+function LiveContributorCard({
+  contributor,
+  delay,
+}: Readonly<{ contributor: GithubContributor; delay: number }>) {
+  return (
+    <ProfileCard
+      name={contributor.login}
+      role="GitHub contributor"
+      href={contributor.href}
+      delay={delay}
+      icon={<IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} />}
+      ariaLabel={`${contributor.login}, GitHub contributor, on GitHub`}
+      avatarSrc={contributor.avatarSrc}
+    />
   );
 }
 
@@ -795,6 +845,8 @@ function CommunityPill({
 }
 
 function TheCrew() {
+  const contributors = useGithubContributors();
+
   return (
     <section style={{ background: 'var(--page)' }}>
       <div
@@ -811,8 +863,8 @@ function TheCrew() {
             marginBottom: 'clamp(44px, 5vw, 68px)',
           }}
         >
-          <span style={{ ...eyebrowStyle, color: 'var(--blue-text)' }}>The crew</span>
-          <h2 style={sectionHeadingStyle}>A small crew, and everyone who shows up.</h2>
+          <span style={{ ...eyebrowStyle, color: 'var(--blue-text)' }}>Our contributors</span>
+          <h2 style={sectionHeadingStyle}>Everyone who helped build Yosemite Crew.</h2>
           <p
             style={{
               margin: '20px 0 0',
@@ -823,9 +875,10 @@ function TheCrew() {
               textWrap: 'pretty',
             }}
           >
-            No gates, no egos. A small, fully remote crew, started by founder Ankit Upadhyay and
-            kept deliberately small, plus a growing open-source community that files the issues,
-            sends the pull requests, and argues the hard calls in the open.
+            No gates, no egos. We started with a small founding group, and the product kept growing
+            because contributors showed up with issues, pull requests, design feedback, and hard
+            questions in the open. As Yosemite Crew moves toward a nonprofit future, we want this
+            page to name the people who helped make it real, not just the original team.
           </p>
         </Reveal>
         <div
@@ -836,9 +889,79 @@ function TheCrew() {
             gap: 'clamp(16px, 2vw, 26px)',
           }}
         >
-          {CREW.map((member) => (
-            <CrewCard key={member.name} member={member} />
+          {CORE_TEAM.map((member) => (
+            <ProfileCard
+              key={member.name}
+              name={member.name}
+              role={member.role}
+              href={member.href}
+              delay={member.delay}
+              icon={<IoLogoLinkedin aria-hidden="true" style={{ fontSize: '18px' }} />}
+              ariaLabel={`${member.name}, ${member.role}, on LinkedIn`}
+              slotId={member.slotId}
+            />
           ))}
+        </div>
+        <Reveal
+          delay={120}
+          style={{
+            marginTop: 'clamp(36px, 4vw, 52px)',
+            paddingTop: '28px',
+            borderTop: '1px solid #e0d8ce',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-faint)',
+            }}
+          >
+            Live GitHub contributors
+          </div>
+          <p
+            style={{
+              margin: '14px 0 0',
+              fontSize: '16px',
+              lineHeight: 1.6,
+              letterSpacing: '-0.01em',
+              color: 'var(--ink-muted)',
+              textWrap: 'pretty',
+            }}
+          >
+            This list loads directly from GitHub, so the roster stays current as the project grows.
+          </p>
+        </Reveal>
+        <div
+          data-grid-2-m="true"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 'clamp(16px, 2vw, 26px)',
+            marginTop: '20px',
+          }}
+        >
+          {contributors ? (
+            contributors.map((contributor, index) => (
+              <LiveContributorCard
+                key={contributor.login}
+                contributor={contributor}
+                delay={index * 40}
+              />
+            ))
+          ) : (
+            <div
+              style={{
+                fontSize: '16px',
+                lineHeight: 1.6,
+                color: 'var(--ink-muted)',
+              }}
+            >
+              Loading contributors...
+            </div>
+          )}
         </div>
         <Reveal
           delay={0}
