@@ -30,13 +30,14 @@ Current production releases:
 
 | Platform | Store Version | Build |
 | -------- | ------------- | ----- |
-| Android  | v1.0.11       | 13    |
+| Android  | v1.0.12       | 15    |
 | iOS      | v1.0.7        | 12    |
 
 Release history:
 
 | Platform | Version | Notes                                                                                                                                                                                                                                                                                                 |
 | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android  | v1.0.12 | New warm-bone visual theme across the app, with a matching espresso dark mode; new serif typography for greetings, screen titles, and key moments; redesigned onboarding and landing screens; refined buttons, toggles, cards, and other UI elements app-wide; bug fixes and performance improvements |
 | iOS      | v1.0.7  | New warm-bone visual theme across the app, with a matching espresso dark mode; new serif typography for greetings, screen titles, and key moments; redesigned onboarding and landing screens; refined buttons, toggles, cards, and other UI elements app-wide; bug fixes and performance improvements |
 | Android  | v1.0.11 | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                                                                                                                |
 | iOS      | v1.0.5  | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                                                                                                                |
