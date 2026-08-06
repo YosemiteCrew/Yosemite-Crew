@@ -36,7 +36,7 @@ describe('PetBusinesses page', () => {
   test('renders the hero with release pill, word-by-word headline and CTAs', () => {
     render(<PetBusinesses />);
 
-    expect(screen.getByTestId('release-pill')).toHaveTextContent('Platform PIMS v2.1.0-beta');
+    expect(screen.getByTestId('release-pill')).toHaveTextContent('Platform PIMS v2.2.0-beta');
 
     const heading = screen.getByRole('heading', { level: 1 });
     expect(heading).toHaveTextContent('The');

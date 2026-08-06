@@ -253,9 +253,9 @@ describe('useGithubStats hooks', () => {
             html_url: 'https://x/desktop',
           },
           {
-            tag_name: 'pims-v2.1.0-beta',
-            name: 'PIMS v2.1.0-beta',
-            published_at: '2026-07-13T13:33:55Z',
+            tag_name: 'pims-v2.2.0-beta',
+            name: 'PIMS v2.2.0-beta',
+            published_at: '2026-08-06T13:33:55Z',
             html_url: 'https://x/pims',
           },
           {
@@ -270,7 +270,7 @@ describe('useGithubStats hooks', () => {
     const { result } = renderHook(() => usePlatformRelease());
     // Picks the newest pims-tagged release (list is newest-first), never the desktop build.
     await waitFor(() => expect(result.current.url).toBe('https://x/pims'));
-    expect(result.current.tag).toBe('v2.1.0-beta');
+    expect(result.current.tag).toBe('v2.2.0-beta');
     expect(result.current.date).toContain('2026');
   });
 

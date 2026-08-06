@@ -25,14 +25,14 @@ This directory contains the Next.js web app for Yosemite Crew. It powers the sta
 
 The frontend release line uses `pims-v*` tags.
 
-- Current tagged baseline: `pims-v2.0.0-beta.0` (matches the `2.0.0-beta` version in `package.json`)
+- Current tagged baseline: `pims-v2.2.0-beta`
 - Tag format: `pims-v<major>.<minor>.<patch>-beta`, with an optional numeric iteration suffix (e.g. `-beta.0`)
 
 Recommended release flow:
 
 ```sh
-git tag -a pims-v2.1.0-beta -m "PIMS frontend v2.1.0-beta"
-git push origin pims-v2.1.0-beta
+git tag -a pims-v2.2.0-beta -m "PIMS frontend v2.2.0-beta"
+git push origin pims-v2.2.0-beta
 ```
 
 ## 🧭 Overview

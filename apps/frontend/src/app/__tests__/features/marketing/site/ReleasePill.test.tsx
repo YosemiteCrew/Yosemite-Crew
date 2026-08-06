@@ -14,9 +14,9 @@ const mobile: ReleaseInfo = {
   url: 'https://github.com/YosemiteCrew/Yosemite-Crew/releases/tag/m1',
 };
 const platform: ReleaseInfo = {
-  tag: 'v2.1.0-beta',
-  date: 'Jul 13, 2026',
-  url: 'https://github.com/YosemiteCrew/Yosemite-Crew/releases/tag/pims-v2.1.0-beta',
+  tag: 'v2.2.0-beta',
+  date: 'Aug 6, 2026',
+  url: 'https://github.com/YosemiteCrew/Yosemite-Crew/releases/tag/pims-v2.2.0-beta',
 };
 const empty: ReleaseInfo = { tag: null, date: null, url: null };
 
@@ -54,7 +54,7 @@ describe('ReleasePill', () => {
     unmount();
 
     mockUseLatestRelease.mockClear();
-    render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.1.0-beta" />);
+    render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.2.0-beta" />);
     expect(mockUsePlatformRelease).toHaveBeenCalled();
     expect(mockUseLatestRelease).not.toHaveBeenCalled();
     expect(mockUseMobileRelease).not.toHaveBeenCalled();
@@ -81,17 +81,17 @@ describe('ReleasePill', () => {
     expect(screen.getByText('Platform PIMS')).toBeInTheDocument();
     const link = screen.getByRole('link');
     // Shows the real PIMS release version + date, not the stale hard-coded copy.
-    expect(link).toHaveTextContent('v2.1.0-beta');
-    expect(link).toHaveTextContent('Jul 13, 2026');
+    expect(link).toHaveTextContent('v2.2.0-beta');
+    expect(link).toHaveTextContent('Aug 6, 2026');
     expect(screen.queryByText('v2.0 beta')).not.toBeInTheDocument();
     expect(link).toHaveAttribute('href', platform.url);
   });
 
   it('falls back to the hard-coded version (no date) when no platform release resolved', () => {
     platformValue = empty;
-    render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.1.0-beta" />);
+    render(<ReleasePill variant="platform" label="Platform PIMS" version="v2.2.0-beta" />);
     const link = screen.getByRole('link');
-    expect(link).toHaveTextContent('v2.1.0-beta');
+    expect(link).toHaveTextContent('v2.2.0-beta');
     expect(link).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew/releases');
   });
 
