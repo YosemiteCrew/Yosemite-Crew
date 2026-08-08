@@ -89,7 +89,6 @@ import {
 describe('UserCalendar (Appointments)', () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
-  const setCurrentDate = jest.fn();
 
   const team = [
     { _id: 'u1', name: 'Alex' },
@@ -152,7 +151,6 @@ describe('UserCalendar (Appointments)', () => {
 
     expect(screen.queryByText('PrevDay')).not.toBeInTheDocument();
     expect(screen.queryByText('NextDay')).not.toBeInTheDocument();
-    expect(setCurrentDate).not.toHaveBeenCalled();
   });
 
   it('renders zoom-out layout with availability, unavailable segments and the now indicator', () => {

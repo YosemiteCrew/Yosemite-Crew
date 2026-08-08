@@ -20,9 +20,11 @@ import { NextResponse } from 'next/server';
  * server, never by the browser.
  */
 
-// Both the vanity code and the raw invite code resolve to the same guild. The
-// vanity URL is the one published in the docs, but it only works while the guild
-// keeps its boost level, so the raw code stays as the fallback.
+// Both codes resolve to the same guild. Order matters: the first one to return a
+// count wins. The raw invite code is primary - it is what the READMEs, dev-docs
+// and issue templates publish, and it does not expire. The `yosemitecrew` vanity
+// slug (used by the site footer and marketing assets) is only the fallback,
+// because a vanity URL stops resolving if the guild loses its boost level.
 const DISCORD_INVITE_CODES = ['SwM6mX85KD', 'yosemitecrew'];
 
 // Discord requires a descriptive User-Agent on API calls and rate-limits or

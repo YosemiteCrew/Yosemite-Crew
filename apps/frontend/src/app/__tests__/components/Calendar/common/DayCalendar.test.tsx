@@ -175,7 +175,6 @@ describe('DayCalendar (Appointments)', () => {
   const handleDetailAppointment = jest.fn();
   const handleOpenWorkspace = jest.fn();
   const handleRescheduleAppointment = jest.fn();
-  const setCurrentDate = jest.fn();
   const originalConsoleError = console.error;
 
   const baseDate = new Date('2025-01-06T10:00:00Z');
@@ -410,6 +409,5 @@ describe('DayCalendar (Appointments)', () => {
 
     expect(screen.queryByText('Next')).not.toBeInTheDocument();
     expect(screen.queryByText('Prev')).not.toBeInTheDocument();
-    expect(setCurrentDate).not.toHaveBeenCalled();
   });
 });
