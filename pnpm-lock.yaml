@@ -697,8 +697,8 @@ importers:
         specifier: ^23.5.0
         version: 23.8.6(@react-native-firebase/app@23.8.6)
       '@react-native-google-signin/google-signin':
-        specifier: ^15.0.0
-        version: 15.0.0(react-native@0.81.4)(react@19.1.0)
+        specifier: ^16.1.4
+        version: 16.1.4(react-native@0.81.4)(react@19.1.0)
       '@react-native-masked-view/masked-view':
         specifier: ^0.3.2
         version: 0.3.2(react-native@0.81.4)(react@19.1.0)
@@ -11371,8 +11371,8 @@ packages:
       '@react-native-firebase/app': 23.8.6(@react-native-async-storage/async-storage@2.2.0)(react-native@0.81.4)(react@19.1.0)
     dev: false
 
-  /@react-native-google-signin/google-signin@15.0.0(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-oU49nE+Z9TT/WaO1K7BH/QL2Nx3d2T3I5PGcYdD8swKNtfhMt8qCX/3mOnNEzthTBPrR0CWFGo3LXpkYspalog==}
+  /@react-native-google-signin/google-signin@16.1.4(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-Lt4vjihJ+Nk9I4HjScWHzch3ebtIlP3QIea0XEHVN0PJumwUwiK/J2tU8qs7H9DIqNblC0qlXkR0Ts4ELvq7yA==}
     peerDependencies:
       expo: '>=52.0.40'
       react: '*'
