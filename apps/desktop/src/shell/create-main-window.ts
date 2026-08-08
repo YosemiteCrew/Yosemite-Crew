@@ -374,11 +374,15 @@ export const createMainWindow = async (
     deps.clearUnread();
   });
 
+  // Read at call time, not once at startup: the menu action must see a channel the
+  // user changed in Settings since launch.
+  const preferredUpdateChannel = () => deps.settingsStore?.load().updateChannel;
+
   createAppMenu({
     checkForUpdates: () =>
       void checkForUpdatesManually({
         logger: deps.logger,
-        preferredChannel: deps.settingsStore?.load().updateChannel,
+        preferredChannel: preferredUpdateChannel(),
       }),
     openCommandPalette: deps.openCommandPalette,
     createSettingsWindow: deps.createSettingsWindow,
@@ -460,7 +464,7 @@ export const createMainWindow = async (
   // version-derived default would put a beta build on the beta channel regardless.
   await initAutoUpdates({
     logger: deps.logger,
-    preferredChannel: deps.settingsStore?.load().updateChannel,
+    preferredChannel: preferredUpdateChannel(),
   });
   return {
     mainWindow,
