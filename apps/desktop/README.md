@@ -164,8 +164,12 @@ The full procurement + CI runbook (Apple Developer ID, notarytool, and the Windo
 ```sh
 # tag-driven release (once signing secrets are configured in CI)
 # 1) bump "version" in apps/desktop/package.json
-# 2) git tag desktop-v<version> && git push origin desktop-v<version>
+# 2) git tag v<version> && git push origin v<version>
 ```
+
+Desktop tags are plain `v<version>`, unlike the `pims-*` / `backend-*` tags elsewhere in
+the monorepo - `electron-updater` ignores any release whose tag is not valid semver. See
+[RELEASE.md](RELEASE.md#release-tags).
 
 ## 🗂️ Project layout
 

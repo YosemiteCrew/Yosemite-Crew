@@ -36,7 +36,7 @@ interface AutoUpdaterLike {
 }
 
 interface ElectronLike {
-  app: { isPackaged: boolean };
+  app: { isPackaged: boolean; getVersion?: () => string };
   dialog: {
     showMessageBox: (options: MessageBoxOptions) => Promise<{ response: number }> | void;
   };
@@ -67,17 +67,37 @@ export const shouldCheckForUpdates = (
   env: NodeJS.ProcessEnv = process.env
 ): boolean => Boolean(isPackaged) && env[DISABLE_ENV] !== '1';
 
-export const updateChannelFromEnv = (env: NodeJS.ProcessEnv = process.env): UpdateChannel => {
+// Pure: the channel the env var asks for, or null when it is unset. An unset var
+// must stay distinguishable from an explicit "latest" so the running version can
+// decide the default.
+export const updateChannelOverrideFromEnv = (
+  env: NodeJS.ProcessEnv = process.env
+): UpdateChannel | null => {
   const raw = env[UPDATE_CHANNEL_ENV];
-  return raw?.toLowerCase() === 'beta' ? 'beta' : 'latest';
+  if (raw == null || raw.trim() === '') return null;
+  return raw.toLowerCase() === 'beta' ? 'beta' : 'latest';
 };
+
+export const updateChannelFromEnv = (env: NodeJS.ProcessEnv = process.env): UpdateChannel =>
+  updateChannelOverrideFromEnv(env) ?? 'latest';
+
+// Pure: a `-beta.N` build belongs on the beta channel. Defaulting a beta build to
+// `latest` sends it down electron-updater's stable path, which resolves the
+// repo-wide "latest release" — in this monorepo that is whichever product was
+// released last, so the lookup fails instead of finding a desktop build.
+const BETA_VERSION = /^\d+\.\d+\.\d+-beta(?:[.-]|$)/i;
+
+export const updateChannelForVersion = (version?: string): UpdateChannel =>
+  BETA_VERSION.test(version?.trim() ?? '') ? 'beta' : 'latest';
 
 export const configureUpdateChannel = (
   autoUpdater: Pick<AutoUpdaterLike, 'allowPrerelease' | 'channel'>,
   env: NodeJS.ProcessEnv = process.env,
-  preferred?: UpdateChannel
+  preferred?: UpdateChannel,
+  version?: string
 ): UpdateChannel => {
-  const channel = preferred ?? updateChannelFromEnv(env);
+  const channel =
+    preferred ?? updateChannelOverrideFromEnv(env) ?? updateChannelForVersion(version);
   autoUpdater.channel = channel;
   autoUpdater.allowPrerelease = channel === 'beta';
   return channel;
@@ -153,7 +173,12 @@ export const initAutoUpdates = async (deps: UpdaterDeps = {}): Promise<AutoUpdat
   let autoUpdater: AutoUpdaterLike;
   try {
     autoUpdater = await resolveAutoUpdater(deps);
-    configureUpdateChannel(autoUpdater, deps.env || process.env, deps.preferredChannel);
+    configureUpdateChannel(
+      autoUpdater,
+      deps.env || process.env,
+      deps.preferredChannel,
+      app.getVersion?.()
+    );
   } catch (error) {
     deps.logger?.warn('update_setup_unavailable', { error });
     return null;
@@ -201,7 +226,12 @@ export const checkForUpdatesManually = async (
   let autoUpdater: AutoUpdaterLike;
   try {
     autoUpdater = await resolveAutoUpdater(deps);
-    configureUpdateChannel(autoUpdater, deps.env || process.env, deps.preferredChannel);
+    configureUpdateChannel(
+      autoUpdater,
+      deps.env || process.env,
+      deps.preferredChannel,
+      app.getVersion?.()
+    );
   } catch (error) {
     deps.logger?.warn('manual_update_setup_unavailable', { error });
     void dialog.showMessageBox(manualResultDialog('error'));

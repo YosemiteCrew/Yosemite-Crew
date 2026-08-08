@@ -1,9 +1,18 @@
 name: Desktop Release
 
 # Builds and code-signs the desktop app. Two ways to run:
-#   • Push a tag `desktop-v*`  → builds, signs, and PUBLISHES a GitHub Release.
+#   • Push a tag `v*`  → builds, signs, and PUBLISHES a GitHub Release.
 #       1) bump "version" in apps/desktop/package.json
-#       2) git tag desktop-v<version> && git push origin desktop-v<version>
+#       2) git tag v<version> && git push origin v<version>
+#     The tag MUST be `v` + the exact apps/desktop/package.json version. The
+#     `verify` job below fails the run otherwise, because electron-builder names
+#     its release from the package version rather than from the pushed tag: a
+#     mismatch silently publishes the assets to a different release.
+#     The `v` prefix is not cosmetic. electron-updater's GitHub provider reads
+#     the tag out of the release URL and drops any tag that is not valid semver
+#     (GitHubProvider `semver.valid(hrefTag)`), so a `desktop-v*` tag makes every
+#     desktop release invisible to the updater. Other products in this monorepo
+#     keep their prefixes precisely so the updater skips them.
 #   • Run manually (Actions → "Desktop Release" → Run workflow / workflow_dispatch)
 #       → builds + signs, uploads workflow ARTIFACTS, then creates a draft
 #         GitHub Release with the same assets. Use this to share download links
@@ -24,20 +33,84 @@ name: Desktop Release
 on:
   push:
     tags:
-      - 'desktop-v*'
+      - 'v*'
   workflow_dispatch: {}
 
 permissions: {}
 
 jobs:
+  # Fails fast when the pushed tag and apps/desktop/package.json disagree, before
+  # any signing credential is reachable. Also creates the release up front so the
+  # windows and macos jobs upload into one release instead of racing to create
+  # two (which is how v0.1.0-beta.1 ended up split across duplicate drafts).
+  #
+  # Two things to know about pre-creating it:
+  #   • electron-builder refuses to upload into a release published more than two
+  #     hours earlier, so the build jobs must finish inside that window. Their
+  #     45-minute timeouts keep them well clear of it.
+  #   • If a build job fails, the empty release stays behind. Delete it before
+  #     re-running, or re-run and let the jobs upload into it.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Read desktop version
+        id: version
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "apps/desktop version: ${VERSION}"
+
+      - name: Tag must match the desktop package version
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ "$TAG" != "v${VERSION}" ]; then
+            echo "::error::Tag '${TAG}' does not match apps/desktop/package.json version '${VERSION}'."
+            echo "::error::electron-builder publishes to 'v${VERSION}', so this run would put the installers on the wrong release."
+            echo "::error::Bump the version and re-tag as 'v${VERSION}', or delete and re-push the tag."
+            exit 1
+          fi
+          echo "Tag ${TAG} matches package version ${VERSION}."
+
+      - name: Create the release up front
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; the build jobs will upload into it."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Yosemite Crew PIMS Desktop $TAG" \
+            --generate-notes \
+            --latest=false
+
   windows:
+    needs: verify
     runs-on: windows-latest
     timeout-minutes: 45
     permissions:
       contents: write
     # Gates the Azure signing secrets behind the protected `release` environment.
-    # Configure required reviewers and a deployment tag rule (desktop-v*) on this
-    # environment in repo settings so pushing a `desktop-v*` tag cannot reach
+    # Configure required reviewers and a deployment tag rule (v*) on this
+    # environment in repo settings so pushing a `v*` tag cannot reach
     # signing credentials without an explicit approval.
     environment: release
     steps:
@@ -74,6 +147,7 @@ jobs:
           if-no-files-found: warn
 
   macos:
+    needs: verify
     runs-on: macos-14
     timeout-minutes: 45
     permissions:

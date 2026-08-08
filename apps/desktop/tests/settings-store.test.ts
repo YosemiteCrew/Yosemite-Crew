@@ -57,8 +57,11 @@ describe('normalizeSettings', () => {
   });
 
   test('rejects invalid updateChannel', () => {
-    expect(normalizeSettings({ updateChannel: 'canary' }).updateChannel).toBe('latest');
-    expect(normalizeSettings({ updateChannel: 123 }).updateChannel).toBe('latest');
+    // Invalid values fall back to the default channel, which is `beta` while the app
+    // ships only -beta builds.
+    expect(normalizeSettings({ updateChannel: 'canary' }).updateChannel).toBe('beta');
+    expect(normalizeSettings({ updateChannel: 123 }).updateChannel).toBe('beta');
+    expect(normalizeSettings({ updateChannel: 'latest' }).updateChannel).toBe('latest');
   });
 
   test('rejects invalid theme', () => {
@@ -176,7 +179,7 @@ describe('createSettingsStore', () => {
     expect(loaded.theme).toBe('light');
     expect(loaded.openAtLogin).toBe(true);
     expect(loaded.telemetryOptIn).toBe(true);
-    expect(loaded.updateChannel).toBe('latest'); // unchanged from default
+    expect(loaded.updateChannel).toBe('beta'); // unchanged from default
   });
 
   test('load from corrupt file returns defaults', () => {
