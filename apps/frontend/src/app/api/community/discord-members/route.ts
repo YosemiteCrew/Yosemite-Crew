@@ -66,33 +66,22 @@ const fetchMemberCount = async (inviteCode: string): Promise<string | null> => {
   }
 };
 
-/**
- * Last successfully parsed count. Only successes land here, so a failed or
- * malformed upstream response can never be served from cache - the next request
- * retries Discord immediately. Per server instance, like the equivalent cache in
- * the backend's DiscordMembersService.
- */
-let cached: { count: string; at: number } | null = null;
-
-const readCached = (now: number): string | null =>
-  cached && now - cached.at < CACHE_TTL_SECONDS * 1000 ? cached.count : null;
-
 export async function GET(): Promise<NextResponse<DiscordMembersResponse>> {
-  const now = Date.now();
-  const successHeaders = {
-    'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS}`,
-  };
-
-  const fresh = readCached(now);
-  if (fresh !== null) {
-    return NextResponse.json({ discordMembers: fresh }, { headers: successHeaders });
-  }
-
   for (const inviteCode of DISCORD_INVITE_CODES) {
     const discordMembers = await fetchMemberCount(inviteCode);
     if (discordMembers !== null) {
-      cached = { count: discordMembers, at: now };
-      return NextResponse.json({ discordMembers }, { headers: successHeaders });
+      // Caching lives entirely in this response header, never in module state.
+      // Keyed on the outcome, so only a real count is ever cached: repeat traffic
+      // is served by the CDN and the browser for the TTL, while a failure (below)
+      // is cached nowhere and retried on the very next request.
+      return NextResponse.json(
+        { discordMembers },
+        {
+          headers: {
+            'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS}`,
+          },
+        }
+      );
     }
   }
 
