@@ -228,8 +228,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
       express-rate-limit:
-        specifier: ^7.5.0
-        version: 7.5.1(express@4.21.2)
+        specifier: ^8.6.2
+        version: 8.6.2(express@4.21.2)
       fhir:
         specifier: 4.12.0
         version: 4.12.0
@@ -2065,11 +2065,11 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       '@babel/code-frame': 7.29.7
-      '@babel/generator': 7.29.7
+      '@babel/generator': 7.29.8
       '@babel/helper-compilation-targets': 7.29.7
       '@babel/helper-module-transforms': 7.29.7(@babel/core@7.29.6)
       '@babel/helpers': 7.29.7
-      '@babel/parser': 7.29.7
+      '@babel/parser': 7.29.8
       '@babel/template': 7.29.7
       '@babel/traverse': 7.29.8
       '@babel/types': 7.29.8
@@ -9635,7 +9635,7 @@ packages:
       eventsource: 3.0.7
       eventsource-parser: 3.0.6
       express: 5.2.1
-      express-rate-limit: 8.3.1(express@5.2.1)
+      express-rate-limit: 8.6.2(express@5.2.1)
       hono: 4.12.27
       jose: 6.1.3
       json-schema-typed: 8.0.2
@@ -13956,7 +13956,7 @@ packages:
   /@types/babel__core@7.20.5:
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
     dependencies:
-      '@babel/parser': 7.29.7
+      '@babel/parser': 7.29.8
       '@babel/types': 7.29.8
       '@types/babel__generator': 7.27.0
       '@types/babel__template': 7.4.4
@@ -14156,9 +14156,10 @@ packages:
     resolution: {integrity: sha512-e1xZLOOlxCDvplAGq7rDcXtbdBu2CWRsMjaIu1LVqGxWtKvwr884YE5mPs3IvHeG/OMDhf24oTaqG5T1bV3rBQ==}
     deprecated: This is a stub types definition. express-rate-limit provides its own type definitions, so you do not need this installed.
     dependencies:
-      express-rate-limit: 7.5.1(express@4.21.2)
+      express-rate-limit: 8.6.2(express@4.21.2)
     transitivePeerDependencies:
       - express
+      - supports-color
     dev: true
 
   /@types/express-serve-static-core@4.19.8:
@@ -16598,6 +16599,12 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  /baseline-browser-mapping@2.11.13:
+    resolution: {integrity: sha512-k9HNuUVMlqVjQ9UHzfPjIqiDbWw7WqT1AoT7GL8VwvF3r0ZfArtgiSPAlmupyNquNgOJHTuH4CKYf8ttMTWBTQ==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
+    dev: false
+
   /baseline-browser-mapping@2.9.19:
     resolution: {integrity: sha512-ipDqC8FrAl/76p2SSWKSI+H9tFwm7vYqXQrItCuiVPt26Km0jS+NzSsBWAaBusvSbQcfJG+JitdMm+wZAgTYqg==}
     hasBin: true
@@ -16813,6 +16820,18 @@ packages:
       electron-to-chromium: 1.5.396
       node-releases: 2.0.51
       update-browserslist-db: 1.2.3(browserslist@4.28.7)
+
+  /browserslist@4.28.8:
+    resolution: {integrity: sha512-V2NpofLblG64mfOtSgDhOJESZEGogzDMBv/q+W6oc4LXWP/q75eOXoOaaOu1EOadB9U4Bwx/e0yzbvwKH8zalA==}
+    engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
+    hasBin: true
+    dependencies:
+      baseline-browser-mapping: 2.11.13
+      caniuse-lite: 1.0.30001809
+      electron-to-chromium: 1.5.402
+      node-releases: 2.0.53
+      update-browserslist-db: 1.3.0(browserslist@4.28.8)
+    dev: false
 
   /bs-logger@0.2.6:
     resolution: {integrity: sha512-pd8DCoxmbgc7hyPKOvxtqNcjYoOsABPQdcCUjGp3d42VR2CX1ORhk2A87oqqu5R1kk+76nsxZupkmyd+MVtCog==}
@@ -17109,6 +17128,10 @@ packages:
 
   /caniuse-lite@1.0.30001806:
     resolution: {integrity: sha512-72Cuvd95zbSYPKq6Fhg8eDJRlzgWDf7/mtoZv6Qe/DYNCEBdNxoA3+rZAU2ZhGCpZlns3EssFavaZomckT5Uuw==}
+
+  /caniuse-lite@1.0.30001809:
+    resolution: {integrity: sha512-xxWVywk6a6Arlk+hymeycyn/VgqEfLDxupvhH/xiY5SJ/18kmi9o6MiO320DCUzypORHLtvh0I4i04tUhCNHNQ==}
+    dev: false
 
   /ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
@@ -18943,6 +18966,10 @@ packages:
   /electron-to-chromium@1.5.396:
     resolution: {integrity: sha512-yHiw2Y3C3H9U6TMbOfoWK/BPreiOPXRfTWPBwQBoZG6/8TB6eOPnsy5oaRYuatR7Fw2SJ4kKforgufeo7fq0EQ==}
 
+  /electron-to-chromium@1.5.402:
+    resolution: {integrity: sha512-/oOpMaPT6Yg+6/1XQhyIPlzgj7Ye9zf+nNM2Uh6OcE2G2oNptWazFa+qB2Pdqqbsc9KnIDzgAntoYN0dbwOXwA==}
+    dev: false
+
   /electron-updater@6.8.9:
     resolution: {integrity: sha512-ZhVxM9iGONUpZGI1FxdMRgJjUFXi7AYGVa5PwKlO1tV1/4zDxQmfKpXOHVztKrd6L9rLcFjERvi1Mf2vxyTkig==}
     dependencies:
@@ -20112,22 +20139,29 @@ packages:
     engines: {node: '>=10'}
     dev: false
 
-  /express-rate-limit@7.5.1(express@4.21.2):
-    resolution: {integrity: sha512-7iN8iPMDzOMHPUYllBEsQdWVB6fPDMPqwjBaFrgr4Jgr/+okjvzAy+UHlYYL/Vs0OsOrMkwS6PJDkFlJwoxUnw==}
+  /express-rate-limit@8.6.2(express@4.21.2):
+    resolution: {integrity: sha512-YH4ru+eOJxQABscKFfRCy9R7x9QFGdezclVMwwgFFndzS2Xnm0uo6B0ABZsLhcpeptGv2qvuJVWlQr9gQZoC3A==}
     engines: {node: '>= 16'}
     peerDependencies:
       express: '>= 4.11'
     dependencies:
+      debug: 4.4.3(supports-color@5.5.0)
       express: 4.21.2
+      ip-address: 10.3.1
+    transitivePeerDependencies:
+      - supports-color
 
-  /express-rate-limit@8.3.1(express@5.2.1):
-    resolution: {integrity: sha512-D1dKN+cmyPWuvB+G2SREQDzPY1agpBIcTa9sJxOPMCNeH3gwzhqJRDWCXW3gg0y//+LQ/8j52JbMROWyrKdMdw==}
+  /express-rate-limit@8.6.2(express@5.2.1):
+    resolution: {integrity: sha512-YH4ru+eOJxQABscKFfRCy9R7x9QFGdezclVMwwgFFndzS2Xnm0uo6B0ABZsLhcpeptGv2qvuJVWlQr9gQZoC3A==}
     engines: {node: '>= 16'}
     peerDependencies:
       express: '>= 4.11'
     dependencies:
+      debug: 4.4.3(supports-color@5.5.0)
       express: 5.2.1
       ip-address: 10.3.1
+    transitivePeerDependencies:
+      - supports-color
     dev: false
 
   /express@4.21.2:
@@ -22133,7 +22167,6 @@ packages:
   /ip-address@10.3.1:
     resolution: {integrity: sha512-1e9d3kb97NHJTIJDZW9rKqW2h6+dFa50Dy0fpPSMQp2ADje5gvKsXmdiK6dwY5t76TaTt5+P5N1Y/LoToIxP6g==}
     engines: {node: '>= 12'}
-    dev: false
 
   /ipaddr.js@1.9.1:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
@@ -25743,6 +25776,11 @@ packages:
   /node-releases@2.0.51:
     resolution: {integrity: sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==}
     engines: {node: '>=18'}
+
+  /node-releases@2.0.53:
+    resolution: {integrity: sha512-D9UOmYG3UH1V+ENW56t5QXBwJw1YEY18ruVeus89Rw+SyIgjPkCO84bRzO3uNIYosJbNwiabWVn48o3uJLjxFQ==}
+    engines: {node: '>=18'}
+    dev: false
 
   /node-stream-zip@1.15.0:
     resolution: {integrity: sha512-LN4fydt9TqhZhThkZIVQnF9cwjU3qmUH9h78Mx/K7d3VvfRqqwthLwJEUOEL0QPZ0XQmNN7be5Ggit5+4dq3Bw==}
@@ -32076,6 +32114,17 @@ packages:
       escalade: 3.2.0
       picocolors: 1.1.1
 
+  /update-browserslist-db@1.3.0(browserslist@4.28.8):
+    resolution: {integrity: sha512-x/M6q3w4Ybp91CNaS4S69UnliqR3BzRpOT6LWbksjth0S/+jhfaPJsWjt/TewpT8j9eLIojUf5jr29WextHroA==}
+    hasBin: true
+    peerDependencies:
+      browserslist: '>= 4.21.0'
+    dependencies:
+      browserslist: 4.28.8
+      escalade: 3.2.0
+      picocolors: 1.1.1
+    dev: false
+
   /update-notifier@6.0.2:
     resolution: {integrity: sha512-EDxhTEVPZZRLWYcJ4ZXjGFN0oP7qYvbXWzEgRm/Yql4dHX5wDbvh89YHP6PK1lzZJYrMtXUuZZz8XGK+U6U1og==}
     engines: {node: '>=14.16'}
@@ -32719,7 +32768,7 @@ packages:
       '@webassemblyjs/wasm-edit': 1.14.1
       '@webassemblyjs/wasm-parser': 1.14.1
       acorn: 8.18.0
-      browserslist: 4.28.7
+      browserslist: 4.28.8
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.24.5
       es-module-lexer: 2.3.1
