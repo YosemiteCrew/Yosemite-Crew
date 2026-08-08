@@ -75,6 +75,44 @@ describe('useAppointments Hooks', () => {
       expect(loadAppointmentsForPrimaryOrg).toHaveBeenCalledTimes(1);
     });
 
+    it('does not reload while the appointment store is already loading', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-1'];
+      mockAppointmentState = {
+        ...mockAppointmentState,
+        appointmentIdsByOrgId: { ...mockAppointmentState.appointmentIdsByOrgId },
+      };
+      mockAppointmentGetState.mockReturnValue({
+        ...mockAppointmentState,
+        status: 'loading',
+      });
+
+      (useAppointmentStore as unknown as jest.Mock).mockImplementation((selector) =>
+        selector({
+          ...mockAppointmentState,
+          status: 'loading',
+        })
+      );
+
+      renderHook(() => useLoadAppointmentsForPrimaryOrg());
+
+      expect(loadAppointmentsForPrimaryOrg).not.toHaveBeenCalled();
+    });
+
+    it('does not reload when the primary org is already cached in the store', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-1'];
+
+      mockAppointmentGetState.mockReturnValue({
+        ...mockAppointmentState,
+        status: 'idle',
+      });
+
+      renderHook(() => useLoadAppointmentsForPrimaryOrg());
+
+      expect(loadAppointmentsForPrimaryOrg).not.toHaveBeenCalled();
+    });
+
     it('triggers a reload when primaryOrgId changes', () => {
       mockOrgState.primaryOrgId = 'org-1';
       const { rerender } = renderHook(() => useLoadAppointmentsForPrimaryOrg());
@@ -187,9 +225,36 @@ describe('useAppointments Hooks', () => {
       expect(result.current).toHaveLength(1);
       expect(result.current[0]).toEqual(mockAppt1);
     });
+
+    it('filters out appointments with no companion or patient payload', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-empty'];
+      mockAppointmentState.appointmentsById = {
+        'appt-empty': { id: 'appt-empty' } as Appointment,
+      };
+
+      const { result } = renderHook(() => useAppointmentsForPrimaryOrg());
+
+      expect(result.current).toEqual([]);
+    });
   });
 
   describe('useAppointmentsForCompanionInPrimaryOrg', () => {
+    it('returns an empty array when companion id is missing', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-1'];
+      mockAppointmentState.appointmentsById = {
+        'appt-1': {
+          id: 'appt-1',
+          companion: { id: 'pet-1', name: 'Buddy' },
+        } as Appointment,
+      };
+
+      const { result } = renderHook(() => useAppointmentsForCompanionInPrimaryOrg());
+
+      expect(result.current).toEqual([]);
+    });
+
     it('matches companion id against patient fallback data', () => {
       mockOrgState.primaryOrgId = 'org-1';
       mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-patient-only'];
@@ -213,6 +278,21 @@ describe('useAppointments Hooks', () => {
           companion: expect.objectContaining({ id: 'pet-1' }),
         }),
       ]);
+    });
+
+    it('filters out appointments for other companions', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockAppointmentState.appointmentIdsByOrgId['org-1'] = ['appt-1'];
+      mockAppointmentState.appointmentsById = {
+        'appt-1': {
+          id: 'appt-1',
+          companion: { id: 'pet-2', name: 'Milo' },
+        } as Appointment,
+      };
+
+      const { result } = renderHook(() => useAppointmentsForCompanionInPrimaryOrg('pet-1'));
+
+      expect(result.current).toEqual([]);
     });
   });
 });

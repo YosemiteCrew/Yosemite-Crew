@@ -66,7 +66,7 @@ function locationReducer(
         isLoading: false,
       };
     case 'LOCATION_ERROR':
-      return {...state, hasPermission: true, isLoading: false};
+      return {...state, userLocation: null, isLoading: false};
     case 'DENIED':
     case 'ERROR':
       return {userLocation: null, hasPermission: false, isLoading: false};

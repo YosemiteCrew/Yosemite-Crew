@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { LuCopy, LuEye, LuEyeOff, LuTrash2 } from 'react-icons/lu';
+import { IoCopyOutline, IoEyeOffOutline, IoEyeOutline, IoTrashOutline } from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
@@ -31,7 +31,7 @@ const copyValue = (value?: string) => {
 };
 
 const ItemTag = ({ kind }: { kind: LineItem['kind'] }) => (
-  <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
+  <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-blue-text">
     {kind === 'PACKAGE' ? 'Package' : 'Service'}
   </span>
 );
@@ -41,7 +41,7 @@ const ROW_GRID = 'grid gap-3 sm:grid-cols-[1.6fr_100px_1.4fr_110px_120px] sm:ite
 
 const ColumnHeadings = () => (
   <div
-    className={`${ROW_GRID} px-1 text-caption-2 font-medium tracking-wide text-text-secondary uppercase`}
+    className={`${ROW_GRID} text-caption-2 font-medium tracking-wide text-text-secondary uppercase`}
   >
     <span>Name</span>
     <span>Qty.</span>
@@ -148,7 +148,7 @@ const ServicesPackagesEditor = ({
             setSearch={setSearch}
             placeholder="Search for services, packages..."
             label="Search for services and packages"
-            className="w-full!"
+            className="w-full! bg-(--whitebg) transition-colors"
           />
           <SearchResultsDropdown
             anchorRef={searchRef}
@@ -173,7 +173,6 @@ const ServicesPackagesEditor = ({
       </div>
 
       <SectionContainer
-        titleClassName="text-yc-20-b-primary"
         title="Additional services & packages"
         titleIcon={<TitleAddIcon />}
         className="flex flex-col gap-5"
@@ -184,7 +183,7 @@ const ServicesPackagesEditor = ({
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            <div className="hidden px-5 sm:block">
+            <div className="hidden border border-transparent px-4 sm:block">
               <ColumnHeadings />
             </div>
             <ul className="flex flex-col gap-3">
@@ -212,7 +211,7 @@ const ServicesPackagesEditor = ({
                       <span className="flex items-center gap-2 text-text-secondary">
                         <span className="truncate">{item.instructions ?? '-'}</span>
                         <CircleIconButton
-                          icon={<LuCopy aria-hidden="true" />}
+                          icon={<IoCopyOutline aria-hidden="true" />}
                           label={`Copy instructions for ${item.name}`}
                           onClick={() => copyValue(item.instructions)}
                         />
@@ -223,9 +222,9 @@ const ServicesPackagesEditor = ({
                           <CircleIconButton
                             icon={
                               expanded ? (
-                                <LuEyeOff aria-hidden="true" />
+                                <IoEyeOffOutline aria-hidden="true" />
                               ) : (
-                                <LuEye aria-hidden="true" />
+                                <IoEyeOutline aria-hidden="true" />
                               )
                             }
                             label={
@@ -239,7 +238,7 @@ const ServicesPackagesEditor = ({
                         )}
                         {!isBilled && (
                           <CircleIconButton
-                            icon={<LuTrash2 aria-hidden="true" />}
+                            icon={<IoTrashOutline aria-hidden="true" />}
                             label={`Remove ${item.name}`}
                             variant="danger"
                             disabled={deleteLocked}

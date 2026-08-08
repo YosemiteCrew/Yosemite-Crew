@@ -473,7 +473,7 @@ describe("CatalogService", () => {
   });
 
   it("rejects package updates that would create a cycle", async () => {
-    (prisma.productItem.findUnique as jest.Mock).mockResolvedValue({
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "pkg_parent",
       version: 1,
       organisationId: "org_1",
@@ -515,6 +515,7 @@ describe("CatalogService", () => {
 
     await expect(
       CatalogService.updateProduct("pkg_parent", {
+        organisationId: "org_1",
         kind: "PACKAGE",
         packageItems: [
           {
@@ -1713,42 +1714,43 @@ describe("CatalogService", () => {
     });
     (prisma.productItem.update as jest.Mock).mockResolvedValue({});
     (prisma.productBookable.upsert as jest.Mock).mockResolvedValue({});
-    (prisma.productItem.findUnique as jest.Mock)
-      .mockResolvedValueOnce({
-        id: "prod_1",
-        kind: "CONSULTATION",
-        prices: [{ id: "price_1", isDefault: true }],
-        bookable: { id: "book_1" },
-        package: null,
-      })
-      .mockResolvedValueOnce({
-        id: "prod_1",
-        organisationId: "org_1",
-        name: "Updated Consult",
-        description: null,
-        code: null,
-        kind: "CONSULTATION",
-        specialityId: null,
-        legacyServiceId: null,
-        isActive: true,
-        prices: [
-          {
-            unitPrice: 99,
-            currency: "USD",
-            defaultDiscountPercent: 0,
-            maxDiscountPercent: 10,
-            isDefault: true,
-          },
-        ],
-        bookable: {
-          durationMinutes: 30,
-          supportsOutpatient: true,
-          supportsInpatient: false,
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "prod_1",
+      organisationId: "org_1",
+      kind: "CONSULTATION",
+      prices: [{ id: "price_1", isDefault: true }],
+      bookable: { id: "book_1" },
+      package: null,
+    });
+    (prisma.productItem.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "prod_1",
+      organisationId: "org_1",
+      name: "Updated Consult",
+      description: null,
+      code: null,
+      kind: "CONSULTATION",
+      specialityId: null,
+      legacyServiceId: null,
+      isActive: true,
+      prices: [
+        {
+          unitPrice: 99,
+          currency: "USD",
+          defaultDiscountPercent: 0,
+          maxDiscountPercent: 10,
+          isDefault: true,
         },
-        package: null,
-      });
+      ],
+      bookable: {
+        durationMinutes: 30,
+        supportsOutpatient: true,
+        supportsInpatient: false,
+      },
+      package: null,
+    });
 
     const updated = await CatalogService.updateProduct("prod_1", {
+      organisationId: "org_1",
       name: "Updated Consult",
       price: {
         unitPrice: 99,
@@ -1767,7 +1769,7 @@ describe("CatalogService", () => {
   });
 
   it("removes pricing, bookable, and package records when a package becomes a consultation", async () => {
-    (prisma.productItem.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "pkg_1",
       version: 3,
       organisationId: "org_1",
@@ -1808,6 +1810,7 @@ describe("CatalogService", () => {
     });
 
     const updated = await CatalogService.updateProduct("pkg_1", {
+      organisationId: "org_1",
       kind: "CONSULTATION",
       price: null,
       bookable: null,
@@ -1828,42 +1831,42 @@ describe("CatalogService", () => {
   });
 
   it("regenerates the code when the product kind changes and no code is supplied", async () => {
-    (prisma.productItem.findUnique as jest.Mock)
-      .mockResolvedValueOnce({
-        id: "prod_1",
-        version: 2,
-        organisationId: "org_1",
-        name: "General Consultation",
-        description: null,
-        code: "CS-0007",
-        kind: "CONSULTATION",
-        specialityId: "spec_1",
-        legacyServiceId: null,
-        isActive: true,
-        prices: [],
-        bookable: null,
-        package: null,
-      })
-      .mockResolvedValueOnce({
-        id: "prod_1",
-        organisationId: "org_1",
-        name: "General Consultation",
-        description: null,
-        code: "PR-0008",
-        kind: "PROCEDURE",
-        specialityId: "spec_1",
-        legacyServiceId: null,
-        isActive: true,
-        prices: [],
-        bookable: null,
-        package: null,
-      });
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "prod_1",
+      version: 2,
+      organisationId: "org_1",
+      name: "General Consultation",
+      description: null,
+      code: "CS-0007",
+      kind: "CONSULTATION",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: true,
+      prices: [],
+      bookable: null,
+      package: null,
+    });
+    (prisma.productItem.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "prod_1",
+      organisationId: "org_1",
+      name: "General Consultation",
+      description: null,
+      code: "PR-0008",
+      kind: "PROCEDURE",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: true,
+      prices: [],
+      bookable: null,
+      package: null,
+    });
     (prisma.productItem.findMany as jest.Mock).mockResolvedValueOnce([
       { code: "PR-0007" },
     ]);
     (prisma.productItem.update as jest.Mock).mockResolvedValue({});
 
     const updated = await CatalogService.updateProduct("prod_1", {
+      organisationId: "org_1",
       kind: "PROCEDURE",
       expectedVersion: 2,
     });
@@ -1880,8 +1883,168 @@ describe("CatalogService", () => {
     expect(updated.kind).toBe("PROCEDURE");
   });
 
+  it("does not update a product owned by another organisation", async () => {
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      CatalogService.updateProduct("prod_other", {
+        organisationId: "org_1",
+        name: "Taken over",
+      }),
+    ).rejects.toMatchObject({
+      message: "Product not found.",
+      statusCode: 404,
+    });
+
+    expect(prisma.productItem.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: "prod_other", organisationId: "org_1" },
+      }),
+    );
+    expect(prisma.productItem.update).not.toHaveBeenCalled();
+  });
+
+  it("never reassigns the organisation of an updated product", async () => {
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "prod_1",
+      version: 1,
+      organisationId: "org_1",
+      name: "Consult",
+      code: "CS-0001",
+      kind: "CONSULTATION",
+      specialityId: "spec_1",
+      isActive: true,
+      prices: [],
+      bookable: null,
+      package: null,
+    });
+    (prisma.productItem.update as jest.Mock).mockResolvedValue({});
+    (prisma.productItem.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "prod_1",
+      organisationId: "org_1",
+      name: "Renamed",
+      description: null,
+      code: "CS-0001",
+      kind: "CONSULTATION",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: true,
+      prices: [],
+      bookable: null,
+      package: null,
+    });
+
+    const updated = await CatalogService.updateProduct("prod_1", {
+      organisationId: "org_1",
+      name: "Renamed",
+    });
+
+    expect(prisma.productItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          organisationId: expect.anything(),
+        }),
+      }),
+    );
+    expect(updated.organisationId).toBe("org_1");
+  });
+
+  it("does not archive, restore, or delete a product owned by another organisation", async () => {
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      CatalogService.archiveProduct("prod_other", "org_1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    await expect(
+      CatalogService.restoreProduct("prod_other", "org_1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    await expect(
+      CatalogService.deleteProduct("prod_other", "org_1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(prisma.productItem.update).not.toHaveBeenCalled();
+    expect(prisma.productItem.delete).not.toHaveBeenCalled();
+  });
+
+  it("requires an organisation on every single-product read path", async () => {
+    await expect(
+      CatalogService.getProductById("prod_1", ""),
+    ).rejects.toMatchObject({
+      message: "organisationId is required.",
+      statusCode: 400,
+    });
+
+    await expect(
+      CatalogService.getPackageDetail("pkg_1", ""),
+    ).rejects.toMatchObject({
+      message: "organisationId is required.",
+      statusCode: 400,
+    });
+
+    await expect(
+      CatalogService.resolveSelection("prod_1", undefined as never),
+    ).rejects.toMatchObject({
+      message: "organisationId is required.",
+      statusCode: 400,
+    });
+
+    await expect(
+      CatalogService.getSpecialityById("spec_1", undefined as never),
+    ).rejects.toMatchObject({
+      message: "organisationId is required.",
+      statusCode: 400,
+    });
+
+    expect(prisma.productItem.findFirst).not.toHaveBeenCalled();
+    expect(prisma.speciality.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("scopes single-product reads to the requested organisation", async () => {
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      CatalogService.getProductById("prod_other", "org_1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prisma.productItem.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "prod_other", organisationId: "org_1" },
+      }),
+    );
+
+    await expect(
+      CatalogService.resolveSelection("prod_other", "org_1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prisma.productItem.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ organisationId: "org_1" }),
+      }),
+    );
+  });
+
+  it("does not update a speciality owned by another organisation", async () => {
+    (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      CatalogService.updateSpeciality("spec_other", {
+        organisationId: "org_1",
+        name: "Taken over",
+      }),
+    ).rejects.toMatchObject({
+      message: "Speciality not found.",
+      statusCode: 404,
+    });
+
+    expect(prisma.speciality.findFirst).toHaveBeenCalledWith({
+      where: { id: "spec_other", organisationId: "org_1" },
+    });
+    expect(prisma.speciality.update).not.toHaveBeenCalled();
+  });
+
   it("rejects stale updates when the expected version is outdated", async () => {
-    (prisma.productItem.findUnique as jest.Mock).mockResolvedValue({
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "prod_1",
       version: 4,
       organisationId: "org_1",
@@ -1893,6 +2056,7 @@ describe("CatalogService", () => {
 
     await expect(
       CatalogService.updateProduct("prod_1", {
+        organisationId: "org_1",
         expectedVersion: 3,
         name: "Updated Consult",
       }),
@@ -2766,6 +2930,23 @@ describe("CatalogService", () => {
     );
   });
 
+  it("keeps every nearby organisation lookup verified, active, and bounded", async () => {
+    (prisma.organization.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.speciality.findMany as jest.Mock).mockResolvedValue([]);
+
+    await CatalogService.listOrganisationsProvidingServiceNearby(0, 0, 1);
+    await CatalogService.listOrganisationsProvidingServiceNearby();
+
+    const calls = (prisma.organization.findMany as jest.Mock).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [args] of calls) {
+      expect(args.where).toEqual(
+        expect.objectContaining({ isVerified: true, isActive: true }),
+      );
+      expect(args.take).toBeGreaterThan(0);
+    }
+  });
+
   it("falls back to all organisations when coordinates are omitted", async () => {
     (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
       {
@@ -2925,10 +3106,16 @@ describe("CatalogService", () => {
       teamMemberIds: ["user_2", "user_1", "user_2"],
     });
 
+    expect(prisma.speciality.findFirst).toHaveBeenNthCalledWith(1, {
+      where: { id: "spec_1", organisationId: "org_1" },
+    });
+    expect(prisma.speciality.update).toHaveBeenCalledWith({
+      where: { id: "spec_1" },
+      data: expect.not.objectContaining({ organisationId: expect.anything() }),
+    });
     expect(prisma.speciality.update).toHaveBeenCalledWith({
       where: { id: "spec_1" },
       data: expect.objectContaining({
-        organisationId: "org_1",
         name: "New name",
         headUserId: "user_2",
         memberUserIds: ["user_2", "user_1"],

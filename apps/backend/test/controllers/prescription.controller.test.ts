@@ -176,6 +176,55 @@ describe("PrescriptionController", () => {
     );
   });
 
+  it("derives the finalize actor from the session and ignores a client-supplied x-user-id header", async () => {
+    mockedClinicalService.finalizePrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-1" },
+      prescription: { id: "rx-1", medications: [{ quantity: 1 }] },
+    } as never);
+
+    const sessionReq = {
+      ...req,
+      userId: "vet-session",
+      userPermissions: ["prescription:edit:own"],
+      headers: { "x-user-id": "someone-else" },
+    };
+
+    await PrescriptionController.finalize(
+      sessionReq as Request,
+      res as Response,
+    );
+
+    expect(mockedClinicalService.finalizePrescription).toHaveBeenCalledWith(
+      "rx-1",
+      "org-1",
+      { actorId: "vet-session", canEditAny: false },
+    );
+  });
+
+  it("reports org-wide edit authority for a caller holding prescription:edit:any", async () => {
+    mockedClinicalService.finalizePrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-1" },
+      prescription: { id: "rx-1", medications: [{ quantity: 1 }] },
+    } as never);
+
+    const supervisorReq = {
+      ...req,
+      userId: "supervisor-1",
+      userPermissions: ["prescription:edit:any"],
+    };
+
+    await PrescriptionController.finalize(
+      supervisorReq as Request,
+      res as Response,
+    );
+
+    expect(mockedClinicalService.finalizePrescription).toHaveBeenCalledWith(
+      "rx-1",
+      "org-1",
+      { actorId: "supervisor-1", canEditAny: true },
+    );
+  });
+
   it("finalizes a prescription", async () => {
     mockedClinicalService.finalizePrescription.mockResolvedValueOnce({
       artifact: { id: "artifact-1" },
@@ -187,6 +236,7 @@ describe("PrescriptionController", () => {
     expect(mockedClinicalService.finalizePrescription).toHaveBeenCalledWith(
       "rx-1",
       "org-1",
+      { actorId: "", canEditAny: false },
     );
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(jsonMock).toHaveBeenCalledWith(

@@ -739,7 +739,7 @@ describe("FormAssignmentService", () => {
         signedAt: new Date("2026-06-22T08:15:00.000Z"),
         signedDocument: { documentId: "inst-1", pdfUrl: "https://pdf" },
       });
-      // The service now filters rows after fetch, so the base query stays minimal.
+      // With no parentId there is nothing to push down, so the query stays minimal.
       expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ organisationId: "org-1" }),
@@ -795,6 +795,39 @@ describe("FormAssignmentService", () => {
           where: expect.objectContaining({ organisationId: "org-1" }),
         }),
       );
+    });
+
+    it("filters by parent in the query rather than in memory", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValue([]);
+
+      await FormAssignmentService.listForOrganisation({
+        organisationId: "org-1",
+        parentId: "par-9",
+      });
+
+      expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organisationId: "org-1",
+            appointment: {
+              is: { patient: { path: ["parent", "id"], equals: "par-9" } },
+            },
+          }),
+        }),
+      );
+    });
+
+    it("bounds the organisation query so it cannot scan the whole table", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValue([]);
+
+      await FormAssignmentService.listForOrganisation({
+        organisationId: "org-1",
+      });
+
+      const [args] = mockedPrisma.formAssignment.findMany.mock.calls.at(-1) as [
+        { take?: number },
+      ];
+      expect(args.take).toBe(500);
     });
 
     it("returns an empty list when a parent has no linked companions", async () => {

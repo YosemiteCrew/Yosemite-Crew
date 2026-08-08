@@ -215,7 +215,8 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    // Warm-bone modal overlay (theme.colors.modalOverlay light value).
+    backgroundColor: 'rgba(29, 28, 27, 0.42)',
   },
   iosDialog: {
     borderRadius: 16,

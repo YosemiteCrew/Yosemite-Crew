@@ -34,6 +34,12 @@ const FormInputPass = ({
 
   return (
     <div className="w-full">
+      <label
+        htmlFor={uid}
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
+      >
+        {inlabel}
+      </label>
       <div className="relative">
         <input
           type={showPassword ? 'text' : intype}
@@ -45,45 +51,26 @@ const FormInputPass = ({
           onBlur={onBlur}
           onFocus={onFocus}
           required
-          placeholder=" "
           aria-invalid={Boolean(error)}
           aria-describedby={errorId}
           aria-label={inlabel}
           className={`
-            peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
-            text-body-4 text-text-primary
-            outline-none border
-            ${error ? 'border-input-border-error!' : 'border-input-border-default!'}
-            focus:border-input-border-active!
+            h-[44px] w-full rounded-[12px] border-[1.5px] bg-[var(--field-bg)]
+            pl-[14px] pr-11 text-[14px] text-[var(--ink-body)] outline-none transition-colors
+            placeholder:text-[var(--ink-faint)]
+            disabled:cursor-not-allowed disabled:opacity-60
+            ${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'}
+            focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
           `}
         />
-        <label
-          htmlFor={uid}
-          className={`
-            pointer-events-none absolute left-6
-            top-1/2 -translate-y-1/2
-            text-body-4 text-input-text-placeholder
-            transition-all duration-200
-            peer-focus:-top-[11px] peer-focus:translate-y-0
-            peer-focus:text-sm!
-            peer-focus:text-input-text-placeholder-active
-            peer-focus:bg-(--whitebg)
-            peer-focus:px-1 peer-not-placeholder-shown:px-1
-            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-sm!
-            peer-not-placeholder-shown:bg-(--whitebg)
-          `}
-        >
-          {inlabel}
-        </label>
         <button
           type="button"
           onClick={togglePasswordVisibility}
-          className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-text-secondary hover:text-text-primary transition-colors"
+          className="absolute right-[13px] top-1/2 -translate-y-1/2 cursor-pointer text-text-secondary hover:text-text-primary transition-colors"
           aria-label={showPassword ? 'Hide password' : 'Show password'}
           title={showPassword ? 'Hide password' : 'Show password'}
         >
-          {showPassword ? <IoEyeOff size={22} /> : <IoEye size={22} />}
+          {showPassword ? <IoEyeOff size={18} /> : <IoEye size={18} />}
         </button>
       </div>
 
@@ -92,10 +79,7 @@ const FormInputPass = ({
         <div
           id={errorId}
           role="alert"
-          className={`
-                  mt-1.5 flex items-center gap-1 px-4
-                  text-caption-2 text-text-error
-                `}
+          className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error"
         >
           <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
           <span>{error}</span>

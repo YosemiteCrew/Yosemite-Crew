@@ -12,8 +12,14 @@ interface HeaderProps {
   onBack?: () => void;
   rightIcon?: any;
   onRightPress?: () => void;
+  rightAccessibilityLabel?: string;
   style?: object;
   glass?: boolean;
+  /**
+   * `root` renders a tab-root header: a large left-aligned Newsreader title.
+   * `default` renders a sub-screen header: a centered 17/600 title.
+   */
+  variant?: 'default' | 'root';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,33 +28,40 @@ export const Header: React.FC<HeaderProps> = ({
   onBack,
   rightIcon,
   onRightPress,
+  rightAccessibilityLabel = 'More options',
   style,
   glass = true,
+  variant = 'default',
 }) => {
   const {theme} = useTheme();
-  const iconButtonSize = theme.spacing?.['9'] ?? 36;
+  const iconButtonSize = theme.spacing?.['10'] ?? 40;
   const styles = createStyles(theme);
+  const isRoot = variant === 'root';
 
   const content = (
     <View style={[styles.container, style]}>
-      {showBackButton ? (
-        <View style={styles.iconButtonShadow}>
-          <LiquidGlassIconButton
-            onPress={onBack ?? (() => {})}
-            size={iconButtonSize}
-            style={styles.iconButton}>
-            <Image
-              source={Images.backIcon}
-              style={[styles.icon, {tintColor: theme.colors.text}]}
-            />
-          </LiquidGlassIconButton>
-        </View>
-      ) : (
-        <View style={styles.spacer} />
-      )}
+      {!isRoot &&
+        (showBackButton ? (
+          <View style={styles.iconButtonShadow}>
+            <LiquidGlassIconButton
+              onPress={onBack ?? (() => {})}
+              size={iconButtonSize}
+              style={styles.iconButton}
+              accessibilityLabel="Back">
+              <Image
+                source={Images.backIcon}
+                style={[styles.icon, {tintColor: theme.colors.text}]}
+              />
+            </LiquidGlassIconButton>
+          </View>
+        ) : (
+          <View style={styles.spacer} />
+        ))}
 
       {title && (
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={isRoot ? styles.titleRoot : styles.title}
+          numberOfLines={1}>
           {title}
         </Text>
       )}
@@ -58,12 +71,13 @@ export const Header: React.FC<HeaderProps> = ({
           <LiquidGlassIconButton
             onPress={onRightPress ?? (() => {})}
             size={iconButtonSize}
-            style={styles.iconButton}>
+            style={styles.iconButton}
+            accessibilityLabel={rightAccessibilityLabel}>
             <Image source={rightIcon} style={styles.icon} />
           </LiquidGlassIconButton>
         </View>
       ) : (
-        <View style={styles.spacer} />
+        !isRoot && <View style={styles.spacer} />
       )}
     </View>
   );
@@ -87,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
 };
 
 const createStyles = (theme: any) => {
-  const iconButtonSize = theme.spacing?.['9'] ?? 36;
+  const iconButtonSize = theme.spacing?.['10'] ?? 40;
 
   return StyleSheet.create({
     container: {
@@ -150,8 +164,15 @@ const createStyles = (theme: any) => {
     title: {
       flex: 1,
       textAlign: 'center',
-      ...theme.typography.h3,
-      color: theme.colors.text,
+      ...theme.typography.mobileBodyEmphasis,
+      fontWeight: '600',
+      color: theme.colors.ink,
+    },
+    titleRoot: {
+      flex: 1,
+      textAlign: 'left',
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
     },
   });
 };

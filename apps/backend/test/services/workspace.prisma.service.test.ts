@@ -7,15 +7,17 @@ import {
   dedupeTreatmentItemsByPrescription,
 } from "../../src/services/workspace.prisma.service";
 import { InvoiceService } from "src/services/invoice.service";
+import { createRenderedDocumentRecord } from "src/services/rendered-document.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
     appointment: { findFirst: jest.fn() },
     encounter: { findFirst: jest.fn(), findMany: jest.fn() },
     case: { findFirst: jest.fn() },
-    invoice: { findFirst: jest.fn() },
+    invoice: { findFirst: jest.fn(), findMany: jest.fn() },
     organization: { findUnique: jest.fn() },
     patient: { findFirst: jest.fn() },
+    patientOrganisation: { findFirst: jest.fn() },
     parent: { findFirst: jest.fn() },
     admission: { findUnique: jest.fn() },
     productItem: { findFirst: jest.fn(), findMany: jest.fn() },
@@ -68,6 +70,11 @@ jest.mock("src/services/invoice.service", () => ({
   },
 }));
 
+jest.mock("src/services/rendered-document.service", () => ({
+  __esModule: true,
+  createRenderedDocumentRecord: jest.fn(),
+}));
+
 jest.mock("src/services/clinical-artifact.service", () => ({
   ClinicalArtifactService: {
     listSoapNotesForAppointment: jest.fn(),
@@ -86,9 +93,10 @@ describe("WorkspaceService", () => {
     appointment: { findFirst: jest.Mock };
     encounter: { findFirst: jest.Mock; findMany: jest.Mock };
     case: { findFirst: jest.Mock };
-    invoice: { findFirst: jest.Mock };
+    invoice: { findFirst: jest.Mock; findMany: jest.Mock };
     organization: { findUnique: jest.Mock };
     patient: { findFirst: jest.Mock };
+    patientOrganisation: { findFirst: jest.Mock };
     parent: { findFirst: jest.Mock };
     admission: { findUnique: jest.Mock };
     productItem: { findFirst: jest.Mock; findMany: jest.Mock };
@@ -141,8 +149,10 @@ describe("WorkspaceService", () => {
     mockedPrisma.encounter.findFirst.mockResolvedValue(null);
     mockedPrisma.case.findFirst.mockResolvedValue(null);
     mockedPrisma.invoice.findFirst.mockResolvedValue(null);
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
     mockedPrisma.organization.findUnique.mockResolvedValue(null);
     mockedPrisma.patient.findFirst.mockResolvedValue(null);
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
     mockedPrisma.parent.findFirst.mockResolvedValue(null);
     mockedPrisma.admission.findUnique.mockResolvedValue(null);
     mockedPrisma.productItem.findFirst.mockResolvedValue(null);
@@ -307,6 +317,9 @@ describe("WorkspaceService", () => {
       readyForBillingAt: new Date("2026-06-15T12:00:00.000Z"),
       readyForBillingActorId: "user-1",
     });
+    // #1910: the appointment's invoice PDF (an INVOICE rendered document) must be pulled into the
+    // All Documents set by matching its sourceId to the appointment's invoice ids.
+    mockedPrisma.invoice.findMany.mockResolvedValue([{ id: "invoice-1" }]);
     mockedPrisma.user.findUnique.mockResolvedValue({
       firstName: "Dr",
       lastName: "Ready",
@@ -412,7 +425,15 @@ describe("WorkspaceService", () => {
         organisationId: "org-1",
         appointmentId: "appt-1",
       },
-      ["appointments:view:any", "tasks:view:any"],
+      [
+        "appointments:view:any",
+        "tasks:view:any",
+        "forms:view:any",
+        "prescription:view:any",
+        "labs:view:any",
+        "document:view:any",
+        "billing:view:any",
+      ],
     );
 
     expect(result.organisationId).toBe("org-1");
@@ -516,6 +537,29 @@ describe("WorkspaceService", () => {
       organisationId: "org-1",
       appointmentId: "appt-1",
     });
+    // #1910: the rendered-document query must include an INVOICE sourceId condition built from the
+    // appointment's invoice ids, so the invoice PDF is surfaced in All Documents.
+    expect(mockedPrisma.invoice.findMany).toHaveBeenCalledWith({
+      where: { appointmentId: "appt-1" },
+      select: { id: true },
+    });
+    const renderedDocumentQuery =
+      mockedPrisma.renderedDocument.findMany.mock.calls.at(-1)?.[0];
+    expect(renderedDocumentQuery?.where?.OR).toEqual(
+      expect.arrayContaining([
+        { sourceKind: "INVOICE", sourceId: { in: ["invoice-1"] } },
+        {
+          clinicalArtifact: {
+            is: { appointmentId: "appt-1" },
+          },
+        },
+      ]),
+    );
+    expect(renderedDocumentQuery?.where?.NOT).toEqual({
+      clinicalArtifact: {
+        is: { status: "VOID" },
+      },
+    });
   });
 
   it("returns a bootstrap payload without billing state when no invoice is open", async () => {
@@ -607,6 +651,92 @@ describe("WorkspaceService", () => {
     expect(result.visitBillingStage).toBeNull();
     expect(result.readyForBilling).toBe(false);
     expect(result.readyForBillingByName).toBeNull();
+  });
+
+  it("omits the appointment invoice document when the caller lacks billing permission", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-3",
+      organisationId: "org-1",
+      status: "UPCOMING",
+      appointmentKind: "OUTPATIENT",
+      concern: "Annual review",
+      productItemId: null,
+      encounterId: "enc-3",
+      caseId: "case-3",
+      patient: { id: "patient-3", parent: { id: "parent-3" } },
+      startTime: new Date("2026-06-15T10:00:00.000Z"),
+      endTime: new Date("2026-06-15T10:30:00.000Z"),
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc-3",
+      organisationId: "org-1",
+      caseId: "case-3",
+      patientId: "patient-3",
+      parentId: "parent-3",
+      status: "onleave",
+      encounterClass: "IMP",
+      appointmentKind: "OUTPATIENT",
+      title: "Annual review",
+      reason: null,
+      periodStart: null,
+      periodEnd: null,
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      appointmentLockWindowOutpatientMinutes: 30,
+      appointmentLockWindowInpatientMinutes: null,
+    });
+    mockedPrisma.patient.findFirst.mockResolvedValue({
+      id: "patient-3",
+      name: "Buddy",
+      type: "PET",
+      status: "ACTIVE",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.parent.findFirst.mockResolvedValue({
+      id: "parent-3",
+      firstName: "Jane",
+      lastName: "Doe",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    // An open invoice exists for the appointment, but a document-view-only caller must never receive
+    // its PDF: INVOICE rendered documents are financial and require billing:view:any (mirrors the
+    // rendered-document controller's access rule).
+    mockedPrisma.invoice.findMany.mockResolvedValue([{ id: "invoice-1" }]);
+
+    await WorkspaceService.getAppointmentBootstrap(
+      {
+        organisationId: "org-1",
+        appointmentId: "appt-3",
+      },
+      [
+        "appointments:view:any",
+        "tasks:view:any",
+        "forms:view:any",
+        "prescription:view:any",
+        "labs:view:any",
+        "document:view:any",
+      ],
+    );
+
+    // The invoice-id lookup that feeds the INVOICE sourceId condition must be skipped entirely.
+    expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalledWith({
+      where: { appointmentId: "appt-3" },
+      select: { id: true },
+    });
+    const renderedDocumentQuery =
+      mockedPrisma.renderedDocument.findMany.mock.calls.at(-1)?.[0];
+    const orConditions = (renderedDocumentQuery?.where?.OR ?? []) as Array<{
+      sourceKind?: string;
+    }>;
+    expect(
+      orConditions.some((condition) => condition.sourceKind === "INVOICE"),
+    ).toBe(false);
   });
 
   it("manages persisted treatment items", async () => {
@@ -1310,7 +1440,7 @@ describe("WorkspaceService", () => {
         organisationId: "org-1",
         appointmentId: "appt-1",
       },
-      [],
+      ["labs:view:any"],
     );
 
     // The display summary still surfaces the companion's other-visit labs ...
@@ -1466,10 +1596,13 @@ describe("WorkspaceService", () => {
       },
     ]);
 
-    const result = await WorkspaceService.getEncounterDocuments({
-      organisationId: "org-doc",
-      encounterId: "enc-doc-1",
-    });
+    const result = await WorkspaceService.getEncounterDocuments(
+      {
+        organisationId: "org-doc",
+        encounterId: "enc-doc-1",
+      },
+      ["document:view:any"],
+    );
 
     expect(result).toEqual(
       expect.arrayContaining([
@@ -1521,10 +1654,13 @@ describe("WorkspaceService", () => {
     mockedPrisma.document.findMany.mockResolvedValue([]);
     mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
 
-    await WorkspaceService.getEncounterDocuments({
-      organisationId: "org-doc",
-      encounterId: "enc-doc-2",
-    });
+    await WorkspaceService.getEncounterDocuments(
+      {
+        organisationId: "org-doc",
+        encounterId: "enc-doc-2",
+      },
+      ["document:view:any"],
+    );
 
     // The read model is built from the rendered-document pipeline and direct uploads; the
     // legacy form-submission store is never read (it is absent from the prisma mock, so any
@@ -1534,14 +1670,180 @@ describe("WorkspaceService", () => {
     expect(mockedPrisma).not.toHaveProperty("formSubmission");
   });
 
-  it("returns companion medical records only", async () => {
-    mockedPrisma.patient.findFirst.mockResolvedValue({
-      id: "patient-med",
-      name: "Milo",
-      type: "PET",
-      status: "ACTIVE",
+  it("still returns the full document set for system-access callers with no permissions", async () => {
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc-packet",
+      organisationId: "org-1",
+      patientId: "patient-1",
+      appointmentKind: "OUTPATIENT",
+      status: "IN_PROGRESS",
       createdAt: new Date("2026-06-15T10:00:00.000Z"),
       updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedPrisma.document.findMany.mockResolvedValue([
+      {
+        id: "doc-packet-1",
+        patientId: "patient-1",
+        appointmentId: null,
+        category: "HEALTH",
+        title: "Upload",
+        pmsVisible: true,
+        syncedFromPms: false,
+        createdAt: new Date("2026-06-15T10:00:00.000Z"),
+        updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+      },
+    ]);
+
+    // This is the packet-assembly path: an empty permission list must not be
+    // read as "show nothing", or every clinical packet ships empty.
+    const result = await WorkspaceService.getEncounterDocuments(
+      { organisationId: "org-1", encounterId: "enc-packet" },
+      [],
+      { systemAccess: true },
+    );
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ documentId: "doc-packet-1" }),
+      ]),
+    );
+  });
+
+  it("rejects a companion that is not linked to the organisation", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceService.getCompanionDocuments({
+        organisationId: "org-attacker",
+        companionId: "patient-victim",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mockedPrisma.patientOrganisation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          patientId: "patient-victim",
+          organisationId: "org-attacker",
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+      }),
+    );
+    expect(mockedPrisma.document.findMany).not.toHaveBeenCalled();
+  });
+
+  it("scopes companion documents through patientOrganisation and excludes parent-private uploads", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+      id: "link-1",
+    });
+    mockedPrisma.encounter.findMany.mockResolvedValue([]);
+
+    await WorkspaceService.getCompanionDocuments({
+      organisationId: "org-scope",
+      companionId: "patient-scope",
+    });
+
+    expect(mockedPrisma.document.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          patientId: "patient-scope",
+          pmsVisible: true,
+          patient: {
+            organisations: {
+              some: {
+                organisationId: "org-scope",
+                status: { in: ["ACTIVE", "PENDING"] },
+              },
+            },
+          },
+        }),
+      }),
+    );
+    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org-scope",
+          NOT: {
+            clinicalArtifact: {
+              is: { status: "VOID" },
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("withholds aggregate slices the caller has no permission to view", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-gated",
+      organisationId: "org-1",
+      status: "BOOKED",
+      appointmentKind: "OUTPATIENT",
+      patient: { id: "patient-1" },
+      createdAt: new Date("2026-06-15T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+
+    const result = await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-gated" },
+      ["appointments:view:any"],
+    );
+
+    expect(result.documents).toEqual([]);
+    expect(result.forms).toEqual([]);
+    expect(result.tasks).toEqual([]);
+    expect(result.prescriptions).toEqual([]);
+    expect(result.clinicalArtifacts).toEqual([]);
+    expect(result.treatmentItems).toEqual([]);
+    expect(result.templateInstances).toEqual([]);
+    expect(result.diagnosticQueue).toEqual([]);
+    // Response-only reads are skipped outright rather than fetched and dropped.
+    expect(mockedPrisma.document.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.templateInstance.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.workspaceTreatmentItem.findMany).not.toHaveBeenCalled();
+  });
+
+  it("still blocks finalization on labs the caller cannot see", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-gated",
+      organisationId: "org-1",
+      status: "BOOKED",
+      appointmentKind: "OUTPATIENT",
+      patient: { id: "patient-1" },
+      createdAt: new Date("2026-06-15T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedPrisma.labOrder.findMany.mockResolvedValue([
+      {
+        id: "lab-1",
+        organisationId: "org-1",
+        appointmentId: "appt-gated",
+        patientId: "patient-1",
+        status: "SUBMITTED",
+        provider: "IDEXX",
+        idexxOrderId: "idexx-1",
+        tests: ["CBC"],
+        createdAt: new Date("2026-06-15T10:00:00.000Z"),
+        updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+      },
+    ]);
+    mockedPrisma.labResult.findMany.mockResolvedValue([]);
+
+    const result = await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-gated" },
+      ["appointments:view:any", "forms:view:any"],
+    );
+
+    // The lab data itself is withheld ...
+    expect(result.labSummary.pendingCount).toBe(0);
+    expect(result.labSummary.hasLabs).toBe(false);
+    // ... but the gate must not silently green-light a finalization.
+    expect(result.finalizationGate.pendingLabsResolved).toBe(false);
+    expect(result.finalizationGate.enabled).toBe(false);
+  });
+
+  it("returns companion medical records only", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+      id: "link-med-1",
     });
     mockedPrisma.encounter.findMany.mockResolvedValue([{ id: "enc-med-1" }]);
     mockedPrisma.encounter.findFirst.mockResolvedValue({
@@ -1619,6 +1921,45 @@ describe("WorkspaceService", () => {
         kind: "SOAP_NOTE",
       }),
     ]);
+  });
+
+  it("still loads the chart when an inpatient schedule fails to render", async () => {
+    // Regression: the schedule PDF render runs inside the aggregate that every
+    // chart read goes through, so a throw there used to surface as a 500 and made
+    // the appointment impossible to open, sign or discharge - permanently, because
+    // a failed render persists nothing and so is retried on every load.
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-1",
+      organisationId: "org-1",
+      status: "IN_PROGRESS",
+      appointmentKind: "INPATIENT",
+      concern: "Ward stay",
+      encounterId: "enc-1",
+      caseId: "case-1",
+      patient: { id: "patient-1", parent: { id: "parent-1" } },
+    });
+    mockedPrisma.taskSchedule.findMany.mockResolvedValue([
+      {
+        id: "sched-1",
+        templateId: "tmpl-1",
+        templateVersion: 1,
+        templateKind: "INPATIENT_SCHEDULE",
+        appointmentId: "appt-1",
+        encounterId: "enc-1",
+      },
+    ]);
+    mockedPrisma.renderedDocument.findFirst.mockResolvedValue(null);
+    (createRenderedDocumentRecord as jest.Mock).mockRejectedValue(
+      new Error("pdf renderer exploded"),
+    );
+
+    const result = await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-1" },
+      ["appointments:view:any", "tasks:view:any"],
+    );
+
+    expect(result).toBeDefined();
+    expect(createRenderedDocumentRecord).toHaveBeenCalled();
   });
 });
 

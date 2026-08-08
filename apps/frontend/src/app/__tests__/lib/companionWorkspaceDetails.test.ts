@@ -72,4 +72,25 @@ describe('buildCompanionDetails', () => {
     expect(valueFor('Age / DOB', companion)).toBe('-');
     expect(valueFor('Weight', companion)).toBe('-');
   });
+
+  // Bug 35: a pet under a year old reads in months, never a misleading "0 years".
+  it('reads an under-one-year-old age in months', () => {
+    const dob = new Date();
+    dob.setMonth(dob.getMonth() - 5);
+    expect(valueFor('Age / DOB', baseCompanion({ dateOfBirth: dob }))).toMatch(/^5 months \/ /);
+  });
+
+  it('drops the age but keeps the date when the age cannot be derived', () => {
+    // A future date of birth yields no age label, so only the DOB shows.
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+    const value = valueFor('Age / DOB', baseCompanion({ dateOfBirth: future }));
+    expect(value).not.toMatch(/year|month/);
+    expect(value).not.toBe('-');
+  });
+
+  it('shows a dash when the date of birth is unparseable', () => {
+    const companion = baseCompanion({ dateOfBirth: 'not-a-date' as unknown as Date });
+    expect(valueFor('Age / DOB', companion)).toBe('-');
+  });
 });

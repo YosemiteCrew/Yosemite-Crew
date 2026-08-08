@@ -16,9 +16,7 @@ export const useFetchPhotoFallbacks = (
       const googlePlacesId =
         biz?.googlePlacesId ?? apt.businessGooglePlacesId ?? null;
       const photoCandidate = (biz?.photo ?? apt.businessPhoto) as
-        | string
-        | null
-        | undefined;
+        string | null | undefined;
       const needsPhoto =
         (!photoCandidate || isDummyPhoto(photoCandidate)) && googlePlacesId;
       if (needsPhoto && googlePlacesId) {

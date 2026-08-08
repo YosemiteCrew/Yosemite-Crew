@@ -93,6 +93,23 @@ describe('LiquidGlassIconButton', () => {
       expect(onPress).toHaveBeenCalled();
     });
 
+    it('exposes button role, label and disabled state to screen readers', () => {
+      render(
+        <LiquidGlassIconButton
+          size={40}
+          onPress={jest.fn()}
+          disabled
+          accessibilityLabel="Close">
+          <Text>icon</Text>
+        </LiquidGlassIconButton>,
+      );
+
+      const pressable = screen.UNSAFE_getByType(PressableType);
+      expect(pressable.props.accessibilityRole).toBe('button');
+      expect(pressable.props.accessibilityLabel).toBe('Close');
+      expect(pressable.props.accessibilityState).toEqual({disabled: true});
+    });
+
     it('uses the explicit tintColor over the resolved default when provided', () => {
       render(
         <LiquidGlassIconButton
@@ -177,6 +194,23 @@ describe('LiquidGlassIconButton', () => {
       );
       fireEvent.press(screen.getByText('icon'));
       expect(onPress).toHaveBeenCalled();
+    });
+
+    it('exposes button role, label and enabled state to screen readers', () => {
+      Platform.OS = 'android';
+      render(
+        <LiquidGlassIconButton
+          size={40}
+          onPress={jest.fn()}
+          accessibilityLabel="Back">
+          <Text>icon</Text>
+        </LiquidGlassIconButton>,
+      );
+
+      const pressable = screen.UNSAFE_getByType(PressableType);
+      expect(pressable.props.accessibilityRole).toBe('button');
+      expect(pressable.props.accessibilityLabel).toBe('Back');
+      expect(pressable.props.accessibilityState).toEqual({disabled: false});
     });
 
     it('applies the requested shadow size and falls back neutralShadow to black when absent', () => {

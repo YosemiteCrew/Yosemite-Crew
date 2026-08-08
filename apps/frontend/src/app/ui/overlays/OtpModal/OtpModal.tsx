@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useId } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
@@ -9,24 +8,18 @@ import { logger } from '@/app/lib/logger';
 import { provisionBackendUser } from '@/app/features/auth/services/userProvisioningService';
 import { useOtpCodeInput } from '@/app/hooks/useOtpCodeInput';
 import { useResendCountdown } from '@/app/hooks/useResendCountdown';
-import { Button } from '@/app/ui';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
-import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
+import OtpDigitFieldset from '@/app/ui/overlays/OtpModal/OtpDigitFieldset';
+import OtpModalHeader from '@/app/ui/overlays/OtpModal/OtpModalHeader';
+import OtpModalFooter from '@/app/ui/overlays/OtpModal/OtpModalFooter';
 
 import './OtpModal.css';
 
 const RESEND_COUNTDOWN_SECONDS = 150;
-const OTP_DIGIT_FIELD_IDS = [
-  'otp-digit-1',
-  'otp-digit-2',
-  'otp-digit-3',
-  'otp-digit-4',
-  'otp-digit-5',
-  'otp-digit-6',
-] as const;
 
 type ShowErrorTost = (args: {
   message: string;
@@ -47,97 +40,6 @@ type OtpModalProps = {
 
 const dangerIcon = (
   <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="var(--color-danger-600)" />
-);
-
-type OtpDigitFieldsProps = {
-  code: string[];
-  describedBy: string;
-  setOtpRef: (el: HTMLInputElement | null, idx: number) => void;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>, idx: number) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => void;
-};
-
-const OtpDigitFields = ({
-  code,
-  describedBy,
-  setOtpRef,
-  onChange,
-  onKeyDown,
-}: OtpDigitFieldsProps) => (
-  <fieldset
-    className="verifyInput"
-    style={{ marginBottom: 24 }}
-    aria-label="Email verification code"
-    aria-describedby={describedBy}
-  >
-    {OTP_DIGIT_FIELD_IDS.map((fieldId, idx) => (
-      <input
-        key={fieldId}
-        ref={(el) => setOtpRef(el, idx)}
-        type="text"
-        maxLength={1}
-        value={code[idx] ?? ''}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-        aria-label={`Digit ${idx + 1} of 6`}
-        onChange={(e) => onChange(e, idx)}
-        onKeyDown={(e) => onKeyDown(e, idx)}
-      />
-    ))}
-  </fieldset>
-);
-
-type VerifyModalFooterProps = {
-  isVerifying: boolean;
-  canVerify: boolean;
-  secondsLeft: number;
-  onVerify: () => void;
-  onResend: () => void;
-  onChangeEmail: () => void;
-};
-
-const VerifyModalFooter = ({
-  isVerifying,
-  canVerify,
-  secondsLeft,
-  onVerify,
-  onResend,
-  onChangeEmail,
-}: VerifyModalFooterProps) => (
-  <div className="VerifyModalBottomInner">
-    <div className="VerifyBtnDiv">
-      <Button
-        variant="primary"
-        text={isVerifying ? 'Verifying...' : 'Verify Code'}
-        type="button"
-        onClick={onVerify}
-        isDisabled={isVerifying || !canVerify || secondsLeft === 0}
-        className="w-full"
-      />
-      <output aria-live="polite">
-        {secondsLeft > 0
-          ? `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(
-              secondsLeft % 60
-            ).padStart(2, '0')} sec`
-          : 'Didn’t get the code? Request a new one below.'}
-      </output>
-    </div>
-    <div className="VerifyResent">
-      <Link
-        href=""
-        onClick={(e) => {
-          e.preventDefault();
-          onResend();
-        }}
-      >
-        <span>Request New Code</span>
-      </Link>
-      <Link href="#" onClick={onChangeEmail}>
-        . Change Email
-      </Link>
-    </div>
-  </div>
 );
 
 const OtpModal = ({
@@ -191,7 +93,7 @@ const OtpModal = ({
   };
 
   const completeSignedInRedirect = async () => {
-    defaultSidebarToCollapsed();
+    resetSidebarPreference();
     // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
     setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
 
@@ -301,7 +203,7 @@ const OtpModal = ({
       showModal={showVerifyModal}
       setShowModal={setShowVerifyModal}
       canClose={() => false}
-      overlayClassName="fixed inset-0 z-1001 bg-black/50"
+      overlayClassName="fixed inset-0 z-1001 bg-[var(--sh55)] backdrop-blur-[6px]"
       containerClassName="fixed inset-0 z-1001 flex items-center justify-center p-4"
       aria-labelledby={dialogTitleId}
       aria-describedby={dialogDescriptionId}
@@ -318,42 +220,25 @@ const OtpModal = ({
           </button>
         </div>
         <div className="VerifyModalTopInner">
-          <div className="VerifyTexted">
-            <h2 id={dialogTitleId} className="text-display-2 text-text-primary">
-              Verify Email Address
-            </h2>
-            <div className="text-body-3-emphasis text-text-primary">
-              A Verification code has been sent to <br /> <span>{email}</span>
-            </div>
-            <p id={dialogDescriptionId}>
-              Please check your inbox and enter the verification code below to verify your email
-              address. The Code will expire soon.
-            </p>
-          </div>
-          <div className="verifyInputDiv">
-            <OtpDigitFields
-              code={code}
-              describedBy={`${otpHintId} ${invalidOtp ? otpStatusId : ''}`.trim()}
-              setOtpRef={setOtpRef}
-              onChange={handleCodeChange}
-              onKeyDown={handleCodeKeyDown}
-            />
-            <p id={otpHintId} className="text-caption-1 text-text-secondary">
-              Enter the 6-digit code from your email.
-            </p>
-            {invalidOtp ? (
-              <p id={otpStatusId} role="alert">
-                <Icon icon="solar:danger-circle-bold" width="18" height="18" /> Invalid OTP
-              </p>
-            ) : (
-              ''
-            )}{' '}
-          </div>
+          <OtpModalHeader
+            dialogTitleId={dialogTitleId}
+            dialogDescriptionId={dialogDescriptionId}
+            email={email}
+          />
+          <OtpDigitFieldset
+            code={code}
+            otpHintId={otpHintId}
+            otpStatusId={otpStatusId}
+            invalidOtp={invalidOtp}
+            setOtpRef={setOtpRef}
+            onCodeChange={handleCodeChange}
+            onCodeKeyDown={handleCodeKeyDown}
+          />
         </div>
-        <VerifyModalFooter
+        <OtpModalFooter
           isVerifying={isVerifying}
-          canVerify={!code.includes('')}
-          secondsLeft={secondsLeft}
+          timer={secondsLeft}
+          code={code}
           onVerify={handleVerify}
           onResend={handleResend}
           onChangeEmail={() => setShowVerifyModal(false)}

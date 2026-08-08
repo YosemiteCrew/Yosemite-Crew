@@ -18,16 +18,19 @@ TRIGGER: any task in apps/mobileAppYC — screens, components, navigation, state
 ```
 apps/mobileAppYC/
   src/
-    screens/        ← Full-screen views
-    components/     ← Reusable UI components
+    app/            ← Redux store.ts + typed hooks.ts
+    features/       ← feature slices: <domain>/{screens,components,hooks,services,<domain>Slice.ts,selectors.ts}
+    shared/         ← cross-feature components, screens, stores, services, utils
     navigation/     ← React Navigation config
-    store/          ← Redux Toolkit slices
-    services/       ← API calls (axios)
-    hooks/          ← Custom React hooks
-    utils/          ← Pure utility functions
-    i18n/           ← Translation files (i18next)
-    assets/         ← Images, fonts
+    localization/   ← translation files (i18next)
+    theme/          ← design tokens and theming
+    config/         ← environment/config values
+    context/        ← React contexts
+    types/          ← shared TS types
+    assets/         ← images, fonts
 ```
+
+New code follows the feature-slice pattern: put screens, components, and services inside the owning `src/features/<domain>/` directory, not in global folders.
 
 ---
 
@@ -99,7 +102,7 @@ Never hardcode English strings in components.
 
 ## Authentication
 
-AWS Amplify Auth is the mobile auth provider. Firebase handles push notifications and supplementary auth flows. Never bypass Amplify for core auth.
+SuperTokens is the mobile auth provider (email OTP + social through the provider; `supertokens-react-native` manages sessions). Firebase remains for push notifications only. Never bypass the SuperTokens session layer for core auth.
 
 ---
 
@@ -202,12 +205,15 @@ Before every submission run these checks — **do not bump versions mid-review**
 
 3. **Version bumps** (only for a new submission or after rejection):
 
-   | Platform | File                              | Field                     | Current    |
-   | -------- | --------------------------------- | ------------------------- | ---------- |
-   | Android  | `android/app/build.gradle`        | `versionCode`             | 12         |
-   | Android  | `android/app/build.gradle`        | `versionName`             | `"1.0.10"` |
-   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       | `1.0.4`    |
-   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` | `8`        |
+   | Platform | File                              | Field                     |
+   | -------- | --------------------------------- | ------------------------- |
+   | Android  | `android/app/build.gradle`        | `versionCode`             |
+   | Android  | `android/app/build.gradle`        | `versionName`             |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` |
+
+   Read the current values from those files and bump by one — never trust a hardcoded
+   version table in docs; they go stale after every release.
 
 ### Android Build
 

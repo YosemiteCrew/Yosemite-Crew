@@ -10,6 +10,7 @@ type DesktopPage =
   | 'command-palette'
   | 'tabbar'
   | 'whats-new'
+  | 'idle-lock'
   | 'vault';
 
 const runtimeRoot = (): string => path.resolve(__dirname, '..');

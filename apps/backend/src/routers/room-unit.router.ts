@@ -1,13 +1,17 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
-import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
+import { requireWebAuth } from "src/middlewares/auth";
+import {
+  requirePermission,
+  withOrgPermissions,
+  withRoomUnitOrgPermissions,
+} from "src/middlewares/rbac";
 import { RoomUnitController } from "src/controllers/web/room-unit.controller";
 
 const router = Router();
 
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:edit:any"),
   RoomUnitController.create,
@@ -15,15 +19,15 @@ router.post(
 
 router.put(
   "/:id",
-  authorizeCognito,
-  withOrgPermissions(),
+  requireWebAuth,
+  withRoomUnitOrgPermissions(),
   requirePermission("room:edit:any"),
   RoomUnitController.update,
 );
 
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("room:view:any"),
   RoomUnitController.list,
@@ -31,8 +35,8 @@ router.get(
 
 router.delete(
   "/:id",
-  authorizeCognito,
-  withOrgPermissions(),
+  requireWebAuth,
+  withRoomUnitOrgPermissions(),
   requirePermission("room:edit:any"),
   RoomUnitController.delete,
 );

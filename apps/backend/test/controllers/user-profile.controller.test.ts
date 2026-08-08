@@ -100,12 +100,18 @@ describe("UserProfileController", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockedProfileService.create as any).mockResolvedValue({ id: "p1" });
 
-      await UserProfileController.create(req as any, res as Response);
-      expect(mockedProfileService.create).toHaveBeenCalledWith({
+      // Held in a variable so the extra body field the controller spreads
+      // through (firstName) is not rejected by excess property checking.
+      const expectedCreatePayload = {
         firstName: "John",
         userId: "u1",
         organizationId: "org1",
-      });
+      };
+
+      await UserProfileController.create(req as any, res as Response);
+      expect(mockedProfileService.create).toHaveBeenCalledWith(
+        expectedCreatePayload,
+      );
       expect(statusMock).toHaveBeenCalledWith(201);
     });
 

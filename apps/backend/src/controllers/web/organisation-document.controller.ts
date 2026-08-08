@@ -1,11 +1,14 @@
 import { Request, Response } from "express";
 import { stringify } from "node:querystring";
+import { z } from "zod";
 import { generatePresignedUrl } from "src/middlewares/upload";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgDocumentCategory } from "src/models/organisation-document";
 import {
   CreateOrgDocumentInput,
   OrganizationDocumentService,
   OrgDocumentServiceError,
+  LegalDocumentType,
   UpdateOrgDocumentInput,
 } from "src/services/organisation-document.service";
 import logger from "src/utils/logger";
@@ -21,6 +24,19 @@ type PublicDocumentQuery = {
   category?: string;
   visibility?: string;
 };
+type AcknowledgeDocumentParams = {
+  orgId: string;
+  documentId: string;
+};
+
+const AcknowledgeDocumentBodySchema = z.object({
+  category: z.enum([
+    "TERMS_AND_CONDITIONS",
+    "PRIVACY_POLICY",
+    "CANCELLATION_POLICY",
+  ]),
+  version: z.number().int().positive(),
+});
 
 const ORG_DOCUMENT_CATEGORIES: ReadonlySet<string> = new Set([
   "TERMS_AND_CONDITIONS",
@@ -37,6 +53,9 @@ const isVisibilityFilter = (
   value: string,
 ): value is "INTERNAL" | "PUBLIC" | "ALL" =>
   value === "INTERNAL" || value === "PUBLIC" || value === "ALL";
+
+const isLegalDocumentType = (value: string): value is LegalDocumentType =>
+  value === "terms" || value === "privacy";
 
 export const OrganizationDocumentController = {
   /** PMS: Create a document */
@@ -188,6 +207,99 @@ export const OrganizationDocumentController = {
     } catch (err) {
       if (err instanceof OrgDocumentServiceError)
         return res.status(err.statusCode).json({ message: err.message });
+
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  acknowledgeDocument: async (
+    req: Request<AcknowledgeDocumentParams>,
+    res: Response,
+  ) => {
+    try {
+      const userId = (req as AuthenticatedRequest).userId;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized: User ID missing" });
+        return;
+      }
+
+      const body = AcknowledgeDocumentBodySchema.safeParse(req.body);
+      if (!body.success) {
+        res.status(400).json({ message: "Invalid request body" });
+        return;
+      }
+
+      await OrganizationDocumentService.acknowledgeDocument({
+        organisationId: req.params.orgId,
+        documentId: req.params.documentId,
+        userId,
+        category: body.data.category,
+        version: body.data.version,
+      });
+
+      res.status(204).send();
+    } catch (err) {
+      if (err instanceof OrgDocumentServiceError)
+        return res.status(err.statusCode).json({ message: err.message });
+
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  acknowledgeStatus: async (
+    req: Request<AcknowledgeDocumentParams>,
+    res: Response,
+  ) => {
+    try {
+      const userId = (req as AuthenticatedRequest).userId;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized: User ID missing" });
+        return;
+      }
+
+      const status = await OrganizationDocumentService.getAcknowledgementStatus(
+        {
+          organisationId: req.params.orgId,
+          documentId: req.params.documentId,
+          userId,
+        },
+      );
+
+      res.status(200).json({
+        data: {
+          acknowledged: status.acknowledged,
+          version: status.version,
+          ...(status.acknowledgedAt
+            ? { acknowledgedAt: status.acknowledgedAt.toISOString() }
+            : {}),
+        },
+      });
+    } catch (err) {
+      if (err instanceof OrgDocumentServiceError)
+        return res.status(err.statusCode).json({ message: err.message });
+
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+
+  getLegalDocument: (req: Request<{ type: string }>, res: Response) => {
+    try {
+      const type = req.params.type;
+
+      if (!isLegalDocumentType(type)) {
+        res.status(400).json({ message: "Invalid legal document type" });
+        return;
+      }
+
+      const document = OrganizationDocumentService.getFixedLegalDocument(type);
+
+      res.status(200).json({ data: document });
+    } catch (err) {
+      if (err instanceof OrgDocumentServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
 
       res.status(500).json({ message: "Internal Server Error" });
     }

@@ -1,11 +1,11 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import InputBuilder from "@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder";
-import { FormField } from "@/app/features/forms/types/forms";
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import InputBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder';
+import { FormField } from '@/app/features/forms/types/forms';
 
 // --- Mock UI Components ---
 // We mock FormInput to capture props like 'intype' and 'readonly' to ensure the builder logic passes them correctly.
-jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ value, onChange, inlabel, readonly, intype }: any) => (
     <input
@@ -19,15 +19,15 @@ jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-describe("InputBuilder Component", () => {
+describe('InputBuilder Component', () => {
   const mockOnChange = jest.fn();
 
   const baseField = {
-    id: "f1",
-    type: "input",
-    label: "Full Name",
-    placeholder: "Enter name",
-  } as FormField & { type: "input" | "number" };
+    id: 'f1',
+    type: 'input',
+    label: 'Full Name',
+    placeholder: 'Enter name',
+  } as FormField & { type: 'input' | 'number' };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -35,138 +35,248 @@ describe("InputBuilder Component", () => {
 
   // --- Section 1: Standard Rendering & Editing ---
 
-  it("renders Label and Placeholder inputs for standard fields", () => {
+  it('renders Label and Placeholder inputs for standard fields', () => {
     render(<InputBuilder field={baseField} onChange={mockOnChange} />);
 
-    const labelInput = screen.getByTestId("input-Label");
-    const placeholderInput = screen.getByTestId("input-Placeholder");
+    const labelInput = screen.getByTestId('input-Label');
+    const placeholderInput = screen.getByTestId('input-Placeholder');
 
-    expect(labelInput).toHaveValue("Full Name");
-    expect(labelInput).not.toHaveAttribute("readonly");
+    expect(labelInput).toHaveValue('Full Name');
+    expect(labelInput).not.toHaveAttribute('readonly');
 
-    expect(placeholderInput).toHaveValue("Enter name");
-    expect(placeholderInput).toHaveAttribute("type", "text"); // Default type
+    expect(placeholderInput).toHaveValue('Enter name');
+    expect(placeholderInput).toHaveAttribute('type', 'text'); // Default type
   });
 
-  it("calls onChange when Label is updated", () => {
+  it('calls onChange when Label is updated', () => {
     render(<InputBuilder field={baseField} onChange={mockOnChange} />);
 
-    const labelInput = screen.getByTestId("input-Label");
-    fireEvent.change(labelInput, { target: { value: "New Label" } });
+    const labelInput = screen.getByTestId('input-Label');
+    fireEvent.change(labelInput, { target: { value: 'New Label' } });
 
     expect(mockOnChange).toHaveBeenCalledWith({
       ...baseField,
-      label: "New Label",
+      label: 'New Label',
     });
   });
 
-  it("calls onChange when Placeholder is updated", () => {
+  it('calls onChange when Placeholder is updated', () => {
     render(<InputBuilder field={baseField} onChange={mockOnChange} />);
 
-    const placeholderInput = screen.getByTestId("input-Placeholder");
-    fireEvent.change(placeholderInput, { target: { value: "New Hint" } });
+    const placeholderInput = screen.getByTestId('input-Placeholder');
+    fireEvent.change(placeholderInput, { target: { value: 'New Hint' } });
 
     expect(mockOnChange).toHaveBeenCalledWith({
       ...baseField,
-      placeholder: "New Hint",
+      placeholder: 'New Hint',
     });
   });
 
   // --- Section 2: Type Handling (Number vs Text) ---
 
   it("sets input type to 'number' when field type is 'number'", () => {
-    const numberField = { ...baseField, type: "number" } as any;
+    const numberField = { ...baseField, type: 'number' } as any;
 
     render(<InputBuilder field={numberField} onChange={mockOnChange} />);
 
-    const placeholderInput = screen.getByTestId("input-Placeholder");
-    expect(placeholderInput).toHaveAttribute("type", "number");
+    const placeholderInput = screen.getByTestId('input-Placeholder');
+    expect(placeholderInput).toHaveAttribute('type', 'number');
   });
 
   it("sets input type to 'text' when field type is 'input'", () => {
     // Already tested in Section 1, but explicit verification here
-    const inputField = { ...baseField, type: "input" } as any;
+    const inputField = { ...baseField, type: 'input' } as any;
 
     render(<InputBuilder field={inputField} onChange={mockOnChange} />);
 
-    const placeholderInput = screen.getByTestId("input-Placeholder");
-    expect(placeholderInput).toHaveAttribute("type", "text");
+    const placeholderInput = screen.getByTestId('input-Placeholder');
+    expect(placeholderInput).toHaveAttribute('type', 'text');
   });
 
   // --- Section 3: Read-Only / Inventory Logic ---
 
-  it("renders read-only view when meta.readonly is true", () => {
+  it('renders read-only view when meta.readonly is true', () => {
     const readOnlyField = {
       ...baseField,
       meta: { readonly: true },
-      defaultValue: "Inventory Value",
+      defaultValue: 'Inventory Value',
     } as any;
 
     render(<InputBuilder field={readOnlyField} onChange={mockOnChange} />);
 
     // Expect specific inventory labels
-    const labelInput = screen.getByTestId("input-Label (from inventory)");
-    const valueInput = screen.getByTestId("input-Value (from inventory)");
+    const labelInput = screen.getByTestId('input-Label (from inventory)');
+    const valueInput = screen.getByTestId('input-Value (from inventory)');
 
     // Verify ReadOnly attributes
-    expect(labelInput).toHaveAttribute("readonly");
-    expect(valueInput).toHaveAttribute("readonly");
+    expect(labelInput).toHaveAttribute('readonly');
+    expect(valueInput).toHaveAttribute('readonly');
 
     // Verify Values
-    expect(labelInput).toHaveValue("Full Name");
-    expect(valueInput).toHaveValue("Inventory Value");
+    expect(labelInput).toHaveValue('Full Name');
+    expect(valueInput).toHaveValue('Inventory Value');
   });
 
-  it("prioritizes defaultValue over placeholder in read-only mode", () => {
+  it('prioritizes defaultValue over placeholder in read-only mode', () => {
     const field = {
       ...baseField,
       meta: { readonly: true },
-      defaultValue: "Default",
-      placeholder: "Placeholder",
+      defaultValue: 'Default',
+      placeholder: 'Placeholder',
     } as any;
 
     render(<InputBuilder field={field} onChange={mockOnChange} />);
-    expect(screen.getByTestId("input-Value (from inventory)")).toHaveValue(
-      "Default"
-    );
+    expect(screen.getByTestId('input-Value (from inventory)')).toHaveValue('Default');
   });
 
-  it("falls back to placeholder if defaultValue is missing in read-only mode", () => {
+  it('falls back to placeholder if defaultValue is missing in read-only mode', () => {
     const field = {
       ...baseField,
       meta: { readonly: true },
       defaultValue: undefined,
-      placeholder: "Placeholder Fallback",
+      placeholder: 'Placeholder Fallback',
     } as any;
 
     render(<InputBuilder field={field} onChange={mockOnChange} />);
-    expect(screen.getByTestId("input-Value (from inventory)")).toHaveValue(
-      "Placeholder Fallback"
-    );
+    expect(screen.getByTestId('input-Value (from inventory)')).toHaveValue('Placeholder Fallback');
   });
 
   // --- Section 4: Edge Cases ---
 
-  it("handles missing label/placeholder properties gracefully (Standard)", () => {
-    const emptyField = { id: "f1", type: "input" } as any;
+  it('handles missing label/placeholder properties gracefully (Standard)', () => {
+    const emptyField = { id: 'f1', type: 'input' } as any;
 
     render(<InputBuilder field={emptyField} onChange={mockOnChange} />);
 
-    expect(screen.getByTestId("input-Label")).toHaveValue("");
-    expect(screen.getByTestId("input-Placeholder")).toHaveValue("");
+    expect(screen.getByTestId('input-Label')).toHaveValue('');
+    expect(screen.getByTestId('input-Placeholder')).toHaveValue('');
   });
 
-  it("handles missing label/values gracefully (Read-Only)", () => {
+  it('handles missing label/values gracefully (Read-Only)', () => {
     const emptyReadOnlyField = {
-      id: "f1",
-      type: "input",
+      id: 'f1',
+      type: 'input',
       meta: { readonly: true },
       // No label, placeholder, or defaultValue
     } as any;
 
     render(<InputBuilder field={emptyReadOnlyField} onChange={mockOnChange} />);
 
-    expect(screen.getByTestId("input-Label (from inventory)")).toHaveValue("");
-    expect(screen.getByTestId("input-Value (from inventory)")).toHaveValue("");
+    expect(screen.getByTestId('input-Label (from inventory)')).toHaveValue('');
+    expect(screen.getByTestId('input-Value (from inventory)')).toHaveValue('');
+  });
+
+  it('renders task-block labels when the read-only field is a task block', () => {
+    const taskBlockField = {
+      ...baseField,
+      meta: { readonly: true, taskBlockKey: 'dose' },
+      defaultValue: '5 ml',
+    } as any;
+
+    render(<InputBuilder field={taskBlockField} onChange={mockOnChange} />);
+
+    expect(screen.getByTestId('input-Fixed setting')).toHaveValue('Full Name');
+    expect(screen.getByTestId('input-Fixed value')).toHaveValue('5 ml');
+    expect(screen.getByTestId('input-Fixed value')).toHaveAttribute('readonly');
+  });
+
+  it('uses a number input for read-only number fields', () => {
+    const readOnlyNumberField = {
+      ...baseField,
+      type: 'number',
+      meta: { readonly: true },
+      defaultValue: '12',
+    } as any;
+
+    render(<InputBuilder field={readOnlyNumberField} onChange={mockOnChange} />);
+
+    expect(screen.getByTestId('input-Value (from inventory)')).toHaveAttribute('type', 'number');
+  });
+
+  // --- Section 5: Template Value Fields ---
+
+  it('renders the default-value editor for inventory-backed fields', () => {
+    const inventoryField = {
+      ...baseField,
+      meta: { inventoryItemId: 'inv-1' },
+      defaultValue: 'Amoxicillin',
+    } as any;
+
+    render(<InputBuilder field={inventoryField} onChange={mockOnChange} />);
+
+    // The label becomes static text, not an editable input.
+    expect(screen.getByText('Full Name')).toBeInTheDocument();
+    expect(screen.queryByTestId('input-Label')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('input-Placeholder')).not.toBeInTheDocument();
+
+    const defaultValueInput = screen.getByTestId('input-Default value (prefilled in workspace)');
+    expect(defaultValueInput).toHaveValue('Amoxicillin');
+    expect(defaultValueInput).toHaveAttribute('type', 'text');
+  });
+
+  it('calls onChange when the template default value is updated', () => {
+    const inventoryField = {
+      ...baseField,
+      meta: { inventoryItemId: 'inv-1' },
+      defaultValue: 'Amoxicillin',
+    } as any;
+
+    render(<InputBuilder field={inventoryField} onChange={mockOnChange} />);
+
+    fireEvent.change(screen.getByTestId('input-Default value (prefilled in workspace)'), {
+      target: { value: 'Ibuprofen' },
+    });
+
+    expect(mockOnChange).toHaveBeenCalledWith({
+      ...inventoryField,
+      defaultValue: 'Ibuprofen',
+    });
+  });
+
+  it('renders the default-value editor for editable task-block fields', () => {
+    const taskBlockField = {
+      ...baseField,
+      meta: { taskBlockKey: 'dose' },
+      defaultValue: '5 ml',
+    } as any;
+
+    render(<InputBuilder field={taskBlockField} onChange={mockOnChange} />);
+
+    expect(screen.getByTestId('input-Default value (prefilled in workspace)')).toHaveValue('5 ml');
+  });
+
+  it('renders a number default-value editor for template-default number fields', () => {
+    const templateDefaultField = {
+      ...baseField,
+      type: 'number',
+      label: '',
+      meta: { templateDefault: true },
+      defaultValue: 7,
+    } as any;
+
+    render(<InputBuilder field={templateDefaultField} onChange={mockOnChange} />);
+
+    // Falls back to the generic heading when the field has no label.
+    expect(screen.getByText('Field')).toBeInTheDocument();
+
+    const defaultValueInput = screen.getByTestId(
+      'input-Default value (prefilled in workspace)'
+    ) as HTMLInputElement;
+    // A non-string defaultValue is not echoed into the text box. Asserted on
+    // `.value` directly because jest-dom coerces number-input values.
+    expect(defaultValueInput.value).toBe('');
+    expect(defaultValueInput).toHaveAttribute('type', 'number');
+  });
+
+  it('renders the standard editor when meta carries no template markers', () => {
+    const plainMetaField = { ...baseField, meta: {} } as any;
+
+    render(<InputBuilder field={plainMetaField} onChange={mockOnChange} />);
+
+    expect(screen.getByTestId('input-Label')).toHaveValue('Full Name');
+    expect(screen.getByTestId('input-Placeholder')).toHaveValue('Enter name');
+    expect(
+      screen.queryByTestId('input-Default value (prefilled in workspace)')
+    ).not.toBeInTheDocument();
   });
 });

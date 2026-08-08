@@ -1,5 +1,5 @@
 import React from 'react';
-import { LuPlus } from 'react-icons/lu';
+import { IoAddOutline } from 'react-icons/io5';
 
 type WorkspaceSearchResultRowProps = {
   /** Primary label (service, package, medicine, or template name). */
@@ -21,7 +21,7 @@ type WorkspaceSearchResultRowProps = {
   disabledReason?: string;
 };
 
-const DEFAULT_LEADING_ICON = <LuPlus aria-hidden="true" className="shrink-0" />;
+const DEFAULT_LEADING_ICON = <IoAddOutline aria-hidden="true" className="shrink-0" />;
 
 /**
  * Shared result row for every workspace search bar so they share one structure:

@@ -52,6 +52,7 @@ export const DeleteBusinessBottomSheet = ({
   return (
     <ConfirmActionBottomSheet
       ref={bottomSheetRef}
+      destructive
       title="Delete Business"
       message={`Are you sure you want to remove ${businessName}? This action cannot be undone.`}
       primaryButton={{

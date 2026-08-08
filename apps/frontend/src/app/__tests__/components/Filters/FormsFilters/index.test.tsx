@@ -1,161 +1,248 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import FormsFilters from '@/app/ui/filters/FormsFilters';
-import { FormsProps } from '@/app/features/forms/types/forms';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import FormsFilters, { FormsFilterState } from '@/app/ui/filters/FormsFilters';
+import { useOrgStore } from '@/app/stores/orgStore';
+import {
+  FormsCategoryOptions,
+  getFormCategoryOptionsForOrgType,
+} from '@/app/features/forms/types/forms';
 
 // --- Mocks ---
 
-// Mock the constants from the types file
-jest.mock('@/app/features/forms/types/forms', () => ({
-  FormsStatusFilters: ['All', 'Active', 'Archived'],
-  FormsCategoryOptions: ['Registration', 'Feedback', 'Survey'],
-  getFormCategoryDisplayLabel: (category: string) => category,
-}));
+// The real category taxonomy is used on purpose: the filter must offer exactly
+// the categories the form builder can create, so stubbing the list here would
+// hide any drift between the two.
 
-// Mock Search Component
-jest.mock('@/app/ui/inputs/Search', () => ({
-  __esModule: true,
-  default: ({ value, setSearch }: any) => (
-    <input
-      data-testid="search-input"
-      value={value}
-      onChange={(e) => setSearch(e.target.value)}
-      placeholder="Search..."
-    />
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: jest.fn((selector) =>
+    selector({
+      primaryOrgId: 'org-1',
+      orgsById: { 'org-1': { type: undefined } },
+    })
   ),
 }));
 
-// Mock LabelDropdown Component
-jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
-  __esModule: true,
-  default: ({ defaultOption, onSelect, options }: any) => (
-    <div data-testid="mock-dropdown">
-      <div data-testid="dropdown-current-value">{defaultOption}</div>
-      <div className="dropdown-options">
-        {options.map((opt: any) => (
-          <button key={opt.value} data-testid={`option-${opt.value}`} onClick={() => onSelect(opt)}>
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  ),
-}));
+const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
 
-// --- Test Data ---
-
-const mockFormsList: FormsProps[] = [
-  {
-    id: '1',
-    name: 'Patient Registration',
-    status: 'Active',
-    category: 'Registration',
-  },
-  {
-    id: '2',
-    name: 'Customer Feedback',
-    status: 'Active',
-    category: 'Feedback',
-  },
-  {
-    id: '3',
-    name: 'Old Survey',
-    status: 'Archived',
-    category: 'Survey',
-  },
-  {
-    id: '4',
-    name: 'Staff Registration',
-    status: 'Archived',
-    category: 'Registration',
-  },
-] as any;
+const setOrgType = (type: string | undefined) =>
+  mockUseOrgStore.mockImplementation((selector: any) =>
+    selector({ primaryOrgId: 'org-1', orgsById: { 'org-1': { type } } })
+  );
 
 describe('FormsFilters Component', () => {
-  const mockSetFilteredList = jest.fn();
+  const mockOnFiltersChange = jest.fn();
+
+  const renderFilters = (
+    filters: FormsFilterState = { status: 'All', category: 'All' },
+    categoryAction?: React.ReactNode
+  ) =>
+    render(
+      <FormsFilters
+        filters={filters}
+        onFiltersChange={mockOnFiltersChange}
+        categoryAction={categoryAction}
+      />
+    );
+
+  const getTrigger = () => screen.getByRole('button', { name: /^Category:/ });
+  const openMenu = () => fireEvent.click(getTrigger());
 
   beforeEach(() => {
     jest.clearAllMocks();
+    setOrgType(undefined);
   });
 
-  // --- 1. Initial Render & Defaults ---
+  // --- 1. Status chips ---
 
-  it('renders filter UI elements correctly', () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
-
-    // FIX: "All" appears in status filter AND dropdown option.
-    // We expect multiple instances.
-    const allButtons = screen.getAllByText('All');
-    expect(allButtons.length).toBeGreaterThanOrEqual(2);
-
-    expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('Archived')).toBeInTheDocument();
-
-    expect(screen.getByTestId('mock-dropdown')).toBeInTheDocument();
+  it('renders the status filter chips', () => {
+    renderFilters();
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Published' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Archived' })).toBeInTheDocument();
   });
 
-  it("initializes with 'All' filters and returns the full list", () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
+  it('gives status filters the shared inventory-style pill treatment', () => {
+    renderFilters({ status: 'Published', category: 'All' });
+    const active = screen.getByRole('button', { name: 'Published' });
+    expect(active).toHaveAttribute('aria-pressed', 'true');
+    expect(active).toHaveClass('min-h-[38px]', 'px-1', 'py-1');
+    const activePill = within(active).getByText('Published');
+    expect(activePill).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(activePill).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
+    expect(activePill).toHaveAttribute(
+      'style',
+      expect.stringContaining('border-color: var(--color-pill-success-border)')
+    );
 
-    expect(mockSetFilteredList).toHaveBeenCalledWith(mockFormsList);
+    const inactive = screen.getByRole('button', { name: 'Archived' });
+    expect(inactive).toHaveAttribute('aria-pressed', 'false');
+    const inactivePill = within(inactive).getByText('Archived');
+    expect(inactivePill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
+    expect(inactivePill).toHaveAttribute(
+      'style',
+      expect.stringContaining('color: var(--ink-muted)')
+    );
   });
 
-  // --- 2. Filtering Logic (Individual) ---
-
-  it('filters by Status (Active)', () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
-
-    const activeBtn = screen.getByRole('button', { name: 'Active' });
-    fireEvent.click(activeBtn);
-
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[0], mockFormsList[1]]);
+  it('emits a status change without touching the category', () => {
+    renderFilters();
+    fireEvent.click(screen.getByRole('button', { name: 'Published' }));
+    expect(mockOnFiltersChange).toHaveBeenLastCalledWith({ status: 'Published', category: 'All' });
   });
 
-  it('filters by Category (Registration)', () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
-
-    const optionBtn = screen.getByTestId('option-Registration');
-    fireEvent.click(optionBtn);
-
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[0], mockFormsList[3]]);
+  it('does not emit a change on initial render', () => {
+    renderFilters();
+    expect(mockOnFiltersChange).not.toHaveBeenCalled();
   });
 
-  // --- 3. Combined Filtering ---
+  // --- 2. Category pill dropdown ---
 
-  it('filters by Status + Category + Search combined', () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
-    fireEvent.click(screen.getByTestId('option-Registration'));
-
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[3]]);
+  it('renders the category control as a rounded-full pill trigger defaulting to "All categories"', () => {
+    renderFilters();
+    const trigger = getTrigger();
+    expect(trigger.className).toContain('rounded-full!');
+    expect(trigger).toHaveTextContent('All categories');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    // The boxed dropdown / stacked label are gone; options stay hidden until opened.
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
-  // --- 4. Styling & UX ---
-
-  it('applies active styles to the selected status button', () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
-
-    // FIX: Get the Status Filter "All" button specifically.
-    // It's the first button with text "All" (DOM order: status filters -> dropdown -> options)
-    // Or we can filter by checking the class name which contains style logic
-    // The status filter button is the one rendered first in the DOM structure
-
-    const activeBtn = screen.getByRole('button', { name: 'Active' });
-
-    // Click 'Active'
-    fireEvent.click(activeBtn);
+  it('opens the category menu and lists the options', () => {
+    renderFilters();
+    openMenu();
+    expect(getTrigger()).toHaveAttribute('aria-expanded', 'true');
+    const listbox = screen.getByRole('listbox', { name: 'Category' });
+    expect(within(listbox).getByTestId('option-All')).toHaveTextContent('All categories');
+    expect(within(listbox).getByTestId('option-Custom')).toBeInTheDocument();
   });
 
-  it('updates the dropdown value visually when changed', () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
+  it('selects a category and closes the menu', () => {
+    renderFilters();
+    openMenu();
+    fireEvent.click(screen.getByTestId('option-Custom'));
+    expect(mockOnFiltersChange).toHaveBeenLastCalledWith({ status: 'All', category: 'Custom' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
 
-    const currentValueDisplay = screen.getByTestId('dropdown-current-value');
+  it('reflects the selected category label on the trigger', () => {
+    const { rerender } = renderFilters();
+    expect(getTrigger()).toHaveTextContent('All categories');
+    rerender(
+      <FormsFilters
+        filters={{ status: 'All', category: 'Custom' }}
+        onFiltersChange={mockOnFiltersChange}
+      />
+    );
+    expect(getTrigger()).toHaveTextContent('Custom');
+  });
 
-    expect(currentValueDisplay).toHaveTextContent('All');
+  it('marks the selected option inside the open menu', () => {
+    renderFilters({ status: 'All', category: 'Custom' });
+    openMenu();
+    const selected = screen.getByTestId('option-Custom');
+    expect(selected).toHaveAttribute('aria-selected', 'true');
+    expect(selected.className).toContain('font-semibold');
 
-    fireEvent.click(screen.getByTestId('option-Feedback'));
+    const unselected = screen.getByTestId('option-All');
+    expect(unselected).toHaveAttribute('aria-selected', 'false');
+  });
 
-    expect(currentValueDisplay).toHaveTextContent('Feedback');
+  it('closes on an outside mousedown but stays open for interactions inside', () => {
+    renderFilters();
+    openMenu();
+    const listbox = screen.getByRole('listbox');
+    fireEvent.mouseDown(getTrigger());
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.mouseDown(listbox);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('closes the category menu on scroll', () => {
+    renderFilters();
+    openMenu();
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.scroll(window);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('renders the category action node', () => {
+    renderFilters({ status: 'All', category: 'All' }, <button type="button">Add category</button>);
+    expect(screen.getByRole('button', { name: 'Add category' })).toBeInTheDocument();
+  });
+
+  // --- 3. Org-type scoping ---
+
+  it('limits category options based on org type and preserves Custom', () => {
+    setOrgType('BOARDER');
+    renderFilters();
+    openMenu();
+    expect(screen.getByTestId('option-Boarder - Boarding Checklist')).toBeInTheDocument();
+    expect(screen.getByTestId('option-Custom')).toBeInTheDocument();
+    // A boarder never sees another org type's categories.
+    expect(screen.queryByTestId('option-Groomer - Grooming Prep')).not.toBeInTheDocument();
+  });
+
+  it('offers every org-agnostic category for a hospital, not just a hardcoded subset', () => {
+    setOrgType('HOSPITAL');
+    renderFilters();
+    openMenu();
+    for (const category of getFormCategoryOptionsForOrgType('HOSPITAL')) {
+      expect(screen.getByTestId(`option-${category}`)).toBeInTheDocument();
+    }
+    expect(screen.getByTestId('option-Task Template')).toBeInTheDocument();
+    expect(screen.getByTestId('option-Discharge Form')).toBeInTheDocument();
+    expect(screen.getByTestId('option-SOAP')).toBeInTheDocument();
+    expect(screen.getByTestId('option-Inpatient Schedule')).toBeInTheDocument();
+  });
+
+  it('offers the whole taxonomy when the org type is unknown', () => {
+    renderFilters();
+    openMenu();
+    for (const category of FormsCategoryOptions) {
+      expect(screen.getByTestId(`option-${category}`)).toBeInTheDocument();
+    }
+  });
+
+  it('falls back to "All categories" on the trigger when the active category is not allowed', () => {
+    setOrgType('BOARDER');
+    const { rerender } = render(
+      <FormsFilters
+        filters={{
+          status: 'All',
+          category: 'Boarder - Boarding Checklist' as FormsFilterState['category'],
+        }}
+        onFiltersChange={mockOnFiltersChange}
+      />
+    );
+    expect(getTrigger()).toHaveTextContent('Boarder - Boarding Checklist');
+
+    setOrgType('HOSPITAL');
+    rerender(
+      <FormsFilters
+        filters={{
+          status: 'All',
+          category: 'Boarder - Boarding Checklist' as FormsFilterState['category'],
+        }}
+        onFiltersChange={mockOnFiltersChange}
+      />
+    );
+    expect(getTrigger()).toHaveTextContent('All categories');
+  });
+
+  it('honours the org-type override env var', () => {
+    const prev = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE;
+    process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE = 'BOARDER';
+    setOrgType(undefined);
+    renderFilters();
+    openMenu();
+    expect(screen.getByTestId('option-Boarder - Boarding Checklist')).toBeInTheDocument();
+    expect(screen.queryByTestId('option-Groomer - Grooming Prep')).not.toBeInTheDocument();
+    process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE = prev;
   });
 });

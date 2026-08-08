@@ -18,11 +18,8 @@ import {
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { Appointment } from '@yosemite-crew/types';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
-  getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
@@ -39,12 +36,26 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import {
   getVisibleHourRange,
   getVisibleHours,
-  useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import './WeekCalendar.css';
 
 const HOUR_ROW_TOP_OFFSET_PX = 0;
+
+/**
+ * Day-column track for the week grid. Both the minimum column width and the
+ * gutter live in `WeekCalendar.css` as custom properties so the tablet band can
+ * collapse the week to fit the viewport — an inline style cannot carry a media
+ * query, and the tablet keeps a real seven-day week rather than a phone shape.
+ */
+const getWeekDayColumnsStyle = (columnCount: number): React.CSSProperties => {
+  const safeColumns = Math.max(1, columnCount);
+  return {
+    gridTemplateColumns: `repeat(${safeColumns}, minmax(var(--yc-week-day-min), 1fr))`,
+    width: `max(100%, calc(${safeColumns} * var(--yc-week-day-min)))`,
+  };
+};
 
 const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
   const concernSuffix = appointment.concern ? `. ${appointment.concern}` : '';
@@ -53,6 +64,288 @@ const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
     (appointment.companion ?? appointment.patient).parent
   )}${concernSuffix}`;
 };
+
+/**
+ * Scroll the week grid once per week change: to the current-time line when today
+ * is visible, otherwise to the first relevant timed event (or the default focus
+ * time). Re-renders from availability loading or clock ticks must not re-scroll,
+ * so the scroll inputs are read through refs instead of effect deps.
+ */
+const useWeekAutoScroll = ({
+  scrollRef,
+  weekStartKey,
+  draggedAppointmentId,
+  skipAutoScroll,
+  days,
+  height,
+  nowPosition,
+  timedEvents,
+  visibleHourRange,
+}: {
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  weekStartKey: string;
+  draggedAppointmentId?: string | null;
+  skipAutoScroll: boolean;
+  days: Date[];
+  height: number;
+  nowPosition: { topPx: number; todayIndex: number } | null;
+  timedEvents: Appointment[];
+  visibleHourRange: { startHour: number; endHour: number };
+}) => {
+  const scrolledWeekRef = useRef<string | null>(null);
+  const nowPositionRef = useRef(nowPosition);
+  nowPositionRef.current = nowPosition;
+  const timedEventsRef = useRef(timedEvents);
+  timedEventsRef.current = timedEvents;
+  const visibleHourRangeRef = useRef(visibleHourRange);
+  visibleHourRangeRef.current = visibleHourRange;
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !!draggedAppointmentId || !days.length || skipAutoScroll) return;
+    if (scrolledWeekRef.current === weekStartKey) return;
+    scrolledWeekRef.current = weekStartKey;
+
+    const currentNowPosition = nowPositionRef.current;
+    const currentTimedEvents = timedEventsRef.current;
+    const currentRange = visibleHourRangeRef.current;
+
+    const rangeStart = days[0];
+    const effectiveRangeEnd = days.at(-1) ? nextDay(days.at(-1) as Date) : nextDay(days[0]);
+
+    let topPx: number;
+    if (currentNowPosition) {
+      topPx = Math.max(0, currentNowPosition.topPx);
+    } else {
+      const focusStart = getFirstRelevantTimedEventStart(
+        currentTimedEvents,
+        rangeStart,
+        effectiveRangeEnd
+      );
+      const focusMinutes = focusStart
+        ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
+        : DEFAULT_CALENDAR_FOCUS_MINUTES;
+      topPx = ((focusMinutes - currentRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
+    }
+    scrollContainerToTarget(container, topPx);
+  }, [weekStartKey, draggedAppointmentId, skipAutoScroll, days, height, scrollRef]);
+};
+
+/** Shaded overlays for the parts of one day-hour cell outside available hours. */
+const UnavailableHourOverlays = ({
+  segments,
+  dayIndex,
+  hour,
+}: {
+  segments: Array<{ startMinute: number; endMinute: number }>;
+  dayIndex: number;
+  hour: number;
+}) => {
+  const hourStart = hour * 60;
+  const hourEnd = hourStart + 60;
+  return (
+    <>
+      {segments.flatMap((seg) => {
+        if (!(seg.endMinute > hourStart && seg.startMinute < hourEnd)) return [];
+        const clampedStart = Math.max(seg.startMinute, hourStart);
+        const clampedEnd = Math.min(seg.endMinute, hourEnd);
+        const topPct = ((clampedStart - hourStart) / 60) * 100;
+        const heightPct = ((clampedEnd - clampedStart) / 60) * 100;
+        return [
+          <div
+            key={`unavail-${dayIndex}-${hour}-${seg.startMinute}`}
+            className="pointer-events-none absolute left-0 right-0 z-1"
+            style={{
+              top: `${topPct}%`,
+              height: `${heightPct}%`,
+              backgroundColor: 'var(--color-calendar-dim-overlay)',
+              transition: 'opacity 0.25s ease',
+            }}
+          />,
+        ];
+      })}
+    </>
+  );
+};
+
+/**
+ * Day-of-week header strip. Per the week-grid frame: a --screen-2 band closed by a
+ * --hairline rule, each day a centred stack of an all-caps 9.5px/700/0.08em label
+ * over a 14px/700 date, hairline-separated. Today swaps the label to --nav-active
+ * and drops the date into a 24px --blue disc, over a --nav-active-bg cell.
+ * Week navigation lives in the header toolbar's date-nav pill, not here.
+ */
+const WeekDayHeaderRow = ({
+  days,
+  now,
+  dayColumnsStyle,
+}: {
+  days: Date[];
+  now: Date;
+  dayColumnsStyle: React.CSSProperties;
+}) => (
+  <div
+    className="yc-week-grid__shell yc-week-grid__track border-b"
+    style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--screen-2)' }}
+  >
+    <div className="sticky left-0 z-40" style={{ backgroundColor: 'var(--screen-2)' }} />
+    <div className="grid" style={dayColumnsStyle}>
+      {days.map((day) => {
+        const weekday = formatDateInPreferredTimeZone(day, {
+          weekday: 'short',
+        });
+        const dateNumber = day.getDate();
+        const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
+        return (
+          <div
+            key={day.toISOString()}
+            className="flex flex-col items-center gap-px border-l px-1 py-2"
+            style={{
+              borderColor: 'var(--hairline)',
+              backgroundColor: isToday ? 'var(--nav-active-bg)' : undefined,
+            }}
+          >
+            <div
+              className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
+              style={{ color: isToday ? 'var(--nav-active)' : 'var(--ink-faint)' }}
+            >
+              {weekday}
+            </div>
+            {isToday ? (
+              <div
+                className="flex size-6 items-center justify-center rounded-full text-[13px] font-bold text-white"
+                style={{ backgroundColor: 'var(--blue)' }}
+              >
+                {dateNumber}
+              </div>
+            ) : (
+              <div className="text-[14px] font-bold" style={{ color: 'var(--ink)' }}>
+                {dateNumber}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
+
+/**
+ * The pinned all-day strip above the hour grid — only rendered when some day has
+ * one. Matches the frame's all-week band: an --inset tray, a 10px/700/0.08em
+ * all-caps --ink-faint label, and status-tinted 11px/600 rounded-full chips.
+ */
+const AllDayBand = ({
+  days,
+  allDayByDay,
+  dayColumnsStyle,
+  handleViewAppointment,
+}: {
+  days: Date[];
+  allDayByDay: Appointment[][];
+  dayColumnsStyle: React.CSSProperties;
+  handleViewAppointment: (appointment: Appointment) => void;
+}) => (
+  <div className="border-b" style={{ borderColor: 'var(--hairline)' }}>
+    <div
+      className="yc-week-grid__shell yc-week-grid__track py-2"
+      style={{ backgroundColor: 'var(--inset)' }}
+    >
+      <div
+        className="sticky left-0 z-40 flex items-start pr-2 pl-2 text-[10px] font-bold uppercase tracking-[0.08em]"
+        style={{ backgroundColor: 'var(--inset)', color: 'var(--ink-faint)' }}
+      >
+        All-day
+      </div>
+      <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
+        {days.map((day, idx) => {
+          const dayAllEvents = allDayByDay[idx];
+          return (
+            <div key={day.toISOString()} className="flex flex-col gap-1 px-1">
+              {dayAllEvents.map((ev) => (
+                <button
+                  key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
+                  type="button"
+                  onClick={() => handleViewAppointment(ev)}
+                  aria-label={getAllDayAppointmentAriaLabel(ev)}
+                  className="w-full rounded-full! px-[10px] py-[5px] text-[11px] font-semibold font-satoshi text-left truncate"
+                  style={{
+                    ...({
+                      ...getStatusStyle(ev.status),
+                      padding: undefined,
+                    } as React.CSSProperties),
+                  }}
+                >
+                  <div className="truncate">
+                    {formatCompanionNameWithOwnerLastName(
+                      (ev.companion ?? ev.patient).name,
+                      (ev.companion ?? ev.patient).parent
+                    )}{' '}
+                    • {ev.concern || ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+);
+
+const NowIndicatorOverlay = ({
+  days,
+  dayColumnsStyle,
+  nowPosition,
+  nowTimeLabel,
+}: {
+  days: Date[];
+  dayColumnsStyle: React.CSSProperties;
+  nowPosition: { topPx: number; todayIndex: number };
+  nowTimeLabel: string | null;
+}) => (
+  <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
+    <div className="yc-week-grid__shell yc-week-grid__track h-full">
+      <div />
+      <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
+        {days.map((day, dayIndex) => (
+          <div key={`appointment-now-${day.toISOString()}`} className="relative">
+            {dayIndex === nowPosition.todayIndex && (
+              <div
+                className="absolute left-0 right-2 z-20 w-full"
+                style={{
+                  top: nowPosition.topPx,
+                }}
+              >
+                {nowTimeLabel && (
+                  <div
+                    className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
+                    style={{ color: 'var(--blue-text)' }}
+                  >
+                    {nowTimeLabel}
+                  </div>
+                )}
+                <div
+                  className="absolute -left-1.25 size-[7px] rounded-full -translate-y-1/2"
+                  style={{ backgroundColor: 'var(--blue)' }}
+                />
+                <div
+                  className="translate-y-[-50%]"
+                  style={{
+                    borderTopWidth: '2px',
+                    borderTopStyle: 'solid',
+                    borderTopColor: 'var(--blue)',
+                    opacity: 0.75,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
 type WeekCalendarProps = {
   events: Appointment[];
@@ -96,8 +389,9 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   handleDetailAppointment,
   handleOpenWorkspace,
   weekStart,
-  setWeekStart,
-  setCurrentDate,
+  // setWeekStart / setCurrentDate stay on the props contract but are no longer read
+  // here: week navigation moved to the header toolbar's date-nav pill, which owns
+  // both setters. The grid itself only reads weekStart.
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
@@ -133,10 +427,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       year: 'numeric',
     }
   )}`;
-  const dayColumnsStyle = useMemo(
-    () => getCalendarColumnGridStyle(days.length, zoomMode === 'out' ? 96 : 140),
-    [days.length, zoomMode]
-  );
+  const dayColumnsStyle = useMemo(() => getWeekDayColumnsStyle(days.length), [days.length]);
 
   const { allDayByDay, timedEvents } = useMemo(() => {
     const byDay: Appointment[][] = days.map(() => []);
@@ -188,9 +479,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     return entries;
   }, [days, timedEvents, visibleHours]);
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
-  const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
-    setWeekStart,
-    setCurrentDate
+
+  const todayColumnIndex = useMemo(
+    () => days.findIndex((day) => isOnPreferredTimeZoneCalendarDay(now, day)),
+    [days, now]
   );
 
   const nowPosition = useMemo(() => {
@@ -217,51 +509,17 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     [now, nowPosition]
   );
 
-  // Track the weekStart key for which we've already scrolled so we don't
-  // re-fire when availability loads and triggers additional renders.
-  const scrolledWeekRef = useRef<string | null>(null);
-  const weekStartKey = weekStart.toISOString();
-
-  // Keep latest scroll inputs in refs — readable inside the effect without
-  // being deps (avoids re-scrolling when only nowPosition/availability change).
-  const nowPositionRef = useRef(nowPosition);
-  nowPositionRef.current = nowPosition;
-  const timedEventsRef = useRef(timedEvents);
-  timedEventsRef.current = timedEvents;
-  const visibleHourRangeRef = useRef(visibleHourRange);
-  visibleHourRangeRef.current = visibleHourRange;
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container || !!draggedAppointmentId || !days.length || skipAutoScroll) return;
-    // Only scroll once per week. Re-renders from availability loading or
-    // nowPosition updates must not cause a second jump.
-    if (scrolledWeekRef.current === weekStartKey) return;
-    scrolledWeekRef.current = weekStartKey;
-
-    const currentNowPosition = nowPositionRef.current;
-    const currentTimedEvents = timedEventsRef.current;
-    const currentRange = visibleHourRangeRef.current;
-
-    const rangeStart = days[0];
-    const effectiveRangeEnd = days.at(-1) ? nextDay(days.at(-1) as Date) : nextDay(days[0]);
-
-    let topPx: number;
-    if (currentNowPosition) {
-      topPx = Math.max(0, currentNowPosition.topPx);
-    } else {
-      const focusStart = getFirstRelevantTimedEventStart(
-        currentTimedEvents,
-        rangeStart,
-        effectiveRangeEnd
-      );
-      const focusMinutes = focusStart
-        ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
-        : DEFAULT_CALENDAR_FOCUS_MINUTES;
-      topPx = ((focusMinutes - currentRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
-    }
-    scrollContainerToTarget(container, topPx);
-  }, [weekStartKey, draggedAppointmentId, skipAutoScroll, days, height, scrollRef]);
+  useWeekAutoScroll({
+    scrollRef,
+    weekStartKey: weekStart.toISOString(),
+    draggedAppointmentId,
+    skipAutoScroll,
+    days,
+    height,
+    nowPosition,
+    timedEvents,
+    visibleHourRange,
+  });
 
   const unavailableByDay = useMemo(
     () =>
@@ -281,99 +539,30 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="yc-week-grid h-full flex flex-col" data-zoom-mode={zoomMode}>
       <section
         className="w-full flex-1 overflow-x-auto relative rounded-2xl scrollbar-x-float"
         data-calendar-scroll="true"
         aria-label={weekTimelineLabel}
         onWheel={onWheelHorizontal}
       >
-        <div className="min-w-max h-full flex flex-col">
-          <div className="z-30 bg-white shrink-0">
-            <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
-              <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
-                <Back onClick={handlePrevWeek} />
-              </div>
-              <div className="grid bg-white" style={dayColumnsStyle}>
-                {days.map((day) => {
-                  const weekday = day.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                  });
-                  const dateNumber = day.getDate();
-                  const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
-                  const dateNumberClass = isToday
-                    ? 'bg-text-brand text-white border-transparent'
-                    : 'bg-card-bg text-text-secondary border-transparent';
-                  return (
-                    <div key={day.toISOString()} className="flex items-center justify-center gap-2">
-                      <div
-                        className={`text-body-4 ${
-                          isToday ? 'text-(--color-primary-700)' : 'text-text-primary'
-                        }`}
-                      >
-                        {weekday}
-                      </div>
-                      <div
-                        className={`text-body-4-emphasis size-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
-                      >
-                        {dateNumber}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
-                <Next onClick={handleNextWeek} />
-              </div>
-            </div>
+        <div className="yc-week-grid__track h-full flex flex-col">
+          <div className="z-30 bg-neutral-0 shrink-0">
+            <WeekDayHeaderRow days={days} now={now} dayColumnsStyle={dayColumnsStyle} />
 
             {hasAnyAllDay && (
-              <div className="border-b border-grey-light bg-slate-50">
-                <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
-                    All-day
-                  </div>
-                  <div className="grid min-w-max" style={dayColumnsStyle}>
-                    {days.map((day, idx) => {
-                      const dayAllEvents = allDayByDay[idx];
-                      return (
-                        <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
-                          {dayAllEvents.map((ev) => (
-                            <button
-                              key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
-                              type="button"
-                              onClick={() => handleViewAppointment(ev)}
-                              aria-label={getAllDayAppointmentAriaLabel(ev)}
-                              className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
-                              style={{
-                                ...({
-                                  ...getStatusStyle(ev.status),
-                                  padding: undefined,
-                                } as React.CSSProperties),
-                              }}
-                            >
-                              <div className="font-medium truncate">
-                                {formatCompanionNameWithOwnerLastName(
-                                  (ev.companion ?? ev.patient).name,
-                                  (ev.companion ?? ev.patient).parent
-                                )}{' '}
-                                • {ev.concern || ''}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="sticky right-0 z-40 bg-slate-50" />
-                </div>
-              </div>
+              <AllDayBand
+                days={days}
+                allDayByDay={allDayByDay}
+                dayColumnsStyle={dayColumnsStyle}
+                handleViewAppointment={handleViewAppointment}
+              />
             )}
           </div>
 
           <div
             ref={scrollRef}
-            className="min-w-max flex-1 min-h-0"
+            className="yc-week-grid__track flex-1 min-h-0"
             style={{
               height: '100%',
               maxHeight: '100%',
@@ -386,7 +575,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
           >
             <div className="relative pb-4">
               {visibleHours.map((hour) => (
-                <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                <div key={hour} className="yc-week-grid__shell yc-week-grid__track">
                   <CalendarHourLabel
                     hour={hour}
                     height={height}
@@ -394,40 +583,31 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     showSlotTimeLabels={showSlotTimeLabels}
                     pinFirstHour
                     firstHour={visibleHours[0]}
-                    className="sticky left-0 z-20 bg-white"
+                    className="yc-week-grid__hour-label sticky left-0 z-20 bg-neutral-0"
                   />
-                  <div className="grid min-w-max" style={dayColumnsStyle}>
+                  <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
                       const slotEvents =
                         timedEventsByDayHour.get(`${day.toISOString()}-${hour}`) ?? [];
-                      const hourStart = hour * 60;
-                      const hourEnd = hourStart + 60;
+                      // Today's column carries a soft wash for the whole height of
+                      // the grid, matching the tinted day column in the frame. It is
+                      // keyed off the day itself, not the now-line, so the tint holds
+                      // when the current time falls outside the visible hour range.
+                      const isTodayColumn = dayIndex === todayColumnIndex;
                       return (
                         <div
                           key={`${day.toISOString()}-${hour}`}
                           className="relative"
-                          style={{ height: `${height}px` }}
+                          style={{
+                            height: `${height}px`,
+                            backgroundColor: isTodayColumn ? 'var(--surface-soft)' : undefined,
+                          }}
                         >
-                          {unavailableByDay[dayIndex].flatMap((seg) => {
-                            if (!(seg.endMinute > hourStart && seg.startMinute < hourEnd))
-                              return [];
-                            const clampedStart = Math.max(seg.startMinute, hourStart);
-                            const clampedEnd = Math.min(seg.endMinute, hourEnd);
-                            const topPct = ((clampedStart - hourStart) / 60) * 100;
-                            const heightPct = ((clampedEnd - clampedStart) / 60) * 100;
-                            return [
-                              <div
-                                key={`unavail-${dayIndex}-${hour}-${seg.startMinute}`}
-                                className="pointer-events-none absolute left-0 right-0 z-1"
-                                style={{
-                                  top: `${topPct}%`,
-                                  height: `${heightPct}%`,
-                                  backgroundColor: 'rgba(0,0,0,0.045)',
-                                  transition: 'opacity 0.25s ease',
-                                }}
-                              />,
-                            ];
-                          })}
+                          <UnavailableHourOverlays
+                            segments={unavailableByDay[dayIndex]}
+                            dayIndex={dayIndex}
+                            hour={hour}
+                          />
                           <Slot
                             slotEvents={slotEvents}
                             height={height}
@@ -466,40 +646,17 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-white" style={{ height }} />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
 
               {nowPosition && (
-                <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
-                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                    <div />
-                    <div className="grid min-w-max" style={dayColumnsStyle}>
-                      {days.map((day, dayIndex) => (
-                        <div key={`appointment-now-${day.toISOString()}`} className="relative">
-                          {dayIndex === nowPosition.todayIndex && (
-                            <div
-                              className="absolute left-0 right-2 z-20 w-full"
-                              style={{
-                                top: nowPosition.topPx,
-                              }}
-                            >
-                              {nowTimeLabel && (
-                                <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
-                                  {nowTimeLabel}
-                                </div>
-                              )}
-                              <div className="absolute -left-1.25 size-3 rounded-full bg-red-500 -translate-y-1/2" />
-                              <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <div />
-                  </div>
-                </div>
+                <NowIndicatorOverlay
+                  days={days}
+                  dayColumnsStyle={dayColumnsStyle}
+                  nowPosition={nowPosition}
+                  nowTimeLabel={nowTimeLabel}
+                />
               )}
             </div>
           </div>

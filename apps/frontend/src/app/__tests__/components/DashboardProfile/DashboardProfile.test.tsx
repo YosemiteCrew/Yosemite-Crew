@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -77,14 +76,27 @@ describe('DashboardProfile', () => {
 
     render(<DashboardProfile />);
 
-    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(screen.getByText('Welcome back,')).toBeInTheDocument();
     expect(screen.getByText('Alex Johnson')).toBeInTheDocument();
     expect(
-      screen.getByText('Verification in progress — Limited access enabled')
+      screen.getByText('Verification in progress. Limited access enabled')
     ).toBeInTheDocument();
     expect(screen.getByText('Verify business profile')).toBeInTheDocument();
     expect(screen.getByText(/Note\s*:/)).toBeInTheDocument();
     expect(screen.getByTestId('mock-dynamic-overlay')).toHaveAttribute('data-open', 'false');
+  });
+
+  it('renders an empty name without crashing when auth attributes are missing', () => {
+    usePrimaryOrgMock.mockReturnValue({ _id: 'org1', isVerified: true });
+    usePrimaryOrgProfileMock.mockReturnValue(null);
+    useAuthStoreMock.mockReturnValue(undefined);
+
+    render(<DashboardProfile />);
+
+    expect(screen.getByText('Welcome back,')).toBeInTheDocument();
+    expect(screen.getByText('Verified clinic')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
   });
 
   it('opens the Cal booking overlay from the verification button', () => {
@@ -116,7 +128,8 @@ describe('DashboardProfile', () => {
     render(<DashboardProfile />);
 
     expect(
-      screen.queryByText('Verification in progress — Limited access enabled')
+      screen.queryByText('Verification in progress. Limited access enabled')
     ).not.toBeInTheDocument();
+    expect(screen.getByText('Verified clinic')).toHaveClass('rounded-full!', 'uppercase');
   });
 });

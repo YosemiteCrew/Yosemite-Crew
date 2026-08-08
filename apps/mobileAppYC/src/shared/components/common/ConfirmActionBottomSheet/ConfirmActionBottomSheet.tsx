@@ -14,6 +14,7 @@ import {
   ViewStyle,
   Keyboard,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet, {
   type BottomSheetRef,
@@ -48,6 +49,8 @@ interface ConfirmActionBottomSheetProps {
   title: string;
   message?: string;
   messageAlign?: 'left' | 'center';
+  destructive?: boolean;
+  destructiveIcon?: string;
   primaryButton: ConfirmButtonConfig;
   secondaryButton?: ConfirmButtonConfig;
   children?: React.ReactNode;
@@ -69,6 +72,8 @@ export const ConfirmActionBottomSheet = ({
   title,
   message,
   messageAlign = 'center',
+  destructive = false,
+  destructiveIcon = 'trash-outline',
   primaryButton,
   secondaryButton,
   children,
@@ -145,7 +150,12 @@ export const ConfirmActionBottomSheet = ({
 
   const buildButton = (
     config: ConfirmButtonConfig,
-    defaults: {tintColor: string; textColor: string},
+    defaults: {
+      tintColor: string;
+      textColor: string;
+      forceBorder?: boolean;
+      borderColor?: string;
+    },
   ) => {
     const textStyle = StyleSheet.flatten([
       styles.buttonText,
@@ -154,8 +164,7 @@ export const ConfirmActionBottomSheet = ({
     ]) as TextStyle | undefined;
 
     const buttonStyle = StyleSheet.flatten([styles.button, config.style]) as
-      | ViewStyle
-      | undefined;
+      ViewStyle | undefined;
 
     const handlePress = () => {
       const result = config.onPress();
@@ -175,13 +184,13 @@ export const ConfirmActionBottomSheet = ({
         onPress={handlePress}
         glassEffect="clear"
         tintColor={config.tintColor ?? defaults.tintColor}
-        borderRadius="lg"
+        borderRadius="button"
         textStyle={textStyle}
         style={buttonStyle}
         disabled={config.disabled}
         loading={config.loading}
-        forceBorder={config.forceBorder}
-        borderColor={config.borderColor}
+        forceBorder={config.forceBorder ?? defaults.forceBorder}
+        borderColor={config.borderColor ?? defaults.borderColor}
         shadowIntensity={config.shadowIntensity ?? 'light'}
       />
     );
@@ -223,12 +232,27 @@ export const ConfirmActionBottomSheet = ({
         onPress={Keyboard.dismiss}
         accessible={false}>
         <View style={[styles.container, containerStyle]}>
-          <BottomSheetHeader
-            title={title}
-            onClose={handleClose}
-            theme={theme}
-            showCloseButton={showCloseButton}
-          />
+          {destructive ? (
+            <View style={styles.destructiveHeader}>
+              <View style={styles.medallion}>
+                <Ionicons
+                  name={destructiveIcon}
+                  size={24}
+                  color={theme.colors.danger}
+                />
+              </View>
+              <Text style={styles.destructiveTitle} numberOfLines={2}>
+                {title}
+              </Text>
+            </View>
+          ) : (
+            <BottomSheetHeader
+              title={title}
+              onClose={handleClose}
+              theme={theme}
+              showCloseButton={showCloseButton}
+            />
+          )}
           {message ? (
             <Text
               style={[styles.message, {textAlign: messageAlign}, messageStyle]}>
@@ -241,14 +265,24 @@ export const ConfirmActionBottomSheet = ({
           <View style={[styles.buttonRow, buttonContainerStyle]}>
             {secondaryButton
               ? buildButton(secondaryButton, {
-                  tintColor: theme.colors.surface,
-                  textColor: theme.colors.secondary,
+                  tintColor: theme.colors.screen,
+                  textColor: theme.colors.inkBody,
+                  forceBorder: true,
+                  borderColor: theme.colors.divider,
                 })
               : null}
-            {buildButton(primaryButton, {
-              tintColor: theme.colors.secondary,
-              textColor: theme.colors.white,
-            })}
+            {buildButton(
+              primaryButton,
+              destructive
+                ? {
+                    tintColor: theme.colors.danger,
+                    textColor: theme.colors.white,
+                  }
+                : {
+                    tintColor: theme.colors.cta,
+                    textColor: theme.colors.ctaText,
+                  },
+            )}
           </View>
         </View>
       </PressableOpacity>
@@ -261,34 +295,57 @@ ConfirmActionBottomSheet.displayName = 'ConfirmActionBottomSheet';
 const createStyles = (theme: any) =>
   StyleSheet.create({
     bottomSheetBackground: {
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: theme.spacing['6'],
-      borderTopRightRadius: theme.spacing['6'],
+      backgroundColor: theme.colors.screen,
+      borderTopLeftRadius: theme.borderRadius.sheet,
+      borderTopRightRadius: theme.borderRadius.sheet,
     },
     bottomSheetHandle: {
-      backgroundColor: theme.colors.borderMuted,
+      width: 40,
+      height: 4.5,
+      borderRadius: theme.borderRadius.pill,
+      backgroundColor: theme.colors.divider,
     },
     container: {
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3'],
       paddingHorizontal: theme.spacing['5'],
-      paddingBottom: theme.spacing['12'],
+      paddingBottom: theme.spacing['6'],
+    },
+    destructiveHeader: {
+      alignItems: 'center',
+      gap: theme.spacing['2.5'],
+      paddingTop: theme.spacing['2'],
+    },
+    medallion: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.dangerSurface,
+    },
+    destructiveTitle: {
+      ...theme.typography.paragraph18Bold,
+      fontSize: 19,
+      lineHeight: 24,
+      color: theme.colors.ink,
+      textAlign: 'center',
     },
     message: {
-      ...theme.typography.titleMedium,
-      paddingBottom: theme.spacing['5'],
-      color: theme.colors.secondary,
+      ...theme.typography.body14,
+      color: theme.colors.inkMuted,
     },
     buttonRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      gap: theme.spacing['3'],
+      gap: theme.spacing['2.5'],
     },
     button: {
       flex: 1,
+      minHeight: 54,
     },
     buttonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button,
       textAlign: 'center',
     },
   });

@@ -68,6 +68,19 @@ describe('MessageSearch', () => {
     expect(input.value).toBe('');
   });
 
+  it('drops the searching state when the query is cleared mid-flight', async () => {
+    render(<MessageSearch />);
+    openAndType('vaccine');
+    expect(screen.getByText('Searching…')).toBeInTheDocument();
+
+    // Clearing before the debounce fires cancels the search, so the spinner has
+    // nothing left to resolve it.
+    fireEvent.change(screen.getByLabelText('Search in conversation'), { target: { value: '' } });
+
+    await waitFor(() => expect(screen.queryByText('Searching…')).not.toBeInTheDocument());
+    expect(search).not.toHaveBeenCalled();
+  });
+
   it('handles a search error gracefully', async () => {
     search.mockRejectedValue(new Error('boom'));
     render(<MessageSearch />);
@@ -90,5 +103,14 @@ describe('MessageSearch', () => {
     openAndType('photo');
     expect(await screen.findByText('Attachment')).toBeInTheDocument();
     expect(screen.getByText('u3')).toBeInTheDocument();
+  });
+
+  it('falls back to a generic "User" label when the message has no user info', async () => {
+    search.mockResolvedValue({
+      results: [{ message: { id: 'm3', text: 'Hello' } }],
+    });
+    render(<MessageSearch />);
+    openAndType('hello');
+    expect(await screen.findByText('User')).toBeInTheDocument();
   });
 });

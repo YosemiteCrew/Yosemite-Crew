@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import {
-  LuChevronDown,
-  LuChevronLeft,
-  LuChevronRight,
-  LuEye,
-  LuPlus,
-  LuSearch,
-} from 'react-icons/lu';
+  IoAddOutline,
+  IoChevronBackOutline,
+  IoChevronDownOutline,
+  IoChevronForwardOutline,
+  IoEyeOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone, getStatusStyle } from '@/app/config/statusConfig';
 import type { ScheduleTask, ScheduleTaskStatus } from '@/app/features/appointments/types/workspace';
 import type { TemplateLike } from '@yosemite-crew/types';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
@@ -46,6 +47,11 @@ const EMPTY_TEMPLATES: TemplateLike[] = [];
 const ASSIGNEE_COLUMN_MIN_CH = 14;
 const ASSIGNEE_COLUMN_MAX_CH = 20;
 
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
 const formatStatusLabel = (status: ScheduleTaskStatus): string =>
   STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 
@@ -58,12 +64,6 @@ const formatTimelineLabel = (task: ScheduleTask): { primary: string; secondary?:
   if (timeLabel) return { primary: timeLabel };
   if (dateLabel) return { primary: dateLabel };
   return { primary: '—' };
-};
-
-/** Shared status colours (same source of truth as the appointment status pill). */
-const statusPillStyle = (status: ScheduleTaskStatus): React.CSSProperties => {
-  const s = getStatusStyle(status);
-  return { color: s.color, backgroundColor: s.backgroundColor, borderColor: s.borderColor };
 };
 
 /**
@@ -84,12 +84,11 @@ const StatusPillSelect = ({
 
   if (locked) {
     return (
-      <span
-        className="flex h-8 w-full items-center justify-center rounded-2xl border px-3 text-caption-1"
-        style={statusPillStyle(status)}
-      >
-        {formatStatusLabel(status)}
-      </span>
+      <StatusPill
+        tone={getAppointmentStatusTone(status)}
+        label={formatStatusLabel(status)}
+        className="w-fit"
+      />
     );
   }
 
@@ -102,14 +101,20 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setOpen(false)}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-2xl border px-3 text-caption-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={statusPillStyle(status)}
+        className="w-fit rounded-full! transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
       >
-        {formatStatusLabel(status)}
-        <LuChevronDown
-          size={12}
-          aria-hidden="true"
-          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        <StatusPill
+          tone={getAppointmentStatusTone(status)}
+          label={
+            <>
+              {formatStatusLabel(status)}
+              <IoChevronDownOutline
+                size={10}
+                aria-hidden="true"
+                className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              />
+            </>
+          }
         />
       </button>
       {open && (
@@ -199,11 +204,6 @@ const InpatientSchedule = ({
     return now;
   });
 
-  const isSameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-
   const shiftSelectedDate = (deltaDays: number) => {
     setSelectedDate((current) => {
       const next = new Date(current);
@@ -223,6 +223,7 @@ const InpatientSchedule = ({
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Kolkata',
     });
     return isSameDay(selectedDate, todayAtMidnight) ? `Today ${formatted}` : formatted;
   }, [selectedDate, todayAtMidnight]);
@@ -279,28 +280,24 @@ const InpatientSchedule = ({
   };
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Schedule"
-      className="flex flex-col gap-5"
-    >
+    <SectionContainer title="Schedule" className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
           <CircleIconButton
-            icon={<LuChevronLeft aria-hidden="true" />}
+            icon={<IoChevronBackOutline aria-hidden="true" />}
             label="Previous day"
             onClick={() => shiftSelectedDate(-1)}
           />
-          <span className="text-text-brand">{dateLabel}</span>
+          <span className="text-blue-text">{dateLabel}</span>
           <CircleIconButton
-            icon={<LuChevronRight aria-hidden="true" />}
+            icon={<IoChevronForwardOutline aria-hidden="true" />}
             label="Next day"
             onClick={() => shiftSelectedDate(1)}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <CircleIconButton
-            icon={<LuPlus aria-hidden="true" />}
+            icon={<IoAddOutline aria-hidden="true" />}
             label="Add schedule task"
             variant="dark"
             disabled={readOnly}
@@ -309,7 +306,11 @@ const InpatientSchedule = ({
           {/* Search finds tasks AND published task templates (append on select). */}
           <div className="relative w-full sm:w-80">
             <div className="flex items-center gap-2 rounded-2xl border border-input-border-default px-3 py-2.5">
-              <LuSearch size={16} aria-hidden="true" className="shrink-0 text-text-secondary" />
+              <IoSearchOutline
+                size={16}
+                aria-hidden="true"
+                className="shrink-0 text-text-secondary"
+              />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -332,7 +333,11 @@ const InpatientSchedule = ({
                     }}
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-4 text-text-primary hover:bg-neutral-100 disabled:opacity-50"
                   >
-                    <LuPlus size={14} aria-hidden="true" className="shrink-0 text-text-brand" />
+                    <IoAddOutline
+                      size={14}
+                      aria-hidden="true"
+                      className="shrink-0 text-blue-text"
+                    />
                     {template.name}
                   </button>
                 ))}
@@ -435,7 +440,7 @@ const InpatientSchedule = ({
                 </div>
                 <div className="flex min-h-[48px] items-center justify-end">
                   <CircleIconButton
-                    icon={<LuEye aria-hidden="true" />}
+                    icon={<IoEyeOutline aria-hidden="true" />}
                     label={`View ${task.description}`}
                     variant="dark"
                     onClick={() => onViewTask(task.id)}

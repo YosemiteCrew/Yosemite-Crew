@@ -23,14 +23,38 @@ jest.mock('next/dynamic', () => ({
   },
 }));
 
-jest.mock('@/app/features/marketing/pages/AboutUs/AboutUs', () => ({
+// The shared marketing chrome is a pass-through in these route-wiring smoke tests
+// so we assert only that each route renders its page component.
+jest.mock('@/app/features/marketing/site', () => ({
   __esModule: true,
-  default: () => <div data-testid="route-about" />,
+  MarketingShell: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="marketing-shell">{children}</div>
+  ),
 }));
 
-jest.mock('@/app/features/marketing/pages/PetOwner/PetOwner', () => ({
+jest.mock('@/app/features/marketing/pages/About/About', () => ({
   __esModule: true,
-  default: () => <div data-testid="route-application" />,
+  About: () => <div data-testid="route-about" />,
+}));
+
+jest.mock('@/app/features/marketing/pages/PetParents/PetParents', () => ({
+  __esModule: true,
+  PetParents: () => <div data-testid="route-pet-parents" />,
+}));
+
+jest.mock('@/app/features/marketing/pages/PetBusinesses/PetBusinesses', () => ({
+  __esModule: true,
+  PetBusinesses: () => <div data-testid="route-pet-businesses" />,
+}));
+
+jest.mock('@/app/features/marketing/pages/DevelopersPage/DevelopersPage', () => ({
+  __esModule: true,
+  DevelopersPage: () => <div data-testid="route-developers" />,
+}));
+
+jest.mock('@/app/features/marketing/pages/Pricing/Pricing', () => ({
+  __esModule: true,
+  Pricing: () => <div data-testid="route-pricing" />,
 }));
 
 jest.mock('@/app/features/marketing/pages/BookDemo/BookDemo', () => ({
@@ -41,36 +65,6 @@ jest.mock('@/app/features/marketing/pages/BookDemo/BookDemo', () => ({
 jest.mock('@/app/features/marketing/pages/ContactusPage/ContactusPage', () => ({
   __esModule: true,
   default: () => <div data-testid="route-contact-us" />,
-}));
-
-jest.mock('@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding', () => ({
-  __esModule: true,
-  default: () => <div data-testid="route-developers" />,
-}));
-
-jest.mock('@/app/features/organizations/pages/Organizations', () => ({
-  __esModule: true,
-  default: () => <div data-testid="route-organizations" />,
-}));
-
-jest.mock('@/app/features/onboarding/pages/CreateOrg/CreateOrg', () => ({
-  __esModule: true,
-  default: () => <div data-testid="route-create-org" />,
-}));
-
-jest.mock('@/app/features/dashboard/pages/Dashboard', () => ({
-  __esModule: true,
-  default: () => <div data-testid="route-dashboard" />,
-}));
-
-jest.mock('@/app/features/marketing/pages/HomePage/HomePage', () => ({
-  __esModule: true,
-  default: () => <div data-testid="route-pms" />,
-}));
-
-jest.mock('@/app/features/marketing/pages/PricingPage/PricingPage', () => ({
-  __esModule: true,
-  default: () => <div data-testid="route-pricing" />,
 }));
 
 jest.mock('@/app/features/legal/pages/PrivacyPolicy', () => ({
@@ -88,9 +82,34 @@ jest.mock('@/app/features/legal/pages/DmcaCopyrightPolicy', () => ({
   default: () => <div data-testid="route-dmca" />,
 }));
 
-jest.mock('@/app/ui/widgets/Footer/Footer', () => ({
+jest.mock('@/app/features/legal/pages/Impressum', () => ({
   __esModule: true,
-  default: () => <footer data-testid="route-footer" />,
+  default: () => <div data-testid="route-impressum" />,
+}));
+
+jest.mock('@/app/features/legal/pages/AccessibilityStatement', () => ({
+  __esModule: true,
+  default: () => <div data-testid="route-accessibility" />,
+}));
+
+jest.mock('@/app/features/legal/pages/TrustCenter', () => ({
+  __esModule: true,
+  default: () => <div data-testid="route-trust" />,
+}));
+
+jest.mock('@/app/features/organizations/pages/Organizations', () => ({
+  __esModule: true,
+  default: () => <div data-testid="route-organizations" />,
+}));
+
+jest.mock('@/app/features/onboarding/pages/CreateOrg/CreateOrg', () => ({
+  __esModule: true,
+  default: () => <div data-testid="route-create-org" />,
+}));
+
+jest.mock('@/app/features/dashboard/pages/Dashboard', () => ({
+  __esModule: true,
+  default: () => <div data-testid="route-dashboard" />,
 }));
 
 jest.mock('@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding', () => ({
@@ -98,8 +117,8 @@ jest.mock('@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding', () =>
   default: () => <div data-testid="route-team-onboarding" />,
 }));
 
-import AboutUsRoute, * as AboutUsModule from '@/app/(routes)/(public)/about-us/page';
-import AboutRedirectRoute from '@/app/(routes)/(public)/about/page';
+import AboutRoute, * as AboutModule from '@/app/(routes)/(public)/about/page';
+import AboutUsRedirectRoute from '@/app/(routes)/(public)/about-us/page';
 import PetParentsRoute, * as PetParentsModule from '@/app/(routes)/(public)/pet-parents/page';
 import ApplicationRedirectRoute from '@/app/(routes)/(public)/application/page';
 import BookDemoRoute, * as BookDemoModule from '@/app/(routes)/(public)/book-demo/page';
@@ -115,6 +134,9 @@ import PricingRoute, * as PricingModule from '@/app/(routes)/(public)/pricing/pa
 import PrivacyPolicyRoute, * as PrivacyPolicyModule from '@/app/(routes)/(public)/privacy-policy/page';
 import TermsRoute, * as TermsModule from '@/app/(routes)/(public)/terms-and-conditions/page';
 import DmcaRoute, * as DmcaModule from '@/app/(routes)/(public)/dmca/page';
+import ImpressumRoute, * as ImpressumModule from '@/app/(routes)/(public)/impressum/page';
+import AccessibilityRoute, * as AccessibilityModule from '@/app/(routes)/(public)/accessibility/page';
+import TrustCenterRoute, * as TrustCenterModule from '@/app/(routes)/(public)/trust-center/page';
 import TeamOnboardingRoute, * as TeamOnboardingModule from '@/app/(routes)/(app)/team-onboarding/page';
 
 type RouteCase = {
@@ -126,16 +148,16 @@ type RouteCase = {
 
 const routeCases: RouteCase[] = [
   {
-    name: 'AboutUs',
-    RouteComponent: AboutUsRoute,
-    Module: AboutUsModule,
+    name: 'About',
+    RouteComponent: AboutRoute,
+    Module: AboutModule,
     expectedTestIds: ['route-about'],
   },
   {
-    name: 'Application',
+    name: 'Pet Parents',
     RouteComponent: PetParentsRoute,
     Module: PetParentsModule,
-    expectedTestIds: ['route-application'],
+    expectedTestIds: ['route-pet-parents'],
   },
   {
     name: 'Book Demo',
@@ -177,7 +199,7 @@ const routeCases: RouteCase[] = [
     name: 'Pet Businesses',
     RouteComponent: PetBusinessesRoute,
     Module: PetBusinessesModule,
-    expectedTestIds: ['route-pms'],
+    expectedTestIds: ['route-pet-businesses'],
   },
   {
     name: 'Pricing',
@@ -195,13 +217,26 @@ const routeCases: RouteCase[] = [
     name: 'Terms and Conditions',
     RouteComponent: TermsRoute,
     Module: TermsModule,
-    expectedTestIds: ['route-terms', 'route-footer'],
+    expectedTestIds: ['route-terms'],
+  },
+  { name: 'DMCA', RouteComponent: DmcaRoute, Module: DmcaModule, expectedTestIds: ['route-dmca'] },
+  {
+    name: 'Impressum',
+    RouteComponent: ImpressumRoute,
+    Module: ImpressumModule,
+    expectedTestIds: ['route-impressum'],
   },
   {
-    name: 'DMCA',
-    RouteComponent: DmcaRoute,
-    Module: DmcaModule,
-    expectedTestIds: ['route-dmca', 'route-footer'],
+    name: 'Accessibility',
+    RouteComponent: AccessibilityRoute,
+    Module: AccessibilityModule,
+    expectedTestIds: ['route-accessibility'],
+  },
+  {
+    name: 'Trust Center',
+    RouteComponent: TrustCenterRoute,
+    Module: TrustCenterModule,
+    expectedTestIds: ['route-trust'],
   },
   {
     name: 'Team Onboarding',
@@ -229,8 +264,8 @@ describe('static route wrappers', () => {
     expect(() => PmsRedirectRoute()).toThrow('NEXT_REDIRECT');
   });
 
-  test('about route redirects to about-us', () => {
-    expect(() => AboutRedirectRoute()).toThrow('NEXT_REDIRECT');
+  test('about-us route redirects to about', () => {
+    expect(() => AboutUsRedirectRoute()).toThrow('NEXT_REDIRECT');
   });
 
   test('application route redirects to pet-parents', () => {

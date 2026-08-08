@@ -115,6 +115,48 @@ describe('IPC validation', () => {
     ).toEqual({ ok: false, reason: 'untrusted-sender' });
   });
 
+  test('rejects window drag messages from untrusted senders', () => {
+    expect(
+      validateIpcRequest(sender(localFileUrl), 'yc:window-drag-by', [4, 2], config, localRoot)
+    ).toEqual({ ok: true });
+    expect(
+      validateIpcRequest(
+        sender('https://evil.example.com'),
+        'yc:window-drag-by',
+        [4, 2],
+        config,
+        localRoot
+      )
+    ).toEqual({ ok: false, reason: 'untrusted-sender' });
+  });
+
+  test('validates fire-and-forget listeners and drops untrusted messages', () => {
+    const registered: Record<string, (...args: unknown[]) => void> = {};
+    const warnings: Array<{ event: string }> = [];
+    const registry = createIpcRegistry({
+      ipcMain: {
+        on: (channel: string, fn: never) => {
+          registered[channel] = fn;
+        },
+      } as never,
+      config,
+      localFileRoot: localRoot,
+      logger: {
+        warn: (event: string) => warnings.push({ event }),
+      } as never,
+    });
+
+    const received: unknown[][] = [];
+    registry.on('yc:window-drag-by', (_event, args) => received.push([...args]));
+
+    registered['yc:window-drag-by'](sender(localFileUrl), 4, 2);
+    expect(received).toEqual([[4, 2]]);
+
+    registered['yc:window-drag-by'](sender('https://evil.example.com'), 9999, 9999);
+    expect(received).toEqual([[4, 2]]);
+    expect(warnings[0].event).toBe('ipc_request_rejected');
+  });
+
   test('wraps handlers with validation and converts failures to safe responses', async () => {
     const registered: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
     const warnings: Array<{ event: string }> = [];

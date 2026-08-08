@@ -1,7 +1,5 @@
-import { Types } from "mongoose";
-import OrganizationDocumentModel, {
+import {
   OrganizationDocumentDocument,
-  OrganizationDocumentMongo,
   OrgDocumentCategory,
 } from "../models/organisation-document";
 import {
@@ -10,8 +8,6 @@ import {
 } from "@prisma/client";
 import { getURLForKey } from "src/middlewares/upload";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export class OrgDocumentServiceError extends Error {
   constructor(
@@ -23,11 +19,54 @@ export class OrgDocumentServiceError extends Error {
   }
 }
 
-const ensureObjectId = (id: string, field: string) => {
-  if (!Types.ObjectId.isValid(id)) {
-    throw new OrgDocumentServiceError(`Invalid ${field}`, 400);
+export type LegalDocumentType = "terms" | "privacy";
+
+export interface LegalDocumentResponse {
+  pdfUrl: string;
+  version: string;
+  lastUpdated: string;
+}
+
+export interface AcknowledgeOrgDocumentInput {
+  organisationId: string;
+  documentId: string;
+  userId: string;
+  category: OrgDocumentCategory;
+  version: number;
+}
+
+export interface DocumentAcknowledgementStatus {
+  acknowledged: boolean;
+  version: number;
+  acknowledgedAt?: Date;
+}
+
+const FIXED_LEGAL_DOCUMENTS: Record<
+  LegalDocumentType,
+  {
+    pdfKey: string;
+    version: string;
+    lastUpdated: string;
   }
-  return new Types.ObjectId(id);
+> = {
+  terms: {
+    pdfKey: "legal/terms-v1.pdf",
+    version: "v1",
+    lastUpdated: "2026-03-01",
+  },
+  privacy: {
+    pdfKey: "legal/privacy-v1.pdf",
+    version: "v1",
+    lastUpdated: "2026-03-01",
+  },
+};
+
+const ORG_DOCUMENT_PDF_SLUGS: Record<OrgDocumentCategory, string> = {
+  TERMS_AND_CONDITIONS: "terms-and-conditions",
+  PRIVACY_POLICY: "privacy-policy",
+  CANCELLATION_POLICY: "cancellation-policy",
+  FIRE_SAFETY: "fire-safety",
+  GENERAL: "general",
 };
 
 const requireSafeString = (value: string, field: string) => {
@@ -43,6 +82,78 @@ const requireSafeString = (value: string, field: string) => {
   }
   return trimmed;
 };
+
+const toOrganizationDocumentDocument = (doc: {
+  id: string;
+  organisationId: string;
+  title: string;
+  description: string | null;
+  category: PrismaOrgDocumentCategory;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileType: string | null;
+  fileSize: number | null;
+  pdfUrl: string | null;
+  visibility: PrismaOrgDocumentVisibility;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): OrganizationDocumentDocument => {
+  const { id, ...rest } = doc;
+  return {
+    _id: id,
+    organisationId: rest.organisationId,
+    title: rest.title,
+    description: rest.description ?? undefined,
+    category: rest.category,
+    fileUrl: rest.fileUrl ?? undefined,
+    fileName: rest.fileName ?? undefined,
+    fileType: rest.fileType ?? undefined,
+    fileSize: rest.fileSize ?? undefined,
+    pdfUrl: rest.pdfUrl ?? undefined,
+    visibility: rest.visibility,
+    version: rest.version,
+    createdAt: rest.createdAt,
+    updatedAt: rest.updatedAt,
+  };
+};
+
+const buildOrganisationDocumentPdfUrl = (doc: {
+  organisationId: string;
+  category: PrismaOrgDocumentCategory;
+  fileUrl: string | null;
+  fileType: string | null;
+  version: number;
+}): string => {
+  if (doc.fileType === "application/pdf" && doc.fileUrl) {
+    return doc.fileUrl;
+  }
+
+  const slug = ORG_DOCUMENT_PDF_SLUGS[doc.category];
+  return getURLForKey(
+    `org-docs/${encodeURIComponent(doc.organisationId)}/${slug}-v${doc.version}.pdf`,
+  );
+};
+
+const toOrganizationDocumentDocumentWithPdfUrl = (doc: {
+  id: string;
+  organisationId: string;
+  title: string;
+  description: string | null;
+  category: PrismaOrgDocumentCategory;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileType: string | null;
+  fileSize: number | null;
+  visibility: PrismaOrgDocumentVisibility;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): OrganizationDocumentDocument =>
+  toOrganizationDocumentDocument({
+    ...doc,
+    pdfUrl: buildOrganisationDocumentPdfUrl(doc),
+  });
 
 type Visibility = "INTERNAL" | "PUBLIC";
 
@@ -87,64 +198,22 @@ export const OrganizationDocumentService = {
 
     if (input.fileUrl) input.fileUrl = getURLForKey(input.fileUrl);
 
-    if (isReadFromPostgres()) {
-      const doc = await prisma.organizationDocument.create({
-        data: {
-          organisationId: input.organisationId,
-          title: input.title,
-          description: input.description ?? "",
-          category: input.category as PrismaOrgDocumentCategory,
-          fileUrl: input.fileUrl ?? undefined,
-          fileName: input.fileName ?? undefined,
-          fileType: input.fileType ?? undefined,
-          fileSize: input.fileSize ?? undefined,
-          visibility: (input.visibility ??
-            "INTERNAL") as PrismaOrgDocumentVisibility,
-          version: 1,
-        },
-      });
-      return doc as unknown as OrganizationDocumentDocument;
-    }
-
-    const doc = await OrganizationDocumentModel.create({
-      organisationId: input.organisationId,
-      title: input.title,
-      description: input.description ?? "",
-      category: input.category,
-      fileUrl: input.fileUrl,
-      fileName: input.fileName,
-      fileType: input.fileType,
-      fileSize: input.fileSize,
-      visibility: input.visibility ?? "INTERNAL",
-      version: 1,
+    const doc = await prisma.organizationDocument.create({
+      data: {
+        organisationId: input.organisationId,
+        title: input.title,
+        description: input.description ?? "",
+        category: input.category as PrismaOrgDocumentCategory,
+        fileUrl: input.fileUrl ?? undefined,
+        fileName: input.fileName ?? undefined,
+        fileType: input.fileType ?? undefined,
+        fileSize: input.fileSize ?? undefined,
+        visibility: (input.visibility ??
+          "INTERNAL") as PrismaOrgDocumentVisibility,
+        version: 1,
+      },
     });
-
-    if (shouldDualWrite) {
-      try {
-        await prisma.organizationDocument.create({
-          data: {
-            id: doc._id.toString(),
-            organisationId: input.organisationId,
-            title: input.title,
-            description: input.description ?? "",
-            category: input.category as PrismaOrgDocumentCategory,
-            fileUrl: input.fileUrl ?? undefined,
-            fileName: input.fileName ?? undefined,
-            fileType: input.fileType ?? undefined,
-            fileSize: input.fileSize ?? undefined,
-            visibility: (input.visibility ??
-              "INTERNAL") as PrismaOrgDocumentVisibility,
-            version: 1,
-            createdAt: doc.createdAt ?? undefined,
-            updatedAt: doc.updatedAt ?? undefined,
-          },
-        });
-      } catch (err) {
-        handleDualWriteError("OrganizationDocument", err);
-      }
-    }
-
-    return doc;
+    return toOrganizationDocumentDocumentWithPdfUrl(doc);
   },
 
   /**
@@ -154,50 +223,10 @@ export const OrganizationDocumentService = {
     documentId: string,
     updates: UpdateOrgDocumentInput,
   ): Promise<OrganizationDocumentDocument> {
-    if (isReadFromPostgres()) {
-      const safeId = requireSafeString(documentId, "documentId");
-      const existing = await prisma.organizationDocument.findFirst({
-        where: { id: safeId },
-      });
-      if (!existing) {
-        throw new OrgDocumentServiceError("Document not found", 404);
-      }
-
-      const fileChanged =
-        updates.fileUrl !== undefined ||
-        updates.fileName !== undefined ||
-        updates.fileType !== undefined ||
-        updates.fileSize !== undefined;
-
-      const baseVersion = existing.version ?? 1;
-      const nextVersion = fileChanged ? baseVersion + 1 : baseVersion;
-
-      let fileUrl = existing.fileUrl ?? undefined;
-      if (updates.fileUrl !== undefined) {
-        fileUrl = getURLForKey(updates.fileUrl);
-      }
-
-      const updated = await prisma.organizationDocument.update({
-        where: { id: safeId },
-        data: {
-          title: updates.title ?? existing.title,
-          description: updates.description ?? existing.description ?? "",
-          category: updates.category ?? existing.category,
-          visibility: updates.visibility ?? existing.visibility,
-          fileUrl,
-          fileName: updates.fileName ?? existing.fileName ?? undefined,
-          fileType: updates.fileType ?? existing.fileType ?? undefined,
-          fileSize: updates.fileSize ?? existing.fileSize ?? undefined,
-          version: nextVersion,
-        },
-      });
-
-      return updated as unknown as OrganizationDocumentDocument;
-    }
-
-    const _id = ensureObjectId(documentId, "documentId");
-
-    const existing = await OrganizationDocumentModel.findById(_id);
+    const safeId = requireSafeString(documentId, "documentId");
+    const existing = await prisma.organizationDocument.findFirst({
+      where: { id: safeId },
+    });
     if (!existing) {
       throw new OrgDocumentServiceError("Document not found", 404);
     }
@@ -208,48 +237,30 @@ export const OrganizationDocumentService = {
       updates.fileType !== undefined ||
       updates.fileSize !== undefined;
 
-    if (updates.title !== undefined) existing.title = updates.title;
-    if (updates.description !== undefined)
-      existing.description = updates.description;
-    if (updates.category !== undefined) existing.category = updates.category;
-    if (updates.visibility !== undefined)
-      existing.visibility = updates.visibility;
+    const baseVersion = existing.version ?? 1;
+    const nextVersion = fileChanged ? baseVersion + 1 : baseVersion;
 
-    if (updates.fileUrl !== undefined)
-      existing.fileUrl = getURLForKey(updates.fileUrl);
-    if (updates.fileName !== undefined) existing.fileName = updates.fileName;
-    if (updates.fileType !== undefined) existing.fileType = updates.fileType;
-    if (updates.fileSize !== undefined) existing.fileSize = updates.fileSize;
-
-    if (fileChanged) {
-      existing.version = (existing.version ?? 1) + 1;
+    let fileUrl = existing.fileUrl ?? undefined;
+    if (updates.fileUrl !== undefined) {
+      fileUrl = getURLForKey(updates.fileUrl);
     }
 
-    await existing.save();
+    const updated = await prisma.organizationDocument.update({
+      where: { id: safeId },
+      data: {
+        title: updates.title ?? existing.title,
+        description: updates.description ?? existing.description ?? "",
+        category: updates.category ?? existing.category,
+        visibility: updates.visibility ?? existing.visibility,
+        fileUrl,
+        fileName: updates.fileName ?? existing.fileName ?? undefined,
+        fileType: updates.fileType ?? existing.fileType ?? undefined,
+        fileSize: updates.fileSize ?? existing.fileSize ?? undefined,
+        version: nextVersion,
+      },
+    });
 
-    if (shouldDualWrite) {
-      try {
-        await prisma.organizationDocument.updateMany({
-          where: { id: existing._id.toString() },
-          data: {
-            title: existing.title,
-            description: existing.description ?? undefined,
-            category: existing.category as PrismaOrgDocumentCategory,
-            fileUrl: existing.fileUrl ?? undefined,
-            fileName: existing.fileName ?? undefined,
-            fileType: existing.fileType ?? undefined,
-            fileSize: existing.fileSize ?? undefined,
-            visibility: existing.visibility as PrismaOrgDocumentVisibility,
-            version: existing.version ?? 1,
-            updatedAt: existing.updatedAt ?? undefined,
-          },
-        });
-      } catch (err) {
-        handleDualWriteError("OrganizationDocument update", err);
-      }
-    }
-
-    return existing;
+    return toOrganizationDocumentDocumentWithPdfUrl(updated);
   },
 
   /**
@@ -257,31 +268,12 @@ export const OrganizationDocumentService = {
    * (Does NOT delete the file from storage – handle that in your file service.)
    */
   async deleteDocument(documentId: string): Promise<void> {
-    if (isReadFromPostgres()) {
-      const safeId = requireSafeString(documentId, "documentId");
-      const res = await prisma.organizationDocument.deleteMany({
-        where: { id: safeId },
-      });
-      if (!res.count) {
-        throw new OrgDocumentServiceError("Document not found", 404);
-      }
-      return;
-    }
-
-    const _id = ensureObjectId(documentId, "documentId");
-    const res = await OrganizationDocumentModel.findByIdAndDelete(_id);
-    if (!res) {
+    const safeId = requireSafeString(documentId, "documentId");
+    const res = await prisma.organizationDocument.deleteMany({
+      where: { id: safeId },
+    });
+    if (!res.count) {
       throw new OrgDocumentServiceError("Document not found", 404);
-    }
-
-    if (shouldDualWrite) {
-      try {
-        await prisma.organizationDocument.deleteMany({
-          where: { id: documentId },
-        });
-      } catch (err) {
-        handleDualWriteError("OrganizationDocument delete", err);
-      }
     }
   },
 
@@ -291,23 +283,14 @@ export const OrganizationDocumentService = {
   async getDocumentById(
     documentId: string,
   ): Promise<OrganizationDocumentDocument> {
-    if (isReadFromPostgres()) {
-      const safeId = requireSafeString(documentId, "documentId");
-      const doc = await prisma.organizationDocument.findFirst({
-        where: { id: safeId },
-      });
-      if (!doc) {
-        throw new OrgDocumentServiceError("Document not found", 404);
-      }
-      return doc as unknown as OrganizationDocumentDocument;
-    }
-
-    const _id = ensureObjectId(documentId, "documentId");
-    const doc = await OrganizationDocumentModel.findById(_id);
+    const safeId = requireSafeString(documentId, "documentId");
+    const doc = await prisma.organizationDocument.findFirst({
+      where: { id: safeId },
+    });
     if (!doc) {
       throw new OrgDocumentServiceError("Document not found", 404);
     }
-    return doc;
+    return toOrganizationDocumentDocumentWithPdfUrl(doc);
   },
 
   /**
@@ -322,46 +305,28 @@ export const OrganizationDocumentService = {
       throw new OrgDocumentServiceError("organisationId is required", 400);
     }
 
-    if (isReadFromPostgres()) {
-      const where: {
-        organisationId: string;
-        category?: PrismaOrgDocumentCategory;
-        visibility?: PrismaOrgDocumentVisibility;
-      } = {
-        organisationId: input.organisationId,
-      };
-
-      if (input.category) {
-        where.category = input.category as PrismaOrgDocumentCategory;
-      }
-
-      if (input.visibility && input.visibility !== "ALL") {
-        where.visibility = input.visibility as PrismaOrgDocumentVisibility;
-      }
-
-      const docs = await prisma.organizationDocument.findMany({
-        where,
-        orderBy: { updatedAt: "desc" },
-      });
-
-      return docs as unknown as OrganizationDocumentDocument[];
-    }
-
-    const query: Partial<OrganizationDocumentMongo> & {
+    const where: {
       organisationId: string;
+      category?: PrismaOrgDocumentCategory;
+      visibility?: PrismaOrgDocumentVisibility;
     } = {
       organisationId: input.organisationId,
     };
 
     if (input.category) {
-      query.category = input.category;
+      where.category = input.category as PrismaOrgDocumentCategory;
     }
 
     if (input.visibility && input.visibility !== "ALL") {
-      query.visibility = input.visibility;
+      where.visibility = input.visibility as PrismaOrgDocumentVisibility;
     }
 
-    return OrganizationDocumentModel.find(query).sort({ updatedAt: -1 }).exec();
+    const docs = await prisma.organizationDocument.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return docs.map((doc) => toOrganizationDocumentDocumentWithPdfUrl(doc));
   },
 
   /**
@@ -377,34 +342,28 @@ export const OrganizationDocumentService = {
       throw new OrgDocumentServiceError("organisationId is required", 400);
     }
 
-    if (isReadFromPostgres()) {
-      const where: {
-        organisationId: string;
-        category?: PrismaOrgDocumentCategory;
-        visibility?: PrismaOrgDocumentVisibility;
-      } = {
-        organisationId: filter.organisationId,
-      };
+    const where: {
+      organisationId: string;
+      category?: PrismaOrgDocumentCategory;
+      visibility?: PrismaOrgDocumentVisibility;
+    } = {
+      organisationId: filter.organisationId,
+    };
 
-      if (filter.category) {
-        where.category = filter.category as PrismaOrgDocumentCategory;
-      }
-
-      if (filter.visibility) {
-        where.visibility = filter.visibility as PrismaOrgDocumentVisibility;
-      }
-
-      const docs = await prisma.organizationDocument.findMany({
-        where,
-        orderBy: { updatedAt: "desc" },
-      });
-
-      return docs as unknown as OrganizationDocumentDocument[];
+    if (filter.category) {
+      where.category = filter.category as PrismaOrgDocumentCategory;
     }
 
-    return OrganizationDocumentModel.find(filter)
-      .sort({ updatedAt: -1 })
-      .exec();
+    if (filter.visibility) {
+      where.visibility = filter.visibility as PrismaOrgDocumentVisibility;
+    }
+
+    const docs = await prisma.organizationDocument.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return docs.map((doc) => toOrganizationDocumentDocumentWithPdfUrl(doc));
   },
 
   /**
@@ -429,54 +388,139 @@ export const OrganizationDocumentService = {
       );
     }
 
-    if (isReadFromPostgres()) {
-      const existing = await prisma.organizationDocument.findFirst({
-        where: {
-          organisationId: input.organisationId,
-          category: input.category as PrismaOrgDocumentCategory,
-        },
-      });
-
-      if (!existing) {
-        return await this.createDocument({
-          ...input,
-          visibility: input.visibility ?? "PUBLIC",
-        });
-      }
-
-      return await this.updateDocument(existing.id, {
-        title: input.title,
-        description: input.description,
-        visibility: input.visibility ?? (existing.visibility as Visibility),
-        fileUrl: input.fileUrl,
-        fileName: input.fileName,
-        fileType: input.fileType,
-        fileSize: input.fileSize,
-      });
-    }
-
-    const existing = await OrganizationDocumentModel.findOne({
-      organisationId: input.organisationId,
-      category: input.category,
+    const existing = await prisma.organizationDocument.findFirst({
+      where: {
+        organisationId: input.organisationId,
+        category: input.category as PrismaOrgDocumentCategory,
+      },
     });
 
     if (!existing) {
-      // create new
-      return this.createDocument({
+      return await this.createDocument({
         ...input,
         visibility: input.visibility ?? "PUBLIC",
       });
     }
 
-    // update existing (this will increment version because file fields change)
-    return this.updateDocument(existing._id.toString(), {
+    return await this.updateDocument(existing.id, {
       title: input.title,
       description: input.description,
-      visibility: input.visibility ?? existing.visibility,
+      visibility: input.visibility ?? (existing.visibility as Visibility),
       fileUrl: input.fileUrl,
       fileName: input.fileName,
       fileType: input.fileType,
       fileSize: input.fileSize,
     });
+  },
+
+  /**
+   * Fixed YC legal documents are static and pre-rendered as PDFs.
+   */
+  getFixedLegalDocument(type: LegalDocumentType): LegalDocumentResponse {
+    const document = FIXED_LEGAL_DOCUMENTS[type];
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Invalid legal document type", 400);
+    }
+
+    return {
+      pdfUrl: getURLForKey(document.pdfKey),
+      version: document.version,
+      lastUpdated: document.lastUpdated,
+    };
+  },
+
+  /**
+   * Persist a user acknowledgment for a specific document version.
+   */
+  async acknowledgeDocument(input: AcknowledgeOrgDocumentInput): Promise<void> {
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
+    const documentId = requireSafeString(input.documentId, "documentId");
+    const userId = requireSafeString(input.userId, "userId");
+
+    if (!Number.isInteger(input.version) || input.version < 1) {
+      throw new OrgDocumentServiceError("Invalid version", 400);
+    }
+
+    const document = await prisma.organizationDocument.findFirst({
+      where: {
+        id: documentId,
+        organisationId,
+      },
+    });
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Document not found", 404);
+    }
+
+    await prisma.organizationDocumentAcknowledgement.upsert({
+      where: {
+        userId_organisationId_documentId_category_version: {
+          userId,
+          organisationId,
+          documentId,
+          category: input.category as PrismaOrgDocumentCategory,
+          version: input.version,
+        },
+      },
+      create: {
+        userId,
+        organisationId,
+        documentId,
+        category: input.category as PrismaOrgDocumentCategory,
+        version: input.version,
+      },
+      update: {},
+    });
+  },
+
+  /**
+   * Return whether the current document version has already been acknowledged.
+   */
+  async getAcknowledgementStatus(input: {
+    organisationId: string;
+    documentId: string;
+    userId: string;
+  }): Promise<DocumentAcknowledgementStatus> {
+    const organisationId = requireSafeString(
+      input.organisationId,
+      "organisationId",
+    );
+    const documentId = requireSafeString(input.documentId, "documentId");
+    const userId = requireSafeString(input.userId, "userId");
+
+    const document = await prisma.organizationDocument.findFirst({
+      where: {
+        id: documentId,
+        organisationId,
+      },
+    });
+
+    if (!document) {
+      throw new OrgDocumentServiceError("Document not found", 404);
+    }
+
+    const acknowledgement =
+      await prisma.organizationDocumentAcknowledgement.findFirst({
+        where: {
+          userId,
+          organisationId,
+          documentId,
+          category: document.category,
+          version: document.version,
+        },
+        orderBy: {
+          acknowledgedAt: "desc",
+        },
+      });
+
+    return {
+      acknowledged: Boolean(acknowledgement),
+      version: document.version,
+      acknowledgedAt: acknowledgement?.acknowledgedAt,
+    };
   },
 };

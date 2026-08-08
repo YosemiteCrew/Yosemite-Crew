@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AvailabilityTable from '@/app/ui/tables/AvailabilityTable';
-import { getAvailabilityStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getAvailabilityStatusStyle, getAvailabilityStatusTone } from '@/app/ui/tables/tableUtils';
 import { Team } from '@/app/features/organization/types/team';
 
 // --- Mocks ---
@@ -35,15 +35,12 @@ jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
 // Mock Next.js Image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt }: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} data-testid="profile-image" />
-  ),
+  default: ({ src, alt }: any) => <img src={src} alt={alt} data-testid="profile-image" />,
 }));
 
 // Mock Icons
 jest.mock('react-icons/io5', () => ({
-  IoEye: () => <span data-testid="eye-icon">Eye</span>,
+  IoEyeOutline: () => <span data-testid="eye-icon">Eye</span>,
 }));
 
 // --- Test Data ---
@@ -142,6 +139,13 @@ describe('AvailabilityTable Component', () => {
         borderColor: 'var(--color-pill-success-border)',
       });
     });
+
+    it('maps dashboard availability statuses to inventory-style pill tones', () => {
+      expect(getAvailabilityStatusTone('Available')).toBe('success');
+      expect(getAvailabilityStatusTone('Consulting')).toBe('progress');
+      expect(getAvailabilityStatusTone('Off-duty')).toBe('warning');
+      expect(getAvailabilityStatusTone('Requested')).toBe('neutral');
+    });
   });
 
   // --- 2. Rendering Tests ---
@@ -192,6 +196,12 @@ describe('AvailabilityTable Component', () => {
 
   it('applies correct status styles in rendered component', () => {
     render(<AvailabilityTable {...defaultProps} />);
+    expect(screen.getAllByTitle('Available')[0]).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
+    expect(screen.getAllByTitle('Consulting')[0]).toHaveStyle({
+      backgroundColor: 'var(--color-pill-progress-bg)',
+    });
   });
 
   it('formats weekly working hours to at most two decimal places', () => {

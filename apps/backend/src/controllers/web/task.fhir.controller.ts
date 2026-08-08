@@ -89,9 +89,14 @@ export const TaskFhirController = {
   async listCompanionTasks(req: Request, res: Response) {
     try {
       const query = listQuerySchema.parse(req.query);
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        throw new TaskServiceError("Missing organisationId", 400);
+      }
+
       const tasks = await TaskService.listForCompanion({
         patientId: req.params.patientId,
-        organisationId: req.query.organisationId as string | undefined,
+        organisationId,
         audience: parseAudience(query.audience),
         status: parseStatusList(query.status),
       });

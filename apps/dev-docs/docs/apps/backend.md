@@ -8,6 +8,8 @@ slug: /apps/backend
 
 # YosemiteCrew Server
 
+This is the backend API server for Yosemite Crew (YC), the open-source veterinary practice management (PIMS) platform. It is an Express and TypeScript service that exposes the FHIR (Fast Healthcare Interoperability Resources) endpoints consumed by the web frontend and mobile app. New contributors should start here for how the server boots, stores data, and models animal health as FHIR resources; the [Backend API Index](/apps/backend/api) lists every router.
+
 ## Prerequisites
 
 Build and run the backend from the repo root:
@@ -19,13 +21,14 @@ pnpm run dev --filter backend
 
 ## Database
 
-### MongoDB
+### PostgreSQL (Prisma)
 
-The backend uses MongoDB via Mongoose. Connection setup lives in `apps/backend/src/config/db.ts` and is initialized in `apps/backend/src/main.ts` via `connectDB()`. Behavior is environment-driven:
+The backend persists to PostgreSQL through Prisma. The schema and migrations live in `packages/database` (`prisma/schema.prisma`) — Prisma Migrate is the schema source of truth. Generate the client and apply migrations with:
 
-- `USE_INMEMORY_DB=true` starts an in-memory MongoDB instance (useful for tests/dev).
-- `LOCAL_DEVELOPMENT=true` connects to `mongodb://localhost:27017/yosemitecrew`.
-- Otherwise it uses `MONGODB_URI`.
+```bash
+pnpm --filter backend run prisma:generate
+pnpm --filter backend run prisma:deploy
+```
 
 ### Redis + BullMQ Workers
 
@@ -73,7 +76,7 @@ pnpm run build --filter backend
 
 ## Animal Health Custom FHIR
 
-We model animal health workflows using FHIR resources plus custom code systems and extensions. The canonical TypeScript types and mapping logic live in `packages/types/src`, and the API-facing DTOs live in `packages/types/src/dto`. The backend should rely on these types and helpers rather than duplicating FHIR shapes.
+We model animal health workflows using FHIR resources plus custom code systems and extensions. The canonical TypeScript types and mapping logic live in `packages/types/src`, and the API-facing DTOs (Data Transfer Objects, the request/response shapes) live in `packages/types/src/dto`. The backend should rely on these types and helpers rather than duplicating FHIR shapes.
 
 ### Why Custom FHIR For Animal Health
 

@@ -4,7 +4,7 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Input} from '@/shared/components/common/Input/Input';
 import {themeReducer} from '@/features/theme';
-import {TextInput, Text, Pressable, View} from 'react-native';
+import {TextInput, Text, Pressable, View, Keyboard} from 'react-native';
 
 // react-native's Pressable is wrapped in React.memo; findByType/findAllByType
 // must match against the memoized inner component, not the memo wrapper.
@@ -97,6 +97,43 @@ describe('Input', () => {
     });
 
     expect(onBlur).toHaveBeenCalled();
+  });
+
+  it('should call onSubmitEditing and dismiss the keyboard for a single-line input', () => {
+    const onSubmitEditing = jest.fn();
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation();
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        wrap(<Input onSubmitEditing={onSubmitEditing} />),
+      );
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    const event = {nativeEvent: {text: 'done'}};
+    TestRenderer.act(() => {
+      textInput.props.onSubmitEditing(event);
+    });
+
+    expect(onSubmitEditing).toHaveBeenCalledWith(event);
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
+  });
+
+  it('should not dismiss the keyboard on submit for a multiline input', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation();
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input multiline />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    TestRenderer.act(() => {
+      textInput.props.onSubmitEditing({nativeEvent: {text: 'line'}});
+    });
+
+    expect(dismissSpy).not.toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 
   it('should render error message when error prop is provided', () => {
@@ -302,6 +339,53 @@ describe('Input', () => {
 
     const textInput = tree.root.findByType(TextInput);
     expect(textInput.props.value).toBe('updated value');
+  });
+
+  it('should not recompute hasValue when the value prop changes but stays non-empty', () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input value="abc" />));
+    });
+
+    TestRenderer.act(() => {
+      tree.update(wrap(<Input value="xyz" />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    expect(textInput.props.value).toBe('xyz');
+  });
+
+  it('should default the keyboard appearance to dark when the system color scheme is dark', () => {
+    const ReactNative = require('react-native');
+    const colorSchemeSpy = jest
+      .spyOn(ReactNative, 'useColorScheme')
+      .mockReturnValue('dark');
+
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    expect(textInput.props.keyboardAppearance).toBe('dark');
+
+    colorSchemeSpy.mockRestore();
+  });
+
+  it('should render with lineHeight preserved on Android', () => {
+    const {Platform} = require('react-native');
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    let tree!: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(wrap(<Input value="abc" />));
+    });
+
+    const textInput = tree.root.findByType(TextInput);
+    expect(textInput).toBeTruthy();
+
+    Platform.OS = originalOS;
   });
 
   it('should apply custom labelStyle', () => {

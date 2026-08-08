@@ -3,7 +3,7 @@ name: frontend-design
 description: Use when building or changing UI in apps/frontend. Covers the custom design system, component library (Button, Card, Badge, and more), design tokens, and styling conventions so UI stays consistent and on-brand.
 ---
 
-# Frontend Design System — Yosemite Crew
+# Frontend Design System - Yosemite Crew
 
 ## Description
 
@@ -21,7 +21,7 @@ TRIGGER: any task involving JSX, styling, layout, new components, or visual chan
 src/app/ui/                 ← start here
   Button.tsx                ← variants: primary | secondary | danger
   Card.tsx                  ← variants: default | bordered | subtle
-  Badge.tsx                 ← status chips / labels
+  Badge.tsx                 ← non-status labels (status chips use StatusPill)
   Input.tsx                 ← base input with token borders
   Stack.tsx                 ← flex layout helper
   Text.tsx                  ← typography variants
@@ -31,7 +31,10 @@ src/app/ui/                 ← start here
   overlays/                 ← Modal, Toast, Loader
   layout/                   ← Header, Sidebar, guards
   primitives/Buttons/       ← Primary, Secondary, Delete (low-level)
+  primitives/StatusPill/    ← THE status pill (tone-coloured, uppercase)
+  primitives/SegmentedPill/ ← segmented pill controls (view/tab toggles)
   filters/                  ← Forms, Inventory, general filters
+  board/                    ← kanban board components
   widgets/                  ← domain widgets
 ```
 
@@ -41,16 +44,18 @@ src/app/ui/                 ← start here
 
 ## Design Tokens
 
-The design-token source of truth is `apps/frontend/src/app/globals.css` under `@theme`. Never hardcode hex values or px sizes — always use tokens.
+The design-token source of truth is `apps/frontend/src/app/globals.css` under `@theme`. Never hardcode hex values or px sizes - always use tokens.
 
 ```css
 /* Colors */
 --color-*          (e.g. --color-neutral-200, --color-primary-500)
 
 /* Typography */
---font-satoshi     (primary — all weights 300–900)
---font-grotesk     (secondary)
+--font-satoshi     (body/UI - all weights 300-900)
+--font-newsreader  (display serif - page titles, marketing moments)
 ```
+
+Satoshi is the body/UI font; Newsreader (`--font-newsreader`, applied via `.text-page-title` / `.font-newsreader`) is the display serif for page titles and marketing moments. The durable rule: never re-add `--font-grotesk` or `--grotesk-font` (see `src/app/ui/tokens.md`).
 
 Reference documentation: `src/app/ui/tokens.md` (derived guide, not source of truth)
 
@@ -59,9 +64,9 @@ Reference documentation: `src/app/ui/tokens.md` (derived guide, not source of tr
 ## Styling Rules
 
 - **Tailwind CSS 4** is the styling system. Use utility classes.
-- Use `clsx` for conditional class composition — it's already in the project.
+- Use `clsx` for conditional class composition - it's already in the project.
 - Never write inline `style={{}}` unless a value cannot be expressed as a token.
-- Never add raw Bootstrap classes to new code — Bootstrap is legacy, do not spread it.
+- Never add raw Bootstrap classes to new code - Bootstrap is legacy, do not spread it.
 - Never use arbitrary Tailwind values (e.g. `w-[347px]`) unless strictly required for pixel-perfect alignment from design specs.
 
 ### Class ordering (Tailwind)
@@ -74,7 +79,7 @@ Layout → Spacing → Sizing → Typography → Colors → Borders → Effects 
 
 Use the `<Text>` component for all copy, not bare `<p>` / `<span>` tags.
 
-Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or system fonts for new UI.
+Body/UI font: **Satoshi** (300 Light → 900 Black). Display serif: **Newsreader** for page titles and marketing moments (`.text-page-title` in `globals.css` applies it). Never default to Inter, Roboto, or system fonts for new UI.
 
 ## UI Text Normalization
 
@@ -88,7 +93,7 @@ Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or 
 
 ### Creating a new component
 
-1. Search `src/app/ui/` — if something similar exists, extend it.
+1. Search `src/app/ui/` - if something similar exists, extend it.
 2. If a new primitive is needed, place it in `src/app/ui/` alongside its peers.
 3. Domain-specific components go in the relevant `features/` subdirectory.
 4. Use TypeScript props with named types (no inline `{ prop: type }` in function signatures).
@@ -106,25 +111,25 @@ Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or 
 
 Use Zustand stores in `src/app/stores/`. Each domain has its own store. Do not introduce new state management libraries.
 
-Available stores: appointment, auth, availability, companion, document, forms, integration, inventory, invoice, org, parent, profile, room, search, service, subscription, task, team, universalSearch.
+Available stores: appointment, appointmentWorkspace, auth, availability, companion, counter, document, forms, fullscreenLoader, integration, inventory, invoice, org, parent, profile, revampCatalog, room, routeLoader, search, service, signingOverlay, speciality, subscription, task, team, universalSearch. Lists drift — enumerate `src/app/stores/` before creating any store.
 
 ---
 
 ## Gotchas
 
-- **Do not nest `<button>` inside `<button>`** — invalid HTML, breaks tests.
-- **Do not put icons in `<button>` mocks in tests** — use `<span>` not `<button>` for react-icons mocks.
-- **Bootstrap classes** are legacy; do not add new ones — Tailwind only for new code.
-- **Never use `--font-*` values that don't exist in globals.css** — check before using.
-- **Never duplicate a store** — check `src/app/stores/` before creating new state.
+- **Do not nest `<button>` inside `<button>`** - invalid HTML, breaks tests.
+- **Do not put icons in `<button>` mocks in tests** - use `<span>` not `<button>` for react-icons mocks.
+- **Bootstrap classes** are legacy; do not add new ones - Tailwind only for new code.
+- **Never use `--font-*` values that don't exist in globals.css** - check before using.
+- **Never duplicate a store** - check `src/app/stores/` before creating new state.
 - `clsx` not `cn`, `classnames`, or template literals for conditional classes.
-- The design system does NOT use shadcn, Radix, or Material-UI — do not import them.
+- The design system does NOT use shadcn, Radix, or Material-UI - do not import them.
 
 ---
 
 ## References
 
-- Token source of truth: [apps/frontend/src/app/globals.css](../../../../../apps/frontend/src/app/globals.css)
-- Token map (reference): [src/app/ui/tokens.md](../../../../../apps/frontend/src/app/ui/tokens.md)
-- Component map: [src/app/ui/README.md](../../../../../apps/frontend/src/app/ui/README.md)
+- Token source of truth: [apps/frontend/src/app/globals.css](../../../apps/frontend/src/app/globals.css)
+- Token map (reference): [src/app/ui/tokens.md](../../../apps/frontend/src/app/ui/tokens.md)
+- Component map: [src/app/ui/README.md](../../../apps/frontend/src/app/ui/README.md)
 - Detailed API signatures: `references/components-api.md`

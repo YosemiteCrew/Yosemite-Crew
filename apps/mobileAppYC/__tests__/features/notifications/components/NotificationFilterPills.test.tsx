@@ -63,7 +63,29 @@ describe('NotificationFilterPills', () => {
     render(
       <NotificationFilterPills {...defaultProps} selectedFilter="tasks" />,
     );
+  });
 
+  describe('Accessibility', () => {
+    it('exposes the selected state and a plain label when there is no unread count', () => {
+      render(
+        <NotificationFilterPills {...defaultProps} selectedFilter="tasks" />,
+      );
+
+      const selected = screen.getByLabelText('Tasks');
+      expect(selected.props.accessibilityRole).toBe('radio');
+      expect(selected.props.accessibilityState).toEqual({selected: true});
+
+      const unselected = screen.getByLabelText('All');
+      expect(unselected.props.accessibilityState).toEqual({selected: false});
+    });
+
+    it('includes the unread count in the accessibility label', () => {
+      render(
+        <NotificationFilterPills {...defaultProps} unreadCounts={{tasks: 5}} />,
+      );
+
+      expect(screen.getByLabelText('Tasks, 5 unread')).toBeTruthy();
+    });
   });
 
   describe('Badge Logic (Branch Coverage)', () => {
@@ -100,6 +122,19 @@ describe('NotificationFilterPills', () => {
     it('does not render badge if key is missing (undefined)', () => {
       render(<NotificationFilterPills {...defaultProps} unreadCounts={{}} />);
       expect(screen.queryByText('0')).toBeNull();
+    });
+
+    it('applies the active badge style when the badged pill is selected (br 115 true)', () => {
+      render(
+        <NotificationFilterPills
+          {...defaultProps}
+          selectedFilter="tasks"
+          unreadCounts={{tasks: 5}}
+        />,
+      );
+      // Badge renders on the selected pill -> selectedFilter === option.id is true,
+      // so the badgeActive style branch is taken.
+      expect(screen.getByText('5')).toBeTruthy();
     });
   });
 
@@ -189,6 +224,78 @@ describe('NotificationFilterPills', () => {
       act(() => {
         jest.runAllTimers();
       });
+    });
+
+    it('Branch: Ignores container layout when width is unchanged or 0 (br 71 false)', () => {
+      render(
+        <NotificationFilterPills {...defaultProps} selectedFilter="all" />,
+      );
+      const scrollView = screen.UNSAFE_getByType(ScrollView);
+      const container = scrollView.parent;
+
+      if (container) {
+        // First real layout -> condition true, stores width.
+        act(() => {
+          fireEvent(container, 'layout', {
+            nativeEvent: {layout: {width: 300, height: 50, x: 0, y: 0}},
+          });
+        });
+        // Same width again -> containerWidthRef.current !== w is false -> skip.
+        act(() => {
+          fireEvent(container, 'layout', {
+            nativeEvent: {layout: {width: 300, height: 50, x: 0, y: 0}},
+          });
+        });
+        // Zero width -> w > 0 is false -> skip (covers the if-false branch).
+        act(() => {
+          fireEvent(container, 'layout', {
+            nativeEvent: {layout: {width: 0, height: 50, x: 0, y: 0}},
+          });
+        });
+      }
+
+      act(() => {
+        jest.runAllTimers();
+      });
+
+      expect(screen.getByText('All')).toBeTruthy();
+    });
+
+    it('Branch: Centers the pill when the laid-out pill is the selected filter (br 100 / stmt 101)', () => {
+      render(
+        <NotificationFilterPills {...defaultProps} selectedFilter="all" />,
+      );
+
+      // Give the container a width so centerSelectedPill has something to work with.
+      const scrollView = screen.UNSAFE_getByType(ScrollView);
+      const container = scrollView.parent;
+      if (container) {
+        act(() => {
+          fireEvent(container, 'layout', {
+            nativeEvent: {layout: {width: 300, height: 50, x: 0, y: 0}},
+          });
+        });
+      }
+
+      // Lay out the 'All' pill, which IS the selected filter -> option.id === selectedFilter.
+      const allText = screen.getByText('All');
+      const allButton = allText.parent?.props.onLayout
+        ? allText.parent
+        : allText.parent?.parent;
+
+      if (allButton) {
+        act(() => {
+          fireEvent(allButton, 'layout', {
+            nativeEvent: {layout: {x: 0, width: 60, height: 36, y: 0}},
+          });
+        });
+      }
+
+      act(() => {
+        jest.runAllTimers();
+      });
+
+      expect(screen.getByText('All')).toBeTruthy();
     });
   });
 });

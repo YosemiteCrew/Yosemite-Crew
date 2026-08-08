@@ -12,6 +12,7 @@ import {
   CaseEncounterService,
   CaseEncounterServiceError,
 } from "src/services/case-encounter.service";
+import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
@@ -141,6 +142,37 @@ const parseReferenceId = (value?: string, prefix?: string) => {
   return prefix ? trimmed.replace(new RegExp(`^${prefix}/`), "") : trimmed;
 };
 
+/**
+ * The organisation the RBAC middleware proved the caller belongs to. On routes
+ * addressed by a resource id it is the resource's own organisation, so it is
+ * the only value a query may be scoped to. A client-supplied `organization` is
+ * accepted solely as a redundant echo of it.
+ */
+const resolveAuthorizedOrganisationId = (
+  req: Request,
+  requestedOrganization?: string,
+) => {
+  const authorized = (req as OrgRequest).organisationId?.trim();
+
+  if (!authorized) {
+    throw new CaseEncounterServiceError(
+      "You are not associated with this organisation",
+      403,
+    );
+  }
+
+  const requested = parseReferenceId(requestedOrganization, "Organization");
+
+  if (requested && requested !== authorized) {
+    throw new CaseEncounterServiceError(
+      "organization does not match the authorized organisation.",
+      403,
+    );
+  }
+
+  return authorized;
+};
+
 const handleError = (res: Response, error: unknown, fallback: string) => {
   if (error instanceof CaseEncounterServiceError) {
     return res.status(error.statusCode).json({ message: error.message });
@@ -161,6 +193,7 @@ export const CaseController = {
       ) as unknown as CaseRequestDTO;
       const created = await CaseEncounterService.createCase(
         fromCaseRequestDTO(dto),
+        resolveAuthorizedOrganisationId(req),
       );
       return res.status(201).json(toCaseResponseDTO(created));
     } catch (error) {
@@ -178,6 +211,7 @@ export const CaseController = {
       ) as unknown as CaseRequestDTO;
       const updated = await CaseEncounterService.updateCase(
         req.params.id,
+        resolveAuthorizedOrganisationId(req),
         fromCaseRequestDTO(dto),
       );
       return res.status(200).json(toCaseResponseDTO(updated));
@@ -188,7 +222,10 @@ export const CaseController = {
 
   getById: async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const value = await CaseEncounterService.getCaseById(req.params.id);
+      const value = await CaseEncounterService.getCaseById(
+        req.params.id,
+        resolveAuthorizedOrganisationId(req),
+      );
       return res.status(200).json(toCaseResponseDTO(value));
     } catch (error) {
       return handleError(res, error, "Failed to fetch case.");
@@ -199,7 +236,10 @@ export const CaseController = {
     try {
       const query = caseListQuerySchema.parse(req.query);
       const values = await CaseEncounterService.listCases({
-        organisationId: parseReferenceId(query.organization, "Organization"),
+        organisationId: resolveAuthorizedOrganisationId(
+          req,
+          query.organization,
+        ),
         patientId: parseReferenceId(query.patient, "Patient"),
         parentId: parseReferenceId(query.parent, "RelatedPerson"),
         status: query.status as never,
@@ -230,6 +270,7 @@ export const EncounterController = {
       ) as unknown as EncounterRequestDTO;
       const created = await CaseEncounterService.createEncounter(
         fromEncounterRequestDTO(dto),
+        resolveAuthorizedOrganisationId(req),
       );
       return res.status(201).json(toEncounterResponseDTO(created));
     } catch (error) {
@@ -247,6 +288,7 @@ export const EncounterController = {
       ) as unknown as EncounterRequestDTO;
       const updated = await CaseEncounterService.updateEncounter(
         req.params.id,
+        resolveAuthorizedOrganisationId(req),
         fromEncounterRequestDTO(dto),
       );
       return res.status(200).json(toEncounterResponseDTO(updated));
@@ -271,6 +313,7 @@ export const EncounterController = {
 
       const updated = await CaseEncounterService.dischargeEncounter(
         req.params.id,
+        resolveAuthorizedOrganisationId(req),
         {
           dischargedAt: dischargedAt ? new Date(dischargedAt) : undefined,
           periodEnd: periodEnd ? new Date(periodEnd) : undefined,
@@ -301,12 +344,16 @@ export const EncounterController = {
         (parameter) => parameter.name === "assignedAt",
       )?.valueDateTime;
 
-      const updated = await CaseEncounterService.assignUnit(req.params.id, {
-        unitId: unitId ?? "",
-        assignedBy,
-        reason,
-        assignedAt: assignedAt ? new Date(assignedAt) : undefined,
-      });
+      const updated = await CaseEncounterService.assignUnit(
+        req.params.id,
+        resolveAuthorizedOrganisationId(req),
+        {
+          unitId: unitId ?? "",
+          assignedBy,
+          reason,
+          assignedAt: assignedAt ? new Date(assignedAt) : undefined,
+        },
+      );
 
       return res.status(200).json(toEncounterResponseDTO(updated));
     } catch (error) {
@@ -317,6 +364,7 @@ export const EncounterController = {
   listUnitAssignments: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const assignments = await CaseEncounterService.listUnitAssignments({
+        organisationId: resolveAuthorizedOrganisationId(req),
         encounterId: req.params.id,
       });
 
@@ -335,7 +383,10 @@ export const EncounterController = {
   ) => {
     try {
       const assignments =
-        await CaseEncounterService.listAdmissionUnitAssignments(req.params.id);
+        await CaseEncounterService.listAdmissionUnitAssignments(
+          req.params.id,
+          resolveAuthorizedOrganisationId(req),
+        );
 
       return res.status(200).json({
         resourceType: "Parameters",
@@ -357,9 +408,13 @@ export const EncounterController = {
         (parameter) => parameter.name === "startedAt",
       )?.valueDateTime;
 
-      const updated = await CaseEncounterService.startEncounter(req.params.id, {
-        startedAt: startedAt ? new Date(startedAt) : undefined,
-      });
+      const updated = await CaseEncounterService.startEncounter(
+        req.params.id,
+        resolveAuthorizedOrganisationId(req),
+        {
+          startedAt: startedAt ? new Date(startedAt) : undefined,
+        },
+      );
 
       return res.status(200).json(toEncounterResponseDTO(updated));
     } catch (error) {
@@ -372,6 +427,7 @@ export const EncounterController = {
       lifecycleOperationSchema.parse(req.body ?? {});
       const updated = await CaseEncounterService.markEncounterReadyForDischarge(
         req.params.id,
+        resolveAuthorizedOrganisationId(req),
         resolveUserIdFromRequest(req),
       );
 
@@ -394,6 +450,7 @@ export const EncounterController = {
       const updated =
         await CaseEncounterService.markEncounterNotReadyForDischarge(
           req.params.id,
+          resolveAuthorizedOrganisationId(req),
         );
 
       return res.status(200).json(toEncounterResponseDTO(updated));
@@ -409,19 +466,11 @@ export const EncounterController = {
   listActiveInpatients: async (req: Request, res: Response) => {
     try {
       const query = activeInpatientListQuerySchema.parse(req.query);
-      const organisationId = parseReferenceId(
-        query.organization,
-        "Organization",
-      );
-
-      if (!organisationId) {
-        return res.status(400).json({
-          message: "organization is required.",
-        });
-      }
-
       const values = await CaseEncounterService.listActiveInpatientEncounters({
-        organisationId,
+        organisationId: resolveAuthorizedOrganisationId(
+          req,
+          query.organization,
+        ),
       });
 
       return res.status(200).json({
@@ -443,7 +492,10 @@ export const EncounterController = {
 
   getById: async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const value = await CaseEncounterService.getEncounterById(req.params.id);
+      const value = await CaseEncounterService.getEncounterById(
+        req.params.id,
+        resolveAuthorizedOrganisationId(req),
+      );
       return res.status(200).json(toEncounterResponseDTO(value));
     } catch (error) {
       return handleError(res, error, "Failed to fetch encounter.");
@@ -454,7 +506,10 @@ export const EncounterController = {
     try {
       const query = encounterListQuerySchema.parse(req.query);
       const values = await CaseEncounterService.listEncounters({
-        organisationId: parseReferenceId(query.organization, "Organization"),
+        organisationId: resolveAuthorizedOrganisationId(
+          req,
+          query.organization,
+        ),
         caseId: parseReferenceId(query.episodeofcare, "EpisodeOfCare"),
         patientId: parseReferenceId(query.patient, "Patient"),
         parentId: parseReferenceId(query.parent, "RelatedPerson"),

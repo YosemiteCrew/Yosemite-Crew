@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { LuArrowRight, LuEye, LuEyeOff } from 'react-icons/lu';
+import { IoArrowForwardOutline, IoEyeOffOutline, IoEyeOutline } from 'react-icons/io5';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
@@ -38,9 +38,9 @@ const ObservationRow = ({ entry }: { entry: ObservationRecord }) => {
           <CircleIconButton
             icon={
               open ? (
-                <LuEyeOff size={16} aria-hidden="true" />
+                <IoEyeOffOutline size={16} aria-hidden="true" />
               ) : (
-                <LuEye size={16} aria-hidden="true" />
+                <IoEyeOutline size={16} aria-hidden="true" />
               )
             }
             label={open ? `Hide ${entry.code}` : `View ${entry.code}`}
@@ -136,7 +136,7 @@ const ObservationToolForm = ({
               onClick={() => setActiveToolKey(tool.key)}
               className={`rounded-2xl border px-3 py-1.5 text-body-4 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
                 tool.key === activeToolKey
-                  ? 'border-text-brand bg-primary-100 text-text-brand'
+                  ? 'border-text-brand bg-primary-100 text-blue-text'
                   : 'border-neutral-300 text-neutral-700 hover:bg-neutral-100'
               }`}
             >
@@ -153,7 +153,7 @@ const ObservationToolForm = ({
           <div className="flex flex-col items-center gap-2">
             <Primary
               text={isSubmitting ? 'Recording…' : 'Start'}
-              icon={<LuArrowRight aria-hidden="true" />}
+              icon={<IoArrowForwardOutline aria-hidden="true" />}
               iconPosition="right"
               onClick={() => void handleStart()}
               isDisabled={!canRecord || isSubmitting}

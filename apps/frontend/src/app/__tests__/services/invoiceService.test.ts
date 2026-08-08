@@ -1,6 +1,11 @@
 import {
   addLineItemsToAppointments,
+  createSupplementalInvoice,
+  finalizeFinanceInvoice,
+  getFinanceInvoiceById,
   getPaymentLink,
+  recordManualInvoicePayment,
+  seedAppointmentInvoice,
   loadAppointmentBilling,
   loadInvoicesForAppointment,
   loadInvoicesForOrgPrimaryOrg,
@@ -574,10 +579,103 @@ describe('invoiceService', () => {
     );
   });
 
+  it('appends a same-name same-quantity line billed at a different amount', async () => {
+    // Regression: dedupe keyed on name+quantity alone dropped a second, genuinely
+    // different charge for the same item — an underbilling window. A whole-currency-unit
+    // price difference is not rounding drift and must reach the invoice.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        items: [
+          {
+            id: 'li-existing',
+            name: 'Bandage change',
+            quantity: 1,
+            unitPrice: 20,
+            total: 20,
+          },
+        ],
+      },
+    ]);
+
+    await addLineItemsToAppointments(
+      [
+        {
+          id: 'li-second',
+          name: 'Bandage change',
+          quantity: 1,
+          unitPrice: 75,
+          total: 75,
+        },
+      ],
+      'appt-1',
+      'USD'
+    );
+
+    expect(postData).toHaveBeenCalledWith('/v1/finance/invoices/inv-1/lines', {
+      currency: 'usd',
+      items: [
+        {
+          name: 'Bandage change',
+          description: 'Bandage change',
+          quantity: 1,
+          unitPrice: 75,
+          total: 75,
+        },
+      ],
+    });
+  });
+
+  it('appends a same-name line whose price differs by a whole cent', async () => {
+    // The dedupe guard collapses sub-cent drift only. A full cent apart is a real
+    // price difference and must still be billed.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        items: [
+          {
+            id: 'li-existing',
+            name: 'Nail trim',
+            quantity: 2,
+            unitPrice: 10.0,
+            total: 20.0,
+          },
+        ],
+      },
+    ]);
+
+    await addLineItemsToAppointments(
+      [
+        {
+          id: 'li-second',
+          name: 'Nail trim',
+          quantity: 2,
+          unitPrice: 10.01,
+          total: 20.02,
+        },
+      ],
+      'appt-1',
+      'USD'
+    );
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/finance/invoices/inv-1/lines',
+      expect.objectContaining({
+        items: [expect.objectContaining({ name: 'Nail trim', unitPrice: 10.01 })],
+      })
+    );
+  });
+
   it('does not re-append a line already on the invoice under a sub-cent price drift', async () => {
     // Regression: the same booked service reaches the invoice via two pipelines whose
-    // prices differ by rounding (257.127 persisted vs 257.13 re-seeded). Dedupe is keyed
-    // on name+quantity (not price), so the rounded copy must NOT append a duplicate.
+    // prices differ by rounding (257.127 persisted vs 257.13 re-seeded). Dedupe compares
+    // unit price at cent precision, so the rounded copy must NOT append a duplicate.
     invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
       {
         id: 'inv-1',
@@ -1120,5 +1218,173 @@ describe('invoiceService', () => {
     ]);
     expect(billing.pastInvoices[0].items[1].amountCents).toBe(19565);
     expect(billing.pastInvoices[0].totalCents).toBe(20565);
+  });
+
+  describe('appointment invoice loading', () => {
+    it('warns and returns early without an organisation or appointment id', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      orgState.primaryOrgId = null;
+      await loadInvoicesForAppointment('appt-1');
+      expect(getData).not.toHaveBeenCalled();
+
+      orgState.primaryOrgId = 'org-1';
+      await loadInvoicesForAppointment('');
+      expect(getData).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      warnSpy.mockRestore();
+    });
+
+    it('normalizes and upserts each appointment invoice', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: { data: [{ id: 'inv-1', status: 'DRAFT' }], meta: {}, error: null },
+      });
+
+      await loadInvoicesForAppointment('appt-1');
+
+      expect(getData).toHaveBeenCalledWith(
+        '/v1/finance/invoices',
+        expect.objectContaining({ organisationId: 'org-1', appointmentId: 'appt-1' })
+      );
+      expect(invoiceState.upsertInvoice).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces finance envelope errors and logs the failure', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      (getData as jest.Mock).mockResolvedValue({
+        data: { data: null, meta: null, error: { message: 'finance down', code: 'E1' } },
+      });
+
+      await expect(loadInvoicesForAppointment('appt-1')).rejects.toThrow('finance down');
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('finance invoice mutations', () => {
+    it('finalizes an invoice with the Stripe tax provider and upserts the result', async () => {
+      (postData as jest.Mock).mockResolvedValue({ data: { id: 'inv-1', status: 'OPEN' } });
+
+      const invoice = await finalizeFinanceInvoice('inv-1');
+
+      expect(postData).toHaveBeenCalledWith('/v1/finance/invoices/inv-1/finalize', {
+        taxProvider: 'STRIPE',
+      });
+      expect(invoiceState.upsertInvoice).toHaveBeenCalled();
+      expect(invoice.id).toBe('inv-1');
+    });
+
+    it('rejects finalize and supplement calls without required inputs', async () => {
+      await expect(finalizeFinanceInvoice('')).rejects.toThrow('Invoice ID missing');
+      await expect(createSupplementalInvoice('', [])).rejects.toThrow('Invoice ID missing');
+      await expect(createSupplementalInvoice('inv-1', [])).rejects.toThrow(
+        'At least one line item is required'
+      );
+      expect(postData).not.toHaveBeenCalled();
+    });
+
+    it('creates a supplemental invoice from the given line items', async () => {
+      (postData as jest.Mock).mockResolvedValue({ data: { id: 'inv-2', status: 'DRAFT' } });
+
+      const items = [{ description: 'Extra service', amount: 20 }] as never;
+      const invoice = await createSupplementalInvoice('inv-1', items);
+
+      expect(postData).toHaveBeenCalledWith('/v1/finance/invoices/inv-1/supplement', { items });
+      expect(invoice.id).toBe('inv-2');
+      expect(invoiceState.upsertInvoice).toHaveBeenCalled();
+    });
+
+    it('records a manual payment against an invoice', async () => {
+      (postData as jest.Mock).mockResolvedValue({ data: { receiptId: 'r-1' } });
+
+      const result = await recordManualInvoicePayment('inv-1', { amount: 50 } as never);
+
+      expect(postData).toHaveBeenCalledWith('/v1/finance/invoices/inv-1/payments', {
+        provider: 'MANUAL',
+        amount: 50,
+      });
+      expect(result).toEqual({ receiptId: 'r-1' });
+    });
+
+    it('fetches a finance invoice by id and rejects a missing id', async () => {
+      await expect(getFinanceInvoiceById('')).rejects.toThrow('Invoice ID missing');
+
+      (getData as jest.Mock).mockResolvedValue({ data: { id: 'inv-3', status: 'OPEN' } });
+      const invoice = await getFinanceInvoiceById('inv-3');
+      expect(getData).toHaveBeenCalledWith('/v1/finance/invoices/inv-3');
+      expect(invoice.id).toBe('inv-3');
+    });
+  });
+
+  describe('seedAppointmentInvoice', () => {
+    it('returns the already-open appointment invoice without reseeding', async () => {
+      invoiceState.getInvoicesByOrgId.mockReturnValue([
+        { id: 'inv-paid', appointmentId: 'appt-1', status: 'PAID' },
+        { id: 'inv-open', appointmentId: 'appt-1', status: 'DRAFT' },
+        { id: 'inv-other', appointmentId: 'appt-2', status: 'DRAFT' },
+      ]);
+
+      const invoice = await seedAppointmentInvoice('appt-1');
+
+      expect(invoice.id).toBe('inv-open');
+      expect(postData).not.toHaveBeenCalled();
+    });
+
+    it('skips settled invoices and seeds a fresh one from the backend', async () => {
+      invoiceState.getInvoicesByOrgId.mockReturnValue([
+        {
+          id: 'inv-settled',
+          appointmentId: 'appt-1',
+          status: 'OPEN',
+          visitBillingStage: 'SETTLED',
+        },
+      ]);
+      (postData as jest.Mock).mockResolvedValue({ data: { id: 'inv-new', status: 'DRAFT' } });
+
+      const invoice = await seedAppointmentInvoice('appt-1');
+
+      expect(postData).toHaveBeenCalledWith('/v1/finance/mobile/appointments/appt-1/seed', {});
+      expect(invoice.id).toBe('inv-new');
+      expect(invoiceState.upsertInvoice).toHaveBeenCalled();
+    });
+  });
+
+  it('maps the invoice payment ledger when the backend includes it', async () => {
+    (getData as jest.Mock).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'inv-pay',
+            status: 'PAID',
+            paidAt: new Date('2026-05-01T00:00:00.000Z'),
+            totalAmount: 100,
+            items: [{ name: 'Consult', total: 100, quantity: 1, unitPrice: 100 }],
+            payments: [
+              {
+                id: 'pay-1',
+                amount: 40,
+                provider: 'STRIPE',
+                receiptUrl: 'https://receipt/1',
+                paidAt: '2026-05-01T00:00:00.000Z',
+              },
+              { amount: 60 },
+            ],
+          },
+        ],
+        meta: null,
+        error: null,
+      },
+    });
+
+    const billing = await loadAppointmentBilling('org-1', 'appt-1');
+
+    expect(billing.pastInvoices[0].payments?.length ?? 0).toBeGreaterThan(0);
+    expect(billing.invoicedItemNames).toContain('consult');
+  });
+
+  it('sendInvoiceToClient throws on a missing invoice id', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(sendInvoiceToClient('')).rejects.toThrow('Invoice ID missing');
+    errorSpy.mockRestore();
   });
 });

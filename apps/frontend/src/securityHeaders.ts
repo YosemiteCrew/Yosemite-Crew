@@ -5,6 +5,15 @@ export type SecurityHeader = {
 
 export const DEFAULT_DOCUMENSO_HOST = 'https://ds.yosemitecrew.com';
 
+// Single source of truth for the MSD/Merck manual hosts: isAllowedMerckUrl gates
+// which URLs may open in the reader, and frame-src must permit exactly those.
+export const MERCK_MANUAL_DOMAINS = [
+  'merckvetmanual.com',
+  'msdvetmanual.com',
+  'merckmanuals.com',
+  'msdmanuals.com',
+] as const;
+
 const isProductionRuntime = () => process.env.NODE_ENV === 'production';
 
 export const buildSecurityHeaders = (isProduction = isProductionRuntime()): SecurityHeader[] => [
@@ -115,7 +124,6 @@ export const buildContentSecurityPolicy = ({
       'https://devapi.yosemitecrew.com',
       'https://api.yosemitecrew.com',
       'https://*.amazonaws.com',
-      'https://cognito-idp.eu-central-1.amazonaws.com',
       'https://chat.stream-io-api.com',
       'wss://chat.stream-io-api.com',
       'https://api.stripe.com',
@@ -128,6 +136,7 @@ export const buildContentSecurityPolicy = ({
       ...postHogConnectHosts,
       'https://api.github.com',
       'https://raw.githubusercontent.com',
+      'https://discord.com',
       'https://api.iconify.design',
       'https://api.unisvg.com',
       'https://api.simplesvg.com',
@@ -145,9 +154,8 @@ export const buildContentSecurityPolicy = ({
       'https://hooks.stripe.com',
       'https://cal.com',
       'https://app.cal.com',
-      'https://*.merckvetmanual.com',
-      'https://*.msdvetmanual.com',
-      'https://*.merckmanuals.com',
+      // Both forms per domain: a `*.` wildcard does not match the bare apex host.
+      ...MERCK_MANUAL_DOMAINS.flatMap((domain) => [`https://${domain}`, `https://*.${domain}`]),
       'https://*.idexx.com',
       'https://*.vetconnectplus.com',
       ...YC_CLOUDFRONT_HOSTS,
@@ -155,6 +163,7 @@ export const buildContentSecurityPolicy = ({
     ]
       .filter(Boolean)
       .join(' '),
+    ["media-src 'self'", ...YC_CLOUDFRONT_HOSTS].join(' '),
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'self'",

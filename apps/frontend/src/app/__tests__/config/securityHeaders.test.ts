@@ -103,8 +103,11 @@ describe('security headers', () => {
     expect(directives.get('connect-src')).toContain('https://connect-js.stripe.com');
     expect(directives.get('connect-src')).toContain('https://places.googleapis.com');
     expect(directives.get('connect-src')).toContain('https://raw.githubusercontent.com');
+    expect(directives.get('connect-src')).toContain('https://discord.com');
     expect(directives.get('connect-src')).toContain('http:');
     expect(directives.get('connect-src')).toContain('ws:');
+    expect(directives.get('media-src')).toContain("'self'");
+    expect(directives.get('media-src')).toContain('https://d2il6osz49gpup.cloudfront.net');
     expect(directives.get('img-src')).toContain('https://upload.wikimedia.org');
     expect(directives.get('img-src')).toContain('https://d2il6osz49gpup.cloudfront.net');
     expect(directives.get('img-src')).toContain('https://d2kyjiikho62xx.cloudfront.net');
@@ -113,7 +116,14 @@ describe('security headers', () => {
     expect(directives.get('frame-src')).toContain('https://*.js.stripe.com');
     expect(directives.get('frame-src')).toContain('https://connect-js.stripe.com');
     expect(directives.get('img-src')).toContain('https://*.stripe.com');
-    expect(directives.get('frame-src')).toContain('https://*.merckvetmanual.com');
+    // Every host isAllowedMerckUrl accepts must be frameable, apex included —
+    // a `*.` wildcard does not match the bare domain.
+    ['merckvetmanual.com', 'msdvetmanual.com', 'merckmanuals.com', 'msdmanuals.com'].forEach(
+      (domain) => {
+        expect(directives.get('frame-src')).toContain(`https://${domain}`);
+        expect(directives.get('frame-src')).toContain(`https://*.${domain}`);
+      }
+    );
     expect(directives.get('frame-src')).toContain('https://*.idexx.com');
     expect(directives.get('frame-src')).toContain('https://*.vetconnectplus.com');
     expect(directives.get('frame-src')).toContain('https://d2il6osz49gpup.cloudfront.net');

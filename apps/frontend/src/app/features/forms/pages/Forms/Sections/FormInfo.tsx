@@ -6,10 +6,11 @@ import {
   FormsCategoryOptions,
   FormField,
   FormsProps,
-  RequiredSignerOptions,
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
+import { TaskTemplateSummary } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
+import { baseDetailsFields } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary.helpers';
 import React from 'react';
 import { archiveForm, publishForm, unpublishForm } from '@/app/features/forms/services/formService';
 import {
@@ -18,82 +19,12 @@ import {
   unpublishTemplateForm,
 } from '@/app/features/forms/services/templateFormsService';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { Icon } from '@iconify/react';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
-
-const taskBlockValue = (block: FormField & { fields?: FormField[] }, key: string): string => {
-  const field = (block.fields ?? []).find(
-    (item) => (item.meta as { taskBlockKey?: string })?.taskBlockKey === key
-  );
-  if (!field && key === 'additionalNotes') {
-    return taskBlockValue(block, 'description');
-  }
-  if (!field) return '';
-  const value = (field as FormField & { defaultValue?: unknown }).defaultValue;
-  if (value !== undefined && value !== '') return String(value);
-  return field.placeholder ?? '';
-};
-
-const labelForOption = (options: { label: string; value: string }[], value: string): string =>
-  options.find((option) => option.value === value)?.label ?? value;
-
-const TaskTemplateSummary = ({ schema }: { schema: FormField[] }) => {
-  const group = schema.find(
-    (field): field is FormField & { fields?: FormField[] } =>
-      field.type === 'group' && Boolean((field.meta as { taskGroup?: boolean })?.taskGroup)
-  );
-  const blocks = (group?.fields ?? []).filter(
-    (field): field is FormField & { fields?: FormField[] } => field.type === 'group'
-  );
-
-  if (blocks.length === 0) {
-    return <p className="text-body-4 text-text-secondary">No tasks added yet.</p>;
-  }
-
-  return (
-    <ul className="flex flex-col gap-3">
-      {blocks.map((block, index) => {
-        const categoryField = (block.fields ?? []).find(
-          (field) => (field.meta as { taskBlockKey?: string })?.taskBlockKey === 'category'
-        ) as (FormField & { options?: { label: string; value: string }[] }) | undefined;
-        const repeatField = (block.fields ?? []).find(
-          (field) => (field.meta as { taskBlockKey?: string })?.taskBlockKey === 'recurrence.type'
-        ) as (FormField & { options?: { label: string; value: string }[] }) | undefined;
-        const reminderField = (block.fields ?? []).find(
-          (field) =>
-            (field.meta as { taskBlockKey?: string })?.taskBlockKey === 'reminderOffsetMinutes'
-        ) as (FormField & { options?: { label: string; value: string }[] }) | undefined;
-        const duration = taskBlockValue(block, 'durationDays');
-        const instructions = taskBlockValue(block, 'additionalNotes');
-
-        return (
-          <li
-            key={block.id}
-            className="flex flex-col gap-1 rounded-2xl border border-card-border p-3"
-          >
-            <span className="text-body-3-emphasis text-text-primary">
-              {taskBlockValue(block, 'name') || `Task ${index + 1}`}
-            </span>
-            <span className="text-caption-1 text-text-secondary">
-              {labelForOption(categoryField?.options ?? [], taskBlockValue(block, 'category'))} ·{' '}
-              {labelForOption(repeatField?.options ?? [], taskBlockValue(block, 'recurrence.type'))}
-              {reminderField &&
-                taskBlockValue(block, 'reminderOffsetMinutes') &&
-                ` · ${labelForOption(reminderField.options ?? [], taskBlockValue(block, 'reminderOffsetMinutes'))}`}
-              {duration && ` · ${duration} day${duration === '1' ? '' : 's'}`}
-            </span>
-            {instructions && (
-              <span className="text-caption-1 text-text-secondary">{instructions}</span>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-};
 
 const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   const acc: Record<string, any> = {};
@@ -138,12 +69,6 @@ type FormInfoProps = {
   canEdit?: boolean;
 };
 
-const baseDetailsFields = [
-  { label: 'Form name', key: 'name', type: 'text' },
-  { label: 'Description', key: 'description', type: 'text' },
-  { label: 'Signed by', key: 'requiredSigner', type: 'dropdown', options: RequiredSignerOptions },
-];
-
 const UsageFields = [
   {
     label: 'Visibility type',
@@ -183,8 +108,7 @@ const FormInfo = ({
   );
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
@@ -318,14 +242,14 @@ const FormInfo = ({
               href="#"
               text={unpublishLoading ? 'Unpublishing...' : 'Unpublish'}
               onClick={handleUnpublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={unpublishLoading || publishLoading || archiveLoading}
             />
             <Secondary
               href="#"
               text={archiveLoading ? 'Archiving...' : 'Archive'}
               onClick={handleArchive}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
@@ -337,14 +261,14 @@ const FormInfo = ({
               href="#"
               text={unpublishLoading ? 'Moving...' : 'Move to draft'}
               onClick={handleUnpublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
             <Primary
               href="#"
               text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
@@ -356,14 +280,14 @@ const FormInfo = ({
               href="#"
               text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
             <Secondary
               href="#"
               text={archiveLoading ? 'Archiving...' : 'Archive'}
               onClick={handleArchive}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
@@ -376,19 +300,12 @@ const FormInfo = ({
       key={activeForm._id || activeForm.name}
       showModal={showModal}
       setShowModal={setShowModal}
+      size="md"
     >
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">{modalTitle}</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title={modalTitle} onClose={() => setShowModal(false)} />
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto pr-1 scrollbar-hidden">
+        <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto pr-1 scrollbar-hidden">
           <div className="flex flex-col gap-6">
             <EditableAccordion
               key={`details-${activeForm._id || activeForm.name}`}
@@ -428,29 +345,26 @@ const FormInfo = ({
                 </Accordion>
               ))}
           </div>
-          <div className="flex flex-col gap-3 px-3 pb-3">
+        </div>
+        <ModalFooter align="stretch">
+          <div className="flex flex-col gap-3">
             {canMutateTemplateState && renderActions()}
             {canEditTemplateStructure ? (
               <Secondary
                 href="#"
+                size="large"
                 text="Edit form"
                 onClick={() => {
                   setShowModal(false);
                   onEdit(activeForm);
                 }}
-                className="h-12! text-[16px]!"
                 isDisabled={actionLoading}
               />
             ) : (
-              <Secondary
-                href="#"
-                text="Close"
-                onClick={() => setShowModal(false)}
-                className="h-12! text-[16px]!"
-              />
+              <Secondary href="#" size="large" text="Close" onClick={() => setShowModal(false)} />
             )}
           </div>
-        </div>
+        </ModalFooter>
         {ErrorTostPopup}
       </div>
     </Modal>

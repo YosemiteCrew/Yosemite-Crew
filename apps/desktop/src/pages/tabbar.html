@@ -9,7 +9,7 @@
       #tab-search-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.18);
+        background: var(--sh28);
         display: none;
         z-index: 9999;
       }
@@ -19,36 +19,44 @@
       .ts-panel {
         position: absolute;
         top: 8px;
+        /* The UA dialog stylesheet sets left: 0; without resetting it the fixed
+           width over-constrains the insets and the panel snaps to the left edge. */
+        left: auto;
         right: 12px;
         width: 460px;
         max-height: calc(100vh - 24px);
-        background: var(--surface-card);
-        border: 1px solid var(--border-card);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-card);
+        background: var(--glass-93);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid var(--hairline-soft);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 24px 60px var(--sh28);
         overflow: hidden;
         display: flex;
         flex-direction: column;
         font-family: var(--font-satoshi);
+        margin: 0;
+        padding: 0;
+        color: var(--ink-body);
       }
       .ts-search {
         padding: 10px;
-        border-bottom: 1px solid var(--border-subtle);
+        border-bottom: 1px solid var(--hairline-soft);
       }
       .ts-search input {
         width: 100%;
         font: inherit;
         font-size: 14px;
         padding: 9px 12px;
-        color: var(--text-primary);
-        background: var(--surface-page);
-        border: 1px solid var(--border-card);
+        color: var(--ink);
+        background: var(--field-bg);
+        border: 1px solid var(--hairline);
         border-radius: var(--radius-sm);
         outline: none;
       }
       .ts-search input:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 2px rgba(0, 124, 245, 0.18);
+        border-color: var(--blue);
+        box-shadow: 0 0 0 2px var(--nav-active-bg);
       }
       .ts-list {
         overflow-y: auto;
@@ -59,7 +67,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.4px;
-        color: var(--text-tertiary);
+        color: var(--ink-faint);
         padding: 10px 10px 4px;
       }
       .ts-item {
@@ -67,30 +75,32 @@
         align-items: center;
         gap: 9px;
         padding: 8px 10px;
-        border-radius: var(--radius-sm);
+        border-radius: 10px;
         cursor: pointer;
       }
-      /* Translucent accent so the row + its text stay legible in light AND dark. */
       .ts-item:hover {
-        background: rgba(0, 124, 245, 0.14);
+        background: var(--nav-active-bg);
       }
       .ts-item.sel {
-        background: rgba(0, 124, 245, 0.22);
+        background: var(--nav-active-bg);
+        box-shadow: inset 0 0 0 1px var(--blue-soft);
       }
       .ts-item:hover .lbl,
       .ts-item.sel .lbl {
-        color: var(--text-primary);
+        color: var(--ink);
       }
       .ts-item .ic {
         width: 16px;
         height: 16px;
         flex: 0 0 16px;
         opacity: 0.85;
+        color: var(--ink-muted);
       }
       .ts-item .lbl {
         flex: 1;
         font-size: 13.5px;
-        color: var(--text-primary);
+        font-weight: 600;
+        color: var(--ink);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -102,19 +112,19 @@
         border: none;
         background: none;
         cursor: pointer;
-        color: var(--text-tertiary);
+        color: var(--ink-faint);
       }
       .ts-item .x:hover {
         opacity: 1;
       }
       .ts-item .hint {
         font-size: 11px;
-        color: var(--text-tertiary);
+        color: var(--ink-faint);
       }
       .ts-empty {
         padding: 18px;
         text-align: center;
-        color: var(--text-tertiary);
+        color: var(--ink-faint);
         font-size: 13px;
       }
 
@@ -122,7 +132,7 @@
       #cheatsheet-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.18);
+        background: var(--sh28);
         display: none;
         z-index: 9998;
       }
@@ -136,21 +146,26 @@
         transform: translate(-50%, -50%);
         width: 520px;
         max-height: 80vh;
-        background: var(--surface-card);
-        border: 1px solid var(--border-card);
-        border-radius: var(--radius-md);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+        background: var(--glass-93);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid var(--hairline-soft);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 40px 90px var(--sh28);
         overflow: hidden;
         display: flex;
         flex-direction: column;
         font-family: var(--font-satoshi);
+        margin: 0;
+        padding: 0;
+        color: var(--ink-body);
       }
       .cs-header {
         font-size: 15px;
         font-weight: 700;
         padding: 14px 18px;
-        border-bottom: 1px solid var(--border-subtle);
-        color: var(--text-primary);
+        border-bottom: 1px solid var(--hairline-soft);
+        color: var(--ink);
       }
       .cs-body {
         padding: 10px 18px 18px;
@@ -167,7 +182,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: var(--text-tertiary);
+        color: var(--ink-faint);
         margin-bottom: 6px;
       }
       .cs-row {
@@ -180,18 +195,18 @@
         display: inline-block;
         min-width: 80px;
         padding: 2px 8px;
-        background: var(--surface-page);
-        border: 1px solid var(--border-subtle);
+        background: var(--pill-raised);
+        border: 1px solid var(--hairline);
         border-radius: var(--radius-sm);
         font-size: 12px;
         font-weight: 600;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        color: var(--text-primary);
+        color: var(--ink);
         text-align: center;
         margin-right: 14px;
       }
       .cs-desc {
-        color: var(--text-secondary);
+        color: var(--ink-body);
       }
 
       /* ── Sync status badge ── */
@@ -259,6 +274,25 @@
         </button>
         <div id="sync-badge" class="not-ready" title="Sync status"></div>
       </div>
+      <div id="win-caption" class="win-caption">
+        <button id="win-min" class="win-btn" type="button" aria-label="Minimize" title="Minimize">
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
+        </button>
+        <button id="win-max" class="win-btn" type="button" aria-label="Maximize" title="Maximize">
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="7" height="7" />
+          </svg>
+        </button>
+        <button
+          id="win-close"
+          class="win-btn win-close"
+          type="button"
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" /></svg>
+        </button>
+      </div>
     </div>
 
     <div id="context-menu" class="context-menu" style="display: none"></div>
@@ -268,7 +302,7 @@
     </div>
 
     <div id="tab-search-overlay">
-      <div class="ts-panel" role="dialog" aria-label="Search tabs">
+      <dialog class="ts-panel" open aria-label="Search tabs">
         <div class="ts-search">
           <input
             id="ts-input"
@@ -279,11 +313,11 @@
           />
         </div>
         <div id="ts-list" class="ts-list"></div>
-      </div>
+      </dialog>
     </div>
 
     <div id="cheatsheet-overlay" style="display: none">
-      <div class="cs-panel" role="dialog" aria-label="Keyboard shortcuts">
+      <dialog class="cs-panel" open aria-label="Keyboard shortcuts">
         <div class="cs-header">Keyboard Shortcuts</div>
         <div class="cs-body">
           <div class="cs-group">
@@ -344,7 +378,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </dialog>
     </div>
 
     <script>
@@ -863,6 +897,19 @@
           }
         }
       });
+
+      // Windows / Linux frameless window: surface caption controls (macOS uses
+      // native traffic lights). Fire-and-forget to the main process.
+      if (!navigator.userAgent.includes('Macintosh')) {
+        const cap = document.getElementById('win-caption');
+        if (cap) cap.style.display = 'flex';
+        const minBtn = document.getElementById('win-min');
+        const maxBtn = document.getElementById('win-max');
+        const closeBtn = document.getElementById('win-close');
+        if (minBtn) minBtn.addEventListener('click', () => send('windowMinimize'));
+        if (maxBtn) maxBtn.addEventListener('click', () => send('windowToggleMaximize'));
+        if (closeBtn) closeBtn.addEventListener('click', () => send('windowClose'));
+      }
 
       poll();
       setInterval(poll, 1000);

@@ -1,5 +1,9 @@
 # Frontend Web Currency Modernization Guide
 
+> Status: not started as of this revision. The "Current Frontend Problems Found" section below still matches the tree: `apps/frontend/src/app/lib/money.ts` still hardcodes the `en-US` locale, and `useCurrencyForPrimaryOrg()` in `apps/frontend/src/app/hooks/useBilling.ts` still falls back to `"USD"`. Read this as the target design for the `apps/frontend` currency work, not shipped work.
+
+This guide is for a frontend engineer working in `apps/frontend`. It depends on the backend currency contract described in [currency-backend-stripe-implementation-guide.md](currency-backend-stripe-implementation-guide.md); the mobile equivalent is [currency-mobile-implementation-guide.md](currency-mobile-implementation-guide.md).
+
 ## Objective
 
 Remove hardcoded currency behavior from the PMS web application and replace it with a single production-grade currency presentation system for `EUR`, `USD`, and `GBP`.

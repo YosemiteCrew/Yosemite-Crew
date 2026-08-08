@@ -51,6 +51,7 @@ const runtimeComponentMap: Record<FormFieldType, React.ComponentType<RuntimeRend
 };
 
 const getInteractiveTarget = (target: EventTarget | null): HTMLElement | null => {
+  /* v8 ignore next -- event targets in this rendered tree are always HTMLElements (div/span/input); the non-HTMLElement guard is defensive and unreachable */
   if (!(target instanceof HTMLElement)) return null;
   const closest = target.closest(
     "input, textarea, select, button, a, [tabindex], [contenteditable='true']"
@@ -64,15 +65,15 @@ const isMedicationLikeGroup = (field: FormField): boolean =>
 
 const getGroupContainerClass = (level: number, medicationGroup: boolean): string => {
   if (level === 0) {
-    return 'rounded-2xl border border-card-border bg-white p-4';
+    return 'rounded-2xl border border-card-border bg-neutral-0 p-4';
   }
   if (medicationGroup) {
-    return 'rounded-xl border border-card-border bg-white p-3';
+    return 'rounded-xl border border-card-border bg-neutral-0 p-3';
   }
   if (level === 1) {
-    return 'rounded-xl border border-grey-light bg-white p-3';
+    return 'rounded-xl border border-card-border bg-neutral-0 p-3';
   }
-  return 'rounded-lg border-l-2 border-card-border bg-white px-3 py-2';
+  return 'rounded-lg border-l-2 border-card-border bg-neutral-0 px-3 py-2';
 };
 
 const getGroupTitleClass = (level: number): string =>

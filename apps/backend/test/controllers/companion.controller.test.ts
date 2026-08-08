@@ -1,11 +1,10 @@
-import { Types } from "mongoose";
 import { CompanionController } from "../../src/controllers/app/companion.controller";
 import {
   CompanionService,
   CompanionServiceError,
 } from "../../src/services/companion.service";
 import { CompanionOrganisationService } from "../../src/services/companion-organisation.service";
-import OrganizationModel from "../../src/models/organization";
+import { prisma } from "src/config/prisma";
 import { generatePresignedUrl } from "src/middlewares/upload";
 import logger from "../../src/utils/logger";
 
@@ -43,10 +42,12 @@ jest.mock("../../src/services/companion-organisation.service", () => ({
   },
 }));
 
-jest.mock("../../src/models/organization", () => ({
+jest.mock("src/config/prisma", () => ({
   __esModule: true,
-  default: {
-    findById: jest.fn(),
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -67,7 +68,7 @@ describe("CompanionController", () => {
   let res: any;
 
   const validFHIR = { resourceType: "Patient" };
-  const validObjectId = new Types.ObjectId().toHexString();
+  const validObjectId = "507f1f77bcf86cd799439011";
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -242,7 +243,7 @@ describe("CompanionController", () => {
       (CompanionService.create as jest.Mock).mockResolvedValue({
         response: { id: "c1" },
       });
-      (OrganizationModel.findById as jest.Mock).mockResolvedValue(null);
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue(null);
 
       await CompanionController.createCompanionPMS(req, res);
       expect(res.status).toHaveBeenCalledWith(404);
@@ -255,7 +256,7 @@ describe("CompanionController", () => {
       (CompanionService.create as jest.Mock).mockResolvedValue({
         response: { id: "c1" },
       });
-      (OrganizationModel.findById as jest.Mock).mockResolvedValue({
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
         type: "HOSPITAL",
       });
 

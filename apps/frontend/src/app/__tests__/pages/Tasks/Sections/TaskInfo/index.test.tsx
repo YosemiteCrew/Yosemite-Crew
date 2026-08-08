@@ -1,7 +1,14 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import TaskInfo from '@/app/features/tasks/pages/Tasks/Sections/TaskInfo';
+import { updateTask } from '@/app/features/tasks/services/taskService';
+import { formatDisplayDate } from '@/app/lib/date';
+
+jest.mock('@/app/features/tasks/services/taskService', () => ({
+  updateTask: jest.fn().mockResolvedValue(undefined),
+  changeTaskStatus: jest.fn().mockResolvedValue(undefined),
+}));
 
 const mockResolveMemberName = jest.fn((id?: string) =>
   id === 'team-1' ? 'Dr. Who' : id === 'parent-1' ? 'Parent One' : '-'
@@ -90,6 +97,21 @@ describe('TaskInfo', () => {
     expect(screen.getByTestId('assigned-to')).toHaveTextContent('Dr. Who');
   });
 
+  it('names the task in the panel header and carries the due date as meta', () => {
+    render(<TaskInfo showModal setShowModal={jest.fn()} activeTask={baseTask as any} />);
+
+    expect(screen.getByRole('heading', { name: 'Task A' })).toBeInTheDocument();
+    expect(screen.getByText(`Due ${formatDisplayDate(baseTask.dueAt)}`)).toBeInTheDocument();
+  });
+
+  it('falls back to the panel name when the task is unnamed', () => {
+    render(
+      <TaskInfo showModal setShowModal={jest.fn()} activeTask={{ ...baseTask, name: '' } as any} />
+    );
+
+    expect(screen.getByRole('heading', { name: 'View task' })).toBeInTheDocument();
+  });
+
   it('shows no edit icon when current user is neither assigner nor assignee', () => {
     render(
       <TaskInfo
@@ -160,6 +182,58 @@ describe('TaskInfo', () => {
     expect(detailProps.showEditIcon).toBe(true);
     expect(statusField.editable).toBe(true);
     expect(nameField.editable).toBe(true);
+  });
+
+  it('exposes an editable Priority field in the task details', () => {
+    render(
+      <TaskInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeTask={{ ...baseTask, assignedBy: 'me', assignedTo: 'me', priority: 'LOW' } as any}
+      />
+    );
+
+    const detailProps = mockEditableAccordion.mock.calls[1][0];
+    const priorityField = detailProps.fields.find((f: any) => f.key === 'priority');
+    expect(priorityField).toBeTruthy();
+    expect(priorityField.editable).toBe(true);
+    expect(priorityField.options.map((o: any) => o.value)).toEqual([
+      'LOW',
+      'MEDIUM',
+      'HIGH',
+      'URGENT',
+    ]);
+    // The current priority is handed to the accordion for display.
+    expect(detailProps.data.priority).toBe('LOW');
+  });
+
+  it('persists the chosen priority when the details form is saved', async () => {
+    render(
+      <TaskInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeTask={{ ...baseTask, assignedBy: 'me', assignedTo: 'me', priority: 'LOW' } as any}
+      />
+    );
+
+    const detailProps = mockEditableAccordion.mock.calls[1][0];
+    await detailProps.onSave({
+      name: 'Task A',
+      description: '',
+      category: 'CUSTOM',
+      priority: 'URGENT',
+      assignedToId: 'me',
+      dueTime: '00:00',
+      reminder: 'NONE',
+      repeat: 'ONCE',
+      syncWithCalendar: 'false',
+    });
+
+    await waitFor(() => {
+      expect(updateTask).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: 'task-1', priority: 'URGENT' })
+      );
+    });
   });
 
   it('reuses a completed task by handing a prefill back to add-task flow', () => {

@@ -14,11 +14,17 @@ import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { useServiceStore } from '@/app/stores/serviceStore';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
+import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useTaskStore } from '@/app/stores/taskStore';
 import { useTeamStore } from '@/app/stores/teamStore';
-import { removeStorageItem } from '@/app/lib/browserStorage';
+import { removeStorageItem, removeStorageItemsByPrefix } from '@/app/lib/browserStorage';
+import { clearInFlightGetRequests } from '@/app/services/axios';
 
 const ORG_STORE_STORAGE_KEY = 'org-store';
+// Written per org by OrgGuard; without this the next user in the same tab
+// inherits the previous user's "already passed" fast path.
+const ORG_GUARD_PASSED_KEY_PREFIX = 'yc_org_guard_passed:';
+const DEFAULT_LANDING_APPLIED_KEY_PREFIX = 'yc_default_landing_applied:';
 
 export const clearSessionScopedStores = () => {
   useOrgStore.getState().clearOrgs();
@@ -39,5 +45,9 @@ export const clearSessionScopedStores = () => {
   useOrganisationRoomStore.getState().clearRooms();
   useServiceStore.getState().clearServices();
   useSpecialityStore.getState().clearSpecialities();
+  useRevampCatalogStore.getState().clearCatalog();
+  clearInFlightGetRequests();
   removeStorageItem('local', ORG_STORE_STORAGE_KEY);
+  removeStorageItemsByPrefix('session', ORG_GUARD_PASSED_KEY_PREFIX);
+  removeStorageItemsByPrefix('session', DEFAULT_LANDING_APPLIED_KEY_PREFIX);
 };

@@ -1,50 +1,29 @@
 name: Frontend Quality
 
-on:
-  pull_request:
-    paths:
-      - 'apps/frontend/**'
-      - 'packages/types/**'
-      - 'packages/fhirtypes/**'
-      - 'pnpm-lock.yaml'
-      - 'package.json'
-      - '.github/workflows/dependency-review.yml'
-      - '.github/workflows/frontend-quality.yml'
-  push:
-    branches: [main, dev]
-    paths:
-      - 'apps/frontend/**'
-      - 'packages/types/**'
-      - 'packages/fhirtypes/**'
-      - 'pnpm-lock.yaml'
-      - 'package.json'
-      - '.github/workflows/dependency-review.yml'
-  workflow_dispatch:
+# Reusable frontend bundle-budget and Lighthouse stage.
+#
+# The type-check, lint, unit-test and security-header jobs that used to live here
+# are gone: _core runs the frontend's lint and type-check, and _test runs its
+# jest suite sharded with the same 80/70/78/80 coverage floor this workflow
+# enforced on the jest command line (including securityHeaders.test.ts, which is
+# an ordinary frontend spec picked up by the shards). What remains is the bundle
+# and Lighthouse pass, and it consumes the build _core already produced rather
+# than building the frontend a second time.
 
-concurrency:
-  group: frontend-quality-${{ github.ref }}
-  cancel-in-progress: true
+# workflow_call only. This stage consumes the dist-packages and next-build
+# artifacts that _core produces in the same run and deliberately does not build
+# them itself, so a standalone dispatch would have nothing to download and would
+# fail at that step. To run it on demand, dispatch ci.yaml, which runs the whole
+# pipeline including this stage.
+on:
+  workflow_call: {}
+
+permissions:
+  contents: read
 
 jobs:
-  security-headers:
-    name: Frontend security header regression
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Check frontend security headers
-        run: pnpm --filter frontend run test -- --testPathPattern='config/securityHeaders.test.ts'
-
-  type-check-and-test:
-    name: Frontend type-check and unit tests
+  bundle-lighthouse:
+    name: Frontend bundle budgets and Lighthouse
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -52,81 +31,30 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Cache Jest transform cache
-        uses: actions/cache@v4
+      - name: Download shared package dist output
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          path: apps/frontend/.jest-cache
-          key: jest-frontend-${{ runner.os }}-${{ hashFiles('apps/frontend/jest.config.ts', 'apps/frontend/package.json', 'pnpm-lock.yaml') }}
-          restore-keys: |
-            jest-frontend-${{ runner.os }}-
+          name: dist-packages
 
-      - name: Cache Turborepo
-        uses: actions/cache@v4
+      - name: Unpack shared package dist output
+        run: tar -xzf dist-packages.tar.gz
+
+      # next start loads .next/server, which resolves the workspace packages
+      # through node_modules, so both the frontend build and the package dist
+      # have to be present. Neither is rebuilt here.
+      - name: Download frontend build output
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
-            turbo-${{ runner.os }}-${{ github.job }}-
-            turbo-${{ runner.os }}-
-
-      - name: Build shared packages
-        run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
-
-      - name: Type-check
-        run: pnpm --filter frontend run type-check
-
-      - name: Lint
-        run: pnpm --filter frontend run lint
-
-      - name: Unit tests
-        run: pnpm --filter frontend run test -- --ci --maxWorkers=4 --cacheDirectory=.jest-cache
-
-  # React Doctor runs in its own workflow (.github/workflows/react-doctor.yml)
-  # via the millionco/react-doctor action — do not duplicate it here.
-
-  build-quality:
-    name: Frontend build, bundle budgets, Lighthouse
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Cache Next.js build cache
-        uses: actions/cache@v4
-        with:
-          path: apps/frontend/.next/cache
-          key: next-build-${{ runner.os }}-${{ hashFiles('apps/frontend/package.json', 'apps/frontend/next.config.*', 'pnpm-lock.yaml') }}
-          restore-keys: |
-            next-build-${{ runner.os }}-
-
-      - name: Cache Turborepo
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
-            turbo-${{ runner.os }}-${{ github.job }}-
-            turbo-${{ runner.os }}-
-
-      - name: Build shared packages
-        run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
-
-      - name: Build frontend
-        run: pnpm --filter frontend run build
+          name: next-build
+          path: apps/frontend/.next
 
       - name: Check bundle budgets
         working-directory: apps/frontend
@@ -137,12 +65,14 @@ jobs:
         run: pnpm run report:build-routes
 
       - name: Upload route build report
-        uses: actions/upload-artifact@v4
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-build-route-report
           path: |
             apps/frontend/artifacts/build-route-report.json
             apps/frontend/artifacts/build-route-report.md
+          if-no-files-found: warn
 
       - name: Start frontend server
         run: |
@@ -157,7 +87,6 @@ jobs:
             fi
             sleep 2
           done
-
           cat /tmp/frontend-lighthouse.log
           exit 1
 

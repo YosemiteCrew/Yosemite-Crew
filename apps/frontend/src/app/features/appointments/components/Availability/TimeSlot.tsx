@@ -67,26 +67,32 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
 
   return (
     <div className="relative w-[100px] sm:w-[110px]" ref={availabilityContainerRef}>
+      {/* 32px value chip: warm field fill, 1.5px hairline, 9px radius, tabular
+          figures, and a blue ring while the picker is open/focused. */}
       <button
         type="button"
-        className="bg-white rounded-2xl! border border-text-primary justify-center w-full outline-none py-[11px]"
+        className={`flex h-8 w-full items-center justify-center rounded-[9px]! border-[1.5px] bg-[var(--field-bg)] px-3 outline-none transition-shadow focus-visible:border-[var(--blue)] focus-visible:shadow-[0_0_0_3px_var(--glow-b10)] ${
+          open
+            ? 'border-[var(--blue)] shadow-[0_0_0_3px_var(--glow-b10)]'
+            : 'border-[var(--hairline)]'
+        }`}
         onClick={() => {
           if (disabled) return;
           setOpen((e: boolean) => !e);
         }}
         disabled={disabled}
       >
-        <span className="text-body-4 text-text-primary ">
+        <span className="text-[13px] font-semibold tabular-nums text-[var(--ink-body)]">
           {getTimeLabelFromValue(interval[field]) || 'Select'}
         </span>
       </button>
       {open && !disabled && (
-        <div className="max-h-[200px] z-10 w-[110px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[110%] p-2">
+        <div className="max-h-[200px] z-10 w-[110px] overflow-y-scroll scrollbar-hidden flex flex-col bg-neutral-0 rounded-2xl border border-card-border absolute left-0 top-[110%] p-2">
           {timeOptions.map((opt: TimeOption) => (
             <button
               type="button"
               key={opt.value}
-              className="border-none outline-none bg-white text-center py-2 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
+              className="border-none outline-none bg-neutral-0 text-center py-2 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
               onClick={() => handleTimeChange(opt.value)}
             >
               <span className="text-body-4 text-text-primary ">{opt.label}</span>

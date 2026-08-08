@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`GenericEmptyScreen renders correctly and matches snapshot 1`] = `
 <View
@@ -40,9 +40,12 @@ exports[`GenericEmptyScreen renders correctly and matches snapshot 1`] = `
     <Text
       style={
         {
-          "color": "#302F2E",
-          "fontSize": 28,
-          "fontWeight": "600",
+          "color": "#1D1C1B",
+          "fontFamily": "Newsreader-Regular",
+          "fontSize": 24,
+          "fontWeight": "400",
+          "letterSpacing": -0.36,
+          "lineHeight": 29,
           "marginBottom": 12,
           "textAlign": "center",
         }

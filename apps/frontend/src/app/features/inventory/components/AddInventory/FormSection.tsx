@@ -95,7 +95,7 @@ const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
       </span>
     </div>
     <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
-      <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+      <span className="absolute left-4 -top-[11px] bg-neutral-0 px-1.5 text-xs text-input-text-placeholder">
         Total stock value
       </span>
       <div className="flex items-center justify-between gap-2">
@@ -148,7 +148,6 @@ type FieldChangeHandler = (
 
 type InventoryFieldRenderParams = {
   field: FieldDef<any>;
-  key?: React.Key;
   index?: number;
   sectionKey: InventorySectionKey;
   formData: InventoryItem;
@@ -201,7 +200,6 @@ const getReadOnlyStockDisplayValue = (
 
 const renderTextInventoryField = ({
   field,
-  key,
   index,
   sectionKey,
   formData,
@@ -210,7 +208,6 @@ const renderTextInventoryField = ({
   handleChange,
 }: {
   field: FieldDef<any>;
-  key?: React.Key;
   index?: number;
   sectionKey: InventorySectionKey;
   formData: InventoryItem;
@@ -222,10 +219,7 @@ const renderTextInventoryField = ({
   if (isReadOnlyStockField) {
     const displayValue = getReadOnlyStockDisplayValue(field, formData, value);
     return (
-      <div
-        key={key ?? field.name}
-        className="flex items-center gap-2 px-2 text-body-4 text-text-primary"
-      >
+      <div className="flex items-center gap-2 px-2 text-body-4 text-text-primary">
         <span>{field.placeholder} :</span>
         <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
           {displayValue}
@@ -236,7 +230,6 @@ const renderTextInventoryField = ({
 
   return (
     <FormInput
-      key={key ?? field.name}
       intype="text"
       inname={field.name}
       value={value}
@@ -247,14 +240,12 @@ const renderTextInventoryField = ({
         handleChange(field, val, index);
       }}
       error={error}
-      className="min-h-12!"
     />
   );
 };
 
 const renderInventoryField = ({
   field,
-  key,
   index,
   sectionKey,
   formData,
@@ -278,7 +269,6 @@ const renderInventoryField = ({
   if (component === 'text') {
     return renderTextInventoryField({
       field,
-      key,
       index,
       sectionKey,
       formData,
@@ -291,7 +281,7 @@ const renderInventoryField = ({
   if (component === 'date') {
     const currentDate = parseDate(value);
     return (
-      <div key={key ?? field.name} className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <Datepicker
           currentDate={currentDate}
           setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
@@ -300,7 +290,6 @@ const renderInventoryField = ({
           }}
           placeholder={placeholder || ''}
           type="input"
-          className="min-h-12!"
           error={error}
         />
       </div>
@@ -320,7 +309,6 @@ const renderInventoryField = ({
     );
     return (
       <LabelDropdown
-        key={key ?? field.name}
         placeholder={placeholder || ''}
         defaultOption={value}
         onSelect={(opt) => handleChange(field, opt.value, index)}
@@ -334,7 +322,6 @@ const renderInventoryField = ({
     const arrayValue = getMultiSelectValues(value);
     return (
       <MultiSelectDropdown
-        key={key ?? field.name}
         placeholder={placeholder || ''}
         value={arrayValue}
         onChange={(vals) => handleChange(field, vals, index)}
@@ -347,7 +334,6 @@ const renderInventoryField = ({
   if (component === 'textarea') {
     return (
       <FormDesc
-        key={key ?? field.name}
         intype="text"
         inname={field.name}
         value={value}
@@ -361,10 +347,7 @@ const renderInventoryField = ({
   if (component === 'checkbox') {
     const checked = value === 'true' || value === 'Yes';
     return (
-      <label
-        key={key ?? field.name}
-        className="flex min-h-10 cursor-pointer items-center gap-3 text-body-4 text-text-primary"
-      >
+      <label className="flex min-h-10 cursor-pointer items-center gap-3 text-body-4 text-text-primary">
         <input
           type="checkbox"
           checked={checked}
@@ -379,7 +362,6 @@ const renderInventoryField = ({
   if (component === 'upload') {
     return (
       <ImageUploadField
-        key={key ?? field.name}
         label={placeholder}
         value={value}
         organisationId={organisationId}
@@ -390,6 +372,8 @@ const renderInventoryField = ({
 
   return null;
 };
+
+const InventoryFieldRenderer = (props: InventoryFieldRenderParams) => renderInventoryField(props);
 
 const FormSection: React.FC<FormSectionProps> = ({
   businessType,
@@ -412,7 +396,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   const sectionConfig = configForBusiness[sectionKey];
 
   if (!sectionConfig || sectionConfig.length === 0) {
-    return <div className="text-sm text-gray-500">No fields configured.</div>;
+    return <div className="text-sm text-text-tertiary">No fields configured.</div>;
   }
 
   const sectionData = formData[sectionKey] as any;
@@ -422,19 +406,17 @@ const FormSection: React.FC<FormSectionProps> = ({
     onFieldChange(sectionKey, field.name, value, batchIndex);
   };
 
-  const renderField = (field: FieldDef<any>, key?: React.Key, index?: number) =>
-    renderInventoryField({
-      field,
-      key,
-      index,
-      sectionKey,
-      formData,
-      sectionData,
-      sectionErrors,
-      stockLocationOptions,
-      organisationId,
-      handleChange,
-    });
+  const getFieldProps = (field: FieldDef<any>, index?: number) => ({
+    field,
+    index,
+    sectionKey,
+    formData,
+    sectionData,
+    sectionErrors,
+    stockLocationOptions,
+    organisationId,
+    handleChange,
+  });
 
   const renderItem = (item: ConfigItem<any>, index: number, batchIndex?: number) => {
     const itemKey =
@@ -443,14 +425,16 @@ const FormSection: React.FC<FormSectionProps> = ({
     if ('fields' in item && item.kind === 'row') {
       return (
         <div key={fullKey} className="grid grid-cols-2 gap-3">
-          {item.fields.map((field, i) => renderField(field, `${index}-${i}`, batchIndex))}
+          {item.fields.map((field) => (
+            <InventoryFieldRenderer key={field.name} {...getFieldProps(field, batchIndex)} />
+          ))}
         </div>
       );
     }
 
     return (
       <div key={fullKey} className="w-full">
-        {renderField(item.field, index, batchIndex)}
+        <InventoryFieldRenderer {...getFieldProps(item.field, batchIndex)} />
       </div>
     );
   };
@@ -458,8 +442,6 @@ const FormSection: React.FC<FormSectionProps> = ({
   return (
     <div className="flex w-full flex-1 flex-col justify-between gap-6">
       <div className="flex flex-col gap-6">
-        <div className="font-satoshi text-black-text text-[23px] font-medium">{sectionTitle}</div>
-
         <Accordion title={sectionTitle} defaultOpen showEditIcon={false} isEditing={true}>
           {sectionKey === 'batch' ? (
             <div className="flex flex-col gap-6">
@@ -469,7 +451,7 @@ const FormSection: React.FC<FormSectionProps> = ({
               ).map((batch, batchIdx) => (
                 <div
                   key={batch._id ?? `batch-${batchIdx}`}
-                  className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
+                  className="flex flex-col gap-3 border border-card-border rounded-xl p-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-satoshi font-semibold text-black-text">
@@ -478,7 +460,7 @@ const FormSection: React.FC<FormSectionProps> = ({
                     {formData.batches && formData.batches.length > 1 && (
                       <button
                         type="button"
-                        className="text-red-500 text-sm font-semibold"
+                        className="text-text-error text-sm font-semibold"
                         onClick={() => onRemoveBatch?.(batchIdx)}
                       >
                         Remove

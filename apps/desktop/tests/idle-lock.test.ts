@@ -2,6 +2,7 @@ import {
   IDLE_LOCK_ENV,
   idleLockMinutesFromEnv,
   reduceIdleLock,
+  resolveIdleLockMinutes,
   shouldLockAfterIdle,
 } from '../src/lifecycle/idle-lock';
 
@@ -17,6 +18,27 @@ describe('idle lock helpers', () => {
     expect(idleLockMinutesFromEnv({ [IDLE_LOCK_ENV]: '5' })).toBe(5);
     expect(idleLockMinutesFromEnv({ [IDLE_LOCK_ENV]: '2.2' })).toBe(3);
     expect(idleLockMinutesFromEnv({ [IDLE_LOCK_ENV]: '9999' })).toBe(1440);
+  });
+
+  describe('resolveIdleLockMinutes', () => {
+    test('treats the managed value as a ceiling the user setting cannot weaken', () => {
+      // A looser user preference must not override an MDM-mandated 5 minutes.
+      expect(resolveIdleLockMinutes(60, 5)).toBe(5);
+      // A stricter user preference is honoured.
+      expect(resolveIdleLockMinutes(2, 5)).toBe(2);
+      // Unset/disabled/invalid user values fall back to the managed policy
+      // rather than disabling the lock.
+      expect(resolveIdleLockMinutes(undefined, 5)).toBe(5);
+      expect(resolveIdleLockMinutes(0, 5)).toBe(5);
+      expect(resolveIdleLockMinutes(-10, 5)).toBe(5);
+      expect(resolveIdleLockMinutes('60', 5)).toBe(5);
+    });
+
+    test('falls back to the user setting when no managed policy exists', () => {
+      expect(resolveIdleLockMinutes(60, null)).toBe(60);
+      expect(resolveIdleLockMinutes(0, null)).toBe(0);
+      expect(resolveIdleLockMinutes(undefined, null)).toBe(0);
+    });
   });
 
   test('locks only after the configured idle duration', () => {

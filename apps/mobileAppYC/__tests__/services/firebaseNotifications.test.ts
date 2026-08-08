@@ -650,6 +650,35 @@ describe('firebaseNotifications Service', () => {
       );
     });
 
+    it('stores a pending intent for a foreground PRESS when no navigation handler is registered', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: undefined as any,
+      });
+
+      const onEventCallback = mockNotifee.onForegroundEvent.mock.calls[0][0];
+
+      const event = {
+        type: 1, // EventType.PRESS
+        detail: {
+          notification: {
+            id: 'n2',
+            data: {navigationId: 'appointments'},
+          },
+        },
+      };
+
+      await onEventCallback(event);
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      const freshAsyncStorage = require('@react-native-async-storage/async-storage');
+      expect(freshAsyncStorage.setItem).toHaveBeenCalledWith(
+        expect.any(String),
+        JSON.stringify({navigationId: 'appointments'}),
+      );
+    });
+
     it('stores intent on background PRESS', async () => {
       const {handleNotificationBackgroundEvent} = loadService();
       const event: any = {

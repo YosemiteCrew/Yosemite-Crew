@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 
 const ChatController = {
   generateToken: jest.fn(),
@@ -22,8 +22,8 @@ const ChatController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/controllers/app/chat.controller", () => ({
@@ -51,24 +51,18 @@ describe("chat.router shared-entity routes", () => {
   it("registers POST /pms/share behind cognito auth", () => {
     const route = findRoute("/pms/share", "post");
     expect(route).toBeDefined();
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
-    );
+    expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
   });
 
   it("registers GET /pms/share/:channelId behind cognito auth", () => {
     const route = findRoute("/pms/share/:channelId", "get");
     expect(route).toBeDefined();
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
-    );
+    expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
   });
 
   it("registers POST /pms/share/:id/revoke behind cognito auth", () => {
     const route = findRoute("/pms/share/:id/revoke", "post");
     expect(route).toBeDefined();
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
-    );
+    expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
   });
 });

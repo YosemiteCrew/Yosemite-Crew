@@ -76,6 +76,15 @@ describe('CardActionButton', () => {
     expect(mockOnPress).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes button role and the label to screen readers', () => {
+    const {getByTestId} = render(
+      <CardActionButton label="Press Me" onPress={mockOnPress} />,
+    );
+    const button = getByTestId('mock-touchable-opacity');
+    expect(button.props.accessibilityRole).toBe('button');
+    expect(button.props.accessibilityLabel).toBe('Press Me');
+  });
+
   it('renders the icon when provided', () => {
     const {getByTestId} = render(
       <CardActionButton

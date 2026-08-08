@@ -1,11 +1,13 @@
 import type { Response } from "express";
 import type { SessionRequest } from "@yosemite-crew/auth";
-import TOTP from "supertokens-node/recipe/totp";
-import { getSessionUserId } from "@yosemite-crew/auth";
+import { getSessionUserId, createTotpDeviceForUser } from "@yosemite-crew/auth";
+import { isLocalDevEnvironment } from "../../utils/local-dev";
 
 function assertLocalDev() {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("MFA debug endpoints are disabled in production");
+  if (!isLocalDevEnvironment()) {
+    throw new Error(
+      "MFA debug endpoints are disabled outside local development",
+    );
   }
 }
 
@@ -14,13 +16,9 @@ export class MfaDebugController {
     try {
       assertLocalDev();
 
-      const userId = getSessionUserId(req);
+      const userId = await getSessionUserId(req);
 
-      const result = await TOTP.createDevice(
-        userId,
-        undefined,
-        "Local dev device",
-      );
+      const result = await createTotpDeviceForUser(userId, "Local dev device");
 
       return res.status(200).json(result);
     } catch (error) {

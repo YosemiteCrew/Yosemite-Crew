@@ -23,9 +23,7 @@ export type DragAction =
   | { type: 'availabilityRefreshed' };
 
 export type ErrorCandidate =
-  | { response?: { data?: unknown } }
-  | { data?: unknown }
-  | { message?: string };
+  { response?: { data?: unknown } } | { data?: unknown } | { message?: string };
 
 export const initialDragState: DragState = {
   appointmentId: null,

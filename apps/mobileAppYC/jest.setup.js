@@ -170,6 +170,8 @@ jest.mock('react-native-reanimated', () => {
     useSharedValue: v => ({value: v}),
     useAnimatedStyle: updater =>
       typeof updater === 'function' ? updater() : {},
+    useAnimatedProps: updater =>
+      typeof updater === 'function' ? updater() : {},
     withTiming: (v, _config, callback) => {
       callback?.(true);
       return v;
@@ -192,11 +194,39 @@ jest.mock('react-native-reanimated', () => {
     interpolate: interpolateValue,
     interpolateColor: interpolateValue,
     runOnJS: fn => fn,
+    useReducedMotion: () => false,
     FadeIn: transitionBuilder,
     FadeOut: transitionBuilder,
     LinearTransition: transitionBuilder,
     // No-op components/hooks used by some libs
     useAnimatedScrollHandler: () => ({}),
+  };
+});
+
+// Mock react-native-svg so SVG primitives render as plain hosts in tests.
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  const make = name => {
+    const Component = ({children, ...props}) =>
+      React.createElement(View, {testID: `svg-${name}`, ...props}, children);
+    Component.displayName = name;
+    return Component;
+  };
+  const Svg = make('Svg');
+  return {
+    __esModule: true,
+    default: Svg,
+    Svg,
+    Circle: make('Circle'),
+    Ellipse: make('Ellipse'),
+    Path: make('Path'),
+    G: make('G'),
+    Rect: make('Rect'),
+    Line: make('Line'),
+    Defs: make('Defs'),
+    Stop: make('Stop'),
+    LinearGradient: make('LinearGradient'),
   };
 });
 
@@ -568,26 +598,18 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-// Mock aws-amplify to avoid pulling in ESM sub-deps
-jest.mock('aws-amplify', () => ({
-  Amplify: {configure: jest.fn()},
-}));
-
-// Mock Amplify Auth submodule to avoid ESM deps and network
-jest.mock('aws-amplify/auth', () => ({
-  confirmSignIn: jest.fn().mockResolvedValue({isSignedIn: true, nextStep: {}}),
-  fetchAuthSession: jest.fn().mockResolvedValue({tokens: {}}),
-  fetchUserAttributes: jest.fn().mockResolvedValue({}),
-  getCurrentUser: jest
-    .fn()
-    .mockResolvedValue({userId: 'test', username: 'test@example.com'}),
-  signIn: jest.fn().mockResolvedValue({nextStep: {}}),
-  signOut: jest.fn().mockResolvedValue(undefined),
-  AuthError: class AuthError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = 'AuthError';
-    }
+// Mock the SuperTokens React Native SDK to avoid network/native deps
+jest.mock('supertokens-react-native', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+    signOut: jest.fn().mockResolvedValue(undefined),
+    doesSessionExist: jest.fn().mockResolvedValue(false),
+    getAccessToken: jest.fn().mockResolvedValue(undefined),
+    getUserId: jest.fn().mockResolvedValue('test'),
+    getAccessTokenPayloadSecurely: jest.fn().mockResolvedValue({}),
+    attemptRefreshingSession: jest.fn().mockResolvedValue(false),
+    addAxiosInterceptors: jest.fn(),
   },
 }));
 
@@ -595,27 +617,6 @@ jest.mock('aws-amplify/auth', () => ({
 jest.mock('@/features/auth/services/socialAuth', () => ({
   configureSocialProviders: jest.fn(),
 }));
-
-// Mock React Native Firebase Auth to avoid pulling firebase ESM
-jest.mock('@react-native-firebase/auth', () => {
-  const reload = jest.fn(async () => undefined);
-  const getIdToken = jest.fn(async user => user?.getIdToken?.());
-  const getIdTokenResult = jest.fn(async user => user?.getIdTokenResult?.());
-  const getAuth = jest.fn(() => ({}));
-  const signOut = jest.fn(async auth => {
-    // Delegate to instance signOut when provided to match real API shape
-    return auth?.signOut ? auth.signOut() : undefined;
-  });
-
-  return {
-    __esModule: true,
-    getAuth,
-    signOut,
-    getIdToken,
-    getIdTokenResult,
-    reload,
-  };
-});
 
 // Mock Keychain to avoid native module dependency
 jest.mock('react-native-keychain', () => ({
@@ -639,6 +640,11 @@ jest.mock('react-native-image-picker', () => {
 
 jest.mock('react-native-fs', () => ({
   stat: jest.fn(() => Promise.resolve({size: 1024})),
+  mkdir: jest.fn(() => Promise.resolve()),
+  copyFile: jest.fn(() => Promise.resolve()),
+  downloadFile: jest.fn(() => ({promise: Promise.resolve({statusCode: 200})})),
+  DocumentDirectoryPath: '/mock/document-directory',
+  DownloadDirectoryPath: '/mock/download-directory',
 }));
 
 // Mock native-stack navigator to a simple host component
@@ -653,27 +659,6 @@ jest.mock('@react-navigation/native-stack', () => {
   };
 });
 
-// Mock bottom sheet to simple components
-jest.mock('@gorhom/bottom-sheet', () => {
-  const React = require('react');
-  // Simple host components to satisfy RN rendering paths
-  const PassThrough = ({children, ...props}) =>
-    React.createElement('View', props, children);
-  return {
-    __esModule: true,
-    default: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetView: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetScrollView: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetFlatList: ({..._props}) => null,
-    BottomSheetBackdrop: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetHandle: ({...props}) => React.createElement('View', props),
-  };
-});
-
 // Mock RN Bootsplash and LinearGradient
 jest.mock('react-native-bootsplash', () => ({
   __esModule: true,
@@ -684,6 +669,16 @@ jest.mock('react-native-linear-gradient', () => {
   const Mock = ({children}) =>
     React.createElement(React.Fragment, null, children);
   return {__esModule: true, default: Mock};
+});
+
+jest.mock('react-native-video', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    default: ({children, ...props}) =>
+      React.createElement(View, {testID: 'rn-video', ...props}, children),
+  };
 });
 
 jest.mock('react-native-localize', () => ({
@@ -757,6 +752,50 @@ jest.mock('@d11/react-native-fast-image', () => {
   return {
     __esModule: true,
     default: FastImage,
+  };
+});
+
+// Mock react-native-vector-icons so icon sets render as a queryable Text node
+// (the real createIconSet component trips React 19's duplicate-copy check under
+// pnpm). Covers the sets the app uses (Ionicons, MaterialIcons) plus the generic
+// factory, exposing the glyph name via accessibilityLabel/testID for assertions.
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const {Text} = require('react-native');
+  const Icon = ({name, ...props}) =>
+    React.createElement(
+      Text,
+      {accessibilityLabel: name, testID: `icon-${name}`, ...props},
+      name,
+    );
+  Icon.displayName = 'Ionicons';
+  return {__esModule: true, default: Icon};
+});
+
+jest.mock('react-native-vector-icons/MaterialIcons', () => {
+  const React = require('react');
+  const {Text} = require('react-native');
+  const Icon = ({name, ...props}) =>
+    React.createElement(
+      Text,
+      {accessibilityLabel: name, testID: `icon-${name}`, ...props},
+      name,
+    );
+  Icon.displayName = 'MaterialIcons';
+  return {__esModule: true, default: Icon};
+});
+
+// Mock @react-native-community/blur (native frosted-glass) as a plain View so
+// the warm-glass surfaces render in jest without the native module.
+jest.mock('@react-native-community/blur', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  const Passthrough = ({children, ...props}) =>
+    React.createElement(View, props, children);
+  return {
+    __esModule: true,
+    BlurView: Passthrough,
+    VibrancyView: Passthrough,
   };
 });
 

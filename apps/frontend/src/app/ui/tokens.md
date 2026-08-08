@@ -2,11 +2,13 @@
 
 Primary source of tokens is `src/app/globals.css` under the `@theme` block.
 Shared semantic token definitions live in `packages/design-tokens/src/`.
+For the shared UI overview see [`README.md`](./README.md); for the full component list and status labels see [`INVENTORY.md`](./INVENTORY.md).
 
 ## Typography
 
-- Use `--font-satoshi` for all web typography. There is no `--font-grotesk` alias anymore.
-- The web app is **Satoshi-only**. Do not add `--font-grotesk` or `--grotesk-font` back.
+- Use `--font-satoshi` for body/UI typography. There is no `--font-grotesk` alias anymore.
+- Use `--font-newsreader` (Newsreader) for display-serif page titles and marketing moments (`.text-page-title`, `.font-newsreader`).
+- Do not add `--font-grotesk` or `--grotesk-font` back.
 - Use the `.text-*` Tailwind utility classes (e.g. `.text-body-4`, `.text-heading-2`) for type variants.
 - Or use the `<Text>` component with the `variant` prop for inline typography.
 

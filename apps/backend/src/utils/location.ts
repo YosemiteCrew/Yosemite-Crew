@@ -1,6 +1,4 @@
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
-import { ParentModel } from "src/models/parent";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 
 type ParentAddress = {
@@ -17,17 +15,12 @@ export const getParentAddressForAuthUser = async (
 
   const authUser = await AuthUserMobileService.getByProviderUserId(authUserId);
 
-  if (isReadFromPostgres()) {
-    const parentId = authUser?.parentId ?? null;
-    const parent = parentId
-      ? await prisma.parent.findFirst({
-          where: { id: parentId },
-          include: { address: true },
-        })
-      : null;
-    return parent?.address ?? null;
-  }
-
-  const parent = await ParentModel.findById(authUser?.parentId);
-  return parent?.address;
+  const parentId = authUser?.parentId ?? null;
+  const parent = parentId
+    ? await prisma.parent.findFirst({
+        where: { id: parentId },
+        include: { address: true },
+      })
+    : null;
+  return parent?.address ?? null;
 };

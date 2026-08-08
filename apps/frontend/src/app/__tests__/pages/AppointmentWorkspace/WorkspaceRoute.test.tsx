@@ -4,7 +4,6 @@ import '@testing-library/jest-dom';
 import type { Appointment } from '@yosemite-crew/types';
 import WorkspaceRoute from '@/app/features/appointments/pages/AppointmentWorkspace/WorkspaceRoute';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
 import {
   useAppointmentsForPrimaryOrg,
@@ -17,10 +16,6 @@ const mockStartRouteLoader = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
-}));
-
-jest.mock('@/app/lib/featureFlags', () => ({
-  isAppointmentRevampEnabled: jest.fn(),
 }));
 
 jest.mock('@/app/hooks/useAppointments', () => ({
@@ -41,6 +36,20 @@ jest.mock('@/app/features/appointments/pages/AppointmentWorkspace', () => ({
 
 jest.mock('@/app/ui/overlays/Loader', () => ({
   YosemiteLoader: ({ testId }: { testId: string }) => <div data-testid={testId}>Loading</div>,
+}));
+
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="protected-route">{children}</div>
+  ),
+}));
+
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="org-guard">{children}</div>
+  ),
 }));
 
 const makeAppointment = (id = 'appt-1'): Appointment => ({
@@ -82,18 +91,8 @@ describe('WorkspaceRoute', () => {
       error: null,
       lastFetchedAt: null,
     });
-    (isAppointmentRevampEnabled as jest.Mock).mockReturnValue(true);
     (useLoadAppointmentsForPrimaryOrg as jest.Mock).mockReturnValue(undefined);
     mockAppointments([]);
-  });
-
-  it('redirects back to appointments when the revamp flag is disabled', () => {
-    (isAppointmentRevampEnabled as jest.Mock).mockReturnValue(false);
-
-    const { container } = render(<WorkspaceRoute appointmentId="appt-1" />);
-
-    expect(container).toBeEmptyDOMElement();
-    expect(mockReplace).toHaveBeenCalledWith('/appointments');
   });
 
   it('renders the workspace for the matching appointment', () => {
@@ -105,6 +104,18 @@ describe('WorkspaceRoute', () => {
     expect(useLoadAppointmentsForPrimaryOrg).toHaveBeenCalled();
   });
 
+  it('mounts the workspace behind both the auth and org guards', () => {
+    mockAppointments([makeAppointment()]);
+
+    render(<WorkspaceRoute appointmentId="appt-1" />);
+
+    const protectedRoute = screen.getByTestId('protected-route');
+    const orgGuard = screen.getByTestId('org-guard');
+
+    expect(protectedRoute).toContainElement(orgGuard);
+    expect(orgGuard).toContainElement(screen.getByTestId('workspace'));
+  });
+
   it('blocks workspace entry for cancelled appointments', () => {
     mockAppointments([{ ...makeAppointment(), status: 'CANCELLED' }]);
 
@@ -114,6 +125,16 @@ describe('WorkspaceRoute', () => {
     expect(
       screen.getByText('Cancelled appointments cannot be opened in the clinical workspace.')
     ).toBeInTheDocument();
+  });
+
+  it('navigates back to appointments from the blocked state', () => {
+    mockAppointments([{ ...makeAppointment(), status: 'CANCELLED' }]);
+
+    render(<WorkspaceRoute appointmentId="appt-1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to appointments' }));
+
+    expect(mockStartRouteLoader).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
   });
 
   it('shows the loader while appointments are still loading', () => {

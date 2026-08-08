@@ -1,6 +1,7 @@
 import EditableAccordion, { FieldConfig } from '@/app/ui/primitives/Accordion/EditableAccordion';
 import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
@@ -13,15 +14,13 @@ import {
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { Speciality } from '@yosemite-crew/types';
 import React, { useMemo, useState } from 'react';
-import { MdDeleteForever } from 'react-icons/md';
-import { RiSettings3Line, RiTeamLine } from 'react-icons/ri';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useRouter } from 'next/navigation';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import { IoPeopleOutline, IoSettingsOutline, IoTrash } from 'react-icons/io5';
 
 type SpecialityInfoProps = {
   showModal: boolean;
@@ -74,6 +73,7 @@ const SpecialityInfo = ({
   );
   const specialityId = activeSpeciality._id ?? '';
   const organisationId = activeSpeciality.organisationId ?? '';
+  const memberCount = activeSpeciality.teamMemberIds?.length ?? 0;
 
   const handleDelete = async () => {
     try {
@@ -107,40 +107,25 @@ const SpecialityInfo = ({
     <>
       <Modal showModal={showModal} setShowModal={setShowModal}>
         <div className="flex flex-col h-full gap-6">
-          {/* Header */}
-          <div className="flex justify-between items-center">
-            <div className="opacity-0 pointer-events-none">
-              <Close onClick={() => {}} />
-            </div>
-            <div className="flex items-center gap-2 text-body-1 text-text-primary">
-              <RiTeamLine size={20} color="var(--color-neutral-700)" aria-hidden="true" />
-              Manage team
-            </div>
-            <Close onClick={() => setShowModal(false)} />
-          </div>
-
-          {/* Speciality name + delete */}
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-body-2 font-semibold text-text-primary">
-                {activeSpeciality.name || '—'}
-              </span>
-              <span className="text-body-4 text-text-secondary">
-                {activeSpeciality.teamMemberIds?.length ?? 0} member
-                {(activeSpeciality.teamMemberIds?.length ?? 0) === 1 ? '' : 's'} assigned
-              </span>
-            </div>
-            {canEditSpecialities && (
-              <button
-                type="button"
-                aria-label="Delete speciality"
-                onClick={() => setShowDeleteModal(true)}
-                className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-danger-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600"
-              >
-                <MdDeleteForever size={22} color="var(--color-danger-600)" aria-hidden="true" />
-              </button>
-            )}
-          </div>
+          <ModalHeader
+            eyebrow="Speciality"
+            title={activeSpeciality.name || 'Manage team'}
+            meta={`${memberCount} member${memberCount === 1 ? '' : 's'} assigned`}
+            icon={<IoPeopleOutline size={20} color="var(--ink-faint)" aria-hidden="true" />}
+            onClose={() => setShowModal(false)}
+            actions={
+              canEditSpecialities && (
+                <button
+                  type="button"
+                  aria-label="Delete speciality"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="grid size-8 cursor-pointer place-items-center rounded-full border border-transparent hover:border-danger-600"
+                >
+                  <IoTrash size={18} color="var(--color-danger-600)" aria-hidden="true" />
+                </button>
+              )
+            }
+          />
 
           {/* Team fields */}
           <div className="flex flex-col gap-4 flex-1 overflow-y-auto scrollbar-hidden">
@@ -188,21 +173,21 @@ const SpecialityInfo = ({
             )}
           </div>
 
-          {/* Manage catalog CTA */}
-          <Primary
-            href="#"
-            text="Manage Services & Packages"
-            icon={<RiSettings3Line size={18} aria-hidden="true" />}
-            size="large"
-            onClick={(e) => {
-              e.preventDefault();
-              setShowModal(false);
-              const id = activeSpeciality._id ?? '';
-              const openParam = id ? `?open=${id}` : '';
-              router.push(`/organization/specialities${openParam}`);
-            }}
-            className="w-full shrink-0"
-          />
+          <ModalFooter align="stretch">
+            <Primary
+              href="#"
+              text="Manage Services & Packages"
+              icon={<IoSettingsOutline size={18} aria-hidden="true" />}
+              size="large"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowModal(false);
+                const id = activeSpeciality._id ?? '';
+                const openParam = id ? `?open=${id}` : '';
+                router.push(`/organization/specialities${openParam}`);
+              }}
+            />
+          </ModalFooter>
         </div>
       </Modal>
 

@@ -1,298 +1,183 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
 import ForgotPassword from '@/app/features/auth/pages/ForgotPassword/ForgotPassword';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useRouter } from 'next/navigation';
-import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 
-// --- Mocks ---
-
-// 1. Mock Next.js Router
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-}));
-
-// 2. Mock Toast Hook
+const showErrorTostMock = jest.fn();
 jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
-  useErrorTost: jest.fn(),
+  useErrorTost: () => ({
+    showErrorTost: showErrorTostMock,
+    ErrorTostPopup: <div data-testid="toast" />,
+  }),
 }));
 
-// 3. Mock Auth Store
 jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
-// 4. Mock UI Components (Inputs & Buttons)
-jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
-  __esModule: true,
-  default: ({ value, onChange, inlabel }: any) => (
-    <input data-testid="email-input" placeholder={inlabel} value={value} onChange={onChange} />
+jest.mock('@/app/features/marketing/site', () => ({
+  AuthShell: ({
+    brand,
+    topRight,
+    children,
+  }: {
+    brand: React.ReactNode;
+    topRight: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <div>
+      <div>{brand}</div>
+      <div>{topRight}</div>
+      <main>{children}</main>
+    </div>
   ),
+  AuthBrandContent: () => <div data-testid="auth-brand" />,
 }));
 
-jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
-  __esModule: true,
-  default: ({ value, onChange, inPlaceHolder }: any) => (
-    <input placeholder={inPlaceHolder} value={value} onChange={onChange} />
-  ),
-}));
+expect.extend(toHaveNoViolations);
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ onClick, text }: any) => (
-    <button type="button" data-testid="btn-primary" onClick={onClick}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ onClick, text }: any) => (
-    <button type="button" data-testid="btn-secondary" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
-describe('ForgotPassword Page', () => {
-  const mockPush = jest.fn();
-  const mockShowErrorTost = jest.fn();
-  const mockForgotPassword = jest.fn();
-  const mockResetPassword = jest.fn();
-
-  beforeAll(() => {
-    window.scrollTo = jest.fn();
-    // Fix for JSDOM missing implementation
-    HTMLFormElement.prototype.requestSubmit = jest.fn();
-  });
+describe('ForgotPassword page (reset link flow)', () => {
+  const forgotPasswordMock = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
-    (useErrorTost as jest.Mock).mockReturnValue({
-      showErrorTost: mockShowErrorTost,
-      ErrorTostPopup: <div data-testid="toast-popup" />,
-    });
-
-    (useAuthStore as unknown as jest.Mock).mockReturnValue({
-      forgotPassword: mockForgotPassword,
-      resetPassword: mockResetPassword,
-    });
-  });
-
-  // --- Section 1: Email View & Interactions ---
-
-  it('renders the initial email form correctly', () => {
-    render(<ForgotPassword />);
-    expect(screen.getByText('Forgot password?')).toBeInTheDocument();
-    expect(screen.getByTestId('email-input')).toBeInTheDocument();
-    expect(screen.getByTestId('btn-primary')).toHaveTextContent('Send code');
-  });
-
-  it('validates empty email submission', () => {
-    render(<ForgotPassword />);
-    fireEvent.click(screen.getByTestId('btn-primary'));
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Email is required' })
-    );
-    expect(window.scrollTo).toHaveBeenCalled();
-  });
-
-  it('validates invalid email submission', () => {
-    render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
-      target: { value: 'not-an-email' },
-    });
-    fireEvent.click(screen.getByTestId('btn-primary'));
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Enter a valid email' })
-    );
-    expect(mockForgotPassword).not.toHaveBeenCalled();
-  });
-
-  it('handles forgotPassword API success', async () => {
-    mockForgotPassword.mockResolvedValue(true);
-    render(<ForgotPassword />);
-
-    fireEvent.change(screen.getByTestId('email-input'), {
-      target: { value: 'test@example.com' },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
-    });
-
-    expect(mockForgotPassword).toHaveBeenCalledWith('test@example.com');
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ errortext: 'Success' })
+    (useAuthStore as unknown as jest.Mock).mockImplementation(
+      (selector: (s: { forgotPassword: unknown }) => unknown) =>
+        selector({ forgotPassword: forgotPasswordMock })
     );
   });
 
-  it('handles forgotPassword API failure (Axios Error)', async () => {
-    const errorResponse = {
-      response: { data: { message: 'User not found' } },
-    };
-    mockForgotPassword.mockRejectedValue(errorResponse);
-
-    render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
-      target: { value: 'test@example.com' },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'OTP failed: User not found' })
-    );
-  });
-
-  it('handles forgotPassword API failure (Network Error fallback)', async () => {
-    mockForgotPassword.mockRejectedValue(new Error('Network Error'));
-
-    render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
-      target: { value: 'test@example.com' },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'OTP failed: Unable to connect to the server.',
-      })
-    );
-  });
-
-  // --- Section 2: OTP View & Interactions ---
-
-  const navigateToOtpScreen = async () => {
-    mockForgotPassword.mockResolvedValue(true);
-    render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
-      target: { value: 'test@example.com' },
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
-    });
+  const submitEmail = (email = 'user@example.com') => {
+    fireEvent.change(screen.getByLabelText('Work email'), { target: { value: email } });
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
   };
 
-  it('handles OTP input changes and auto-focus logic', async () => {
-    await navigateToOtpScreen();
+  test('renders the email form', () => {
+    render(<ForgotPassword />);
 
-    const input0 = document.getElementById('otp-input-0') as HTMLInputElement;
-    const input1 = document.getElementById('otp-input-1') as HTMLInputElement;
-
-    const focusSpy = jest.spyOn(input1, 'focus');
-
-    fireEvent.change(input0, { target: { value: '1' } });
-
-    expect(input0.value).toBe('1');
-    expect(focusSpy).toHaveBeenCalled();
-  });
-
-  it('prevents entering more than 1 character in OTP field', async () => {
-    await navigateToOtpScreen();
-    const input0 = document.getElementById('otp-input-0') as HTMLInputElement;
-
-    fireEvent.change(input0, { target: { value: '12' } });
-
-    expect(input0.value).toBe('');
-  });
-
-  it('handles Backspace navigation in OTP fields', async () => {
-    await navigateToOtpScreen();
-    const input0 = document.getElementById('otp-input-0') as HTMLInputElement;
-    const input1 = document.getElementById('otp-input-1') as HTMLInputElement;
-
-    const focusSpy = jest.spyOn(input0, 'focus');
-
-    fireEvent.keyDown(input1, { key: 'Backspace' });
-
-    expect(focusSpy).toHaveBeenCalled();
-  });
-
-  it("handles 'Request New Code' link", async () => {
-    await navigateToOtpScreen();
-
-    mockForgotPassword.mockClear();
-
-    const resendLink = screen.getByText('Request New Code');
-    await act(async () => {
-      fireEvent.click(resendLink);
-    });
-
-    expect(mockForgotPassword).toHaveBeenCalledWith('test@example.com');
-  });
-
-  it('validates incomplete OTP', async () => {
-    await navigateToOtpScreen();
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Please enter the full OTP' })
+    expect(screen.getByRole('heading', { name: /Reset your password/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Work email')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Send reset link/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute(
+      'href',
+      '/signin'
     );
   });
 
-  it('transitions to New Password view on valid OTP', async () => {
-    await navigateToOtpScreen();
+  test('shows an inline error when the email is missing', () => {
+    render(<ForgotPassword />);
 
-    [0, 1, 2, 3, 4, 5].forEach((i) => {
-      fireEvent.change(document.getElementById(`otp-input-${i}`)!, {
-        target: { value: '1' },
-      });
-    });
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
 
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
-    });
-
-    expect(screen.getByText('Set new password')).toBeInTheDocument();
+    expect(screen.getByText('Email is required')).toBeInTheDocument();
+    const field = screen.getByLabelText('Work email');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    // The inline error is associated with the field so screen readers announce it.
+    expect(field).toHaveAttribute('aria-describedby', 'forgot-email-error');
+    expect(screen.getByRole('alert')).toHaveAttribute('id', 'forgot-email-error');
+    expect(forgotPasswordMock).not.toHaveBeenCalled();
   });
 
-  it('OTP Back button returns to Email view', async () => {
-    await navigateToOtpScreen();
+  test('validates the email format before sending', () => {
+    render(<ForgotPassword />);
 
-    fireEvent.click(screen.getByTestId('btn-secondary'));
+    fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'not-an-email' } });
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
 
-    expect(screen.getByText('Forgot password?')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
+    expect(forgotPasswordMock).not.toHaveBeenCalled();
   });
 
-  // --- Section 3: Password View & Reset Logic ---
+  test('clears the inline error as the user edits the field', () => {
+    render(<ForgotPassword />);
 
-  const navigateToPasswordScreen = async () => {
-    await navigateToOtpScreen();
-    [0, 1, 2, 3, 4, 5].forEach((i) => {
-      fireEvent.change(document.getElementById(`otp-input-${i}`)!, {
-        target: { value: '1' },
-      });
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
-    });
-  };
+    fireEvent.click(screen.getByRole('button', { name: /Send reset link/ }));
+    expect(screen.getByText('Email is required')).toBeInTheDocument();
 
-  it('validates empty passwords', async () => {
-    await navigateToPasswordScreen();
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+    fireEvent.change(screen.getByLabelText('Work email'), {
+      target: { value: 'user@example.com' },
     });
 
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Both Passwords are required' })
+    expect(screen.queryByText('Email is required')).not.toBeInTheDocument();
+  });
+
+  test('shows the check-your-email confirmation after sending the link', async () => {
+    forgotPasswordMock.mockResolvedValue({ status: 'OK' });
+    render(<ForgotPassword />);
+
+    submitEmail('user@example.com');
+
+    await screen.findByTestId('forgot-sent');
+    expect(forgotPasswordMock).toHaveBeenCalledWith('user@example.com');
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+    expect(screen.getByText('user@example.com')).toBeInTheDocument();
+  });
+
+  test('lets the user return to the form to try another email', async () => {
+    forgotPasswordMock.mockResolvedValue({ status: 'OK' });
+    render(<ForgotPassword />);
+
+    submitEmail();
+    await screen.findByTestId('forgot-sent');
+
+    fireEvent.click(screen.getByRole('button', { name: 'try another email' }));
+
+    expect(screen.getByLabelText('Work email')).toBeInTheDocument();
+    expect(screen.queryByTestId('forgot-sent')).not.toBeInTheDocument();
+  });
+
+  test('surfaces a toast when the request fails and stays on the form', async () => {
+    forgotPasswordMock.mockRejectedValue(new Error('Not allowed'));
+    render(<ForgotPassword />);
+
+    submitEmail();
+
+    await waitFor(() =>
+      expect(showErrorTostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Not allowed', errortext: 'Error' })
+      )
+    );
+    expect(screen.getByLabelText('Work email')).toBeInTheDocument();
+  });
+
+  test('treats a not-allowed reset as a neutral confirmation without leaking the reason', async () => {
+    // SuperTokens' account-takeover protection: the reason must never reach the user.
+    const notAllowed = Object.assign(new Error('User signed up with a social login'), {
+      code: 'PASSWORD_RESET_NOT_ALLOWED',
+    });
+    forgotPasswordMock.mockRejectedValue(notAllowed);
+    render(<ForgotPassword />);
+
+    submitEmail('user@example.com');
+
+    await screen.findByTestId('forgot-sent');
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+    // No toast, and the backend reason is nowhere in the DOM.
+    expect(showErrorTostMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/social login/i)).not.toBeInTheDocument();
+  });
+
+  test('shows a generic message when the failure is not an Error object', async () => {
+    forgotPasswordMock.mockRejectedValue('boom');
+    render(<ForgotPassword />);
+
+    submitEmail();
+
+    await waitFor(() =>
+      expect(showErrorTostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'We could not send the reset email. Please try again.',
+        })
+      )
     );
   });
 
-  it('Password View Back button returns to Email view', async () => {
-    await navigateToPasswordScreen();
-
-    fireEvent.click(screen.getByTestId('btn-secondary'));
-
-    expect(screen.getByText('Forgot password?')).toBeInTheDocument();
+  test('has no axe accessibility violations', async () => {
+    const { container } = render(<ForgotPassword />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

@@ -35,6 +35,16 @@ updates:
           - 'prettier'
           - 'husky'
           - 'lint-staged'
+      # Catch-all. Must stay LAST: a dependency joins the first group it
+      # matches, so an earlier '*' would swallow the named groups above.
+      # Minor and patch only, so major bumps still get an individual PR
+      # and an individual review.
+      minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -49,3 +59,12 @@ updates:
     labels:
       - dependencies
       - github-actions
+    groups:
+      # Action majors are routinely breaking, so keep them out of the group
+      # and let each land on its own.
+      actions:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch

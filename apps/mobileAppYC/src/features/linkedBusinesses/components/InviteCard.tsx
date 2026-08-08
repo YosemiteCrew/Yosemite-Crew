@@ -148,7 +148,7 @@ const createStyles = (theme: any) =>
     acceptButtonText: {
       ...theme.typography.titleSmall,
       textAlign: 'center',
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
   });
 

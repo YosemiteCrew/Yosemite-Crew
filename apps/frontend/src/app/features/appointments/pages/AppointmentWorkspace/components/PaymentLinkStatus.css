@@ -1,0 +1,28 @@
+/* Workspace payment-link status line.
+
+   The design's "Stripe · payment link sent" line carries a --success dot that
+   pulses a soft ring (the design's `ycPulseDot` keyframe). globals.css is owned
+   by another workstream, so the keyframe ships here, scoped to a workspace class,
+   and is flattened under prefers-reduced-motion. */
+
+@keyframes ycWorkspacePulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.35);
+  }
+  60% {
+    box-shadow: 0 0 0 6px rgba(0, 143, 93, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+  }
+}
+
+.yc-workspace-pulse-dot {
+  animation: ycWorkspacePulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-workspace-pulse-dot {
+    animation: none;
+  }
+}

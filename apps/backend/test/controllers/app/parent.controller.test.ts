@@ -1,5 +1,6 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
+import type { ParentRequestDTO } from "@yosemite-crew/types";
 import { ParentController } from "../../../src/controllers/app/parent.controller";
 import { ParentService } from "../../../src/services/parent.service";
 import * as UploadMiddleware from "../../../src/middlewares/upload";
@@ -47,10 +48,13 @@ describe("ParentController", () => {
   let statusMock: jest.Mock;
   let sendMock: jest.Mock;
 
+  // Deliberately minimal: the controller only validates resourceType, so this
+  // omits RelatedPerson's required `patient` reference and is typed as the DTO
+  // the service actually receives.
   const validFhirPayload = {
     resourceType: "RelatedPerson",
     name: [{ given: ["John"] }],
-  };
+  } as unknown as ParentRequestDTO;
 
   beforeEach(() => {
     jsonMock = jest.fn();

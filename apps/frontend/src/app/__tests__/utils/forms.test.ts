@@ -499,6 +499,91 @@ describe('Forms Utils', () => {
       expect(result.species).toEqual(['Canine', 'Feline']);
     });
 
+    it('round-trips the saved visibility from rules into the UI usage', () => {
+      const makeTemplate = (visibility: unknown) => ({
+        id: 'tpl-visibility',
+        organisationId: 'org-1',
+        ownerUserId: null,
+        ownership: 'ORG_TEMPLATE' as const,
+        kind: 'SOAP_NOTE' as const,
+        name: 'Visibility template',
+        description: null,
+        status: 'DRAFT' as const,
+        scope: 'ORGANISATION' as const,
+        rules: { visibility },
+        latestVersion: 1,
+        publishedVersion: null,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [],
+      });
+
+      // External and Internal & External must survive reload instead of
+      // collapsing back to 'Internal' (#1896).
+      expect(mapTemplateToUI(makeTemplate('External') as any).usage).toBe('External');
+      expect(mapTemplateToUI(makeTemplate('Internal & External') as any).usage).toBe(
+        'Internal & External'
+      );
+      expect(mapTemplateToUI(makeTemplate('Internal_External') as any).usage).toBe(
+        'Internal & External'
+      );
+      expect(mapTemplateToUI(makeTemplate('Internal') as any).usage).toBe('Internal');
+
+      // Missing / blank visibility falls back to Internal.
+      expect(mapTemplateToUI(makeTemplate(undefined) as any).usage).toBe('Internal');
+      expect(mapTemplateToUI(makeTemplate('   ') as any).usage).toBe('Internal');
+    });
+
+    it('round-trips visibility for plan-definition (care pathway) templates', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-care-visibility',
+        organisationId: 'org-1',
+        ownerUserId: 'user-1',
+        ownership: 'USER_TEMPLATE',
+        kind: 'INPATIENT_SCHEDULE',
+        name: 'Post-op pathway',
+        description: null,
+        status: 'DRAFT',
+        scope: 'INPATIENT',
+        rules: { visibility: 'External' },
+        latestVersion: 1,
+        publishedVersion: null,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [],
+      } as any);
+
+      expect(result.usage).toBe('External');
+    });
+
+    it('defaults visibility to Internal when rules is null', () => {
+      const result = mapTemplateToUI({
+        id: 'tpl-null-rules',
+        organisationId: 'org-1',
+        ownerUserId: null,
+        ownership: 'ORG_TEMPLATE',
+        kind: 'SOAP_NOTE',
+        name: 'Null rules template',
+        description: null,
+        status: 'DRAFT',
+        scope: 'ORGANISATION',
+        rules: null,
+        latestVersion: 1,
+        publishedVersion: null,
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        versions: [],
+      } as any);
+
+      expect(result.usage).toBe('Internal');
+    });
+
     it('normalizes lowercase template species into UI labels', () => {
       const result = mapTemplateToUI({
         id: 'tpl-species-lower',

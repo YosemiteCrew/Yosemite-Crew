@@ -1,5 +1,3 @@
-import { Schema, model, type HydratedDocument } from "mongoose";
-
 export type DayOfWeek =
   | "MONDAY"
   | "TUESDAY"
@@ -23,38 +21,3 @@ export interface BaseAvailabilityMongo {
   createdAt?: Date;
   updatedAt?: Date;
 }
-
-const AvailabilitySlotSchema = new Schema(
-  {
-    startTime: { type: String, required: true, trim: true },
-    endTime: { type: String, required: true, trim: true },
-    isAvailable: { type: Boolean, default: true },
-  },
-  { _id: false },
-);
-
-const BaseAvailabilitySchema = new Schema(
-  {
-    userId: { type: String, required: true, trim: true, index: true },
-    organisationId: { type: String, required: true },
-    dayOfWeek: { type: String, required: true },
-    slots: { type: [AvailabilitySlotSchema], default: [] },
-  },
-  {
-    timestamps: true,
-  },
-);
-
-BaseAvailabilitySchema.index(
-  { userId: 1, organisationId: 1, dayOfWeek: 1 },
-  { unique: true },
-);
-
-export type BaseAvailabilityDocument = HydratedDocument<BaseAvailabilityMongo>;
-
-const BaseAvailabilityModel = model<BaseAvailabilityMongo>(
-  "BaseAvailability",
-  BaseAvailabilitySchema,
-);
-
-export default BaseAvailabilityModel;

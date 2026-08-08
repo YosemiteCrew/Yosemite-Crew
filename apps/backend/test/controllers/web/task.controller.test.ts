@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
 import { TaskController } from "../../../src/controllers/web/task.controller";
-import { TaskService } from "../../../src/services/task.service";
+import {
+  TaskService,
+  type CompleteTaskInput,
+} from "../../../src/services/task.service";
 
 jest.mock("../../../src/services/task.service", () => {
   const actual = jest.requireActual(
@@ -33,13 +36,17 @@ describe("TaskController", () => {
   let statusMock: jest.Mock;
   let jsonMock: jest.Mock;
 
+  // The controller forwards req.body.completion verbatim, so this deliberately
+  // arbitrary body is what the service is expected to receive.
+  const completionBody = { notes: "done" } as unknown as CompleteTaskInput;
+
   beforeEach(() => {
     jsonMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ json: jsonMock });
 
     req = {
       params: { taskId: "task-1" },
-      body: { status: "COMPLETED", completion: { notes: "done" } },
+      body: { status: "COMPLETED", completion: completionBody },
       headers: {},
     };
 
@@ -64,7 +71,7 @@ describe("TaskController", () => {
         "task-1",
         "COMPLETED",
         "auth-user-id",
-        { notes: "done" },
+        completionBody,
         "org-1",
       );
       expect(statusMock).not.toHaveBeenCalledWith(403);
@@ -92,7 +99,7 @@ describe("TaskController", () => {
         "task-1",
         "COMPLETED",
         "auth-user-id",
-        { notes: "done" },
+        completionBody,
         "org-1",
       );
     });
@@ -235,6 +242,26 @@ describe("TaskController", () => {
         }),
       );
     });
+
+    it("passes a valid priority filter through and drops an invalid one", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.query = { priority: "URGENT" } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ priority: "URGENT" }),
+      );
+
+      mockedTaskService.listForEmployee.mockClear();
+      req.query = { priority: "SOMETHING" } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ priority: undefined }),
+      );
+    });
   });
 
   describe("updateTaskPMS", () => {
@@ -273,17 +300,21 @@ describe("TaskController", () => {
   });
 
   describe("deleteTaskPMS", () => {
-    it("invokes deleteTask with the selected recurrence scope", async () => {
+    it("invokes deleteTask with the selected recurrence scope and org scope", async () => {
       req.userId = "auth-user-id";
+      (req as unknown as { organisationId?: string }).organisationId = "org-1";
       req.query = { scope: "ALL" } as any;
       mockedTaskService.deleteTask.mockResolvedValue(undefined as any);
 
       await TaskController.deleteTaskPMS(req as Request, res);
 
+      // The org scope must reach the service: without it the initial task
+      // lookup is unscoped.
       expect(mockedTaskService.deleteTask).toHaveBeenCalledWith(
         "task-1",
         "auth-user-id",
         "ALL",
+        "org-1",
       );
       expect(statusMock).toHaveBeenCalledWith(204);
     });

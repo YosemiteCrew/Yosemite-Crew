@@ -8,15 +8,14 @@ export const metadata: Metadata = {
   description: 'Create a developer account to build on the Yosemite Crew platform.',
 };
 
+// Rendered per request so the middleware's nonce CSP applies. A prerendered
+// page has no per-request nonce, which would force script-src 'unsafe-inline'.
+export const dynamic = 'force-dynamic';
+
 function Page() {
   return (
     <Suspense fallback={null}>
-      <SignUp
-        postAuthRedirect="/developers/home"
-        signinHref="/developers/signin"
-        allowNext={false}
-        isDeveloper
-      />
+      <SignUp signinHref="/developers/signin" allowNext={false} isDeveloper />
     </Suspense>
   );
 }

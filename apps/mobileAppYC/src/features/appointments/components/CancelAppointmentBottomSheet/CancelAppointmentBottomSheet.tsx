@@ -1,4 +1,4 @@
-import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
+import React, {useImperativeHandle, useRef, useState} from 'react';
 import ConfirmActionBottomSheet, {
   type ConfirmActionBottomSheetRef,
 } from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
@@ -53,24 +53,18 @@ export const CancelAppointmentBottomSheet = ({
     sheetRef.current?.close();
   };
 
-  const buttonStyles = useMemo(
-    () => ({
-      cancelText: theme.typography.buttonLarge,
-      confirmText: theme.typography.buttonLarge,
-    }),
-    [theme.typography],
-  );
-
   return (
     <ConfirmActionBottomSheet
       ref={sheetRef}
+      destructive
+      destructiveIcon="close-circle-outline"
       title={title}
       message={message}
       primaryButton={{
         label: isLoading ? 'Cancelling...' : confirmLabel,
         onPress: handleConfirm,
-        tintColor: theme.colors.secondary,
-        textStyle: [buttonStyles.confirmText, {color: theme.colors.white}],
+        tintColor: theme.colors.danger,
+        textStyle: [theme.typography.buttonLarge, {color: theme.colors.white}],
         style: {flex: 1},
         disabled: isLoading,
         loading: isLoading,
@@ -79,7 +73,10 @@ export const CancelAppointmentBottomSheet = ({
         label: cancelLabel,
         onPress: handleCancel,
         tintColor: theme.colors.surface,
-        textStyle: [buttonStyles.cancelText, {color: theme.colors.secondary}],
+        textStyle: [
+          theme.typography.buttonLarge,
+          {color: theme.colors.secondary},
+        ],
         style: {flex: 1, borderWidth: 1, borderColor: theme.colors.borderMuted},
         forceBorder: true,
         borderColor: theme.colors.borderMuted,

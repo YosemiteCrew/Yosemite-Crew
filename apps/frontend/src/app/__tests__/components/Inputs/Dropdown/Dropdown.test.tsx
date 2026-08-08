@@ -7,12 +7,42 @@ import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 // --- Mocks ---
 
 // Mock Icons
-jest.mock('react-icons/fa', () => ({
-  FaSortDown: () => <span data-testid="icon-sort-down">SortDown</span>,
-}));
-jest.mock('react-icons/io5', () => ({
-  IoSearch: () => <span data-testid="icon-search">Search</span>,
-}));
+jest.mock(
+  'react-icons/fa',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: () => <span data-testid="icon-error">ErrorIcon</span>,
 }));
@@ -28,6 +58,10 @@ expect.extend(toHaveNoViolations);
 describe('Dropdown Component', () => {
   const mockOnChange = jest.fn();
 
+  const triggerKey = (key: string) => {
+    fireEvent.keyDown(screen.getAllByRole('button')[0], { key });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -38,7 +72,7 @@ describe('Dropdown Component', () => {
     render(<Dropdown placeholder="Select Item" value="" onChange={mockOnChange} />);
 
     expect(screen.getByText('Select Item')).toBeInTheDocument();
-    expect(screen.queryByText('SortDown')).toBeInTheDocument();
+    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument();
   });
 
   it('renders with a selected value (String option)', () => {
@@ -82,7 +116,7 @@ describe('Dropdown Component', () => {
     fireEvent.click(button);
     // Should not open (query for dropdown content should fail)
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument(); // assuming standard role or just absence of options
-    expect(screen.queryByText('SortDown')).toBeInTheDocument(); // Icon stays
+    expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument(); // Icon stays
   });
 
   // --- 2. Interaction: Opening & Closing ---
@@ -118,6 +152,17 @@ describe('Dropdown Component', () => {
     fireEvent.mouseDown(screen.getByTestId('outside'));
 
     // Check if closed
+    expect(screen.queryByText('A')).not.toBeInTheDocument();
+  });
+
+  it('closes the dropdown when escape is pressed after opening', () => {
+    render(<Dropdown placeholder="Select" value="" onChange={mockOnChange} options={['A']} />);
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('A')).toBeInTheDocument();
+
+    triggerKey('Escape');
+
     expect(screen.queryByText('A')).not.toBeInTheDocument();
   });
 
@@ -157,6 +202,85 @@ describe('Dropdown Component', () => {
     fireEvent.keyDown(trigger, { key: 'Enter' });
 
     expect(mockOnChange).toHaveBeenCalledWith('Option B');
+  });
+
+  it('supports Home, End and Space keys', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A', 'Option B', 'Option C']}
+      />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // opens
+    fireEvent.keyDown(trigger, { key: 'End' });
+    fireEvent.keyDown(trigger, { key: 'Home' });
+    fireEvent.keyDown(trigger, { key: ' ' }); // confirm first option
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option A');
+  });
+
+  it('supports home and end keys when the list is open', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A', 'Option B', 'Option C']}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    triggerKey('End');
+    triggerKey('Enter');
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option C');
+
+    fireEvent.click(screen.getByRole('button'));
+    triggerKey('Home');
+    triggerKey('Enter');
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option A');
+  });
+
+  it('closes on Escape key', () => {
+    render(
+      <Dropdown placeholder="Select" value="" onChange={mockOnChange} options={['Option A']} />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.click(trigger);
+    expect(screen.getByText('Option A')).toBeInTheDocument();
+
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByText('Option A')).not.toBeInTheDocument();
+  });
+
+  it('ignores keyboard input while disabled', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A']}
+        disabled
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
+    expect(screen.queryByText('Option A')).not.toBeInTheDocument();
+  });
+
+  it('opens on space and does not select when there are no options', () => {
+    render(<Dropdown placeholder="Empty" value="" onChange={mockOnChange} options={[]} />);
+
+    triggerKey(' ');
+    triggerKey('Enter');
+
+    expect(mockOnChange).not.toHaveBeenCalled();
   });
 
   it('handles object options ({ label, value }) selection', () => {
@@ -261,7 +385,7 @@ describe('Dropdown Component', () => {
     // Find Search Input
     const searchInput = screen.getByPlaceholderText('Search Select');
     expect(searchInput).toBeInTheDocument();
-    expect(screen.getByTestId('icon-search')).toBeInTheDocument();
+    expect(screen.getByTestId('IoSearch')).toBeInTheDocument();
 
     // Type "Ban"
     fireEvent.change(searchInput, { target: { value: 'Ban' } });
@@ -270,6 +394,47 @@ describe('Dropdown Component', () => {
     expect(screen.getByText('Banana')).toBeInTheDocument();
     expect(screen.queryByText('Apple')).not.toBeInTheDocument();
     expect(screen.queryByText('Cherry')).not.toBeInTheDocument();
+  });
+
+  it('lets Space type into the search box instead of selecting', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Golden Retriever', 'Great Dane']}
+        search={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    const searchInput = screen.getByPlaceholderText('Search Select');
+
+    const spaceEvent = fireEvent.keyDown(searchInput, { key: ' ' });
+
+    // Space must reach the input as text; selecting here would both close the
+    // dropdown and make multi-word queries impossible to type.
+    expect(spaceEvent).toBe(true);
+    expect(mockOnChange).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Search Select')).toBeInTheDocument();
+  });
+
+  it('still selects on Space from the trigger button', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Apple', 'Banana']}
+        search={true}
+      />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: ' ' });
+
+    expect(mockOnChange).toHaveBeenCalledWith('Apple');
   });
 
   it('clears search query upon selection', () => {
@@ -298,6 +463,47 @@ describe('Dropdown Component', () => {
     // Apple and Banana should both be visible again
     expect(screen.getByText('Banana')).toBeInTheDocument();
     // Input value should be empty (though we might not be able to easily check the internal state value unless we find by display value, but the fact Banana is visible proves query is empty)
+  });
+
+  it('clears the search query when the portal dropdown closes from outer scroll', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Apple', 'Banana']}
+        search={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    const searchInput = screen.getByPlaceholderText('Search Select');
+    fireEvent.change(searchInput, { target: { value: 'Ban' } });
+    expect(screen.queryByText('Apple')).not.toBeInTheDocument();
+
+    fireEvent.scroll(globalThis.window);
+    expect(screen.queryByText('Banana')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('Apple')).toBeInTheDocument();
+    expect(screen.getByText('Banana')).toBeInTheDocument();
+  });
+
+  it('renders inline instead of using the portal when portal is false', () => {
+    render(
+      <Dropdown
+        placeholder="Inline"
+        value=""
+        onChange={mockOnChange}
+        options={['A']}
+        portal={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    const panel = screen.getByText('A').parentElement;
+
+    expect(panel?.getAttribute('style')).toBeNull();
   });
 
   it('renders correctly with custom dropdownClassName', () => {

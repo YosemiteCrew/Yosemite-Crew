@@ -16,9 +16,10 @@ jobs:
   pr-title:
     name: Validate PR title
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Single source of truth: derive the allowed types/scopes from
       # commitlint.config.cjs so the PR-title gate can never drift from the
@@ -49,13 +50,21 @@ jobs:
   commit-messages:
     name: Validate commit messages
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Release sync PRs replay already-merged dev history into main. Keep title
     # validation active, but do not re-lint historical commits in that path.
-    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') }}
+    #
+    # Dependabot writes long changelog and release-note lines into its commit
+    # bodies, which trip config-conventional's body/footer-max-line-length and
+    # fail this job on every bot PR. The PR-title gate above still runs, so the
+    # conventional type(scope) contract is enforced on the squash-merge subject;
+    # only the generated body lines are exempt.
+    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') && github.event.pull_request.user.login != 'dependabot[bot]' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Setup pnpm
@@ -64,7 +73,7 @@ jobs:
           run_install: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
           cache: pnpm

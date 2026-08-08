@@ -13,14 +13,16 @@ Auto-loaded by OpenAI Codex, Claude Code, and compatible AI agents. This is the 
 | `apps/mobileAppYC/AGENTS.md` | Mobile: React Native, Redux, navigation                                      |
 | `packages/AGENTS.md`         | Shared packages (auth, database, design-tokens, fhir, fhirtypes, lib, types) |
 
-Claude Code users: same rules also structured as skills in `.claude/skills/`.
+The same rules are also structured as skills: `.agents/skills/` (Codex and compatible agents), mirrored at `.claude/skills/` (Claude Code).
+
+**Start any multi-step task with the agent-loop skill** (`.agents/skills/agent-loop/SKILL.md`). It defines the work loop for this repo — orient, plan, act, verify, integrate — plus coordination across concurrent worktrees and recurring/scheduled runs.
 
 ---
 
 ## Repository
 
 - Tooling: `pnpm` workspaces + `turbo`. Package manager: `pnpm@8.15.6` — never use `npm` or `yarn`.
-- Workspaces: `apps/frontend`, `apps/backend`, `apps/desktop`, `apps/mobileAppYC`, `apps/dev-docs`, `packages/auth`, `packages/database`, `packages/design-tokens`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/types`. (`apps/anthropic` is untracked/WIP — not a documented workspace.)
+- Workspaces: `apps/frontend`, `apps/backend`, `apps/desktop`, `apps/mobileAppYC`, `apps/dev-docs`, `packages/auth`, `packages/database`, `packages/design-tokens`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/types`.
 - Architecture baseline (scale, domain model, platform directions): `.claude/skills/monorepo-ops/project-baseline.md`.
 
 ---
@@ -48,11 +50,11 @@ Conventional commits enforced by `commitlint`:
 
 ```
 <type>(<scope>): <subject>
-Types: feat | fix | chore | refactor | test | docs | style | perf | ci
+Types: feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
 Scopes: backend | frontend | mobile | desktop | dev-docs | types | fhir | repo | ci | docs | lib | auth | database
 ```
 
-For cross-workspace changes use `repo`. PR title must match the same pattern.
+For cross-workspace changes use `repo`. PR title must match the same pattern, and a scope is required — a scopeless title passes local commitlint but fails the "Validate PR title" CI check.
 
 ---
 

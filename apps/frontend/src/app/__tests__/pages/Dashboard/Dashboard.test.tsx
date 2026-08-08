@@ -106,6 +106,9 @@ jest.mock('@/app/ui/widgets/Summary/AppointmentTask', () => () => (
 
 jest.mock('@/app/ui/widgets/Summary/Availability', () => () => <div data-testid="availability" />);
 
+const precedes = (first: HTMLElement, second: HTMLElement): boolean =>
+  Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+
 describe('Dashboard page', () => {
   it('renders dashboard sections', () => {
     render(<ProtectedDashboard />);
@@ -122,5 +125,41 @@ describe('Dashboard page', () => {
     expect(screen.getByTestId('individual-product-turnover')).toBeInTheDocument();
     expect(screen.getByTestId('appointment-task')).toBeInTheDocument();
     expect(screen.getByTestId('availability')).toBeInTheDocument();
+  });
+
+  it('orders the schedule after the charts row and before the analytics leaders', () => {
+    render(<ProtectedDashboard />);
+
+    const charts = screen.getByTestId('appointment-stat');
+    const schedule = screen.getByTestId('appointment-task');
+    const leaders = screen.getByTestId('appointment-leaders');
+
+    // Design scroll order: explore -> charts -> schedule -> leaders -> turnover.
+    expect(precedes(charts, schedule)).toBe(true);
+    expect(precedes(schedule, leaders)).toBe(true);
+  });
+
+  it('omits the vertical day charts and turnover cards on the phone breakpoint', () => {
+    render(<ProtectedDashboard />);
+
+    const chartsRow = screen.getByTestId('appointment-stat').parentElement;
+    const turnoverRow = screen.getByTestId('annual-inventory-turnover').parentElement;
+
+    // The 390px phone frames drop these rows; they only appear from md (>=768px) up.
+    expect(chartsRow).toHaveClass('hidden');
+    expect(chartsRow).toHaveClass('md:grid');
+    expect(turnoverRow).toHaveClass('hidden');
+    expect(turnoverRow).toHaveClass('md:grid');
+  });
+
+  it('keeps the analytics leaders row visible (single column) on the phone breakpoint', () => {
+    render(<ProtectedDashboard />);
+
+    const leadersRow = screen.getByTestId('appointment-leaders').parentElement;
+
+    // Design phone analytics frame stacks the leaders bars; they are not hidden.
+    expect(leadersRow).not.toHaveClass('hidden');
+    expect(leadersRow).toHaveClass('grid-cols-1');
+    expect(leadersRow).toHaveClass('md:grid-cols-2');
   });
 });

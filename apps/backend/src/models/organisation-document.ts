@@ -1,5 +1,3 @@
-import { Schema, model, HydratedDocument } from "mongoose";
-
 export type OrgDocumentCategory =
   | "TERMS_AND_CONDITIONS"
   | "PRIVACY_POLICY"
@@ -19,6 +17,7 @@ export interface OrganizationDocumentMongo {
   fileName?: string;
   fileType?: string;
   fileSize?: number;
+  pdfUrl?: string;
 
   visibility: "INTERNAL" | "PUBLIC";
 
@@ -29,74 +28,6 @@ export interface OrganizationDocumentMongo {
   updatedAt?: Date;
 }
 
-export type OrganizationDocumentDocument =
-  HydratedDocument<OrganizationDocumentMongo>;
-
-const OrganisationDocumentSchema = new Schema(
-  {
-    organisationId: {
-      type: String,
-      required: true,
-      index: true,
-    },
-
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    description: {
-      type: String,
-      default: "",
-    },
-
-    category: {
-      type: String,
-      enum: [
-        "TERMS_AND_CONDITIONS",
-        "PRIVACY_POLICY",
-        "CANCELLATION_POLICY",
-        "FIRE_SAFETY",
-        "GENERAL",
-      ],
-      required: true,
-    },
-
-    fileUrl: {
-      type: String,
-    },
-
-    fileName: {
-      type: String,
-    },
-
-    fileType: {
-      type: String,
-    },
-
-    fileSize: {
-      type: Number,
-      default: null,
-    },
-
-    visibility: {
-      type: String,
-      enum: ["INTERNAL", "PUBLIC"],
-      default: "INTERNAL",
-    },
-
-    version: {
-      type: Number,
-      default: 1, // increment whenever file is replaced
-    },
-  },
-  { timestamps: true },
-);
-
-const OrganizationDocumentModel = model<OrganizationDocumentMongo>(
-  "OrganizationDocument",
-  OrganisationDocumentSchema,
-);
-
-export default OrganizationDocumentModel;
+export interface OrganizationDocumentDocument extends OrganizationDocumentMongo {
+  _id: string;
+}

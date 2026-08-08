@@ -1,6 +1,5 @@
 import { NotificationService } from "../../src/services/notification.service";
 import { DeviceTokenService } from "../../src/services/deviceToken.service";
-import { NotificationModel } from "../../src/models/notification";
 import logger from "../../src/utils/logger";
 import { NotificationPayload } from "../../src/utils/notificationTemplates";
 import { prisma } from "src/config/prisma";
@@ -29,18 +28,6 @@ jest.mock("../../src/services/deviceToken.service", () => ({
   DeviceTokenService: {
     removeToken: jest.fn(),
     getTokensForUser: jest.fn(),
-  },
-}));
-
-// Mongoose query chain helper
-const mockLean = jest.fn();
-const mockSort = jest.fn().mockReturnValue({ lean: mockLean });
-
-jest.mock("../../src/models/notification", () => ({
-  NotificationModel: {
-    create: jest.fn(),
-    find: jest.fn(() => ({ sort: mockSort })),
-    findById: jest.fn(),
   },
 }));
 
@@ -201,6 +188,27 @@ describe("NotificationService", () => {
       expect(res).toEqual([]);
     });
 
+    it("stores notifications via prisma for each token", async () => {
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
+        { deviceToken: "token-1" },
+      ]);
+      mockSend.mockResolvedValue("msg-id");
+
+      const res = await NotificationService.sendToUser("user1", payload);
+      await new Promise(process.nextTick); // flush dangling create promise
+
+      expect(res).toHaveLength(1);
+      expect(res[0].token).toBe("token-1");
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: "user1",
+            title: payload.title,
+          }),
+        }),
+      );
+    });
+
     it("loops through tokens, skips invalid records, and logs DB errors asynchronously", async () => {
       // Notice: we mock `deviceToken` here because the source code accesses `record.deviceToken`
       const mockTokens = [
@@ -212,19 +220,19 @@ describe("NotificationService", () => {
       );
       mockSend.mockResolvedValue("msg-id");
 
-      // Force NotificationModel.create to throw to test the catch block
-      (NotificationModel.create as jest.Mock).mockRejectedValueOnce(
+      // Force prisma create to throw to test the catch block
+      (prisma.notification.create as jest.Mock).mockRejectedValueOnce(
         new Error("DB Insert Failed"),
       );
 
       const res = await NotificationService.sendToUser("user1", payload);
 
-      // We must wait a tick for the dangling .catch() on insertOne to execute
+      // We must wait a tick for the dangling .catch() on create to execute
       await new Promise(process.nextTick);
 
       expect(res).toHaveLength(1);
       expect(res[0].token).toBe("token-1");
-      expect(NotificationModel.create).toHaveBeenCalled();
+      expect(prisma.notification.create).toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining("DB Insert Failed"),
       );
@@ -235,7 +243,7 @@ describe("NotificationService", () => {
         { deviceToken: "token-2" },
       ]);
       mockSend.mockResolvedValue("msg-id");
-      (NotificationModel.create as jest.Mock).mockRejectedValueOnce(
+      (prisma.notification.create as jest.Mock).mockRejectedValueOnce(
         "String DB Error",
       );
 
@@ -244,36 +252,6 @@ describe("NotificationService", () => {
 
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining("Unknown error"),
-      );
-    });
-  });
-
-  describe("sendToUser (postgres)", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.notification.create as jest.Mock).mockReset();
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
-    });
-
-    it("stores notifications via prisma", async () => {
-      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
-        { deviceToken: "token-1" },
-      ]);
-      mockSend.mockResolvedValue("msg-id");
-
-      await NotificationService.sendToUser("user1", payload);
-      expect(prisma.notification.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            userId: "user1",
-            title: payload.title,
-          }),
-        }),
       );
     });
   });
@@ -315,16 +293,11 @@ describe("NotificationService", () => {
     });
   });
 
-  describe("listNotificationsForUser (postgres)", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.notification.findMany as jest.Mock).mockReset();
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
+  describe("listNotificationsForUser", () => {
+    it("throws if userId is missing", async () => {
+      await expect(
+        NotificationService.listNotificationsForUser(""),
+      ).rejects.toThrow("userId is required");
     });
 
     it("returns notifications from prisma", async () => {
@@ -341,64 +314,11 @@ describe("NotificationService", () => {
     });
   });
 
-  describe("listNotificationsForUser", () => {
-    it("throws if userId is missing", async () => {
-      await expect(
-        NotificationService.listNotificationsForUser(""),
-      ).rejects.toThrow("userId is required");
-    });
-
-    it("returns leaned and sorted notifications", async () => {
-      mockLean.mockResolvedValueOnce([{ id: "notif1" }]);
-
-      const res = await NotificationService.listNotificationsForUser("user1");
-
-      expect(NotificationModel.find).toHaveBeenCalledWith({ userId: "user1" });
-      expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
-      expect(mockLean).toHaveBeenCalled();
-      expect(res).toEqual([{ id: "notif1" }]);
-    });
-  });
-
   describe("markNotificationAsSeen", () => {
     it("throws if notificationId is missing", async () => {
       await expect(
         NotificationService.markNotificationAsSeen(""),
       ).rejects.toThrow("notificationId is required");
-    });
-
-    it("throws if notification is not found", async () => {
-      (NotificationModel.findById as jest.Mock).mockResolvedValueOnce(null);
-
-      await expect(
-        NotificationService.markNotificationAsSeen("notif-123"),
-      ).rejects.toThrow("Notification not found");
-    });
-
-    it("marks notification as seen and saves it", async () => {
-      const mockDoc = {
-        isSeen: false,
-        save: jest.fn().mockResolvedValue(true),
-      };
-      (NotificationModel.findById as jest.Mock).mockResolvedValueOnce(mockDoc);
-
-      await NotificationService.markNotificationAsSeen("notif-123");
-
-      expect(mockDoc.isSeen).toBe(true);
-      expect(mockDoc.save).toHaveBeenCalled();
-    });
-  });
-
-  describe("markNotificationAsSeen (postgres)", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.notification.updateMany as jest.Mock).mockReset();
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
     });
 
     it("updates notification via prisma", async () => {

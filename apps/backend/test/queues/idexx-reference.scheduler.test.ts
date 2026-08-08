@@ -24,7 +24,12 @@ describe("registerIdexxReferenceScheduler", () => {
     await registerIdexxReferenceScheduler();
 
     expect(mockedQueue.add).toHaveBeenCalledTimes(2);
-    expect(mockedQueue.add).toHaveBeenNthCalledWith(1, "sync", {}, {});
+    expect(mockedQueue.add).toHaveBeenNthCalledWith(
+      1,
+      "sync",
+      {},
+      { jobId: "idexx-reference-startup" },
+    );
     expect(mockedQueue.add).toHaveBeenNthCalledWith(
       2,
       "sync",
@@ -34,5 +39,20 @@ describe("registerIdexxReferenceScheduler", () => {
         jobId: "idexx-reference-weekly",
       },
     );
+  });
+
+  it("gives every enqueued job a stable id so restarts do not stack duplicates", async () => {
+    await registerIdexxReferenceScheduler();
+    await registerIdexxReferenceScheduler();
+
+    const jobIds = mockedQueue.add.mock.calls.map(([, , opts]) => opts?.jobId);
+
+    expect(jobIds).toEqual([
+      "idexx-reference-startup",
+      "idexx-reference-weekly",
+      "idexx-reference-startup",
+      "idexx-reference-weekly",
+    ]);
+    expect(jobIds).not.toContain(undefined);
   });
 });

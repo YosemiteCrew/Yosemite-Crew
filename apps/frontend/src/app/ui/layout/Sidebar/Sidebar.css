@@ -1,9 +1,10 @@
+/* App shell sidebar — rebuilt to the PIMS design (Foundations "Shell expanded").
+   Luxury borderless nav rows on a flat --screen-2 rail, NOT the old bordered cards.
+   Expanded 224px is the desktop default (>=1280px); 76px icon rail below. */
+
 .sidebar {
-  --sidebar-expanded-width: 176px;
+  --sidebar-expanded-width: 224px;
   --sidebar-collapsed-width: 76px;
-  --sidebar-pad-x: 10px;
-  --sidebar-control-height: 42px;
-  --sidebar-radius: 16px;
   position: relative;
   z-index: 50;
   width: var(--sidebar-expanded-width);
@@ -13,15 +14,11 @@
   display: flex;
   height: 100%;
   flex-direction: column;
-  gap: 12px;
   overflow: visible;
-  padding: 10px var(--sidebar-pad-x) 16px;
-  border-right: 1px solid color-mix(in srgb, var(--color-card-border) 82%, transparent);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.74)),
-    var(--color-surface-card);
-  box-shadow: 10px 0 28px rgba(48, 47, 46, 0.04);
-  backdrop-filter: blur(18px) saturate(150%);
+  /* Design ("Shell expanded", 19 July inline styles): 18px 14px 14px. */
+  padding: 18px 14px 14px;
+  border-right: 1px solid var(--hairline);
+  background: var(--screen-2);
   transition:
     width 0.22s ease,
     min-width 0.22s ease,
@@ -35,126 +32,155 @@
   min-width: var(--sidebar-collapsed-width);
   max-width: var(--sidebar-collapsed-width);
   flex: 0 0 var(--sidebar-collapsed-width);
-  padding: 10px 10px 16px;
+  /* Design 76px icon rail: 18px top / 14px bottom, 0 side — the centered 44px
+     pills define the horizontal rhythm. */
+  padding: 18px 0 14px;
 }
 
+/* 18px gap between the brand logo and the first icon on the collapsed rail. */
+.sidebar-collapsed .sidebar-routes {
+  margin-top: 18px;
+}
+
+/* Design rail icons are 18px (desktop expanded rows keep 17px). */
+.sidebar-collapsed .route-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-collapsed .route-icon-svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---- logo + wordmark ---- */
 .sidebar-top {
   display: flex;
-  height: 60px;
   align-items: center;
-  justify-content: center;
+  gap: 9px;
+  padding: 2px 10px 0;
 }
 
 .sidebar-top-collapsed {
-  height: 60px;
+  justify-content: center;
+  padding: 2px 0 0;
 }
 
 .logo {
   display: inline-flex;
-  height: 50px;
-  min-width: calc(var(--sidebar-expanded-width) - (var(--sidebar-pad-x) * 2));
   align-items: center;
-  justify-content: center;
-  border-radius: var(--sidebar-radius);
-  transition:
-    min-width 0.22s ease,
-    background-color 0.22s ease,
-    transform 0.22s ease;
-}
-
-.logo:hover {
-  background: color-mix(in srgb, var(--color-brand-100) 48%, transparent);
+  gap: 9px;
+  border-radius: 12px;
+  transition: transform 0.22s ease;
 }
 
 .logo img {
-  width: auto;
-  height: 50px;
-  max-width: 112px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
-.logo-collapsed {
-  min-width: 52px;
-}
-
 .logo-collapsed img {
-  width: auto;
-  height: 52px;
-  max-width: 52px;
+  width: 40px;
+  height: 40px;
 }
 
+.sidebar-wordmark-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- developer portal cyan accent (gated to /developers routes) ---- */
+.sidebar-dev-sublabel {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--color-cyan-text);
+  white-space: nowrap;
+}
+
+.sidebar-dev .route-active,
+.sidebar-dev .route-active:hover {
+  color: var(--color-cyan-text);
+}
+
+.sidebar-dev .route-active .route-icon,
+.sidebar-dev .route-active:hover .route-icon {
+  color: var(--color-cyan-text);
+}
+
+/* ---- route groups ---- */
 .sidebar-routes {
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
+  margin-top: 22px;
   overflow-x: visible;
   overflow-y: auto;
-  padding: 2px 2px 8px;
   scrollbar-gutter: stable;
 }
 
 .sidebar-route-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
 .sidebar-route-group-label {
-  padding: 0 10px;
-  color: var(--color-text-tertiary);
+  padding: 18px 12px 6px;
+  color: var(--ink-faint2);
   font-family: var(--font-satoshi);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: -0.22px;
-  line-height: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
   text-transform: uppercase;
+}
+
+.sidebar-route-group:first-child .sidebar-route-group-label {
+  padding-top: 0;
 }
 
 .sidebar-route-group-items {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
+/* ---- nav row — borderless, subtle active tint ---- */
 .route {
   display: flex;
-  min-height: var(--sidebar-control-height);
   align-items: center;
-  gap: 8px;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 72%, transparent);
-  border-radius: var(--sidebar-radius);
-  background: color-mix(in srgb, var(--color-neutral-0) 72%, transparent);
-  color: var(--color-text-secondary);
+  gap: 10px;
+  height: 40px;
+  min-height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-soft);
   font-family: var(--font-satoshi);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
-  letter-spacing: -0.26px;
+  letter-spacing: -0.01em;
   line-height: 20px;
-  padding: 10px;
+  padding: 0 12px;
   transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    color 0.18s ease;
-}
-
-.sidebar-collapsed .route {
-  width: 100%;
-  min-height: var(--sidebar-control-height);
-  justify-content: center;
-  padding: 10px;
+    background-color 0.16s ease,
+    color 0.16s ease;
 }
 
 .route-icon {
   display: inline-flex;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  color: currentColor;
+  color: var(--ink-faint);
 }
 
 .route-icon-svg {
@@ -162,16 +188,37 @@
   color: currentColor;
 }
 
-.route-active {
-  border-color: color-mix(in srgb, var(--color-brand-950) 30%, transparent);
-  background: var(--color-brand-100);
-  color: var(--color-brand-950);
+.route:hover {
+  background: var(--nav-hover);
+  color: var(--ink);
 }
 
-.route-disabled {
-  color: var(--color-neutral-500) !important;
+.route:hover .route-icon {
+  color: var(--ink);
+}
+
+.route-active,
+.route-active:hover {
+  background: var(--nav-active-bg);
+  color: var(--nav-active);
+  font-weight: 600;
+}
+
+.route-active .route-icon,
+.route-active:hover .route-icon {
+  color: var(--nav-active);
+}
+
+.route-disabled,
+.route-disabled:hover {
+  color: var(--ink-faint2) !important;
+  background: transparent;
   cursor: not-allowed;
-  opacity: 0.72;
+  opacity: 0.6;
+}
+
+.route-disabled .route-icon {
+  color: var(--ink-faint2) !important;
 }
 
 .route-label {
@@ -189,41 +236,81 @@
   justify-content: center;
 }
 
-.route:hover {
-  border-color: color-mix(in srgb, var(--color-card-border) 82%, transparent);
-  background: color-mix(in srgb, var(--color-card-hover) 74%, white);
-  color: var(--color-text-primary);
+/* ---- collapsed 76px rail: centered tint pills ---- */
+.sidebar-collapsed .sidebar-route-group-items {
+  align-items: center;
 }
 
-.sidebar-footer {
-  display: flex;
+.sidebar-collapsed .route {
+  width: 44px;
   justify-content: center;
+  padding: 0;
+  margin: 0 auto;
+}
+
+.sidebar-collapsed .sidebar-route-group-label {
+  text-align: center;
+  padding: 14px 0 6px;
+  letter-spacing: 0.08em;
+}
+
+/* ---- footer: status + collapse control ---- */
+.sidebar-footer {
+  border-top: 1px solid var(--hairline);
   margin-top: auto;
-  padding-top: 2px;
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* The rail itself has no side padding, so the footer keeps the divider inset. */
+.sidebar-collapsed .sidebar-footer {
+  justify-content: center;
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.sidebar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.sidebar-status-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--success);
 }
 
 .sidebar-collapse-btn {
   display: flex;
-  width: var(--sidebar-control-height);
-  height: var(--sidebar-control-height);
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 85%, transparent);
-  border-radius: var(--sidebar-radius);
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-faint);
   cursor: pointer;
   transition:
     background-color 0.18s ease,
     border-color 0.18s ease,
-    box-shadow 0.18s ease,
     color 0.18s ease;
 }
 
 .sidebar-collapse-btn:hover {
-  border-color: color-mix(in srgb, var(--color-brand-950) 28%, transparent);
-  background: var(--color-brand-100);
-  color: var(--color-brand-950);
+  border-color: var(--hairline-hover);
+  background: var(--nav-hover);
+  color: var(--ink-soft);
 }
 
 .sidebar-route-tooltip {
@@ -233,7 +320,10 @@
   justify-content: center;
 }
 
-@media screen and (max-width: 1024px) {
+/* Phones (< 768px) move navigation to the PhoneShell bottom tab bar, so the rail
+   is hidden there and only there. Tablet (768-1279px) keeps the 76px icon rail
+   per the Foundations breakpoint contract. */
+@media screen and (max-width: 767px) {
   .sidebar {
     display: none;
   }

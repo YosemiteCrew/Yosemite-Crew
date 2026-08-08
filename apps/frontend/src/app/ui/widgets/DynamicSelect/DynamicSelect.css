@@ -65,7 +65,7 @@
   width: 100%;
   max-height: 200px;
   overflow: auto;
-  background: white;
+  background: var(--color-surface-card);
   border: 1px solid var(--blue-text);
   border-top: none;
   border-bottom-left-radius: 16px;

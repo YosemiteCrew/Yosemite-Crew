@@ -193,10 +193,15 @@ describe('GroupModal', () => {
 
     it('renders owner badge, save-title and delete controls', () => {
       setup(editProps());
-      expect(screen.getByText('Group info')).toBeInTheDocument();
+      expect(screen.getByText('Group chat · Team A')).toBeInTheDocument();
       expect(screen.getByText('Save Title')).toBeInTheDocument();
       expect(screen.getByText('Owner')).toBeInTheDocument();
       expect(screen.getByText('Delete Group')).toBeInTheDocument();
+    });
+
+    it('falls back to a generic header when the group has no title yet', () => {
+      setup(editProps({ placeholder: '   ' }));
+      expect(screen.getByText('Group chat · group')).toBeInTheDocument();
     });
 
     it('saves the title', () => {
@@ -262,6 +267,33 @@ describe('GroupModal', () => {
       expect(screen.queryByText('Delete Group')).not.toBeInTheDocument();
       expect(screen.queryByText('Add more members')).not.toBeInTheDocument();
     });
+
+    it('treats a missing owner or current user id as a non-creator without checking org users', () => {
+      setup({
+        mode: 'edit',
+        ownerId: undefined,
+        currentUserId: 'me',
+        members: ['me'],
+        title: 'Team A',
+        placeholder: 'Team A',
+      });
+      expect(screen.getByText('Only the group creator can modify this group.')).toBeInTheDocument();
+    });
+  });
+
+  it('resolves a picker key from the id field when userId is absent', () => {
+    setup({
+      orgUsers: [{ id: 'u9', name: 'No UserId Person', email: 'nine@clinic.com' }],
+    });
+    expect(screen.getByText('No UserId Person')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Add member'));
+  });
+
+  it('falls back to the email initial for the avatar when a teammate has no name', () => {
+    setup({
+      orgUsers: [{ id: 'u9', userId: 'u9', name: '', email: 'nine@clinic.com' }],
+    });
+    expect(screen.getByText('nine@clinic.com')).toBeInTheDocument();
   });
 
   it('resolves a member name from the channel state when absent from org users', () => {
