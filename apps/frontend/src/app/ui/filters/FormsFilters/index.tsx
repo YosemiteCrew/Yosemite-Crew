@@ -152,7 +152,9 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
           ref={triggerRef}
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          aria-haspopup="listbox"
+          // No aria-haspopup: the popup is a plain stack of buttons, not a
+          // listbox or a menu, and it implements no keyboard model. aria-expanded
+          // plus the label below already say what this control does.
           aria-expanded={open}
           aria-label={`Category: ${selectedCategoryLabel}`}
           className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[13px] py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:border-[var(--divider)]"
@@ -180,7 +182,11 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
                   <button
                     key={opt.value}
                     type="button"
-                    aria-pressed={isSelected}
+                    // Single-select, so these are plain buttons per AGENTS.md, not
+                    // toggles: aria-pressed would expose eight independent
+                    // switches. aria-current marks the chosen one within the set
+                    // without claiming a listbox or menu widget.
+                    aria-current={isSelected ? 'true' : undefined}
                     data-testid={`option-${opt.value}`}
                     onClick={() => selectCategory(opt.value)}
                     className={clsx(

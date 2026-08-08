@@ -144,11 +144,11 @@ describe('FormsFilters Component', () => {
     renderFilters({ status: 'All', category: 'Custom' });
     openMenu();
     const selected = screen.getByTestId('option-Custom');
-    expect(selected).toHaveAttribute('aria-pressed', 'true');
+    expect(selected).toHaveAttribute('aria-current', 'true');
     expect(selected.className).toContain('font-semibold');
 
     const unselected = screen.getByTestId('option-All');
-    expect(unselected).toHaveAttribute('aria-pressed', 'false');
+    expect(unselected).not.toHaveAttribute('aria-current');
   });
 
   it('closes on an outside mousedown but stays open for interactions inside', () => {

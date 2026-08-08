@@ -51,7 +51,12 @@ const fetchMemberCount = async (inviteCode: string): Promise<string | null> => {
       `https://discord.com/api/v10/invites/${inviteCode}?with_counts=true&with_expiration=true`,
       {
         headers: { Accept: 'application/json', 'User-Agent': DISCORD_USER_AGENT },
-        next: { revalidate: CACHE_TTL_SECONDS },
+        // Deliberately uncached at the fetch layer. Next's data cache keys on the
+        // request, not the outcome, so `revalidate` here would also cache a 200
+        // that carries no member count (or malformed JSON) and keep replaying it
+        // for the whole TTL after Discord recovered. Only a parsed count is
+        // cached, and that happens below.
+        cache: 'no-store',
       }
     );
     if (!response.ok) return null;
@@ -61,23 +66,38 @@ const fetchMemberCount = async (inviteCode: string): Promise<string | null> => {
   }
 };
 
+/**
+ * Last successfully parsed count. Only successes land here, so a failed or
+ * malformed upstream response can never be served from cache - the next request
+ * retries Discord immediately. Per server instance, like the equivalent cache in
+ * the backend's DiscordMembersService.
+ */
+let cached: { count: string; at: number } | null = null;
+
+const readCached = (now: number): string | null =>
+  cached && now - cached.at < CACHE_TTL_SECONDS * 1000 ? cached.count : null;
+
 export async function GET(): Promise<NextResponse<DiscordMembersResponse>> {
+  const now = Date.now();
+  const successHeaders = {
+    'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS}`,
+  };
+
+  const fresh = readCached(now);
+  if (fresh !== null) {
+    return NextResponse.json({ discordMembers: fresh }, { headers: successHeaders });
+  }
+
   for (const inviteCode of DISCORD_INVITE_CODES) {
     const discordMembers = await fetchMemberCount(inviteCode);
     if (discordMembers !== null) {
-      return NextResponse.json(
-        { discordMembers },
-        {
-          headers: {
-            'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS}`,
-          },
-        }
-      );
+      cached = { count: discordMembers, at: now };
+      return NextResponse.json({ discordMembers }, { headers: successHeaders });
     }
   }
 
   // 200 with a null count, not an error status: the caller treats a missing
-  // count as "contribute nothing this pass" and keeps its loading placeholder,
-  // and a failed lookup should not be cached.
+  // count as "contribute nothing this pass" and keeps its loading placeholder.
+  // Nothing about a failure is cached, at this layer or any other.
   return NextResponse.json({ discordMembers: null }, { headers: { 'Cache-Control': 'no-store' } });
 }
