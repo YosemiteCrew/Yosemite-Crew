@@ -34,7 +34,7 @@ const EMPTY_STATS: GithubStats = {
 };
 const REPO_STATS_SUMMARY =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
-const DISCORD_MEMBERS_ENDPOINT = `${process.env.NEXT_PUBLIC_BASE_URL}/v1/marketing/discord-members`;
+const DISCORD_MEMBERS_ENDPOINT = `${process.env.NEXT_PUBLIC_BASE_URL}v1/marketing/discord-members`;
 const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=1&anon=true`;
 
 const formatCompact = (n: number): string =>
