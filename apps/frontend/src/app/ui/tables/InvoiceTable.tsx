@@ -159,9 +159,10 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     // back in here alongside the time.
     const foldedDate =
       foldMeta && appointment ? formatDateLabel(appointment.appointmentDate) : undefined;
+    const foldedTypeName = foldMeta ? appointment?.appointmentType?.name : undefined;
     const appointmentSubtitle = appointment
       ? buildAppointmentSubtitle(
-          foldMeta ? appointment.appointmentType?.name : undefined,
+          foldedTypeName,
           formatTimeLabel(appointment.startTime ?? appointment.appointmentDate),
           foldedDate
         )

@@ -113,7 +113,6 @@ describe('Header Component', () => {
         {...defaultProps}
         activeCalendar="week"
         setActiveCalendar={jest.fn()}
-        weekStart={new Date('2025-01-06T00:00:00.000Z')}
         setWeekStart={setWeekStart}
       />
     );
@@ -146,7 +145,6 @@ describe('Header Component', () => {
         {...defaultProps}
         activeCalendar="week"
         setActiveCalendar={jest.fn()}
-        weekStart={new Date('2025-01-06T00:00:00.000Z')}
         setWeekStart={setWeekStart}
       />
     );

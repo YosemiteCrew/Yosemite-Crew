@@ -90,18 +90,33 @@ const inFlightGetRequests = new Map<string, Promise<AxiosResponse<unknown>>>();
 let unauthorizedSessionPromise: Promise<void> | null = null;
 
 const AUTH_REDIRECT_ERROR_NAME = 'AuthRedirectError';
+// Every route under (routes)/(public) that a signed-out visitor can land on. A
+// 401 from any request made while one of these is open must NOT bounce the
+// visitor to sign-in — they were never signed in, and the marketing shell fires
+// background requests (community stats, release info) from every page.
 const PUBLIC_PATHS = new Set([
   '/',
+  '/about',
   '/about-us',
   '/accessibility',
+  '/book-demo',
+  '/contact',
   '/contact-us',
+  '/dmca',
   '/forgot-password',
+  '/impressum',
+  '/insights',
+  '/overview',
   '/pet-businesses',
   '/pet-parents',
+  '/pms',
   '/pricing',
+  '/privacy-policy',
   '/reset-password',
   '/signin',
   '/signup',
+  '/terms-and-conditions',
+  '/trust-center',
   '/verify-email',
 ]);
 

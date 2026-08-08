@@ -162,7 +162,6 @@ const Dropdown = ({
       handleKeyDown={handleKeyDown}
       activeOptionId={activeOptionId}
       filteredList={filteredList}
-      list={list}
       setActiveIndex={setActiveIndex}
       selectOption={selectOption}
     />

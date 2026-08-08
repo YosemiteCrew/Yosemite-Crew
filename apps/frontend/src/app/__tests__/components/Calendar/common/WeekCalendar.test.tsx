@@ -69,9 +69,6 @@ jest.mock('@/app/ui/primitives/Icons/Next', () => ({
 describe('WeekCalendar (Appointments)', () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
-  const setWeekStart = jest.fn();
-  const setCurrentDate = jest.fn();
-
   const weekStart = new Date('2025-01-06T00:00:00Z');
   const days = [
     new Date('2025-01-06T00:00:00Z'),
@@ -110,8 +107,6 @@ describe('WeekCalendar (Appointments)', () => {
         events={events}
         handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -140,8 +135,6 @@ describe('WeekCalendar (Appointments)', () => {
         events={events}
         handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -149,7 +142,6 @@ describe('WeekCalendar (Appointments)', () => {
 
     expect(screen.queryByText('PrevWeek')).not.toBeInTheDocument();
     expect(screen.queryByText('NextWeek')).not.toBeInTheDocument();
-    expect(setWeekStart).not.toHaveBeenCalled();
   });
 
   it('styles the day header strip with the frame typography and tints today', () => {
@@ -161,8 +153,6 @@ describe('WeekCalendar (Appointments)', () => {
         events={events}
         handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -196,8 +186,6 @@ describe('WeekCalendar (Appointments)', () => {
         events={events}
         handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -218,8 +206,6 @@ describe('WeekCalendar (Appointments)', () => {
         events={events}
         handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -254,8 +240,6 @@ describe('WeekCalendar (Appointments)', () => {
         zoomMode="out"
         handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />
@@ -270,8 +254,6 @@ describe('WeekCalendar (Appointments)', () => {
         events={events}
         handleViewAppointment={handleViewAppointment}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         handleRescheduleAppointment={handleRescheduleAppointment}
         canEditAppointments
       />

@@ -253,7 +253,6 @@ const AppointmentCalendar = ({
       <Header
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
-        weekStart={weekStart}
         setWeekStart={setWeekStart}
         zoomMode={zoomMode}
         setZoomMode={setZoomMode}
@@ -292,7 +291,6 @@ const AppointmentCalendar = ({
           date={currentDate}
           zoomMode={zoomMode}
           handleDetailAppointment={handleViewAppointment}
-          setCurrentDate={setCurrentDate}
         />
       )}
       {activeCalendar === 'week' && (
@@ -302,8 +300,6 @@ const AppointmentCalendar = ({
           events={weekEvents}
           zoomMode={zoomMode}
           weekStart={weekStart}
-          setWeekStart={setWeekStart}
-          setCurrentDate={setCurrentDate}
         />
       )}
       {activeCalendar === 'team' && (
@@ -314,7 +310,6 @@ const AppointmentCalendar = ({
           date={currentDate}
           zoomMode={zoomMode}
           forceFullDayInZoomIn
-          setCurrentDate={setCurrentDate}
           getVisibleAvailabilityIntervals={getViewAvailabilityIntervals}
         />
       )}

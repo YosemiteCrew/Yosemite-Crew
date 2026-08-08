@@ -108,16 +108,16 @@ describe('FormsFilters Component', () => {
     expect(trigger).toHaveTextContent('All categories');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     // The boxed dropdown / stacked label are gone; options stay hidden until opened.
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('category-menu')).not.toBeInTheDocument();
   });
 
   it('opens the category menu and lists the options', () => {
     renderFilters();
     openMenu();
     expect(getTrigger()).toHaveAttribute('aria-expanded', 'true');
-    const listbox = screen.getByRole('listbox', { name: 'Category' });
-    expect(within(listbox).getByTestId('option-All')).toHaveTextContent('All categories');
-    expect(within(listbox).getByTestId('option-Custom')).toBeInTheDocument();
+    const menu = screen.getByTestId('category-menu');
+    expect(within(menu).getByTestId('option-All')).toHaveTextContent('All categories');
+    expect(within(menu).getByTestId('option-Custom')).toBeInTheDocument();
   });
 
   it('selects a category and closes the menu', () => {
@@ -125,7 +125,7 @@ describe('FormsFilters Component', () => {
     openMenu();
     fireEvent.click(screen.getByTestId('option-Custom'));
     expect(mockOnFiltersChange).toHaveBeenLastCalledWith({ status: 'All', category: 'Custom' });
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('category-menu')).not.toBeInTheDocument();
   });
 
   it('reflects the selected category label on the trigger', () => {
@@ -144,31 +144,31 @@ describe('FormsFilters Component', () => {
     renderFilters({ status: 'All', category: 'Custom' });
     openMenu();
     const selected = screen.getByTestId('option-Custom');
-    expect(selected).toHaveAttribute('aria-selected', 'true');
+    expect(selected).toHaveAttribute('aria-pressed', 'true');
     expect(selected.className).toContain('font-semibold');
 
     const unselected = screen.getByTestId('option-All');
-    expect(unselected).toHaveAttribute('aria-selected', 'false');
+    expect(unselected).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('closes on an outside mousedown but stays open for interactions inside', () => {
     renderFilters();
     openMenu();
-    const listbox = screen.getByRole('listbox');
+    const menu = screen.getByTestId('category-menu');
     fireEvent.mouseDown(getTrigger());
-    expect(screen.getByRole('listbox')).toBeInTheDocument();
-    fireEvent.mouseDown(listbox);
-    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    expect(screen.getByTestId('category-menu')).toBeInTheDocument();
+    fireEvent.mouseDown(menu);
+    expect(screen.getByTestId('category-menu')).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('category-menu')).not.toBeInTheDocument();
   });
 
   it('closes the category menu on scroll', () => {
     renderFilters();
     openMenu();
-    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    expect(screen.getByTestId('category-menu')).toBeInTheDocument();
     fireEvent.scroll(window);
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('category-menu')).not.toBeInTheDocument();
   });
 
   it('renders the category action node', () => {

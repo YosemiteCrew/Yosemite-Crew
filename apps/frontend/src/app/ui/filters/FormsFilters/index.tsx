@@ -169,8 +169,8 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
           createPortal(
             <div
               ref={panelRef}
-              role="listbox"
               aria-label="Category"
+              data-testid="category-menu"
               className="yc-glass-overlay rounded-2xl max-h-64 overflow-y-auto py-1"
               style={panelStyle}
             >
@@ -180,8 +180,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
                   <button
                     key={opt.value}
                     type="button"
-                    role="option"
-                    aria-selected={isSelected}
+                    aria-pressed={isSelected}
                     data-testid={`option-${opt.value}`}
                     onClick={() => selectCategory(opt.value)}
                     className={clsx(

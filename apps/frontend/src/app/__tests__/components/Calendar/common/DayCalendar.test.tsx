@@ -256,7 +256,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments={false}
       />
     );
@@ -286,7 +285,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments={false}
         onCreateAppointmentAt={jest.fn()}
       />
@@ -320,7 +318,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -369,7 +366,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -388,7 +384,6 @@ describe('DayCalendar (Appointments)', () => {
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -409,7 +404,6 @@ describe('DayCalendar (Appointments)', () => {
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments={false}
       />
     );

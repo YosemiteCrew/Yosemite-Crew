@@ -7,7 +7,6 @@ import {
   setJsonStorageItem,
   setStorageItem,
 } from '@/app/lib/browserStorage';
-import { http } from '@/app/services/http';
 import { GITHUB_API_REPO } from './assets';
 
 export interface GithubStats {
@@ -34,7 +33,9 @@ const EMPTY_STATS: GithubStats = {
 };
 const REPO_STATS_SUMMARY =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
-const DISCORD_MEMBERS_ENDPOINT = `${process.env.NEXT_PUBLIC_BASE_URL}v1/marketing/discord-members`;
+// Same-origin route handler, not the product API: see the comment on that route
+// for why the number kept breaking when it was read across origins.
+const DISCORD_MEMBERS_ENDPOINT = '/api/community/discord-members';
 const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=1&anon=true`;
 
 const formatCompact = (n: number): string =>
@@ -100,13 +101,11 @@ const fetchContributors = async (): Promise<Partial<GithubStats>> => {
 };
 
 const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
-  try {
-    const response = await http.get<{ discordMembers: string | null }>(DISCORD_MEMBERS_ENDPOINT);
-    if (typeof response.data.discordMembers !== 'string') return {};
-    return { discord: response.data.discordMembers };
-  } catch {
-    return {};
-  }
+  const json = (await fetchJson(DISCORD_MEMBERS_ENDPOINT)) as {
+    discordMembers?: string | null;
+  } | null;
+  if (typeof json?.discordMembers !== 'string') return {};
+  return { discord: json.discordMembers };
 };
 
 /**

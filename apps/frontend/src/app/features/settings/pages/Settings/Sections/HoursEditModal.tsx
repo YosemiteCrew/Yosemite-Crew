@@ -42,6 +42,11 @@ const buildDefaultAvailability = (): AvailabilityState =>
 type MembershipLike = { practitionerReference?: string; id?: string } | null | undefined;
 type OrgLike = { _id?: unknown } | null | undefined;
 
+// `_id` comes off the store untyped. Only a primitive is a usable organisation
+// id, so anything else resolves to '' instead of stringifying to '[object Object]'.
+const toOrgId = (value: unknown): string =>
+  typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+
 // Convert the editable availability and persist it (team vs. org level). Returns
 // false when nothing is enabled, so the caller can keep the editor open.
 const persistAvailability = async (
@@ -57,7 +62,7 @@ const persistAvailability = async (
       {
         _id: membership.id ?? membership.practitionerReference,
         practionerId: membership.practitionerReference,
-        organisationId: primaryOrgId ?? String(org?._id ?? ''),
+        organisationId: primaryOrgId ?? toOrgId(org?._id),
       } as any,
       converted,
       null
