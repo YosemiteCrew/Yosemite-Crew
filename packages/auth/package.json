@@ -18,8 +18,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "supertokens-node": "^24.0.2",
-    "jsonwebtoken": "9.0.2",
+    "supertokens-node": "^24.0.3",
+    "jsonwebtoken": "9.0.3",
     "jwks-rsa": "^3.2.0"
   },
   "peerDependencies": {
