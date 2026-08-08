@@ -63,7 +63,7 @@ const TaskFilterBar = ({
       <div className="flex flex-wrap items-center gap-2">
         {showScope && (
           <>
-            <div
+            <div /* NOSONAR: styled inline-flex segmented control; native <fieldset> defaults (block layout, border, required legend) break the pill design */
               role="group"
               aria-label="Task scope"
               className="inline-flex items-center rounded-full border border-[var(--hairline)] p-0.5"

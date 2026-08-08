@@ -175,7 +175,6 @@ describe('DayCalendar (Appointments)', () => {
   const handleDetailAppointment = jest.fn();
   const handleOpenWorkspace = jest.fn();
   const handleRescheduleAppointment = jest.fn();
-  const setCurrentDate = jest.fn();
   const originalConsoleError = console.error;
 
   const baseDate = new Date('2025-01-06T10:00:00Z');
@@ -256,7 +255,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments={false}
       />
     );
@@ -286,7 +284,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments={false}
         onCreateAppointmentAt={jest.fn()}
       />
@@ -320,7 +317,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -369,7 +365,6 @@ describe('DayCalendar (Appointments)', () => {
         handleDetailAppointment={handleDetailAppointment}
         handleOpenWorkspace={handleOpenWorkspace}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -388,7 +383,6 @@ describe('DayCalendar (Appointments)', () => {
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -409,13 +403,11 @@ describe('DayCalendar (Appointments)', () => {
         handleViewAppointment={handleViewAppointment}
         handleDetailAppointment={handleDetailAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments={false}
       />
     );
 
     expect(screen.queryByText('Next')).not.toBeInTheDocument();
     expect(screen.queryByText('Prev')).not.toBeInTheDocument();
-    expect(setCurrentDate).not.toHaveBeenCalled();
   });
 });

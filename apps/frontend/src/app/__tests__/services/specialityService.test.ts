@@ -285,11 +285,9 @@ describe('specialityService', () => {
       const result = await createSpecialitiesBulk(payload);
 
       expect(result).toHaveLength(1);
-      expect(mockAddSpeciality).toHaveBeenCalledWith(
-        expect.objectContaining({ _id: 'spec-a' }),
-        expect.any(Number),
-        expect.any(Array)
-      );
+      // Exactly one argument: the store action is called through an arrow, not
+      // handed to forEach directly, so forEach's index and array never reach it.
+      expect(mockAddSpeciality).toHaveBeenCalledWith(expect.objectContaining({ _id: 'spec-a' }));
     });
 
     it('throws error on failure', async () => {
@@ -317,6 +315,11 @@ describe('specialityService', () => {
 
       expect(axiosService.postData).toHaveBeenCalledWith('/fhir/v1/service/bulk', payload);
       expect(mockAddService).toHaveBeenCalledTimes(2);
+      // One argument per call: forEach's index and array must not leak into the
+      // store action, which only accepts a Service.
+      for (const call of mockAddService.mock.calls) {
+        expect(call).toHaveLength(1);
+      }
       expect(result).toHaveLength(2);
       expect(result[0].id).toBe('svc-a');
     });

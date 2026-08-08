@@ -202,6 +202,22 @@ describe('paymentStatus', () => {
     expect(display.state).toBe('PAID_CASH');
   });
 
+  it('metadataSuggestsCash ignores a non-primitive metadata value', () => {
+    // A nested object must not stringify to '[object Object]' and be scanned for
+    // 'cash' — it carries no payment mode, so the invoice stays plain PAID.
+    const display = getAppointmentPaymentDisplay({ id: 'a1', status: 'REQUESTED' } as any, {
+      a1: {
+        id: 'inv',
+        appointmentId: 'a1',
+        status: 'PAID',
+        paidAt: '2025-01-01T00:00:00Z',
+        stripePaymentIntentId: 'pi_123',
+        metadata: { paymentMethod: { label: 'cash' } },
+      } as any,
+    });
+    expect(display.state).toBe('PAID');
+  });
+
   it('metadataSuggestsCash checks tender keyword', () => {
     const display = getAppointmentPaymentDisplay({ id: 'a1', status: 'REQUESTED' } as any, {
       a1: {

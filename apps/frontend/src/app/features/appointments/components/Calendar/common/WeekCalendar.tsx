@@ -354,8 +354,6 @@ type WeekCalendarProps = {
   handleDetailAppointment?: any;
   handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   weekStart: Date;
-  setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
@@ -389,9 +387,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   handleDetailAppointment,
   handleOpenWorkspace,
   weekStart,
-  // setWeekStart / setCurrentDate stay on the props contract but are no longer read
-  // here: week navigation moved to the header toolbar's date-nav pill, which owns
-  // both setters. The grid itself only reads weekStart.
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,

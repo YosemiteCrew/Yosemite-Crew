@@ -193,7 +193,7 @@ export const createSpecialitiesBulk = async (payload: Speciality[]) => {
     const normalSpecialities = getBulkResponseItems(res.data).map((speciality) =>
       fromSpecialityRequestDTO(speciality)
     );
-    normalSpecialities.forEach(addSpeciality);
+    normalSpecialities.forEach((speciality) => addSpeciality(speciality));
     return normalSpecialities;
   } catch (err) {
     console.error('Failed to create specialities:', err);
@@ -225,7 +225,7 @@ export const createServicesBulk = async (payload: Service[]) => {
     const normalServices = getBulkResponseItems(res.data).map((service) =>
       fromServiceRequestDTO(service)
     );
-    normalServices.forEach(addService);
+    normalServices.forEach((service) => addService(service));
     return normalServices;
   } catch (err) {
     console.error('Failed to create services:', err);
@@ -235,12 +235,10 @@ export const createServicesBulk = async (payload: Service[]) => {
 
 export const createBulkSpecialityServices = async (payload: SpecialityWeb[]) => {
   try {
-    const specialitiesToCreate = payload.filter(Boolean).map(
-      (item): Speciality => ({
-        ...item,
-        services: [],
-      })
-    );
+    const specialitiesToCreate = payload.filter(Boolean).map((item): Speciality => ({
+      ...item,
+      services: [],
+    }));
     const addedSpecialities = await createSpecialitiesBulk(specialitiesToCreate);
     const specialityIdByName = new Map(
       addedSpecialities.map((speciality) => [

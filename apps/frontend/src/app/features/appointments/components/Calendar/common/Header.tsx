@@ -406,7 +406,6 @@ type Headerprops = {
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   /** Supplied by the week view so the header arrows step whole weeks. */
-  weekStart?: Date;
   setWeekStart?: React.Dispatch<React.SetStateAction<Date>>;
   zoomMode?: CalendarZoomMode;
   setZoomMode?: React.Dispatch<React.SetStateAction<CalendarZoomMode>>;

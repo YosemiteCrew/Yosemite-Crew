@@ -174,7 +174,7 @@ const ForgotPassword = () => {
               >
                 try another email
               </button>
-              .
+              {'.'}
             </AuthAltNote>
           </div>
         ) : (

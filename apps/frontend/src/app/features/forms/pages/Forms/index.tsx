@@ -149,7 +149,10 @@ const Forms = () => {
 
   const serviceOptions = useMemo(() => {
     const specialityNameById = new Map(
-      orgSpecialities.map((speciality) => [String(speciality.id ?? ''), speciality.name])
+      orgSpecialities.map((speciality) => [
+        String(speciality.id ?? ''),
+        toPrimitiveString(speciality.name),
+      ])
     );
 
     const catalogItems = [
@@ -168,8 +171,10 @@ const Forms = () => {
     for (const item of catalogItems) {
       if (!item.id || !item.name) continue;
       const duplicateName = (nameFrequency.get(item.name.toLowerCase()) ?? 0) > 1;
+      // `||`, not `??`: a speciality whose name is missing or non-primitive
+      // resolves to '', which should read as unknown rather than render blank.
       const specialityLabel =
-        specialityNameById.get(toPrimitiveString(item.specialityId)) ?? 'Unknown Speciality';
+        specialityNameById.get(toPrimitiveString(item.specialityId)) || 'Unknown Speciality';
       options.push({
         label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
         value: item.id,

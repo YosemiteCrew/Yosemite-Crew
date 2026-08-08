@@ -43,7 +43,11 @@ const PhoneDayStrip = ({
   );
 
   return (
-    <div className={clsx('yc-day-strip', className)} role="group" aria-label="Select a day">
+    <div /* NOSONAR: styled horizontal day strip; native <fieldset> defaults (block layout, border, required legend) break the strip design */
+      className={clsx('yc-day-strip', className)}
+      role="group"
+      aria-label="Select a day"
+    >
       {cells.map((cell) => (
         <button
           key={cell.dateKey}

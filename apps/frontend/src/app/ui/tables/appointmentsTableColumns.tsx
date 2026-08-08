@@ -154,7 +154,7 @@ export const buildAppointmentColumns = ({
           {roomDisplay.unitLabel && (
             <div className="appointment-profile-sub text-[12px]">{roomDisplay.unitLabel}</div>
           )}
-          <AppointmentModePill appointment={item} className="mt-1" iconSize={12} tone="strong" />
+          <AppointmentModePill appointment={item} className="mt-1" iconSize={12} />
         </div>
       );
     },

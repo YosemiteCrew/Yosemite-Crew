@@ -108,6 +108,9 @@
   font-size: 10px !important;
   font-weight: 700 !important;
   line-height: normal !important;
-  letter-spacing: 0.08em !important;
+  /* No !important on letter-spacing: WCAG 1.4.12 text spacing requires the user
+     to be able to widen tracking, and an !important here would block that. The
+     selector is specific enough to win without it. */
+  letter-spacing: 0.08em;
   opacity: 1 !important;
 }

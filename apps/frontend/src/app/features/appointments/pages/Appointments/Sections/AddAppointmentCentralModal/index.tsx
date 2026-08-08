@@ -545,6 +545,13 @@ export const TimeSlotTriggerValue = ({ isLoading, selectedLabel }: TimeSlotTrigg
   return <span style={{ ...text16R, color: INPUT_PLACEHOLDER }} />;
 };
 
+/** Trigger border: open state wins over the error state, which wins over resting. */
+const timeSlotTriggerBorderClass = (open: boolean, error?: string): string => {
+  if (open) return 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]';
+  if (error) return 'border-[var(--danger)]!';
+  return 'border-[var(--hairline)]!';
+};
+
 export const TimeSlotDropdown = ({
   timeSlots,
   selectedSlot,
@@ -616,11 +623,7 @@ export const TimeSlotDropdown = ({
         ref={triggerRef}
         className={clsx(
           'relative flex h-[44px] w-full items-center rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[13px] pr-9 text-left text-[13px] transition-colors duration-150 select-none focus:shadow-[0_0_0_3px_var(--glow-b10)]',
-          open
-            ? 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]'
-            : error
-              ? 'border-[var(--danger)]!'
-              : 'border-[var(--hairline)]!'
+          timeSlotTriggerBorderClass(open, error)
         )}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
