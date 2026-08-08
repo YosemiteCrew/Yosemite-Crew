@@ -1,13 +1,16 @@
 name: Desktop Release
 
 # Builds and code-signs the desktop app. Two ways to run:
-#   • Push a tag `v*`  → builds, signs, and PUBLISHES a GitHub Release.
+#   • Push a tag `v*` on main → builds, signs, and PUBLISHES a GitHub Release.
 #       1) bump "version" in apps/desktop/package.json
-#       2) git tag v<version> && git push origin v<version>
-#     The tag MUST be `v` + the exact apps/desktop/package.json version. The
-#     `verify` job below fails the run otherwise, because electron-builder names
-#     its release from the package version rather than from the pushed tag: a
-#     mismatch silently publishes the assets to a different release.
+#       2) merge to main, then: git tag v<version> && git push origin v<version>
+#     The tag MUST be `v` + the exact apps/desktop/package.json version, and must
+#     be reachable from main. The `verify` job below fails the run otherwise: on a
+#     version mismatch because electron-builder names its release from the package
+#     version rather than from the pushed tag (so the assets would silently land on
+#     a different release), and off-main because a release would otherwise be cut
+#     for an unshipped commit. For throwaway test builds use workflow_dispatch.
+#     The release stays a DRAFT until both installers are attached; see `verify`.
 #     The `v` prefix is not cosmetic. electron-updater's GitHub provider reads
 #     the tag out of the release URL and drops any tag that is not valid semver
 #     (GitHubProvider `semver.valid(hrefTag)`), so a `desktop-v*` tag makes every
@@ -39,17 +42,18 @@ on:
 permissions: {}
 
 jobs:
-  # Fails fast when the pushed tag and apps/desktop/package.json disagree, before
-  # any signing credential is reachable. Also creates the release up front so the
-  # windows and macos jobs upload into one release instead of racing to create
-  # two (which is how v0.1.0-beta.1 ended up split across duplicate drafts).
+  # Fails fast when the tag is wrong, before any signing credential is reachable,
+  # then opens a DRAFT release for the build jobs to upload into.
   #
-  # Two things to know about pre-creating it:
-  #   • electron-builder refuses to upload into a release published more than two
-  #     hours earlier, so the build jobs must finish inside that window. Their
-  #     45-minute timeouts keep them well clear of it.
-  #   • If a build job fails, the empty release stays behind. Delete it before
-  #     re-running, or re-run and let the jobs upload into it.
+  # The draft matters for three reasons:
+  #   • An asset-less published release is visible to the updater immediately.
+  #     Beta clients scan published Atom entries and would select it as the newest
+  #     semver, then fail on the missing latest.yml. Drafts are invisible to them.
+  #   • electron-builder refuses to upload into a release *published* more than two
+  #     hours earlier. A draft has no published_at, so the clock never starts and a
+  #     wait on the `release` environment approval cannot burn the window.
+  #   • If a build job fails, a leftover draft is private and harmless.
+  # The publish job below flips it to public once both installers are attached.
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -57,10 +61,13 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Full history so the main-ancestry check below can see origin/main.
+          fetch-depth: 0
 
       - name: Read desktop version
         id: version
@@ -69,7 +76,13 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "apps/desktop version: ${VERSION}"
+          # A `-beta.N` suffix means this must not take the repo-wide Latest badge.
+          case "$VERSION" in
+            *-*) PRERELEASE=true ;;
+            *) PRERELEASE=false ;;
+          esac
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "apps/desktop version: ${VERSION} (prerelease=${PRERELEASE})"
 
       - name: Tag must match the desktop package version
         if: github.event_name == 'push'
@@ -86,7 +99,29 @@ jobs:
           fi
           echo "Tag ${TAG} matches package version ${VERSION}."
 
-      - name: Create the release up front
+      # RELEASING.md cuts releases by merging dev into main and tagging there. The
+      # protected `release` environment only gates the signing jobs, so without this
+      # a tag pushed from any branch would still open a release for an unshipped
+      # commit. Test builds belong on workflow_dispatch, which stays draft-only.
+      - name: Tag must be on main
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! git rev-parse --verify --quiet origin/main >/dev/null; then
+            echo "::error::Could not resolve origin/main to check tag reachability."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag '${TAG}' points at ${GITHUB_SHA}, which is not reachable from main."
+            echo "::error::Merge the release commit into main and re-tag there, per RELEASING.md."
+            echo "::error::For a throwaway test build, run this workflow via workflow_dispatch instead."
+            exit 1
+          fi
+          echo "Tag ${TAG} is reachable from main."
+
+      - name: Open a draft release for the build jobs
         if: github.event_name == 'push'
         shell: bash
         env:
@@ -102,7 +137,7 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Yosemite Crew PIMS Desktop $TAG" \
             --generate-notes \
-            --latest=false
+            --draft
 
   windows:
     needs: verify
@@ -195,6 +230,35 @@ jobs:
             apps/desktop/dist/*.blockmap
             apps/desktop/dist/latest-mac.yml
           if-no-files-found: warn
+
+  # Both installers are attached by now, so the draft is safe to make public. Only
+  # a clean X.Y.Z takes the repo-wide Latest badge: electron-updater's stable path
+  # resolves /releases/latest, so a stable desktop release has to hold it or stable
+  # clients keep resolving another product's tag. A `-beta.N` release must not.
+  publish:
+    if: github.event_name == 'push'
+    needs:
+      - verify
+      - windows
+      - macos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then LATEST=false; else LATEST=true; fi
+          gh release edit "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest="$LATEST"
+          echo "Published $TAG (latest=${LATEST})."
 
   release:
     if: github.event_name == 'workflow_dispatch'

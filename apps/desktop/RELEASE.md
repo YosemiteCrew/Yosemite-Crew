@@ -57,9 +57,26 @@ path falls back to `latest.yml` when `beta.yml` is absent, so no `beta.yml` is n
 
 1. Bump `version` in `apps/desktop/package.json`.
 2. Commit with a conventional message, e.g. `chore(desktop): release v0.2.0`.
-3. Create a tag that matches the version exactly, with a `v` prefix: `v<version>` (e.g. `v0.2.0`).
-4. Push the tag. The release workflow verifies the tag against the package version, creates the release, then builds, signs, and publishes the installers into it.
+3. Merge to `main` (per [RELEASING.md](../../RELEASING.md)) and create the tag there. It must match the version exactly, with a `v` prefix: `v<version>` (e.g. `v0.2.0`).
+4. Push the tag. The workflow checks the tag against the package version and against `main`, opens a **draft** release, builds and signs both platforms into it, then publishes it once the installers are attached.
 5. Clients on the matching channel pick up the update automatically and are prompted to restart to install.
+
+The release is deliberately held as a draft until the assets exist. A published,
+asset-less release is immediately visible to beta clients scanning the releases feed,
+and they would select it as the newest version and then fail on the missing
+`latest.yml`. Drafts are invisible to the updater, and electron-builder's two-hour
+"release published too long ago" cutoff never starts on one - so a wait for `release`
+environment approval cannot burn the window.
+
+Only a clean `X.Y.Z` release takes GitHub's repo-wide **Latest** badge. The stable
+channel resolves `/releases/latest`, so a stable desktop release has to hold it or
+stable clients keep resolving another product's tag; a `-beta.N` release must not take
+it. The workflow decides this from the version suffix.
+
+**Test builds do not use tags.** Run the workflow via `workflow_dispatch`, which
+builds and signs both platforms and leaves a draft release under a
+`desktop-manual-v*` tag. That tag is deliberately not valid semver, so the updater
+ignores it.
 
 ## Code signing & notarization
 

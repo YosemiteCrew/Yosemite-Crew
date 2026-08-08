@@ -71,7 +71,7 @@
         "provider": "github",
         "owner": "YosemiteCrew",
         "repo": "Yosemite-Crew",
-        "releaseType": "release"
+        "releaseType": "draft"
       }
     ],
     "directories": {

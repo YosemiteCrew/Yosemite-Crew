@@ -15,16 +15,16 @@ Windows on their native runners and uploads artifacts. For tag pushes
 (`v*`) it publishes the signed installers to a GitHub Release. For
 manual runs it creates a draft GitHub Release with the same assets.
 
-The tag must be `v` + the exact `apps/desktop/package.json` version; the workflow's
-`verify` job fails the run otherwise. See [RELEASE.md](../RELEASE.md#release-tags) for
-why desktop uses a plain `v` tag rather than the `desktop-v` prefix.
+**Use a manual run for test builds, not a tag.** A `v*` tag is a real release: the
+`verify` job requires it to be `v` + the exact `apps/desktop/package.json` version
+_and_ reachable from `main`, and it fails the run otherwise. See
+[RELEASE.md](../RELEASE.md#release-tags) for why desktop uses a plain `v` tag rather
+than the `desktop-v` prefix.
 
-```sh
-# from repo root, on a branch the workflow can see
-git add -A && git commit -m "chore(repo): desktop 0.1.0-beta.1 test build"
-git tag v0.1.0-beta.1
-git push origin v0.1.0-beta.1
-```
+Actions -> "Desktop Release" -> Run workflow. That builds and signs both platforms
+and leaves a draft release under a `desktop-manual-v*` tag, which is deliberately not
+valid semver so the updater ignores it. Real releases follow
+[RELEASE.md](../RELEASE.md#cutting-a-release).
 
 The workflow runs `lint → type-check → test → security:pressure`, then
 `electron-builder --mac --win --publish always` on tag pushes, creating a
@@ -97,6 +97,6 @@ Diagnostics` bundle if something breaks.
 - [ ] `version` bumped (`0.1.0-beta.1`) and committed.
 - [ ] Gate green: `pnpm --dir apps/desktop run type-check && lint && test && security:pressure`.
 - [ ] App launches from a clean `dist/` build; welcome + sign-in + tabs work.
-- [ ] Tag pushed (`v0.1.0-beta.1`) → Actions build succeeds → GitHub Release.
+- [ ] Manual run (or, for a real release, a `v<version>` tag on `main`) → Actions build succeeds → GitHub Release.
 - [ ] Release carries the installers and `latest*.yml`; install instructions shared with testers.
 - [ ] (Optional) signing secrets configured to avoid the "open anyway" step.

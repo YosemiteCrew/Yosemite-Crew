@@ -219,6 +219,21 @@ describe('initAutoUpdates', () => {
     expect(updater.allowPrerelease).toBe(true);
   });
 
+  test('a stored Stable preference survives the version-derived default', async () => {
+    const updater = makeFakeUpdater();
+    await initAutoUpdates({
+      electron: {
+        app: { isPackaged: true, getVersion: () => '0.1.0-beta.4' },
+        dialog: { showMessageBox: () => Promise.resolve({ response: 1 }) },
+      },
+      autoUpdater: updater as never,
+      env: {},
+      preferredChannel: 'latest',
+    });
+    expect(updater.channel).toBe('latest');
+    expect(updater.allowPrerelease).toBe(false);
+  });
+
   test('a packaged stable build stays on the latest channel', async () => {
     const updater = makeFakeUpdater();
     await initAutoUpdates({
