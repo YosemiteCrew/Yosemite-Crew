@@ -124,7 +124,7 @@ describe('About (marketing)', () => {
   });
 
   test('renders the contributors with linkedin links', () => {
-    render(<About />);
+    const { container } = render(<About />);
 
     expect(
       screen.getByRole('heading', {
@@ -154,6 +154,16 @@ describe('About (marketing)', () => {
         name: /Vallirani Ravulapati, Contributor, on LinkedIn/i,
       })
     ).toHaveAttribute('href', 'https://www.linkedin.com/in/vallirani-ravulapati/');
+    expect(
+      container.querySelector(
+        'img[src="https://d2il6osz49gpup.cloudfront.net/aboutus-page/Ankit_profile.png"]'
+      )
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(
+        'img[src="https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshvardhan-profile_pic.png"]'
+      )
+    ).toBeInTheDocument();
   });
 
   test('renders the live github contributor roster with matching card styling', () => {

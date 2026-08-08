@@ -7,6 +7,7 @@ import {
   setJsonStorageItem,
   setStorageItem,
 } from '@/app/lib/browserStorage';
+import { http } from '@/app/services/http';
 import { GITHUB_API_REPO } from './assets';
 
 export interface GithubStats {
@@ -33,7 +34,7 @@ const EMPTY_STATS: GithubStats = {
 };
 const REPO_STATS_SUMMARY =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
-const DISCORD_INVITE_API = 'https://discord.com/api/v9/invites/yosemitecrew?with_counts=true';
+const DISCORD_MEMBERS_ENDPOINT = `${process.env.NEXT_PUBLIC_BASE_URL}/v1/marketing/discord-members`;
 const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=1&anon=true`;
 
 const formatCompact = (n: number): string =>
@@ -99,11 +100,13 @@ const fetchContributors = async (): Promise<Partial<GithubStats>> => {
 };
 
 const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
-  const invite = (await fetchJson(DISCORD_INVITE_API)) as {
-    approximate_member_count?: number;
-  } | null;
-  if (typeof invite?.approximate_member_count !== 'number') return {};
-  return { discord: invite.approximate_member_count.toLocaleString('en-US') };
+  try {
+    const response = await http.get<{ discordMembers: string | null }>(DISCORD_MEMBERS_ENDPOINT);
+    if (typeof response.data.discordMembers !== 'string') return {};
+    return { discord: response.data.discordMembers };
+  } catch {
+    return {};
+  }
 };
 
 /**
@@ -182,7 +185,9 @@ export function useGithubStats(options?: LiveFetchOptions): GithubStats {
       const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
       if (cached) setStats({ ...EMPTY_STATS, ...cached });
     }
-    if (live || !isStatsCacheFresh()) {
+    const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
+    const needsDiscordRefresh = typeof cached?.discord !== 'string';
+    if (live || !isStatsCacheFresh() || needsDiscordRefresh) {
       void (async () => {
         const fresh = await loadGithubStats();
         if (!active) return;

@@ -689,6 +689,7 @@ const CORE_TEAM: CrewMember[] = [
     name: 'Ankit Upadhyay',
     role: 'Founder and contributor',
     href: 'https://www.linkedin.com/in/aupyay/',
+    avatarSrc: 'https://d2il6osz49gpup.cloudfront.net/aboutus-page/Ankit_profile.png',
     slotId: 'crew-ankit',
     delay: 0,
   },
@@ -696,6 +697,7 @@ const CORE_TEAM: CrewMember[] = [
     name: 'Harshvardhan Parmar',
     role: 'Contributor',
     href: 'https://www.linkedin.com/in/harshvardhan-parmar/',
+    avatarSrc: 'https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshvardhan-profile_pic.png',
     slotId: 'crew-harshvardhan',
     delay: 80,
   },
@@ -899,6 +901,7 @@ function TheCrew() {
               icon={<IoLogoLinkedin aria-hidden="true" style={{ fontSize: '18px' }} />}
               ariaLabel={`${member.name}, ${member.role}, on LinkedIn`}
               slotId={member.slotId}
+              avatarSrc={member.avatarSrc}
             />
           ))}
         </div>
