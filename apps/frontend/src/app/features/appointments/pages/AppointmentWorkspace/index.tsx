@@ -106,6 +106,12 @@ type RequiredStaffMember = {
 
 const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
 
+// Small grace past the lock cutoff before re-sampling the clock, and the max
+// single setTimeout delay - browsers overflow delays above 2^31-1 ms and fire
+// immediately, and the max lock window (720h) exceeds that limit.
+const LOCK_RECHECK_BUFFER_MS = 1000;
+const MAX_LOCK_RECHECK_DELAY_MS = 0x7fffffff;
+
 /**
  * Whether the visit has actually begun. Only a checked-in, in-progress, or
  * completed appointment has started; an Upcoming/Requested one has not. This
@@ -542,9 +548,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   const encounterMode = encounter?.mode ?? initialMode;
   const lockWindow = useAppointmentLockWindow();
 
-  // Sampled once on mount (render must stay pure, so no Date.now() in the memo);
-  // the lock windows are hours-scale, so a session-age drift is immaterial.
-  const [lockCheckedAt] = useState(() => Date.now());
+  // Sampled in state (render must stay pure, so no Date.now() in the memo) and
+  // refreshed by the timer effect below, so a workspace opened before the cutoff
+  // and left open still locks the legal record when the cutoff passes.
+  const [lockCheckedAt, setLockCheckedAt] = useState(() => Date.now());
   const lockedByWindow = useMemo(
     () =>
       isPastLockWindow(
@@ -555,6 +562,22 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       ),
     [appointment.startTime, encounterMode, lockCheckedAt, lockWindow]
   );
+  // While still inside the lock window, schedule a clock re-sample for just
+  // after the cutoff. Delays past the setTimeout limit run in clamped chunks;
+  // lockCheckedAt in the deps re-arms the timer after each fire, and once
+  // lockedByWindow flips true the effect stops scheduling.
+  useEffect(() => {
+    if (lockedByWindow || !appointment.startTime) return undefined;
+    const startMs = new Date(appointment.startTime).getTime();
+    if (Number.isNaN(startMs)) return undefined;
+    const cutoffMs = startMs + resolveLockHours(encounterMode, lockWindow) * 60 * 60 * 1000;
+    const delayMs = Math.min(
+      Math.max(cutoffMs - lockCheckedAt, 0) + LOCK_RECHECK_BUFFER_MS,
+      MAX_LOCK_RECHECK_DELAY_MS
+    );
+    const timer = setTimeout(() => setLockCheckedAt(Date.now()), delayMs);
+    return () => clearTimeout(timer);
+  }, [appointment.startTime, encounterMode, lockCheckedAt, lockWindow, lockedByWindow]);
 
   // Ready-for-billing is a monotonic milestone: once any invoice for this visit is
   // paid/settled it can't be un-marked (the backend 409s the revert), so lock the

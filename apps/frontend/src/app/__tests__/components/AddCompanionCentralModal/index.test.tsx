@@ -1441,6 +1441,79 @@ describe('AddCompanionCentralModal', () => {
       expect(screen.getByLabelText('First name')).toHaveValue('Alice');
     });
 
+    it('closes the dropdown on outside mousedown and reopens it on focus', async () => {
+      mockSearchParent.mockResolvedValue([
+        {
+          id: 'p-found',
+          firstName: 'Alice',
+          lastName: 'Wonder',
+          email: 'alice@w.com',
+          phoneNumber: '+12025559999',
+          birthDate: undefined,
+          address: {
+            addressLine: '5 Oak',
+            city: 'LA',
+            state: 'CA',
+            postalCode: '90001',
+            country: 'US',
+          },
+          createdFrom: 'pms' as const,
+        },
+      ]);
+
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      await goToParentStep();
+
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Alice' } });
+      });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 350));
+      });
+
+      const option = await screen.findByRole('button', { name: 'Alice Wonder' });
+
+      // Typing again once results are visible keeps tracking the filtered length.
+      // The open panel shares the input's aria-label, so query the textbox role.
+      await act(async () => {
+        fireEvent.change(screen.getByRole('textbox', { name: 'First name' }), {
+          target: { value: 'Alice W' },
+        });
+      });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 350));
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+
+      // A window resize while open recomputes the portal position and keeps it open
+      await act(async () => {
+        fireEvent(window, new Event('resize'));
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+
+      // Mousedown inside the dropdown panel never closes it
+      await act(async () => {
+        fireEvent.mouseDown(document.querySelector('[data-iwd-panel]') as HTMLElement);
+        fireEvent.mouseDown(option);
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+
+      // Outside mousedown closes the dropdown
+      await act(async () => {
+        fireEvent.mouseDown(document.body);
+      });
+      expect(screen.queryByRole('button', { name: 'Alice Wonder' })).not.toBeInTheDocument();
+
+      // Re-focusing the input after the user has typed reopens it
+      await act(async () => {
+        fireEvent.focus(screen.getByRole('textbox', { name: 'First name' }));
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+    });
+
     it('handlePhoneChange updates localPhoneNumber field', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
