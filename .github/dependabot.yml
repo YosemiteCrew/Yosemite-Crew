@@ -1,3 +1,7 @@
+# NOTE: dependabot reads this file from the DEFAULT branch (main), not from dev -
+# target-branch below only aims the PRs at dev. Any change here must land on
+# main to take effect, so keep the copies on dev and main byte-identical
+# (see PR #2079, which fixed a month of silently inert config changes).
 version: 2
 updates:
   - package-ecosystem: npm
