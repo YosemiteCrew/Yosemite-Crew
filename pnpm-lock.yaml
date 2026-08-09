@@ -697,8 +697,8 @@ importers:
         specifier: ^23.5.0
         version: 23.8.6(@react-native-async-storage/async-storage@2.2.0)(react-native@0.81.4)(react@19.1.0)
       '@react-native-firebase/messaging':
-        specifier: ^23.5.0
-        version: 23.8.6(@react-native-firebase/app@23.8.6)
+        specifier: ^26.1.0
+        version: 26.1.0(@react-native-firebase/app@23.8.6)
       '@react-native-google-signin/google-signin':
         specifier: ^16.1.4
         version: 16.1.4(react-native@0.81.4)(react@19.1.0)
@@ -10981,10 +10981,10 @@ packages:
       - '@react-native-async-storage/async-storage'
     dev: false
 
-  /@react-native-firebase/messaging@23.8.6(@react-native-firebase/app@23.8.6):
-    resolution: {integrity: sha512-48eW4OFl+XKRgxmgwhNCCT7zUGttm3oAxKJxVQ2Iv9o+wVUTQCLELK3ihC/OrTwCWomM9ylIICqKaK4pdmA22Q==}
+  /@react-native-firebase/messaging@26.1.0(@react-native-firebase/app@23.8.6):
+    resolution: {integrity: sha512-9LW4GyxsVxyfK0MV4oYK2k0QYfboGgN81ogTC60XT27xRBOjUIpZYxjB8Nme7YL1u0/0UKz3eXV1GoS9DRqUwQ==}
     peerDependencies:
-      '@react-native-firebase/app': 23.8.6
+      '@react-native-firebase/app': 26.1.0
       expo: '>=47.0.0'
     peerDependenciesMeta:
       expo:
