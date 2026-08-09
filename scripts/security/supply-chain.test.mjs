@@ -80,6 +80,59 @@ test("scan fails when an exception's re-review date has expired", () => {
   assert.match(output, /2020-01-01/);
 });
 
+test('scan fails when an ignore-packages entry lacks a dated re-review line', () => {
+  const root = fakeRoot();
+  // A current SBOM (newer than the lockfile refs) so staleness passes and the
+  // undated-exception guard is what trips.
+  writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
+  utimesSync(join(root, 'package.json'), past, past);
+  writeFileSync(join(root, '.grype.yaml'), 'ignore: []\n');
+  writeFileSync(
+    join(root, '.grant.yaml'),
+    [
+      'allow: []',
+      'ignore-packages:',
+      '  # Dated entry, fine. Re-review by: 2999-01-01.',
+      '  - compliant-pkg',
+      '  # Re-review: on version bump.',
+      '  - missing-date-pkg',
+      '',
+    ].join('\n')
+  );
+
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /UNDATED security exceptions/);
+  assert.match(output, /missing-date-pkg/);
+  assert.doesNotMatch(output, /compliant-pkg/);
+});
+
+test('scan regenerates when the native gradle lockfile is newer than the SBOM', () => {
+  const root = fakeRoot();
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(sbomDir, 'yosemite-crew.cdx.json'), past, past);
+  // Only the android gradle.lockfile is written after the SBOM -> stale ->
+  // cmd_sbom runs -> which exits 2 on the missing node_modules, proving the
+  // native lockfile alone drives regeneration.
+  const gradleDir = join(root, 'apps', 'mobileAppYC', 'android', 'app');
+  mkdirSync(gradleDir, { recursive: true });
+  writeFileSync(join(gradleDir, 'gradle.lockfile'), 'empty=\n');
+
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.equal(status, 2);
+  assert.match(output, /SBOM missing or older than the lockfile - regenerating/);
+  assert.match(output, /node_modules missing/);
+});
+
 test('scan regenerates when the lockfile is newer than the SBOM', () => {
   const root = fakeRoot();
   const sbomDir = join(root, 'security', 'sbom');
