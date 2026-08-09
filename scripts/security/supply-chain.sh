@@ -124,11 +124,16 @@ ensure_tool() {
 }
 
 # The SBOM is stale when the dependency inputs changed after it was written; a
-# stale SBOM silently scans yesterday's tree.
+# stale SBOM silently scans yesterday's tree. The reference list must cover
+# every lockfile the SBOM catalogs, including the mobile native ones.
 sbom_is_stale() {
   [ -f "${CDX_SBOM}" ] || return 0
   local ref
-  for ref in "${REPO_ROOT}/pnpm-lock.yaml" "${REPO_ROOT}/package.json"; do
+  for ref in \
+    "${REPO_ROOT}/pnpm-lock.yaml" \
+    "${REPO_ROOT}/package.json" \
+    "${REPO_ROOT}/apps/mobileAppYC/android/app/gradle.lockfile" \
+    "${REPO_ROOT}/apps/mobileAppYC/ios/Podfile.lock"; do
     if [ "${ref}" -nt "${CDX_SBOM}" ]; then
       return 0
     fi
@@ -148,6 +153,34 @@ check_exception_expiry() {
   if [ -n "${expired}" ]; then
     echo "EXPIRED security exceptions (re-review dates in the past): ${expired}" >&2
     echo "Re-review each entry in .grype.yaml / .grant.yaml and either fix the finding or renew the date with a fresh justification." >&2
+    return 1
+  fi
+  return 0
+}
+
+# Expiry enforcement only works when every exception carries a date: an
+# ignore-packages entry whose comment lacks a dated 'Re-review by:' line would
+# suppress findings forever, so it fails the gate here. Each comment block
+# dates the run of entries directly below it (families share one block).
+check_exception_dates() {
+  local undated
+  undated="$(awk '
+    /^ignore-packages:/ { insec = 1; next }
+    insec && /^[^[:space:]]/ { insec = 0 }
+    !insec { next }
+    /^[[:space:]]*#/ {
+      if (prev == "item") have = 0
+      if ($0 ~ /Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}/) have = 1
+      prev = "comment"; next
+    }
+    /^[[:space:]]*-[[:space:]]/ {
+      if (!have) { pkg = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", pkg); print pkg }
+      prev = "item"; next
+    }
+  ' "${REPO_ROOT}/.grant.yaml" 2>/dev/null)"
+  if [ -n "${undated}" ]; then
+    echo "UNDATED security exceptions in .grant.yaml ignore-packages (no dated 'Re-review by: YYYY-MM-DD' comment): ${undated}" >&2
+    echo "Every exception must carry a machine-readable re-review date so expiry stays enforced - date the entry's comment block." >&2
     return 1
   fi
   return 0
@@ -193,6 +226,7 @@ cmd_scan() {
     echo "SBOM missing or older than the lockfile - regenerating" >&2
     cmd_sbom
   fi
+  check_exception_dates
   check_exception_expiry
   # --fail-on critical is the merge gate (#1721: critical vulnerabilities block
   # merges). Known-accepted findings live in .grype.yaml with a reason and an
@@ -210,6 +244,7 @@ cmd_licenses() {
     echo "SBOM missing or older than the lockfile - regenerating" >&2
     cmd_sbom
   fi
+  check_exception_dates
   check_exception_expiry
   # Policy in .grant.yaml: allowlist of AGPL-3.0-compatible licenses, deny
   # everything else. The repository is AGPL-3.0 with a CC-BY-3.0/4.0 combining

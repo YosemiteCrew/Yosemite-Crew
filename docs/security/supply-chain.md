@@ -64,7 +64,9 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
    compatibility rationale in the PR, or add a package under
    `ignore-packages:` with a comment: the VERIFIED license (read the LICENSE
    file in the installed package, not the package.json field), the reason, an
-   owner, and a re-review date.
+   owner, and a dated `Re-review by: YYYY-MM-DD` line. The gates fail on any
+   `ignore-packages` entry whose comment lacks that dated line, so an undated
+   exception cannot escape expiry enforcement.
 3. Exceptions are reviewed like code - they ride the same PR gates.
 
 ## Notes for maintainers
@@ -74,8 +76,9 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
   cataloger is selected explicitly because it is what carries license
   metadata; the lockfile alone has none.
 - grype and grant read the CycloneDX SBOM; the script regenerates it
-  automatically whenever `pnpm-lock.yaml` or the root `package.json` is newer
-  than the cached copy, so a stale SBOM is never scanned silently.
+  automatically whenever `pnpm-lock.yaml`, the root `package.json`, or a
+  mobile native lockfile (`android/app/gradle.lockfile`, `ios/Podfile.lock`)
+  is newer than the cached copy, so a stale SBOM is never scanned silently.
 - The SBOM also catalogs the mobile native lockfiles (`android/
 app/gradle.lockfile` Maven deps, `ios/Podfile.lock` pods) - only build
   output and vendored pods are excluded.

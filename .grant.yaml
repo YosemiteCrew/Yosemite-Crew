@@ -60,10 +60,11 @@ require-license: false
 ignore-packages:
   # (BSD-3-Clause OR GPL-2.0) dual license; the project elects BSD-3-Clause.
   # The scanner flags the GPL-2.0 arm of the expression. Owner: ankit-yc.
-  # Re-review: on major version bump.
+  # Re-review by: 2027-02-09 (or on major version bump, whichever is first).
   - node-forge
   # package.json says "bsd" (nonstandard spelling); the LICENSE file is plain
-  # BSD. Owner: ankit-yc. Re-review: on version bump.
+  # BSD. Owner: ankit-yc.
+  # Re-review by: 2027-02-09 (or on version bump, whichever is first).
   - multi-sort-stream
   # package.json says MPL-1.1; the underlying snowball stemmer files carry the
   # Mozilla MPL-1.1/GPL-2.0/LGPL-2.1 tri-license and are used unmodified,
@@ -85,5 +86,6 @@ ignore-packages:
   - '@calcom/embed-core'
   - '@calcom/embed-react'
   # package.json says "Apache 2.0" (nonstandard spelling of Apache-2.0).
-  # Owner: ankit-yc. Re-review: on version bump.
+  # Owner: ankit-yc.
+  # Re-review by: 2027-02-09 (or on version bump, whichever is first).
   - supertokens-react-native

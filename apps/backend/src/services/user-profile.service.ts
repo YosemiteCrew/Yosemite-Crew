@@ -15,6 +15,7 @@ import {
 } from "./base-availability.service";
 import { getURLForKey } from "src/middlewares/upload";
 import { prisma } from "src/config/prisma";
+import { pruneUndefined } from "src/utils/prune-undefined";
 import { Prisma } from "@prisma/client";
 
 export class UserProfileServiceError extends Error {
@@ -470,48 +471,6 @@ const sanitizeProfessionalDetails = (
     linkedin: optionalString(record.linkedin, "LinkedIn"),
     documents: sanitizeDocuments(record.documents),
   });
-};
-
-const pruneArray = (value: unknown[]): void => {
-  for (let index = value.length - 1; index >= 0; index -= 1) {
-    const next = pruneUndefined(value[index]);
-
-    if (next === undefined) {
-      value.splice(index, 1);
-    } else {
-      value[index] = next;
-    }
-  }
-};
-
-const pruneRecord = (value: UnknownRecord): void => {
-  for (const key of Object.keys(value)) {
-    const next = pruneUndefined(value[key]);
-
-    if (next === undefined) {
-      delete value[key];
-    } else {
-      value[key] = next;
-    }
-  }
-};
-
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    pruneArray(value as unknown[]);
-    return value;
-  }
-
-  if (!value || typeof value !== "object") {
-    return value;
-  }
-
-  if (value instanceof Date) {
-    return value;
-  }
-
-  pruneRecord(value as UnknownRecord);
-  return value;
 };
 
 const isNonEmptyString = (value: unknown): value is string =>
