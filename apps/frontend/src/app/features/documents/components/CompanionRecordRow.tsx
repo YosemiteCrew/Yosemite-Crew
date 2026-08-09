@@ -41,7 +41,6 @@ const STATUS_PILL_TOKENS: Record<RecordStatusTone, StatusPillTokens> = {
  */
 const CompanionRecordRow = ({ doc, onOpen }: CompanionRecordRowProps) => {
   const title = doc.title || 'Untitled document';
-  const Icon = getRecordIcon(doc);
   const source = getDocumentSource(doc);
   const subcategoryLabel = getCompanionDocumentSubcategoryLabel(doc.subcategory);
   const attachmentSummary = getAttachmentSummary(doc);
@@ -59,7 +58,7 @@ const CompanionRecordRow = ({ doc, onOpen }: CompanionRecordRowProps) => {
         aria-hidden="true"
         className="grid size-[38px] flex-none place-items-center rounded-xl bg-[var(--blue-soft)] text-[var(--blue-text)]"
       >
-        <Icon size={17} />
+        {React.createElement(getRecordIcon(doc), { size: 17 })}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13.5px] font-bold text-[var(--ink)]">{title}</span>

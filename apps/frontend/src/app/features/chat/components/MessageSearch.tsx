@@ -25,15 +25,25 @@ export function MessageSearch() {
   const [results, setResults] = useState<MessageResponse[]>([]);
   const [searching, setSearching] = useState(false);
 
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (!open || !trimmed || !channel) {
+  const trimmed = query.trim();
+  const searchKey = open && trimmed && channel ? trimmed : null;
+
+  // Clear stale results / flip the searching flag during render (compare-guard)
+  // so the effect below only schedules the debounced search itself.
+  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+  if (prevSearchKey !== searchKey) {
+    setPrevSearchKey(searchKey);
+    if (searchKey === null) {
       setResults([]);
       setSearching(false);
-      return;
+    } else {
+      setSearching(true);
     }
+  }
+
+  useEffect(() => {
+    if (!open || !trimmed || !channel) return;
     let active = true;
-    setSearching(true);
     const timer = setTimeout(() => {
       channel
         .search(trimmed)
@@ -51,9 +61,9 @@ export function MessageSearch() {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, open, channel]);
+  }, [trimmed, open, channel]);
 
-  const hasQuery = query.trim().length > 0;
+  const hasQuery = trimmed.length > 0;
 
   return (
     <div className="relative">

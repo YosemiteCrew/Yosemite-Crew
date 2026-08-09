@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
@@ -77,13 +77,9 @@ const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomPr
     loadRoomsForOrgPrimaryOrg({ force: true, silent: true }).catch(() => undefined);
   }, [showModal]);
 
-  const prevResetKeyRef = useRef({ appointment: activeAppointment, showModal });
-  const resetKey = { appointment: activeAppointment, showModal };
-  if (
-    prevResetKeyRef.current.appointment !== activeAppointment ||
-    prevResetKeyRef.current.showModal !== showModal
-  ) {
-    prevResetKeyRef.current = resetKey;
+  const [prevResetKey, setPrevResetKey] = useState({ appointment: activeAppointment, showModal });
+  if (prevResetKey.appointment !== activeAppointment || prevResetKey.showModal !== showModal) {
+    setPrevResetKey({ appointment: activeAppointment, showModal });
     const newRoomId = activeAppointment.room?.id || '';
     if (selectedRoomId !== newRoomId) setSelectedRoomId(newRoomId);
     const newUnitId =

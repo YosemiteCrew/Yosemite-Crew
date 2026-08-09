@@ -536,6 +536,7 @@ const ViewAppointmentOverviewModal = ({
       rooms,
       setRoomUnit,
       setRoomUnitOccupied,
+      setSavingField,
     ]
   );
 
@@ -568,8 +569,7 @@ const ViewAppointmentOverviewModal = ({
     [
       activeAppointment.encounterId,
       activeAppointment.id,
-      activeAppointment.lead?.id,
-      activeAppointment.lead?.name,
+      activeAppointment.lead,
       canEditRoom,
       effectiveRoomId,
       initEncounter,
@@ -578,6 +578,7 @@ const ViewAppointmentOverviewModal = ({
       setRoomUnit,
       currentUnitId,
       setRoomUnitOccupied,
+      setSavingField,
     ]
   );
 

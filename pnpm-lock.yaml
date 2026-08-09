@@ -621,6 +621,9 @@ importers:
       eslint-config-next:
         specifier: 15.5.18
         version: 15.5.18(eslint@9.39.2)(typescript@5.9.3)
+      eslint-plugin-react-hooks:
+        specifier: ^7.1.1
+        version: 7.1.1(eslint@9.39.2)
       eslint-plugin-sonarjs:
         specifier: ^3.0.7
         version: 3.0.7(eslint@9.39.2)
@@ -3446,7 +3449,7 @@ packages:
     dependencies:
       '@babel/core': 7.29.6
       '@babel/helper-plugin-utils': 7.29.7
-      '@babel/traverse': 7.29.8
+      '@babel/traverse': 7.29.7
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -3676,7 +3679,7 @@ packages:
       '@babel/core': 7.29.6
       '@babel/helper-compilation-targets': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
-      '@babel/traverse': 7.29.8
+      '@babel/traverse': 7.29.7
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -3886,7 +3889,7 @@ packages:
       '@babel/helper-module-transforms': 7.29.7(@babel/core@7.29.6)
       '@babel/helper-plugin-utils': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
-      '@babel/traverse': 7.29.8
+      '@babel/traverse': 7.29.7
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -4061,7 +4064,7 @@ packages:
       '@babel/helper-plugin-utils': 7.29.7
       '@babel/plugin-transform-destructuring': 7.28.5(@babel/core@7.29.6)
       '@babel/plugin-transform-parameters': 7.27.7(@babel/core@7.29.6)
-      '@babel/traverse': 7.29.8
+      '@babel/traverse': 7.29.7
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -19648,7 +19651,7 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0 || ^10.0.0
     dependencies:
       '@babel/core': 7.29.6
-      '@babel/parser': 7.29.7
+      '@babel/parser': 7.29.8
       eslint: 9.39.2
       hermes-parser: 0.25.1
       zod: 3.25.76

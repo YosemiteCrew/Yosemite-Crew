@@ -96,6 +96,7 @@
     "tailwindcss": "^4.1.17",
     "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "eslint-plugin-react-hooks": "^7.1.1"
   }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   IoBedOutline,
   IoBusinessOutline,
@@ -103,7 +103,11 @@ const Rooms = () => {
   const [viewPopup, setViewPopup] = useState(false);
   const [activeRoom, setActiveRoom] = useState<OrganisationRoom | null>(rooms[0] ?? null);
 
-  useEffect(() => {
+  // Re-point the selection when the rooms list changes (adjusted during
+  // render, per React's "adjusting state when a prop changes" pattern).
+  const [prevRooms, setPrevRooms] = useState(rooms);
+  if (prevRooms !== rooms) {
+    setPrevRooms(rooms);
     setActiveRoom((prev) => {
       if (rooms.length === 0) return null;
       if (prev?.id) {
@@ -112,7 +116,7 @@ const Rooms = () => {
       }
       return rooms[0];
     });
-  }, [rooms]);
+  }
 
   const handleView = (room: OrganisationRoom) => {
     setActiveRoom(room);

@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Appointments from '@/app/ui/tables/Appointments';
@@ -104,15 +104,15 @@ const AppointmentTask = () => {
   const [activeSubLabel, setActiveSubLabel] = useState('all');
 
   const popupsOpen = viewPopup || detailPopup;
-  const prevPopupsOpenRef = useRef(popupsOpen);
-  if (prevPopupsOpenRef.current !== popupsOpen) {
-    prevPopupsOpenRef.current = popupsOpen;
+  const [prevPopupsOpen, setPrevPopupsOpen] = useState(popupsOpen);
+  if (prevPopupsOpen !== popupsOpen) {
+    setPrevPopupsOpen(popupsOpen);
     if (!popupsOpen) setViewIntent(null);
   }
 
-  const prevActiveTableRef = useRef(activeTable);
-  if (prevActiveTableRef.current !== activeTable) {
-    prevActiveTableRef.current = activeTable;
+  const [prevActiveTable, setPrevActiveTable] = useState(activeTable);
+  if (prevActiveTable !== activeTable) {
+    setPrevActiveTable(activeTable);
     resetActiveTableState(activeTable, activeSubLabel, viewTaskPopup, {
       setActiveSubLabel,
       setViewTaskPopup,
@@ -125,15 +125,15 @@ const AppointmentTask = () => {
     });
   }
 
-  const prevAppointmentsRef = useRef(appointments);
-  if (prevAppointmentsRef.current !== appointments) {
-    prevAppointmentsRef.current = appointments;
+  const [prevAppointments, setPrevAppointments] = useState(appointments);
+  if (prevAppointments !== appointments) {
+    setPrevAppointments(appointments);
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
   }
 
-  const prevTasksRef = useRef(tasks);
-  if (prevTasksRef.current !== tasks) {
-    prevTasksRef.current = tasks;
+  const [prevTasks, setPrevTasks] = useState(tasks);
+  if (prevTasks !== tasks) {
+    setPrevTasks(tasks);
     setActiveTask((prev) => getNextSelectedTask(prev, tasks));
   }
 

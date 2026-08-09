@@ -1,4 +1,4 @@
-import React, { useImperativeHandle, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useImperativeHandle, useMemo, useState, useCallback } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -452,11 +452,11 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const [formValues, setFormValues] = useState<FormValues>(() => buildInitialValues(fields, data));
   const [formValuesErrors, setFormValuesErrors] = useState<Record<string, string | undefined>>({});
 
-  const prevDataRef = useRef(data);
-  const prevFieldsRef = useRef(fields);
-  if (prevDataRef.current !== data || prevFieldsRef.current !== fields) {
-    prevDataRef.current = data;
-    prevFieldsRef.current = fields;
+  const [prevData, setPrevData] = useState(data);
+  const [prevFields, setPrevFields] = useState(fields);
+  if (prevData !== data || prevFields !== fields) {
+    setPrevData(data);
+    setPrevFields(fields);
     setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
   }

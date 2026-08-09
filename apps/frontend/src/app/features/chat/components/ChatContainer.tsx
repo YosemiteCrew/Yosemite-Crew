@@ -241,39 +241,41 @@ interface ChannelState {
 
 export type { ChatScope };
 
+// Read the frozen/closed flags off the channel's current data payload.
+const readChannelState = (channel: StreamChannel | null | undefined): ChannelState => {
+  const channelData = channel?.data as any;
+  return {
+    frozen: channelData?.frozen === true,
+    updatedAt: channelData?.updated_at,
+    closedAt: channelData?.closedAt || channelData?.closed_at,
+  };
+};
+
 // Custom hook for channel state management
 const useChannelState = () => {
   const { channel } = useChannelStateContext();
-  const [state, setState] = useState<ChannelState>({
-    frozen: false,
-    updatedAt: undefined,
-    closedAt: undefined,
-  });
+  const [state, setState] = useState<ChannelState>(() => readChannelState(channel));
+
+  // Re-read during render (compare-guard) when the channel itself changes; the
+  // effect below only subscribes for external updates on that channel.
+  const [prevChannel, setPrevChannel] = useState(channel);
+  if (prevChannel !== channel) {
+    setPrevChannel(channel);
+    if (channel) setState(readChannelState(channel));
+  }
 
   useEffect(() => {
-    if (channel) {
-      const channelData = channel.data as any;
-      const isFrozen = channelData?.frozen === true;
-      const updatedAt = channelData?.updated_at;
-      const closedAt = channelData?.closedAt || channelData?.closed_at;
+    if (!channel) return;
+    // Listen for channel updates
+    const handleChannelUpdate = () => {
+      setState(readChannelState(channel));
+    };
 
-      setState({ frozen: isFrozen, updatedAt, closedAt });
+    channel.on('channel.updated', handleChannelUpdate);
 
-      // Listen for channel updates
-      const handleChannelUpdate = () => {
-        const updatedData = channel.data as any;
-        const newFrozen = updatedData?.frozen === true;
-        const newUpdatedAt = updatedData?.updated_at;
-        const newClosedAt = updatedData?.closedAt || updatedData?.closed_at;
-        setState({ frozen: newFrozen, updatedAt: newUpdatedAt, closedAt: newClosedAt });
-      };
-
-      channel.on('channel.updated', handleChannelUpdate);
-
-      return () => {
-        channel.off('channel.updated', handleChannelUpdate);
-      };
-    }
+    return () => {
+      channel.off('channel.updated', handleChannelUpdate);
+    };
   }, [channel]);
 
   return state;
@@ -1083,7 +1085,9 @@ const useChatContainerView = ({
     []
   );
   const groupModalBackendIdRef = useRef<string | undefined>(undefined);
-  const groupModalOwnerRef = useRef<string | undefined>(undefined);
+  // Rendered into the modal, so state (not a ref); only written in the open
+  // handlers below.
+  const [groupModalOwner, setGroupModalOwner] = useState<string | undefined>(undefined);
   const orgUsersRequestKeyRef = useRef<string | null>(null);
 
   const { notify } = useNotify();
@@ -1133,17 +1137,29 @@ const useChatContainerView = ({
     refreshStatuses();
   }, [refreshStatuses]);
 
-  useEffect(() => {
+  // Drop the previous organisation's colleague list during render (compare-guard)
+  // when the org switches; the effect below only clears the request-dedupe ref.
+  const [prevOrgUsersOrgId, setPrevOrgUsersOrgId] = useState(primaryOrgId);
+  if (prevOrgUsersOrgId !== primaryOrgId) {
+    setPrevOrgUsersOrgId(primaryOrgId);
     setOrgUsersStatus('idle');
     setOrgUsers([]);
+  }
+
+  useEffect(() => {
     orgUsersRequestKeyRef.current = null;
   }, [primaryOrgId]);
 
-  useLayoutEffect(() => {
-    if (!appointmentId) return;
-    setIsChannelSelected(false);
-    setShowEmptyPlaceholder(true);
-  }, [appointmentId]);
+  // Deselect the channel when an appointment scope arrives or changes, computed
+  // during render (compare-guard, seeded so it also fires on the first render).
+  const [prevAppointmentKey, setPrevAppointmentKey] = useState<{ id?: string } | null>(null);
+  if (prevAppointmentKey === null || prevAppointmentKey.id !== appointmentId) {
+    setPrevAppointmentKey({ id: appointmentId });
+    if (appointmentId) {
+      setIsChannelSelected(false);
+      setShowEmptyPlaceholder(true);
+    }
+  }
 
   const resolveGroupIdForChannel = useCallback(
     async (chan: StreamChannel | null) => {
@@ -1270,9 +1286,12 @@ const useChatContainerView = ({
   );
 
   // Read through a ref so an inline callback prop cannot re-trigger the scope
-  // reset below on every parent render.
+  // reset below on every parent render. Synced in a layout effect so the reset
+  // below (also a layout effect, declared after) reads the latest value.
   const onChannelSelectRef = useRef(onChannelSelect);
-  onChannelSelectRef.current = onChannelSelect;
+  useLayoutEffect(() => {
+    onChannelSelectRef.current = onChannelSelect;
+  });
 
   useLayoutEffect(() => {
     // Reset selection when switching audience scopes so stale channels do not persist
@@ -1328,7 +1347,7 @@ const useChatContainerView = ({
 
   const openCreateGroupModal = useCallback(() => {
     groupModalBackendIdRef.current = undefined;
-    groupModalOwnerRef.current = client?.userID;
+    setGroupModalOwner(client?.userID);
     setGroupModal({ ...INITIAL_GROUP_MODAL, mode: 'create', open: true });
   }, [client]);
 
@@ -1349,11 +1368,12 @@ const useChatContainerView = ({
       // Find owner from members array (role: "owner") or fallback to created_by
       const membersArray = chan.state?.members ? Object.values(chan.state.members) : [];
       const ownerMember = membersArray.find((m: any) => m.role === 'owner');
-      groupModalOwnerRef.current =
+      setGroupModalOwner(
         ownerMember?.user_id ||
-        ownerMember?.user?.id ||
-        (chan.data as any)?.createdBy ||
-        (chan as any)?.created_by?.id;
+          ownerMember?.user?.id ||
+          (chan.data as any)?.createdBy ||
+          (chan as any)?.created_by?.id
+      );
       const backendId = await resolveGroupIdForChannel(chan);
       groupModalBackendIdRef.current = backendId;
       patchGroupModal({ search: '', open: true });
@@ -2037,7 +2057,7 @@ const useChatContainerView = ({
               title={groupModalTitle}
               placeholder={groupModalPlaceholder}
               members={groupModalMembers}
-              ownerId={groupModalOwnerRef.current}
+              ownerId={groupModalOwner}
               currentUserId={client.userID}
               search={groupModalSearch}
               busy={groupModalBusy}

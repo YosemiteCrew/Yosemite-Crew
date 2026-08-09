@@ -172,9 +172,9 @@ const resolveInitialIntent = (
 // its previous value — the null-sentinel derived-state pattern, factored out so
 // each call site stays a single statement rather than an inline prev-compare.
 const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
-  const prevRef = useRef<{ value: T }>(undefined);
-  if (prevRef.current?.value !== value) {
-    prevRef.current = { value };
+  const [prev, setPrev] = useState<{ value: T } | undefined>(undefined);
+  if (prev?.value !== value) {
+    setPrev({ value });
     onChange();
   }
 };

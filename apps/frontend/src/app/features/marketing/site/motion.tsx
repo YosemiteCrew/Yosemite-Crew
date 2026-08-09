@@ -1,11 +1,11 @@
 'use client';
 
 import React, {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from 'react';
@@ -356,15 +356,7 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
   }, []);
 
   useEffect(() => {
-    if (target === null) {
-      setDisplay(value);
-      return undefined;
-    }
-    if (!inView) return undefined;
-    if (reduced) {
-      setDisplay(target.toLocaleString('en-US') + suffix);
-      return undefined;
-    }
+    if (target === null || !inView || reduced) return undefined;
     const duration = 1500;
     const start = performance.now();
     let frame = 0;
@@ -377,6 +369,13 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
   }, [inView, reduced, target, suffix, value]);
+
+  // Non-numeric text renders verbatim; under reduced motion the final value shows
+  // as soon as the element is in view (no count-up); otherwise the rAF loop above
+  // drives the animating `display` state.
+  let shown = display;
+  if (target === null) shown = value;
+  else if (reduced && inView) shown = target.toLocaleString('en-US') + suffix;
 
   // Reserve the final value's width (invisible sizer) and overlay the animating
   // value, with tabular-nums for equal-width digits. Otherwise the number's
@@ -397,26 +396,24 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
       <span aria-hidden="true" style={{ visibility: 'hidden' }}>
         {value}
       </span>
-      <span style={{ position: 'absolute', left: 0, top: 0 }}>{display}</span>
+      <span style={{ position: 'absolute', left: 0, top: 0 }}>{shown}</span>
     </span>
   );
 }
 
+/** Subscribe a scroll-position read to window scroll events (for useSyncExternalStore). */
+const subscribeToWindowScroll = (onStoreChange: () => void): (() => void) => {
+  globalThis.window.addEventListener('scroll', onStoreChange, { passive: true });
+  return () => globalThis.window.removeEventListener('scroll', onStoreChange);
+};
+
 /** Tracks whether the page has scrolled past the top, for nav glass elevation. */
 export function useScrolled(threshold = 8): boolean {
-  const [scrolled, setScrolled] = useState(false);
-  const onScroll = useCallback(
-    () => setScrolled(globalThis.window.scrollY > threshold),
-    [threshold]
+  return useSyncExternalStore(
+    subscribeToWindowScroll,
+    () => globalThis.window.scrollY > threshold,
+    () => false
   );
-
-  useEffect(() => {
-    globalThis.window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => globalThis.window.removeEventListener('scroll', onScroll);
-  }, [onScroll]);
-
-  return scrolled;
 }
 
 /**

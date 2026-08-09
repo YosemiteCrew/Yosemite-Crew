@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -33,9 +33,9 @@ const GuestHeader = () => {
   const status = useAuthStore((s) => s.status);
   const { user, role } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
-  const prevPathnameRef = useRef(pathname);
-  if (prevPathnameRef.current !== pathname) {
-    prevPathnameRef.current = pathname;
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     if (menuOpen) setMenuOpen(false);
   }
   const logoUrl = MEDIA_SOURCES.logo;

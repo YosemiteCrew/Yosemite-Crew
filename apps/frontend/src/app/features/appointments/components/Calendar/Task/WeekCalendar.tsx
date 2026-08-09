@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import {
@@ -87,7 +87,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   resolveDisplayName,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
   const onWheelHorizontal = useWheelToHorizontalScroll();
   const now = useCalendarNow();
@@ -142,7 +142,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     events: getTimedTaskProxyEvents(events),
     height,
     nowPosition,
-    scrollContainer: scrollRef.current,
+    scrollContainer,
     skip: !!draggedTaskId || !days.length,
     rangeStart: days[0],
     rangeEnd: days.at(-1)
@@ -184,7 +184,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
           </div>
 
           <div
-            ref={scrollRef}
+            ref={setScrollContainer}
             className="min-w-max flex-1 min-h-0"
             style={{
               height: '100%',

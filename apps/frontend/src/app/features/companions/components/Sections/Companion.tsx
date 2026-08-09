@@ -736,11 +736,18 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
     };
   }, [isEditing]);
 
+  const [prevBreedSync, setPrevBreedSync] = useState({ isEditing, type: formData.type });
+  if (prevBreedSync.isEditing !== isEditing || prevBreedSync.type !== formData.type) {
+    setPrevBreedSync({ isEditing, type: formData.type });
+    if (isEditing && !SPECIES_QUERY_BY_TYPE[formData.type]) {
+      setBreedOptions([]);
+    }
+  }
+
   useLayoutEffect(() => {
     if (!isEditing) return;
     const speciesQuery = SPECIES_QUERY_BY_TYPE[formData.type];
     if (!speciesQuery) {
-      setBreedOptions([]);
       return;
     }
     let mounted = true;

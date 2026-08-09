@@ -15,7 +15,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { UserProfile } from '@/app/features/users/types/profile';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import { Organisation } from '@yosemite-crew/types';
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import dynamic from 'next/dynamic';
 import { IoCreate, IoCheckmark } from 'react-icons/io5';
@@ -309,11 +309,11 @@ const ProfileCard = ({
   const orgId = primaryOrg?._id;
   const isDisabled = !orgId;
 
-  const prevOrgRef = useRef(org);
-  const prevFieldsRef = useRef(fields);
-  if (prevOrgRef.current !== org || prevFieldsRef.current !== fields) {
-    prevOrgRef.current = org;
-    prevFieldsRef.current = fields;
+  const [prevOrg, setPrevOrg] = useState(org);
+  const [prevFields, setPrevFields] = useState(fields);
+  if (prevOrg !== org || prevFields !== fields) {
+    setPrevOrg(org);
+    setPrevFields(fields);
     setFormValues(buildInitialValues(fields, org));
     setFormValuesErrors({});
   }

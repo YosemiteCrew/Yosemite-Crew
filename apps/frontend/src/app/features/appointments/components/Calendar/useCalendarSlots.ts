@@ -209,7 +209,9 @@ export function useCalendarAutoScroll({
   // Capture nowPosition in a ref so changes to it (every minute) don't re-fire
   // the scroll effect — we only want to scroll once on mount / date change.
   const nowPositionRef = useRef(nowPosition);
-  nowPositionRef.current = nowPosition;
+  useEffect(() => {
+    nowPositionRef.current = nowPosition;
+  });
 
   useEffect(() => {
     if (!scrollContainer || skip) return;

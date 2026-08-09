@@ -143,19 +143,24 @@ const InventoryFilters = ({
   const visibility = filters.visibility ?? 'ALL';
 
   const sliderTranslate = getSliderTranslate(visibility);
-  const dropdownStyle =
-    dropdownOpen && triggerRef.current
-      ? (() => {
-          const rect = triggerRef.current.getBoundingClientRect();
-          return {
-            position: 'fixed',
-            top: rect.bottom + 6,
-            right: globalThis.window.innerWidth - rect.right,
-            minWidth: Math.max(rect.width, 180),
-            zIndex: 9999,
-          } satisfies React.CSSProperties;
-        })()
-      : undefined;
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties | undefined>(undefined);
+
+  // Measure the trigger in the click handler (not during render): the panel is
+  // portaled to <body>, so it is positioned from the trigger's viewport rect.
+  const toggleDropdown = () => {
+    const next = !dropdownOpen;
+    if (next && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 6,
+        right: globalThis.window.innerWidth - rect.right,
+        minWidth: Math.max(rect.width, 180),
+        zIndex: 9999,
+      });
+    }
+    setDropdownOpen(next);
+  };
 
   return (
     <div className="w-full flex items-start justify-between flex-wrap gap-x-6 gap-y-3">
@@ -203,7 +208,7 @@ const InventoryFilters = ({
           ref={triggerRef}
           type="button"
           disabled={loading}
-          onClick={() => setDropdownOpen((v) => !v)}
+          onClick={toggleDropdown}
           className="flex h-10 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-[13px] justify-between min-w-30"
           style={getStockHealthButtonStyle(selectedStockHealth)}
         >

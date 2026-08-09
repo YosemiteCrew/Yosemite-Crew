@@ -223,17 +223,18 @@ const ClinicalPacketSection = ({
   // Resolve the encounter's packet on mount so the state matrix reflects server
   // truth. `createEncounterDocumentPacket` is idempotent — it returns the
   // existing packet (with its status + signing state) when one is present.
-  const refreshPacket = useCallback(async () => {
-    if (!organisationId || !encounterId) return;
+  // Resolution is a pure fetch (null = leave current state alone) so the mount
+  // effect can apply the result in a subscription-style callback.
+  const resolvePacket = useCallback(async (): Promise<PacketState | null> => {
+    if (!organisationId || !encounterId) return null;
     try {
       try {
         const documents = await listEncounterWorkspaceDocuments(organisationId, encounterId);
         if (documents.some(isSignedDocumentRow)) {
-          setPacket({
+          return {
             status: 'FINAL',
             signingStatus: 'SIGNED',
-          });
-          return;
+          };
         }
       } catch (error) {
         if (isAuthRedirectError(error)) throw error;
@@ -241,21 +242,29 @@ const ClinicalPacketSection = ({
       }
 
       const result = await createEncounterDocumentPacket(organisationId, encounterId);
-      setPacket({
+      return {
         packetId: result?.packetId,
         status: result?.status,
         signingStatus: result?.signing?.status,
-      });
+      };
     } catch (error) {
       if (!isAuthRedirectError(error)) {
         console.error('Unable to load clinical packet:', error);
       }
+      return null;
     }
   }, [organisationId, encounterId]);
 
+  const refreshPacket = useCallback(async () => {
+    const next = await resolvePacket();
+    if (next) setPacket(next);
+  }, [resolvePacket]);
+
   useEffect(() => {
-    void refreshPacket();
-  }, [refreshPacket]);
+    void resolvePacket().then((next) => {
+      if (next) setPacket(next);
+    });
+  }, [resolvePacket]);
 
   const reconcilePacketAfterSigningClose = useCallback(
     async (packetId: string) => {

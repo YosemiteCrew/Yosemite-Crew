@@ -94,11 +94,13 @@ const useWeekAutoScroll = ({
 }) => {
   const scrolledWeekRef = useRef<string | null>(null);
   const nowPositionRef = useRef(nowPosition);
-  nowPositionRef.current = nowPosition;
   const timedEventsRef = useRef(timedEvents);
-  timedEventsRef.current = timedEvents;
   const visibleHourRangeRef = useRef(visibleHourRange);
-  visibleHourRangeRef.current = visibleHourRange;
+  useEffect(() => {
+    nowPositionRef.current = nowPosition;
+    timedEventsRef.current = timedEvents;
+    visibleHourRangeRef.current = visibleHourRange;
+  });
 
   useEffect(() => {
     const container = scrollRef.current;

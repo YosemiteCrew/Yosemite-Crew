@@ -228,6 +228,16 @@ const getPortalStyle = (el: HTMLElement | null): CSSProperties | null => {
   };
 };
 
+/** Equality guard so the measure-on-every-render layout effect settles instead of looping. */
+const isSamePortalStyle = (a: CSSProperties | null, b: CSSProperties | null): boolean =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.left === b.left &&
+    a.width === b.width &&
+    a.top === b.top &&
+    a.bottom === b.bottom);
+
 // ─── PersonRow ─────────────────────────────────────────────────────────────────
 type PersonRowProps = {
   fieldId: string;
@@ -287,8 +297,13 @@ export const PersonRow = ({
   const isFloated = hasValue || visibleOpen;
   const inputValue = hasValue ? selectedName! : query;
 
-  // Read position synchronously from the DOM at render time — no state delay
-  const portalStyle = visibleOpen ? getPortalStyle(triggerRef.current) : null;
+  // Measure position in a layout effect when the menu opens (applied before
+  // paint, so no visible delay) — refs must not be read during render
+  const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    const next = visibleOpen ? getPortalStyle(triggerRef.current) : null;
+    setPortalStyle((cur) => (isSamePortalStyle(cur, next) ? cur : next));
+  }, [visibleOpen]);
 
   const dropdownMenu =
     visibleOpen && portalStyle && typeof document !== 'undefined'
@@ -581,8 +596,13 @@ export const TimeSlotDropdown = ({
   const selectedLabel = selectedSlot
     ? formatUtcTimeToLocalLabel(selectedSlot.startTime)
     : (prefillLabel ?? null);
-  // Read position synchronously from the DOM at render time — no state delay
-  const portalStyle = open ? getPortalStyle(triggerRef.current) : null;
+  // Measure position in a layout effect when the menu opens (applied before
+  // paint, so no visible delay) — refs must not be read during render
+  const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    const next = open ? getPortalStyle(triggerRef.current) : null;
+    setPortalStyle((cur) => (isSamePortalStyle(cur, next) ? cur : next));
+  }, [open]);
 
   const dropdownMenu =
     open && portalStyle && typeof document !== 'undefined'
@@ -1121,7 +1141,7 @@ const useAddAppointmentCentralModalView = ({
     setVisitType(syncedVisitType);
   }
   const prevShowModalRef = useRef(showModal);
-  const prevPrefillKeyRef = useRef<string | null>(null);
+  const [prevPrefillKey, setPrevPrefillKey] = useState<string | null>(null);
   const autoSelectKeyRef = useRef<string | null>(null);
 
   const hasUnsavedChanges = useMemo(
@@ -1161,8 +1181,8 @@ const useAddAppointmentCentralModalView = ({
   }, [formData, selectedSlot, setFormDataErrors, uiState.submitAttempted, validateForm]);
 
   const prefillKey = computePrefillKey(prefill);
-  if (prefillKey !== prevPrefillKeyRef.current) {
-    prevPrefillKeyRef.current = prefillKey;
+  if (prefillKey !== prevPrefillKey) {
+    setPrevPrefillKey(prefillKey);
     dispatchUi({ type: 'reset' });
   }
 

@@ -342,66 +342,31 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     setChecked(Boolean(primaryOrgId && readOrgGuardPassed(primaryOrgId)));
   }
 
-  useEffect(() => {
-    if (isAuthGuardDisabled) {
-      setChecked(true);
-      return;
-    }
-    if (isStatusPending(orgStatus)) {
-      return;
-    }
-    if (!primaryOrgId) {
-      setChecked(true);
-      return;
-    }
-    if (shouldWaitForData) {
-      return;
-    }
-
-    if (!primaryOrg || !membership || membership.active === false) {
-      return;
-    }
-
-    const role = membership.roleDisplay ?? membership.roleCode;
-    const availabilities = getAvailabilitiesByOrgId(primaryOrgId);
-    const redirectTo = resolveOrgRedirect({
-      pathname,
-      primaryOrgId,
-      primaryOrg,
-      membership,
-      profile,
-      availabilities,
-    });
-
-    if (redirectTo && redirectTo !== pathname) return;
-
-    const permissionsFallbackRedirect = getPermissionsFallbackRedirect(pathname, membership);
-    if (permissionsFallbackRedirect) return;
-
-    const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
-      profile,
-      orgType: primaryOrg.type,
-      role,
-    });
-    const landingRedirect = applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
-    if (landingRedirect) return;
-
-    writeOrgGuardPassed(primaryOrgId);
+  // The guard passes when the bypass is on, when there is no org to check, or
+  // when all data is loaded and no redirect applies. `checked` stays sticky:
+  // once a pass is observed it survives later data refetches until the primary
+  // org changes (reset above). Skipped while a redirect is about to throw, so a
+  // pass is only recorded for renders that actually commit — mirroring the
+  // previous effect-based timing.
+  const guardPassed =
+    isAuthGuardDisabled ||
+    (!isStatusPending(orgStatus) &&
+      (!primaryOrgId ||
+        Boolean(
+          !shouldWaitForData &&
+          primaryOrg &&
+          membership &&
+          membership.active !== false &&
+          guardRedirect === null
+        )));
+  if (!guardRedirect && guardPassed && !checked) {
     setChecked(true);
-  }, [
-    isAuthGuardDisabled,
-    primaryOrgId,
-    primaryOrg,
-    pathname,
-    profile,
-    orgStatus,
-    getAvailabilitiesByOrgId,
-    availabilityStatus,
-    profileStatus,
-    membership,
-    teamStatus,
-    shouldWaitForData,
-  ]);
+  }
+
+  useEffect(() => {
+    if (isAuthGuardDisabled || !primaryOrgId || !guardPassed) return;
+    writeOrgGuardPassed(primaryOrgId);
+  }, [isAuthGuardDisabled, primaryOrgId, guardPassed]);
 
   if (guardRedirect) {
     redirect(guardRedirect);

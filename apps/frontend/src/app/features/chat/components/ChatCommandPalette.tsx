@@ -7,7 +7,7 @@
  * the parent's activateChannelById). Mounted once inside the chat shell.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { StreamChat, Channel, ChannelFilters, ChannelSort } from 'stream-chat';
 import { LuCommand } from 'react-icons/lu';
 import { IoReturnDownBackOutline, IoSearchOutline } from 'react-icons/io5';
@@ -46,9 +46,9 @@ export function ChatCommandPalette({
 
   // Reset the query as soon as the palette closes, computed during render
   // (rather than in an effect) so there's no stale-query flash on reopen.
-  const prevOpenRef = useRef(open);
-  if (prevOpenRef.current !== open) {
-    prevOpenRef.current = open;
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (!open && query) setQuery('');
   }
 

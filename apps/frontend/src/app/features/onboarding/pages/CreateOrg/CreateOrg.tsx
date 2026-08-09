@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { IoBusiness, IoLocationSharp } from 'react-icons/io5';
 
@@ -101,17 +101,28 @@ const CreateOrg = () => {
   const shouldBlockForTransition = isTransitioning || isCompletedRedirect;
   useFullscreenLoader('create-org-transition', shouldBlockForTransition);
 
-  useEffect(() => {
-    if (!isReady) {
-      return;
+  // Adopt the onboarding snapshot during render (guarded by the previous
+  // values) instead of mirroring it through an effect.
+  const [prevOnboarding, setPrevOnboarding] = useState<{
+    org: typeof org;
+    computedStep: number;
+    isReady: boolean;
+  } | null>(null);
+  if (
+    prevOnboarding?.org !== org ||
+    prevOnboarding?.computedStep !== computedStep ||
+    prevOnboarding?.isReady !== isReady
+  ) {
+    setPrevOnboarding({ org, computedStep, isReady });
+    if (isReady) {
+      if (computedStep >= 0 && computedStep <= 1) {
+        setActiveStep(computedStep);
+      }
+      if (org) {
+        setFormData(org);
+      }
     }
-    if (computedStep >= 0 && computedStep <= 1) {
-      setActiveStep(computedStep);
-    }
-    if (org) {
-      setFormData(org);
-    }
-  }, [org, computedStep, isReady]);
+  }
 
   if (isCompletedRedirect) {
     redirect('/dashboard');

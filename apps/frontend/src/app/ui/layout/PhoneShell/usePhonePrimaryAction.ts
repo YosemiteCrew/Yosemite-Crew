@@ -25,7 +25,9 @@ import {
  */
 export function usePhonePrimaryAction(key: FabActionKey, handler: () => void): void {
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  useEffect(() => {
+    handlerRef.current = handler;
+  });
 
   useEffect(() => {
     const onPrimaryAction = (event: Event) => {

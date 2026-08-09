@@ -151,11 +151,15 @@ function useAnchoredPopoverStyle(
   align: 'left' | 'right'
 ): CSSProperties | null {
   const [style, setStyle] = useState<CSSProperties | null>(null);
+  // Drop the measured style during render (compare-guard) when the popover
+  // closes, so the next open starts hidden and re-measures.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setStyle(null);
+  }
   useLayoutEffect(() => {
-    if (!open) {
-      setStyle(null);
-      return;
-    }
+    if (!open) return;
     const anchor = anchorRef.current?.getBoundingClientRect();
     const panel = panelRef.current;
     if (!anchor || !panel) return;
@@ -180,7 +184,9 @@ function usePopoverDismiss(
   panelRef: RefObject<HTMLDivElement | null>
 ): void {
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   useEffect(() => {
     if (!open) return;
     const handlePointer = (event: Event) => {

@@ -3,7 +3,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import Modal from '@/app/ui/overlays/Modal';
 import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import SpecialityCard from '@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import SpecialitySearchWeb from '@/app/ui/inputs/SpecialitySearch/SpecialitySearchWeb';
@@ -60,7 +60,14 @@ const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityP
   );
   const businessType = getResolvedBusinessType(primaryOrg?.type);
 
-  useEffect(() => {
+  // Re-apply the starter services when the business type or org resolves late
+  // (adjusted during render, per React's "adjusting state when a prop changes" pattern).
+  const [prevStarterKey, setPrevStarterKey] = useState({ businessType, primaryOrgId });
+  if (
+    prevStarterKey.businessType !== businessType ||
+    prevStarterKey.primaryOrgId !== primaryOrgId
+  ) {
+    setPrevStarterKey({ businessType, primaryOrgId });
     setFormData((previous) => {
       let hasChanges = false;
       const nextState = previous.map((speciality) => {
@@ -70,7 +77,7 @@ const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityP
       });
       return hasChanges ? nextState : previous;
     });
-  }, [businessType, primaryOrgId]);
+  }
 
   const removeSpeciality = (index: number) => {
     setFormData((prev) => prev.filter((_, i) => i !== index));

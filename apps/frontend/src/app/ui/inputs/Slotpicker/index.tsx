@@ -61,9 +61,9 @@ const Slotpicker = ({
 
   const [viewYear, setViewYear] = useState(() => selectedDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(() => selectedDate.getMonth());
-  const prevSelectedDateRef = useRef(selectedDate);
-  if (prevSelectedDateRef.current !== selectedDate) {
-    prevSelectedDateRef.current = selectedDate;
+  const [prevSelectedDate, setPrevSelectedDate] = useState(selectedDate);
+  if (prevSelectedDate !== selectedDate) {
+    setPrevSelectedDate(selectedDate);
     const newYear = selectedDate.getFullYear();
     const newMonth = selectedDate.getMonth();
     if (viewYear !== newYear) setViewYear(newYear);

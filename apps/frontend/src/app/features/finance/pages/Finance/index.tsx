@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -47,7 +47,7 @@ const Finance = () => {
   const currency = useCurrencyForPrimaryOrg();
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
+  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState('all');
   const [viewInvoice, setViewInvoice] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(invoices[0] || null);
@@ -59,7 +59,9 @@ const Finance = () => {
     setViewInvoice(true);
   };
 
-  useEffect(() => {
+  const [prevInvoices, setPrevInvoices] = useState(invoices);
+  if (prevInvoices !== invoices) {
+    setPrevInvoices(invoices);
     setActiveInvoice((prev) => {
       if (invoices.length === 0) return null;
       if (prev?.id) {
@@ -68,20 +70,18 @@ const Finance = () => {
       }
       return invoices[0];
     });
-  }, [invoices]);
+  }
 
-  useEffect(() => {
-    const invoiceId = String(searchParams.get('invoiceId') ?? '').trim();
-    if (!invoiceId) return;
-    if (handledDeepLinkRef.current === invoiceId) return;
-
-    const target = invoices.find((invoice) => invoice.id === invoiceId);
-    if (!target) return;
-
-    setActiveInvoice(target);
+  const deepLinkInvoiceId = String(searchParams.get('invoiceId') ?? '').trim();
+  const deepLinkTarget =
+    deepLinkInvoiceId && handledDeepLink !== deepLinkInvoiceId
+      ? invoices.find((invoice) => invoice.id === deepLinkInvoiceId)
+      : undefined;
+  if (deepLinkTarget) {
+    setHandledDeepLink(deepLinkInvoiceId);
+    setActiveInvoice(deepLinkTarget);
     setViewInvoice(true);
-    handledDeepLinkRef.current = invoiceId;
-  }, [invoices, searchParams]);
+  }
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();

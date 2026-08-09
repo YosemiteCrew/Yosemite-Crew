@@ -272,7 +272,11 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
     });
   }, [primaryOrgId]);
 
-  useEffect(() => {
+  // Re-point the selection when the team list changes (adjusted during
+  // render, per React's "adjusting state when a prop changes" pattern).
+  const [prevTeams, setPrevTeams] = useState(teams);
+  if (prevTeams !== teams) {
+    setPrevTeams(teams);
     setActiveTeam((prev) => {
       if (teams.length === 0) return null;
       if (prev?._id) {
@@ -281,7 +285,7 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
       }
       return teams[0];
     });
-  }, [teams]);
+  }
 
   const handleOpenTeam = (team: TeamProp) => {
     setActiveTeam(team);

@@ -29,18 +29,25 @@ export const useOrganisationDiscountCap = (organisationId?: string): Organisatio
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  useEffect(() => {
-    if (!organisationId) {
+  // Render-phase adjustment: reset for each (re)load so a previous organisation's
+  // cap is not retained across an org switch, and a failed lookup leaves no stale
+  // cap - matching this hook's documented "null while loading and on failure".
+  const loadKey = `${organisationId ?? ''}|${reloadToken}`;
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    if (organisationId) {
+      setLoading(true);
+      setError(null);
+      setMaxOverallDiscountPercent(null);
+    } else {
       setLoading(false);
-      return undefined;
     }
+  }
+
+  useEffect(() => {
+    if (!organisationId) return undefined;
     let active = true;
-    setLoading(true);
-    setError(null);
-    // Start every (re)load unconstrained so a previous organisation's cap is not
-    // retained across an org switch, and a failed lookup leaves no stale cap -
-    // matching this hook's documented "null while loading and on failure".
-    setMaxOverallDiscountPercent(null);
     getOrganisationDiscountSettings(organisationId)
       .then((settings) => {
         if (!active) return;
