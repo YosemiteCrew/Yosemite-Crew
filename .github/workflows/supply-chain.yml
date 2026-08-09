@@ -10,10 +10,17 @@ on:
     branches:
       - dev
       - main
+  merge_group:
   push:
     branches:
       - dev
       - main
+    # Releases published by workflows using GITHUB_TOKEN (desktop-release,
+    # release-notes) do NOT emit a release event this workflow can see, so the
+    # user's tag push is the trigger that covers those paths: it produces the
+    # SBOM artifacts and runs the gates for the released ref.
+    tags:
+      - '**'
   release:
     types: [published]
   workflow_dispatch:
@@ -124,44 +131,51 @@ jobs:
 
   publish-release-sboms:
     name: Attach SBOMs to the release
+    # Only the release event carries a release to attach assets to. Tag pushes
+    # from workflows publishing via GITHUB_TOKEN still get gated + archived
+    # SBOMs through the jobs above; attaching those is a manual rerun of this
+    # workflow from the release once it exists.
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [sbom, vulnerabilities, licenses]
+    timeout-minutes: 10
+    needs: [sbom]
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Download the gated SBOM artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          # gh release upload authenticates via the GH_TOKEN env below - the
-          # git config never needs the token.
-          persist-credentials: false
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-        with:
-          run_install: false
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install dependencies
-        # License metadata lives in the installed packages, not the lockfile;
-        # the SBOM needs a real node_modules.
-        run: pnpm install --frozen-lockfile
-
-      - name: Regenerate SBOMs at the release ref
-        run: ./scripts/security/supply-chain.sh sbom
+          name: sbom
+          path: security/sbom/
 
       - name: Upload SBOMs as release assets
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
         run: |
           gh release upload "$TAG" \
             security/sbom/yosemite-crew.spdx.json \
             security/sbom/yosemite-crew.cdx.json \
-            --clobber
+            --clobber --repo "$REPO"
+
+  # The one check to mark required on the branch ruleset. Required checks
+  # treat a skipped job as satisfied, so a failed SBOM stage silently passing
+  # its dependents is exactly what this aggregate exists to prevent (same
+  # pattern as ci.yaml's CI Required).
+  supply-chain-required:
+    name: Supply Chain Required
+    if: always() && github.event_name != 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [sbom, vulnerabilities, licenses]
+    steps:
+      - name: Fail on any failed or skipped stage
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled|skipped)"'; then
+            echo "Supply Chain Required: at least one stage failed, was cancelled, or was skipped"
+            exit 1
+          fi

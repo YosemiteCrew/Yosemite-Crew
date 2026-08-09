@@ -22,8 +22,11 @@ pnpm security:licenses   # grant over the SBOM - FAILS on non-allowlisted licens
 installed packages, not in `pnpm-lock.yaml`.
 
 Tools are installed by downloading the pinned release tarball directly from
-GitHub and verifying its sha256 against the checksums file published with that
-release - no remote install script is ever executed.
+GitHub and verifying its sha256 against a digest table pinned IN THIS
+REPOSITORY (top of the script) - no remote install script is ever executed,
+and a compromised upstream release cannot pass verification because the
+digests do not travel with the artifact. Bumping a tool version means
+refreshing the table, reviewed like any code change.
 
 CI (`.github/workflows/supply-chain.yml`) runs the same
 `scripts/security/supply-chain.sh` on every PR and push to `dev`/`main`, and
@@ -53,8 +56,10 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
 
 1. **Vulnerabilities**: add an entry under `ignore:` in `.grype.yaml` with the
    GHSA id and package, plus a comment carrying the reason it is acceptable,
-   an owner, and a re-review date. Same discipline as
-   `scripts/ci/override-advisory-baseline.json`.
+   an owner, and a `Re-review by: YYYY-MM-DD` date. Same discipline as
+   `scripts/ci/override-advisory-baseline.json`. **Expiry is machine-enforced:
+   the scan and license gates fail when any re-review date is in the past**,
+   so an exception cannot quietly outlive its justification.
 2. **Licenses**: extend `allow:` in `.grant.yaml` only with the SPDX
    compatibility rationale in the PR, or add a package under
    `ignore-packages:` with a comment: the VERIFIED license (read the LICENSE
@@ -68,6 +73,19 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
   store) plus the lockfile, with build output excluded. The installed-package
   cataloger is selected explicitly because it is what carries license
   metadata; the lockfile alone has none.
-- grype and grant read the CycloneDX SBOM, so `security:sbom` (or a cached
-  `security/sbom/`) must exist first; the script generates it on demand.
+- grype and grant read the CycloneDX SBOM; the script regenerates it
+  automatically whenever `pnpm-lock.yaml` or the root `package.json` is newer
+  than the cached copy, so a stale SBOM is never scanned silently.
+- The SBOM also catalogs the mobile native lockfiles (`android/
+app/gradle.lockfile` Maven deps, `ios/Podfile.lock` pods) - only build
+  output and vendored pods are excluded.
+- Releases published by workflows authenticating with `GITHUB_TOKEN`
+  (desktop-release, release-notes) do not emit a `release` event this
+  workflow can observe. The user's tag push covers gating and SBOM artifacts
+  for those refs; attaching the assets to such a release is a manual rerun of
+  the workflow from that release.
+- The dependency install runs on Linux in CI, so packages restricted to other
+  platforms via the `os` field contribute lockfile entries (completeness) but
+  no installed license metadata - a known, documented margin.
+- Windows is not supported natively; run the commands inside WSL.
 - `security/` and `.security-tools/` are gitignored output/tool directories.
