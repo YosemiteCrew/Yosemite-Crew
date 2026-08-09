@@ -96,8 +96,11 @@ export const configureUpdateChannel = (
   preferred?: UpdateChannel,
   version?: string
 ): UpdateChannel => {
+  // The env var is the managed (MDM) control, so it must beat the stored user
+  // preference - which is always populated via DEFAULT_SETTINGS and would
+  // otherwise make the override unreachable.
   const channel =
-    preferred ?? updateChannelOverrideFromEnv(env) ?? updateChannelForVersion(version);
+    updateChannelOverrideFromEnv(env) ?? preferred ?? updateChannelForVersion(version);
   autoUpdater.channel = channel;
   autoUpdater.allowPrerelease = channel === 'beta';
   return channel;
