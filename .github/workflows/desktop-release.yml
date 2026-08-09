@@ -242,10 +242,53 @@ jobs:
       - windows
       - macos
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Covers the up-to-25-minute Supply Chain wait below plus the flip itself.
+    timeout-minutes: 30
     permissions:
       contents: write
+      # Needed to query the Supply Chain workflow's runs for this commit.
+      actions: read
     steps:
+      # supply-chain.yml runs its vulnerability and license gates independently
+      # on the same tag push, so without this wait a tag carrying a critical
+      # vulnerability or a disallowed license would still go public. Hold the
+      # draft flip until the Supply Chain run for this exact commit succeeds.
+      - name: Wait for the Supply Chain verdict on this commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+        run: |
+          # 50 polls x 30s = ~25 minutes; the supply-chain run starts with the
+          # tag push, in parallel with the 45-minute build jobs, and takes
+          # several minutes. Multiple runs can share this head_sha (the merge
+          # to main and the tag push), so wait on the most recent one.
+          for ATTEMPT in $(seq 1 50); do
+            RUN=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/supply-chain.yml/runs?head_sha=${SHA}&per_page=100" \
+              --jq '.workflow_runs | sort_by(.created_at) | last | if . == null then "none" else "\(.status)|\(.conclusion)|\(.html_url)" end')
+            if [ "$RUN" = "none" ]; then
+              echo "[${ATTEMPT}/50] No Supply Chain run found for ${SHA} yet; retrying in 30s."
+            else
+              STATUS=${RUN%%|*}
+              REST=${RUN#*|}
+              CONCLUSION=${REST%%|*}
+              URL=${REST#*|}
+              if [ "$STATUS" = "completed" ]; then
+                if [ "$CONCLUSION" = "success" ]; then
+                  echo "Supply Chain passed for ${SHA}: ${URL}"
+                  exit 0
+                fi
+                echo "::error::Supply Chain run for ${SHA} concluded '${CONCLUSION}' (${URL}); refusing to publish the release."
+                exit 1
+              fi
+              echo "[${ATTEMPT}/50] Supply Chain run is ${STATUS} (${URL}); retrying in 30s."
+            fi
+            sleep 30
+          done
+          echo "::error::No completed Supply Chain run for ${SHA} after 25 minutes; refusing to publish the release."
+          exit 1
+
       - name: Publish the release
         shell: bash
         env:
