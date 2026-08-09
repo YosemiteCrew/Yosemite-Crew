@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import {
-  OrganisationType,
   PatientOrganisationRole,
   PatientOrganisationStatus,
   Prisma,
@@ -187,7 +186,7 @@ const createLink = async (input: {
       organisationId: input.organisationId ?? null,
       linkedByParentId: input.linkedByParentId ?? null,
       linkedByPmsUserId: input.linkedByPmsUserId ?? null,
-      organisationType: input.organisationType as OrganisationType,
+      organisationType: input.organisationType,
       role: PatientOrganisationRole.ORGANISATION,
       status: input.status,
       invitedViaEmail: input.invitedViaEmail ?? null,
@@ -715,7 +714,7 @@ export const CompanionOrganisationService = {
     const links = await prisma.patientOrganisation.findMany({
       where: {
         patientId: id,
-        organisationType: type as OrganisationType,
+        organisationType: type,
         OR: [
           { status: PatientOrganisationStatus.ACTIVE },
           {
@@ -758,7 +757,7 @@ export const CompanionOrganisationService = {
         organization: link.organisationId
           ? (organizationMap.get(link.organisationId) ?? null)
           : null,
-        organisationType: link.organisationType as BusinessType,
+        organisationType: link.organisationType,
         status: link.status,
         patientId: link.patientId,
       })),

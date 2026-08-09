@@ -127,10 +127,10 @@ const assertRoomBelongsToOrganisation = async (
   roomId: string,
   organisationId: string,
 ): Promise<RoomRow> => {
-  const room = (await prisma.organisationRoom.findUnique({
+  const room = await prisma.organisationRoom.findUnique({
     where: { id: roomId },
     select: { id: true, organisationId: true, type: true },
-  })) as RoomRow | null;
+  });
 
   if (!room) {
     throw new RoomUnitGroupServiceError("Organisation room not found.", 404);

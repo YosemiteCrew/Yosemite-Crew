@@ -68,7 +68,7 @@ async function findWebhookSubmission(documentId: string) {
       signing: {
         path: ["documentId"],
         equals: documentId,
-      } as Prisma.JsonFilter,
+      },
     },
   });
 }
@@ -85,16 +85,12 @@ async function handleSubmissionEvent(
   }
 
   if (eventType === "DOCUMENT_COMPLETED") {
-    await handleDocumentCompletedPrisma(
-      submission as Parameters<typeof handleDocumentCompletedPrisma>[0],
-    );
+    await handleDocumentCompletedPrisma(submission);
     return true;
   }
 
   if (eventType === "DOCUMENT_DELETED") {
-    await handleDocumentDeletedPrisma(
-      submission as Parameters<typeof handleDocumentDeletedPrisma>[0],
-    );
+    await handleDocumentDeletedPrisma(submission);
   }
 
   return true;
@@ -106,7 +102,7 @@ async function findWebhookPacket(documentId: string) {
       signing: {
         path: ["documentId"],
         equals: documentId,
-      } as Prisma.JsonFilter,
+      },
     },
     select: { id: true },
   });
@@ -242,7 +238,7 @@ export const DocumensoWebhookController = {
           signing: {
             path: ["documentId"],
             equals: event.documentId,
-          } as Prisma.JsonFilter,
+          },
         },
       });
 
@@ -479,7 +475,7 @@ async function handleDocumentCompletedPrisma(submission: {
 
   await prisma.formSubmission.update({
     where: { id: submission.id },
-    data: { signing: signing as unknown as Prisma.InputJsonValue },
+    data: { signing: signing },
   });
 
   try {
@@ -518,7 +514,7 @@ async function handleDocumentDeletedPrisma(submission: {
 
   await prisma.formSubmission.update({
     where: { id: submission.id },
-    data: { signing: signing as unknown as Prisma.InputJsonValue },
+    data: { signing: signing },
   });
 }
 
@@ -546,6 +542,6 @@ async function handleRenderedDocumentDeletedPrisma(renderedDocumentId: string) {
 
   await prisma.renderedDocument.update({
     where: { id: renderedDocumentId },
-    data: { signing: signing as unknown as Prisma.InputJsonValue },
+    data: { signing: signing },
   });
 }

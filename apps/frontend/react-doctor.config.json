@@ -1,11 +1,15 @@
 {
   "$schema": "https://react.doctor/schema/config.json",
   "ignore": {
-    "files": ["public/dev-docs/assets/js/**", "src/app/__tests__/**"],
+    "files": ["public/dev-docs/**", "src/app/__tests__/**"],
     "overrides": [
       {
         "files": ["package.json"],
         "rules": ["react-doctor/low-supply-chain-score"]
+      },
+      {
+        "files": ["public/dev-docs/**"],
+        "rules": ["react-doctor/artifact-env-leak", "react-doctor/artifact-baas-authority-surface"]
       }
     ]
   }

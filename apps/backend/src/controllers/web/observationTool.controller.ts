@@ -281,7 +281,7 @@ export const ObservationToolSubmissionController = {
           toolId,
           patientId: companionId,
           filledBy,
-          answers: answers as CreateObservationToolSubmissionInput["answers"],
+          answers: answers,
           taskId,
           summary,
         });

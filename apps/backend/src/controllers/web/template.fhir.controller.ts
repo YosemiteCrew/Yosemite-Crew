@@ -103,7 +103,7 @@ const updateTemplateFromQuestionnaire = async (
     );
   }
 
-  return TemplateService.update(templateId, input as never, organisationId);
+  return TemplateService.update(templateId, input, organisationId);
 };
 
 const updateTemplateFromPlanDefinition = async (
@@ -125,7 +125,7 @@ const updateTemplateFromPlanDefinition = async (
     );
   }
 
-  return TemplateService.update(templateId, input as never, organisationId);
+  return TemplateService.update(templateId, input, organisationId);
 };
 
 const createInstanceFromQuestionnaireResponse = async (
@@ -154,7 +154,7 @@ const createInstanceFromQuestionnaireResponse = async (
   let instance = instanceId
     ? await TemplateService.updateInstance(
         instanceId,
-        instanceUpdateData as never,
+        instanceUpdateData,
         organisationId,
       )
     : await TemplateService.createInstance({
@@ -177,9 +177,7 @@ const createInstanceFromQuestionnaireResponse = async (
   }
 
   return templateMapper.templateInstanceToQuestionnaireResponse(
-    instance as Parameters<
-      typeof templateMapper.templateInstanceToQuestionnaireResponse
-    >[0],
+    instance,
     template,
   );
 };

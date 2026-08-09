@@ -429,7 +429,7 @@ const loadTemplateInstanceDocument = async (
   return {
     ...record,
     version,
-  } as unknown as TemplateInstanceDocumentSource;
+  };
 };
 
 const loadFormSubmissionDocument = async (
@@ -1217,9 +1217,9 @@ const loadAppointmentClinicalHeader = async (
   }
 
   return readAppointmentHeader({
-    patient: appointment.patient as unknown as Record<string, unknown>,
-    lead: appointment.lead as unknown as Record<string, unknown>,
-    room: appointment.room as unknown as Record<string, unknown>,
+    patient: appointment.patient,
+    lead: appointment.lead,
+    room: appointment.room,
   });
 };
 

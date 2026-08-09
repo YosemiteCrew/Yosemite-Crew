@@ -278,7 +278,7 @@ const toJsonValue = <T>(value: T): Prisma.InputJsonValue =>
 const toNullableJsonValue = (
   value: Prisma.JsonValue | null | undefined,
 ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined =>
-  value == null ? Prisma.JsonNull : (value as Prisma.InputJsonValue);
+  value == null ? Prisma.JsonNull : value;
 
 const normalizeOptionalString = (value?: string | null) => {
   if (typeof value !== "string") return undefined;
@@ -955,10 +955,10 @@ const stampEncounterActualStartOnProgress = async (args: {
   encounterId: string;
   startedAt: Date;
 }) => {
-  const encounter = (await args.tx.encounter.findUnique({
+  const encounter = await args.tx.encounter.findUnique({
     where: { id: args.encounterId },
     select: { status: true, periodStart: true },
-  })) as { status: string; periodStart: Date | null } | null;
+  });
 
   if (!encounter) return;
   if (encounter.status === "finished" || encounter.status === "cancelled") {
@@ -1198,7 +1198,7 @@ const buildWhereFromFilters = (
       patient: {
         path: ["id"],
         equals: filters.patientId,
-      } as never,
+      },
     });
   }
 
@@ -1207,7 +1207,7 @@ const buildWhereFromFilters = (
       patient: {
         path: ["parent", "id"],
         equals: filters.parentId,
-      } as never,
+      },
     });
   }
 
@@ -1216,7 +1216,7 @@ const buildWhereFromFilters = (
       lead: {
         path: ["id"],
         equals: filters.leadId,
-      } as never,
+      },
     });
   }
 
@@ -1540,7 +1540,7 @@ const createAppointment = async (
     return appointment;
   });
 
-  return toResponse(created as AppointmentRow);
+  return toResponse(created);
 };
 
 const applyDtoPatch = (
@@ -1755,7 +1755,7 @@ export const AppointmentPrismaService = {
       }),
     );
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async rejectRequestedAppointment(appointmentId: string) {
@@ -1781,7 +1781,7 @@ export const AppointmentPrismaService = {
       data: { status: "CANCELLED", updatedAt: new Date() },
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async checkInAppointmentParent(appointmentId: string, parentId: string) {
@@ -1830,7 +1830,7 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async checkInAppointment(appointmentId: string, organisationId: string) {
@@ -1870,7 +1870,7 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async admitAppointmentToInpatient(
@@ -2021,7 +2021,7 @@ export const AppointmentPrismaService = {
     });
 
     return {
-      appointment: await toResponse(updated.appointment as AppointmentRow),
+      appointment: await toResponse(updated.appointment),
       admission: updated.admission,
       unitAssignment: updated.unitAssignment,
     } satisfies AdmitResponse;
@@ -2113,7 +2113,7 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async updateAppointmentPMS(
@@ -2268,7 +2268,7 @@ export const AppointmentPrismaService = {
       });
     }
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async cancelAppointmentFromParent(appointmentId: string, parentId: string) {
@@ -2309,7 +2309,7 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async cancelAppointment(appointmentId: string) {
@@ -2341,7 +2341,7 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async getById(
@@ -2368,16 +2368,14 @@ export const AppointmentPrismaService = {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
-    const canViewAsActor =
-      actorId && canViewOwnAppointment(row as AppointmentRow, actorId);
-    const canViewAsParent =
-      parentId && getParentIdFromRow(row as AppointmentRow) === parentId;
+    const canViewAsActor = actorId && canViewOwnAppointment(row, actorId);
+    const canViewAsParent = parentId && getParentIdFromRow(row) === parentId;
 
     if ((actorId || parentId) && !canViewAsActor && !canViewAsParent) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
-    return toResponse(row as AppointmentRow);
+    return toResponse(row);
   },
 
   async getAppointmentsForCompanion(
@@ -2537,6 +2535,6 @@ export const AppointmentPrismaService = {
       data: { formIds: nextFormIds, updatedAt: new Date() },
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 };

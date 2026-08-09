@@ -349,8 +349,7 @@ const parseTaskTemplateInstanceData = (
       "Task",
     description:
       (getWorkflowValue(snapshot, "description", ["definition"]) as
-        | string
-        | undefined) ?? undefined,
+        string | undefined) ?? undefined,
     defaultRole,
     defaultAssigneeRole:
       toTaskAudience(
@@ -369,8 +368,7 @@ const parseTaskTemplateInstanceData = (
         "assignment",
       ]) as string | undefined) ?? undefined,
     defaultRecurrence: getWorkflowValue(snapshot, "recurrence", ["timing"]) as
-      | TaskTemplateInstanceData["defaultRecurrence"]
-      | undefined,
+      TaskTemplateInstanceData["defaultRecurrence"] | undefined,
     defaultReminderOffsetMinutes:
       typeof getWorkflowValue(snapshot, "defaultReminderOffsetMinutes", [
         "timing",
@@ -381,8 +379,7 @@ const parseTaskTemplateInstanceData = (
         : undefined,
     syncWithCalendar:
       (getWorkflowValue(snapshot, "syncWithCalendar", ["assignment"]) as
-        | boolean
-        | undefined) ?? undefined,
+        boolean | undefined) ?? undefined,
   };
 };
 
@@ -414,8 +411,7 @@ const parseCarePathwayInstanceData = (
         additionalNotes:
           (block.additionalNotes as string | undefined) ?? undefined,
         medication: block.medication as
-          | TaskWorkflowSeed["medication"]
-          | undefined,
+          TaskWorkflowSeed["medication"] | undefined,
         observationToolId:
           (block.observationToolId as string | undefined) ?? undefined,
         recurrence: isRecord(block.recurrence)
@@ -453,16 +449,14 @@ const parseCarePathwayInstanceData = (
         : undefined,
     followUpTaskName:
       (getWorkflowValue(snapshot, "followUpTaskName", ["discharge"]) as
-        | string
-        | undefined) ?? undefined,
+        string | undefined) ?? undefined,
     signOffRequired:
       (getWorkflowValue(snapshot, "signOffRequired", ["discharge"]) as
-        | boolean
-        | undefined) ?? undefined,
+        boolean | undefined) ?? undefined,
     shiftWindows: Array.isArray(
       getWorkflowValue(snapshot, "shiftWindows", ["schedule"]),
     )
-      ? ((
+      ? (
           getWorkflowValue(snapshot, "shiftWindows", ["schedule"]) as Array<{
             start?: unknown;
             end?: unknown;
@@ -483,12 +477,12 @@ const parseCarePathwayInstanceData = (
                     typeof day === "number" && day >= 0 && day <= 6,
                 )
               : undefined,
-          })) as ParsedShiftWindow[])
+          }))
       : undefined,
     exceptions: Array.isArray(
       getWorkflowValue(snapshot, "exceptions", ["schedule"]),
     )
-      ? ((
+      ? (
           getWorkflowValue(snapshot, "exceptions", ["schedule"]) as Array<{
             date?: unknown;
             mode?: unknown;
@@ -506,7 +500,7 @@ const parseCarePathwayInstanceData = (
             mode: entry.mode as "SKIP" | "SHIFT",
             start: typeof entry.start === "string" ? entry.start : undefined,
             end: typeof entry.end === "string" ? entry.end : undefined,
-          })) as ParsedScheduleException[])
+          }))
       : undefined,
   };
 };

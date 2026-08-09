@@ -468,7 +468,7 @@ const launchWorkflowInstance = async (
   const updatedSchedule = await client.taskSchedule.update({
     where: { id: persistedSchedule.id },
     data: {
-      generatedTaskIds: generatedTaskIds as Prisma.InputJsonValue,
+      generatedTaskIds: generatedTaskIds,
       completedAt:
         instance.template.kind === TemplateKind.TASK_TEMPLATE ? now : null,
       status:
@@ -699,7 +699,7 @@ export const TaskWorkflowService = {
       data: {
         status: "CANCELLED",
         completedAt: new Date(),
-        generatedTaskIds: generatedTaskIds as Prisma.InputJsonValue,
+        generatedTaskIds: generatedTaskIds,
       },
     });
 

@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { Prisma } from "@prisma/client";
-
 import { prisma } from "src/config/prisma";
 import { ParentService } from "./parent.service";
 
@@ -245,14 +243,14 @@ export const CoParentInviteService = {
         patientId: invite.patient.id,
         role: "CO_PARENT",
         status: "ACTIVE",
-        permissions: CO_PARENT_PERMISSIONS as unknown as Prisma.InputJsonValue,
+        permissions: CO_PARENT_PERMISSIONS,
         invitedByParentId: invite.invitedBy.id,
         acceptedAt: new Date(),
       },
       update: {
         role: "CO_PARENT",
         status: "ACTIVE",
-        permissions: CO_PARENT_PERMISSIONS as unknown as Prisma.InputJsonValue,
+        permissions: CO_PARENT_PERMISSIONS,
         invitedByParentId: invite.invitedBy.id,
         acceptedAt: new Date(),
       },

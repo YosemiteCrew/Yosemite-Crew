@@ -473,9 +473,7 @@ export const StripeService = {
   async handleWebhookEvent(event: Stripe.Event) {
     logger.info("Stripe Webhook received:", event.type);
     const connectedAccountId =
-      typeof (event as Stripe.Event & { account?: string }).account === "string"
-        ? (event as Stripe.Event & { account?: string }).account
-        : undefined;
+      typeof event.account === "string" ? event.account : undefined;
 
     switch (event.type) {
       // marketplace flows (existing)
@@ -672,7 +670,7 @@ export const StripeService = {
           paymentIntentId: pi.id,
           chargeId: charge.id,
           source: "stripe._handleAppointmentBookingPayment",
-        } as Prisma.InputJsonValue,
+        },
       });
 
       await prisma.appointment.updateMany({
@@ -726,7 +724,7 @@ export const StripeService = {
             unitPrice: service.cost,
             total: service.cost,
           },
-        ] as unknown as Prisma.InputJsonValue,
+        ],
         subtotal: service.cost,
         discountTotal: 0,
         taxTotal: 0,
@@ -747,7 +745,7 @@ export const StripeService = {
         paymentIntentId: pi.id,
         chargeId: charge.id,
         source: "stripe._handleAppointmentBookingPayment",
-      } as Prisma.InputJsonValue,
+      },
     });
 
     await prisma.appointment.updateMany({
@@ -790,7 +788,7 @@ export const StripeService = {
           paymentIntentId: pi.id,
           invoiceId,
           metadata: pi.metadata,
-        } as Prisma.InputJsonValue,
+        },
       });
 
     if (result.action === "REFUNDED") {
@@ -918,7 +916,7 @@ export const StripeService = {
           amountTotal: session.amount_total ?? null,
           amountTax: session.total_details?.amount_tax ?? null,
           automaticTaxStatus: session.automatic_tax?.status ?? null,
-        } as Prisma.InputJsonValue,
+        },
       });
 
     if (result.action === "REFUNDED") {

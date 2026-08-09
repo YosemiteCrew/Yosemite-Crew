@@ -238,7 +238,7 @@ const fetchTemplateForms = async (
   if (orgType === "HOSPITAL") {
     where.category = { in: SOAP_CATEGORIES };
   } else {
-    where.businessType = orgType as PrismaOrganizationType;
+    where.businessType = orgType;
     where.category = { notIn: SOAP_CATEGORIES };
   }
 
@@ -475,7 +475,7 @@ const getTemplateOrUndefined = async (
   templateId: string,
 ): Promise<TemplateLike | undefined> => {
   try {
-    return (await TemplateService.getById(templateId)) as TemplateLike;
+    return await TemplateService.getById(templateId);
   } catch (error) {
     const maybeServiceError = error as { statusCode?: number } | undefined;
     if (maybeServiceError?.statusCode === 404) return undefined;
@@ -867,7 +867,7 @@ const toPrismaOrganizationType = (
 ): PrismaOrganizationType | undefined => {
   if (!value) return undefined;
   return (Object.values(PrismaOrganizationType) as string[]).includes(value)
-    ? (value as PrismaOrganizationType)
+    ? value
     : undefined;
 };
 
@@ -876,7 +876,7 @@ const toPrismaRequiredSigner = (
 ): PrismaFormRequiredSigner | undefined => {
   if (!value) return undefined;
   return (Object.values(PrismaFormRequiredSigner) as string[]).includes(value)
-    ? (value as PrismaFormRequiredSigner)
+    ? value
     : undefined;
 };
 
@@ -1293,7 +1293,7 @@ export const FormService = {
         patientId: submission.patientId ?? undefined,
         parentId: submission.parentId ?? undefined,
         submittedBy: submission.submittedBy ?? undefined,
-        answers: submission.answers as unknown as Prisma.InputJsonValue,
+        answers: submission.answers,
         submittedAt: submission.submittedAt,
         signing: (signing ?? undefined) as unknown as Prisma.InputJsonValue,
       },

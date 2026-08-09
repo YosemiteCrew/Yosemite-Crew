@@ -3,8 +3,6 @@ import {
   toCompanionResponseDTO,
   type CompanionRequestDTO,
   type Companion,
-  type CompanionType,
-  type Gender,
   type RecordStatus,
   type SourceType,
 } from "@yosemite-crew/types";
@@ -166,17 +164,17 @@ const toPersistable = (payload: CompanionRequestDTO): CompanionPersistable => {
     medicalRecords:
       companion.medicalRecords as unknown as Prisma.JsonValue | null,
     alerts: companion.alerts as unknown as Prisma.JsonValue | null,
-  } as CompanionPersistable;
+  };
 };
 
 const toPatientWriteData = (persistable: CompanionPersistable) => ({
   name: persistable.name,
-  type: persistable.type as PrismaPatientType,
+  type: persistable.type,
   breed: persistable.breed ?? "",
   speciesCode: persistable.speciesCode ?? undefined,
   breedCode: persistable.breedCode ?? undefined,
   dateOfBirth: persistable.dateOfBirth,
-  gender: persistable.gender as PrismaGender,
+  gender: persistable.gender,
   photoUrl: persistable.photoUrl ?? undefined,
   currentWeight: persistable.currentWeight ?? undefined,
   colour: persistable.colour ?? undefined,
@@ -256,12 +254,12 @@ const validateCompanionCodes = async (
 const mapCompanion = (doc: CompanionRecord): Companion => ({
   id: doc.id,
   name: doc.name,
-  type: doc.type as CompanionType,
+  type: doc.type,
   breed: doc.breed ?? "",
   speciesCode: doc.speciesCode ?? undefined,
   breedCode: doc.breedCode ?? undefined,
   dateOfBirth: doc.dateOfBirth,
-  gender: doc.gender as Gender,
+  gender: doc.gender,
   photoUrl: doc.photoUrl ?? undefined,
   currentWeight: doc.currentWeight ?? undefined,
   colour: doc.colour ?? undefined,
@@ -459,7 +457,7 @@ export const CompanionService = {
       species: persistable.type,
     });
 
-    return { response: toFHIRFromPrisma(updated as CompanionRecord) };
+    return { response: toFHIRFromPrisma(updated) };
   },
 
   async listByParent(parentId: string, context: CompanionCreateContext) {
@@ -554,7 +552,7 @@ export const CompanionService = {
     const doc = await prisma.patient.findUnique({ where: { id } });
     if (!doc) return null;
 
-    return { response: toFHIRFromPrisma(doc as CompanionRecord) };
+    return { response: toFHIRFromPrisma(doc) };
   },
 
   async getByName(name: string) {
@@ -610,7 +608,7 @@ export const CompanionService = {
       nextAlerts: persistable.alerts,
     });
 
-    return { response: toFHIRFromPrisma(doc as CompanionRecord) };
+    return { response: toFHIRFromPrisma(doc) };
   },
 
   async delete(id: string, context?: CompanionCreateContext) {

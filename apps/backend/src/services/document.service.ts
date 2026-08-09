@@ -863,7 +863,7 @@ export const DocumentService = {
       });
     }
 
-    return mapDocumentToDto(updated as unknown as PrismaDocumentRow);
+    return mapDocumentToDto(updated);
   },
 
   async getAllAttachmentUrls(params: {

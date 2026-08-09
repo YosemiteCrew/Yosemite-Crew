@@ -136,7 +136,7 @@ const buildFallbackInvoiceTaxSnapshot = (
       totalAmount: pricing.totalAmount,
       lines: pricing.lines,
       mode: input.mode,
-    } as Prisma.InputJsonValue,
+    },
     rawProviderPayload: {
       provider,
       taxBehavior,
@@ -146,7 +146,7 @@ const buildFallbackInvoiceTaxSnapshot = (
       lineItems,
       mode: input.mode,
       calculationMode: "fallback",
-    } as Prisma.InputJsonValue,
+    },
     calculatedAt: new Date(),
   };
 };

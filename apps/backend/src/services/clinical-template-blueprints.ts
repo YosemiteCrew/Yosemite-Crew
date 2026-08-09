@@ -46,10 +46,7 @@ type BlueprintSection = {
 };
 
 export type ClinicalTemplateKind =
-  | "SOAP_NOTE"
-  | "PRESCRIPTION"
-  | "DISCHARGE_SUMMARY"
-  | "VITAL_RECORD";
+  "SOAP_NOTE" | "PRESCRIPTION" | "DISCHARGE_SUMMARY" | "VITAL_RECORD";
 
 export type ClinicalTemplateSchemaSnapshot = {
   sections: BlueprintSection[];
@@ -489,13 +486,12 @@ export const normalizeClinicalTemplateSchemaSnapshot = (
 // FE-consumable default SOAP seed: four S/O/A/P sections, single-sourced from the backend
 // canonical structure.
 export const buildDefaultSoapNoteSchemaSnapshot =
-  (): ClinicalTemplateSchemaSnapshot =>
-    ({
-      sections: SOAP_NOTE_BLUEPRINT.sections.map((section) => ({
-        ...section,
-        fields: section.fields.map((field) => ({ ...field })),
-      })),
-    }) as ClinicalTemplateSchemaSnapshot;
+  (): ClinicalTemplateSchemaSnapshot => ({
+    sections: SOAP_NOTE_BLUEPRINT.sections.map((section) => ({
+      ...section,
+      fields: section.fields.map((field) => ({ ...field })),
+    })),
+  });
 
 export const validateClinicalTemplateBlueprint = (
   kind: TemplateKind,

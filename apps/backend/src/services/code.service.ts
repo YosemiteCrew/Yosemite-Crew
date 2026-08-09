@@ -218,7 +218,7 @@ export const CodeService = {
     const { where } = buildCodeMappingFilter(params);
 
     return prisma.codeMapping.findMany({
-      where: where as Prisma.CodeMappingWhereInput,
+      where: where,
       orderBy: { createdAt: "desc" },
     });
   },

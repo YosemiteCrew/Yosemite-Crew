@@ -305,16 +305,14 @@ const applyCheckoutSessionTaxToInvoice = async (
               amountTotal: input.amountTotal ?? null,
               amountTax: input.amountTax ?? null,
               automaticTaxStatus: input.automaticTaxStatus ?? null,
-            } as unknown as Prisma.InputJsonValue,
-            rawProviderPayload:
-              input.rawProviderPayload ??
-              ({
-                sessionId: input.sessionId,
-                amountSubtotal: input.amountSubtotal ?? null,
-                amountTotal: input.amountTotal ?? null,
-                amountTax: input.amountTax ?? null,
-                automaticTaxStatus: input.automaticTaxStatus ?? null,
-              } as Prisma.InputJsonValue),
+            },
+            rawProviderPayload: input.rawProviderPayload ?? {
+              sessionId: input.sessionId,
+              amountSubtotal: input.amountSubtotal ?? null,
+              amountTotal: input.amountTotal ?? null,
+              amountTax: input.amountTax ?? null,
+              automaticTaxStatus: input.automaticTaxStatus ?? null,
+            },
             calculatedAt: new Date(),
           },
           update: {
@@ -335,16 +333,14 @@ const applyCheckoutSessionTaxToInvoice = async (
               amountTotal: input.amountTotal ?? null,
               amountTax: input.amountTax ?? null,
               automaticTaxStatus: input.automaticTaxStatus ?? null,
-            } as unknown as Prisma.InputJsonValue,
-            rawProviderPayload:
-              input.rawProviderPayload ??
-              ({
-                sessionId: input.sessionId,
-                amountSubtotal: input.amountSubtotal ?? null,
-                amountTotal: input.amountTotal ?? null,
-                amountTax: input.amountTax ?? null,
-                automaticTaxStatus: input.automaticTaxStatus ?? null,
-              } as Prisma.InputJsonValue),
+            },
+            rawProviderPayload: input.rawProviderPayload ?? {
+              sessionId: input.sessionId,
+              amountSubtotal: input.amountSubtotal ?? null,
+              amountTotal: input.amountTotal ?? null,
+              amountTax: input.amountTax ?? null,
+              automaticTaxStatus: input.automaticTaxStatus ?? null,
+            },
             calculatedAt: new Date(),
           },
         },
@@ -979,7 +975,7 @@ export const FinancePaymentService = {
           sessionId: session.id,
           url: session.url ?? null,
           connectedAccountId: organisation.stripeAccountId,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1176,7 +1172,7 @@ export const FinancePaymentService = {
         connectedAccountId: organisation.stripeAccountId,
         collectionMode: options.collectionMode ?? null,
         settlementChannel: options.settlementChannel ?? null,
-      } as Prisma.InputJsonValue,
+      },
     });
 
     await prisma.invoice.update({
@@ -1259,7 +1255,7 @@ export const FinancePaymentService = {
           rawProviderPayload: {
             source: "finance.refundInvoicePayment",
             invoiceId,
-          } as Prisma.InputJsonValue,
+          },
         },
       });
     }
@@ -1323,7 +1319,7 @@ export const FinancePaymentService = {
           paymentId: payment.id,
           providerRefundId,
           refundStatus,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1336,7 +1332,7 @@ export const FinancePaymentService = {
           invoiceId,
           refundId: refund.id,
           providerRefundId,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1367,7 +1363,7 @@ export const FinancePaymentService = {
           refundId: providerRefundId ?? refund.id,
           amount: amountRefunded,
           refundDate: new Date().toISOString(),
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
       include: { payments: true },
     });
@@ -1530,7 +1526,7 @@ export const FinancePaymentService = {
           providerRefundId,
           refundStatus,
           amount: refundAmount,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1932,15 +1928,13 @@ export const FinancePaymentService = {
       providerPaymentId: input.paymentIntentId ?? null,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,
-      rawProviderPayload:
-        input.rawProviderPayload ??
-        ({
-          sessionId: input.sessionId,
-          amountSubtotal: input.amountSubtotal ?? null,
-          amountTotal: input.amountTotal ?? null,
-          amountTax: input.amountTax ?? null,
-          automaticTaxStatus: input.automaticTaxStatus ?? null,
-        } as Prisma.InputJsonValue),
+      rawProviderPayload: input.rawProviderPayload ?? {
+        sessionId: input.sessionId,
+        amountSubtotal: input.amountSubtotal ?? null,
+        amountTotal: input.amountTotal ?? null,
+        amountTax: input.amountTax ?? null,
+        automaticTaxStatus: input.automaticTaxStatus ?? null,
+      },
     });
 
     return { action: "PAID" as const, ...applied };
@@ -1995,7 +1989,7 @@ export const FinancePaymentService = {
             invoiceId: invoice.id,
             paymentIntentId: input.paymentIntentId ?? null,
             chargeId: input.chargeId ?? null,
-          } as Prisma.InputJsonValue,
+          },
         },
       });
 
@@ -2016,7 +2010,7 @@ export const FinancePaymentService = {
           amount: input.amount,
           refundDate: new Date().toISOString(),
           cancellationReason: input.reason ?? undefined,
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     });
 

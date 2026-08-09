@@ -1,4 +1,4 @@
-import { Prisma, TaskScheduleStatus, TemplateKind } from "@prisma/client";
+import { TaskScheduleStatus, TemplateKind } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { TaskService } from "./task.service";
 
@@ -168,7 +168,7 @@ const parseSeed = (value: unknown): StoredTaskWorkflowSeed => {
         : undefined,
     medication:
       seed.medication && typeof seed.medication === "object"
-        ? (seed.medication as StoredTaskWorkflowSeed["medication"])
+        ? seed.medication
         : undefined,
     observationToolId:
       typeof seed.observationToolId === "string"
@@ -244,7 +244,7 @@ const materializeSchedule = async (
   await prisma.taskSchedule.update({
     where: { id: schedule.id },
     data: {
-      generatedTaskIds: generatedTaskIds as Prisma.InputJsonValue,
+      generatedTaskIds: generatedTaskIds,
       status: scheduleStatusForTemplateKind(schedule.templateKind),
       completedAt:
         schedule.templateKind === TemplateKind.TASK_TEMPLATE ? now : null,

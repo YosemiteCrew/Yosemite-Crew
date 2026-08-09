@@ -435,7 +435,7 @@ const loadBootstrapBillingState = async (input: {
     };
   }
 
-  const invoice = (await prisma.invoice.findFirst({
+  const invoice = await prisma.invoice.findFirst({
     where: {
       organisationId: input.organisationId,
       appointmentId: input.appointmentId,
@@ -447,12 +447,7 @@ const loadBootstrapBillingState = async (input: {
       readyForBillingAt: true,
       readyForBillingActorId: true,
     },
-  })) as {
-    id: string;
-    visitBillingStage: InvoiceVisitBillingStage;
-    readyForBillingAt: Date | null;
-    readyForBillingActorId: string | null;
-  } | null;
+  });
 
   const visitBillingStage = invoice?.visitBillingStage ?? null;
   const readyForBilling = visitBillingStage === "READY_FOR_BILLING";
@@ -1349,31 +1344,31 @@ const buildContext = async (
 
   let encounterAppointment: AppointmentRow | null = null;
   if (appointment === null && input.encounterId) {
-    encounterAppointment = (await prisma.appointment.findFirst({
+    encounterAppointment = await prisma.appointment.findFirst({
       where: {
         encounterId: input.encounterId,
         organisationId: input.organisationId,
       },
-    })) as AppointmentRow | null;
+    });
   }
 
   const resolvedAppointment = appointment ?? encounterAppointment;
 
   let encounterRow: EncounterRow | null = null;
   if (input.encounterId) {
-    encounterRow = (await prisma.encounter.findFirst({
+    encounterRow = await prisma.encounter.findFirst({
       where: {
         id: input.encounterId,
         organisationId: input.organisationId,
       },
-    })) as EncounterRow | null;
+    });
   } else if (appointment?.encounterId) {
-    encounterRow = (await prisma.encounter.findFirst({
+    encounterRow = await prisma.encounter.findFirst({
       where: {
         id: appointment.encounterId,
         organisationId: input.organisationId,
       },
-    })) as EncounterRow | null;
+    });
   }
 
   const encounter = encounterRow ? mapEncounterRow(encounterRow) : null;
@@ -1995,13 +1990,13 @@ const buildBootstrapAggregate = async (
     ? SYSTEM_WORKSPACE_ACCESS
     : buildWorkspaceAccess(permissionsSnapshot);
   const context = await buildContext(input);
-  const organisation = (await prisma.organization.findUnique({
+  const organisation = await prisma.organization.findUnique({
     where: { id: input.organisationId },
     select: {
       appointmentLockWindowOutpatientMinutes: true,
       appointmentLockWindowInpatientMinutes: true,
     },
-  })) as OrganizationLockWindowRow | null;
+  });
 
   if (options?.requireAppointment && !context.appointment) {
     throw new WorkspaceServiceError("Appointment not found", 404);
@@ -2140,10 +2135,7 @@ const buildBootstrapAggregate = async (
     encounter: context.encounter,
     forms: forms.items,
     tasks,
-    clinicalArtifacts: clinical.clinicalArtifacts as Array<{
-      artifact?: { status?: string; kind?: string };
-      status?: string;
-    }>,
+    clinicalArtifacts: clinical.clinicalArtifacts,
     labSummary: finalizationLabSummary,
     billingState,
     pendingDispenseRequests,
@@ -2173,8 +2165,8 @@ const buildBootstrapAggregate = async (
       : [],
     diagnosticQueue: access.labs
       ? buildDiagnosticQueue(
-          ordersAndResults.orders as never,
-          ordersAndResults.results as never,
+          ordersAndResults.orders,
+          ordersAndResults.results,
           diagnosticPreloads,
         )
       : [],
