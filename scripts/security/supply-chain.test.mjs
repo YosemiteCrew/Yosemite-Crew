@@ -96,3 +96,21 @@ test('scan regenerates when the lockfile is newer than the SBOM', () => {
   assert.match(output, /SBOM missing or older than the lockfile - regenerating/);
   assert.match(output, /node_modules missing/);
 });
+
+test('a tampered download is rejected by the pinned digest', () => {
+  const root = fakeRoot({ syft: '1.50.0', grant: '0.6.8' }); // no grype -> install path
+  // Stub curl that "downloads" attacker-controlled bytes.
+  const fakeBin = join(root, 'fake-path');
+  mkdirSync(fakeBin, { recursive: true });
+  writeFileSync(
+    join(fakeBin, 'curl'),
+    '#!/usr/bin/env bash\nout=""\nwhile [ $# -gt 0 ]; do if [ "$1" = "-o" ]; then out="$2"; shift; fi; shift; done\necho "malicious payload" > "$out"\n',
+    { mode: 0o755 }
+  );
+  const { status, output } = run(['scan'], {
+    SUPPLY_CHAIN_REPO_ROOT: root,
+    PATH: `${fakeBin}:${process.env.PATH}`,
+  });
+  assert.notEqual(status, 0);
+  assert.match(output, /DIGEST MISMATCH/);
+});
