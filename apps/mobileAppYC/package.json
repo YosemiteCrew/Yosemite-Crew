@@ -29,7 +29,7 @@
     "@react-native-community/geolocation": "^3.4.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-documents/picker": "^11.0.0",
-    "@react-native-firebase/app": "^23.5.0",
+    "@react-native-firebase/app": "^26.1.0",
     "@react-native-firebase/messaging": "^23.5.0",
     "@react-native-google-signin/google-signin": "^16.1.4",
     "@react-native-masked-view/masked-view": "^0.3.2",
