@@ -84,8 +84,10 @@ app/gradle.lockfile` Maven deps, `ios/Podfile.lock` pods) - only build
   workflow can observe. The user's tag push covers gating and SBOM artifacts
   for those refs; to attach the assets to such a release, run the workflow
   via `workflow_dispatch` from the tag ref with the `release_tag` input set
-  to that tag - the SBOM is built from the dispatched ref, so dispatching
-  from the tag makes the uploaded assets match the released code.
+  to that tag. The SBOM is built from the dispatched ref, so the publish job
+  fails closed unless the dispatch ref IS `refs/tags/<release_tag>` - a
+  dispatch from any other ref would otherwise clobber the release's SBOMs
+  with artifacts built from different code.
 - The dependency install runs on Linux in CI, so packages restricted to other
   platforms via the `os` field contribute lockfile entries (completeness) but
   no installed license metadata - a known, documented margin.
