@@ -65,6 +65,10 @@ updates:
       # far scores below the 50 minimum (1.413.x scored 31/100 on #2088 and
       # #2096). Re-bump deliberately once the Socket score recovers.
       - dependency-name: 'posthog-js'
+      # google-auth-library 11 requires node >=22 at runtime; the backend image
+      # runs node 18 - unfreeze together with the runtime upgrade.
+      - dependency-name: 'google-auth-library'
+        update-types: ['version-update:semver-major']
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
