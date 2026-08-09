@@ -105,7 +105,7 @@ jobs:
         # still applies to them through the job's exit code.
         if: always() && github.actor != 'dependabot[bot]'
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@df559355d593797519d70b90fc8edd5db049e7a2 # v3.31.0
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v3.31.0
         with:
           sarif_file: security/reports/grype.sarif
           category: supply-chain
