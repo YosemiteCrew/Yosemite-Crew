@@ -691,8 +691,8 @@ importers:
         specifier: ^11.4.1
         version: 11.5.2(react-native@0.81.4)(react@19.1.0)
       '@react-native-documents/picker':
-        specifier: ^11.0.0
-        version: 11.0.4(react-native@0.81.4)(react@19.1.0)
+        specifier: ^12.0.2
+        version: 12.0.2(react-native@0.81.4)(react@19.1.0)
       '@react-native-firebase/app':
         specifier: ^23.5.0
         version: 23.8.6(@react-native-async-storage/async-storage@2.2.0)(react-native@0.81.4)(react@19.1.0)
@@ -866,7 +866,7 @@ importers:
         version: 7.8.5
       stream-chat-react-native:
         specifier: ^8.8.0
-        version: 8.12.4(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.30.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.4)(react@19.1.0)(typescript@5.9.3)
+        version: 8.12.4(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@12.0.2)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.30.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.4)(react@19.1.0)(typescript@5.9.3)
       supertokens-react-native:
         specifier: ^5.1.5
         version: 5.1.5(@react-native-async-storage/async-storage@2.2.0)(axios@1.18.0)(react-native@0.81.4)
@@ -10954,8 +10954,8 @@ packages:
     resolution: {integrity: sha512-484sH8aWEaSjxaZ7HT3YZ8CKDcNes2synko1vdEz5DFEdvKAduxKJTj22L/qBMD7rtIkfbX69DMzWDAGbOAV6w==}
     dev: false
 
-  /@react-native-documents/picker@11.0.4(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-lbwcBwXMwZ5eTvNI6j/HqPjyB87moRCA8k7EoLCXF4KsLNt2jYDBXkUONX/WcMRMyQEaJPWB77W2zMCcRdX4jw==}
+  /@react-native-documents/picker@12.0.2(react-native@0.81.4)(react@19.1.0):
+    resolution: {integrity: sha512-tiaPQjSdsaCkKw/N8XB+DXfhOJ+KJ1OYDliBGoBHEqLI7AhUsSPhn8fRI/gHs7hpYzqOBKf+em9MUrPIA9mlWA==}
     peerDependencies:
       react: '*'
       react-native: '>=0.79.0'
@@ -29640,7 +29640,7 @@ packages:
       - utf-8-validate
     dev: false
 
-  /stream-chat-react-native@8.12.4(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.30.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.4)(react@19.1.0)(typescript@5.9.3):
+  /stream-chat-react-native@8.12.4(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@12.0.2)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.30.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.4)(react@19.1.0)(typescript@5.9.3):
     resolution: {integrity: sha512-Z7drkdhZ4ts2s9vaOUF9Ftx/gpXs4vaskRZ2pzTDxnsILjr7zuwUdIvPdOPiGggPMRSDhiuNL5Di3UKp01/mXw==}
     peerDependencies:
       '@react-native-camera-roll/camera-roll': '>=7.8.0'
@@ -29680,7 +29680,7 @@ packages:
         optional: true
     dependencies:
       '@react-native-clipboard/clipboard': 1.16.3(react-native@0.81.4)(react@19.1.0)
-      '@react-native-documents/picker': 11.0.4(react-native@0.81.4)(react@19.1.0)
+      '@react-native-documents/picker': 12.0.2(react-native@0.81.4)(react@19.1.0)
       es6-symbol: 3.1.4
       mime: 4.1.0
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
