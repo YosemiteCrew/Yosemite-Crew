@@ -100,8 +100,8 @@ const toCompanionParentLink = (
   parent?: ParentIdentity,
 ): CompanionParentLink => ({
   parentId: record.parentId,
-  role: record.role as ParentCompanionRole,
-  status: record.status as ParentCompanionStatus,
+  role: record.role,
+  status: record.status,
   permissions: record.permissions as unknown as ParentCompanionPermissions,
   invitedByParentId: record.invitedByParentId ?? undefined,
   acceptedAt: record.acceptedAt?.toISOString(),
@@ -232,8 +232,8 @@ export const ParentCompanionService = {
         data: {
           parentId: normalizedParentId,
           patientId: normalizedPatientId,
-          role: role as PrismaParentPatientRole,
-          status: effectiveStatus as PrismaParentPatientStatus,
+          role: role,
+          status: effectiveStatus,
           permissions: permissions as unknown as Prisma.InputJsonValue,
           invitedByParentId: normalizedInvitedByParentId,
           acceptedAt: effectiveStatus === "ACTIVE" ? new Date() : undefined,
@@ -394,7 +394,7 @@ export const ParentCompanionService = {
               permissions: {
                 ...BASE_PERMISSIONS,
                 assignAsPrimaryParent: false,
-              } as unknown as Prisma.InputJsonValue,
+              },
             },
           });
         }
@@ -524,7 +524,7 @@ export const ParentCompanionService = {
             permissions: {
               ...BASE_PERMISSIONS,
               assignAsPrimaryParent: false,
-            } as unknown as Prisma.InputJsonValue,
+            },
           },
         });
       }

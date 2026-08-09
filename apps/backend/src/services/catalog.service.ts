@@ -2033,7 +2033,7 @@ export const CatalogService = {
       resourceName: "Catalog item",
     });
 
-    const nextKind = input.kind ?? (existing.kind as ProductKind);
+    const nextKind = input.kind ?? existing.kind;
     const packageItems =
       input.packageItems === undefined
         ? undefined
@@ -2744,7 +2744,7 @@ export const CatalogService = {
           },
         },
       },
-    } as unknown as Prisma.ProductItemFindManyArgs)) as unknown as ProductRecord[];
+    })) as unknown as ProductRecord[];
 
     return candidateOrgs
       .map((org) => {

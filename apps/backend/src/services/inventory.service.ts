@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
 import {
-  InventoryBusinessType,
   InventoryItemType,
   InventoryBatch as PrismaInventoryBatch,
   InventoryItem as PrismaInventoryItem,
@@ -943,7 +942,7 @@ const createInventoryItemInPostgres = async (
   const item = await prisma.inventoryItem.create({
     data: {
       organisationId,
-      businessType: businessType as InventoryBusinessType,
+      businessType: businessType,
       itemType,
       name: input.name,
       sku: input.sku ?? undefined,
@@ -952,7 +951,7 @@ const createInventoryItemInPostgres = async (
       description: input.description ?? undefined,
       imageUrl: input.imageUrl ?? undefined,
       attachments: attachments as Prisma.InputJsonValue | undefined,
-      attributes: (input.attributes ?? {}) as Prisma.InputJsonValue,
+      attributes: input.attributes ?? {},
       genericName: input.genericName ?? undefined,
       strength: input.strength ?? undefined,
       dosageForm: input.dosageForm ?? undefined,
@@ -976,7 +975,7 @@ const createInventoryItemInPostgres = async (
       vendorId: input.vendorId ?? undefined,
       onHand: input.initialOnHand ?? 0,
       allocated: itemAllocated,
-      status: (input.status ?? "ACTIVE") as InventoryItemStatus,
+      status: input.status ?? "ACTIVE",
     },
   });
 
@@ -1189,7 +1188,7 @@ export const InventoryService = {
           : (input.attachments as Prisma.InputJsonValue);
     }
     if (input.attributes !== undefined) {
-      data.attributes = input.attributes as Prisma.InputJsonValue;
+      data.attributes = input.attributes;
     }
     if (input.genericName !== undefined)
       data.genericName = input.genericName ?? null;
@@ -1264,7 +1263,7 @@ export const InventoryService = {
     }
     if (input.vendorId !== undefined) data.vendorId = input.vendorId ?? null;
     if (input.status !== undefined) {
-      data.status = input.status as InventoryItemStatus;
+      data.status = input.status;
     }
 
     const updated = await prisma.inventoryItem.update({
@@ -1482,10 +1481,10 @@ export const InventoryService = {
     };
 
     if (query.businessType) {
-      where.businessType = query.businessType as InventoryBusinessType;
+      where.businessType = query.businessType;
     }
-    if (query.category) where.category = query.category as string;
-    if (query.subCategory) where.subCategory = query.subCategory as string;
+    if (query.category) where.category = query.category;
+    if (query.subCategory) where.subCategory = query.subCategory;
     if (vendorIds.length) {
       where.vendorId = { in: vendorIds };
     }
@@ -1499,8 +1498,7 @@ export const InventoryService = {
         };
       } else if (typeof query.status === "object" && "$ne" in query.status) {
         where.status = {
-          not: (query.status as { $ne: InventoryStatus })
-            .$ne as InventoryItemStatus,
+          not: (query.status as { $ne: InventoryStatus }).$ne,
         };
       }
     }
@@ -1524,7 +1522,7 @@ export const InventoryService = {
         return pattern
           ? { [key]: { contains: pattern, mode: "insensitive" } }
           : {};
-      }) as Prisma.InventoryItemWhereInput[];
+      });
     }
 
     const items = await prisma.inventoryItem.findMany({
@@ -2104,7 +2102,7 @@ export const InventoryAllocationService = {
     return {
       ...updated,
       _id: toMongoId(updated.id),
-    } as unknown as InventoryItemDocument;
+    };
   },
 };
 

@@ -1,8 +1,4 @@
-import {
-  Prisma,
-  TemplateKind as PrismaTemplateKind,
-  RenderedDocumentSourceKind as PrismaRenderedDocumentSourceKind,
-} from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import AWS from "aws-sdk";
 import axios from "axios";
 import {
@@ -404,7 +400,7 @@ const rerenderAndPersistClinicalRenderedDocumentPdf = async (
     where: { id: document.id },
     data: {
       pdfUrl: upload.url,
-      pdf: pdfSnapshot as unknown as Prisma.InputJsonValue,
+      pdf: pdfSnapshot,
     },
   });
 
@@ -449,16 +445,14 @@ const toRenderedDocumentCreateData = (
 ): Prisma.RenderedDocumentUncheckedCreateInput => ({
   id: draft.id,
   organisationId: draft.organisationId,
-  sourceKind: draft.source.sourceKind as PrismaRenderedDocumentSourceKind,
+  sourceKind: draft.source.sourceKind,
   sourceId: draft.source.sourceId,
   templateInstanceId: input.templateInstanceId ?? undefined,
   clinicalArtifactId: input.clinicalArtifactId ?? undefined,
   templateId: draft.source.templateId ?? undefined,
   templateVersion: draft.source.templateVersion ?? undefined,
   templateVersionId: draft.source.templateVersionId ?? undefined,
-  kind: (draft.kind === "INVOICE"
-    ? "INVOICE"
-    : toLegacyTemplateKind(draft.kind)) as PrismaTemplateKind,
+  kind: draft.kind === "INVOICE" ? "INVOICE" : toLegacyTemplateKind(draft.kind),
   version: draft.version,
   title: draft.title,
   mimeType: draft.mimeType,
@@ -467,9 +461,7 @@ const toRenderedDocumentCreateData = (
   pdfUrl: input.pdfUrl ?? undefined,
   pdf:
     input.pdf === undefined
-      ? (buildRenderedDocumentPdfSnapshot(
-          draft,
-        ) as unknown as Prisma.InputJsonValue)
+      ? buildRenderedDocumentPdfSnapshot(draft)
       : (input.pdf as Prisma.InputJsonValue),
   signedBy: draft.signedBy ?? undefined,
   signedAt: draft.signedAt ?? undefined,
@@ -478,13 +470,12 @@ const toRenderedDocumentCreateData = (
 
 const normalizePersistedRenderedDocument = (
   document: PersistedRenderedDocument,
-): PersistedRenderedDocument =>
-  ({
-    ...document,
-    kind: normalizeTemplateKind(
-      document.kind,
-    ) as PersistedRenderedDocument["kind"],
-  }) as PersistedRenderedDocument;
+): PersistedRenderedDocument => ({
+  ...document,
+  kind: normalizeTemplateKind(
+    document.kind,
+  ) as PersistedRenderedDocument["kind"],
+});
 
 export const createRenderedDocumentRecord = async (
   input: PersistRenderedDocumentInput,
@@ -734,7 +725,7 @@ export const signPersistedRenderedDocument = async (
     await client.renderedDocument.update({
       where: { id: existing.id },
       data: {
-        pdf: renderedPdfSnapshot as unknown as Prisma.InputJsonValue,
+        pdf: renderedPdfSnapshot,
         signing: {
           required: true,
           provider: "DOCUMENSO",
@@ -745,7 +736,7 @@ export const signPersistedRenderedDocument = async (
           signerEmail: input.signerEmail,
           signerName: input.signerName,
           signingUrl,
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
       include: { signature: true },
     }),
@@ -830,7 +821,7 @@ export const completePersistedRenderedDocumentSigning = async (
           pdf: {
             url: signedPdf.downloadUrl ?? null,
           },
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
       include: { signature: true },
     }),

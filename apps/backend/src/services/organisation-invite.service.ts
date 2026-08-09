@@ -194,13 +194,13 @@ const findDepartmentByIdOrFhirId = async (
   identifier: string,
   organisationId: string,
 ): Promise<DepartmentIdentity | null> => {
-  return (await prisma.speciality.findFirst({
+  return await prisma.speciality.findFirst({
     where: {
       organisationId,
       OR: [{ id: identifier }, { fhirId: identifier }],
     },
     select: { id: true },
-  })) as DepartmentIdentity | null;
+  });
 };
 
 const createOrReplaceInvitePostgres = async (input: {

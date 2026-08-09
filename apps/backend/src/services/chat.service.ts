@@ -514,7 +514,7 @@ export const ChatService = {
     assertCanCloseSession(session, actorUserId);
 
     const channel = streamServer.channel(
-      getStreamChannelType(session.type as ChatSessionType),
+      getStreamChannelType(session.type),
       session.channelId,
     );
 

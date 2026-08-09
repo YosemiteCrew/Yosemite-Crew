@@ -415,8 +415,7 @@ export const TaskController = {
         return res.status(403).json({ message: "Account not found" });
       }
 
-      const scope =
-        parseRecurrenceScope(req.query.scope as string | string[]) ?? "THIS";
+      const scope = parseRecurrenceScope(req.query.scope) ?? "THIS";
       await TaskService.deleteTask(
         taskId,
         actorId,

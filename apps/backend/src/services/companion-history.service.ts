@@ -418,7 +418,7 @@ const appendTaskHistoryEntries = async (params: {
       id: `TASK:${taskId}`,
       type: "TASK",
       occurredAt,
-      status: task.status as HistoryEntryStatus,
+      status: task.status,
       title: task.name,
       subtitle: [task.category, task.audience].filter(Boolean).join(" • "),
       summary: buildTaskSummary(task),

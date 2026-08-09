@@ -249,7 +249,7 @@ export const AvailabilityService = {
     });
 
     return created.map((row) => ({
-      dayOfWeek: row.dayOfWeek as DayOfWeek,
+      dayOfWeek: row.dayOfWeek,
       slots: row.slots as unknown as AvailabilitySlotMongo[],
     }));
   },
@@ -269,7 +269,7 @@ export const AvailabilityService = {
       _id: row.id,
       userId: row.userId,
       organisationId: row.organisationId,
-      dayOfWeek: row.dayOfWeek as DayOfWeek,
+      dayOfWeek: row.dayOfWeek,
       slots: row.slots as unknown as AvailabilitySlotMongo[],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -291,7 +291,7 @@ export const AvailabilityService = {
       _id: row.id,
       userId: row.userId,
       organisationId: row.organisationId,
-      dayOfWeek: row.dayOfWeek as DayOfWeek,
+      dayOfWeek: row.dayOfWeek,
       slots: row.slots as unknown as AvailabilitySlotMongo[],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

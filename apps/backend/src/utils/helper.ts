@@ -73,14 +73,14 @@ const helpers = {
     return { appointmentDate, appointmentTime, appointmentTime24 };
   },
 
-  async getGeoLocation(query: string) {
+  async getGeoLocation(query: string): Promise<{ lat: number; lng: number }> {
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${process.env.GOOGLE_API_KEY}`;
 
     const res = await axios.get(url);
     if (!res.data.results.length) throw new Error("Location not found");
 
     const { lat, lng } = res.data.results[0].geometry.location;
-    return { lat, lng };
+    return { lat: Number(lat), lng: Number(lng) };
   },
 };
 

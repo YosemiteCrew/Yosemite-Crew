@@ -12,7 +12,7 @@ import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
-import { Prisma, OrganizationType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { buildGeoPoint } from "src/utils/geojson";
 import { calculateDistanceMeters, toRadians } from "src/utils/geo";
@@ -698,7 +698,7 @@ export const OrganizationService = {
       taxId: persistable.taxId,
       dunsNumber: persistable.DUNSNumber ?? undefined,
       imageUrl: persistable.imageURL ?? undefined,
-      type: persistable.type as OrganizationType,
+      type: persistable.type,
       petNamePreference: persistable.petNamePreference ?? undefined,
       phoneNo: persistable.phoneNo,
       website: persistable.website ?? undefined,
@@ -795,8 +795,8 @@ export const OrganizationService = {
             data: {
               userId,
               organizationId: organisation.id,
-              personalDetails: {} as Prisma.InputJsonValue,
-              professionalDetails: {} as Prisma.InputJsonValue,
+              personalDetails: {},
+              professionalDetails: {},
               status: "DRAFT",
             },
           });
@@ -890,7 +890,7 @@ export const OrganizationService = {
         taxId: persistable.taxId,
         dunsNumber: persistable.DUNSNumber ?? undefined,
         imageUrl: persistable.imageURL ?? undefined,
-        type: persistable.type as OrganizationType,
+        type: persistable.type,
         petNamePreference: persistable.petNamePreference ?? undefined,
         phoneNo: persistable.phoneNo,
         website: persistable.website ?? undefined,

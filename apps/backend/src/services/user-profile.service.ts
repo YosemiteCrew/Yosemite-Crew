@@ -923,12 +923,9 @@ export const UserProfileService = {
       },
     });
 
-    const profile = buildDomainProfileFromPrisma(
-      storedProfile ?? (created as PrismaUserProfileWithAddress),
-      {
-        statusOverride: status,
-      },
-    );
+    const profile = buildDomainProfileFromPrisma(storedProfile ?? created, {
+      statusOverride: status,
+    });
     return applyPmsPreferenceDefaults(profile, userOrganisation?.roleCode);
   },
 

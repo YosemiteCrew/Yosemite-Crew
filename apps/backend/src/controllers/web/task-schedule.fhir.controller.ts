@@ -88,12 +88,7 @@ export const TaskScheduleFhirController = {
 
       return res
         .status(200)
-        .json(
-          taskScheduleFhirMapper.toTask(
-            record.schedule as TaskScheduleLike,
-            record.taskIds,
-          ),
-        );
+        .json(taskScheduleFhirMapper.toTask(record.schedule, record.taskIds));
     } catch (error) {
       return handleError(error, res);
     }
@@ -106,9 +101,7 @@ export const TaskScheduleFhirController = {
         resolveScheduleActor(req),
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(taskScheduleFhirMapper.toTask(schedule as TaskScheduleLike));
+      return res.status(200).json(taskScheduleFhirMapper.toTask(schedule));
     } catch (error) {
       return handleError(error, res);
     }
@@ -121,9 +114,7 @@ export const TaskScheduleFhirController = {
         resolveScheduleActor(req),
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(taskScheduleFhirMapper.toTask(schedule as TaskScheduleLike));
+      return res.status(200).json(taskScheduleFhirMapper.toTask(schedule));
     } catch (error) {
       return handleError(error, res);
     }
@@ -136,9 +127,7 @@ export const TaskScheduleFhirController = {
         resolveScheduleActor(req),
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(taskScheduleFhirMapper.toTask(schedule as TaskScheduleLike));
+      return res.status(200).json(taskScheduleFhirMapper.toTask(schedule));
     } catch (error) {
       return handleError(error, res);
     }
@@ -165,12 +154,7 @@ export const TaskScheduleFhirController = {
       );
       return res
         .status(200)
-        .json(
-          taskScheduleFhirMapper.toTask(
-            record.schedule as TaskScheduleLike,
-            record.taskIds,
-          ),
-        );
+        .json(taskScheduleFhirMapper.toTask(record.schedule, record.taskIds));
     } catch (error) {
       return handleError(error, res);
     }

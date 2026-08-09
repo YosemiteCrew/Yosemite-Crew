@@ -203,13 +203,12 @@ export const OrganizationDocumentService = {
         organisationId: input.organisationId,
         title: input.title,
         description: input.description ?? "",
-        category: input.category as PrismaOrgDocumentCategory,
+        category: input.category,
         fileUrl: input.fileUrl ?? undefined,
         fileName: input.fileName ?? undefined,
         fileType: input.fileType ?? undefined,
         fileSize: input.fileSize ?? undefined,
-        visibility: (input.visibility ??
-          "INTERNAL") as PrismaOrgDocumentVisibility,
+        visibility: input.visibility ?? "INTERNAL",
         version: 1,
       },
     });
@@ -314,11 +313,11 @@ export const OrganizationDocumentService = {
     };
 
     if (input.category) {
-      where.category = input.category as PrismaOrgDocumentCategory;
+      where.category = input.category;
     }
 
     if (input.visibility && input.visibility !== "ALL") {
-      where.visibility = input.visibility as PrismaOrgDocumentVisibility;
+      where.visibility = input.visibility;
     }
 
     const docs = await prisma.organizationDocument.findMany({
@@ -391,7 +390,7 @@ export const OrganizationDocumentService = {
     const existing = await prisma.organizationDocument.findFirst({
       where: {
         organisationId: input.organisationId,
-        category: input.category as PrismaOrgDocumentCategory,
+        category: input.category,
       },
     });
 
@@ -405,7 +404,7 @@ export const OrganizationDocumentService = {
     return await this.updateDocument(existing.id, {
       title: input.title,
       description: input.description,
-      visibility: input.visibility ?? (existing.visibility as Visibility),
+      visibility: input.visibility ?? existing.visibility,
       fileUrl: input.fileUrl,
       fileName: input.fileName,
       fileType: input.fileType,
@@ -462,7 +461,7 @@ export const OrganizationDocumentService = {
           userId,
           organisationId,
           documentId,
-          category: input.category as PrismaOrgDocumentCategory,
+          category: input.category,
           version: input.version,
         },
       },
@@ -470,7 +469,7 @@ export const OrganizationDocumentService = {
         userId,
         organisationId,
         documentId,
-        category: input.category as PrismaOrgDocumentCategory,
+        category: input.category,
         version: input.version,
       },
       update: {},

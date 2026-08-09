@@ -313,10 +313,10 @@ const findLatestEncounterPacket = async (
   organisationId: string,
   encounterId: string,
 ): Promise<PacketRecord | null> =>
-  (await prisma.workspaceDocumentPacket.findFirst({
+  await prisma.workspaceDocumentPacket.findFirst({
     where: { organisationId, encounterId },
     orderBy: { updatedAt: "desc" },
-  })) as PacketRecord | null;
+  });
 
 const hasActiveOrCompletedSigning = (packet: PacketRecord): boolean => {
   if (packet.status === "FINAL") {
@@ -609,7 +609,7 @@ export const WorkspaceDocumentPacketService = {
           ...signing,
           status: "SIGNED",
           pdf: { url: signedUrl },
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     })) as PacketRecord;
 
@@ -629,7 +629,7 @@ export const WorkspaceDocumentPacketService = {
                 status: "SIGNED",
                 viaPacketId: packet.id,
                 pdf: { url: signedUrl },
-              } as unknown as Prisma.InputJsonValue,
+              },
             },
           });
           await prisma.documentSignature.upsert({
@@ -702,7 +702,7 @@ export const WorkspaceDocumentPacketService = {
         signing: {
           ...signing,
           status: "NOT_STARTED",
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     });
   },

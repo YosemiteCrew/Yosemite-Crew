@@ -698,9 +698,8 @@ const updateAppointmentPMSFromPostgresRow = async ({
         lead: {
           id: extracted.lead?.id,
           name: extracted.lead?.name ?? "Vet",
-        } as unknown as Prisma.InputJsonValue,
-        supportStaff: (extracted.supportStaff ??
-          []) as unknown as Prisma.InputJsonValue,
+        },
+        supportStaff: extracted.supportStaff ?? [],
         room: extracted.room as unknown as Prisma.InputJsonValue,
         startTime: plan.nextStartTime,
         endTime: plan.nextEndTime,
@@ -1538,10 +1537,9 @@ export const AppointmentService = {
     try {
       created = await prisma.appointment.create({
         data: {
-          patient: appointment.patient as unknown as Prisma.InputJsonValue,
+          patient: appointment.patient,
           lead: appointment.lead as unknown as Prisma.InputJsonValue,
-          supportStaff: (appointment.supportStaff ??
-            []) as unknown as Prisma.InputJsonValue,
+          supportStaff: appointment.supportStaff ?? [],
           room: appointment.room as unknown as Prisma.InputJsonValue,
           appointmentType:
             appointment.appointmentType as unknown as Prisma.InputJsonValue,
@@ -1948,9 +1946,8 @@ export const AppointmentService = {
             id: leadVetId,
             name: extracted.leadVetName ?? "Vet",
             profileUrl,
-          } as unknown as Prisma.InputJsonValue,
-          supportStaff: (extracted.supportStaff ??
-            []) as unknown as Prisma.InputJsonValue,
+          },
+          supportStaff: extracted.supportStaff ?? [],
           room: extracted.room as unknown as Prisma.InputJsonValue,
           status: "UPCOMING",
           updatedAt: new Date(),

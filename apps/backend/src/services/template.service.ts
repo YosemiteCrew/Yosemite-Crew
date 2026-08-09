@@ -260,7 +260,7 @@ const mergeJsonObject = (
   patch: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> => ({
   ...(typeof base === "object" && base && !Array.isArray(base)
-    ? (base as Record<string, unknown>)
+    ? base
     : EMPTY_JSON_OBJECT),
   ...(patch ?? EMPTY_JSON_OBJECT),
 });
@@ -269,7 +269,7 @@ const toJsonInput = (
   value: unknown,
   fallback: Record<string, unknown> = {},
 ): Prisma.InputJsonValue => {
-  return (value ?? fallback) as Prisma.InputJsonValue;
+  return value ?? fallback;
 };
 
 const toNullableJsonInput = (
@@ -287,7 +287,7 @@ const toNullableJsonInput = (
     return Prisma.DbNull;
   }
 
-  return value as Prisma.InputJsonValue;
+  return value;
 };
 
 const buildRenderedDocumentSummary = (
@@ -375,7 +375,7 @@ const toStorageTemplateKind = (kind: TemplateContractKind | TemplateKind) => {
     case "CONSENT":
       return "FORM" as TemplateKind;
     default:
-      return kind as TemplateKind;
+      return kind;
   }
 };
 
@@ -1316,9 +1316,7 @@ export const TemplateService = {
 
       const version = await resolveTemplateVersion(bestMatch.template);
       return toResolveResponse(
-        bestMatch.template as NonNullable<
-          Awaited<ReturnType<typeof prisma.template.findFirst>>
-        >,
+        bestMatch.template,
         version,
         matchingInput,
         resolveCandidateReason(bucket, bestMatch.matched),

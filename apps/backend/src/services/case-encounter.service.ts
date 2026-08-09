@@ -563,7 +563,7 @@ const createPackageTemplateInstances = async (params: {
           productItemId: params.selection.productItemId,
           productKind: params.selection.productKind,
           templateKind: binding.templateKind,
-        } as Prisma.InputJsonValue,
+        },
         authorId: null,
       },
     });
@@ -740,7 +740,7 @@ const expandPackageTreatmentItems = async (params: {
     const createdPrescription = await params.tx.prescription.create({
       data: {
         artifactId: createdArtifact.id,
-        medications: medicationRows as Prisma.InputJsonValue,
+        medications: medicationRows,
         items: {
           create: medicationRows,
         },
@@ -750,7 +750,7 @@ const expandPackageTreatmentItems = async (params: {
           packageItemId: packageProductItemId,
           productKind: params.selection.productKind,
           sourceVersion: null,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
     packagePrescriptionId = createdPrescription.id;
@@ -1124,7 +1124,7 @@ export const CaseEncounterService = {
       },
     });
 
-    return toCaseDomain(created as CaseRow);
+    return toCaseDomain(created);
   },
 
   async updateCase(
@@ -1166,7 +1166,7 @@ export const CaseEncounterService = {
       },
     });
 
-    return toCaseDomain(updated as CaseRow);
+    return toCaseDomain(updated);
   },
 
   async getCaseById(
@@ -1182,7 +1182,7 @@ export const CaseEncounterService = {
     if (!row) {
       throw new CaseEncounterServiceError("Case not found.", 404);
     }
-    return toCaseDomain(row as CaseRow);
+    return toCaseDomain(row);
   },
 
   async listCases(filters: {
@@ -1328,7 +1328,7 @@ export const CaseEncounterService = {
     });
 
     return {
-      ...toEncounterDomain(created as EncounterRow),
+      ...toEncounterDomain(created),
       appointmentId: normalizeOptionalString(input.appointmentId),
     };
   },
@@ -1350,9 +1350,9 @@ export const CaseEncounterService = {
     assertPeriod(input.periodStart, input.periodEnd);
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const row = (await tx.encounter.findFirst({
+      const row = await tx.encounter.findFirst({
         where: { id, organisationId },
-      })) as EncounterRow | null;
+      });
       if (!row) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
       }
@@ -1430,7 +1430,7 @@ export const CaseEncounterService = {
         }
       }
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status,
@@ -1451,7 +1451,7 @@ export const CaseEncounterService = {
           periodStart: input.periodStart ?? undefined,
           periodEnd: input.periodEnd ?? undefined,
         },
-      })) as EncounterRow;
+      });
     });
 
     return (
@@ -1479,9 +1479,9 @@ export const CaseEncounterService = {
     let finalizationGate: WorkspaceFinalizationGate | null = null;
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findFirst({
+      const encounter = await tx.encounter.findFirst({
         where: { id, organisationId },
-      })) as EncounterRow | null;
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1554,13 +1554,13 @@ export const CaseEncounterService = {
         },
       });
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "finished",
           periodEnd: nextPeriodEnd,
         },
-      })) as EncounterRow;
+      });
     });
 
     const overrideReason = input?.overrideReason?.trim();
@@ -1630,9 +1630,9 @@ export const CaseEncounterService = {
     }
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findFirst({
+      const encounter = await tx.encounter.findFirst({
         where: { id, organisationId },
-      })) as EncounterRow | null;
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1819,9 +1819,9 @@ export const CaseEncounterService = {
     }
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findFirst({
+      const encounter = await tx.encounter.findFirst({
         where: { id, organisationId },
-      })) as EncounterRow | null;
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1837,7 +1837,7 @@ export const CaseEncounterService = {
       const alreadyStarted =
         encounter.status === "in-progress" || encounter.status === "onleave";
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "in-progress",
@@ -1845,7 +1845,7 @@ export const CaseEncounterService = {
             ? (encounter.periodStart ?? startedAt)
             : startedAt,
         },
-      })) as EncounterRow;
+      });
     });
 
     return (
@@ -1865,9 +1865,9 @@ export const CaseEncounterService = {
     );
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findFirst({
+      const encounter = await tx.encounter.findFirst({
         where: { id, organisationId },
-      })) as EncounterRow | null;
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1875,12 +1875,12 @@ export const CaseEncounterService = {
 
       assertEncounterIsOpen(encounter, "mark ready for discharge");
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "onleave",
         },
-      })) as EncounterRow;
+      });
     });
 
     await FinanceEventService.recordReadinessEvent({
@@ -1907,9 +1907,9 @@ export const CaseEncounterService = {
     );
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findFirst({
+      const encounter = await tx.encounter.findFirst({
         where: { id, organisationId },
-      })) as EncounterRow | null;
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1917,12 +1917,12 @@ export const CaseEncounterService = {
 
       assertEncounterIsOnLeave(encounter, "undo ready for discharge");
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "in-progress",
         },
-      })) as EncounterRow;
+      });
     });
 
     return (
@@ -1992,11 +1992,7 @@ export const CaseEncounterService = {
     if (!row) {
       throw new CaseEncounterServiceError("Encounter not found.", 404);
     }
-    return (
-      await attachEncounterAppointmentIds([
-        toEncounterDomain(row as EncounterRow),
-      ])
-    )[0];
+    return (await attachEncounterAppointmentIds([toEncounterDomain(row)]))[0];
   },
 
   async listEncounters(filters: {
