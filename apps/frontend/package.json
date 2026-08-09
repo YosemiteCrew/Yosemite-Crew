@@ -57,7 +57,7 @@
     "react-toastify": "^11.1.0",
     "recharts": "^3.10.1",
     "stream-chat": "^9.50.2",
-    "stream-chat-react": "^13.11.0",
+    "stream-chat-react": "^14.10.0",
     "supertokens-web-js": "^0.16.0",
     "validator": "^13.15.35",
     "zustand": "^5.0.14"
